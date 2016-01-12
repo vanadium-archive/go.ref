@@ -35,6 +35,12 @@ func TestCache(t *testing.T) {
 		RID:       naming.FixedRoutingID(0x5555),
 		Blessings: unionBlessing(ctx, "A", "B", "C"),
 	}
+	nullRemote := &inaming.Endpoint{
+		Protocol:  "tcp",
+		Address:   "127.0.0.1:1111",
+		RID:       naming.NullRoutingID,
+		Blessings: unionBlessing(ctx, "A", "B", "C"),
+	}
 
 	auth := flowtest.NewPeerAuthorizer(remote.Blessings)
 	caf := makeConnAndFlow(t, ctx, remote)
@@ -44,32 +50,32 @@ func TestCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	// We should be able to find the conn in the cache.
-	if got, err := c.ReservedFind(ctx, remote.Protocol, remote.Address, naming.NullRoutingID, auth); err != nil || got != conn {
+	if got, _, _, err := c.ReservedFind(ctx, nullRemote, remote.Protocol, remote.Address, auth); err != nil || got != conn {
 		t.Errorf("got %v, want %v, err: %v", got, conn, err)
 	}
 	c.Unreserve(remote.Protocol, remote.Address)
 	// Changing the protocol should fail.
-	if got, err := c.ReservedFind(ctx, "wrong", remote.Address, naming.NullRoutingID, auth); err != nil || got != nil {
+	if got, _, _, err := c.ReservedFind(ctx, nullRemote, "wrong", remote.Address, auth); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	c.Unreserve("wrong", remote.Address)
 	// Changing the address should fail.
-	if got, err := c.ReservedFind(ctx, remote.Protocol, "wrong", naming.NullRoutingID, auth); err != nil || got != nil {
+	if got, _, _, err := c.ReservedFind(ctx, nullRemote, remote.Protocol, "wrong", auth); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	c.Unreserve(remote.Protocol, "wrong")
 	// Changing the blessingNames should fail.
-	if got, err := c.ReservedFind(ctx, remote.Protocol, remote.Address, naming.NullRoutingID, flowtest.NewPeerAuthorizer([]string{"wrong"})); err != nil || got != nil {
+	if got, _, _, err := c.ReservedFind(ctx, nullRemote, remote.Protocol, remote.Address, flowtest.NewPeerAuthorizer([]string{"wrong"})); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	c.Unreserve(remote.Protocol, remote.Address)
 	// But finding a set of blessings that has at least one blessings in remote.Blessings should succeed.
-	if got, err := c.ReservedFind(ctx, remote.Protocol, remote.Address, naming.NullRoutingID, flowtest.NewPeerAuthorizer([]string{"foo", remote.Blessings[0]})); err != nil || got != conn {
+	if got, _, _, err := c.ReservedFind(ctx, nullRemote, remote.Protocol, remote.Address, flowtest.NewPeerAuthorizer([]string{"foo", remote.Blessings[0]})); err != nil || got != conn {
 		t.Errorf("got %v, want %v, err: %v", got, conn, err)
 	}
 	c.Unreserve(remote.Protocol, remote.Address)
 	// Finding by routing ID should work.
-	if got, err := c.ReservedFind(ctx, "wrong", "wrong", remote.RID, auth); err != nil || got != conn {
+	if got, _, _, err := c.ReservedFind(ctx, remote, "wrong", "wrong", auth); err != nil || got != conn {
 		t.Errorf("got %v, want %v, err: %v", got, conn, err)
 	}
 	c.Unreserve("wrong", "wrong")
@@ -82,6 +88,12 @@ func TestCache(t *testing.T) {
 		RID:       naming.FixedRoutingID(0x5555),
 		Blessings: unionBlessing(ctx, "A", "B", "C"),
 	}
+	nullProxyep := &inaming.Endpoint{
+		Protocol:  "tcp",
+		Address:   "127.0.0.1:2222",
+		RID:       naming.NullRoutingID,
+		Blessings: unionBlessing(ctx, "A", "B", "C"),
+	}
 	caf = makeConnAndFlow(t, ctx, proxyep)
 	defer caf.stop(ctx)
 	proxyConn := caf.c
@@ -89,7 +101,7 @@ func TestCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Wrong blessingNames should still work
-	if got, err := c.ReservedFind(ctx, proxyep.Protocol, proxyep.Address, naming.NullRoutingID, flowtest.NewPeerAuthorizer([]string{"wrong"})); err != nil || got != proxyConn {
+	if got, _, _, err := c.ReservedFind(ctx, nullProxyep, proxyep.Protocol, proxyep.Address, flowtest.NewPeerAuthorizer([]string{"wrong"})); err != nil || got != proxyConn {
 		t.Errorf("got %v, want %v, err: %v", got, proxyConn, err)
 	}
 	c.Unreserve(proxyep.Protocol, proxyep.Address)
@@ -101,6 +113,12 @@ func TestCache(t *testing.T) {
 		RID:       naming.FixedRoutingID(0x1111),
 		Blessings: unionBlessing(ctx, "ridonly"),
 	}
+	nullRIDEP := &inaming.Endpoint{
+		Protocol:  "ridonly",
+		Address:   "ridonly",
+		RID:       naming.NullRoutingID,
+		Blessings: unionBlessing(ctx, "ridonly"),
+	}
 	ridauth := flowtest.NewPeerAuthorizer(ridEP.Blessings)
 	caf = makeConnAndFlow(t, ctx, ridEP)
 	defer caf.stop(ctx)
@@ -108,12 +126,12 @@ func TestCache(t *testing.T) {
 	if err := c.InsertWithRoutingID(ridConn, false); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := c.ReservedFind(ctx, ridEP.Protocol, ridEP.Address, naming.NullRoutingID, ridauth); err != nil || got != nil {
+	if got, _, _, err := c.ReservedFind(ctx, nullRIDEP, ridEP.Protocol, ridEP.Address, ridauth); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	c.Unreserve(ridEP.Protocol, ridEP.Address)
 	// Finding by routing ID should work.
-	if got, err := c.ReservedFind(ctx, "wrong", "wrong", ridEP.RID, ridauth); err != nil || got != ridConn {
+	if got, _, _, err := c.ReservedFind(ctx, ridEP, "wrong", "wrong", ridauth); err != nil || got != ridConn {
 		t.Errorf("got %v, want %v, err: %v", got, ridConn, err)
 	}
 	c.Unreserve("wrong", "wrong")
@@ -124,19 +142,25 @@ func TestCache(t *testing.T) {
 		RID:       naming.FixedRoutingID(0x2222),
 		Blessings: unionBlessing(ctx, "other"),
 	}
+	nullOtherEP := &inaming.Endpoint{
+		Protocol:  "other",
+		Address:   "other",
+		RID:       naming.NullRoutingID,
+		Blessings: unionBlessing(ctx, "other"),
+	}
 	otherAuth := flowtest.NewPeerAuthorizer(otherEP.Blessings)
 	caf = makeConnAndFlow(t, ctx, otherEP)
 	defer caf.stop(ctx)
 	otherConn := caf.c
 
 	// Looking up a not yet inserted endpoint should fail.
-	if got, err := c.ReservedFind(ctx, otherEP.Protocol, otherEP.Address, naming.NullRoutingID, otherAuth); err != nil || got != nil {
+	if got, _, _, err := c.ReservedFind(ctx, nullOtherEP, otherEP.Protocol, otherEP.Address, otherAuth); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	// Looking it up again should block until a matching Unreserve call is made.
 	ch := make(chan *connpackage.Conn, 1)
 	go func(ch chan *connpackage.Conn) {
-		conn, err := c.ReservedFind(ctx, otherEP.Protocol, otherEP.Address, naming.NullRoutingID, otherAuth)
+		conn, _, _, err := c.ReservedFind(ctx, nullOtherEP, otherEP.Protocol, otherEP.Address, otherAuth)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -296,7 +320,7 @@ func TestLRU(t *testing.T) {
 
 func isInCache(t *testing.T, ctx *context.T, c *ConnCache, conn *connpackage.Conn) bool {
 	rep := conn.RemoteEndpoint()
-	rfconn, err := c.ReservedFind(ctx, rep.Addr().Network(), rep.Addr().String(), rep.RoutingID(), flowtest.NewPeerAuthorizer(rep.BlessingNames()))
+	rfconn, _, _, err := c.ReservedFind(ctx, rep, rep.Addr().Network(), rep.Addr().String(), flowtest.NewPeerAuthorizer(rep.BlessingNames()))
 	if err != nil {
 		t.Error(err)
 	}
@@ -354,7 +378,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	ach := make(chan *connpackage.Conn)
 	lBlessings := v23.GetPrincipal(ctx).BlessingStore().Default()
 	go func() {
-		d, err := connpackage.NewDialed(ctx, lBlessings, dmrw, ep, ep,
+		d, _, _, err := connpackage.NewDialed(ctx, lBlessings, dmrw, ep, ep,
 			version.RPCVersionRange{Min: 1, Max: 5},
 			flowtest.AllowAllPeersAuthorizer{},
 			time.Minute, 0, nil)
@@ -374,7 +398,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	}()
 	conn := <-dch
 	aconn := <-ach
-	f, err := conn.Dial(ctx, flowtest.AllowAllPeersAuthorizer{}, conn.RemoteEndpoint(), 0)
+	f, err := conn.Dial(ctx, conn.LocalBlessings(), nil, conn.RemoteEndpoint(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}

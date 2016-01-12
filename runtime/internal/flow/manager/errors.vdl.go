@@ -12,6 +12,9 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/verror"
+
+	// VDL user imports
+	"v.io/v23/security"
 )
 
 var (
@@ -24,6 +27,7 @@ var (
 	ErrManagerDialingSelf        = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ManagerDialingSelf", verror.NoRetry, "{1:}{2:} manager cannot be used to dial itself")
 	ErrListeningWithNullRid      = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ListeningWithNullRid", verror.NoRetry, "{1:}{2:} manager cannot listen when created with NullRoutingID")
 	ErrProxyResponse             = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ProxyResponse", verror.NoRetry, "{1:}{2:} proxy returned{:3}")
+	ErrNoBlessingsForPeer        = verror.Register("v.io/x/ref/runtime/internal/flow/manager.NoBlessingsForPeer", verror.NoRetry, "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
 )
 
 func init() {
@@ -36,6 +40,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrManagerDialingSelf.ID), "{1:}{2:} manager cannot be used to dial itself")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrListeningWithNullRid.ID), "{1:}{2:} manager cannot listen when created with NullRoutingID")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrProxyResponse.ID), "{1:}{2:} proxy returned{:3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoBlessingsForPeer.ID), "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
 }
 
 // NewErrUnknownProtocol returns an error with the ErrUnknownProtocol ID.
@@ -81,4 +86,9 @@ func NewErrListeningWithNullRid(ctx *context.T) error {
 // NewErrProxyResponse returns an error with the ErrProxyResponse ID.
 func NewErrProxyResponse(ctx *context.T, msg string) error {
 	return verror.New(ErrProxyResponse, ctx, msg)
+}
+
+// NewErrNoBlessingsForPeer returns an error with the ErrNoBlessingsForPeer ID.
+func NewErrNoBlessingsForPeer(ctx *context.T, peerNames []string, rejected []security.RejectedBlessing, err error) error {
+	return verror.New(ErrNoBlessingsForPeer, ctx, peerNames, rejected, err)
 }
