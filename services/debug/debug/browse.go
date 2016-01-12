@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"html"
 	"html/template"
@@ -15,6 +16,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -22,6 +24,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/logreader"
 	"v.io/v23/services/stats"
+	svtrace "v.io/v23/services/vtrace"
+	"v.io/v23/uniqueid"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
@@ -99,6 +103,8 @@ func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
 	http.Handle("/glob", &globHandler{ctx})
 	http.Handle(browseProfilesPath, &profilesHandler{ctx})
 	http.Handle(browseProfilesPath+"/", &profilesHandler{ctx})
+	http.Handle("/vtraces", &allTracesHandler{ctx})
+	http.Handle("/vtrace", &vtraceHandler{ctx})
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	addr := flagBrowseAddr
 	if len(addr) == 0 {
@@ -477,6 +483,228 @@ func (h *profilesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pproflib.PprofProxy(h.ctx, browseProfilesPath, name).ServeHTTP(w, r)
 }
 
+type allTracesHandler struct{ ctx *context.T }
+
+func (a *allTracesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		server = r.FormValue("n")
+		name   = naming.Join(server, "__debug", "vtrace")
+	)
+	if len(server) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Must specify a server with the URL query parameter 'n'")
+		return
+	}
+	ctx, tracer := newTracer(a.ctx)
+	stub := svtrace.StoreClient(name)
+
+	call, err := stub.AllTraces(ctx)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Failed to get all trace ids on %s: %v", name, err)
+		return
+	}
+	stream := call.RecvStream()
+	var traces []string
+	for stream.Advance() {
+		id := stream.Value().Id
+		traces = append(traces, hex.EncodeToString(id[:]))
+	}
+
+	data := struct {
+		Ids         []string
+		StreamError error
+		CallError   error
+		ServerName  string
+		CommandLine string
+		Vtrace      *Tracer
+	}{
+		Ids:         traces,
+		StreamError: stream.Err(),
+		CallError:   call.Finish(),
+		CommandLine: fmt.Sprintf("debug vtraces %q", name),
+		ServerName:  server,
+		Vtrace:      tracer,
+	}
+	executeTemplate(a.ctx, w, r, tmplBrowseAllTraces, data)
+}
+
+type divTree struct {
+	Id string
+	// Start is a value from 0-100 which is the percentage of time into the parent span's duration
+	// that this span started.
+	Start int
+	// Width is a value from 0-100 which is the percentage of time in the parent span's duration this span
+	// took
+	Width       int
+	Name        string
+	Annotations []annotation
+	Children    []divTree
+}
+
+type annotation struct {
+	// Position is a value from 0-100 which is the percentage of time into the span's duration that this
+	// annotation occured.
+	Position int
+	Msg      string
+}
+
+func convertToTree(n *vtrace.Node, parentStart time.Time, parentEnd time.Time) *divTree {
+	// If either start of end is missing, use the parent start/end.
+	startTime := n.Span.Start
+	if startTime.IsZero() {
+		startTime = parentStart
+	}
+
+	endTime := n.Span.End
+	if endTime.IsZero() {
+		endTime = parentEnd
+	}
+
+	parentDuration := parentEnd.Sub(parentStart).Seconds()
+	start := int(100 * startTime.Sub(parentStart).Seconds() / parentDuration)
+	end := int(100 * endTime.Sub(parentStart).Seconds() / parentDuration)
+	width := end - start
+	top := &divTree{
+		Id:    n.Span.Id.String(),
+		Start: start,
+		Width: width,
+		Name:  n.Span.Name,
+	}
+
+	top.Annotations = make([]annotation, len(n.Span.Annotations))
+	for i, a := range n.Span.Annotations {
+		top.Annotations[i].Msg = a.Message
+		if a.When.IsZero() {
+			top.Annotations[i].Position = 0
+			continue
+		}
+		top.Annotations[i].Position = int(100*a.When.Sub(parentStart).Seconds()/parentDuration) - start
+	}
+
+	top.Children = make([]divTree, len(n.Children))
+	for i, c := range n.Children {
+		top.Children[i] = *convertToTree(c, startTime, endTime)
+	}
+	return top
+
+}
+
+// findStartTime returns the start time of a node.  The start time is defined as either the span start if it exists
+// or the timestamp of the first annotation/sub span.
+func findStartTime(n *vtrace.Node) time.Time {
+	if !n.Span.Start.IsZero() {
+		return n.Span.Start
+	}
+	var startTime time.Time
+	for _, a := range n.Span.Annotations {
+		startTime = a.When
+		if !startTime.IsZero() {
+			break
+		}
+	}
+	for _, c := range n.Children {
+		childStartTime := findStartTime(c)
+		if startTime.IsZero() || (!childStartTime.IsZero() && startTime.After(childStartTime)) {
+			startTime = childStartTime
+		}
+		if !startTime.IsZero() {
+			break
+		}
+	}
+	return startTime
+}
+
+// findEndTime returns the end time of a node.  The end time is defined as either the span end if it exists
+// or the timestamp of the last annotation/sub span.
+func findEndTime(n *vtrace.Node) time.Time {
+	if !n.Span.End.IsZero() {
+		return n.Span.End
+	}
+
+	size := len(n.Span.Annotations)
+	var endTime time.Time
+	for i := range n.Span.Annotations {
+		endTime = n.Span.Annotations[size-1-i].When
+		if !endTime.IsZero() {
+			break
+		}
+	}
+
+	size = len(n.Children)
+	for i := range n.Children {
+		childEndTime := findEndTime(n.Children[size-1-i])
+		if endTime.IsZero() || (!childEndTime.IsZero() && childEndTime.After(endTime)) {
+			endTime = childEndTime
+		}
+		if !endTime.IsZero() {
+			break
+		}
+	}
+	return endTime
+}
+
+type vtraceHandler struct{ ctx *context.T }
+
+func (v *vtraceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		server  = r.FormValue("n")
+		traceId = r.FormValue("t")
+		name    = naming.Join(server, "__debug", "vtrace")
+	)
+	if len(server) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Must specify a server with the URL query parameter 'n'")
+		return
+	}
+
+	stub := svtrace.StoreClient(name)
+	ctx, tracer := newTracer(v.ctx)
+	id, err := uniqueid.FromHexString(traceId)
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Invalid trace id %s: %v", traceId, err)
+		return
+	}
+
+	trace, err := stub.Trace(ctx, id)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Unknown trace id: %s", traceId)
+		return
+	}
+
+	var buf bytes.Buffer
+
+	vtrace.FormatTrace(&buf, &trace, nil)
+	node := vtrace.BuildTree(&trace)
+
+	if node == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "coud not find root span for trace")
+		return
+	}
+
+	tree := convertToTree(node, findStartTime(node), findEndTime(node))
+	data := struct {
+		Id          string
+		Root        *divTree
+		ServerName  string
+		CommandLine string
+		DebugTrace  string
+		Vtrace      *Tracer
+	}{
+		Id:          traceId,
+		Root:        tree,
+		ServerName:  server,
+		CommandLine: fmt.Sprintf("debug vtraces %q", name),
+		Vtrace:      tracer,
+		DebugTrace:  buf.String(),
+	}
+	executeTemplate(v.ctx, w, r, tmplBrowseVtrace, data)
+}
+
 func writeEvent(w http.ResponseWriter, data string) {
 	fmt.Fprintf(w, "data: %s\n\n", strings.TrimSpace(data))
 }
@@ -490,6 +718,8 @@ func makeTemplate(name, content string) *template.Template {
 	content = "{{template `.header` .}}" + content + "{{template `.footer` .}}"
 	t := template.Must(tmplBrowseHeader.Clone())
 	t = template.Must(t.AddParseTree(tmplBrowseFooter.Name(), tmplBrowseFooter.Tree))
+	colors := []string{"red", "blue", "green"}
+	pos := 0
 	t = t.Funcs(template.FuncMap{
 		"verrorID":           verror.ErrorID,
 		"unmarshalPublicKey": security.UnmarshalPublicKey,
@@ -504,6 +734,11 @@ func makeTemplate(name, content string) *template.Template {
 			var ret interface{}
 			vdl.Convert(&ret, v)
 			return ret
+		},
+		"nextColor": func() string {
+			c := colors[pos]
+			pos = (pos + 1) % len(colors)
+			return c
 		},
 	})
 	t = template.Must(t.New(name).Parse(content))
@@ -781,6 +1016,62 @@ var (
   </div>
 </section>
 `)
+	tmplBrowseAllTraces = makeTemplate("alltraces", `
+<section class="section-center mdl-grid">
+  <ul>
+   {{$name := .ServerName}}
+   {{range .Ids}}
+   <li><a href="/vtrace?n={{$name}}&t={{.}}">{{.}}</a></li>
+   {{end}}
+  </ul>
+ </section>
+`)
+	tmplBrowseVtrace = makeTemplate("vtrace", `
+{{define ".span"}}
+<div style="position:relative;left:{{.Start}}%;width:{{.Width}}%;margin:0px;padding-top:2px;" id="div-{{.Id}}">
+  <!-- Root span -->
+  <div id="root" title="{{.Name}}" style="position:relative;width:100%;background:{{nextColor}};height:15px;display:block;margin:0px;padding:0px"></div>
+  {{range $i, $child := .Children}}
+  {{template ".span" $child}}
+  {{end}}
+</div>
+{{end}}
+{{define ".collapse-nav"}}
+<div id="tree-{{.Id}}" style="position:relative;left:5px">
+<div id='root' style="position:relative;height:15px;font:10pt" onclick='javascript:toggleTrace("{{.Id}}")'>{{if len .Children | lt 0}}{{len .Children}}{{end}}</div>
+{{range .Children}}
+{{template ".collapse-nav" .}}
+{{end}}
+</div>
+{{end}}
+<style type="text/css">
+.hide-children > :not(#root) {
+  display:none;
+}
+</style>
+<script language="javascript">
+function toggleTrace(id) {
+  var treeRoot = document.getElementById("tree-" + id);
+  treeRoot.classList.toggle('hide-children');
+  var divRoot = document.getElementById('div-' + id);
+  divRoot.classList.toggle('hide-children');
+}
+</script>
+<section class="section--center mdl-grid">
+  <h5>Vtrace for {{.Id}}</h5>
+  <pre>{{.DebugTrace}}</pre>
+  <div class="mdl-cell mdl-cell--12-col">
+  <div style="display:flex;flex-direction:row">
+  <div style="min-width:10%">
+  {{template ".collapse-nav" .Root}}
+  </div>
+  <div id="parent" style="width:80%">
+  {{template ".span" .Root}}
+  </div>
+  </div>
+  </div>
+</section>
+`)
 
 	tmplBrowseHeader = template.Must(template.New(".header").Parse(`
 {{define ".header"}}
@@ -813,6 +1104,7 @@ var (
           <a class="mdl-navigation__link" href="/logs?n={{.ServerName}}">Logs</a>
           <a class="mdl-navigation__link" href="/glob?n={{.ServerName}}">Glob</a>
           <a class="mdl-navigation__link" href="/profiles?n={{.ServerName}}">Profiles</a>
+          <a class="mdl-navigation__link" href="/vtraces?n={{.ServerName}}">Traces</a>
         </nav>
       </div>
     </header>
@@ -824,6 +1116,7 @@ var (
         <a class="mdl-navigation__link" href="/logs?n={{.ServerName}}">Logs</a>
         <a class="mdl-navigation__link" href="/glob?n={{.ServerName}}">Glob</a>
         <a class="mdl-navigation__link" href="/profiles?n={{.ServerName}}">Profiles</a>
+        <a class="mdl-navigation__link" href="/vtraces?n={{.ServerName}}">Traces</a>
       </nav>
     </div>
     <main class="mdl-layout__content">
