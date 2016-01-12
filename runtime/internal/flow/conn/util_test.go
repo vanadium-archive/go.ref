@@ -136,6 +136,6 @@ func (a peerAuthorizer) AuthorizePeer(
 
 func (a peerAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
 	security.Blessings, map[string]security.Discharge, error) {
-	dis, _ := securitylib.PrepareDischarges(ctx, a.blessings, security.DischargeImpetus{})
+	dis, _ := securitylib.PrepareDischarges(ctx, a.blessings, nil, "", nil)
 	return a.blessings, dis, nil
 }

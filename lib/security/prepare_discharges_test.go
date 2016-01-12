@@ -113,7 +113,7 @@ func TestPrepareDischarges(t *testing.T) {
 	// Fetch discharges for tpcav.
 	beforeFetch := time.Now()
 	discharges, refreshTime := securitylib.PrepareDischarges(cctx, cbless,
-		security.DischargeImpetus{})
+		nil, "", nil)
 	afterFetch := time.Now()
 	if len(discharges) != 2 {
 		t.Errorf("Got %d discharges, expected 2.", len(discharges))
@@ -135,7 +135,7 @@ func TestPrepareDischarges(t *testing.T) {
 	// Preparing Discharges again to get fresh discharges.
 	beforeFetch = time.Now()
 	discharges, refreshTime = securitylib.PrepareDischarges(cctx, cbless,
-		security.DischargeImpetus{})
+		nil, "", nil)
 	afterFetch = time.Now()
 	if len(discharges) != 2 {
 		t.Errorf("Got %d discharges, expected 2.", len(discharges))

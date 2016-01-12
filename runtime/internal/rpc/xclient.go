@@ -9,7 +9,6 @@ import (
 	"io"
 	"math/rand"
 	"net"
-	"reflect"
 	"sync"
 	"time"
 
@@ -22,7 +21,6 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/v23/vdl"
 	vtime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -249,28 +247,6 @@ func shouldRetry(action verror.ActionCode, requireResolve bool, deadline time.Ti
 	return true
 }
 
-func mkDischargeImpetus(serverBlessings []string, method string, args []interface{}) (security.DischargeImpetus, error) {
-	var impetus security.DischargeImpetus
-	if len(serverBlessings) > 0 {
-		impetus.Server = make([]security.BlessingPattern, len(serverBlessings))
-		for i, b := range serverBlessings {
-			impetus.Server[i] = security.BlessingPattern(b)
-		}
-	}
-	impetus.Method = method
-	if len(args) > 0 {
-		impetus.Arguments = make([]*vdl.Value, len(args))
-		for i, a := range args {
-			vArg, err := vdl.ValueFromReflect(reflect.ValueOf(a))
-			if err != nil {
-				return security.DischargeImpetus{}, err
-			}
-			impetus.Arguments[i] = vArg
-		}
-	}
-	return impetus, nil
-}
-
 type xserverStatus struct {
 	index          int
 	server, suffix string
@@ -414,11 +390,7 @@ func (x peerAuthorizer) BlessingsForPeer(ctx *context.T, peerNames []string) (
 	security.Blessings, map[string]security.Discharge, error) {
 	localPrincipal := v23.GetPrincipal(ctx)
 	clientB := localPrincipal.BlessingStore().ForPeer(peerNames...)
-	impetus, err := mkDischargeImpetus(peerNames, x.method, x.args)
-	if err != nil {
-		return security.Blessings{}, nil, err
-	}
-	dis, _ := slib.PrepareDischarges(ctx, clientB, impetus)
+	dis, _ := slib.PrepareDischarges(ctx, clientB, peerNames, x.method, x.args)
 	return clientB, dis, nil
 }
 
