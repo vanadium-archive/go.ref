@@ -21,7 +21,7 @@ import (
 	"v.io/x/ref"
 )
 
-var syncbaseDebugArgs = flag.String("v23test-syncbase-debug-args", "", "Args to add to syncbase invocations")
+var syncbaseDebugArgs = flag.String("v23test-syncbase-debug-args", "", "args to add to syncbased invocations; if non-empty, a -log_dir will be created automatically for each invocation")
 
 // TODO(sadovsky): Drop this hack once the TODOs in v23test.go are addressed.
 func maybeAddTcpAddressFlag(sh *Shell, args *[]string) {
@@ -82,7 +82,7 @@ func (sh *Shell) StartSyncbase(c *Credentials, name, rootDir, permsLiteral strin
 			sh.HandleError(err)
 			return nil
 		}
-		sh.Ctx.Infof("syncbased log dir for %s: %s", name, syncbaseLogDir)
+		sh.Ctx.Infof("syncbased -log_dir for %s: %s", name, syncbaseLogDir)
 		debugArgs := append(strings.Fields(*syncbaseDebugArgs), "-log_dir="+syncbaseLogDir)
 		args = append(args, debugArgs...)
 	}

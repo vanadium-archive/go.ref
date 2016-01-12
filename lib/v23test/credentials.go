@@ -20,27 +20,26 @@ import (
 // Vanadium security agent.
 type Credentials struct {
 	Handle    string
-	Principal security.Principal // equal to m.Principal(Handle)
-	m         principalManager
+	Principal security.Principal // equal to pm.Principal(Handle)
 }
 
 // newCredentials creates a new Credentials.
-func newCredentials(m principalManager) (*Credentials, error) {
-	h, err := m.New()
+func newCredentials(pm principalManager) (*Credentials, error) {
+	h, err := pm.New()
 	if err != nil {
 		return nil, err
 	}
-	p, err := m.Principal(h)
+	p, err := pm.Principal(h)
 	if err != nil {
 		return nil, err
 	}
-	return &Credentials{Handle: h, Principal: p, m: m}, nil
+	return &Credentials{Handle: h, Principal: p}, nil
 }
 
 // newRootCredentials creates a new Credentials with a self-signed "root"
 // blessing.
-func newRootCredentials(m principalManager) (*Credentials, error) {
-	res, err := newCredentials(m)
+func newRootCredentials(pm principalManager) (*Credentials, error) {
+	res, err := newCredentials(pm)
 	if err != nil {
 		return nil, err
 	}
@@ -50,32 +49,21 @@ func newRootCredentials(m principalManager) (*Credentials, error) {
 	return res, nil
 }
 
-func addDefaultBlessing(self, other security.Principal, extension string) error {
-	blessings, err := self.Bless(other.PublicKey(), self.BlessingStore().Default(), extension, security.UnconstrainedUse())
-	if err != nil {
-		return err
-	}
-	union, err := security.UnionOfBlessings(other.BlessingStore().Default(), blessings)
-	if err != nil {
-		return err
-	}
-	return libsec.SetDefaultBlessings(other, union)
-}
-
-// Fork creates a new Credentials (with a fresh principal) and blesses it with
-// the given extensions and no caveats, using this principal's default
-// blessings. In addition, it calls SetDefaultBlessings.
-func (c *Credentials) Fork(extensions ...string) (*Credentials, error) {
-	res, err := newCredentials(c.m)
-	if err != nil {
-		return nil, err
-	}
+func addDefaultBlessings(self, other security.Principal, extensions ...string) error {
 	for _, extension := range extensions {
-		if err := addDefaultBlessing(c.Principal, res.Principal, extension); err != nil {
-			return nil, err
+		blessings, err := self.Bless(other.PublicKey(), self.BlessingStore().Default(), extension, security.UnconstrainedUse())
+		if err != nil {
+			return err
+		}
+		union, err := security.UnionOfBlessings(other.BlessingStore().Default(), blessings)
+		if err != nil {
+			return err
+		}
+		if err := libsec.SetDefaultBlessings(other, union); err != nil {
+			return err
 		}
 	}
-	return res, nil
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -101,8 +89,8 @@ func newFilesystemPrincipalManager(rootDir string) principalManager {
 	return &filesystemPrincipalManager{rootDir: rootDir}
 }
 
-func (m *filesystemPrincipalManager) New() (string, error) {
-	dir, err := ioutil.TempDir(m.rootDir, "")
+func (pm *filesystemPrincipalManager) New() (string, error) {
+	dir, err := ioutil.TempDir(pm.rootDir, "")
 	if err != nil {
 		return "", err
 	}
@@ -132,17 +120,17 @@ func newAgentPrincipalManager(rootDir string) (principalManager, error) {
 	return &agentPrincipalManager{rootDir: rootDir, agent: agent}, nil
 }
 
-func (m *agentPrincipalManager) New() (string, error) {
-	id, err := m.agent.NewPrincipal(true)
+func (pm *agentPrincipalManager) New() (string, error) {
+	id, err := pm.agent.NewPrincipal(true)
 	if err != nil {
 		return "", err
 	}
-	dir, err := ioutil.TempDir(m.rootDir, "")
+	dir, err := ioutil.TempDir(pm.rootDir, "")
 	if err != nil {
 		return "", err
 	}
 	path := filepath.Join(dir, "sock")
-	if err := m.agent.ServePrincipal(id, path); err != nil {
+	if err := pm.agent.ServePrincipal(id, path); err != nil {
 		return "", err
 	}
 	return path, nil

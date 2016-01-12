@@ -8,12 +8,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"syscall"
 	"testing"
 
 	"v.io/v23"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/test/modules"
+	"v.io/x/ref/lib/v23test"
 )
 
 var cstderr io.Writer
@@ -24,60 +23,62 @@ func init() {
 	}
 }
 
-func newShell(t *testing.T) *modules.Shell {
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	return sh
+func writeln(w io.Writer, s string) {
+	w.Write([]byte(s + "\n"))
 }
 
 // TestSimpleServerSignal verifies that sending a signal to the simple server
 // causes it to exit cleanly.
 func TestSimpleServerSignal(t *testing.T) {
-	sh := newShell(t)
-	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start(nil, simpleServerProgram)
-	h.Expect("Ready")
-	syscall.Kill(h.Pid(), syscall.SIGINT)
-	h.Expect("Received signal interrupt")
-	h.Expect("Interruptible cleanup")
-	h.Expect("Deferred cleanup")
-	fmt.Fprintln(h.Stdin(), "close")
-	h.ExpectEOF()
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+	c := sh.Fn(simpleServerProgram)
+	stdin := c.StdinPipe()
+	c.Start()
+	c.S.Expect("Ready")
+	c.Signal(os.Interrupt)
+	c.S.Expect("Received signal interrupt")
+	c.S.Expect("Interruptible cleanup")
+	c.S.Expect("Deferred cleanup")
+	writeln(stdin, "close")
+	c.S.ExpectEOF()
 }
 
 // TestSimpleServerLocalStop verifies that sending a local stop command to the
 // simple server causes it to exit cleanly.
 func TestSimpleServerLocalStop(t *testing.T) {
-	sh := newShell(t)
-	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start(nil, simpleServerProgram)
-	h.Expect("Ready")
-	fmt.Fprintln(h.Stdin(), "stop")
-	h.Expect(fmt.Sprintf("Received signal %s", v23.LocalStop))
-	h.Expect("Interruptible cleanup")
-	h.Expect("Deferred cleanup")
-	fmt.Fprintln(h.Stdin(), "close")
-	h.ExpectEOF()
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+	c := sh.Fn(simpleServerProgram)
+	stdin := c.StdinPipe()
+	c.Start()
+	c.S.Expect("Ready")
+	writeln(stdin, "stop")
+	c.S.Expect(fmt.Sprintf("Received signal %s", v23.LocalStop))
+	c.S.Expect("Interruptible cleanup")
+	c.S.Expect("Deferred cleanup")
+	writeln(stdin, "close")
+	c.S.ExpectEOF()
 }
 
 // TestSimpleServerDoubleSignal verifies that sending a succession of two
 // signals to the simple server causes it to initiate the cleanup sequence on
 // the first signal and then exit immediately on the second signal.
 func TestSimpleServerDoubleSignal(t *testing.T) {
-	sh := newShell(t)
-	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start(nil, simpleServerProgram)
-	h.Expect("Ready")
-	syscall.Kill(h.Pid(), syscall.SIGINT)
-	h.Expect("Received signal interrupt")
-	syscall.Kill(h.Pid(), syscall.SIGINT)
-	err := h.Shutdown(os.Stdout, cstderr)
-	if err == nil {
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+	c := sh.Fn(simpleServerProgram)
+	c.ExitErrorIsOk = true
+	c.Start()
+	c.S.Expect("Ready")
+	c.Signal(os.Interrupt)
+	c.S.Expect("Received signal interrupt")
+	c.Signal(os.Interrupt)
+	c.Wait()
+	if c.Err == nil {
 		t.Fatalf("expected an error")
 	}
-	if got, want := err.Error(), fmt.Sprintf("exit status %d", signals.DoubleStopExitCode); got != want {
+	if got, want := c.Err.Error(), fmt.Sprintf("exit status %d", signals.DoubleStopExitCode); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -85,17 +86,20 @@ func TestSimpleServerDoubleSignal(t *testing.T) {
 // TestSimpleServerLocalForceStop verifies that sending a local ForceStop
 // command to the simple server causes it to exit immediately.
 func TestSimpleServerLocalForceStop(t *testing.T) {
-	sh := newShell(t)
-	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start(nil, simpleServerProgram)
-	h.Expect("Ready")
-	fmt.Fprintln(h.Stdin(), "forcestop")
-	h.Expect("straight exit")
-	err := h.Shutdown(os.Stdout, cstderr)
-	if err == nil {
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+	c := sh.Fn(simpleServerProgram)
+	stdin := c.StdinPipe()
+	c.ExitErrorIsOk = true
+	c.Start()
+	c.S.Expect("Ready")
+	writeln(stdin, "forcestop")
+	c.S.Expect("straight exit")
+	c.Wait()
+	if c.Err == nil {
 		t.Fatalf("expected an error")
 	}
-	if got, want := err.Error(), fmt.Sprintf("exit status %d", testForceStopExitCode); got != want {
+	if got, want := c.Err.Error(), fmt.Sprintf("exit status %d", testForceStopExitCode); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -103,16 +107,18 @@ func TestSimpleServerLocalForceStop(t *testing.T) {
 // TestSimpleServerKill demonstrates that a SIGKILL still forces the server
 // to exit regardless of our signal handling.
 func TestSimpleServerKill(t *testing.T) {
-	sh := newShell(t)
-	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start(nil, simpleServerProgram)
-	h.Expect("Ready")
-	syscall.Kill(h.Pid(), syscall.SIGKILL)
-	err := h.Shutdown(os.Stdout, cstderr)
-	if err == nil {
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+	c := sh.Fn(simpleServerProgram)
+	c.ExitErrorIsOk = true
+	c.Start()
+	c.S.Expect("Ready")
+	c.Signal(os.Kill)
+	c.Wait()
+	if c.Err == nil {
 		t.Fatalf("expected an error")
 	}
-	if got, want := err.Error(), "signal: killed"; got != want {
+	if got, want := c.Err.Error(), "signal: killed"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -122,20 +128,22 @@ func TestSimpleServerKill(t *testing.T) {
 // corresponding to all the simulated sequential/parallel and
 // blocking/interruptible shutdown steps), and then exits cleanly.
 func TestComplexServerSignal(t *testing.T) {
-	sh := newShell(t)
-	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start(nil, complexServerProgram)
-	h.Expect("Ready")
-	syscall.Kill(h.Pid(), syscall.SIGINT)
-	h.Expect("Received signal interrupt")
-	h.ExpectSetRE("Sequential blocking cleanup",
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+	c := sh.Fn(complexServerProgram)
+	stdin := c.StdinPipe()
+	c.Start()
+	c.S.Expect("Ready")
+	c.Signal(os.Interrupt)
+	c.S.Expect("Received signal interrupt")
+	c.S.ExpectSetRE("Sequential blocking cleanup",
 		"Sequential interruptible cleanup",
 		"Parallel blocking cleanup1",
 		"Parallel blocking cleanup2",
 		"Parallel interruptible cleanup1",
 		"Parallel interruptible cleanup2")
-	fmt.Fprintln(h.Stdin(), "close")
-	h.ExpectEOF()
+	writeln(stdin, "close")
+	c.S.ExpectEOF()
 }
 
 // TestComplexServerLocalStop verifies that sending a local stop command to the
@@ -143,14 +151,15 @@ func TestComplexServerSignal(t *testing.T) {
 // printouts corresponding to all the simulated sequential/parallel and
 // blocking/interruptible shutdown steps), and then exits cleanly.
 func TestComplexServerLocalStop(t *testing.T) {
-	sh := newShell(t)
-	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start(nil, complexServerProgram)
-	h.Expect("Ready")
-
-	fmt.Fprintln(h.Stdin(), "stop")
-	h.Expect(fmt.Sprintf("Stop %s", v23.LocalStop))
-	h.ExpectSetRE(
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+	c := sh.Fn(complexServerProgram)
+	stdin := c.StdinPipe()
+	c.Start()
+	c.S.Expect("Ready")
+	writeln(stdin, "stop")
+	c.S.Expect(fmt.Sprintf("Stop %s", v23.LocalStop))
+	c.S.ExpectSetRE(
 		"Sequential blocking cleanup",
 		"Sequential interruptible cleanup",
 		"Parallel blocking cleanup1",
@@ -158,8 +167,8 @@ func TestComplexServerLocalStop(t *testing.T) {
 		"Parallel interruptible cleanup1",
 		"Parallel interruptible cleanup2",
 	)
-	fmt.Fprintln(h.Stdin(), "close")
-	h.ExpectEOF()
+	writeln(stdin, "close")
+	c.S.ExpectEOF()
 }
 
 // TestComplexServerDoubleSignal verifies that sending a succession of two
@@ -169,22 +178,24 @@ func TestComplexServerLocalStop(t *testing.T) {
 // the corresponding printouts from the server).  Note that we have no
 // expectations on whether or not the interruptible shutdown steps execute.
 func TestComplexServerDoubleSignal(t *testing.T) {
-	sh := newShell(t)
-	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start(nil, complexServerProgram)
-	h.Expect("Ready")
-	syscall.Kill(h.Pid(), syscall.SIGINT)
-	h.Expect("Received signal interrupt")
-	syscall.Kill(h.Pid(), syscall.SIGINT)
-	h.ExpectSetEventuallyRE(
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+	c := sh.Fn(complexServerProgram)
+	c.ExitErrorIsOk = true
+	c.Start()
+	c.S.Expect("Ready")
+	c.Signal(os.Interrupt)
+	c.S.Expect("Received signal interrupt")
+	c.Signal(os.Interrupt)
+	c.S.ExpectSetEventuallyRE(
 		"Sequential blocking cleanup",
 		"Parallel blocking cleanup1",
 		"Parallel blocking cleanup2")
-	err := h.Shutdown(os.Stdout, cstderr)
-	if err == nil {
+	c.Wait()
+	if c.Err == nil {
 		t.Fatalf("expected an error")
 	}
-	if got, want := err.Error(), fmt.Sprintf("exit status %d", signals.DoubleStopExitCode); got != want {
+	if got, want := c.Err.Error(), fmt.Sprintf("exit status %d", signals.DoubleStopExitCode); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -192,17 +203,20 @@ func TestComplexServerDoubleSignal(t *testing.T) {
 // TestComplexServerLocalForceStop verifies that sending a local ForceStop
 // command to the complex server forces it to exit immediately.
 func TestComplexServerLocalForceStop(t *testing.T) {
-	sh := newShell(t)
-	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start(nil, complexServerProgram)
-	h.Expect("Ready")
-	fmt.Fprintln(h.Stdin(), "forcestop")
-	h.Expect("straight exit")
-	err := h.Shutdown(os.Stdout, cstderr)
-	if err == nil {
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+	c := sh.Fn(complexServerProgram)
+	stdin := c.StdinPipe()
+	c.ExitErrorIsOk = true
+	c.Start()
+	c.S.Expect("Ready")
+	writeln(stdin, "forcestop")
+	c.S.Expect("straight exit")
+	c.Wait()
+	if c.Err == nil {
 		t.Fatalf("expected an error")
 	}
-	if got, want := err.Error(), fmt.Sprintf("exit status %d", testForceStopExitCode); got != want {
+	if got, want := c.Err.Error(), fmt.Sprintf("exit status %d", testForceStopExitCode); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -210,16 +224,18 @@ func TestComplexServerLocalForceStop(t *testing.T) {
 // TestComplexServerKill demonstrates that a SIGKILL still forces the server to
 // exit regardless of our signal handling.
 func TestComplexServerKill(t *testing.T) {
-	sh := newShell(t)
-	defer sh.Cleanup(os.Stdout, cstderr)
-	h, _ := sh.Start(nil, complexServerProgram)
-	h.Expect("Ready")
-	syscall.Kill(h.Pid(), syscall.SIGKILL)
-	err := h.Shutdown(os.Stdout, cstderr)
-	if err == nil {
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+	c := sh.Fn(complexServerProgram)
+	c.ExitErrorIsOk = true
+	c.Start()
+	c.S.Expect("Ready")
+	c.Signal(os.Kill)
+	c.Wait()
+	if c.Err == nil {
 		t.Fatalf("expected an error")
 	}
-	if got, want := err.Error(), "signal: killed"; got != want {
+	if got, want := c.Err.Error(), "signal: killed"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }

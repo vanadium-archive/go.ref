@@ -435,7 +435,7 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %#v", err)
 	}
-	expectedInBps := []security.BlessingPattern{"self:$", "self:shell:$", "self:shell:child"}
+	expectedInBps := []security.BlessingPattern{"self:$", "self:child"}
 	expected := access.Permissions{
 		"Admin":   access.AccessList{In: expectedInBps, NotIn: []string{}},
 		"Read":    access.AccessList{In: expectedInBps, NotIn: []string{}},
@@ -457,7 +457,7 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %#v", err)
 	}
-	expectedInBps = []security.BlessingPattern{"self:$", "self:shell:$", "self:shell:child"}
+	expectedInBps = []security.BlessingPattern{"self:$", "self:child"}
 	expected = access.Permissions{
 		"Admin":   access.AccessList{In: expectedInBps, NotIn: []string{}},
 		"Read":    access.AccessList{In: expectedInBps, NotIn: []string{"self"}},

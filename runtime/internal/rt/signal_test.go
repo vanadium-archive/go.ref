@@ -7,78 +7,62 @@ package rt_test
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"syscall"
 	"testing"
-	"time"
 
+	"v.io/x/lib/gosh"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/modules"
 )
 
-func simpleEchoProgram(stdin io.Reader, stdout io.Writer) {
-	fmt.Fprintf(stdout, "ready\n")
-	scanner := bufio.NewScanner(stdin)
+func simpleEchoProgram() {
+	fmt.Printf("ready\n")
+	scanner := bufio.NewScanner(os.Stdin)
 	if scanner.Scan() {
-		fmt.Fprintf(stdout, "%s\n", scanner.Text())
+		fmt.Printf("%s\n", scanner.Text())
 	}
-	modules.WaitForEOF(stdin)
+	<-signals.ShutdownOnSignals(nil)
 }
 
-var withRuntime = modules.Register(func(env *modules.Env, args ...string) error {
+var withRuntime = gosh.Register("withRuntime", func() {
 	_, shutdown := test.V23Init()
 	defer shutdown()
+	simpleEchoProgram()
+})
 
-	simpleEchoProgram(env.Stdin, env.Stdout)
-	return nil
-}, "withRuntime")
-
-var withoutRuntime = modules.Register(func(env *modules.Env, args ...string) error {
-	simpleEchoProgram(env.Stdin, env.Stdout)
-	return nil
-}, "withoutRuntime")
+var withoutRuntime = gosh.Register("withoutRuntime", func() {
+	simpleEchoProgram()
+})
 
 func TestWithRuntime(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start(nil, withRuntime)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer h.Shutdown(os.Stderr, os.Stderr)
-	h.Expect("ready")
-	syscall.Kill(h.Pid(), syscall.SIGHUP)
-	h.Stdin().Write([]byte("foo\n"))
-	h.Expect("foo")
-	h.CloseStdin()
-	h.ExpectEOF()
+	sh := v23test.NewShell(t, v23test.Opts{PropagateChildOutput: true})
+	defer sh.Cleanup()
+
+	c := sh.Fn(withRuntime)
+	stdin := c.StdinPipe()
+	c.Start()
+	c.S.Expect("ready")
+	// The Vanadium runtime spawns a goroutine that listens for SIGHUP and
+	// prevents process exit.
+	c.Signal(syscall.SIGHUP)
+	stdin.Write([]byte("foo\n"))
+	c.S.Expect("foo")
+	c.Shutdown(os.Interrupt)
+	c.S.ExpectEOF()
 }
 
 func TestWithoutRuntime(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(os.Stderr, os.Stderr)
-	opts := sh.DefaultStartOpts()
-	opts.ShutdownTimeout = 5 * time.Second
-	h, err := sh.StartWithOpts(opts, nil, withoutRuntime)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer h.Shutdown(os.Stderr, os.Stderr)
-	h.Expect("ready")
-	syscall.Kill(h.Pid(), syscall.SIGHUP)
-	h.ExpectEOF()
-	err = h.Shutdown(os.Stderr, os.Stderr)
-	want := "exit status 2"
-	if err == nil || err.Error() != want {
-		t.Errorf("got %s, want %s", err, want)
+	sh := v23test.NewShell(t, v23test.Opts{PropagateChildOutput: true})
+	defer sh.Cleanup()
 
-	}
+	c := sh.Fn(withoutRuntime)
+	c.ExitErrorIsOk = true
+	c.Start()
+	c.S.Expect("ready")
+	// Processes without a Vanadium runtime should exit on SIGHUP.
+	c.Shutdown(syscall.SIGHUP)
+	c.S.ExpectEOF()
 }

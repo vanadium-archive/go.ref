@@ -10,17 +10,18 @@ import (
 	"os"
 	"regexp"
 	"testing"
-	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
+	"v.io/x/lib/envvar"
+	"v.io/x/lib/gosh"
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
 	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/expect"
-	"v.io/x/ref/test/modules"
 )
 
 func TestInit(t *testing.T) {
@@ -51,29 +52,25 @@ func TestInit(t *testing.T) {
 	}
 }
 
-var child = modules.Register(func(env *modules.Env, args ...string) error {
+var child = gosh.Register("child", func() {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	mgr := logger.Manager(ctx)
 	ctx.Infof("%s\n", mgr)
-	fmt.Fprintf(env.Stdout, "%s\n", mgr)
-	modules.WaitForEOF(env.Stdin)
-	fmt.Fprintf(env.Stdout, "done\n")
-	return nil
-}, "child")
+	fmt.Printf("%s\n", mgr)
+	<-signals.ShutdownOnSignals(ctx)
+})
 
 func TestInitArgs(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start(nil, child, "--logtostderr=true", "--vmodule=*=3", "--", "foobar")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	h.Expect(fmt.Sprintf("name=vlog "+
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+
+	c := sh.Fn(child)
+	c.Args = append(c.Args, "--logtostderr=true", "--vmodule=*=3", "--", "foobar")
+	c.PropagateOutput = true
+	c.Start()
+	c.S.Expect(fmt.Sprintf("name=vlog "+
 		"logdirs=[%s] "+
 		"logtostderr=true "+
 		"alsologtostderr=true "+
@@ -84,10 +81,8 @@ func TestInitArgs(t *testing.T) {
 		"vfilepath= "+
 		"log_backtrace_at=:0",
 		os.TempDir()))
-	h.CloseStdin()
-	h.Expect("done")
-	h.ExpectEOF()
-	h.Shutdown(os.Stderr, os.Stderr)
+	c.Shutdown(os.Interrupt)
+	c.S.ExpectEOF()
 }
 
 func validatePrincipal(p security.Principal) error {
@@ -120,7 +115,7 @@ func tmpDir(t *testing.T) string {
 	return dir
 }
 
-var principal = modules.Register(func(env *modules.Env, args ...string) error {
+var principal = gosh.Register("principal", func() error {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -128,32 +123,32 @@ var principal = modules.Register(func(env *modules.Env, args ...string) error {
 	if err := validatePrincipal(p); err != nil {
 		return err
 	}
-	fmt.Fprintf(env.Stdout, "DEFAULT_BLESSING=%s\n", defaultBlessing(p))
+	fmt.Printf("DEFAULT_BLESSING=%s\n", defaultBlessing(p))
 	return nil
-}, "principal")
+})
 
-// Runner runs a principal as a subprocess and reports back with its
-// own security info and it's childs.
-var runner = modules.Register(func(env *modules.Env, args ...string) error {
+// Runner runs 'principal' in a subprocess, then reports back with its own
+// security info as well as its child's.
+var runner = gosh.Register("runner", func() error {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	p := v23.GetPrincipal(ctx)
+	sh := v23test.NewShell(nil, v23test.Opts{Ctx: ctx})
+	defer sh.Cleanup()
+
+	p := v23.GetPrincipal(sh.Ctx)
 	if err := validatePrincipal(p); err != nil {
 		return err
 	}
-	fmt.Fprintf(env.Stdout, "RUNNER_DEFAULT_BLESSING=%v\n", defaultBlessing(p))
-	sh, err := modules.NewShell(ctx, p, false, nil)
-	if err != nil {
-		return err
-	}
-	if _, err := sh.Start(nil, principal, args...); err != nil {
-		return err
-	}
-	// Cleanup copies the output of sh to these Writers.
-	sh.Cleanup(env.Stdout, env.Stderr)
+	fmt.Printf("RUNNER_DEFAULT_BLESSING=%v\n", defaultBlessing(p))
+	c := sh.Fn(principal)
+	// Make sure the child gets its credentials from this shell (via agent), not
+	// from the original EnvCredentials env var.
+	delete(c.Vars, ref.EnvCredentials)
+	c.PropagateOutput = true
+	c.Run()
 	return nil
-}, "runner")
+})
 
 func createCredentialsInDir(t *testing.T, dir string, blessing string) {
 	principal, err := vsecurity.CreatePersistentPrincipal(dir, nil)
@@ -166,115 +161,92 @@ func createCredentialsInDir(t *testing.T, dir string, blessing string) {
 }
 
 func TestPrincipalInheritance(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer func() {
-		sh.Cleanup(os.Stdout, os.Stderr)
-	}()
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
 
 	// Test that the child inherits from the parent's credentials correctly.
 	// The running test process may or may not have a credentials directory set
-	// up so we have to use a 'runner' process to ensure the correct setup.
+	// up, so we have to use a 'runner' process to ensure the correct setup.
 	cdir := tmpDir(t)
 	defer os.RemoveAll(cdir)
 
 	createCredentialsInDir(t, cdir, "test")
 
-	// directory supplied by the environment.
-	credEnv := []string{ref.EnvCredentials + "=" + cdir}
+	// Directory supplied by the environment.
+	c := sh.Fn(runner)
+	c.Vars[ref.EnvCredentials] = cdir
+	c.Start()
 
-	h, err := sh.Start(credEnv, runner)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
-	runnerBlessing := h.ExpectVar("RUNNER_DEFAULT_BLESSING")
-	principalBlessing := h.ExpectVar("DEFAULT_BLESSING")
-	if err := h.Error(); err != nil {
+	runnerBlessing := c.S.ExpectVar("RUNNER_DEFAULT_BLESSING")
+	principalBlessing := c.S.ExpectVar("DEFAULT_BLESSING")
+	if err := c.S.Error(); err != nil {
 		t.Fatalf("failed to read input from children: %s", err)
 	}
-	h.Shutdown(os.Stdout, os.Stderr)
+	c.Wait()
 
 	wantRunnerBlessing := "test"
 	wantPrincipalBlessing := "test:child"
 	if runnerBlessing != wantRunnerBlessing || principalBlessing != wantPrincipalBlessing {
 		t.Fatalf("unexpected default blessing: got runner %s, principal %s, want runner %s, principal %s", runnerBlessing, principalBlessing, wantRunnerBlessing, wantPrincipalBlessing)
 	}
-
 }
 
 func TestPrincipalInit(t *testing.T) {
-	// Collect the process' public key and error status
-	collect := func(sh *modules.Shell, env []string, args ...string) string {
-		h, err := sh.Start(env, principal, args...)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		s := expect.NewSession(t, h.Stdout(), time.Minute)
-		s.SetVerbosity(testing.Verbose())
-		return s.ExpectVar("DEFAULT_BLESSING")
+	// Runs the principal function and returns the child's default blessing.
+	collect := func(sh *v23test.Shell, extraVars map[string]string, extraArgs ...string) string {
+		c := sh.Fn(principal)
+		c.Vars = envvar.MergeMaps(c.Vars, extraVars)
+		c.Args = append(c.Args, extraArgs...)
+		c.Start()
+		return c.S.ExpectVar("DEFAULT_BLESSING")
 	}
 
-	// A credentials directory may, or may, not have been already specified.
-	// Either way, we want to use our own, so we set it aside and use our own.
-	origCredentialsDir := os.Getenv(ref.EnvCredentials)
-	defer os.Setenv(ref.EnvCredentials, origCredentialsDir)
-	if err := os.Setenv(ref.EnvCredentials, ""); err != nil {
+	// Set aside any credentials dir specified via env.
+	origEnvCredentials := os.Getenv(ref.EnvCredentials)
+	defer os.Setenv(ref.EnvCredentials, origEnvCredentials)
+	if err := os.Unsetenv(ref.EnvCredentials); err != nil {
 		t.Fatal(err)
 	}
 
-	// We create two shells -- one initializing the principal for a child process
-	// via a credentials directory and the other via an agent.
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(os.Stderr, os.Stderr)
+	// Note, v23test.Shell uses the agent to pass credentials to its children.
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
 
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-
-	agentSh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx), testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+	// Test that the shell uses the EnvAgentPath, not EnvCredentials, to pass
+	// credentials to its children.
+	c := sh.Fn(principal)
+	if _, ok := c.Vars[ref.EnvCredentials]; ok {
+		t.Fatal("Did not expect child to have EnvCredentials set")
 	}
-	defer agentSh.Cleanup(os.Stderr, os.Stderr)
-
-	// Test that with ref.EnvCredentials unset the runtime's Principal
-	// is correctly initialized for both shells.
-	if len(collect(sh, nil)) == 0 {
-		t.Fatalf("Without agent: child returned an empty default blessings set")
-	}
-	if got, want := collect(agentSh, nil), test.TestBlessing+security.ChainSeparator+"child"; got != want {
-		t.Fatalf("With agent: got %q, want %q", got, want)
+	if _, ok := c.Vars[ref.EnvAgentPath]; !ok {
+		t.Fatal("Expected child to have EnvAgentPath set")
 	}
 
-	// Test that credentials specified via the ref.EnvCredentials
-	// environment variable take precedence over an agent.
+	// Test that with ref.EnvCredentials unset, the child runtime's principal is
+	// initialized as expected.
+	if got, want := collect(sh, nil), "root:child"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+
+	// Test that credentials specified via the ref.EnvCredentials environment
+	// variable take precedence over credentials from ref.EnvAgentPath.
 	cdir1 := tmpDir(t)
 	defer os.RemoveAll(cdir1)
 	createCredentialsInDir(t, cdir1, "test_env")
-	credEnv := []string{ref.EnvCredentials + "=" + cdir1}
+	credEnv := map[string]string{ref.EnvCredentials: cdir1}
 
 	if got, want := collect(sh, credEnv), "test_env"; got != want {
-		t.Errorf("Without agent: got default blessings: %q, want %q", got, want)
-	}
-	if got, want := collect(agentSh, credEnv), "test_env"; got != want {
-		t.Errorf("With agent: got default blessings: %q, want %q", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 
-	// Test that credentials specified via the command line take precedence over the
-	// ref.EnvCredentials environment variable and also the agent.
+	// Test that credentials specified via the command line (--v23.credentials)
+	// take precedence over the ref.EnvCredentials and ref.EnvAgentPath
+	// environment variables.
 	cdir2 := tmpDir(t)
 	defer os.RemoveAll(cdir2)
 	createCredentialsInDir(t, cdir2, "test_cmd")
 
 	if got, want := collect(sh, credEnv, "--v23.credentials="+cdir2), "test_cmd"; got != want {
-		t.Errorf("Without agent: got %q, want %q", got, want)
-	}
-	if got, want := collect(agentSh, credEnv, "--v23.credentials="+cdir2), "test_cmd"; got != want {
-		t.Errorf("With agent: got %q, want %q", got, want)
+		t.Errorf("got %q, want %q", got, want)
 	}
 }

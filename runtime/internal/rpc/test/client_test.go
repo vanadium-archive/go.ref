@@ -57,6 +57,7 @@ func testInit(t *testing.T, startServer bool) (sh *v23test.Shell, ctx *context.T
 ////////////////////////////////////////
 // Root mount table
 
+// TODO(sadovsky): Switch to using v23test.Shell.StartRootMountTable.
 var rootMT = gosh.Register("rootMT", func(deb bool) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()

@@ -16,10 +16,10 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/x/lib/gosh"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/modules"
 )
 
 type dummy struct{}
@@ -52,7 +52,7 @@ func remoteCmdLoop(ctx *context.T, stdin io.Reader) func() {
 // complex server application (with several servers, a mix of interruptible
 // and blocking cleanup, and parallel and sequential cleanup execution).
 // For a more typical server, see simpleServerProgram.
-var complexServerProgram = modules.Register(func(env *modules.Env, args ...string) error {
+var complexServerProgram = gosh.Register("complexServerProgram", func() {
 	// Initialize the runtime.  This is boilerplate.
 	ctx, shutdown := test.V23Init()
 	// shutdown is optional, but it's a good idea to clean up, especially
@@ -63,7 +63,7 @@ var complexServerProgram = modules.Register(func(env *modules.Env, args ...strin
 	// commands from the parent process to simulate Stop and
 	// RemoteStop commands that would normally be issued from
 	// application code.
-	defer remoteCmdLoop(ctx, env.Stdin)()
+	defer remoteCmdLoop(ctx, os.Stdin)()
 
 	// Create a couple servers, and start serving.
 	ctx, server1, err := v23.WithNewServer(ctx, "", &dummy{}, nil)
@@ -103,9 +103,9 @@ var complexServerProgram = modules.Register(func(env *modules.Env, args ...strin
 		case sig := <-sigChan:
 			// If the developer wants to take different actions
 			// depending on the type of signal, they can do it here.
-			fmt.Fprintln(env.Stdout, "Received signal", sig)
+			fmt.Println("Received signal", sig)
 		case stop := <-stopChan:
-			fmt.Fprintln(env.Stdout, "Stop", stop)
+			fmt.Println("Stop", stop)
 		}
 		// This commences the cleanup stage.
 		done.Done()
@@ -123,7 +123,7 @@ var complexServerProgram = modules.Register(func(env *modules.Env, args ...strin
 	// This communicates to the parent test driver process in our unit test
 	// that this server is ready and waiting on signals or stop commands.
 	// It's purely an artifact of our test setup.
-	fmt.Fprintln(env.Stdout, "Ready")
+	fmt.Println("Ready")
 
 	// Wait for shutdown.
 	done.Wait()
@@ -159,7 +159,7 @@ var complexServerProgram = modules.Register(func(env *modules.Env, args ...strin
 	parallelCleanup.Add(1)
 	blocking.Add(1)
 	go func() {
-		fmt.Fprintln(env.Stdout, "Parallel blocking cleanup1")
+		fmt.Println("Parallel blocking cleanup1")
 		blocking.Done()
 		parallelCleanup.Done()
 	}()
@@ -167,40 +167,39 @@ var complexServerProgram = modules.Register(func(env *modules.Env, args ...strin
 	parallelCleanup.Add(1)
 	blocking.Add(1)
 	go func() {
-		fmt.Fprintln(env.Stdout, "Parallel blocking cleanup2")
+		fmt.Println("Parallel blocking cleanup2")
 		blocking.Done()
 		parallelCleanup.Done()
 	}()
 
 	parallelCleanup.Add(1)
 	go func() {
-		fmt.Fprintln(env.Stdout, "Parallel interruptible cleanup1")
+		fmt.Println("Parallel interruptible cleanup1")
 		parallelCleanup.Done()
 	}()
 
 	parallelCleanup.Add(1)
 	go func() {
-		fmt.Fprintln(env.Stdout, "Parallel interruptible cleanup2")
+		fmt.Println("Parallel interruptible cleanup2")
 		parallelCleanup.Done()
 	}()
 
 	// Simulate two sequential cleanup steps, one blocking and one
 	// interruptible.
-	fmt.Fprintln(env.Stdout, "Sequential blocking cleanup")
+	fmt.Println("Sequential blocking cleanup")
 	blocking.Wait()
 	close(blockingCh)
 
-	fmt.Fprintln(env.Stdout, "Sequential interruptible cleanup")
+	fmt.Println("Sequential interruptible cleanup")
 
 	parallelCleanup.Wait()
-	return nil
-}, "complexServerProgram")
+})
 
 // simpleServerProgram demonstrates the recommended way to write a typical
 // simple server application (with one server and a clean shutdown triggered by
 // a signal or a stop command).  For an example of something more involved, see
 // complexServerProgram.
-var simpleServerProgram = modules.Register(func(env *modules.Env, args ...string) error {
+var simpleServerProgram = gosh.Register("simpleServerProgram", func() {
 	// Initialize the runtime.  This is boilerplate.
 	ctx, shutdown := test.V23Init()
 	// Calling shutdown is optional, but it's a good idea to clean up, especially
@@ -215,7 +214,7 @@ var simpleServerProgram = modules.Register(func(env *modules.Env, args ...string
 	// commands from the parent process to simulate Stop and
 	// RemoteStop commands that would normally be issued from
 	// application code.
-	defer remoteCmdLoop(ctx, env.Stdin)()
+	defer remoteCmdLoop(ctx, os.Stdin)()
 
 	// Create a server, and start serving.
 	ctx, server, err := v23.WithNewServer(ctx, "", &dummy{}, nil)
@@ -234,17 +233,17 @@ var simpleServerProgram = modules.Register(func(env *modules.Env, args ...string
 	// This communicates to the parent test driver process in our unit test
 	// that this server is ready and waiting on signals or stop commands.
 	// It's purely an artifact of our test setup.
-	fmt.Fprintln(env.Stdout, "Ready")
+	fmt.Println("Ready")
 
 	// Use defer for anything that should still execute even if a panic
 	// occurs.
-	defer fmt.Fprintln(env.Stdout, "Deferred cleanup")
+	defer fmt.Println("Deferred cleanup")
 
 	// Wait for shutdown.
 	sig := <-waiter
 	// The developer could take different actions depending on the type of
 	// signal.
-	fmt.Fprintln(env.Stdout, "Received signal", sig)
+	fmt.Println("Received signal", sig)
 
 	// Cleanup code starts here.  Alternatively, these steps could be
 	// invoked through defer, but we list them here to make the order of
@@ -256,7 +255,5 @@ var simpleServerProgram = modules.Register(func(env *modules.Env, args ...string
 	// Note, this will not execute in cases of forced shutdown
 	// (e.g. SIGSTOP), when the process calls os.Exit (e.g. via log.Fatal),
 	// or when a panic occurs.
-	fmt.Fprintln(env.Stdout, "Interruptible cleanup")
-
-	return nil
-}, "simpleServerProgram")
+	fmt.Println("Interruptible cleanup")
+})

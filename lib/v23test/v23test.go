@@ -37,13 +37,13 @@ const (
 	useAgent            = true
 )
 
-var envCredentials string
+var envPrincipal string
 
 func init() {
 	if useAgent {
-		envCredentials = ref.EnvAgentPath
+		envPrincipal = ref.EnvAgentPath
 	} else {
-		envCredentials = ref.EnvCredentials
+		envPrincipal = ref.EnvCredentials
 	}
 }
 
@@ -74,16 +74,16 @@ func (c *Cmd) Clone() *Cmd {
 // credentials.
 func (c *Cmd) WithCredentials(cr *Credentials) *Cmd {
 	res := c.Clone()
-	res.Vars[envCredentials] = cr.Handle
+	res.Vars[envPrincipal] = cr.Handle
 	return res
 }
 
 // Shell wraps gosh.Shell and provides Vanadium-specific functionality.
 type Shell struct {
 	*gosh.Shell
-	Ctx         *context.T
-	Credentials *Credentials
-	t           *testing.T
+	Ctx *context.T
+	t   *testing.T
+	pm  principalManager
 }
 
 // Opts augments gosh.Opts with Vanadium-specific options. See gosh.Opts for
@@ -126,13 +126,19 @@ func NewShell(t *testing.T, opts Opts) *Shell {
 	if sh.Err != nil {
 		return sh
 	}
+	if sh.t != nil {
+		sh.Vars[envShellTestProcess] = "1"
+	}
 
 	// Temporarily make Fatalf non-fatal so that we can safely call gosh.Shell
 	// functions and clean up on any error.
 	oldFatalf := sh.Opts.Fatalf
 	sh.Opts.Fatalf = nil
 
-	err := initCtxAndCredentials(t, sh, opts.Ctx)
+	err := sh.initPrincipalManager()
+	if err == nil {
+		err = sh.initCtx(opts.Ctx)
+	}
 
 	// Restore Fatalf, then defer Cleanup and call HandleError if there was an
 	// error. (Note, HandleError panics if Cleanup has been called.)
@@ -151,12 +157,19 @@ func NewShell(t *testing.T, opts Opts) *Shell {
 // default blessings. Additionally, it calls SetDefaultBlessings.
 func (sh *Shell) ForkCredentials(extensions ...string) *Credentials {
 	sh.Ok()
-	res, err := sh.Credentials.Fork(extensions...)
-	sh.HandleError(err)
-	return res
+	creds, err := newCredentials(sh.pm)
+	if err != nil {
+		sh.HandleError(err)
+		return nil
+	}
+	if err := addDefaultBlessings(v23.GetPrincipal(sh.Ctx), creds.Principal, extensions...); err != nil {
+		sh.HandleError(err)
+		return nil
+	}
+	return creds
 }
 
-// ForkContext creates a new Context with forked credentials.
+// ForkContext creates a new context with forked credentials.
 func (sh *Shell) ForkContext(extensions ...string) *context.T {
 	sh.Ok()
 	c := sh.ForkCredentials(extensions...)
@@ -204,7 +217,7 @@ func Run(run func() int) int {
 // set.
 // TODO(sadovsky): Switch to using -test.short. See TODO above.
 func SkipUnlessRunningIntegrationTests(t *testing.T) {
-	// The "jiri test run vanadium-integration-test" command looks for test
+	// Note: The "jiri test run vanadium-integration-test" command looks for test
 	// function names that start with "TestV23", and runs "go test" for only those
 	// packages containing at least one such test. That's how it avoids passing
 	// the -v23.tests flag to packages for which the flag is not registered.
@@ -225,14 +238,27 @@ func SkipUnlessRunningIntegrationTests(t *testing.T) {
 // Methods for starting subprocesses
 
 func initSession(t *testing.T, c *Cmd) {
-	c.S = expect.NewSession(t, c.StdoutPipe(), time.Minute)
+	var et expect.Testing
+	if t != nil {
+		et = t
+	}
+	c.S = expect.NewSession(et, c.StdoutPipe(), time.Minute)
 	c.S.SetVerbosity(testing.Verbose())
 }
 
 func newCmd(sh *Shell, c *gosh.Cmd) *Cmd {
 	res := &Cmd{Cmd: c, sh: sh}
 	initSession(sh.t, res)
-	res.Vars[envCredentials] = sh.ForkCredentials("child").Handle
+	res.Vars[envPrincipal] = sh.ForkCredentials("child").Handle
+	// TODO(sadovsky): Hack to deal with tests that pass a principal to the
+	// process that creates a v23test.Shell using the V23_CREDENTIALS env var,
+	// e.g. vanadium-js-node-integration. Once the "Copy os.Environ() into..."
+	// gosh TODO is addressed, we should switch to deleting ref.EnvCredentials and
+	// ref.EnvAgentPath from Shell.Vars in NewShell.
+	if !useAgent {
+		panic("hack assumes useAgent is true")
+	}
+	delete(res.Vars, ref.EnvCredentials)
 	return res
 }
 
@@ -298,7 +324,7 @@ func (sh *Shell) DebugSystemShell() {
 		Dir:   cwd,
 	}
 	env := envvar.MergeMaps(envvar.SliceToMap(os.Environ()), sh.Vars)
-	env[envCredentials] = sh.ForkCredentials("debug").Handle
+	env[envPrincipal] = sh.ForkCredentials("debug").Handle
 	env[envBinDir] = sh.Opts.BinDir
 	attr.Env = envvar.MapToSlice(env)
 
@@ -373,57 +399,44 @@ func fillDefaults(t *testing.T, opts *Opts) {
 	}
 }
 
-func initCtxAndCredentials(t *testing.T, sh *Shell, ctx *context.T) error {
-	origCtxIsNil := ctx == nil
+func (sh *Shell) initPrincipalManager() error {
+	dir := sh.MakeTempDir()
+	if sh.Err != nil {
+		return sh.Err
+	}
+	var pm principalManager
+	if useAgent {
+		var err error
+		if pm, err = newAgentPrincipalManager(dir); err != nil {
+			return err
+		}
+	} else {
+		pm = newFilesystemPrincipalManager(dir)
+	}
+	sh.pm = pm
+	return nil
+}
 
-	// Call v23.Init, if needed.
-	if origCtxIsNil {
+func (sh *Shell) initCtx(ctx *context.T) error {
+	if ctx == nil {
 		var shutdown func()
 		ctx, shutdown = v23.Init()
 		if sh.AddToCleanup(shutdown); sh.Err != nil {
 			return sh.Err
 		}
-	}
-
-	// Create principal and update context.
-	dir := sh.MakeTempDir()
-	if sh.Err != nil {
-		return sh.Err
-	}
-	var m principalManager
-	if useAgent {
-		var err error
-		if m, err = newAgentPrincipalManager(dir); err != nil {
-			return err
-		}
-	} else {
-		m = newFilesystemPrincipalManager(dir)
-	}
-	var creds *Credentials
-	var err error
-	if origCtxIsNil {
-		if creds, err = newRootCredentials(m); err != nil {
-			return err
-		}
-	} else {
-		if creds, err = newCredentials(m); err != nil {
-			return err
-		}
-		if err := addDefaultBlessing(v23.GetPrincipal(ctx), creds.Principal, "shell"); err != nil {
-			return err
+		if sh.t != nil {
+			creds, err := newRootCredentials(sh.pm)
+			if err != nil {
+				return err
+			}
+			if ctx, err = v23.WithPrincipal(ctx, creds.Principal); err != nil {
+				return err
+			}
 		}
 	}
-	if ctx, err = v23.WithPrincipal(ctx, creds.Principal); err != nil {
-		return err
-	}
-
-	// Configure context for testing, if needed.
-	if t != nil {
+	if sh.t != nil {
 		ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
-		sh.Vars[envShellTestProcess] = "1"
 	}
-
 	sh.Ctx = ctx
-	sh.Credentials = creds
 	return nil
 }
