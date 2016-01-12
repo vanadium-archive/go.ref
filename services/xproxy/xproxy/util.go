@@ -100,14 +100,7 @@ func (proxyAuthorizer) AuthorizePeer(
 func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, serverBlessings []string) (
 	security.Blessings, map[string]security.Discharge, error) {
 	blessings := v23.GetPrincipal(ctx).BlessingStore().Default()
-	var impetus security.DischargeImpetus
-	if len(serverBlessings) > 0 {
-		impetus.Server = make([]security.BlessingPattern, len(serverBlessings))
-		for i, b := range serverBlessings {
-			impetus.Server[i] = security.BlessingPattern(b)
-		}
-	}
-	discharges, _ := slib.PrepareDischarges(ctx, blessings, impetus)
+	discharges, _ := slib.PrepareDischarges(ctx, blessings, serverBlessings, "", nil)
 	return blessings, discharges, nil
 }
 

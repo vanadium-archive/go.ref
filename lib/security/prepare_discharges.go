@@ -5,6 +5,7 @@
 package security
 
 import (
+	"reflect"
 	"time"
 
 	"v.io/v23"
@@ -45,11 +46,14 @@ type work struct {
 func PrepareDischarges(
 	ctx *context.T,
 	blessings security.Blessings,
-	impetus security.DischargeImpetus) (map[string]security.Discharge, time.Time) {
+	serverBlessings []string,
+	method string,
+	args []interface{}) (map[string]security.Discharge, time.Time) {
 	tpCavs := blessings.ThirdPartyCaveats()
 	if len(tpCavs) == 0 {
 		return nil, time.Time{}
 	}
+	impetus := mkDischargeImpetus(serverBlessings, method, args)
 	// We only want to send the impetus information we really need for each
 	// discharge.
 	todo := make(map[string]work, len(tpCavs))
@@ -166,4 +170,26 @@ func minTime(a, b time.Time) time.Time {
 		return b
 	}
 	return a
+}
+
+func mkDischargeImpetus(serverBlessings []string, method string, args []interface{}) security.DischargeImpetus {
+	var impetus security.DischargeImpetus
+	if len(serverBlessings) > 0 {
+		impetus.Server = make([]security.BlessingPattern, len(serverBlessings))
+		for i, b := range serverBlessings {
+			impetus.Server[i] = security.BlessingPattern(b)
+		}
+	}
+	impetus.Method = method
+	if len(args) > 0 {
+		impetus.Arguments = make([]*vdl.Value, len(args))
+		for i, a := range args {
+			vArg, err := vdl.ValueFromReflect(reflect.ValueOf(a))
+			if err != nil {
+				continue
+			}
+			impetus.Arguments[i] = vArg
+		}
+	}
+	return impetus
 }

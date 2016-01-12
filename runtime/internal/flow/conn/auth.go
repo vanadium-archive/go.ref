@@ -243,7 +243,7 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte, dialer bool) (secu
 }
 
 func (c *Conn) refreshDischarges(ctx *context.T, loop bool, peers []security.BlessingPattern) (bkey, dkey uint64, err error) {
-	dis, refreshTime := slib.PrepareDischarges(ctx, c.lBlessings, security.DischargeImpetus{})
+	dis, refreshTime := slib.PrepareDischarges(ctx, c.lBlessings, nil, "", nil)
 	// Schedule the next update.
 	c.mu.Lock()
 	if loop && !refreshTime.IsZero() && c.status < Closing {
