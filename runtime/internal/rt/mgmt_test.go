@@ -6,7 +6,10 @@ package rt_test
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"reflect"
 	"strings"
 	"testing"
@@ -16,13 +19,17 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/services/appcycle"
+	"v.io/x/lib/envvar"
+	"v.io/x/lib/gosh"
+	"v.io/x/ref"
+	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/security/securityflag"
+	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
-	"v.io/x/ref/test/modules"
 )
 
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
@@ -92,66 +99,54 @@ func TestMultipleStops(t *testing.T) {
 	}
 }
 
-var noWaiters = modules.Register(func(env *modules.Env, args ...string) error {
+func waitForEOF(r io.Reader) {
+	io.Copy(ioutil.Discard, r)
+}
+
+var noWaiters = gosh.Register("noWaiters", func() {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
-	m := v23.GetAppCycle(ctx)
-	fmt.Fprintf(env.Stdout, "ready\n")
-	modules.WaitForEOF(env.Stdin)
-	m.Stop(ctx)
+	v23.GetAppCycle(ctx).Stop(ctx)
 	os.Exit(42) // This should not be reached.
-	return nil
-}, "noWaiters")
+})
 
 // TestNoWaiters verifies that the child process exits in the absence of any
 // wait channel being registered with its runtime.
 func TestNoWaiters(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start(nil, noWaiters)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	h.Expect("ready")
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+
+	cmd := sh.Fn(noWaiters)
+	cmd.ExitErrorIsOk = true
+
+	cmd.Run()
 	want := fmt.Sprintf("exit status %d", testUnhandledStopExitCode)
-	if err = h.Shutdown(os.Stderr, os.Stderr); err == nil || err.Error() != want {
+	if err := cmd.Err; err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
 	}
 }
 
-var forceStop = modules.Register(func(env *modules.Env, args ...string) error {
+var forceStop = gosh.Register("forceStop", func() {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-
 	m := v23.GetAppCycle(ctx)
-	fmt.Fprintf(env.Stdout, "ready\n")
-	modules.WaitForEOF(env.Stdin)
 	m.WaitForStop(ctx, make(chan string, 1))
 	m.ForceStop(ctx)
 	os.Exit(42) // This should not be reached.
-	return nil
-}, "forceStop")
+})
 
 // TestForceStop verifies that ForceStop causes the child process to exit
 // immediately.
 func TestForceStop(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start(nil, forceStop)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	h.Expect("ready")
-	err = h.Shutdown(os.Stderr, os.Stderr)
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+
+	cmd := sh.Fn(forceStop)
+	cmd.ExitErrorIsOk = true
+
+	cmd.Run()
 	want := fmt.Sprintf("exit status %d", testForceStopExitCode)
-	if err == nil || err.Error() != want {
+	if err := cmd.Err; err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
 	}
 }
@@ -239,22 +234,21 @@ func TestProgressMultipleTrackers(t *testing.T) {
 	}
 }
 
-var app = modules.Register(func(env *modules.Env, args ...string) error {
+var app = gosh.Register("app", func() {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
 	ch := make(chan string, 1)
 	m.WaitForStop(ctx, ch)
-	fmt.Fprintln(env.Stdout, "ready")
-	fmt.Fprintf(env.Stdout, "Got %s\n", <-ch)
+	fmt.Println("ready")
+	fmt.Printf("Got %s\n", <-ch)
 	m.AdvanceGoal(10)
-	fmt.Fprintf(env.Stdout, "Doing some work\n")
+	fmt.Println("Doing some work")
 	m.AdvanceProgress(2)
-	fmt.Fprintf(env.Stdout, "Doing some more work\n")
+	fmt.Println("Doing some more work")
 	m.AdvanceProgress(5)
-	return nil
-}, "app")
+})
 
 type configServer struct {
 	ch chan<- string
@@ -269,59 +263,70 @@ func (c *configServer) Set(_ *context.T, _ rpc.ServerCall, key, value string) er
 
 }
 
-// TODO(caprita): Rewrite this test to not use the modules package. It can't use
-// v23test because v23test.Shell doesn't support the exec protocol.
-func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.AppCycleClientMethods, func()) {
-	ctx, shutdown := test.V23Init()
+func setupRemoteAppCycleMgr(t *testing.T) (*context.T, *vexec.ParentHandle, *expect.Session, appcycle.AppCycleClientMethods, func()) {
+	sh := v23test.NewShell(t, v23test.Opts{})
+	ctx := sh.Ctx
+	failed := true
+	defer func() {
+		if failed {
+			sh.Cleanup()
+		}
+	}()
+	goshCmd := sh.Fn(app)
 
-	ch := make(chan string)
+	ch := make(chan string, 1)
 	service := device.ConfigServer(&configServer{ch})
 	authorizer := securityflag.NewAuthorizerOrDie()
 	_, configServer, err := v23.WithNewServer(ctx, "", service, authorizer)
 	if err != nil {
-		t.Fatalf("Got error: %v", err)
+		t.Fatalf("WithNewServer failed: %v", err)
 	}
 	configServiceName := configServer.Status().Endpoints[0].Name()
 
-	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx), testing.Verbose(), t)
+	config := vexec.NewConfig()
+	config.Set(mgmt.ParentNameConfigKey, configServiceName)
+	config.Set(mgmt.ProtocolConfigKey, "tcp")
+	config.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
+	config.Set(mgmt.SecurityAgentPathConfigKey, goshCmd.Vars[ref.EnvAgentPath])
+
+	cmd := exec.Command(goshCmd.Args[0], goshCmd.Args[1:]...)
+	cmd.Env = envvar.MapToSlice(goshCmd.Vars)
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatalf("StdoutPipe failed: %v", err)
 	}
-	sh.SetConfigKey(mgmt.ParentNameConfigKey, configServiceName)
-	sh.SetConfigKey(mgmt.ProtocolConfigKey, "tcp")
-	sh.SetConfigKey(mgmt.AddressConfigKey, "127.0.0.1:0")
-	h, err := sh.Start(nil, app)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: config})
+	if err := handle.Start(); err != nil {
+		t.Fatalf("Start failed: %v", err)
 	}
+	if err := handle.WaitForReady(20 * time.Second); err != nil {
+		t.Fatalf("WaitForReady failed: %v", err)
+	}
+
 	appCycleName := ""
 	select {
 	case appCycleName = <-ch:
 	case <-time.After(time.Minute):
 		t.Errorf("timeout")
 	}
+	s := expect.NewSession(t, stdout, time.Minute)
+	s.Expect("ready")
 	appCycle := appcycle.AppCycleClient(appCycleName)
-	return ctx, h, appCycle, func() {
-		configServer.Stop()
-		sh.Cleanup(os.Stderr, os.Stderr)
-		shutdown()
-	}
+	failed = false
+	return ctx, handle, s, appCycle, sh.Cleanup
 }
 
 // TestRemoteForceStop verifies that the child process exits when sending it
 // a remote ForceStop rpc.
 func TestRemoteForceStop(t *testing.T) {
-	ctx, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
+	ctx, h, s, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	s.Expect("ready")
 	if err := appCycle.ForceStop(ctx); err == nil || !strings.Contains(err.Error(), "EOF") {
 		t.Fatalf("Expected EOF error, got %v instead", err)
 	}
 	s.ExpectEOF()
-	err := h.Shutdown(os.Stderr, os.Stderr)
 	want := fmt.Sprintf("exit status %d", testForceStopExitCode)
-	if err == nil || err.Error() != want {
+	if err := h.Wait(0); err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
 	}
 }
@@ -329,10 +334,8 @@ func TestRemoteForceStop(t *testing.T) {
 // TestRemoteStop verifies that the child shuts down cleanly when sending it
 // a remote Stop rpc.
 func TestRemoteStop(t *testing.T) {
-	ctx, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
+	ctx, h, s, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	s.Expect("ready")
 	stream, err := appCycle.Stop(ctx)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
@@ -360,7 +363,7 @@ func TestRemoteStop(t *testing.T) {
 	s.Expect("Doing some work")
 	s.Expect("Doing some more work")
 	s.ExpectEOF()
-	if err := h.Shutdown(os.Stderr, os.Stderr); err != nil {
+	if err := h.Wait(0); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 }
