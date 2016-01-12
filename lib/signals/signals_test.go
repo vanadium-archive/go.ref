@@ -9,23 +9,28 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"syscall"
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/services/appcycle"
+	"v.io/x/lib/envvar"
 	"v.io/x/lib/gosh"
+	"v.io/x/ref"
+	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/modules"
+	"v.io/x/ref/test/expect"
 )
 
 func stopLoop(stop func(), stdin io.Reader, ch chan<- struct{}) {
@@ -318,71 +323,69 @@ func (c *configServer) Set(_ *context.T, _ rpc.ServerCall, key, value string) er
 
 }
 
-func modulesProgram(stdin io.Reader, stdout io.Writer, signals ...os.Signal) {
-	ctx, shutdown := test.V23Init()
-	closeStopLoop := make(chan struct{})
-	// obtain ac here since stopLoop may execute after shutdown is called below
-	ac := v23.GetAppCycle(ctx)
-	go stopLoop(func() { ac.Stop(ctx) }, stdin, closeStopLoop)
-	wait := ShutdownOnSignals(ctx, signals...)
-	fmt.Fprintf(stdout, "ready\n")
-	fmt.Fprintf(stdout, "received signal %s\n", <-wait)
-	shutdown()
-	<-closeStopLoop
-}
-
-var modulesHandleDefaults = modules.Register(func(env *modules.Env, args ...string) error {
-	modulesProgram(env.Stdin, env.Stdout)
-	return nil
-}, "modulesHandleDefaults")
-
 // TestCleanRemoteShutdown verifies that remote shutdown works correctly.
-// TODO(caprita): Rewrite this test to not use the modules package. It can't use
-// v23test because v23test.Shell doesn't support the exec protocol.
 func TestCleanRemoteShutdown(t *testing.T) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
+	sh := v23test.NewShell(t, v23test.Opts{})
+	defer sh.Cleanup()
+	ctx := sh.Ctx
 
-	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(os.Stderr, os.Stderr)
+	goshCmd := sh.Fn(handleDefaults)
 
-	ch := make(chan string)
+	ch := make(chan string, 1)
 	_, server, err := v23.WithNewServer(ctx, "", device.ConfigServer(&configServer{ch}), securityflag.NewAuthorizerOrDie())
 	if err != nil {
-		t.Fatalf("Got error: %v", err)
+		t.Fatalf("WithNewServer failed: %v", err)
 	}
 	configServiceName := server.Status().Endpoints[0].Name()
 
-	sh.SetConfigKey(mgmt.ParentNameConfigKey, configServiceName)
-	sh.SetConfigKey(mgmt.ProtocolConfigKey, "tcp")
-	sh.SetConfigKey(mgmt.AddressConfigKey, "127.0.0.1:0")
-	h, err := sh.Start(nil, modulesHandleDefaults)
+	config := vexec.NewConfig()
+	config.Set(mgmt.ParentNameConfigKey, configServiceName)
+	config.Set(mgmt.ProtocolConfigKey, "tcp")
+	config.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
+	config.Set(mgmt.SecurityAgentPathConfigKey, goshCmd.Vars[ref.EnvAgentPath])
+	cmd := exec.Command(goshCmd.Args[0], goshCmd.Args[1:]...)
+	cmd.Env = envvar.MapToSlice(goshCmd.Vars)
+	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: config})
+
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatalf("StdoutPipe failed: %v", err)
 	}
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		t.Fatalf("StdinPipe failed: %v", err)
+	}
+	cmd.Stderr = os.Stdout
+	if err := handle.Start(); err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+	if err := handle.WaitForReady(20 * time.Second); err != nil {
+		t.Fatalf("WaitForReady failed: %v", err)
+	}
+
 	appCycleName := <-ch
-	h.Expect("ready")
+	s := expect.NewSession(t, stdout, time.Minute)
+	s.Expect("ready")
 	appCycle := appcycle.AppCycleClient(appCycleName)
 	stream, err := appCycle.Stop(ctx)
 	if err != nil {
-		t.Fatalf("Got error: %v", err)
+		t.Fatalf("Stop failed: %v", err)
 	}
 	rStream := stream.RecvStream()
 	if rStream.Advance() || rStream.Err() != nil {
 		t.Errorf("Expected EOF, got (%v, %v) instead: ", rStream.Value(), rStream.Err())
 	}
 	if err := stream.Finish(); err != nil {
-		t.Fatalf("Got error: %v", err)
+		t.Fatalf("Finish failed: %v", err)
 	}
-	h.Expectf("received signal %s", v23.RemoteStop)
-	fmt.Fprintf(h.Stdin(), "close\n")
-	h.ExpectEOF()
+	s.Expectf("received signal %s", v23.RemoteStop)
+	fmt.Fprintf(stdin, "close\n")
+	s.ExpectEOF()
+	if err := handle.Wait(0); err != nil {
+		t.Fatalf("Wait failed: %v", err)
+	}
 }
 
 func TestMain(m *testing.M) {
-	modules.DispatchAndExitIfChild()
 	os.Exit(v23test.Run(m.Run))
 }
