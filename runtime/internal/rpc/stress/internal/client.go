@@ -88,16 +88,21 @@ func CallSumStream(ctx *context.T, server string, maxChunkCnt, maxPayloadSize in
 			got := recvS.Value()
 			wanted, _ := doSum(&args[i])
 			if !bytes.Equal(got, wanted) {
-				done <- fmt.Errorf("RecvStream returned %v, but expected %v", got, wanted)
+				err := fmt.Errorf("RecvStream returned %v, but expected %v", got, wanted)
+				ctx.Errorf("Recv error: %v", err)
+				done <- err
 				return
 			}
 			stats.BytesRecv += uint64(len(got))
 		}
 		switch err := recvS.Err(); {
 		case err != nil:
+			ctx.Errorf("Recv error: %v", err)
 			done <- err
 		case i != chunkCnt:
-			done <- fmt.Errorf("RecvStream returned %d chunks, but expected %d", i, chunkCnt)
+			err := fmt.Errorf("RecvStream returned %d chunks, but expected %d", i, chunkCnt)
+			ctx.Errorf("Recv error: %v", err)
+			done <- err
 		default:
 			done <- nil
 		}
