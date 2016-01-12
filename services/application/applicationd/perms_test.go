@@ -105,7 +105,7 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 	if got, want := version, ""; got != want {
 		t.Fatalf("GetPermissions got %v, want %v", got, want)
 	}
-	expectedInBps := []security.BlessingPattern{rootBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:shell:$", rootBlessing + ":self:shell:child"}
+	expectedInBps := []security.BlessingPattern{rootBlessing + ":$", rootBlessing + ":self:$", rootBlessing + ":self:child"}
 	expected := access.Permissions{
 		"Admin":   access.AccessList{In: expectedInBps, NotIn: []string(nil)},
 		"Read":    access.AccessList{In: expectedInBps, NotIn: []string(nil)},

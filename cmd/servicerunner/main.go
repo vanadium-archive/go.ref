@@ -19,23 +19,23 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"v.io/v23"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
+	"v.io/x/lib/gosh"
 	"v.io/x/lib/set"
 	"v.io/x/ref"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/identity/identitylib"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/wsprlib"
 	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test/expect"
-	"v.io/x/ref/test/modules"
 )
 
 var (
@@ -65,7 +65,8 @@ line), then waits forever.
 `,
 }
 
-var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
+// TODO(sadovsky): Switch to using v23test.Shell.StartRootMountTable.
+var rootMT = gosh.Register("rootMT", func() error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -77,21 +78,21 @@ var rootMT = modules.Register(func(env *modules.Env, args ...string) error {
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}
-	fmt.Fprintf(env.Stdout, "PID=%d\n", os.Getpid())
+	fmt.Printf("PID=%d\n", os.Getpid())
 	for _, ep := range server.Status().Endpoints {
-		fmt.Fprintf(env.Stdout, "MT_NAME=%s\n", ep.Name())
+		fmt.Printf("MT_NAME=%s\n", ep.Name())
 	}
-	modules.WaitForEOF(env.Stdin)
+	<-signals.ShutdownOnSignals(ctx)
 	return nil
-}, "rootMT")
+})
 
-// updateVars captures the vars from the given Handle's stdout and adds them to
-// the given vars map, overwriting existing entries.
-func updateVars(h modules.Handle, vars map[string]string, varNames ...string) error {
+// updateVars captures the vars from the given session and adds them to the
+// given vars map, overwriting existing entries.
+// TODO(sadovsky): Switch to gosh.SendVars/AwaitVars.
+func updateVars(s *expect.Session, vars map[string]string, varNames ...string) error {
 	varsToAdd := set.StringBool.FromSlice(varNames)
 	numLeft := len(varsToAdd)
 
-	s := expect.NewSession(nil, h.Stdout(), 30*time.Second)
 	for {
 		l := s.ReadLine()
 		if err := s.OriginalError(); err != nil {
@@ -113,35 +114,30 @@ func updateVars(h modules.Handle, vars map[string]string, varNames ...string) er
 }
 
 func run(env *cmdline.Env, args []string) error {
-	// The dispatch to modules children must occur after the call to cmdline.Main
-	// (which calls cmdline.Parse), so that servicerunner flags are registered on
-	// the global flag.CommandLine.
-	if modules.IsChildProcess() {
-		return modules.Dispatch()
-	}
+	// gosh.InitMain must occur after the call to cmdline.Main (which calls
+	// cmdline.Parse) so that servicerunner flags are registered on the global
+	// flag.CommandLine.
+	gosh.InitMain()
 
-	// We must wait until after we've dispatched to children before calling
-	// v23.Init, otherwise we'll end up initializing twice.
-	ctx, shutdown := v23.Init()
-	defer shutdown()
+	sh := v23test.NewShell(nil, v23test.Opts{})
+	defer sh.Cleanup()
+	ctx := sh.Ctx
+
+	// FIXME
+	fmt.Fprintf(os.Stderr, "\n\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n")
+	fmt.Fprintf(os.Stderr, v23.GetPrincipal(ctx).BlessingStore().DebugString())
+	fmt.Fprintf(os.Stderr, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\n")
 
 	vars := map[string]string{}
-	sh, err := modules.NewShell(ctx, nil, false, nil)
-	if err != nil {
-		panic(fmt.Sprintf("modules.NewShell: %s", err))
-	}
-	defer sh.Cleanup(os.Stderr, os.Stderr)
-
-	h, err := sh.Start(nil, rootMT, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0")
-	if err != nil {
-		return err
-	}
-	if err := updateVars(h, vars, "MT_NAME"); err != nil {
+	c := sh.Fn(rootMT)
+	c.Args = append(c.Args, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0")
+	c.Start()
+	if err := updateVars(c.S, vars, "MT_NAME"); err != nil {
 		return err
 	}
 
 	// Set ref.EnvNamespacePrefix env var, consumed downstream.
-	sh.SetVar(ref.EnvNamespacePrefix, vars["MT_NAME"])
+	sh.Vars[ref.EnvNamespacePrefix] = vars["MT_NAME"]
 	v23.GetNamespace(ctx).SetRoots(vars["MT_NAME"])
 
 	lspec := v23.GetListenSpec(ctx)
@@ -154,19 +150,17 @@ func run(env *cmdline.Env, args []string) error {
 	proxyEndpoint := proxy.ListeningEndpoints()[0]
 	vars["PROXY_NAME"] = proxyEndpoint.Name()
 
-	h, err = sh.Start(nil, wsprd, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--identd=test/identd")
-	if err != nil {
-		return err
-	}
-	if err := updateVars(h, vars, "WSPR_ADDR"); err != nil {
+	c = sh.Fn(wsprd)
+	c.Args = append(c.Args, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--identd=test/identd")
+	c.Start()
+	if err := updateVars(c.S, vars, "WSPR_ADDR"); err != nil {
 		return err
 	}
 
-	h, err = sh.Start(nil, identitylib.TestIdentityd, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--http-addr=localhost:0")
-	if err != nil {
-		return err
-	}
-	if err := updateVars(h, vars, "TEST_IDENTITYD_NAME", "TEST_IDENTITYD_HTTP_ADDR"); err != nil {
+	c = sh.Fn(identitylib.TestIdentityd)
+	c.Args = append(c.Args, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--http-addr=localhost:0")
+	c.Start()
+	if err := updateVars(c.S, vars, "TEST_IDENTITYD_NAME", "TEST_IDENTITYD_HTTP_ADDR"); err != nil {
 		return err
 	}
 
@@ -180,7 +174,7 @@ func run(env *cmdline.Env, args []string) error {
 	return nil
 }
 
-var wsprd = modules.Register(func(env *modules.Env, args ...string) error {
+var wsprd = gosh.Register("wsprd", func() error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -193,7 +187,7 @@ var wsprd = modules.Register(func(env *modules.Env, args ...string) error {
 		proxy.Serve()
 	}()
 
-	fmt.Fprintf(env.Stdout, "WSPR_ADDR=%s\n", addr)
-	modules.WaitForEOF(env.Stdin)
+	fmt.Printf("WSPR_ADDR=%s\n", addr)
+	<-signals.ShutdownOnSignals(ctx)
 	return nil
-}, "wsprd")
+})

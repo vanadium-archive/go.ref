@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package identitylib implements a test identityd service under the
-// v.io/x/ref/test/modules framework.
+// Package identitylib implements a test identityd service registered using the
+// v.io/x/lib/gosh library.
 package identitylib
 
 import (
@@ -14,7 +14,8 @@ import (
 	"time"
 
 	"v.io/v23"
-
+	"v.io/x/lib/gosh"
+	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/identity/internal/auditor"
 	"v.io/x/ref/services/identity/internal/blesser"
 	"v.io/x/ref/services/identity/internal/caveats"
@@ -22,7 +23,6 @@ import (
 	"v.io/x/ref/services/identity/internal/revocation"
 	"v.io/x/ref/services/identity/internal/server"
 	"v.io/x/ref/services/identity/internal/util"
-	"v.io/x/ref/test/modules"
 )
 
 var (
@@ -31,7 +31,7 @@ var (
 	tlsConfig        = flag.CommandLine.String("tls-config", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 )
 
-var TestIdentityd = modules.Register(func(env *modules.Env, args ...string) error {
+var TestIdentityd = gosh.Register("TestIdentityd", func() error {
 	// Duration to use for tls cert and blessing duration.
 	duration := 365 * 24 * time.Hour
 
@@ -99,12 +99,12 @@ var TestIdentityd = modules.Register(func(env *modules.Env, args ...string) erro
 
 	_, eps, externalHttpAddress := s.Listen(ctx, ctx, *externalHttpAddr, *httpAddr, *tlsConfig)
 
-	fmt.Fprintf(env.Stdout, "TEST_IDENTITYD_NAME=%s\n", eps[0])
-	fmt.Fprintf(env.Stdout, "TEST_IDENTITYD_HTTP_ADDR=%s\n", externalHttpAddress)
+	fmt.Printf("TEST_IDENTITYD_NAME=%s\n", eps[0])
+	fmt.Printf("TEST_IDENTITYD_HTTP_ADDR=%s\n", externalHttpAddress)
 
-	modules.WaitForEOF(env.Stdin)
+	<-signals.ShutdownOnSignals(ctx)
 	return nil
-}, "TestIdentityd")
+})
 
 func freePort() string {
 	l, _ := net.Listen("tcp", ":0")
