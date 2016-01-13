@@ -12,7 +12,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/services/build"
-	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/v23test"
 )
 
 func profileCommandOutput(t *testing.T, sh *v23test.Shell, profileBin string, expectError bool, command, name, suffix string) string {

@@ -4,9 +4,6 @@
 
 // This file defines helper functions for running specific Vanadium binaries
 // using v23shell.Shell.
-// TODO(sadovsky): Maybe make these functions use Shell.Main instead of
-// BuildGoPkg plus Shell.Cmd. This will speed things up substantially, but
-// might not work due to flag collisions.
 
 package v23test
 

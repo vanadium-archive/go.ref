@@ -14,8 +14,8 @@ import (
 
 	"v.io/v23/security"
 	"v.io/x/ref"
-	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/v23test"
 )
 
 func start(t *testing.T, c *v23test.Cmd) *expect.Session {

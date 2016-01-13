@@ -25,11 +25,11 @@ import (
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/security/securityflag"
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/v23test"
 )
 
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in

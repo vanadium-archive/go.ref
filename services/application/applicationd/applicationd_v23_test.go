@@ -11,7 +11,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/services/application"
-	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/v23test"
 )
 
 func helper(t *testing.T, sh *v23test.Shell, clientBin string, clientCreds *v23test.Credentials, expectError bool, cmd string, args ...string) string {

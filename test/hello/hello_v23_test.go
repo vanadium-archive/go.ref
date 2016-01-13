@@ -10,9 +10,9 @@ import (
 
 	"v.io/x/ref"
 	"v.io/x/ref/lib/security"
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test/testutil"
+	"v.io/x/ref/test/v23test"
 )
 
 func init() {

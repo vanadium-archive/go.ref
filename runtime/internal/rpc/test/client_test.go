@@ -30,13 +30,13 @@ import (
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
 	"v.io/x/ref/runtime/protocols/debug"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/testutil"
+	"v.io/x/ref/test/v23test"
 )
 
 // testInit creates a new v23test.Shell, starts a root mount table, and

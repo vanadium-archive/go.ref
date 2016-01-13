@@ -23,10 +23,10 @@ import (
 	"v.io/x/lib/gosh"
 	"v.io/x/lib/set"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/services/groups/groupsd/testdata/kvstore"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/v23test"
 )
 
 type relateResult struct {

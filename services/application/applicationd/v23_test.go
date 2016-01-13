@@ -8,7 +8,7 @@ import (
 	"os"
 	"testing"
 
-	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/v23test"
 )
 
 func TestMain(m *testing.M) {

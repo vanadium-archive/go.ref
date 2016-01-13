@@ -8,7 +8,7 @@ import (
 	"os/user"
 	"testing"
 
-	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/v23test"
 )
 
 const psFlags = "-eouser:20,pid"

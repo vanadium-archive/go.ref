@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/v23test"
 )
 
 const runTestOnThisPlatform = true

@@ -35,7 +35,6 @@ import (
 	"v.io/x/lib/gosh"
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/versioning"
@@ -43,6 +42,7 @@ import (
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
+	"v.io/x/ref/test/v23test"
 )
 
 const (

@@ -17,8 +17,8 @@ import (
 	"testing"
 
 	"v.io/v23/naming"
-	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/test/testutil"
+	"v.io/x/ref/test/v23test"
 )
 
 func checkFileType(t *testing.T, infoFile, typeString string) {

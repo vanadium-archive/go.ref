@@ -29,13 +29,13 @@ import (
 	"v.io/x/lib/set"
 	"v.io/x/ref"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/identity/identitylib"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/wsprlib"
 	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/v23test"
 )
 
 var (
@@ -122,11 +122,6 @@ func run(env *cmdline.Env, args []string) error {
 	sh := v23test.NewShell(nil, v23test.Opts{})
 	defer sh.Cleanup()
 	ctx := sh.Ctx
-
-	// FIXME
-	fmt.Fprintf(os.Stderr, "\n\n@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n")
-	fmt.Fprintf(os.Stderr, v23.GetPrincipal(ctx).BlessingStore().DebugString())
-	fmt.Fprintf(os.Stderr, "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\n")
 
 	vars := map[string]string{}
 	c := sh.Fn(rootMT)

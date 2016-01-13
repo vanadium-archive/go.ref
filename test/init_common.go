@@ -39,11 +39,9 @@ func init() {
 func internalInit(ctx *context.T, createMounttable bool) *context.T {
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
 
-	modulesProcess := os.Getenv("V23_SHELL_HELPER_PROCESS_ENTRY_POINT") != ""
 	v23testProcess := os.Getenv("V23_SHELL_TEST_PROCESS") != ""
-	testProcess := modulesProcess || v23testProcess
 
-	if !testProcess {
+	if !v23testProcess {
 		var err error
 		if ctx, err = v23.WithPrincipal(ctx, testutil.NewPrincipal(TestBlessing)); err != nil {
 			panic(err)
@@ -53,7 +51,7 @@ func internalInit(ctx *context.T, createMounttable bool) *context.T {
 	ns := v23.GetNamespace(ctx)
 	ns.CacheCtl(naming.DisableCache(true))
 
-	if !testProcess && createMounttable {
+	if !v23testProcess && createMounttable {
 		disp, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
 		if err != nil {
 			panic(err)

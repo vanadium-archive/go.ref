@@ -19,7 +19,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/v23test"
 )
 
 func startRockPaperScissors(t *testing.T, ctx *context.T) (*RPS, func()) {

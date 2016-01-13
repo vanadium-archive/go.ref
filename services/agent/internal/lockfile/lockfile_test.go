@@ -3,12 +3,6 @@
 // license that can be found in the LICENSE file.
 
 // Package lockfile_test contains an integration test for the lockfile package.
-//
-// Unfortunately, has to be in its own package to avoid an import cycle with
-// the test/modules framework, which includes an agent implementation.
-//
-// TODO(sadovsky): The above statement is no longer true. Maybe move this test
-// elsewhere?
 package lockfile_test
 
 import (
@@ -19,9 +13,9 @@ import (
 	"testing"
 
 	"v.io/x/lib/gosh"
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent/internal/lockfile"
+	"v.io/x/ref/test/v23test"
 )
 
 var createLockfile = gosh.Register("createLockfile", func(file string) {

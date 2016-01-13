@@ -12,7 +12,7 @@ import (
 
 	"v.io/v23"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/v23test"
 )
 
 var cstderr io.Writer

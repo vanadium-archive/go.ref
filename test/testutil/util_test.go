@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/testutil"
+	"v.io/x/ref/test/v23test"
 )
 
 func TestFormatLogline(t *testing.T) {

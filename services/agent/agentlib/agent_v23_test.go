@@ -17,10 +17,10 @@ import (
 	"v.io/v23/security"
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
+	"v.io/x/ref/test/v23test"
 )
 
 func start(c *v23test.Cmd) {

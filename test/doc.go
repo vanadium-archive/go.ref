@@ -15,7 +15,7 @@
 // }
 //
 // This package also defines flags for enabling and controlling the Vanadium
-// integration tests in package v.io/x/ref/lib/v23test:
+// integration tests in package v.io/x/ref/test/v23test:
 //   --v23.tests - run the integration tests
 //   --v23.tests.shell-on-fail - drop into a debug shell if the test fails
 //
@@ -30,12 +30,13 @@
 // The subdirectories are:
 // benchmark  - support for writing benchmarks.
 // testutil   - utility functions used in tests.
-// security   - security related utility functions used in tests.
+// security   - security-related utility functions used in tests.
 // timekeeper - an implementation of the timekeeper interface for use within
 //              tests.
-// modules    - deprecated, use v.io/x/ref/lib/v23test or v.io/x/lib/gosh to run
-//              and manage subprocesses.
 // expect     - support for testing the contents of of an input stream (an
 //              io.Reader). v23test.Cmd contains an expect.Session, so this
 //              package is generally not used directly.
+// v23test    - defines Shell, which provides support for spawning and managing
+//              subprocesses with configurable credentials.
+
 package test

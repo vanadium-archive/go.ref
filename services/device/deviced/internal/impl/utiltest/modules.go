@@ -19,12 +19,12 @@ import (
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/services/device/deviced/internal/starter"
 	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/suid"
 	"v.io/x/ref/test"
+	"v.io/x/ref/test/v23test"
 )
 
 const (

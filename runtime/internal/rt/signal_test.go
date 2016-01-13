@@ -13,9 +13,9 @@ import (
 
 	"v.io/x/lib/gosh"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
+	"v.io/x/ref/test/v23test"
 )
 
 func simpleEchoProgram() {

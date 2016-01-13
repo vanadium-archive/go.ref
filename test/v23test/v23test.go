@@ -238,11 +238,7 @@ func SkipUnlessRunningIntegrationTests(t *testing.T) {
 // Methods for starting subprocesses
 
 func initSession(t *testing.T, c *Cmd) {
-	var et expect.Testing
-	if t != nil {
-		et = t
-	}
-	c.S = expect.NewSession(et, c.StdoutPipe(), time.Minute)
+	c.S = expect.NewSession(t, c.StdoutPipe(), time.Minute)
 	c.S.SetVerbosity(testing.Verbose())
 }
 

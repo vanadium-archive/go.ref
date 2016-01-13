@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"v.io/x/ref"
-	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/v23test"
 )
 
 func TestV23Tunneld(t *testing.T) {

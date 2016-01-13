@@ -16,13 +16,13 @@ import (
 	"v.io/v23"
 	"v.io/v23/security"
 	"v.io/x/lib/gosh"
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/internal/ipc"
 	"v.io/x/ref/services/agent/internal/server"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
+	"v.io/x/ref/test/v23test"
 )
 
 // As of November 17, 2015, the benchmarks for serving a principal with and

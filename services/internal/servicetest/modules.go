@@ -18,9 +18,9 @@ import (
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/testutil"
+	"v.io/x/ref/test/v23test"
 )
 
 const (

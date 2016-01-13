@@ -18,8 +18,8 @@ import (
 
 	"v.io/x/lib/gosh"
 	"v.io/x/lib/textutil"
-	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/test/testutil"
+	"v.io/x/ref/test/v23test"
 )
 
 var (

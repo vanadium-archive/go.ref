@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	libsec "v.io/x/ref/lib/security"
-	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/v23test"
 )
 
 func TestV23ClaimableServer(t *testing.T) {

@@ -12,7 +12,7 @@ import (
 	"v.io/v23/security"
 	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
-	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/v23test"
 )
 
 func TestV23Agentd(t *testing.T) {

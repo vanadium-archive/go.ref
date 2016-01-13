@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"v.io/x/lib/envvar"
-	"v.io/x/ref/lib/v23test"
+	"v.io/x/ref/test/v23test"
 )
 
 var testProgram = `package main

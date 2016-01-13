@@ -11,8 +11,8 @@ import (
 	"regexp"
 	"testing"
 
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/test/v23test"
 )
 
 func writeRoledConfig() (path string, shutdown func(), err error) {

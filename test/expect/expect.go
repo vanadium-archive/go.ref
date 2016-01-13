@@ -14,7 +14,7 @@
 // encounters an error then subsequent calls on that Session will have no
 // effect. This allows for a series of assertions to be made, one per line,
 // and for errors to be checked at the end. In addition Session is designed
-// to be easily used with the testing package; passing a testing.T instance
+// to be easily used with the testing package; passing a *testing.T instance
 // to NewSession allows it to set errors directly and hence tests will pass or
 // fail according to whether the expect assertions are met or not.
 //
@@ -49,6 +49,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"testing"
 	"time"
 
 	"v.io/x/ref/internal/logger"
@@ -62,20 +63,13 @@ var (
 type Session struct {
 	input     *bufio.Reader
 	timeout   time.Duration
-	t         Testing
+	t         *testing.T
 	verbose   bool
 	oerr, err error
 }
 
-type Testing interface {
-	Error(args ...interface{})
-	Errorf(format string, args ...interface{})
-	Log(args ...interface{})
-	Logf(format string, args ...interface{})
-}
-
 // NewSession creates a new Session. The parameter t may be safely be nil.
-func NewSession(t Testing, input io.Reader, timeout time.Duration) *Session {
+func NewSession(t *testing.T, input io.Reader, timeout time.Duration) *Session {
 	return &Session{t: t, timeout: timeout, input: bufio.NewReader(input)}
 }
 
@@ -98,8 +92,8 @@ func (s *Session) OriginalError() error {
 }
 
 // SetVerbosity enables/disable verbose debugging information, in particular,
-// every line of input read will be logged via Testing.Logf or, if it is nil,
-// to stderr.
+// every line of input read will be logged via t.Logf or, if t is nil, to
+// stderr.
 func (s *Session) SetVerbosity(v bool) {
 	s.verbose = v
 }
@@ -122,22 +116,16 @@ func (s *Session) log(err error, format string, args ...interface{}) {
 	}
 }
 
-// ReportError calls Testing.Error to report any error currently stored
-// in the Session.
-func (s *Session) ReportError() {
-	if s.err != nil && s.t != nil {
-		s.t.Error(s.err)
-	}
-}
-
-// error must always be called from a public function that is called
-// directly by an external user, otherwise the file:line info will
-// be incorrect.
+// error reports the error. It must be called directly from every public
+// function that can produce an error; otherwise, the file:line info will be
+// incorrect.
 func (s *Session) error(err error) error {
 	_, file, line, _ := runtime.Caller(2)
 	s.oerr = err
 	s.err = fmt.Errorf("%s:%d: %s", filepath.Base(file), line, err)
-	s.ReportError()
+	if s.t != nil {
+		s.t.Error(s.err)
+	}
 	return s.err
 }
 
@@ -194,7 +182,6 @@ func (s *Session) Expect(expected string) {
 		return
 	}
 	line = strings.TrimRight(line, "\n")
-
 	if line != expected {
 		s.error(fmt.Errorf("got %q, want %q", line, expected))
 	}
@@ -203,7 +190,7 @@ func (s *Session) Expect(expected string) {
 
 // Expectf asserts that the next line in the input matches the result of
 // formatting the supplied arguments. It's equivalent to
-// Expect(fmt.Sprintf(args))
+// Expect(fmt.Sprintf(args)).
 func (s *Session) Expectf(format string, args ...interface{}) {
 	if s.Failed() {
 		return

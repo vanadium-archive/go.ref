@@ -20,8 +20,8 @@ import (
 	"v.io/x/ref/internal/logger"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/test"
+	"v.io/x/ref/test/v23test"
 )
 
 func TestInit(t *testing.T) {

@@ -52,9 +52,9 @@ import (
 
 	"v.io/x/lib/gosh"
 	"v.io/x/ref"
-	"v.io/x/ref/lib/v23test"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test/testutil"
+	"v.io/x/ref/test/v23test"
 )
 
 var (

@@ -16,13 +16,13 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/v23test"
 	"v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/internal"
 	"v.io/x/ref/runtime/internal/lib/appcycle"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
 	grt "v.io/x/ref/runtime/internal/rt"
+	"v.io/x/ref/test/v23test"
 )
 
 var commonFlags *flags.Flags
