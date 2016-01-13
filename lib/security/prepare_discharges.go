@@ -53,13 +53,12 @@ func PrepareDischarges(
 	if len(tpCavs) == 0 {
 		return nil, time.Time{}
 	}
-	impetus := mkDischargeImpetus(serverBlessings, method, args)
 	// We only want to send the impetus information we really need for each
 	// discharge.
 	todo := make(map[string]work, len(tpCavs))
 	for _, cav := range tpCavs {
 		if tp := cav.ThirdPartyDetails(); tp != nil {
-			todo[tp.ID()] = work{cav, filteredImpetus(tp.Requirements(), impetus)}
+			todo[tp.ID()] = work{cav, filteredImpetus(tp.Requirements(), serverBlessings, method, args)}
 		}
 	}
 	// Since there may be dependencies in the caveats, we keep retrying
@@ -132,23 +131,17 @@ func updateDischarge(
 }
 
 // filteredImpetus returns a copy of 'before' after removing any values that are not required as per 'r'.
-func filteredImpetus(r security.ThirdPartyRequirements, before security.DischargeImpetus) (after security.DischargeImpetus) {
-	if r.ReportServer && len(before.Server) > 0 {
-		after.Server = make([]security.BlessingPattern, len(before.Server))
-		for i := range before.Server {
-			after.Server[i] = before.Server[i]
-		}
+func filteredImpetus(r security.ThirdPartyRequirements, serverBlessings []string, method string, args []interface{}) security.DischargeImpetus {
+	if !r.ReportServer {
+		serverBlessings = nil
 	}
-	if r.ReportMethod {
-		after.Method = before.Method
+	if !r.ReportMethod {
+		method = ""
 	}
-	if r.ReportArguments && len(before.Arguments) > 0 {
-		after.Arguments = make([]*vdl.Value, len(before.Arguments))
-		for i := range before.Arguments {
-			after.Arguments[i] = vdl.CopyValue(before.Arguments[i])
-		}
+	if !r.ReportArguments {
+		args = nil
 	}
-	return
+	return mkDischargeImpetus(serverBlessings, method, args)
 }
 
 func refreshTime(dis security.Discharge, cacheTime time.Time) time.Time {
