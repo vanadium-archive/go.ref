@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package xproxy contains the implementation of the proxy service.
+//
+// Design document at https://docs.google.com/document/d/1rfocoE98Fo9fTdxKtU_uaBmyhZNlvhDPvjzR5MelpDE/edit?usp=sharing
 package xproxy
 
 import (
