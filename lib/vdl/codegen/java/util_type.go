@@ -26,7 +26,16 @@ func javaFullyQualifiedNamedType(def *compile.TypeDef, forceClass bool, env *com
 
 // javaReflectType returns java.reflect.Type string for provided VDL type.
 func javaReflectType(t *vdl.Type, env *compile.Env) string {
-	return fmt.Sprintf("new com.google.common.reflect.TypeToken<%s>(){}.getType()", javaType(t, true, env))
+	if (t != nil) {
+		switch t.Kind() {
+		case vdl.List, vdl.Set, vdl.Map, vdl.Optional:
+			if javaType(t, false, env) == "byte[]" {
+				return "byte[].class"
+			}
+			return fmt.Sprintf("new com.google.common.reflect.TypeToken<%s>(){}.getType()", javaType(t, true, env))
+		}
+	}
+	return fmt.Sprintf("%s.class", javaType(t, true, env))
 }
 
 // javaBuiltInType returns the type name for the provided built in type

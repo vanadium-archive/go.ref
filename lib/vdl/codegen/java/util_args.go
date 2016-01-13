@@ -55,9 +55,7 @@ func javaCallingArgTypeStr(args []*compile.Field, env *compile.Env) string {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		buf.WriteString("new com.google.common.reflect.TypeToken<")
-		buf.WriteString(javaType(arg.Type, true, env))
-		buf.WriteString(">(){}.getType()")
+		buf.WriteString(javaReflectType(arg.Type, env))
 	}
 	return buf.String()
 }
