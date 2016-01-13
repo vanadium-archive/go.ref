@@ -6,6 +6,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"html"
@@ -22,14 +24,17 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	"v.io/v23/security/access"
 	"v.io/v23/services/logreader"
 	"v.io/v23/services/stats"
 	svtrace "v.io/v23/services/vtrace"
 	"v.io/v23/uniqueid"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/cmdline"
+	seclib "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	"v.io/x/ref/services/internal/pproflib"
@@ -38,14 +43,18 @@ import (
 func init() {
 	cmdBrowse.Flags.StringVar(&flagBrowseAddr, "addr", "", "Address on which the interactive HTTP server will listen. For example, localhost:14141. If empty, defaults to localhost:<some random port>")
 	cmdBrowse.Flags.BoolVar(&flagBrowseLog, "log", true, "If true, log debug data obtained so that if a subsequent refresh from the browser fails, previously obtained information is available from the log file")
+	cmdBrowse.Flags.StringVar(&flagBrowseBlessings, "blessings", "", "If non-empty, points to the blessings required to debug the process. This is typically obtained via 'debug delegate' run by the owner of the remote process")
+	cmdBrowse.Flags.StringVar(&flagBrowsePrivateKey, "key", "", "If non-empty, must be accompanied with --blessings with a value obtained via 'debug delegate' run by the owner of the remote process")
 }
 
 const browseProfilesPath = "/profiles"
 
 var (
-	flagBrowseAddr string
-	flagBrowseLog  bool
-	cmdBrowse      = &cmdline.Command{
+	flagBrowseAddr       string
+	flagBrowseLog        bool
+	flagBrowseBlessings  string
+	flagBrowsePrivateKey string
+	cmdBrowse            = &cmdline.Command{
 		Runner: v23cmd.RunnerFunc(runBrowse),
 		Name:   "browse",
 		Short:  "Starts an interactive interface for debugging",
@@ -68,33 +77,85 @@ can visit (https://browser.v.io).
 A dump of some possible future features:
 TODO(ashankar):?
 
-  (1) Profiling: Should be able to use the webserver to profile the remote
-  process (via 'go tool pprof' for example).  In the mean time, use the 'pprof'
-  command (instead of the 'browse' command) for this purpose.
-  (2) Trace browsing: Browse traces at the remote server, and possible force
+  (1) Trace browsing: Browse traces at the remote server, and possible force
   the collection of some traces (avoiding the need to restart the remote server
   with flags like --v23.vtrace.collect-regexp for example). In the mean time,
   use the 'vtrace' command (instead of the 'browse' command) for this purpose.
-  (3) Log offsets: Log files can be large and currently the logging endpoint
+  (2) Log offsets: Log files can be large and currently the logging endpoint
   of this interface downloads the full log file from the beginning. The ability
   to start looking at the logs only from a specified offset might be useful
   for these large files.
-  (4) Delegation: The 'browse' command requires the appropriate credentials to
-  inspect a remote process. Make delegation of these credentials to another
-  instance of the 'browse' command easier so that, for example, Bob can conveniently
-  ask Alice to debug his service without worrying about giving Alice the ability to
-  modify his service.
-  (5) Signature: Display the interfaces, types etc. defined by any suffix in the
+  (3) Signature: Display the interfaces, types etc. defined by any suffix in the
   remote process. in the mean time, use the 'vrpc signature' command for this purpose.
 `,
 		ArgsName: "<name>",
-		ArgsLong: "<name> is the vanadium object name of the remote process to inspec",
+		ArgsLong: "<name> is the vanadium object name of the remote process to inspect",
+	}
+
+	cmdDelegate = &cmdline.Command{
+		Runner: v23cmd.RunnerFunc(runDelegate),
+		Name:   "delegate",
+		Short:  "Create credentials to delegate debugging to another user",
+		Long: `
+Generates credentials (private key and blessings) required to debug remote
+processes owned by the caller and prints out the command that the delegate can
+run. The delegation limits the bearer of the token to invoke methods on the
+remote process only if they have the "access.Debug" tag on them, and this token
+is valid only for limited amount of time. For example, if Alice wants Bob to
+debug a remote process owned by her for the next 2 hours, she runs:
+
+  debug delegate my-friend-bob 2h myservices/myservice
+
+And sends Bob the output of this command. Bob will then be able to inspect the
+remote process as myservices/myservice with the same authorization as Alice.
+`,
+		ArgsName: "<to> <duration> [<name>]",
+		ArgsLong: `
+<to> is an identifier to provide to the delegate.
+
+<duration> is the time period to delegate for (e.g., 1h for 1 hour)
+
+<name> (optional) is the vanadium object name of the remote process to inspect
+`,
 	}
 )
 
 func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
 	if got, want := 1, len(args); got != want {
-		return env.UsageErrorf("interactive: must provide a single vanadium object name")
+		return env.UsageErrorf("must provide a single vanadium object name")
+	}
+	if len(flagBrowsePrivateKey) != 0 {
+		keybytes, err := base64.URLEncoding.DecodeString(flagBrowsePrivateKey)
+		if err != nil {
+			return fmt.Errorf("bad value for --key: %v", err)
+		}
+		key, err := x509.ParseECPrivateKey(keybytes)
+		if err != nil {
+			return fmt.Errorf("bad value for --key: %v", err)
+		}
+		principal, err := seclib.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(key), nil)
+		if err != nil {
+			return fmt.Errorf("unable to use --key: %v", err)
+		}
+		if ctx, err = v23.WithPrincipal(ctx, principal); err != nil {
+			return err
+		}
+	}
+	if len(flagBrowseBlessings) != 0 {
+		blessingbytes, err := base64.URLEncoding.DecodeString(flagBrowseBlessings)
+		if err != nil {
+			return fmt.Errorf("bad value for --blessings: %v", err)
+		}
+		var blessings security.Blessings
+		if err := vom.Decode(blessingbytes, &blessings); err != nil {
+			return fmt.Errorf("bad value for --blessings: %v", err)
+		}
+		if _, err := v23.GetPrincipal(ctx).BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
+			if len(flagBrowsePrivateKey) == 0 {
+				return fmt.Errorf("cannot use --blessings, should --key have also been provided? (%v)", err)
+			}
+			return fmt.Errorf("cannot use --blessings: %v", err)
+		}
 	}
 	http.Handle("/", &resolveHandler{ctx})
 	http.Handle("/stats", &statsHandler{ctx})
@@ -125,6 +186,62 @@ func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
 		exec.Command("open", url).Start()
 	}
 	<-signals.ShutdownOnSignals(ctx)
+	return nil
+}
+
+func runDelegate(ctx *context.T, env *cmdline.Env, args []string) error {
+	if len(args) < 2 || len(args) > 3 {
+		return env.UsageErrorf("got %d arguments, expecting 2 or 3", len(args))
+	}
+	extension := args[0]
+	duration, err := time.ParseDuration(args[1])
+	if err != nil {
+		return env.UsageErrorf("failed to parse <duration>: %v", err)
+	}
+	name := "<name>"
+	if len(args) == 3 {
+		name = args[2]
+	}
+	// Create a new private key.
+	pub, priv, err := seclib.NewPrincipalKey()
+	if err != nil {
+		return err
+	}
+	privbytes, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		return err
+	}
+	// Create a blessings
+	var caveats []security.Caveat
+	if c, err := access.NewAccessTagCaveat(access.Resolve, access.Debug); err != nil {
+		return err
+	} else {
+		caveats = append(caveats, c)
+	}
+	if c, err := security.NewExpiryCaveat(time.Now().Add(duration)); err != nil {
+		return err
+	} else {
+		caveats = append(caveats, c)
+	}
+	blessing, err := v23.GetPrincipal(ctx).Bless(pub, v23.GetPrincipal(ctx).BlessingStore().Default(), extension, caveats[0], caveats[1:]...)
+	if err != nil {
+		return err
+	}
+	blessingbytes, err := vom.Encode(blessing)
+	if err != nil {
+		return err
+	}
+	fmt.Printf(`Your delegate will be seen as %v at your server. Ask them to run:
+
+debug browse \
+  --key=%q \
+  --blessings=%q \
+  %q
+`,
+		blessing,
+		base64.URLEncoding.EncodeToString(privbytes),
+		base64.URLEncoding.EncodeToString(blessingbytes),
+		name)
 	return nil
 }
 

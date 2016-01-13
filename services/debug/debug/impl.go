@@ -631,6 +631,7 @@ var cmdRoot = &cmdline.Command{
 			Children: []*cmdline.Command{cmdPProfRun, cmdPProfRunProxy},
 		},
 		cmdBrowse,
+		cmdDelegate,
 	},
 }
 

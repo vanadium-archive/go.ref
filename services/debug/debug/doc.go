@@ -18,6 +18,7 @@ The debug commands are:
    stats       Accesses stats
    pprof       Accesses profiling data
    browse      Starts an interactive interface for debugging
+   delegate    Create credentials to delegate debugging to another user
    help        Display help for commands or topics
 
 The debug flags are:
@@ -278,38 +279,64 @@ explicit command-line invocation instead of being just a URL anyone can visit
 
 A dump of some possible future features: TODO(ashankar):?
 
-  (1) Profiling: Should be able to use the webserver to profile the remote
-  process (via 'go tool pprof' for example).  In the mean time, use the 'pprof'
-  command (instead of the 'browse' command) for this purpose.
-  (2) Trace browsing: Browse traces at the remote server, and possible force
+  (1) Trace browsing: Browse traces at the remote server, and possible force
   the collection of some traces (avoiding the need to restart the remote server
   with flags like --v23.vtrace.collect-regexp for example). In the mean time,
   use the 'vtrace' command (instead of the 'browse' command) for this purpose.
-  (3) Log offsets: Log files can be large and currently the logging endpoint
+  (2) Log offsets: Log files can be large and currently the logging endpoint
   of this interface downloads the full log file from the beginning. The ability
   to start looking at the logs only from a specified offset might be useful
   for these large files.
-  (4) Delegation: The 'browse' command requires the appropriate credentials to
-  inspect a remote process. Make delegation of these credentials to another
-  instance of the 'browse' command easier so that, for example, Bob can conveniently
-  ask Alice to debug his service without worrying about giving Alice the ability to
-  modify his service.
-  (5) Signature: Display the interfaces, types etc. defined by any suffix in the
+  (3) Signature: Display the interfaces, types etc. defined by any suffix in the
   remote process. in the mean time, use the 'vrpc signature' command for this purpose.
 
 Usage:
    debug browse [flags] <name>
 
-<name> is the vanadium object name of the remote process to inspec
+<name> is the vanadium object name of the remote process to inspect
 
 The debug browse flags are:
  -addr=
    Address on which the interactive HTTP server will listen. For example,
    localhost:14141. If empty, defaults to localhost:<some random port>
+ -blessings=
+   If non-empty, points to the blessings required to debug the process. This is
+   typically obtained via 'debug delegate' run by the owner of the remote
+   process
+ -key=
+   If non-empty, must be accompanied with --blessings with a value obtained via
+   'debug delegate' run by the owner of the remote process
  -log=true
    If true, log debug data obtained so that if a subsequent refresh from the
    browser fails, previously obtained information is available from the log file
 
+ -timeout=10s
+   Time to wait for various RPCs
+
+Debug delegate - Create credentials to delegate debugging to another user
+
+Generates credentials (private key and blessings) required to debug remote
+processes owned by the caller and prints out the command that the delegate can
+run. The delegation limits the bearer of the token to invoke methods on the
+remote process only if they have the "access.Debug" tag on them, and this token
+is valid only for limited amount of time. For example, if Alice wants Bob to
+debug a remote process owned by her for the next 2 hours, she runs:
+
+  debug delegate my-friend-bob 2h myservices/myservice
+
+And sends Bob the output of this command. Bob will then be able to inspect the
+remote process as myservices/myservice with the same authorization as Alice.
+
+Usage:
+   debug delegate [flags] <to> <duration> [<name>]
+
+<to> is an identifier to provide to the delegate.
+
+<duration> is the time period to delegate for (e.g., 1h for 1 hour)
+
+<name> (optional) is the vanadium object name of the remote process to inspect
+
+The debug delegate flags are:
  -timeout=10s
    Time to wait for various RPCs
 
