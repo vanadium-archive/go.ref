@@ -20,7 +20,6 @@ import (
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/security/bcrypter"
 	"v.io/x/ref/runtime/factories/fake"
-	"v.io/x/ref/runtime/internal/flow/flowtest"
 	"v.io/x/ref/test/goroutines"
 	"v.io/x/ref/test/testutil"
 )
@@ -45,8 +44,8 @@ func checkFlowBlessings(t *testing.T, df, af flow.Flow, db, ab security.Blessing
 	checkBlessings(t, df.RemoteBlessings(), ab, df.RemoteDischarges())
 }
 
-func dialFlow(t *testing.T, ctx *context.T, dc *Conn, b security.Blessings) flow.Flow {
-	df, err := dc.Dial(ctx, peerAuthorizer{b, nil}, dc.remote, 0)
+func dialFlow(t *testing.T, ctx *context.T, dc *Conn, b security.Blessings, d map[string]security.Discharge) flow.Flow {
+	df, err := dc.Dial(ctx, b, d, dc.remote, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +73,7 @@ func NewRoot(t *testing.T, ctx *context.T) *bcrypter.Root {
 	return bcrypter.NewRoot(defaultBlessingName(t, ctx), master)
 }
 
-func BlessWithTPCaveat(t *testing.T, ctx *context.T, p security.Principal, s string) security.Blessings {
+func BlessWithTPCaveat(t *testing.T, ctx *context.T, p security.Principal, s string) (security.Blessings, map[string]security.Discharge) {
 	dp := v23.GetPrincipal(ctx)
 	expcav, err := security.NewExpiryCaveat(time.Now().Add(time.Hour))
 	if err != nil {
@@ -89,18 +88,23 @@ func BlessWithTPCaveat(t *testing.T, ctx *context.T, p security.Principal, s str
 	if err != nil {
 		t.Fatal(err)
 	}
-	return b
+	d, err := dp.MintDischarge(tpcav, security.UnconstrainedUse())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b, map[string]security.Discharge{d.ID(): d}
 }
 
-func NewPrincipalWithTPCaveat(t *testing.T, rootCtx *context.T, root *bcrypter.Root, s string) *context.T {
+func NewPrincipalWithTPCaveat(t *testing.T, rootCtx *context.T, root *bcrypter.Root, s string) (*context.T, map[string]security.Discharge) {
 	p := testutil.NewPrincipal()
-	vsecurity.SetDefaultBlessings(p, BlessWithTPCaveat(t, rootCtx, p, s))
+	blessings, discharges := BlessWithTPCaveat(t, rootCtx, p, s)
+	vsecurity.SetDefaultBlessings(p, blessings)
 	ctx, err := v23.WithPrincipal(rootCtx, p)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if root == nil {
-		return ctx
+		return ctx, discharges
 	}
 	crypter := bcrypter.NewCrypter()
 	key, err := root.Extract(rootCtx, defaultBlessingName(t, ctx))
@@ -110,7 +114,7 @@ func NewPrincipalWithTPCaveat(t *testing.T, rootCtx *context.T, root *bcrypter.R
 	if err := crypter.AddKey(ctx, key); err != nil {
 		t.Fatal(err)
 	}
-	return bcrypter.WithCrypter(ctx, crypter)
+	return bcrypter.WithCrypter(ctx, crypter), discharges
 }
 
 type fakeDischargeClient struct {
@@ -142,8 +146,8 @@ func TestUnidirectional(t *testing.T) {
 	})
 	ctx, _, _ = v23.WithNewClient(ctx)
 
-	dctx := NewPrincipalWithTPCaveat(t, ctx, nil, "dialer")
-	actx := NewPrincipalWithTPCaveat(t, ctx, nil, "acceptor")
+	dctx, dd := NewPrincipalWithTPCaveat(t, ctx, nil, "dialer")
+	actx, _ := NewPrincipalWithTPCaveat(t, ctx, nil, "acceptor")
 	aflows := make(chan flow.Flow, 2)
 	dc, ac, derr, aerr := setupConns(t, "local", "", dctx, actx, nil, aflows, nil, nil)
 	if derr != nil || aerr != nil {
@@ -152,21 +156,21 @@ func TestUnidirectional(t *testing.T) {
 	defer dc.Close(dctx, nil)
 	defer ac.Close(actx, nil)
 
-	df1 := dialFlow(t, dctx, dc, v23.GetPrincipal(dctx).BlessingStore().Default())
+	df1 := dialFlow(t, dctx, dc, v23.GetPrincipal(dctx).BlessingStore().Default(), dd)
 	af1 := <-aflows
 	checkFlowBlessings(t, df1, af1,
 		v23.GetPrincipal(dctx).BlessingStore().Default(),
 		v23.GetPrincipal(actx).BlessingStore().Default())
 
-	db2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(dctx), "other")
-	df2 := dialFlow(t, dctx, dc, db2)
+	db2, dd2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(dctx), "other")
+	df2 := dialFlow(t, dctx, dc, db2, dd2)
 	af2 := <-aflows
 	checkFlowBlessings(t, df2, af2, db2,
 		v23.GetPrincipal(actx).BlessingStore().Default())
 
 	// We should not be able to dial in the other direction, because that flow
 	// manager is not willing to accept flows.
-	_, err := ac.Dial(actx, flowtest.AllowAllPeersAuthorizer{}, nil, 0)
+	_, err := ac.Dial(actx, ac.LocalBlessings(), nil, nil, 0)
 	if verror.ErrorID(err) != ErrDialingNonServer.ID {
 		t.Errorf("got %v, wanted ErrDialingNonServer", err)
 	}
@@ -182,8 +186,8 @@ func TestBidirectional(t *testing.T) {
 	})
 	ctx, _, _ = v23.WithNewClient(ctx)
 
-	dctx := NewPrincipalWithTPCaveat(t, ctx, nil, "dialer")
-	actx := NewPrincipalWithTPCaveat(t, ctx, nil, "acceptor")
+	dctx, dd := NewPrincipalWithTPCaveat(t, ctx, nil, "dialer")
+	actx, ad := NewPrincipalWithTPCaveat(t, ctx, nil, "acceptor")
 	dflows := make(chan flow.Flow, 2)
 	aflows := make(chan flow.Flow, 2)
 	dc, ac, derr, aerr := setupConns(t, "local", "", dctx, actx, dflows, aflows, nil, nil)
@@ -193,26 +197,26 @@ func TestBidirectional(t *testing.T) {
 	defer dc.Close(dctx, nil)
 	defer ac.Close(actx, nil)
 
-	df1 := dialFlow(t, dctx, dc, v23.GetPrincipal(dctx).BlessingStore().Default())
+	df1 := dialFlow(t, dctx, dc, v23.GetPrincipal(dctx).BlessingStore().Default(), dd)
 	af1 := <-aflows
 	checkFlowBlessings(t, df1, af1,
 		v23.GetPrincipal(dctx).BlessingStore().Default(),
 		v23.GetPrincipal(actx).BlessingStore().Default())
 
-	db2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(dctx), "other")
-	df2 := dialFlow(t, dctx, dc, db2)
+	db2, dd2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(dctx), "other")
+	df2 := dialFlow(t, dctx, dc, db2, dd2)
 	af2 := <-aflows
 	checkFlowBlessings(t, df2, af2, db2,
 		v23.GetPrincipal(actx).BlessingStore().Default())
 
-	af3 := dialFlow(t, actx, ac, v23.GetPrincipal(actx).BlessingStore().Default())
+	af3 := dialFlow(t, actx, ac, v23.GetPrincipal(actx).BlessingStore().Default(), ad)
 	df3 := <-dflows
 	checkFlowBlessings(t, af3, df3,
 		v23.GetPrincipal(actx).BlessingStore().Default(),
 		v23.GetPrincipal(dctx).BlessingStore().Default())
 
-	ab2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(actx), "aother")
-	af4 := dialFlow(t, actx, ac, ab2)
+	ab2, ad2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(actx), "aother")
+	af4 := dialFlow(t, actx, ac, ab2, ad2)
 	df4 := <-dflows
 	checkFlowBlessings(t, af4, df4, ab2,
 		v23.GetPrincipal(dctx).BlessingStore().Default())
@@ -237,8 +241,8 @@ func TestPrivateMutualAuth(t *testing.T) {
 	ctx, _, _ = v23.WithNewClient(ctx)
 	root := NewRoot(t, ctx)
 
-	dctx := NewPrincipalWithTPCaveat(t, ctx, root, "dialer")
-	actx := NewPrincipalWithTPCaveat(t, ctx, root, "acceptor")
+	dctx, _ := NewPrincipalWithTPCaveat(t, ctx, root, "dialer")
+	actx, _ := NewPrincipalWithTPCaveat(t, ctx, root, "acceptor")
 
 	successTests := []struct {
 		dAuth, aAuth []security.BlessingPattern

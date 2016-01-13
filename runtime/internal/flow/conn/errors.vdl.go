@@ -32,7 +32,6 @@ var (
 	ErrDialingNonServer         = verror.Register("v.io/x/ref/runtime/internal/flow/conn.DialingNonServer", verror.NoRetry, "{1:}{2:} You are attempting to dial on a connection with no remote server.")
 	ErrAcceptorBlessingsMissing = verror.Register("v.io/x/ref/runtime/internal/flow/conn.AcceptorBlessingsMissing", verror.NoRetry, "{1:}{2:} The acceptor did not send blessings.")
 	ErrBlessingsNotBound        = verror.Register("v.io/x/ref/runtime/internal/flow/conn.BlessingsNotBound", verror.NoRetry, "{1:}{2:} blessings not bound to connection remote public key")
-	ErrNoBlessingsForPeer       = verror.Register("v.io/x/ref/runtime/internal/flow/conn.NoBlessingsForPeer", verror.NoRetry, "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
 	ErrInvalidPeerFlow          = verror.Register("v.io/x/ref/runtime/internal/flow/conn.InvalidPeerFlow", verror.NoRetry, "{1:}{2:} peer has chosen flow id from local domain.")
 	ErrChannelTimeout           = verror.Register("v.io/x/ref/runtime/internal/flow/conn.ChannelTimeout", verror.NoRetry, "{1:}{2:} the channel has become unresponsive.")
 	ErrCannotDecryptBlessings   = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CannotDecryptBlessings", verror.NoRetry, "{1:}{2:} cannot decrypt the encrypted blessings sent by peer{:3}")
@@ -58,7 +57,6 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDialingNonServer.ID), "{1:}{2:} You are attempting to dial on a connection with no remote server.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAcceptorBlessingsMissing.ID), "{1:}{2:} The acceptor did not send blessings.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBlessingsNotBound.ID), "{1:}{2:} blessings not bound to connection remote public key")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoBlessingsForPeer.ID), "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidPeerFlow.ID), "{1:}{2:} peer has chosen flow id from local domain.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrChannelTimeout.ID), "{1:}{2:} the channel has become unresponsive.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCannotDecryptBlessings.ID), "{1:}{2:} cannot decrypt the encrypted blessings sent by peer{:3}")
@@ -137,11 +135,6 @@ func NewErrAcceptorBlessingsMissing(ctx *context.T) error {
 // NewErrBlessingsNotBound returns an error with the ErrBlessingsNotBound ID.
 func NewErrBlessingsNotBound(ctx *context.T) error {
 	return verror.New(ErrBlessingsNotBound, ctx)
-}
-
-// NewErrNoBlessingsForPeer returns an error with the ErrNoBlessingsForPeer ID.
-func NewErrNoBlessingsForPeer(ctx *context.T, peerNames []string, rejected []security.RejectedBlessing, err error) error {
-	return verror.New(ErrNoBlessingsForPeer, ctx, peerNames, rejected, err)
 }
 
 // NewErrInvalidPeerFlow returns an error with the ErrInvalidPeerFlow ID.

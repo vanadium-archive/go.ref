@@ -27,7 +27,6 @@ error (
   DialingNonServer() {"en": "You are attempting to dial on a connection with no remote server."}
   AcceptorBlessingsMissing() {"en": "The acceptor did not send blessings."}
   BlessingsNotBound() {"en": "blessings not bound to connection remote public key"}
-  NoBlessingsForPeer(peerNames []string, rejected []security.RejectedBlessing, err error) {"en": "no blessings tagged for peer {peerNames}, rejected:{rejected}{:err}"}
   InvalidPeerFlow() {"en": "peer has chosen flow id from local domain."}
   ChannelTimeout() {"en": "the channel has become unresponsive."}
   CannotDecryptBlessings(err error) {"en": "cannot decrypt the encrypted blessings sent by peer{:err}"}

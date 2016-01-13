@@ -13,6 +13,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/naming"
+	"v.io/v23/security"
 	"v.io/x/ref/runtime/internal/flow/conn"
 )
 
@@ -105,19 +106,20 @@ func (c *ConnCache) InsertWithRoutingID(conn *conn.Conn, proxy bool) error {
 	return nil
 }
 
-func (c *ConnCache) Find(ctx *context.T, protocol, address string, rid naming.RoutingID, auth flow.PeerAuthorizer) (*conn.Conn, error) {
+func (c *ConnCache) Find(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
-		return nil, NewErrCacheClosed(nil)
+		return nil, nil, nil, NewErrCacheClosed(nil)
 	}
-	if rid != naming.NullRoutingID {
-		if entry := c.removeUndialable(ctx, c.ridCache[rid], auth); entry != nil {
-			return entry, nil
+	if rid := remote.RoutingID(); rid != naming.NullRoutingID {
+		if entry, names, rejected = c.removeUndialable(ctx, remote, c.ridCache[rid], auth); entry != nil {
+			return entry, names, rejected, nil
 		}
 	}
-	k := key(protocol, address)
-	return c.removeUndialable(ctx, c.addrCache[k], auth), nil
+	k := key(remote.Addr().Network(), remote.Addr().String())
+	entry, names, rejected = c.removeUndialable(ctx, remote, c.addrCache[k], auth)
+	return entry, names, rejected, nil
 }
 
 // ReservedFind returns a Conn based on the input remoteEndpoint.
@@ -129,26 +131,27 @@ func (c *ConnCache) Find(ctx *context.T, protocol, address string, rid naming.Ro
 // the arguments provided to ReservedFind.
 // All new ReservedFind calls for the (protocol, address) will Block
 // until the corresponding Unreserve call is made.
-func (c *ConnCache) ReservedFind(ctx *context.T, protocol, address string, rid naming.RoutingID, auth flow.PeerAuthorizer) (*conn.Conn, error) {
+func (c *ConnCache) ReservedFind(ctx *context.T, remote naming.Endpoint, resolvedNetwork, resolvedAddress string, auth flow.PeerAuthorizer) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
-		return nil, NewErrCacheClosed(nil)
+		return nil, nil, nil, NewErrCacheClosed(nil)
 	}
-	if rid != naming.NullRoutingID {
-		if entry := c.removeUndialable(ctx, c.ridCache[rid], auth); entry != nil {
-			return entry, nil
+	if rid := remote.RoutingID(); rid != naming.NullRoutingID {
+		if entry, names, rejected := c.removeUndialable(ctx, remote, c.ridCache[rid], auth); entry != nil {
+			return entry, names, rejected, nil
 		}
 	}
-	k := key(protocol, address)
+	k := key(resolvedNetwork, resolvedAddress)
 	for c.started[k] {
 		c.cond.Wait()
 		if c.addrCache == nil {
-			return nil, NewErrCacheClosed(nil)
+			return nil, nil, nil, NewErrCacheClosed(nil)
 		}
 	}
 	c.started[k] = true
-	return c.removeUndialable(ctx, c.addrCache[k], auth), nil
+	entry, names, rejected = c.removeUndialable(ctx, remote, c.addrCache[k], auth)
+	return entry, names, rejected, nil
 }
 
 // Unreserve marks the status of the (protocol, address) as no longer started, and
@@ -176,9 +179,9 @@ func (c *ConnCache) Close(ctx *context.T) {
 
 // removeUndialable filters connections that are closed, lameducked, or non-proxied
 // connections that do not authorize.
-func (c *ConnCache) removeUndialable(ctx *context.T, e *connEntry, auth flow.PeerAuthorizer) *conn.Conn {
+func (c *ConnCache) removeUndialable(ctx *context.T, remote naming.Endpoint, e *connEntry, auth flow.PeerAuthorizer) (*conn.Conn, []string, []security.RejectedBlessing) {
 	if e == nil {
-		return nil
+		return nil, nil, nil
 	}
 	if status := e.conn.Status(); status >= conn.Closing || e.conn.RemoteLameDuck() {
 		delete(c.addrCache, e.addrKey)
@@ -186,19 +189,20 @@ func (c *ConnCache) removeUndialable(ctx *context.T, e *connEntry, auth flow.Pee
 		if status < conn.Closing {
 			c.unmappedConns[e] = true
 		}
-		return nil
+		return nil, nil, nil
 	}
 	if !e.proxy && auth != nil {
-		_, _, err := auth.AuthorizePeer(ctx,
+		names, rejected, err := auth.AuthorizePeer(ctx,
 			e.conn.LocalEndpoint(),
-			e.conn.RemoteEndpoint(),
+			remote,
 			e.conn.RemoteBlessings(),
 			e.conn.RemoteDischarges())
 		if err != nil {
-			return nil
+			return nil, names, rejected
 		}
+		return e.conn, names, rejected
 	}
-	return e.conn
+	return e.conn, nil, nil
 }
 
 // KillConnections will close and remove num LRU Conns in the cache.
@@ -216,7 +220,7 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 	err := NewErrConnKilledToFreeResources(ctx)
 	pq := make(connEntries, 0, len(c.ridCache))
 	for _, e := range c.ridCache {
-		if c.removeUndialable(ctx, e, nil) == nil {
+		if entry, _, _ := c.removeUndialable(ctx, nil, e, nil); entry == nil {
 			continue
 		}
 		if e.conn.IsEncapsulated() {

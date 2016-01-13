@@ -18,7 +18,6 @@ import (
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	iflow "v.io/x/ref/runtime/internal/flow"
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
@@ -152,7 +151,7 @@ func NewDialed(
 	auth flow.PeerAuthorizer,
 	handshakeTimeout time.Duration,
 	channelTimeout time.Duration,
-	handler FlowHandler) (*Conn, error) {
+	handler FlowHandler) (c *Conn, names []string, rejected []security.RejectedBlessing, err error) {
 	dctx := ctx
 	ctx, cancel := context.WithRootCancel(ctx)
 	if channelTimeout == 0 {
@@ -164,7 +163,7 @@ func NewDialed(
 	if f, ok := conn.(*flw); ok {
 		ctx = f.SetDeadlineContext(ctx, time.Time{})
 	}
-	c := &Conn{
+	c = &Conn{
 		mp:                   newMessagePipe(conn),
 		handler:              handler,
 		lBlessings:           lBlessings,
@@ -182,25 +181,27 @@ func NewDialed(
 		activeWriters:        make([]writer, numPriorities),
 		acceptChannelTimeout: channelTimeout,
 	}
-	errCh := make(chan error, 1)
+	done := make(chan struct{})
 	c.loopWG.Add(1)
 	go func() {
-		errCh <- c.dialHandshake(ctx, versions, auth)
+		names, rejected, err = c.dialHandshake(ctx, versions, auth)
+		close(done)
 		c.loopWG.Done()
 	}()
 	timer := time.NewTimer(handshakeTimeout)
-	var err error
+	var ferr error
 	select {
-	case err = <-errCh:
+	case <-done:
+		ferr = err
 	case <-timer.C:
-		err = verror.NewErrTimeout(ctx)
+		ferr = verror.NewErrTimeout(ctx)
 	case <-dctx.Done():
-		err = verror.NewErrCanceled(ctx)
+		ferr = verror.NewErrCanceled(ctx)
 	}
 	timer.Stop()
-	if err != nil {
-		c.Close(ctx, err)
-		return nil, err
+	if ferr != nil {
+		c.Close(ctx, ferr)
+		return nil, nil, nil, ferr
 	}
 	c.initializeHealthChecks(ctx)
 	// We send discharges asynchronously to prevent making a second RPC while
@@ -216,7 +217,7 @@ func NewDialed(
 		c.loopWG.Done()
 	}()
 	go c.readLoop(ctx)
-	return c, nil
+	return c, names, rejected, nil
 }
 
 // NewAccepted accepts a new Conn on the given conn.
@@ -357,28 +358,12 @@ func (c *Conn) EnterLameDuck(ctx *context.T) chan struct{} {
 }
 
 // Dial dials a new flow on the Conn.
-func (c *Conn) Dial(ctx *context.T, auth flow.PeerAuthorizer, remote naming.Endpoint, channelTimeout time.Duration) (flow.Flow, error) {
+func (c *Conn) Dial(ctx *context.T, blessings security.Blessings, discharges map[string]security.Discharge, remote naming.Endpoint, channelTimeout time.Duration) (flow.Flow, error) {
 	if c.remote.RoutingID() == naming.NullRoutingID {
 		return nil, NewErrDialingNonServer(ctx)
 	}
-	rBlessings, rDischarges, err := c.blessingsFlow.getLatestRemote(ctx, c.rBKey)
-	if err != nil {
-		return nil, err
-	}
 	var bkey, dkey uint64
-	var blessings security.Blessings
-	var discharges map[string]security.Discharge
-	if isProxy := remote != nil && remote.RoutingID() != naming.NullRoutingID && remote.RoutingID() != c.remote.RoutingID(); !isProxy {
-		// TODO(suharshs): On the first flow dial, find a way to not call this twice.
-		rbnames, rejected, err := auth.AuthorizePeer(ctx, c.local, remote, rBlessings, rDischarges)
-		if err != nil {
-			return nil, iflow.MaybeWrapError(verror.ErrNotTrusted, ctx, err)
-		}
-		blessings, discharges, err = auth.BlessingsForPeer(ctx, rbnames)
-		if err != nil {
-			return nil, NewErrNoBlessingsForPeer(ctx, rbnames, rejected, err)
-		}
-	}
+	var err error
 	if blessings.IsZero() {
 		// its safe to ignore this error since c.lBlessings must be valid, so the
 		// encoding of the publicKey can never error out.

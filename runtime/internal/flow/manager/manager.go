@@ -650,15 +650,15 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAut
 
 func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer, channelTimeout time.Duration, proxy bool) (flow.Flow, error) {
 	// Fast path, look for the conn based on unresolved network, address, and routingId first.
-	addr, rid := remote.Addr(), remote.RoutingID()
-	c, err := m.cache.Find(ctx, addr.Network(), addr.String(), rid, auth)
-	if err != nil {
-		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
-	}
 	var (
 		protocol         flow.Protocol
 		network, address string
+		addr             = remote.Addr()
 	)
+	c, names, rejected, err := m.cache.Find(ctx, remote, auth)
+	if err != nil {
+		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
+	}
 	auth = &peerAuthorizer{auth, m.serverAuthorizedPeers}
 	if c == nil {
 		protocol, _ = flow.RegisteredProtocol(addr.Network())
@@ -673,7 +673,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		if err != nil {
 			return nil, iflow.MaybeWrapError(flow.ErrResolveFailed, ctx, err)
 		}
-		c, err = m.cache.ReservedFind(ctx, network, address, rid, auth)
+		c, names, rejected, err = m.cache.ReservedFind(ctx, remote, network, address, auth)
 		if err != nil {
 			return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 		}
@@ -683,6 +683,8 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			defer m.cache.Unreserve(network, address)
 		}
 	}
+
+	// We didn't find the connection we want in the cache.  Dial it.
 	if c == nil {
 		flowConn, err := dial(ctx, protocol, network, address)
 		if err != nil {
@@ -702,7 +704,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			}
 			m.ls.mu.Unlock()
 		}
-		c, err = conn.NewDialed(
+		c, names, rejected, err = conn.NewDialed(
 			ctx,
 			m.serverBlessings,
 			flowConn,
@@ -718,8 +720,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			flowConn.Close()
 			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
-		proxy = proxy || (remote.RoutingID() != naming.NullRoutingID && remote.RoutingID() != c.RemoteEndpoint().RoutingID())
-		if err := m.cache.Insert(c, network, address, proxy); err != nil {
+		if err := m.cache.Insert(c, network, address, proxy || !c.MatchesRID(remote)); err != nil {
 			c.Close(ctx, err)
 			return nil, flow.NewErrBadState(ctx, err)
 		}
@@ -727,14 +728,15 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		m.cache.Unreserve(network, address)
 		m.handlerReady(fh, proxy)
 	}
-	f, err := c.Dial(ctx, auth, remote, channelTimeout)
-	if err != nil {
-		return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
-	}
 
-	// If we are dialing out to a Proxy, we need to dial a conn on this flow, and
-	// return a flow on that corresponding conn.
-	if proxyConn := c; remote.RoutingID() != naming.NullRoutingID && remote.RoutingID() != c.RemoteEndpoint().RoutingID() {
+	// If the connection we found or dialed turns out to not be the person we expected, assume it is a Proxy.
+	// We now need to make a flow to a proxy and upgrade it to a conn to the final server.
+	if !c.MatchesRID(remote) {
+		proxyConn := c
+		f, err := proxyConn.Dial(ctx, security.Blessings{}, nil, remote, channelTimeout)
+		if err != nil {
+			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
+		}
 		var fh conn.FlowHandler
 		if m.ls != nil {
 			m.ls.mu.Lock()
@@ -743,7 +745,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			}
 			m.ls.mu.Unlock()
 		}
-		c, err = conn.NewDialed(
+		c, names, rejected, err = conn.NewDialed(
 			ctx,
 			m.serverBlessings,
 			f,
@@ -762,11 +764,16 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			c.Close(ctx, err)
 			return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 		}
-		f, err = c.Dial(ctx, auth, remote, channelTimeout)
-		if err != nil {
-			proxyConn.Close(ctx, err)
-			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
-		}
+	}
+
+	// Find the proper blessings and dial the final flow.
+	blessings, discharges, err := auth.BlessingsForPeer(ctx, names)
+	if err != nil {
+		return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, NewErrNoBlessingsForPeer(ctx, names, rejected, err))
+	}
+	f, err := c.Dial(ctx, blessings, discharges, remote, channelTimeout)
+	if err != nil {
+		return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 	}
 	return f, nil
 }

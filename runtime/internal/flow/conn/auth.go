@@ -31,16 +31,12 @@ var (
 	authAcceptorTag = []byte("AuthAcpt\x00")
 )
 
-func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, auth flow.PeerAuthorizer) error {
+func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, auth flow.PeerAuthorizer) (names []string, rejected []security.RejectedBlessing, err error) {
 	binding, remoteEndpoint, err := c.setup(ctx, versions, true)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	isProxy := c.remote.RoutingID() != naming.NullRoutingID && c.remote.RoutingID() != remoteEndpoint.RoutingID()
-	// We use the remote ends local endpoint as our remote endpoint when the routingID's
-	// of the endpoints differ. This is an indicator that we are talking to a proxy.
-	// This means that the manager will need to dial a subsequent conn on this conn
-	// to the end server.
+	dialedEP := endpointCopy(c.remote)
 	c.remote.(*inaming.Endpoint).RID = remoteEndpoint.RoutingID()
 	bflow := c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true, 0)
 	bflow.releaseLocked(DefaultBytesBufferedPerFlow)
@@ -48,19 +44,22 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 
 	rBlessings, rDischarges, err := c.readRemoteAuth(ctx, binding, true)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	if rBlessings.IsZero() {
-		return NewErrAcceptorBlessingsMissing(ctx)
+		return nil, nil, NewErrAcceptorBlessingsMissing(ctx)
 	}
-	if !isProxy {
-		if _, _, err := auth.AuthorizePeer(ctx, c.local, c.remote, rBlessings, rDischarges); err != nil {
-			return iflow.MaybeWrapError(verror.ErrNotTrusted, ctx, err)
+	if c.MatchesRID(dialedEP) {
+		// If we hadn't reached the endpoint we expected we would have treated this connection as
+		// a proxy, and proxies aren't authorized.  In this case we didn't find a proxy, so go ahead
+		// and authorize the connection.
+		if names, rejected, err = auth.AuthorizePeer(ctx, c.local, c.remote, rBlessings, rDischarges); err != nil {
+			return nil, nil, iflow.MaybeWrapError(verror.ErrNotTrusted, ctx, err)
 		}
 	}
 	signedBinding, err := v23.GetPrincipal(ctx).Sign(append(authDialerTag, binding...))
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	lAuth := &message.Auth{
 		ChannelBinding: signedBinding,
@@ -75,11 +74,15 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	// server as it has already authorized the server. Thus the 'peers' argument to
 	// blessingsFlow.send is nil.
 	if lAuth.BlessingsKey, _, err = c.blessingsFlow.send(ctx, c.lBlessings, nil, nil); err != nil {
-		return err
+		return nil, nil, err
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	return c.sendMessageLocked(ctx, true, expressPriority, lAuth)
+	return names, rejected, c.sendMessageLocked(ctx, true, expressPriority, lAuth)
+}
+
+func (c *Conn) MatchesRID(ep naming.Endpoint) bool {
+	return ep.RoutingID() == naming.NullRoutingID || c.remote.RoutingID() == ep.RoutingID()
 }
 
 func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange, authorizedPeers []security.BlessingPattern) error {
