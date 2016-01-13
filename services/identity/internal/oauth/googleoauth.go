@@ -84,6 +84,7 @@ func (g *googleOAuth) ExchangeAuthCodeForEmail(authcode string, url string) (str
 	if err != nil {
 		return "", fmt.Errorf("failed to talk to GoogleIDToken verifier (%q): %v", g.verifyURL, err)
 	}
+	defer tinfo.Body.Close()
 	if tinfo.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to verify GoogleIDToken: %s", tinfo.Status)
 	}
@@ -114,6 +115,7 @@ func (g *googleOAuth) GetEmailAndClientID(accessToken string) (string, string, e
 	if err != nil {
 		return "", "", fmt.Errorf("unable to use token: %v", err)
 	}
+	defer tokeninfo.Body.Close()
 	if tokeninfo.StatusCode != http.StatusOK {
 		return "", "", fmt.Errorf("unable to verify access token, OAuth2 TokenInfo endpoint responded with StatusCode: %v", tokeninfo.StatusCode)
 	}
