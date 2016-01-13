@@ -42,6 +42,7 @@ func TestBlessingRootJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer response.Body.Close()
 	dec := json.NewDecoder(response.Body)
 	var res identity.BlessingRootResponse
 	if err := dec.Decode(&res); err != nil {
@@ -79,6 +80,7 @@ func TestBlessingRootBase64VOM(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer response.Body.Close()
 	var root security.Blessings
 	if body, err := ioutil.ReadAll(response.Body); err != nil {
 		t.Fatal(err)
@@ -214,6 +216,7 @@ func TestBless(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			response.Body.Close()
 			blessings := decodeBlessings(b, outputFormat)
 
 			// Blessing should be bound to the blessee.
