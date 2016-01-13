@@ -79,7 +79,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                 {{ else }} {{/* else $method.IsVoid */}}
                 java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{
                     {{ range $outArg := $method.OutArgs }}
-                    new com.google.common.reflect.TypeToken<{{ $outArg.Type }}>() {}.getType(),
+                    {{ $outArg.ReflectType }},
                     {{ end }}
                 };
                 {{ end }} {{/* end if $method.IsVoid */}}
@@ -106,7 +106,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
         return new io.v.v23.vdl.ClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
              @Override
              public com.google.common.util.concurrent.ListenableFuture<Void> send(final {{ $method.SendType }} item) {
-                 final java.lang.reflect.Type type = new com.google.common.reflect.TypeToken<{{ $method.SendType }}>() {}.getType();
+                 final java.lang.reflect.Type type = {{ $method.StreamSendReflectType }};
                  return com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, Void>() {
                      @Override
                      public com.google.common.util.concurrent.ListenableFuture<Void> apply(final io.v.v23.rpc.ClientCall _call) throws Exception {
@@ -125,7 +125,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
              }
              @Override
              public com.google.common.util.concurrent.ListenableFuture<{{ $method.RecvType }}> recv() {
-                 final java.lang.reflect.Type recvType = new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType();
+                 final java.lang.reflect.Type recvType = {{ $method.StreamRecvReflectType }};
                  return com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, {{ $method.RecvType }}>() {
                      @Override
                      public com.google.common.util.concurrent.ListenableFuture<{{ $method.RecvType }}> apply(final io.v.v23.rpc.ClientCall _call) throws Exception {
@@ -145,7 +145,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                  {{ else }} {{/* else $method.IsVoid */}}
                  final java.lang.reflect.Type[] resultTypes = new java.lang.reflect.Type[]{
                      {{ range $outArg := $method.OutArgs }}
-                     new com.google.common.reflect.TypeToken<{{ $outArg.Type }}>() {}.getType(),
+                     {{ $outArg.ReflectType }},
                      {{ end }}
                  };
                  {{ end }} {{/* end if $method.IsVoid */}}
@@ -193,8 +193,9 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
 `
 
 type clientImplMethodOutArg struct {
-	FieldName string
-	Type      string
+	FieldName   string
+	ReflectType string
+	Type        string
 }
 
 type clientImplMethod struct {
@@ -209,8 +210,10 @@ type clientImplMethod struct {
 	NotStreaming            bool
 	OutArgs                 []clientImplMethodOutArg
 	OutArgType              string
+	StreamRecvReflectType   string
 	RecvType                string
 	RetType                 string
+	StreamSendReflectType   string
 	SendType                string
 	ServiceName             string
 }
@@ -237,6 +240,7 @@ func processClientImplMethod(iface *compile.Interface, method *compile.Method, e
 			outArgs[i].FieldName = fmt.Sprintf("ret%d", i+1)
 		}
 		outArgs[i].Type = javaType(method.OutArgs[i].Type, true, env)
+		outArgs[i].ReflectType = javaReflectType(method.OutArgs[i].Type, env)
 	}
 	return clientImplMethod{
 		CallingArgs:             javaCallingArgStr(method.InArgs, false),
@@ -250,8 +254,10 @@ func processClientImplMethod(iface *compile.Interface, method *compile.Method, e
 		NotStreaming:            !isStreamingMethod(method),
 		OutArgs:                 outArgs,
 		OutArgType:              clientInterfaceOutArg(iface, method, true, env),
+		StreamRecvReflectType:         javaReflectType(method.OutStream, env),
 		RecvType:                javaType(method.OutStream, true, env),
 		RetType:                 clientInterfaceRetType(iface, method, env),
+		StreamSendReflectType:         javaReflectType(method.InStream, env),
 		SendType:                javaType(method.InStream, true, env),
 		ServiceName:             vdlutil.FirstRuneToUpper(iface.Name),
 	}

@@ -114,11 +114,11 @@ public final class {{ .ServiceName }}ServerWrapper {
     {{ $method.JavaDoc }}
     public {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext _ctx, final io.v.v23.rpc.StreamServerCall _call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{ if $method.IsStreaming }}
-        final io.v.v23.rpc.StreamIterable<{{ $method.RecvType }}> _it = new io.v.v23.rpc.StreamIterable(_call,new com.google.common.reflect.TypeToken<{{ $method.RecvType }}>() {}.getType());
+        final io.v.v23.rpc.StreamIterable<{{ $method.RecvType }}> _it = new io.v.v23.rpc.StreamIterable(_call, {{ $method.StreamRecvReflectType }});
         io.v.v23.vdl.ServerStream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.ServerStream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
             @Override
             public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
-                java.lang.reflect.Type type = new com.google.common.reflect.TypeToken< {{ $method.SendType }} >() {}.getType();
+                java.lang.reflect.Type type = {{ $method.StreamSendReflectType }};
                 io.v.v23.VFutures.sync(_call.send(item, type));
             }
             @Override
@@ -148,19 +148,21 @@ public final class {{ .ServiceName }}ServerWrapper {
 `
 
 type serverWrapperMethod struct {
-	CallingArgs     string
-	CallingArgTypes []string
-	DeclarationArgs string
-	Doc             string
-	IsStreaming     bool
-	JavaDoc         string
-	Name            string
-	RecvType        string
-	RetType         string
-	RetJavaTypes    []string
-	Returns         bool
-	SendType        string
-	Tags            []methodTag
+	CallingArgs           string
+	CallingArgTypes       []string
+	DeclarationArgs       string
+	Doc                   string
+	IsStreaming           bool
+	JavaDoc               string
+	Name                  string
+	RecvType              string
+	RetType               string
+	RetJavaTypes          []string
+	Returns               bool
+	SendType              string
+	StreamRecvReflectType string
+	StreamSendReflectType string
+	Tags                  []methodTag
 }
 
 type serverWrapperEmbedMethod struct {
@@ -201,19 +203,21 @@ func processServerWrapperMethod(iface *compile.Interface, method *compile.Method
 		retArgTypes[i] = javaReflectType(arg.Type, env)
 	}
 	return serverWrapperMethod{
-		CallingArgs:     javaCallingArgStr(method.InArgs, true),
-		CallingArgTypes: callArgTypes,
-		DeclarationArgs: javaDeclarationArgStr(method.InArgs, env, true),
-		Doc:             toJavaString(method.Doc),
-		IsStreaming:     isStreamingMethod(method),
-		JavaDoc:         javaDoc(method.Doc, method.DocSuffix),
-		Name:            vdlutil.FirstRuneToLower(method.Name),
-		RecvType:        javaType(method.InStream, true, env),
-		RetType:         serverInterfaceOutArg(iface, method, env),
-		RetJavaTypes:    retArgTypes,
-		Returns:         len(method.OutArgs) >= 1,
-		SendType:        javaType(method.OutStream, true, env),
-		Tags:            tags,
+		CallingArgs:           javaCallingArgStr(method.InArgs, true),
+		CallingArgTypes:       callArgTypes,
+		DeclarationArgs:       javaDeclarationArgStr(method.InArgs, env, true),
+		Doc:                   toJavaString(method.Doc),
+		IsStreaming:           isStreamingMethod(method),
+		JavaDoc:               javaDoc(method.Doc, method.DocSuffix),
+		Name:                  vdlutil.FirstRuneToLower(method.Name),
+		RecvType:              javaType(method.InStream, true, env),
+		RetType:               serverInterfaceOutArg(iface, method, env),
+		RetJavaTypes:          retArgTypes,
+		Returns:               len(method.OutArgs) >= 1,
+		SendType:              javaType(method.OutStream, true, env),
+		StreamRecvReflectType: javaReflectType(method.InStream, env),
+		StreamSendReflectType: javaReflectType(method.OutStream, env),
+		Tags:                  tags,
 	}
 }
 
