@@ -63,14 +63,14 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
         return {{ $method.Name }}(_context{{ $method.CallingArgsLeadingComma }}, null);
     }
     @Override
-    public {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext _context{{ $method.DeclarationArgs }}, io.v.v23.Options _opts) {
+    public {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext _context{{ $method.DeclarationArgs }}, io.v.v23.Options _opts) {
         {{/* Start the vanadium call */}}
         // Start the call.
         java.lang.Object[] _args = new java.lang.Object[]{ {{ $method.CallingArgs }} };
         java.lang.reflect.Type[] _argTypes = new java.lang.reflect.Type[]{ {{ $method.CallingArgTypes }} };
         final com.google.common.util.concurrent.ListenableFuture<io.v.v23.rpc.ClientCall> _callFuture = getClient(_context).startCall(_context, this.vName, "{{ $method.Name }}", _args, _argTypes, _opts);
         {{ if $method.NotStreaming }}
-        return com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, {{ $method.OutArgType }}>() {
+        return io.v.v23.VFutures.withUserLandChecks(_context, com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, {{ $method.OutArgType }}>() {
             @Override
             public com.google.common.util.concurrent.ListenableFuture<{{ $method.OutArgType }}> apply(final io.v.v23.rpc.ClientCall _call) throws Exception {
                 {{ if $method.IsVoid }}
@@ -101,32 +101,32 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                     }
                 });
             }
-        });
+        }));
         {{else }} {{/* else $method.NotStreaming */}}
         return new io.v.v23.vdl.ClientStream<{{ $method.SendType }}, {{ $method.RecvType }}, {{ $method.DeclaredObjectRetType }}>() {
              @Override
              public com.google.common.util.concurrent.ListenableFuture<Void> send(final {{ $method.SendType }} item) {
                  final java.lang.reflect.Type type = {{ $method.StreamSendReflectType }};
-                 return com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, Void>() {
+                 return io.v.v23.VFutures.withUserLandChecks(_context, com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, Void>() {
                      @Override
                      public com.google.common.util.concurrent.ListenableFuture<Void> apply(final io.v.v23.rpc.ClientCall _call) throws Exception {
                          return _call.send(item, type);
                      }
-                 });
+                 }));
              }
              @Override
              public com.google.common.util.concurrent.ListenableFuture<Void> close() {
-                 return com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, Void>() {
+                 return io.v.v23.VFutures.withUserLandChecks(_context, com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, Void>() {
                      @Override
                      public com.google.common.util.concurrent.ListenableFuture<Void> apply(final io.v.v23.rpc.ClientCall _call) throws Exception {
                          return _call.closeSend();
                      }
-                 });
+                 }));
              }
              @Override
              public com.google.common.util.concurrent.ListenableFuture<{{ $method.RecvType }}> recv() {
                  final java.lang.reflect.Type recvType = {{ $method.StreamRecvReflectType }};
-                 return com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, {{ $method.RecvType }}>() {
+                 return io.v.v23.VFutures.withUserLandChecks(_context, com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, {{ $method.RecvType }}>() {
                      @Override
                      public com.google.common.util.concurrent.ListenableFuture<{{ $method.RecvType }}> apply(final io.v.v23.rpc.ClientCall _call) throws Exception {
                          return com.google.common.util.concurrent.Futures.transform(_call.recv(recvType), new com.google.common.base.Function<Object, {{ $method.RecvType }}>() {
@@ -136,7 +136,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                              }
                          });
                      }
-                 });
+                 }));
              }
              @Override
              public com.google.common.util.concurrent.ListenableFuture<{{ $method.DeclaredObjectRetType }}> finish() {
@@ -149,7 +149,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                      {{ end }}
                  };
                  {{ end }} {{/* end if $method.IsVoid */}}
-                 return com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, {{ $method.DeclaredObjectRetType }}>() {
+                 return io.v.v23.VFutures.withUserLandChecks(_context, com.google.common.util.concurrent.Futures.transform(_callFuture, new com.google.common.util.concurrent.AsyncFunction<io.v.v23.rpc.ClientCall, {{ $method.DeclaredObjectRetType }}>() {
                      @Override
                      public com.google.common.util.concurrent.ListenableFuture<{{ $method.DeclaredObjectRetType }}> apply(final io.v.v23.rpc.ClientCall _call) throws Exception {
                          return com.google.common.util.concurrent.Futures.transform(_call.finish(resultTypes), new com.google.common.base.Function<Object[], {{ $method.DeclaredObjectRetType }}>() {
@@ -169,7 +169,7 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
                              }
                          });
                      }
-                 });
+                 }));
              }
          };
          {{ end }}{{/* end if $method.NotStreaming */}}
@@ -254,10 +254,10 @@ func processClientImplMethod(iface *compile.Interface, method *compile.Method, e
 		NotStreaming:            !isStreamingMethod(method),
 		OutArgs:                 outArgs,
 		OutArgType:              clientInterfaceOutArg(iface, method, true, env),
-		StreamRecvReflectType:         javaReflectType(method.OutStream, env),
+		StreamRecvReflectType:   javaReflectType(method.OutStream, env),
 		RecvType:                javaType(method.OutStream, true, env),
 		RetType:                 clientInterfaceRetType(iface, method, env),
-		StreamSendReflectType:         javaReflectType(method.InStream, env),
+		StreamSendReflectType:   javaReflectType(method.InStream, env),
 		SendType:                javaType(method.InStream, true, env),
 		ServiceName:             vdlutil.FirstRuneToUpper(iface.Name),
 	}

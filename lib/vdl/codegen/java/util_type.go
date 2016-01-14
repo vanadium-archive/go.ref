@@ -26,7 +26,7 @@ func javaFullyQualifiedNamedType(def *compile.TypeDef, forceClass bool, env *com
 
 // javaReflectType returns java.reflect.Type string for provided VDL type.
 func javaReflectType(t *vdl.Type, env *compile.Env) string {
-	if (t != nil) {
+	if t != nil {
 		switch t.Kind() {
 		case vdl.List, vdl.Set, vdl.Map, vdl.Optional:
 			if javaType(t, false, env) == "byte[]" {
