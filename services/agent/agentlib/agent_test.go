@@ -42,7 +42,7 @@ import (
 // BenchmarkRecognizedCachedAgent-4          	 3000000	       774 ns/op
 // BenchmarkRecognizedUncachedAgent-4        	   20000	     99022 ns/op
 
-var getPrincipalAndHang = gosh.Register("getPrincipalAndHang", func() {
+var getPrincipalAndHang = gosh.RegisterFunc("getPrincipalAndHang", func() {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	p := v23.GetPrincipal(ctx)
@@ -206,7 +206,7 @@ func TestAgentShutdown(t *testing.T) {
 	}()
 
 	// The child process will connect to the agent.
-	c := sh.Fn(getPrincipalAndHang)
+	c := sh.FuncCmd(getPrincipalAndHang)
 	c.Start()
 
 	fmt.Fprintf(os.Stderr, "reading var...\n")

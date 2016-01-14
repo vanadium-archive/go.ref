@@ -9,6 +9,7 @@ package v23test
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -99,15 +100,19 @@ type Opts struct {
 	Ctx *context.T
 }
 
-var calledRun = false
+var calledInitTestMain = false
 
 // NewShell creates a new Shell. 't' may be nil. Use v23.GetPrincipal(sh.Ctx) to
 // get the bound principal, if needed.
 func NewShell(t *testing.T, opts Opts) *Shell {
 	fillDefaults(t, &opts)
 
-	if t != nil && !calledRun {
-		t.Fatal("must call v23test.Run(m.Run) from TestMain")
+	// Note: gosh only requires gosh.InitMain to be called if the user uses
+	// gosh.Shell.FuncCmd, while we require InitTestMain to be called whenever a
+	// user calls NewShell with a non-nil *testing.T. We're stricter than gosh
+	// because we want to make sure that the bin dir gets shared across tests.
+	if t != nil && !calledInitTestMain {
+		t.Fatal("must call v23test.TestMain or v23test.InitTestMain from TestMain")
 		return nil
 	}
 
@@ -125,6 +130,15 @@ func NewShell(t *testing.T, opts Opts) *Shell {
 	}
 	if sh.Err != nil {
 		return sh
+	}
+	// Filter out any v23test or credentials-related env vars coming from outside.
+	// Note, we intentionally retain envChildOutputDir ("TMPDIR") and
+	// envShellTestProcess, as these should be propagated downstream.
+	if envChildOutputDir != "TMPDIR" { // sanity check
+		panic(envChildOutputDir)
+	}
+	for _, key := range []string{envBinDir, ref.EnvCredentials, ref.EnvAgentPath} {
+		delete(sh.Vars, key)
 	}
 	if sh.t != nil {
 		sh.Vars[envShellTestProcess] = "1"
@@ -191,24 +205,43 @@ func (sh *Shell) Cleanup() {
 	}
 }
 
-// Run does some initialization work, then returns run(). Exported so that
-// TestMain functions can simply call os.Exit(v23test.Run(m.Run)).
-func Run(run func() int) int {
+// InitTestMain is intended for developers with complex setup or teardown
+// requirements; developers should generally use TestMain. InitTestMain must be
+// called early on in TestMain, before m.Run is called. It calls gosh.InitMain
+// and, if V23_BIN_DIR is not set, sets it to a new temporary directory. Returns
+// a cleanup function that should be called after m.Run but before os.Exit.
+func InitTestMain() func() {
 	gosh.InitMain()
-	calledRun = true
-	// Set up shared bin dir if V23_BIN_DIR is not already set. Note, this can't
-	// be done in NewShell because we wouldn't be able to clean up after ourselves
-	// after all tests have run.
-	if dir := os.Getenv(envBinDir); len(dir) == 0 {
-		if dir, err := ioutil.TempDir("", "bin-"); err != nil {
+	calledInitTestMain = true
+	cleanup := func() {}
+	if os.Getenv(envBinDir) == "" {
+		dir, err := ioutil.TempDir("", "bin-")
+		if err != nil {
 			panic(err)
-		} else {
-			os.Setenv(envBinDir, dir)
-			defer os.Unsetenv(envBinDir)
-			defer os.RemoveAll(dir)
+		}
+		cleanup = func() {
+			os.RemoveAll(dir)
+			os.Unsetenv(envBinDir)
+		}
+		if err := os.Setenv(envBinDir, dir); err != nil {
+			cleanup()
+			panic(err)
 		}
 	}
-	return run()
+	return cleanup
+}
+
+// TestMain calls flag.Parse and does some v23test/gosh setup work, then calls
+// os.Exit(m.Run()). Developers with complex setup or teardown requirements may
+// need to use InitTestMain instead.
+func TestMain(m *testing.M) {
+	flag.Parse()
+	var code int
+	func() {
+		defer InitTestMain()()
+		code = m.Run()
+	}()
+	os.Exit(code)
 }
 
 // SkipUnlessRunningIntegrationTests should be called first thing inside of the
@@ -246,19 +279,11 @@ func newCmd(sh *Shell, c *gosh.Cmd) *Cmd {
 	res := &Cmd{Cmd: c, sh: sh}
 	initSession(sh.t, res)
 	res.Vars[envPrincipal] = sh.ForkCredentials("child").Handle
-	// TODO(sadovsky): Hack to deal with tests that pass a principal to the
-	// process that creates a v23test.Shell using the V23_CREDENTIALS env var,
-	// e.g. vanadium-js-node-integration. Once the "Copy os.Environ() into..."
-	// gosh TODO is addressed, we should switch to deleting ref.EnvCredentials and
-	// ref.EnvAgentPath from Shell.Vars in NewShell.
-	if !useAgent {
-		panic("hack assumes useAgent is true")
-	}
-	delete(res.Vars, ref.EnvCredentials)
 	return res
 }
 
-// Cmd returns a Cmd for an invocation of the named program.
+// Cmd returns a Cmd for an invocation of the named program. The given arguments
+// are passed to the child as command-line arguments.
 func (sh *Shell) Cmd(name string, args ...string) *Cmd {
 	c := sh.Shell.Cmd(name, args...)
 	if sh.Err != nil {
@@ -267,19 +292,12 @@ func (sh *Shell) Cmd(name string, args ...string) *Cmd {
 	return newCmd(sh, c)
 }
 
-// Fn returns a Cmd for an invocation of the given registered Fn.
-func (sh *Shell) Fn(fn *gosh.Fn, args ...interface{}) *Cmd {
-	c := sh.Shell.Fn(fn, args...)
-	if sh.Err != nil {
-		return nil
-	}
-	return newCmd(sh, c)
-}
-
-// Main returns a Cmd for an invocation of the given registered main() function.
-// See gosh.Shell.Main for detailed description.
-func (sh *Shell) Main(fn *gosh.Fn, args ...string) *Cmd {
-	c := sh.Shell.Main(fn, args...)
+// FuncCmd returns a Cmd for an invocation of the given registered Func. The
+// given arguments are gob-encoded in the parent process, then gob-decoded in
+// the child and passed to the Func. To specify command-line arguments for the
+// child invocation, append to the returned Cmd's Args.
+func (sh *Shell) FuncCmd(f *gosh.Func, args ...interface{}) *Cmd {
+	c := sh.Shell.FuncCmd(f, args...)
 	if sh.Err != nil {
 		return nil
 	}

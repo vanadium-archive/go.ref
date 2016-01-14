@@ -34,7 +34,7 @@ var (
 	}
 )
 
-var permFromFlag = gosh.Register("permFromFlag", func() {
+var permFromFlag = gosh.RegisterFunc("permFromFlag", func() {
 	flag.Parse()
 	nfargs := flag.CommandLine.Args()
 	perms, err := PermissionsFromFlag()
@@ -92,12 +92,15 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 	}
 	for _, td := range testdata {
 		fp := append(td.flags, td.auth)
-		if stdout := sh.Main(permFromFlag, fp...).Stdout(); stdout != "" {
+		c := sh.FuncCmd(permFromFlag)
+		c.Args = append(c.Args, fp...)
+		if stdout := c.Stdout(); stdout != "" {
 			t.Errorf(stdout)
 		}
 	}
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(gosh.Run(m.Run))
+	gosh.InitMain()
+	os.Exit(m.Run())
 }

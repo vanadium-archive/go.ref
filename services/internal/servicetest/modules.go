@@ -31,7 +31,7 @@ const (
 	preserveWorkspaceEnv = "V23_TEST_PRESERVE_WORKSPACE"
 )
 
-var rootMT = gosh.Register("rootMT", func() error {
+var rootMT = gosh.RegisterFunc("rootMT", func() error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	mt, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
@@ -49,7 +49,7 @@ var rootMT = gosh.Register("rootMT", func() error {
 
 // startRootMT sets up a root mount table for tests.
 func startRootMT(t *testing.T, sh *v23test.Shell) string {
-	c := sh.Fn(rootMT)
+	c := sh.FuncCmd(rootMT)
 	c.Args = append(c.Args, "--v23.tcp.address=127.0.0.1:0")
 	c.PropagateOutput = false
 	c.Start()

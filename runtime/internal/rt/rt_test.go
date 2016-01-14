@@ -52,7 +52,7 @@ func TestInit(t *testing.T) {
 	}
 }
 
-var child = gosh.Register("child", func() {
+var child = gosh.RegisterFunc("child", func() {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -66,7 +66,7 @@ func TestInitArgs(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
-	c := sh.Fn(child)
+	c := sh.FuncCmd(child)
 	c.Args = append(c.Args, "--logtostderr=true", "--vmodule=*=3", "--", "foobar")
 	c.PropagateOutput = true
 	c.Start()
@@ -81,7 +81,7 @@ func TestInitArgs(t *testing.T) {
 		"vfilepath= "+
 		"log_backtrace_at=:0",
 		os.TempDir()))
-	c.Shutdown(os.Interrupt)
+	c.Terminate(os.Interrupt)
 	c.S.ExpectEOF()
 }
 
@@ -115,7 +115,7 @@ func tmpDir(t *testing.T) string {
 	return dir
 }
 
-var principal = gosh.Register("principal", func() error {
+var principal = gosh.RegisterFunc("principal", func() error {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -129,7 +129,7 @@ var principal = gosh.Register("principal", func() error {
 
 // Runner runs 'principal' in a subprocess, then reports back with its own
 // security info as well as its child's.
-var runner = gosh.Register("runner", func() error {
+var runner = gosh.RegisterFunc("runner", func() error {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -141,7 +141,7 @@ var runner = gosh.Register("runner", func() error {
 		return err
 	}
 	fmt.Printf("RUNNER_DEFAULT_BLESSING=%v\n", defaultBlessing(p))
-	c := sh.Fn(principal)
+	c := sh.FuncCmd(principal)
 	// Make sure the child gets its credentials from this shell (via agent), not
 	// from the original EnvCredentials env var.
 	delete(c.Vars, ref.EnvCredentials)
@@ -173,7 +173,7 @@ func TestPrincipalInheritance(t *testing.T) {
 	createCredentialsInDir(t, cdir, "test")
 
 	// Directory supplied by the environment.
-	c := sh.Fn(runner)
+	c := sh.FuncCmd(runner)
 	c.Vars[ref.EnvCredentials] = cdir
 	c.Start()
 
@@ -194,7 +194,7 @@ func TestPrincipalInheritance(t *testing.T) {
 func TestPrincipalInit(t *testing.T) {
 	// Runs the principal function and returns the child's default blessing.
 	collect := func(sh *v23test.Shell, extraVars map[string]string, extraArgs ...string) string {
-		c := sh.Fn(principal)
+		c := sh.FuncCmd(principal)
 		c.Vars = envvar.MergeMaps(c.Vars, extraVars)
 		c.Args = append(c.Args, extraArgs...)
 		c.Start()
@@ -214,7 +214,7 @@ func TestPrincipalInit(t *testing.T) {
 
 	// Test that the shell uses the EnvAgentPath, not EnvCredentials, to pass
 	// credentials to its children.
-	c := sh.Fn(principal)
+	c := sh.FuncCmd(principal)
 	if _, ok := c.Vars[ref.EnvCredentials]; ok {
 		t.Fatal("Did not expect child to have EnvCredentials set")
 	}

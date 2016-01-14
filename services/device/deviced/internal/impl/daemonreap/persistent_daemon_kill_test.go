@@ -56,7 +56,7 @@ func TestReapRestartsDaemonMode(t *testing.T) {
 	pid := utiltest.GetPid(t, ctx, appID, instance1)
 
 	// Shutdown the first device manager.
-	dm.Shutdown(os.Interrupt)
+	dm.Terminate(os.Interrupt)
 	dm.S.Expect("dm terminated")
 	utiltest.ResolveExpectNotFound(t, ctx, "dm", false) // Ensure a clean slate.
 
@@ -71,7 +71,7 @@ func TestReapRestartsDaemonMode(t *testing.T) {
 
 	defer func() {
 		utiltest.TerminateApp(t, ctx, appID, instance1)
-		dm.Shutdown(os.Interrupt)
+		dm.Terminate(os.Interrupt)
 		dm.S.Expect("dm terminated")
 		utiltest.VerifyNoRunningProcesses(t)
 	}()

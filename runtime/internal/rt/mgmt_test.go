@@ -103,7 +103,7 @@ func waitForEOF(r io.Reader) {
 	io.Copy(ioutil.Discard, r)
 }
 
-var noWaiters = gosh.Register("noWaiters", func() {
+var noWaiters = gosh.RegisterFunc("noWaiters", func() {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	v23.GetAppCycle(ctx).Stop(ctx)
@@ -116,7 +116,7 @@ func TestNoWaiters(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
-	cmd := sh.Fn(noWaiters)
+	cmd := sh.FuncCmd(noWaiters)
 	cmd.ExitErrorIsOk = true
 
 	cmd.Run()
@@ -126,7 +126,7 @@ func TestNoWaiters(t *testing.T) {
 	}
 }
 
-var forceStop = gosh.Register("forceStop", func() {
+var forceStop = gosh.RegisterFunc("forceStop", func() {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	m := v23.GetAppCycle(ctx)
@@ -141,7 +141,7 @@ func TestForceStop(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
-	cmd := sh.Fn(forceStop)
+	cmd := sh.FuncCmd(forceStop)
 	cmd.ExitErrorIsOk = true
 
 	cmd.Run()
@@ -234,7 +234,7 @@ func TestProgressMultipleTrackers(t *testing.T) {
 	}
 }
 
-var app = gosh.Register("app", func() {
+var app = gosh.RegisterFunc("app", func() {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -272,7 +272,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, *vexec.ParentHandle, *exp
 			sh.Cleanup()
 		}
 	}()
-	goshCmd := sh.Fn(app)
+	goshCmd := sh.FuncCmd(app)
 
 	ch := make(chan string, 1)
 	service := device.ConfigServer(&configServer{ch})

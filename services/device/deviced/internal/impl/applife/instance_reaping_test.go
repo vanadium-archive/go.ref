@@ -74,7 +74,7 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	// TODO(rjkroege): Exercise the polling loop code.
 
 	// Cleanly shut down the device manager.
-	dm.Shutdown(os.Interrupt)
+	dm.Terminate(os.Interrupt)
 	dm.S.Expect("dm terminated")
 	utiltest.VerifyNoRunningProcesses(t)
 }

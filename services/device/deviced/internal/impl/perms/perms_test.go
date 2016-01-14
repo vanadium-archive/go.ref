@@ -141,7 +141,7 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	dm.Start()
 	dm.S.Expect("READY")
 	defer func() {
-		dm.Shutdown(os.Interrupt)
+		dm.Terminate(os.Interrupt)
 		dm.S.Expect("dm terminated")
 		utiltest.VerifyNoRunningProcesses(t)
 	}()

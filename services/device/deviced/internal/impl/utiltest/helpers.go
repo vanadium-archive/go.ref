@@ -83,8 +83,8 @@ func init() {
 
 }
 
-func EnvelopeFromShell(sh *v23test.Shell, vars, flags []string, fn *gosh.Fn, title string, retries int, window time.Duration, args ...interface{}) application.Envelope {
-	c := sh.Fn(fn, args...)
+func EnvelopeFromShell(sh *v23test.Shell, vars, flags []string, f *gosh.Func, title string, retries int, window time.Duration, args ...interface{}) application.Envelope {
+	c := sh.FuncCmd(f, args...)
 	// Make sure the command is not provided with credentials from the shell;
 	// device manager is responsible for providing it credentials.
 	delete(c.Vars, ref.EnvCredentials)
@@ -110,8 +110,8 @@ func EnvelopeFromShell(sh *v23test.Shell, vars, flags []string, fn *gosh.Fn, tit
 	}
 }
 
-func SignedEnvelopeFromShell(ctx *context.T, sh *v23test.Shell, vars, flags []string, fn *gosh.Fn, title string, retries int, window time.Duration, args ...interface{}) (application.Envelope, error) {
-	envelope := EnvelopeFromShell(sh, vars, flags, fn, title, retries, window, args...)
+func SignedEnvelopeFromShell(ctx *context.T, sh *v23test.Shell, vars, flags []string, f *gosh.Func, title string, retries int, window time.Duration, args ...interface{}) (application.Envelope, error) {
+	envelope := EnvelopeFromShell(sh, vars, flags, f, title, retries, window, args...)
 	reader, cleanup, err := mockBinaryBytesReader()
 	defer cleanup()
 	sig, err := binarylib.Sign(ctx, reader)

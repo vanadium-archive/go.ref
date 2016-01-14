@@ -89,7 +89,7 @@ func TestDaemonRestart(t *testing.T) {
 	utiltest.VerifyState(t, ctx, device.InstanceStateNotRunning, appID, instance2ID)
 
 	// Cleanly shut down the device manager.
-	dm.Shutdown(os.Interrupt)
+	dm.Terminate(os.Interrupt)
 	dm.S.Expect("dm terminated")
 	utiltest.VerifyNoRunningProcesses(t)
 }

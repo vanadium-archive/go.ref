@@ -6,7 +6,6 @@ package main_test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"v.io/v23/security"
@@ -115,5 +114,5 @@ func createClientAndServerCredentials(t *testing.T, sh *v23test.Shell) (clientDi
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }

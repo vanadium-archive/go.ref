@@ -32,7 +32,7 @@ func writeln(w io.Writer, s string) {
 func TestSimpleServerSignal(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
-	c := sh.Fn(simpleServerProgram)
+	c := sh.FuncCmd(simpleServerProgram)
 	stdin := c.StdinPipe()
 	c.Start()
 	c.S.Expect("Ready")
@@ -49,7 +49,7 @@ func TestSimpleServerSignal(t *testing.T) {
 func TestSimpleServerLocalStop(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
-	c := sh.Fn(simpleServerProgram)
+	c := sh.FuncCmd(simpleServerProgram)
 	stdin := c.StdinPipe()
 	c.Start()
 	c.S.Expect("Ready")
@@ -67,7 +67,7 @@ func TestSimpleServerLocalStop(t *testing.T) {
 func TestSimpleServerDoubleSignal(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
-	c := sh.Fn(simpleServerProgram)
+	c := sh.FuncCmd(simpleServerProgram)
 	c.ExitErrorIsOk = true
 	c.Start()
 	c.S.Expect("Ready")
@@ -88,7 +88,7 @@ func TestSimpleServerDoubleSignal(t *testing.T) {
 func TestSimpleServerLocalForceStop(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
-	c := sh.Fn(simpleServerProgram)
+	c := sh.FuncCmd(simpleServerProgram)
 	stdin := c.StdinPipe()
 	c.ExitErrorIsOk = true
 	c.Start()
@@ -109,7 +109,7 @@ func TestSimpleServerLocalForceStop(t *testing.T) {
 func TestSimpleServerKill(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
-	c := sh.Fn(simpleServerProgram)
+	c := sh.FuncCmd(simpleServerProgram)
 	c.ExitErrorIsOk = true
 	c.Start()
 	c.S.Expect("Ready")
@@ -130,7 +130,7 @@ func TestSimpleServerKill(t *testing.T) {
 func TestComplexServerSignal(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
-	c := sh.Fn(complexServerProgram)
+	c := sh.FuncCmd(complexServerProgram)
 	stdin := c.StdinPipe()
 	c.Start()
 	c.S.Expect("Ready")
@@ -153,7 +153,7 @@ func TestComplexServerSignal(t *testing.T) {
 func TestComplexServerLocalStop(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
-	c := sh.Fn(complexServerProgram)
+	c := sh.FuncCmd(complexServerProgram)
 	stdin := c.StdinPipe()
 	c.Start()
 	c.S.Expect("Ready")
@@ -180,7 +180,7 @@ func TestComplexServerLocalStop(t *testing.T) {
 func TestComplexServerDoubleSignal(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
-	c := sh.Fn(complexServerProgram)
+	c := sh.FuncCmd(complexServerProgram)
 	c.ExitErrorIsOk = true
 	c.Start()
 	c.S.Expect("Ready")
@@ -205,7 +205,7 @@ func TestComplexServerDoubleSignal(t *testing.T) {
 func TestComplexServerLocalForceStop(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
-	c := sh.Fn(complexServerProgram)
+	c := sh.FuncCmd(complexServerProgram)
 	stdin := c.StdinPipe()
 	c.ExitErrorIsOk = true
 	c.Start()
@@ -226,7 +226,7 @@ func TestComplexServerLocalForceStop(t *testing.T) {
 func TestComplexServerKill(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
-	c := sh.Fn(complexServerProgram)
+	c := sh.FuncCmd(complexServerProgram)
 	c.ExitErrorIsOk = true
 	c.Start()
 	c.S.Expect("Ready")

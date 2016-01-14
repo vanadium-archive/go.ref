@@ -305,12 +305,12 @@ read
 	// If we restart the agent, and have it serve the client principal on the same
 	// socket, the client should function again.
 	stdinPipe.Close()
-	agent.Shutdown(os.Interrupt)
+	agent.Terminate(os.Interrupt)
 	t.Logf("Killed the agent, restarting it")
 	agent, stdinPipe = startAgent()
 	defer func() {
 		stdinPipe.Close()
-		agent.Shutdown(os.Interrupt)
+		agent.Terminate(os.Interrupt)
 	}()
 	// The bug that this test is trying to fix is one where the clientSock
 	// file is left hanging around. At the time this test was written,

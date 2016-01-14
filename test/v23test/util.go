@@ -28,7 +28,8 @@ func maybeAddTcpAddressFlag(sh *Shell, args *[]string) {
 }
 
 // StartRootMountTable builds and starts mounttabled and calls SetRoots. Returns
-// a function that can be called to send a signal to the started process.
+// a function that can be called to send a signal to the started process and
+// wait for it to exit.
 func (sh *Shell) StartRootMountTable(args ...string) func(sig os.Signal) {
 	sh.Ok()
 	path := sh.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
@@ -52,12 +53,12 @@ func (sh *Shell) StartRootMountTable(args ...string) func(sig os.Signal) {
 		return nil
 	}
 	sh.Ctx.Infof("Started root mount table: %s", name)
-	return cmd.Shutdown
+	return cmd.Terminate
 }
 
 // StartSyncbase builds and starts syncbased. If rootDir is empty, it makes a
 // new root dir. Returns a function that can be called to send a signal to the
-// started process.
+// started process and wait for it to exit.
 // TODO(sadovsky): Maybe take a Permissions object instead of permsLiteral.
 func (sh *Shell) StartSyncbase(c *Credentials, name, rootDir, permsLiteral string, args ...string) func(sig os.Signal) {
 	sh.Ok()
@@ -74,7 +75,7 @@ func (sh *Shell) StartSyncbase(c *Credentials, name, rootDir, permsLiteral strin
 	args = append([]string{"-name=" + name, "-root-dir=" + rootDir, "-v23.permissions.literal=" + permsLiteral}, args...)
 
 	if *syncbaseDebugArgs != "" {
-		syncbaseLogDir, err := ioutil.TempDir("", name)
+		syncbaseLogDir, err := ioutil.TempDir("", name+"-")
 		if err != nil {
 			sh.HandleError(err)
 			return nil
@@ -99,5 +100,5 @@ func (sh *Shell) StartSyncbase(c *Credentials, name, rootDir, permsLiteral strin
 		return nil
 	}
 	sh.Ctx.Infof("Started syncbase: %s", endpoint)
-	return cmd.Shutdown
+	return cmd.Terminate
 }

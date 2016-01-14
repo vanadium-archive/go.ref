@@ -23,7 +23,7 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-var binaryd = gosh.Register("binaryd", func(publishName, storedir string) {
+var binaryd = gosh.RegisterFunc("binaryd", func(publishName, storedir string) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -86,7 +86,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 	defer cleanup()
 	prepDirectory(t, storedir)
 
-	nmh := sh.Fn(binaryd, "bini", storedir)
+	nmh := sh.FuncCmd(binaryd, "bini", storedir)
 	nmh.Start()
 	nmh.S.Expect("READY")
 
@@ -144,7 +144,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("WithPrincipal() failed: %v", err)
 	}
 
-	nmh := sh.Fn(binaryd, "bini", storedir)
+	nmh := sh.FuncCmd(binaryd, "bini", storedir)
 	nmh.Start()
 	nmh.S.Expect("READY")
 
@@ -427,7 +427,7 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 		t.Fatalf("AddToRoots() failed: %v", err)
 	}
 
-	nmh := sh.Fn(binaryd, "bini", storedir)
+	nmh := sh.FuncCmd(binaryd, "bini", storedir)
 	nmh.Start()
 	nmh.S.Expect("READY")
 

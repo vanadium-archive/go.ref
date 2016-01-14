@@ -56,7 +56,7 @@ func TestReapReconciliationViaKill(t *testing.T) {
 	pid := utiltest.GetPid(t, ctx, appID, instances[0])
 
 	// Shutdown the first device manager.
-	dm.Shutdown(os.Interrupt)
+	dm.Terminate(os.Interrupt)
 	dm.S.Expect("dm terminated")
 	utiltest.ResolveExpectNotFound(t, ctx, "dm", false) // Ensure a clean slate.
 
@@ -111,7 +111,7 @@ func TestReapReconciliationViaKill(t *testing.T) {
 	}
 	utiltest.TerminateApp(t, ctx, appID, instances[0])
 
-	dm.Shutdown(os.Interrupt)
+	dm.Terminate(os.Interrupt)
 	dm.S.Expect("dm terminated")
 	utiltest.VerifyNoRunningProcesses(t)
 }
