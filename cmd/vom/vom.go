@@ -135,8 +135,9 @@ func runDump(env *cmdline.Env, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(env.Stdout, vom.Dump(binbytes))
-		return nil
+		d, err := vom.Dump(binbytes)
+		fmt.Fprintln(env.Stdout, d)
+		return err
 	}
 	// Handle streaming from stdin.
 	dumper := vom.NewDumper(vom.NewDumpWriter(env.Stdout))

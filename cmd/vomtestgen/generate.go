@@ -335,8 +335,12 @@ func toVomHex(version vom.Version, value *vdl.Value) (string, string, string, st
 	vombytes := append(append([]byte{versionByte}, typebuf.Bytes()...), buf.Bytes()...)
 	const pre = "\t// "
 	var vomdump string
-	if version == 0x80 {
-		vomdump = pre + strings.Replace(vom.Dump(vombytes), "\n", "\n"+pre, -1)
+	if version <= vom.Version81 {
+		d, err := vom.Dump(vombytes)
+		if err != nil {
+			return "", "", "", "", err
+		}
+		vomdump = pre + strings.Replace(d, "\n", "\n"+pre, -1)
 	}
 	if strings.HasSuffix(vomdump, "\n"+pre) {
 		vomdump = vomdump[:len(vomdump)-len("\n"+pre)]
