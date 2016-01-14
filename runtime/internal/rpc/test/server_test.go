@@ -234,3 +234,56 @@ func setLeafEndpoints(eps []naming.Endpoint) {
 		eps[i].(*inaming.Endpoint).IsLeaf = true
 	}
 }
+
+type ldServer struct {
+	started chan struct{}
+	wait chan struct{}
+}
+
+func (s *ldServer) Do(ctx *context.T, call rpc.ServerCall) (bool, error) {
+	<-s.wait
+	return ctx.Err() != nil, nil
+}
+
+func TestLameDuck(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	cases := []struct{
+		timeout time.Duration
+		finishError bool
+		wasCanceled bool
+	} {
+		{timeout: time.Minute, wasCanceled: false},
+		{timeout: 0, finishError: true},
+	}
+	for _, c := range cases {
+		s := &ldServer{wait: make(chan struct{})}
+		sctx, cancel := context.WithCancel(ctx)
+		_, server, err := v23.WithNewServer(sctx, "ld", s, nil, options.LameDuckTimeout(c.timeout))
+		if err != nil {
+			t.Fatal(err)
+		}
+		call, err := v23.GetClient(ctx).StartCall(ctx, "ld", "Do", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Now cancel the context putting the server into lameduck mode.
+		cancel()
+		// Now allow the call to complete and see if the context was canceled.
+		close(s.wait)
+
+		var wasCanceled bool
+		err = call.Finish(&wasCanceled)
+		if c.finishError {
+			if err == nil {
+				t.Errorf("case: %v: Expected error for call but didn't get one", c)
+			}
+		} else {
+			if wasCanceled != c.wasCanceled {
+				t.Errorf("case %v: got %v.", c, wasCanceled)
+			}
+		}
+		<-server.Closed()
+	}
+}

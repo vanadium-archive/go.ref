@@ -112,14 +112,13 @@ func WithNewDispatchingServer(ctx *context.T,
 	if err != nil {
 		return ctx, nil, err
 	}
-
 	ctx, stop := context.WithCancel(ctx)
-	rootCtx, cancel := context.WithRootCancel(ctx)
 	statsPrefix := naming.Join("rpc", "server", "routing-id", rid.String())
 	s := &xserver{
+		ctx:               ctx,
 		stop:              stop,
-		cancel:            cancel,
-		blessings:         v23.GetPrincipal(rootCtx).BlessingStore().Default(),
+		cancel:            stop,
+		blessings:         v23.GetPrincipal(ctx).BlessingStore().Default(),
 		stats:             newRPCStats(statsPrefix),
 		settingsPublisher: settingsPublisher,
 		valid:             make(chan struct{}),
@@ -163,23 +162,32 @@ func WithNewDispatchingServer(ctx *context.T,
 		}
 	}
 
-	s.flowMgr = manager.NewWithBlessings(rootCtx, s.blessings, rid, authorizedPeers, settingsPublisher, channelTimeout)
-	rootCtx, _, err = v23.WithNewClient(rootCtx,
+	if s.lameDuckTimeout > 0 {
+		// If we're going to lame duck we can't just allow the context we use for all server callbacks
+		// to be canceled immediately.  Here we derive a new context that isn't canceled until we cancel it
+		// or the runtime shuts down.  The procedure for shutdown is to notice that the context passed in
+		// by the user has been canceled, enter lame duck, and only after the lame duck period cancel this
+		// context (from which all server call contexts are derived).
+		s.ctx, s.cancel = context.WithRootCancel(ctx)
+	}
+
+	s.flowMgr = manager.NewWithBlessings(s.ctx, s.blessings, rid, authorizedPeers, settingsPublisher, channelTimeout)
+	s.ctx, _, err = v23.WithNewClient(s.ctx,
 		clientFlowManagerOpt{s.flowMgr},
 		PreferredProtocols(s.preferredProtocols))
 	if err != nil {
-		cancel()
+		s.stop()
+		s.cancel()
 		return ctx, nil, err
 	}
-	s.ctx = rootCtx
-	s.publisher = publisher.New(rootCtx, v23.GetNamespace(rootCtx), publishPeriod)
+	s.publisher = publisher.New(s.ctx, v23.GetNamespace(s.ctx), publishPeriod)
 
 	// TODO(caprita): revist printing the blessings with string, and
 	// instead expose them as a list.
 	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
 	stats.NewString(blessingsStatsName).Set(s.blessings.String())
 
-	s.listen(rootCtx, v23.GetListenSpec(rootCtx))
+	s.listen(s.ctx, v23.GetListenSpec(s.ctx))
 	if len(name) > 0 {
 		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
 		vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
@@ -207,11 +215,12 @@ func WithNewDispatchingServer(ctx *context.T,
 			s.active.Wait()
 			close(done)
 		}()
-
-		select {
-		case <-done:
-		case <-time.After(s.lameDuckTimeout):
-			s.ctx.Errorf("%s: Timed out waiting for active requests to complete", serverDebug)
+		if s.lameDuckTimeout > 0 {
+			select {
+			case <-done:
+			case <-time.After(s.lameDuckTimeout):
+				s.ctx.Errorf("%s: Timed out waiting for active requests to complete", serverDebug)
+			}
 		}
 		// Now we cancel the root context which closes all the connections
 		// in the flow manager and cancels all the contexts used by
@@ -230,7 +239,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		s.state = rpc.ServerStopped
 		s.Unlock()
 	}()
-	return rootCtx, s, nil
+	return s.ctx, s, nil
 }
 
 func (s *xserver) Status() rpc.ServerStatus {
