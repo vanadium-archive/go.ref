@@ -135,7 +135,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	dm.Start()
 	dm.S.Expect("READY")
 	defer func() {
-		dm.Shutdown(os.Interrupt)
+		dm.Terminate(os.Interrupt)
 		utiltest.VerifyNoRunningProcesses(t)
 	}()
 
@@ -183,7 +183,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// relaunch it from the current link.
 	utiltest.ResolveExpectNotFound(t, ctx, "v2DM", false) // Ensure a clean slate.
 
-	dm = sh.Fn(utiltest.ExecScript, currLink)
+	dm = sh.FuncCmd(utiltest.ExecScript, currLink)
 	dm.Vars = envvar.MergeMaps(dm.Vars, dmVars)
 	dm.Start()
 	dm.S.Expect("READY")
@@ -225,7 +225,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Re-launch the device manager from current link.  We instruct the
 	// device manager to pause before stopping its server, so that we can
 	// verify that a second revert fails while a revert is in progress.
-	dm = sh.Fn(utiltest.ExecScript, currLink)
+	dm = sh.FuncCmd(utiltest.ExecScript, currLink)
 	dm.Vars = envvar.MergeMaps(dm.Vars, dmPauseBeforeStopVars)
 	dmStdin = dm.StdinPipe()
 	dm.Start()
@@ -249,7 +249,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	utiltest.ResolveExpectNotFound(t, ctx, "v2DM", false) // Ensure a clean slate.
 
-	dm = sh.Fn(utiltest.ExecScript, currLink)
+	dm = sh.FuncCmd(utiltest.ExecScript, currLink)
 	dm.Vars = envvar.MergeMaps(dm.Vars, dmVars)
 	dm.Start()
 	dm.S.Expect("READY")
@@ -267,7 +267,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM", false) // Ensure a clean slate.
 
-	dm = sh.Fn(utiltest.ExecScript, currLink)
+	dm = sh.FuncCmd(utiltest.ExecScript, currLink)
 	dm.Vars = envvar.MergeMaps(dm.Vars, dmVars)
 	dm.Start()
 	dm.S.Expect("READY")
@@ -279,7 +279,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	// Re-launch the device manager, to exercise the behavior of Stop.
 	utiltest.ResolveExpectNotFound(t, ctx, "factoryDM", false) // Ensure a clean slate.
-	dm = sh.Fn(utiltest.ExecScript, currLink)
+	dm = sh.FuncCmd(utiltest.ExecScript, currLink)
 	dm.Vars = envvar.MergeMaps(dm.Vars, dmVars)
 	dm.Start()
 	dm.S.Expect("READY")
@@ -423,7 +423,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	dm.Start()
 	dm.S.Expect("READY")
 	defer func() {
-		dm.Shutdown(os.Interrupt)
+		dm.Terminate(os.Interrupt)
 		dm.S.Expect("dm terminated")
 		utiltest.VerifyNoRunningProcesses(t)
 	}()
@@ -542,7 +542,7 @@ func TestAccountAssociation(t *testing.T) {
 	dm.Start()
 	dm.S.Expect("READY")
 	defer func() {
-		dm.Shutdown(os.Interrupt)
+		dm.Terminate(os.Interrupt)
 		dm.S.Expect("dm terminated")
 		utiltest.VerifyNoRunningProcesses(t)
 	}()

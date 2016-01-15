@@ -7,7 +7,6 @@ package testutil_test
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -132,5 +131,5 @@ func TestFileTreeEqual(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }

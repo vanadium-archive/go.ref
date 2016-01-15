@@ -18,7 +18,7 @@ import (
 	"v.io/x/ref/test/v23test"
 )
 
-var createLockfile = gosh.Register("createLockfile", func(file string) {
+var createLockfile = gosh.RegisterFunc("createLockfile", func(file string) {
 	err := lockfile.CreateLockfile(file)
 	if err == nil {
 		fmt.Println("Grabbed lock")
@@ -72,7 +72,7 @@ func TestOtherProcess(t *testing.T) {
 	defer sh.Cleanup()
 
 	// Start a new child which creates a lockfile and exits.
-	output := sh.Fn(createLockfile, file).Stdout()
+	output := sh.FuncCmd(createLockfile, file).Stdout()
 	if output != "Grabbed lock\n" {
 		t.Fatal("Unexpected output: %s", output)
 	}
@@ -98,12 +98,12 @@ func TestOtherProcess(t *testing.T) {
 	}
 
 	// Now the child should fail to create one.
-	output = sh.Fn(createLockfile, file).Stdout()
+	output = sh.FuncCmd(createLockfile, file).Stdout()
 	if output != "Lock failed\n" {
 		t.Fatal("Unexpected output: %s", output)
 	}
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }

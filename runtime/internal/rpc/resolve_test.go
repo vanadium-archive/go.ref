@@ -7,7 +7,6 @@ package rpc_test
 import (
 	"flag"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -118,5 +117,5 @@ func TestV23ResolveToEndpoint(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }

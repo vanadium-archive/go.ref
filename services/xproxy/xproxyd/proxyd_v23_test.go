@@ -6,7 +6,6 @@ package main_test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"v.io/v23"
@@ -41,17 +40,17 @@ func TestV23Proxyd(t *testing.T) {
 	sh.Cmd(proxyd, "--v23.tcp.address=127.0.0.1:0", "--name="+proxyName, "--access-list", "{\"In\":[\"root:server\"]}").WithCredentials(proxydCreds).Start()
 
 	// Start the server that only listens via the proxy.
-	sh.Fn(runServer).WithCredentials(serverCreds).Start()
+	sh.FuncCmd(runServer).WithCredentials(serverCreds).Start()
 
 	// Run the client.
-	cmd := sh.Fn(runClient).WithCredentials(clientCreds)
+	cmd := sh.FuncCmd(runClient).WithCredentials(clientCreds)
 	cmd.Run()
 	if got, want := cmd.S.ExpectVar(responseVar), "server [root:server] saw client [root:client]"; got != want {
 		t.Fatalf("Got %q, want %q", got, want)
 	}
 }
 
-var runServer = gosh.Register("runServer", func() error {
+var runServer = gosh.RegisterFunc("runServer", func() error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	// Set the listen spec to listen only via the proxy.
@@ -63,7 +62,7 @@ var runServer = gosh.Register("runServer", func() error {
 	return nil
 })
 
-var runClient = gosh.Register("runClient", func() error {
+var runClient = gosh.RegisterFunc("runClient", func() error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	var response string
@@ -83,5 +82,5 @@ func (service) Echo(ctx *context.T, call rpc.ServerCall) (string, error) {
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }

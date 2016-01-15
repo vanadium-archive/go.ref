@@ -84,5 +84,5 @@ func rootBlessings(t *testing.T, sh *v23test.Shell, creds *v23test.Credentials) 
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }

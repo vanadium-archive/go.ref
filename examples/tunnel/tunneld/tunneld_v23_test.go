@@ -6,7 +6,6 @@ package main_test
 
 import (
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -75,5 +74,5 @@ func TestV23Tunneld(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }

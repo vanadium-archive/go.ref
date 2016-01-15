@@ -52,7 +52,7 @@ func remoteCmdLoop(ctx *context.T, stdin io.Reader) func() {
 // complex server application (with several servers, a mix of interruptible
 // and blocking cleanup, and parallel and sequential cleanup execution).
 // For a more typical server, see simpleServerProgram.
-var complexServerProgram = gosh.Register("complexServerProgram", func() {
+var complexServerProgram = gosh.RegisterFunc("complexServerProgram", func() {
 	// Initialize the runtime.  This is boilerplate.
 	ctx, shutdown := test.V23Init()
 	// shutdown is optional, but it's a good idea to clean up, especially
@@ -199,7 +199,7 @@ var complexServerProgram = gosh.Register("complexServerProgram", func() {
 // simple server application (with one server and a clean shutdown triggered by
 // a signal or a stop command).  For an example of something more involved, see
 // complexServerProgram.
-var simpleServerProgram = gosh.Register("simpleServerProgram", func() {
+var simpleServerProgram = gosh.RegisterFunc("simpleServerProgram", func() {
 	// Initialize the runtime.  This is boilerplate.
 	ctx, shutdown := test.V23Init()
 	// Calling shutdown is optional, but it's a good idea to clean up, especially

@@ -185,7 +185,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	utiltest.TerminateApp(t, bobCtx, appID, bobApp)
 
 	// Cleanly shut down the device manager.
-	dm.Shutdown(os.Interrupt)
+	dm.Terminate(os.Interrupt)
 	dm.S.Expect("dm terminated")
 }
 
@@ -259,6 +259,6 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 	utiltest.VerifyStatsValues(t, hjCtx, "dm", "__debug", "stats/system/start-time*")
 
 	// Cleanly shut down the device manager.
-	dm.Shutdown(os.Interrupt)
+	dm.Terminate(os.Interrupt)
 	dm.S.Expect("dm terminated")
 }

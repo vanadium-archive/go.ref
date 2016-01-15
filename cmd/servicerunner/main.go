@@ -66,7 +66,7 @@ line), then waits forever.
 }
 
 // TODO(sadovsky): Switch to using v23test.Shell.StartRootMountTable.
-var rootMT = gosh.Register("rootMT", func() error {
+var rootMT = gosh.RegisterFunc("rootMT", func() error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -124,7 +124,7 @@ func run(env *cmdline.Env, args []string) error {
 	ctx := sh.Ctx
 
 	vars := map[string]string{}
-	c := sh.Fn(rootMT)
+	c := sh.FuncCmd(rootMT)
 	c.Args = append(c.Args, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0")
 	c.Start()
 	if err := updateVars(c.S, vars, "MT_NAME"); err != nil {
@@ -145,14 +145,14 @@ func run(env *cmdline.Env, args []string) error {
 	proxyEndpoint := proxy.ListeningEndpoints()[0]
 	vars["PROXY_NAME"] = proxyEndpoint.Name()
 
-	c = sh.Fn(wsprd)
+	c = sh.FuncCmd(wsprd)
 	c.Args = append(c.Args, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--identd=test/identd")
 	c.Start()
 	if err := updateVars(c.S, vars, "WSPR_ADDR"); err != nil {
 		return err
 	}
 
-	c = sh.Fn(identitylib.TestIdentityd)
+	c = sh.FuncCmd(identitylib.TestIdentityd)
 	c.Args = append(c.Args, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--http-addr=localhost:0")
 	c.Start()
 	if err := updateVars(c.S, vars, "TEST_IDENTITYD_NAME", "TEST_IDENTITYD_HTTP_ADDR"); err != nil {
@@ -169,7 +169,7 @@ func run(env *cmdline.Env, args []string) error {
 	return nil
 }
 
-var wsprd = gosh.Register("wsprd", func() error {
+var wsprd = gosh.RegisterFunc("wsprd", func() error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 

@@ -163,7 +163,7 @@ const (
 	setOK        = "SET OK"
 )
 
-var runServer = gosh.Register("server", func() error {
+var runServer = gosh.RegisterFunc("server", func() error {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -185,7 +185,7 @@ var runServer = gosh.Register("server", func() error {
 	return nil
 })
 
-var runClient = gosh.Register("client", func(command string, args ...string) error {
+var runClient = gosh.RegisterFunc("client", func(command string, args ...string) error {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
@@ -217,7 +217,7 @@ var runClient = gosh.Register("client", func(command string, args ...string) err
 })
 
 func startClient(t *testing.T, sh *v23test.Shell, name string, args ...interface{}) *expect.Session {
-	cmd := sh.Fn(runClient, args...).WithCredentials(sh.ForkCredentials(name))
+	cmd := sh.FuncCmd(runClient, args...).WithCredentials(sh.ForkCredentials(name))
 	cmd.Start()
 	return cmd.S
 }
@@ -250,7 +250,7 @@ func TestV23GroupServerAuthorization(t *testing.T) {
 	sh.Cmd(clientBin, "create", writers, "root:alice").Run()
 
 	// Start an instance of the key value store server.
-	sh.Fn(runServer).Start()
+	sh.FuncCmd(runServer).Start()
 
 	// Test that alice can write.
 	startClient(t, sh, "alice", "set", "foo", "bar").Expect(setOK)
@@ -263,10 +263,10 @@ func TestV23GroupServerAuthorization(t *testing.T) {
 
 	// Stop the groups server and check that as a consequence "alice"
 	// cannot read from the key value store server anymore.
-	server.Shutdown(os.Interrupt)
+	server.Terminate(os.Interrupt)
 	startClient(t, sh, "alice", "get", "foo").Expectf("%v %v", getFailed, verror.ErrNoAccess.ID)
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }

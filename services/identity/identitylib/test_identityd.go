@@ -31,7 +31,7 @@ var (
 	tlsConfig        = flag.CommandLine.String("tls-config", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 )
 
-var TestIdentityd = gosh.Register("TestIdentityd", func() error {
+var TestIdentityd = gosh.RegisterFunc("TestIdentityd", func() error {
 	// Duration to use for tls cert and blessing duration.
 	duration := 365 * 24 * time.Hour
 

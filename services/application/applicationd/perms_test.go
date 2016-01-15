@@ -23,7 +23,7 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
-var appRepository = gosh.Register("appRepository", func(publishName, storedir string) {
+var appRepository = gosh.RegisterFunc("appRepository", func(publishName, storedir string) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
@@ -65,7 +65,7 @@ func TestApplicationUpdatePermissions(t *testing.T) {
 	storedir, cleanup := servicetest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	cmd := sh.Fn(appRepository, "repo", storedir)
+	cmd := sh.FuncCmd(appRepository, "repo", storedir)
 	cmd.Start()
 	cmd.S.Expect("READY")
 
@@ -199,7 +199,7 @@ func TestPerAppPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := sh.Fn(appRepository, "repo", storedir)
+	cmd := sh.FuncCmd(appRepository, "repo", storedir)
 	cmd.Start()
 	cmd.S.Expect("READY")
 

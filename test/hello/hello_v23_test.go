@@ -5,7 +5,6 @@
 package hello_test
 
 import (
-	"os"
 	"testing"
 
 	"v.io/x/ref"
@@ -142,5 +141,5 @@ func TestV23HelloProxy(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }

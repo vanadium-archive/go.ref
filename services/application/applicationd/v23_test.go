@@ -5,12 +5,11 @@
 package main_test
 
 import (
-	"os"
 	"testing"
 
 	"v.io/x/ref/test/v23test"
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }

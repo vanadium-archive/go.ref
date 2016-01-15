@@ -430,7 +430,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	verifyTidying(t, root, filepath.Join(root, "app*", "installation*", "instances", "instance*", "logs", "*"), shouldKeepLogFiles)
 
 	// Cleanly shut down the device manager.
-	dm.Shutdown(os.Interrupt)
+	dm.Terminate(os.Interrupt)
 	dm.S.Expect("dm terminated")
 	utiltest.VerifyNoRunningProcesses(t)
 }

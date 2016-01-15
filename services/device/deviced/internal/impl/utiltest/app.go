@@ -122,7 +122,7 @@ func Cat(ctx *context.T, name, file string) (string, error) {
 
 // App is a test application. It pings the invoking device manager with state
 // information.
-var App = gosh.Register("App", appFunc)
+var App = gosh.RegisterFunc("App", appFunc)
 
 func appFunc(publishName string) error {
 	ctx, shutdown := test.V23Init()
@@ -196,7 +196,7 @@ func (p PingServer) VerifyPingArgs(t *testing.T, username, flagValue, envValue s
 
 // HangingApp is the same as App, except that it does not exit properly after
 // being stopped.
-var HangingApp = gosh.Register("HangingApp", func(publishName string) error {
+var HangingApp = gosh.RegisterFunc("HangingApp", func(publishName string) error {
 	err := appFunc(publishName)
 	time.Sleep(24 * time.Hour)
 	return err

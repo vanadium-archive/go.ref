@@ -34,7 +34,7 @@ const (
 )
 
 // ExecScript launches the script passed as argument.
-var ExecScript = gosh.Register("ExecScript", func(script string) error {
+var ExecScript = gosh.RegisterFunc("ExecScript", func(script string) error {
 	osenv := []string{RedirectEnv + "=1"}
 	if os.Getenv("PAUSE_BEFORE_STOP") == "1" {
 		osenv = append(osenv, "PAUSE_BEFORE_STOP=1")
@@ -52,7 +52,7 @@ var ExecScript = gosh.Register("ExecScript", func(script string) error {
 // DeviceManager sets up a device manager server.  It accepts the name to
 // publish the server under as an argument.  Additional arguments can optionally
 // specify device manager config settings.
-var DeviceManager = gosh.Register("DeviceManager", deviceManagerFunc)
+var DeviceManager = gosh.RegisterFunc("DeviceManager", deviceManagerFunc)
 
 func waitForEOF(r io.Reader) {
 	io.Copy(ioutil.Discard, r)
@@ -140,13 +140,13 @@ func deviceManagerFunc(publishName string, args ...string) error {
 
 // This is the same as DeviceManager above, except that it has a different major
 // version number.
-var DeviceManagerV10 = gosh.Register("DeviceManagerV10", func(publishName string, args ...string) error {
+var DeviceManagerV10 = gosh.RegisterFunc("DeviceManagerV10", func(publishName string, args ...string) error {
 	versioning.CurrentVersion = versioning.Version{10, 0} // Set the version number to 10.0
 	return deviceManagerFunc(publishName, args...)
 })
 
-func DeviceManagerCmd(sh *v23test.Shell, fn *gosh.Fn, args ...interface{}) *v23test.Cmd {
-	dm := sh.Fn(fn, args...)
+func DeviceManagerCmd(sh *v23test.Shell, f *gosh.Func, args ...interface{}) *v23test.Cmd {
+	dm := sh.FuncCmd(f, args...)
 	// Make sure the device manager command is not provided with credentials.
 	delete(dm.Vars, ref.EnvCredentials)
 	delete(dm.Vars, ref.EnvAgentPath)
@@ -158,7 +158,7 @@ func TestMainImpl(m *testing.M) {
 	if isSuidHelper {
 		os.Exit(m.Run())
 	}
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }
 
 // TestSuidHelper is testing boilerplate for suidhelper that does not

@@ -27,13 +27,13 @@ func simpleEchoProgram() {
 	<-signals.ShutdownOnSignals(nil)
 }
 
-var withRuntime = gosh.Register("withRuntime", func() {
+var withRuntime = gosh.RegisterFunc("withRuntime", func() {
 	_, shutdown := test.V23Init()
 	defer shutdown()
 	simpleEchoProgram()
 })
 
-var withoutRuntime = gosh.Register("withoutRuntime", func() {
+var withoutRuntime = gosh.RegisterFunc("withoutRuntime", func() {
 	simpleEchoProgram()
 })
 
@@ -41,7 +41,7 @@ func TestWithRuntime(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{PropagateChildOutput: true})
 	defer sh.Cleanup()
 
-	c := sh.Fn(withRuntime)
+	c := sh.FuncCmd(withRuntime)
 	stdin := c.StdinPipe()
 	c.Start()
 	c.S.Expect("ready")
@@ -50,7 +50,7 @@ func TestWithRuntime(t *testing.T) {
 	c.Signal(syscall.SIGHUP)
 	stdin.Write([]byte("foo\n"))
 	c.S.Expect("foo")
-	c.Shutdown(os.Interrupt)
+	c.Terminate(os.Interrupt)
 	c.S.ExpectEOF()
 }
 
@@ -58,11 +58,11 @@ func TestWithoutRuntime(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{PropagateChildOutput: true})
 	defer sh.Cleanup()
 
-	c := sh.Fn(withoutRuntime)
+	c := sh.FuncCmd(withoutRuntime)
 	c.ExitErrorIsOk = true
 	c.Start()
 	c.S.Expect("ready")
 	// Processes without a Vanadium runtime should exit on SIGHUP.
-	c.Shutdown(syscall.SIGHUP)
+	c.Terminate(syscall.SIGHUP)
 	c.S.ExpectEOF()
 }

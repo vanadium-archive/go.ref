@@ -58,7 +58,7 @@ func testInit(t *testing.T, startServer bool) (sh *v23test.Shell, ctx *context.T
 // Root mount table
 
 // TODO(sadovsky): Switch to using v23test.Shell.StartRootMountTable.
-var rootMT = gosh.Register("rootMT", func(deb bool) error {
+var rootMT = gosh.RegisterFunc("rootMT", func(deb bool) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 	if deb {
@@ -84,7 +84,7 @@ var rootMT = gosh.Register("rootMT", func(deb bool) error {
 })
 
 func startRootMT(t *testing.T, sh *v23test.Shell, deb bool) {
-	cmd := sh.Fn(rootMT, deb)
+	cmd := sh.FuncCmd(rootMT, deb)
 	cmd.Start()
 	cmd.S.ExpectVar("PID")
 	rootName := cmd.S.ExpectVar("MT_NAME")
@@ -128,7 +128,7 @@ func (es *echoServerObject) Sleep(_ *context.T, _ rpc.ServerCall, d string) erro
 	return nil
 }
 
-var echoServer = gosh.Register("echoServer", func(id, mp, addr string) error {
+var echoServer = gosh.RegisterFunc("echoServer", func(id, mp, addr string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -152,7 +152,7 @@ var echoServer = gosh.Register("echoServer", func(id, mp, addr string) error {
 
 // Returns server Cmd and name.
 func startEchoServer(t *testing.T, sh *v23test.Shell, id, mp, addr string) (*v23test.Cmd, string) {
-	cmd := sh.Fn(echoServer, id, mp, addr)
+	cmd := sh.FuncCmd(echoServer, id, mp, addr)
 	cmd.Start()
 	cmd.S.ExpectVar("PID")
 	name := cmd.S.ExpectVar("NAME")
@@ -162,7 +162,7 @@ func startEchoServer(t *testing.T, sh *v23test.Shell, id, mp, addr string) (*v23
 ////////////////////////////////////////
 // Echo client
 
-var echoClient = gosh.Register("echoClient", func(name string, args ...string) error {
+var echoClient = gosh.RegisterFunc("echoClient", func(name string, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -178,7 +178,7 @@ var echoClient = gosh.Register("echoClient", func(name string, args ...string) e
 })
 
 func runEchoClient(t *testing.T, sh *v23test.Shell) {
-	cmd := sh.Fn(echoClient, "echoServer", "a message")
+	cmd := sh.FuncCmd(echoClient, "echoServer", "a message")
 	cmd.Start()
 	cmd.S.Expect("echoServer: a message")
 	cmd.Wait()
@@ -235,7 +235,7 @@ func TestMultipleEndpoints(t *testing.T) {
 	// really works. Use counters to inspect it for example.
 	runEchoClient(t, sh)
 
-	cmd.Shutdown(os.Interrupt)
+	cmd.Terminate(os.Interrupt)
 
 	// Verify that there are 100 entries for echoServer in the mount table.
 	if got, want := numServers(t, ctx, "echoServer", 100), 100; got != want {
@@ -474,7 +474,7 @@ func TestStartCallSecurity(t *testing.T) {
 	logErr("client does not trust server", err)
 }
 
-var childPing = gosh.Register("childPing", func(name string) error {
+var childPing = gosh.RegisterFunc("childPing", func(name string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -613,7 +613,7 @@ func TestCallback(t *testing.T) {
 	sh, _, name, cleanup := testInit(t, true)
 	defer cleanup()
 
-	cmd := sh.Fn(childPing, name)
+	cmd := sh.FuncCmd(childPing, name)
 	cmd.Start()
 	if got, want := cmd.S.ExpectVar("RESULT"), "pong"; got != want {
 		t.Errorf("got %q, want %q", got, want)
@@ -754,7 +754,7 @@ func TestReconnect(t *testing.T) {
 	}
 
 	// Kill the server, verify client can't talk to it anymore.
-	cmd.Shutdown(os.Interrupt)
+	cmd.Terminate(os.Interrupt)
 	if _, err := makeCall(ctx, options.NoRetry{}); err == nil || (!strings.HasPrefix(err.Error(), "START") && !strings.Contains(err.Error(), "EOF")) {
 		t.Fatalf(`Got (%v) want ("START: <err>" or "EOF") as server is down`, err)
 	}
@@ -763,7 +763,7 @@ func TestReconnect(t *testing.T) {
 	// re-establishes the connection. This is racy if another
 	// process grabs the port.
 	cmd, _ = startEchoServer(t, sh, "mymessage again", "", ep.Address)
-	defer cmd.Shutdown(os.Interrupt)
+	defer cmd.Terminate(os.Interrupt)
 	expected = "mymessage again: bratman\n"
 	if result, err := makeCall(ctx); err != nil || result != expected {
 		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
@@ -894,5 +894,5 @@ func TestReservedMethodErrors(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	os.Exit(v23test.Run(m.Run))
+	v23test.TestMain(m)
 }
