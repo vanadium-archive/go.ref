@@ -105,7 +105,7 @@ func mergeAdvertisement(found map[string]*Advertisement, ad *Advertisement) (upd
 		// this flakiness, we may need to delay the handling of 'Lost'.
 		if prev != nil {
 			delete(found, ad.Service.InstanceId)
-			updates = []discovery.Update{discovery.UpdateLost{discovery.Lost{InstanceId: ad.Service.InstanceId}}}
+			updates = []discovery.Update{discovery.UpdateLost{discovery.Lost{Service: prev.Service}}}
 		}
 	} else {
 		// TODO(jhahn): Need to compare the proximity as well.
@@ -114,7 +114,7 @@ func mergeAdvertisement(found map[string]*Advertisement, ad *Advertisement) (upd
 			updates = []discovery.Update{discovery.UpdateFound{discovery.Found{Service: ad.Service}}}
 		case !reflect.DeepEqual(prev.Service, ad.Service):
 			updates = []discovery.Update{
-				discovery.UpdateLost{discovery.Lost{InstanceId: ad.Service.InstanceId}},
+				discovery.UpdateLost{discovery.Lost{Service: prev.Service}},
 				discovery.UpdateFound{discovery.Found{Service: copyService(&ad.Service)}},
 			}
 		}
