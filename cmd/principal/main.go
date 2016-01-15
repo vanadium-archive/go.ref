@@ -489,7 +489,7 @@ blessing can be shared with.
 		Name:  "recognize",
 		Short: "Add to the set of identity providers recognized by this principal",
 		Long: `
-Adds an identity provider to the set of recognized roots public keys for this principal.
+Adds an identity provider to the set of recognized root public keys for this principal.
 
 It accepts either a single argument (which points to a file containing a blessing)
 or two arguments (a name and a base64-encoded DER-encoded public key).
@@ -500,22 +500,22 @@ root of the default blessing in credentials directory B:
   principal -v23.credentials=A recognize -
 The extension 'some_extension' has no effect in the command above.
 
-Or to make the principal in credentials directory A recognize the base64-encoded
-public key KEY for blessing pattern P:
-  principal -v23.credentials=A recognize P KEY
+Or to make the principal in credentials directory A recognize the public key
+for the principal in credentials directory B for blessing pattern P:
+  principal -v23.credentials=A recognize P $(principal -v23.credentials=B get publickey)
 `,
-		ArgsName: "<key|blessing> [<blessing pattern>]",
+		ArgsName: "<blessing pattern|blessing> [<key>]",
 		ArgsLong: `
 <blessing> is the path to a file containing a blessing typically obtained from
 this tool. - is used for STDIN.
 
-<key> is a base64-encoded, DER-encoded public key.
-
 <blessing pattern> is the blessing pattern for which <key> should be recognized.
+
+<key> is a base64-encoded, DER-encoded public key, such as that printed by "principal get publickey".
 `,
 		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
 			if len(args) != 1 && len(args) != 2 {
-				return fmt.Errorf("requires either one argument <file>, or two arguments <key> <blessing pattern>, provided %d", len(args))
+				return fmt.Errorf("requires either one argument <file>, or two arguments <blessing pattern> <key>, provided %d", len(args))
 			}
 			p := v23.GetPrincipal(ctx)
 			if len(args) == 1 {

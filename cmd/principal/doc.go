@@ -507,7 +507,7 @@ Usage:
 
 Principal recognize - Add to the set of identity providers recognized by this principal
 
-Adds an identity provider to the set of recognized roots public keys for this
+Adds an identity provider to the set of recognized root public keys for this
 principal.
 
 It accepts either a single argument (which points to a file containing a
@@ -519,19 +519,20 @@ of the default blessing in credentials directory B:
   principal -v23.credentials=A recognize -
 The extension 'some_extension' has no effect in the command above.
 
-Or to make the principal in credentials directory A recognize the base64-encoded
-public key KEY for blessing pattern P:
-  principal -v23.credentials=A recognize P KEY
+Or to make the principal in credentials directory A recognize the public key for
+the principal in credentials directory B for blessing pattern P:
+  principal -v23.credentials=A recognize P $(principal -v23.credentials=B get publickey)
 
 Usage:
-   principal recognize [flags] <key|blessing> [<blessing pattern>]
+   principal recognize [flags] <blessing pattern|blessing> [<key>]
 
 <blessing> is the path to a file containing a blessing typically obtained from
 this tool. - is used for STDIN.
 
-<key> is a base64-encoded, DER-encoded public key.
-
 <blessing pattern> is the blessing pattern for which <key> should be recognized.
+
+<key> is a base64-encoded, DER-encoded public key, such as that printed by
+"principal get publickey".
 
 Principal help - Display help for commands or topics
 
