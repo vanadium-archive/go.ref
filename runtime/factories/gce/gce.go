@@ -64,7 +64,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		})
 	}
 
-	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, nil, &listenSpec, nil, "", commonFlags.RuntimeFlags(), nil)
+	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, nil, &listenSpec, nil, commonFlags.RuntimeFlags(), nil)
 	if err != nil {
 		ac.Shutdown()
 		return nil, nil, nil, err

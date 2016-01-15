@@ -19,7 +19,6 @@ import (
 
 // ConnCache is a cache of Conns keyed by (protocol, address) and (routingID).
 // Multiple goroutines can invoke methods on the ConnCache simultaneously.
-// TODO(suharshs): We should periodically look for closed connections and remove them.
 type ConnCache struct {
 	mu            *sync.Mutex
 	cond          *sync.Cond
