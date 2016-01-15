@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"html"
 	"html/template"
@@ -18,6 +17,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sort"
 	"time"
 
 	"v.io/v23"
@@ -600,6 +600,90 @@ func (h *profilesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pproflib.PprofProxy(h.ctx, browseProfilesPath, name).ServeHTTP(w, r)
 }
 
+
+const (
+	allTracesLabel = ">0s"
+	oneMsTraceLabel = ">1ms"
+	tenMsTraceLabel = ">10ms"
+	hundredMsTraceLabel = ">100ms"
+	oneSecTraceLabel = ">1s"
+	tenSecTraceLabel = ">10s"
+	hundredSecTraceLabel = ">100s"
+)
+
+var (
+	labelToCutoff = map[string]float64{
+		allTracesLabel: 0,
+		oneMsTraceLabel: 0.001,
+		tenMsTraceLabel: 0.01,
+		hundredMsTraceLabel: 0.1,
+		oneSecTraceLabel: 1,
+		tenSecTraceLabel: 10,
+		hundredSecTraceLabel: 100,
+	}
+	sortedLabels = []string{allTracesLabel, oneMsTraceLabel, tenMsTraceLabel, hundredMsTraceLabel, oneSecTraceLabel, tenSecTraceLabel, hundredSecTraceLabel}
+)
+
+type traceWithStart struct {
+	Id string
+	Start time.Time
+}
+
+type traceSort []traceWithStart
+
+func (t traceSort) Len() int { return len(t) }
+func (t traceSort) Less(i, j int) bool { return t[i].Start.After(t[j].Start) }
+func (t traceSort) Swap(i, j int) { t[i], t[j] = t[j], t[i]}
+
+
+func bucketTraces(ctx *context.T, name string) (map[string]traceSort, error) {
+	stub := svtrace.StoreClient(name)
+
+	call, err := stub.AllTraces(ctx)
+	if err != nil {
+		return nil, err
+	}
+	stream := call.RecvStream()
+	var missingTraces []string
+	bucketedTraces := map[string]traceSort{}
+	for stream.Advance() {
+		trace := stream.Value()
+		node := vtrace.BuildTree(&trace)
+		if node == nil {
+			missingTraces = append(missingTraces, trace.Id.String())
+			continue
+		}
+		startTime := findStartTime(node)
+		endTime := findEndTime(node)
+		traceNode := traceWithStart{Id: trace.Id.String(), Start: startTime}
+		duration := endTime.Sub(startTime).Seconds()
+		if endTime.IsZero() || startTime.IsZero() {
+			// Set the duration so something small but greater than zero so it shows up in
+			// the first bucket.
+			duration = 0.0001
+		}
+		for l, cutoff := range labelToCutoff {
+			if duration >= cutoff {
+				bucketedTraces[l] = append(bucketedTraces[l], traceNode)
+			}
+		}
+	}
+
+	for _, v := range bucketedTraces {
+		sort.Sort(v)
+	}
+	if err := stream.Err(); err != nil {
+		return bucketedTraces, err
+	}
+	if err := call.Finish(); err != nil {
+		return bucketedTraces, err
+	}
+	if len(missingTraces) > 0 {
+		return bucketedTraces, fmt.Errorf("missing information for: %s", strings.Join(missingTraces, ","))
+	}
+	return bucketedTraces, nil
+}
+
 type allTracesHandler struct{ ctx *context.T }
 
 func (a *allTracesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -613,32 +697,19 @@ func (a *allTracesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx, tracer := newTracer(a.ctx)
-	stub := svtrace.StoreClient(name)
-
-	call, err := stub.AllTraces(ctx)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Failed to get all trace ids on %s: %v", name, err)
-		return
-	}
-	stream := call.RecvStream()
-	var traces []string
-	for stream.Advance() {
-		id := stream.Value().Id
-		traces = append(traces, hex.EncodeToString(id[:]))
-	}
+	buckets, err := bucketTraces(ctx, name)
 
 	data := struct {
-		Ids         []string
-		StreamError error
-		CallError   error
+		Buckets     map[string]traceSort
+		SortedLabels []string
+		Err         error
 		ServerName  string
 		CommandLine string
 		Vtrace      *Tracer
 	}{
-		Ids:         traces,
-		StreamError: stream.Err(),
-		CallError:   call.Finish(),
+		Buckets:         buckets,
+		SortedLabels: sortedLabels,
+		Err:         err,
 		CommandLine: fmt.Sprintf("debug vtraces %q", name),
 		ServerName:  server,
 		Vtrace:      tracer,
@@ -682,6 +753,9 @@ func convertToTree(n *vtrace.Node, parentStart time.Time, parentEnd time.Time) *
 	start := int(100 * startTime.Sub(parentStart).Seconds() / parentDuration)
 	end := int(100 * endTime.Sub(parentStart).Seconds() / parentDuration)
 	width := end - start
+	if width == 0 {
+		width = 1
+	}
 	top := &divTree{
 		Id:    n.Span.Id.String(),
 		Start: start,
@@ -1134,13 +1208,36 @@ var (
 </section>
 `)
 	tmplBrowseAllTraces = makeTemplate("alltraces", `
+<script language='javascript'>
+function showIdsForLabel(label) {
+    var nodes = document.getElementsByClassName('label-container');
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (node.dataset.label === label) {
+         node.style.display = 'block';
+      } else {
+        node.style.display = 'none';
+      }
+    };
+}
+</script>
 <section class="section-center mdl-grid">
-  <ul>
-   {{$name := .ServerName}}
-   {{range .Ids}}
-   <li><a href="/vtrace?n={{$name}}&t={{.}}">{{.}}</a></li>
-   {{end}}
-  </ul>
+  {{$buckets := .Buckets}}
+  <p>{{range $label := .SortedLabels}}
+  {{$ids := index $buckets $label}}
+  {{if len $ids | lt 0}}<a href="javascript:showIdsForLabel('{{$label}}')">{{$label}}</a>{{else}}{{$label}}{{end}}
+  {{end}}</p>
+</section>
+<section class="section-center mdl-grid">
+  <h5>Traces</h5>
+  {{$name := .ServerName}}
+  {{range $l, $ids := .Buckets}}<div data-label="{{$l}}" style='display:none;position:relative' class='mdl-cell mdl-cell--12-col label-container'>
+     {{$l}}
+     <ul>
+       {{range $id := $ids}}<li><a href='/vtrace?n={{$name}}&t={{$id.Id}}'>{{$id.Id}}</a></li>
+       {{end}}
+     </ul>
+   </div>{{end}}
  </section>
 `)
 	tmplBrowseVtrace = makeTemplate("vtrace", `
