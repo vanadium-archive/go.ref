@@ -107,7 +107,7 @@ func checkSignalIsNotDefault(t *testing.T, sig os.Signal) {
 func startFunc(t *testing.T, sh *v23test.Shell, f *gosh.Func, exitErrorIsOk bool) (*v23test.Cmd, io.WriteCloser) {
 	cmd := sh.FuncCmd(f)
 	wc := cmd.StdinPipe()
-	cmd.ExitErrorIsOk = true
+	cmd.ExitErrorIsOk = exitErrorIsOk
 	cmd.Start()
 	return cmd, wc
 }
@@ -268,12 +268,12 @@ func TestHandlerCustomSignal(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
-	cmd, stdinPipe := startFunc(t, sh, handleCustom, true)
+	cmd, stdinPipe := startFunc(t, sh, handleCustom, false)
 	cmd.S.Expect("ready")
 	checkSignalIsNotDefault(t, syscall.SIGABRT)
 	cmd.Signal(syscall.SIGABRT)
 	cmd.S.Expectf("received signal %s", syscall.SIGABRT)
-	fmt.Fprintf(stdinPipe, "stop\n")
+	fmt.Fprintf(stdinPipe, "close\n")
 	cmd.Wait()
 }
 
@@ -286,7 +286,7 @@ func TestHandlerCustomSignalWithStop(t *testing.T) {
 			sh := v23test.NewShell(t, v23test.Opts{})
 			defer sh.Cleanup()
 
-			cmd, stdinPipe := startFunc(t, sh, handleCustomWithStop, true)
+			cmd, stdinPipe := startFunc(t, sh, handleCustomWithStop, false)
 			cmd.S.Expect("ready")
 			checkSignalIsNotDefault(t, signal)
 			cmd.Signal(signal)
