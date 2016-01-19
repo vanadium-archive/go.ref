@@ -8,7 +8,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/flow/message"
-	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
+	"v.io/x/ref/runtime/internal/flow/crypto"
 )
 
 // unsafeUnencrypted allows protocol implementors to provide unencrypted

@@ -12,8 +12,6 @@ import (
 	"golang.org/x/crypto/salsa20/salsa"
 
 	"v.io/v23/verror"
-
-	"v.io/x/ref/runtime/internal/rpc/stream"
 )
 
 // cbox implements a ControlCipher using go.crypto/nacl/box.
@@ -35,6 +33,14 @@ type cboxStream struct {
 const (
 	cboxMACSize = box.Overhead
 )
+
+const pkgPath = "v.io/x/ref/runtime/internal/flow/crypto"
+
+func reg(id, msg string) verror.IDAction {
+	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
+}
+
+type BoxKey [32]byte
 
 var (
 	// These errors are intended to be used as arguments to higher
@@ -75,23 +81,6 @@ func setupXSalsa20(subKey *[32]byte, counter *[16]byte, nonce *[24]byte, key *[3
 	copy(counter[:], nonce[16:])
 }
 
-// NewControlCipher returns a ControlCipher for RPC versions from 6 to 10.
-func NewControlCipherRPC6(myPrivateKey, theirPublicKey *BoxKey, isServer bool) ControlCipher {
-	var c cbox
-	box.Precompute(&c.sharedKey, (*[32]byte)(theirPublicKey), (*[32]byte)(myPrivateKey))
-	// The stream is full-duplex, and we want the directions to use different
-	// nonces, so we set bit (1 << 64) in the server-to-client stream, and leave
-	// it cleared in the client-to-server stream.  advanceNone touches only the
-	// first 8 bytes, so this change is permanent for the duration of the
-	// stream.
-	if isServer {
-		c.enc.nonce[8] = 1
-	} else {
-		c.dec.nonce[8] = 1
-	}
-	return &c
-}
-
 // NewControlCipher returns a ControlCipher for RPC versions greater than or equal to 11.
 func NewControlCipherRPC11(myPublicKey, myPrivateKey, theirPublicKey *BoxKey) ControlCipher {
 	var c cbox
@@ -119,7 +108,7 @@ func (c *cbox) MACSize() int {
 func (c *cbox) Seal(data []byte) error {
 	n := len(data)
 	if n < cboxMACSize {
-		return verror.New(stream.ErrNetwork, nil, verror.New(errMessageTooShort, nil))
+		return verror.New(errMessageTooShort, nil)
 	}
 	tmp := c.enc.alloc(n)
 	nonce := c.enc.currentNonce()

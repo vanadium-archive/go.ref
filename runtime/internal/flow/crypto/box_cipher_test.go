@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/crypto/nacl/box"
 
-	"v.io/x/ref/runtime/internal/rpc/stream/crypto"
+	"v.io/x/ref/runtime/internal/flow/crypto"
 )
 
 // Add space for a MAC.
@@ -25,8 +25,7 @@ func newMessage(s string) []byte {
 type testCipherVersion int
 
 const (
-	cipherRPC6 testCipherVersion = iota
-	cipherRPC11
+	cipherRPC11 testCipherVersion = iota
 )
 
 func newCipher(ver testCipherVersion) (c1, c2 crypto.ControlCipher, err error) {
@@ -39,9 +38,6 @@ func newCipher(ver testCipherVersion) (c1, c2 crypto.ControlCipher, err error) {
 		return nil, nil, errors.New("can't generate key")
 	}
 	switch ver {
-	case cipherRPC6:
-		c1 = crypto.NewControlCipherRPC6((*crypto.BoxKey)(sk1), (*crypto.BoxKey)(pk2), true)
-		c2 = crypto.NewControlCipherRPC6((*crypto.BoxKey)(sk2), (*crypto.BoxKey)(pk1), false)
 	case cipherRPC11:
 		c1 = crypto.NewControlCipherRPC11((*crypto.BoxKey)(pk1), (*crypto.BoxKey)(sk1), (*crypto.BoxKey)(pk2))
 		c2 = crypto.NewControlCipherRPC11((*crypto.BoxKey)(pk2), (*crypto.BoxKey)(sk2), (*crypto.BoxKey)(pk1))
@@ -114,7 +110,6 @@ func testCipherOpenSeal(t *testing.T, ver testCipherVersion) {
 		t.Errorf("got %q, expected %q", msg3[:5], "hello")
 	}
 }
-func TestCipherOpenSealRPC6(t *testing.T)  { testCipherOpenSeal(t, cipherRPC6) }
 func TestCipherOpenSealRPC11(t *testing.T) { testCipherOpenSeal(t, cipherRPC11) }
 
 func testCipherXORKeyStream(t *testing.T, ver testCipherVersion) {
@@ -149,7 +144,6 @@ func testCipherXORKeyStream(t *testing.T, ver testCipherVersion) {
 		t.Errorf("got %q, expected 'hello'", s3)
 	}
 }
-func TestCipherXORKeyStreamRPC6(t *testing.T)  { testCipherXORKeyStream(t, cipherRPC6) }
 func TestCipherXORKeyStreamRPC11(t *testing.T) { testCipherXORKeyStream(t, cipherRPC11) }
 
 func TestCipherChannelBinding(t *testing.T) {
