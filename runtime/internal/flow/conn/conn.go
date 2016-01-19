@@ -301,7 +301,7 @@ func (c *Conn) initializeHealthChecks(ctx *context.T) {
 		requestDeadline: now.Add(c.acceptChannelTimeout / 2),
 
 		closeTimer: time.AfterFunc(c.acceptChannelTimeout, func() {
-			c.internalClose(ctx, NewErrChannelTimeout(ctx))
+			c.internalClose(ctx, false, NewErrChannelTimeout(ctx))
 		}),
 		closeDeadline: now.Add(c.acceptChannelTimeout),
 	}
@@ -437,14 +437,15 @@ func (c *Conn) Status() Status {
 
 // Close shuts down a conn.
 func (c *Conn) Close(ctx *context.T, err error) {
-	c.internalClose(ctx, err)
+	c.internalClose(ctx, false, err)
 	<-c.closed
 }
 
-func (c *Conn) internalClose(ctx *context.T, err error) {
+func (c *Conn) internalClose(ctx *context.T, closedRemotely bool, err error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	ctx.VI(2).Infof("Closing connection: %v", err)
+	debug := ctx.VI(2)
+	debug.Infof("Closing connection: %v", err)
 
 	flows := make([]*flw, 0, len(c.flows))
 	for _, f := range c.flows {
@@ -470,7 +471,7 @@ func (c *Conn) internalClose(ctx *context.T, err error) {
 			c.hcstate.requestTimer.Stop()
 			c.hcstate.closeTimer.Stop()
 		}
-		if verror.ErrorID(err) != ErrConnClosedRemotely.ID {
+		if !closedRemotely {
 			msg := ""
 			if err != nil {
 				msg = err.Error()
@@ -481,20 +482,20 @@ func (c *Conn) internalClose(ctx *context.T, err error) {
 			})
 			c.mu.Unlock()
 			if cerr != nil {
-				ctx.VI(1).Infof("Error sending tearDown on connection to %s: %v", c.remote, cerr)
+				ctx.VI(2).Infof("Error sending tearDown on connection to %s: %v", c.remote, cerr)
 			}
 		}
 		if err == nil {
 			err = NewErrConnectionClosed(ctx)
 		}
 		for _, f := range flows {
-			f.close(ctx, err)
+			f.close(ctx, false, err)
 		}
 		if c.blessingsFlow != nil {
 			c.blessingsFlow.close(ctx, err)
 		}
 		if cerr := c.mp.rw.Close(); cerr != nil {
-			ctx.VI(1).Infof("Error closing underlying connection for %s: %v", c.remote, cerr)
+			debug.Infof("Error closing underlying connection for %s: %v", c.remote, cerr)
 		}
 		if c.cancel != nil {
 			c.cancel()
@@ -555,7 +556,11 @@ func (c *Conn) releaseOutstandingBorrowedLocked(fid, val uint64) {
 func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 	switch msg := m.(type) {
 	case *message.TearDown:
-		c.internalClose(ctx, NewErrConnClosedRemotely(ctx, msg.Message))
+		var err error
+		if msg.Message != "" {
+			err = NewErrRemoteError(ctx, msg.Message)
+		}
+		c.internalClose(ctx, true, err)
 		return nil
 
 	case *message.EnterLameDuck:
@@ -614,7 +619,7 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 			return err
 		}
 		if msg.Flags&message.CloseFlag != 0 {
-			f.close(ctx, NewErrFlowClosedRemotely(f.ctx))
+			f.close(ctx, true, nil)
 		}
 
 	case *message.Release:
@@ -635,22 +640,19 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 			return nil // Conn is already being shut down.
 		}
 		f := c.flows[msg.ID]
-		c.mu.Unlock()
 		if f == nil {
 			// If the flow is closing then we assume the remote side releases
 			// all borrowed counters for that flow.
-			c.mu.Lock()
 			c.releaseOutstandingBorrowedLocked(msg.ID, math.MaxUint64)
 			c.mu.Unlock()
-			ctx.VI(2).Infof("Ignoring data message for unknown flow on connection to %s: %d",
-				c.remote, msg.ID)
 			return nil
 		}
+		c.mu.Unlock()
 		if err := f.q.put(ctx, msg.Payload); err != nil {
 			return err
 		}
 		if msg.Flags&message.CloseFlag != 0 {
-			f.close(ctx, NewErrFlowClosedRemotely(f.ctx))
+			f.close(ctx, true, nil)
 		}
 
 	default:
@@ -672,7 +674,7 @@ func (c *Conn) readLoop(ctx *context.T) {
 			break
 		}
 	}
-	c.internalClose(ctx, err)
+	c.internalClose(ctx, false, err)
 }
 
 func (c *Conn) markUsed() {

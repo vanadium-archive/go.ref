@@ -13,7 +13,6 @@ import (
 	"v.io/v23/flow/message"
 	"v.io/v23/naming"
 	"v.io/v23/security"
-	"v.io/v23/verror"
 )
 
 type flw struct {
@@ -104,7 +103,7 @@ func (f *flw) Read(p []byte) (n int, err error) {
 	}
 	f.markUsed()
 	if n, err = f.q.read(ctx, p); err != nil {
-		f.close(ctx, err)
+		f.close(ctx, false, err)
 	}
 	return
 }
@@ -125,7 +124,7 @@ func (f *flw) ReadMsg() (buf []byte, err error) {
 	// reads.  We may need to do it more or less often.  Currently
 	// we'll send counters whenever a new flow is opened.
 	if buf, err = f.q.get(ctx); err != nil {
-		f.close(ctx, err)
+		f.close(ctx, false, err)
 	}
 	return
 }
@@ -220,7 +219,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 	// Then the notify channel will be full and we would deadlock
 	// notifying ourselves.
 	case <-ctx.Done():
-		f.close(ctx, ctx.Err())
+		f.close(ctx, false, ctx.Err())
 		return 0, io.EOF
 	default:
 	}
@@ -311,7 +310,7 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 	f.conn.mu.Unlock()
 
 	if alsoClose || err != nil {
-		f.close(ctx, err)
+		f.close(ctx, false, err)
 	}
 	return sent, err
 }
@@ -467,8 +466,7 @@ func (f *flw) Closed() <-chan struct{} {
 	return ctx.Done()
 }
 
-func (f *flw) close(ctx *context.T, err error) {
-	closedRemotely := verror.ErrorID(err) == ErrFlowClosedRemotely.ID
+func (f *flw) close(ctx *context.T, closedRemotely bool, err error) {
 	f.conn.mu.Lock()
 	cancel := f.cancel
 	f.conn.mu.Unlock()
@@ -524,7 +522,7 @@ func (f *flw) Close() error {
 	f.conn.mu.Lock()
 	ctx := f.ctx
 	f.conn.mu.Unlock()
-	f.close(ctx, nil)
+	f.close(ctx, false, nil)
 	return nil
 }
 
