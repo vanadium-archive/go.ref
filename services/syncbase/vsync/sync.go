@@ -286,7 +286,7 @@ func (s *syncService) discoverNeighborhood(ctx *context.T) {
 				svc := &u.Value.Service
 				s.updateDiscoveryInfo(svc.InstanceId, svc)
 			case discovery.UpdateLost:
-				s.updateDiscoveryInfo(u.Value.InstanceId, nil)
+				s.updateDiscoveryInfo(u.Value.Service.InstanceId, nil)
 			default:
 				vlog.Errorf("sync: discoverNeighborhood: ignoring invalid update: %v", update)
 			}

@@ -173,14 +173,13 @@ func TestMerge(t *testing.T) {
 	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{p1, p2})
 	defer ds.Close()
 
-	service := discovery.Service{
-		InstanceId:    "123",
-		InterfaceName: "v.io/v23/a",
-		Addrs:         []string{"/h1:123/x"},
-	}
 	ad := idiscovery.Advertisement{
-		ServiceUuid: idiscovery.NewServiceUUID(service.InterfaceName),
-		Service:     service,
+		Service: discovery.Service{
+			InstanceId:    "123",
+			InterfaceName: "v.io/v23/a",
+			Addrs:         []string{"/h1:123/x"},
+		},
+		ServiceUuid: idiscovery.NewServiceUUID("v.io/v23/a"),
 	}
 
 	scan, scanStop, err := startScan(ctx, ds, "v.io/v23/a")
@@ -192,7 +191,7 @@ func TestMerge(t *testing.T) {
 	// A plugin returns an advertisement and we should see it.
 	p1.RegisterAdvertisement(ad)
 	update := <-scan
-	if !matchFound([]discovery.Update{update}, service) {
+	if !matchFound([]discovery.Update{update}, ad.Service) {
 		t.Errorf("unexpected scan: %v", update)
 	}
 
@@ -205,19 +204,19 @@ func TestMerge(t *testing.T) {
 	}
 
 	// Two plugins update the service, but we should see the update only once.
-	service.Addrs = []string{"/h2:123/x"}
-	ad.Service = service
+	newAd := ad
+	newAd.Service.Addrs = []string{"/h1:456/x"}
 
-	go func() { p1.RegisterAdvertisement(ad) }()
-	go func() { p2.RegisterAdvertisement(ad) }()
+	go func() { p1.RegisterAdvertisement(newAd) }()
+	go func() { p2.RegisterAdvertisement(newAd) }()
 
 	// Should see 'Lost' first.
 	update = <-scan
-	if !matchLost([]discovery.Update{update}, service) {
+	if !matchLost([]discovery.Update{update}, ad.Service) {
 		t.Errorf("unexpected scan: %v", update)
 	}
 	update = <-scan
-	if !matchFound([]discovery.Update{update}, service) {
+	if !matchFound([]discovery.Update{update}, newAd.Service) {
 		t.Errorf("unexpected scan: %v", update)
 	}
 	select {

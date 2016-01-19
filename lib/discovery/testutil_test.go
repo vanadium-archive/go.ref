@@ -98,7 +98,7 @@ func match(updates []discovery.Update, lost bool, wants ...discovery.Service) bo
 			case discovery.UpdateFound:
 				matched = !lost && reflect.DeepEqual(u.Value.Service, want)
 			case discovery.UpdateLost:
-				matched = lost && u.Value.InstanceId == want.InstanceId
+				matched = lost && reflect.DeepEqual(u.Value.Service, want)
 			}
 			if matched {
 				updates = append(updates[:i], updates[i+1:]...)
