@@ -138,13 +138,13 @@ func (t testServerDisp) Lookup(_ *context.T, suffix string) (interface{}, securi
 }
 
 type dischargeServer struct {
-	mu     sync.Mutex
-	called bool
+	mu    sync.Mutex
+	count int
 }
 
 func (ds *dischargeServer) Discharge(ctx *context.T, call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	ds.mu.Lock()
-	ds.called = true
+	ds.count++
 	ds.mu.Unlock()
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {

@@ -1225,8 +1225,8 @@ func TestClientRefreshDischarges(t *testing.T) {
 		"mountpoint/dischargeserver",
 		security.UnconstrainedUse()))
 
-	ed := &expiryDischarger{}
-	_, _, err := v23.WithNewServer(ctx, "mountpoint/dischargeserver", ed, security.AllowEveryone())
+	d := &dischargeServer{}
+	_, _, err := v23.WithNewServer(ctx, "mountpoint/dischargeserver", d, security.AllowEveryone())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1244,13 +1244,11 @@ func TestClientRefreshDischarges(t *testing.T) {
 	cctx, cancel = context.WithCancel(cctx)
 	defer cancel()
 	v23.GetClient(cctx).Call(cctx, "mountpoint/server/aclAuth", "Echo", []interface{}{"batman"}, []interface{}{&got}, options.NoRetry{})
-	ed.mu.Lock()
-	// TODO(suharshs): We currently fetch discharges twice, once for blessings flow
-	// and once for the regular flow.
-	if ed.count != 2 {
-		t.Errorf("discharger should have been called exactly once, got %v", ed.count)
+	d.mu.Lock()
+	if d.count != 1 {
+		t.Errorf("discharger should have been called exactly once, got %v", d.count)
 	}
-	ed.mu.Unlock()
+	d.mu.Unlock()
 }
 
 func TestBidirectionalRefreshDischarges(t *testing.T) {
