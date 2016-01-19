@@ -63,7 +63,6 @@ type initData struct {
 	discovery         discovery.T
 	protocols         []string
 	settingsPublisher *pubsub.Publisher
-	settingsName      string
 }
 
 type vtraceDependency struct{}
@@ -83,7 +82,6 @@ func Init(
 	protocols []string,
 	listenSpec *rpc.ListenSpec,
 	settingsPublisher *pubsub.Publisher,
-	settingsName string,
 	flags flags.RuntimeFlags,
 	reservedDispatcher rpc.Dispatcher) (*Runtime, *context.T, v23.Shutdown, error) {
 	r := &Runtime{deps: dependency.NewGraph()}
@@ -93,7 +91,6 @@ func Init(
 		discovery:         discovery,
 		protocols:         protocols,
 		settingsPublisher: settingsPublisher,
-		settingsName:      settingsName,
 	})
 
 	if listenSpec != nil {
