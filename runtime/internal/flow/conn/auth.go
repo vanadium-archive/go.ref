@@ -521,7 +521,7 @@ func (b *blessingsFlow) readLoop(ctx *context.T, loopWG *sync.WaitGroup) {
 			return
 		}
 		if err := b.receive(ctx, received); err != nil {
-			b.f.conn.internalClose(ctx, err)
+			b.f.conn.internalClose(ctx, false, err)
 			return
 		}
 	}
@@ -533,7 +533,7 @@ func (b *blessingsFlow) close(ctx *context.T, err error) {
 	if err == nil {
 		err = NewErrBlessingsFlowClosed(ctx, nil)
 	}
-	b.f.close(ctx, err)
+	b.f.close(ctx, false, err)
 	b.closeErr = err
 	b.cond.Broadcast()
 }

@@ -16,8 +16,7 @@ error (
     "en": "missing required setup option{:option}."}
   UnexpectedMsg(typ string) {"en": "unexpected message type{:typ}."}
   ConnectionClosed() {"en": "connection closed."}
-  ConnClosedRemotely(msg string) {"en": "connection closed remotely{:msg}."}
-  FlowClosedRemotely() {"en": "flow closed remotely."}
+  RemoteError(msg string) {"en": "remote end received err{:msg}."}
   Send(typ, dest string, err error) {"en": "failure sending {typ} message to {dest}{:err}."}
   Recv(src string, err error) {"en": "error reading from {src}{:err}"}
   CounterOverflow() {"en": "A remote process has sent more data than allowed."}

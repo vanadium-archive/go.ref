@@ -21,8 +21,7 @@ var (
 	ErrMissingSetupOption       = verror.Register("v.io/x/ref/runtime/internal/flow/conn.MissingSetupOption", verror.NoRetry, "{1:}{2:} missing required setup option{:3}.")
 	ErrUnexpectedMsg            = verror.Register("v.io/x/ref/runtime/internal/flow/conn.UnexpectedMsg", verror.NoRetry, "{1:}{2:} unexpected message type{:3}.")
 	ErrConnectionClosed         = verror.Register("v.io/x/ref/runtime/internal/flow/conn.ConnectionClosed", verror.NoRetry, "{1:}{2:} connection closed.")
-	ErrConnClosedRemotely       = verror.Register("v.io/x/ref/runtime/internal/flow/conn.ConnClosedRemotely", verror.NoRetry, "{1:}{2:} connection closed remotely{:3}.")
-	ErrFlowClosedRemotely       = verror.Register("v.io/x/ref/runtime/internal/flow/conn.FlowClosedRemotely", verror.NoRetry, "{1:}{2:} flow closed remotely.")
+	ErrRemoteError              = verror.Register("v.io/x/ref/runtime/internal/flow/conn.RemoteError", verror.NoRetry, "{1:}{2:} remote end received err{:3}.")
 	ErrSend                     = verror.Register("v.io/x/ref/runtime/internal/flow/conn.Send", verror.NoRetry, "{1:}{2:} failure sending {3} message to {4}{:5}.")
 	ErrRecv                     = verror.Register("v.io/x/ref/runtime/internal/flow/conn.Recv", verror.NoRetry, "{1:}{2:} error reading from {3}{:4}")
 	ErrCounterOverflow          = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CounterOverflow", verror.NoRetry, "{1:}{2:} A remote process has sent more data than allowed.")
@@ -46,8 +45,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrMissingSetupOption.ID), "{1:}{2:} missing required setup option{:3}.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrUnexpectedMsg.ID), "{1:}{2:} unexpected message type{:3}.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrConnectionClosed.ID), "{1:}{2:} connection closed.")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrConnClosedRemotely.ID), "{1:}{2:} connection closed remotely{:3}.")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrFlowClosedRemotely.ID), "{1:}{2:} flow closed remotely.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrRemoteError.ID), "{1:}{2:} remote end received err{:3}.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrSend.ID), "{1:}{2:} failure sending {3} message to {4}{:5}.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrRecv.ID), "{1:}{2:} error reading from {3}{:4}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCounterOverflow.ID), "{1:}{2:} A remote process has sent more data than allowed.")
@@ -82,14 +80,9 @@ func NewErrConnectionClosed(ctx *context.T) error {
 	return verror.New(ErrConnectionClosed, ctx)
 }
 
-// NewErrConnClosedRemotely returns an error with the ErrConnClosedRemotely ID.
-func NewErrConnClosedRemotely(ctx *context.T, msg string) error {
-	return verror.New(ErrConnClosedRemotely, ctx, msg)
-}
-
-// NewErrFlowClosedRemotely returns an error with the ErrFlowClosedRemotely ID.
-func NewErrFlowClosedRemotely(ctx *context.T) error {
-	return verror.New(ErrFlowClosedRemotely, ctx)
+// NewErrRemoteError returns an error with the ErrRemoteError ID.
+func NewErrRemoteError(ctx *context.T, msg string) error {
+	return verror.New(ErrRemoteError, ctx, msg)
 }
 
 // NewErrSend returns an error with the ErrSend ID.
