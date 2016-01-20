@@ -144,26 +144,32 @@ func NewShell(t *testing.T, opts Opts) *Shell {
 		sh.Vars[envShellTestProcess] = "1"
 	}
 
-	// Temporarily make Fatalf non-fatal so that we can safely call gosh.Shell
-	// functions and clean up on any error.
-	oldFatalf := sh.Opts.Fatalf
-	sh.Opts.Fatalf = nil
+	cleanup := true
+	defer func() {
+		if cleanup {
+			sh.Cleanup()
+		}
+	}()
 
-	err := sh.initPrincipalManager()
-	if err == nil {
-		err = sh.initCtx(opts.Ctx)
+	if err := sh.initPrincipalManager(); err != nil {
+		if _, ok := err.(handledError); !ok {
+			sh.HandleError(err)
+		}
+		return sh
+	}
+	if err := sh.initCtx(opts.Ctx); err != nil {
+		if _, ok := err.(handledError); !ok {
+			sh.HandleError(err)
+		}
+		return sh
 	}
 
-	// Restore Fatalf, then defer Cleanup and call HandleError if there was an
-	// error. (Note, HandleError panics if Cleanup has been called.)
-	sh.Err = nil
-	sh.Opts.Fatalf = oldFatalf
-
-	if err != nil {
-		defer sh.Cleanup()
-		sh.HandleError(err)
-	}
+	cleanup = false
 	return sh
+}
+
+type handledError struct {
+	error
 }
 
 // ForkCredentials creates a new Credentials (with a fresh principal) and
@@ -416,7 +422,7 @@ func fillDefaults(t *testing.T, opts *Opts) {
 func (sh *Shell) initPrincipalManager() error {
 	dir := sh.MakeTempDir()
 	if sh.Err != nil {
-		return sh.Err
+		return handledError{sh.Err}
 	}
 	var pm principalManager
 	if useAgent {
@@ -436,7 +442,7 @@ func (sh *Shell) initCtx(ctx *context.T) error {
 		var shutdown func()
 		ctx, shutdown = v23.Init()
 		if sh.AddToCleanup(shutdown); sh.Err != nil {
-			return sh.Err
+			return handledError{sh.Err}
 		}
 		if sh.t != nil {
 			creds, err := newRootCredentials(sh.pm)
