@@ -25,6 +25,23 @@ var (
 	f = makeRowKeyFromParts("table1", "f")
 	g = makeRowKeyFromParts("table1", "g")
 
+	// Oids for batches containing linked objects
+	la1 = makeRowKeyFromParts("table1", "la1")
+	lb1 = makeRowKeyFromParts("table1", "lb1")
+	lc1 = makeRowKeyFromParts("table1", "lc1")
+
+	la2 = makeRowKeyFromParts("table1", "la2")
+	lb2 = makeRowKeyFromParts("table1", "lb2")
+	lc2 = makeRowKeyFromParts("table1", "lc2")
+
+	la3 = makeRowKeyFromParts("table1", "la3")
+	lb3 = makeRowKeyFromParts("table1", "lb3")
+	lc3 = makeRowKeyFromParts("table1", "lc3")
+
+	la4 = makeRowKeyFromParts("table1", "la4")
+	lb4 = makeRowKeyFromParts("table1", "lb4")
+	lc4 = makeRowKeyFromParts("table1", "lc4")
+
 	p = makeRowKeyFromParts("table3", "p")
 	q = makeRowKeyFromParts("table3", "q")
 )
@@ -48,6 +65,21 @@ func createObjConflictState(isConflict, hasLocal, hasRemote, hasAncestor bool) *
 		newHead:     remote,
 		oldHead:     local,
 		ancestor:    ancestor,
+	}
+}
+
+func createObjLinkState(isRemoteBlessed bool) *objConflictState {
+	local := string(watchable.NewVersion())
+	remote := local
+	if isRemoteBlessed {
+		remote = string(watchable.NewVersion())
+	}
+	return &objConflictState{
+		isAddedByCr: false,
+		isConflict:  false,
+		newHead:     remote,
+		oldHead:     local,
+		ancestor:    NoVersion,
 	}
 }
 
@@ -114,4 +146,25 @@ func saveNodeAndLogRec(tx store.Transaction, oid, version string, ts int64, isDe
 		},
 	}
 	putLogRec(nil, tx, logDataPrefix, logRec)
+}
+
+func uint64ArrayEq(expected, actual []uint64) bool {
+	if len(actual) != len(expected) {
+		return false
+	}
+	batchMap := map[uint64]int8{}
+	for _, bid := range expected {
+		batchMap[bid] = batchMap[bid] + 1
+	}
+	for _, bid := range actual {
+		count := batchMap[bid]
+		if count <= 0 {
+			return false
+		} else if count == 1 {
+			delete(batchMap, bid)
+		} else {
+			batchMap[bid] = count - 1
+		}
+	}
+	return len(batchMap) == 0
 }
