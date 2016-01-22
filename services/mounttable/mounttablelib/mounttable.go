@@ -72,6 +72,7 @@ type mountTable struct {
 	nodeCounter        *stats.Integer
 	serverCounter      *stats.Integer
 	perUserNodeCounter *stats.Map
+	perUserRPCCounter  *stats.Map
 	maxNodesPerUser    int64
 	slm                *serverListManager
 }
@@ -113,7 +114,6 @@ type callContext struct {
 	rbn          []string                    // remote blessing names to avoid authenticating on every check.
 	rejected     []security.RejectedBlessing // rejected remote blessing names.
 	create       bool                        // true if we are to create traversed nodes.
-	creatorSet   bool                        // true if the creator string is already set.
 	creator      string
 	ignorePerms  bool
 	ignoreLimits bool
@@ -142,6 +142,7 @@ func NewMountTableDispatcherWithClock(ctx *context.T, permsFile, persistDir, sta
 		nodeCounter:        stats.NewInteger(naming.Join(statsPrefix, "num-nodes")),
 		serverCounter:      stats.NewInteger(naming.Join(statsPrefix, "num-mounted-servers")),
 		perUserNodeCounter: stats.NewMap(naming.Join(statsPrefix, "num-nodes-per-user")),
+		perUserRPCCounter: stats.NewMap(naming.Join(statsPrefix, "num-rpcs-per-user")),
 		maxNodesPerUser:    defaultMaxNodesPerUser,
 		slm:                newServerListManager(clock),
 	}
@@ -448,8 +449,7 @@ func (ms *mountContext) Authorize(*context.T, security.Call) error {
 // in the mount entry is the name relative to the server's root.
 func (ms *mountContext) ResolveStep(ctx *context.T, call rpc.ServerCall) (entry naming.MountEntry, err error) {
 	ctx.VI(2).Infof("ResolveStep %q", ms.name)
-	cc := newCallContext(ctx, call.Security(), !createMissingNodes)
-	mt := ms.mt
+	mt, cc := ms.newCallContext(ctx, call.Security(), !createMissingNodes)
 	// Find the next mount point for the name.
 	n, elems, werr := mt.findMountPoint(cc, ms.elems)
 	if werr != nil {
@@ -509,8 +509,7 @@ func (ms *mountContext) Mount(ctx *context.T, call rpc.ServerCall, server string
 	if err := checkElementLengths(ctx, ms.elems); err != nil {
 		return err
 	}
-	cc := newCallContext(ctx, call.Security(), createMissingNodes)
-	mt := ms.mt
+	mt, cc := ms.newCallContext(ctx, call.Security(), createMissingNodes)
 	if ttlsecs == 0 {
 		ttlsecs = 10 * 365 * 24 * 60 * 60 // a really long time
 	}
@@ -618,8 +617,7 @@ func (mt *mountTable) removeUselessRecursive(cc *callContext, elems []string) {
 // server is removed.
 func (ms *mountContext) Unmount(ctx *context.T, call rpc.ServerCall, server string) error {
 	ctx.VI(2).Infof("*********************Unmount %q, %s", ms.name, server)
-	cc := newCallContext(ctx, call.Security(), !createMissingNodes)
-	mt := ms.mt
+	mt, cc := ms.newCallContext(ctx, call.Security(), !createMissingNodes)
 	n, err := mt.findNode(cc, ms.elems, mountTags, nil)
 	if err != nil {
 		return err
@@ -648,12 +646,11 @@ func (ms *mountContext) Unmount(ctx *context.T, call rpc.ServerCall, server stri
 // Delete removes the receiver.  If all is true, any subtree is also removed.
 func (ms *mountContext) Delete(ctx *context.T, call rpc.ServerCall, deleteSubTree bool) error {
 	ctx.VI(2).Infof("*********************Delete %q, %v", ms.name, deleteSubTree)
-	cc := newCallContext(ctx, call.Security(), !createMissingNodes)
+	mt, cc := ms.newCallContext(ctx, call.Security(), !createMissingNodes)
 	if len(ms.elems) == 0 {
 		// We can't delete the root.
 		return verror.New(errCantDeleteRoot, ctx)
 	}
-	mt := ms.mt
 	// Find and lock the parent node and parent node.  Either the node or its parent has
 	// to satisfy removeTags.
 	n, err := mt.findNode(cc, ms.elems, removeTags, removeTags)
@@ -802,9 +799,7 @@ out:
 // c/d and a/b.
 func (ms *mountContext) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
 	ctx.VI(2).Infof("mt.Glob %v", ms.elems)
-	cc := newCallContext(ctx, call.Security(), !createMissingNodes)
-
-	mt := ms.mt
+	mt, cc := ms.newCallContext(ctx, call.Security(), !createMissingNodes)
 	// If there was an access error, just ignore the entry, i.e., make it invisible.
 	n, err := mt.findNode(cc, ms.elems, nil, nil)
 	if err != nil {
@@ -840,8 +835,7 @@ func (ms *mountContext) SetPermissions(ctx *context.T, call rpc.ServerCall, perm
 	if err := checkElementLengths(ctx, ms.elems); err != nil {
 		return err
 	}
-	cc := newCallContext(ctx, call.Security(), createMissingNodes)
-	mt := ms.mt
+	mt, cc := ms.newCallContext(ctx, call.Security(), createMissingNodes)
 
 	// Find/create node in namespace and add the mount.
 	n, err := mt.findNode(cc, ms.elems, setTags, nil)
@@ -886,8 +880,7 @@ func (ms *mountContext) SetPermissions(ctx *context.T, call rpc.ServerCall, perm
 
 func (ms *mountContext) GetPermissions(ctx *context.T, call rpc.ServerCall) (access.Permissions, string, error) {
 	ctx.VI(2).Infof("GetPermissions %q", ms.name)
-	cc := newCallContext(ctx, call.Security(), !createMissingNodes)
-	mt := ms.mt
+	mt, cc := ms.newCallContext(ctx, call.Security(), !createMissingNodes)
 
 	// Find node in namespace and add the mount.
 	n, err := mt.findNode(cc, ms.elems, getTags, nil)
@@ -910,11 +903,6 @@ func (mt *mountTable) credit(n *node) {
 
 // debit user for node creation.
 func (mt *mountTable) debit(cc *callContext) error {
-	// Cache any creator we pick so that we don't do it again.
-	if !cc.creatorSet {
-		cc.creator = mt.pickCreator(cc.ctx, cc.call)
-		cc.creatorSet = true
-	}
 	count, ok := mt.perUserNodeCounter.Incr(cc.creator, 1).(int64)
 	if !ok {
 		return verror.New(errTooManyNodes, cc.ctx)
@@ -935,7 +923,7 @@ func shouldAbort(cc *callContext) bool {
 	}
 }
 
-func newCallContext(ctx *context.T, call security.Call, create bool) *callContext {
+func (ms *mountContext) newCallContext(ctx *context.T, call security.Call, create bool) (*mountTable, *callContext) {
 	cc := &callContext{ctx: ctx, call: call, create: create}
 	if call != nil {
 		if l, r := cc.call.LocalBlessings().PublicKey(), cc.call.RemoteBlessings().PublicKey(); l != nil && reflect.DeepEqual(l, r) {
@@ -943,5 +931,7 @@ func newCallContext(ctx *context.T, call security.Call, create bool) *callContex
 		}
 		cc.rbn, cc.rejected = security.RemoteBlessingNames(ctx, call)
 	}
-	return cc
+	cc.creator = ms.mt.pickCreator(cc.ctx, cc.call)
+	ms.mt.perUserRPCCounter.Incr(cc.creator, 1)
+	return ms.mt, cc
 }

@@ -109,7 +109,6 @@ func (mt *mountTable) parsePermFile(ctx *context.T, path string) error {
 			return err
 		}
 		cc := &callContext{ctx: ctx,
-			creatorSet:   true,
 			create:       true,
 			ignorePerms:  true,
 			ignoreLimits: true,

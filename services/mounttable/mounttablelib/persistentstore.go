@@ -124,7 +124,6 @@ func (s *store) parseLogFile(ctx *context.T, f *os.File) error {
 	mt := s.mt
 	decoder := json.NewDecoder(f)
 	cc := &callContext{ctx: ctx,
-		creatorSet:   true,
 		create:       true,
 		ignorePerms:  true,
 		ignoreLimits: true,
