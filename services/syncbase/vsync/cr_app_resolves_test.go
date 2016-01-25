@@ -6,7 +6,6 @@ package vsync
 
 import (
 	"bytes"
-	"reflect"
 	"testing"
 
 	wire "v.io/v23/services/syncbase/nosql"
@@ -17,30 +16,55 @@ import (
 )
 
 /*
-Test setup:
+Test setup for normal conflicts:
 
 Group1:
-Oid: x, isConflict = true, has Local update, has remote update, has ancestor, resolution = pickLocal
+Oid: x, isConflict = true, has local update, has remote update, has ancestor, resolution = pickLocal
 
 Group2:
-Oid: b, isConflict = true, has Local update, remote deleted, has ancestor, resolution = pickRemote
+Oid: b, isConflict = true, has local update, remote deleted, has ancestor, resolution = pickRemote
 
 Group3:
-Oid: c, isConflict = true, Local deleted, has remote update, has ancestor, resolution = pickRemote
+Oid: c, isConflict = true, local deleted, has remote update, has ancestor, resolution = pickRemote
 
 Group4:
-Oid: p, isConflict = true, has Local update, has remote update, has ancestor, resolution = createNew
+Oid: p, isConflict = true, has local update, has remote update, has ancestor, resolution = createNew
 
 Group5:
-Oid: y, isConflict = true, has Local update, has remote update, has no ancestor, resolution = pickRemote
+Oid: y, isConflict = true, has local update, has remote update, has no ancestor, resolution = pickRemote
 Oid: z, isConflict = false, no local update, has remote update, has unknown ancestor, resolution = pickRemote
 Oid: e, isConflict = false, no local update, has remote update, has unknown ancestor, resolution = createNew
 Oid: f, isConflict = false, no local update, has remote update, has unknown ancestor, resolution = pickLocal
 Oid: g, isConflict = false, no local update, has remote update, has unknown ancestor, local head is deleted, resolution = pickLocal
 Oid: a, local value rubberbanded in due to localBatch, resolution = createNew
 
-localBatch: {y, a}
-remoteBatch: {y, z, e, f}
+localBatch1: {y, a}
+remoteBatch1: {y, z, e, f}
+
+Group 6:
+Oid: la1, isConflict = true, has local update, has remote update, has ancestor, resolution = pickLocal
+Oid: lb1, is a LinkLogRecord, isConflict = false, remote syncbase added a linklogrecord with local update as parent and remote update as the child, resolution = pickLocal
+Oid: lc1, is a LinkLogRecord, isConflict = false, remote syncbase added a linklogrecord with local update as child and remote update as the parent, resolution = pickLocal
+remoteBatch2: {la1, lb1, lc1}
+
+Group 7:
+Oid: la2, isConflict = true, has local update, has remote update, has ancestor, resolution = pickRemote
+Oid: lb2, is a LinkLogRecord, isConflict = false, remote syncbase added a linklogrecord with local update as parent and remote update as the child, resolution = pickRemote
+Oid: lc2, is a LinkLogRecord, isConflict = false, remote syncbase added a linklogrecord with local update as child and remote update as the parent, resolution = pickRemote
+remoteBatch3: {la2, lb2, lc2}
+
+Group 8:
+Oid: la3, isConflict = true, has local update, has remote update, has ancestor, resolution = pickNew
+Oid: lb3, is a LinkLogRecord, isConflict = false, remote syncbase added a linklogrecord with local update as parent and remote update as the child, resolution = pickNew
+Oid: lc3, is a LinkLogRecord, isConflict = false, remote syncbase added a linklogrecord with local update as child and remote update as the parent, resolution = pickNew
+remoteBatch4: {la3, lb3, lc3}
+
+Group 9:
+Oid: la4, isConflict = true, has local update, has remote update, has ancestor, resolution = pickLocal
+Oid: lb4, isAddedByCr = true, isConflict = false, no remote update, no ancestor, resolution = pickLocal
+Oid: lc4, is a LinkLogRecord, isConflict = false, remote syncbase added a linklogrecord with local update as child and remote update as the parent, resolution = pickLocal
+localBatch5: {la4, lb4}
+remoteBatch5: {la4, lc4}
 */
 
 var (
@@ -62,10 +86,37 @@ var (
 		e: createObjConflictState(false /*isConflict*/, true /*hasLocal*/, true /*hasRemote*/, false /*hasAncestor*/),
 		f: createObjConflictState(false /*isConflict*/, true /*hasLocal*/, true /*hasRemote*/, false /*hasAncestor*/),
 		g: createObjConflictState(false /*isConflict*/, true /*hasLocal*/, true /*hasRemote*/, false /*hasAncestor*/),
+
+		// group6
+		la1: createObjConflictState(true /*isConflict*/, true /*hasLocal*/, true /*hasRemote*/, true /*hasAncestor*/),
+		lb1: createObjLinkState(true /*isRemoteBlessed*/),
+		lc1: createObjLinkState(false /*isRemoteBlessed*/),
+
+		// group7
+		la2: createObjConflictState(true /*isConflict*/, true /*hasLocal*/, true /*hasRemote*/, true /*hasAncestor*/),
+		lb2: createObjLinkState(true /*isRemoteBlessed*/),
+		lc2: createObjLinkState(false /*isRemoteBlessed*/),
+
+		// group8
+		la3: createObjConflictState(true /*isConflict*/, true /*hasLocal*/, true /*hasRemote*/, true /*hasAncestor*/),
+		lb3: createObjLinkState(true /*isRemoteBlessed*/),
+		lc3: createObjLinkState(false /*isRemoteBlessed*/),
+
+		// group9
+		la4: createObjConflictState(true /*isConflict*/, true /*hasLocal*/, true /*hasRemote*/, true /*hasAncestor*/),
+		lb4: createObjConflictState(false /*isConflict*/, true /*hasLocal*/, false /*hasRemote*/, false /*hasAncestor*/),
+		lc4: createObjLinkState(false /*isRemoteBlessed*/),
 	}
 
-	localBatchId  uint64 = 34
-	remoteBatchId uint64 = 58
+	localBatchId1  uint64 = 34
+	remoteBatchId1 uint64 = 58
+
+	remoteBatchId2 uint64 = 72
+	remoteBatchId3 uint64 = 45
+	remoteBatchId4 uint64 = 23
+
+	localBatchId5  uint64 = 98
+	remoteBatchId5 uint64 = 78
 )
 
 func createGroupedCrTestData() *groupedCrData {
@@ -97,18 +148,59 @@ func createGroupedCrTestData() *groupedCrData {
 
 	// group5
 	group = newGroup()
-	addToGroup(group, y, localBatchId, wire.BatchSourceLocal)
-	addToGroup(group, y, remoteBatchId, wire.BatchSourceRemote)
-	addToGroup(group, z, remoteBatchId, wire.BatchSourceRemote)
-	addToGroup(group, e, remoteBatchId, wire.BatchSourceRemote)
-	addToGroup(group, f, remoteBatchId, wire.BatchSourceRemote)
-	addToGroup(group, g, remoteBatchId, wire.BatchSourceRemote)
-	addToGroup(group, a, localBatchId, wire.BatchSourceLocal)
+	addToGroup(group, y, localBatchId1, wire.BatchSourceLocal)
+	addToGroup(group, y, remoteBatchId1, wire.BatchSourceRemote)
+	addToGroup(group, z, remoteBatchId1, wire.BatchSourceRemote)
+	addToGroup(group, e, remoteBatchId1, wire.BatchSourceRemote)
+	addToGroup(group, f, remoteBatchId1, wire.BatchSourceRemote)
+	addToGroup(group, g, remoteBatchId1, wire.BatchSourceRemote)
+	addToGroup(group, a, localBatchId1, wire.BatchSourceLocal)
 	groupedCrTestData.oids[y] = true
 	groupedCrTestData.oids[z] = true
 	groupedCrTestData.oids[a] = true
 	groupedCrTestData.oids[e] = true
 	groupedCrTestData.oids[f] = true
+	groupedCrTestData.groups = append(groupedCrTestData.groups, group)
+
+	// group6
+	group = newGroup()
+	addToGroup(group, la1, remoteBatchId2, wire.BatchSourceRemote)
+	addToGroup(group, lb1, remoteBatchId2, wire.BatchSourceRemote)
+	addToGroup(group, lc1, remoteBatchId2, wire.BatchSourceRemote)
+	groupedCrTestData.oids[la1] = true
+	groupedCrTestData.oids[lb1] = true
+	groupedCrTestData.oids[lc1] = true
+	groupedCrTestData.groups = append(groupedCrTestData.groups, group)
+
+	// group7
+	group = newGroup()
+	addToGroup(group, la2, remoteBatchId3, wire.BatchSourceRemote)
+	addToGroup(group, lb2, remoteBatchId3, wire.BatchSourceRemote)
+	addToGroup(group, lc2, remoteBatchId3, wire.BatchSourceRemote)
+	groupedCrTestData.oids[la2] = true
+	groupedCrTestData.oids[lb2] = true
+	groupedCrTestData.oids[lc2] = true
+	groupedCrTestData.groups = append(groupedCrTestData.groups, group)
+
+	// group8
+	group = newGroup()
+	addToGroup(group, la3, remoteBatchId4, wire.BatchSourceRemote)
+	addToGroup(group, lb3, remoteBatchId4, wire.BatchSourceRemote)
+	addToGroup(group, lc3, remoteBatchId4, wire.BatchSourceRemote)
+	groupedCrTestData.oids[la3] = true
+	groupedCrTestData.oids[lb3] = true
+	groupedCrTestData.oids[lc3] = true
+	groupedCrTestData.groups = append(groupedCrTestData.groups, group)
+
+	// group9
+	group = newGroup()
+	addToGroup(group, la4, remoteBatchId5, wire.BatchSourceRemote)
+	addToGroup(group, la4, localBatchId5, wire.BatchSourceLocal)
+	addToGroup(group, lb4, localBatchId5, wire.BatchSourceLocal)
+	addToGroup(group, lc4, remoteBatchId5, wire.BatchSourceRemote)
+	groupedCrTestData.oids[la4] = true
+	groupedCrTestData.oids[lb4] = true
+	groupedCrTestData.oids[lc4] = true
 	groupedCrTestData.groups = append(groupedCrTestData.groups, group)
 
 	return groupedCrTestData
@@ -152,6 +244,42 @@ func createAndSaveNodeAndLogRecDataAppResolves(iSt *initiationState) {
 	saveNodeAndLogRec(iSt.tx, g, updObjectsAppResolves[g].newHead, 23, false)
 
 	saveNodeAndLogRec(iSt.tx, a, updObjectsAppResolves[a].oldHead, 56, false)
+
+	// group6
+	saveNodeAndLogRec(iSt.tx, la1, updObjectsAppResolves[la1].oldHead, 56, false)
+	saveNodeAndLogRec(iSt.tx, la1, updObjectsAppResolves[la1].newHead, 23, false)
+	saveNodeAndLogRec(iSt.tx, la1, updObjectsAppResolves[la1].ancestor, 15, false)
+	saveNodeAndLogRec(iSt.tx, lb1, updObjectsAppResolves[lb1].oldHead, 56, false)
+	saveNodeAndLogRec(iSt.tx, lb1, updObjectsAppResolves[lb1].newHead, 23, false)
+	saveNodeAndLogRec(iSt.tx, lc1, updObjectsAppResolves[lc1].oldHead, 56, false)
+	// lc1.newHead is same as lc1.oldHead.
+
+	// group7
+	saveNodeAndLogRec(iSt.tx, la2, updObjectsAppResolves[la2].oldHead, 56, false)
+	saveNodeAndLogRec(iSt.tx, la2, updObjectsAppResolves[la2].newHead, 23, false)
+	saveNodeAndLogRec(iSt.tx, la2, updObjectsAppResolves[la2].ancestor, 15, false)
+	saveNodeAndLogRec(iSt.tx, lb2, updObjectsAppResolves[lb2].oldHead, 56, false)
+	saveNodeAndLogRec(iSt.tx, lb2, updObjectsAppResolves[lb2].newHead, 23, false)
+	saveNodeAndLogRec(iSt.tx, lc2, updObjectsAppResolves[lc2].oldHead, 56, false)
+	// lc2.newHead is same as lc2.oldHead.
+
+	// group8
+	saveNodeAndLogRec(iSt.tx, la3, updObjectsAppResolves[la3].oldHead, 56, false)
+	saveNodeAndLogRec(iSt.tx, la3, updObjectsAppResolves[la3].newHead, 23, false)
+	saveNodeAndLogRec(iSt.tx, la3, updObjectsAppResolves[la3].ancestor, 15, false)
+	saveNodeAndLogRec(iSt.tx, lb3, updObjectsAppResolves[lb3].oldHead, 56, false)
+	saveNodeAndLogRec(iSt.tx, lb3, updObjectsAppResolves[lb3].newHead, 23, false)
+	saveNodeAndLogRec(iSt.tx, lc3, updObjectsAppResolves[lc3].oldHead, 56, false)
+	// lc3.newHead is same as lc3.oldHead.
+
+	// group8
+	saveNodeAndLogRec(iSt.tx, la4, updObjectsAppResolves[la4].oldHead, 56, false)
+	saveNodeAndLogRec(iSt.tx, la4, updObjectsAppResolves[la4].newHead, 23, false)
+	saveNodeAndLogRec(iSt.tx, la4, updObjectsAppResolves[la4].ancestor, 15, false)
+	saveNodeAndLogRec(iSt.tx, lb4, updObjectsAppResolves[lb4].oldHead, 56, false)
+	// lb4.newHead is NoVersion
+	saveNodeAndLogRec(iSt.tx, lc4, updObjectsAppResolves[lc4].oldHead, 56, false)
+	// lc4.newHead is same as lc4.oldHead.
 }
 
 func writeVersionedValues(t *testing.T, iSt *initiationState) {
@@ -190,6 +318,37 @@ func writeVersionedValues(t *testing.T, iSt *initiationState) {
 	saveValue(t, iSt.tx, g, updObjectsAppResolves[g].newHead)
 
 	saveValue(t, iSt.tx, a, updObjectsAppResolves[a].oldHead)
+
+	// group6
+	saveValue(t, iSt.tx, la1, updObjectsAppResolves[la1].oldHead)
+	saveValue(t, iSt.tx, la1, updObjectsAppResolves[la1].newHead)
+	saveValue(t, iSt.tx, la1, updObjectsAppResolves[la1].ancestor)
+	saveValue(t, iSt.tx, lb1, updObjectsAppResolves[lb1].oldHead)
+	saveValue(t, iSt.tx, lb1, updObjectsAppResolves[lb1].newHead)
+	saveValue(t, iSt.tx, lc1, updObjectsAppResolves[lc1].oldHead)
+
+	// group7
+	saveValue(t, iSt.tx, la2, updObjectsAppResolves[la2].oldHead)
+	saveValue(t, iSt.tx, la2, updObjectsAppResolves[la2].newHead)
+	saveValue(t, iSt.tx, la2, updObjectsAppResolves[la2].ancestor)
+	saveValue(t, iSt.tx, lb2, updObjectsAppResolves[lb2].oldHead)
+	saveValue(t, iSt.tx, lb2, updObjectsAppResolves[lb2].newHead)
+	saveValue(t, iSt.tx, lc2, updObjectsAppResolves[lc2].oldHead)
+
+	// group8
+	saveValue(t, iSt.tx, la3, updObjectsAppResolves[la3].oldHead)
+	saveValue(t, iSt.tx, la3, updObjectsAppResolves[la3].newHead)
+	saveValue(t, iSt.tx, la3, updObjectsAppResolves[la3].ancestor)
+	saveValue(t, iSt.tx, lb3, updObjectsAppResolves[lb3].oldHead)
+	saveValue(t, iSt.tx, lb3, updObjectsAppResolves[lb3].newHead)
+	saveValue(t, iSt.tx, lc3, updObjectsAppResolves[lc3].oldHead)
+
+	// group9
+	saveValue(t, iSt.tx, la4, updObjectsAppResolves[la4].oldHead)
+	saveValue(t, iSt.tx, la4, updObjectsAppResolves[la4].newHead)
+	saveValue(t, iSt.tx, la4, updObjectsAppResolves[la4].ancestor)
+	saveValue(t, iSt.tx, lb4, updObjectsAppResolves[lb4].oldHead)
+	saveValue(t, iSt.tx, lc4, updObjectsAppResolves[lc4].oldHead)
 }
 
 func setResInfoData(mockCrs *conflictResolverStream) {
@@ -208,6 +367,23 @@ func setResInfoData(mockCrs *conflictResolverStream) {
 	addResInfo(mockCrs, f, wire.ValueSelectionLocal, nil, true)
 	addResInfo(mockCrs, g, wire.ValueSelectionLocal, nil, true)
 	addResInfo(mockCrs, a, wire.ValueSelectionOther, []byte("newValue"), false)
+	// group6
+	addResInfo(mockCrs, la1, wire.ValueSelectionLocal, nil, true)
+	addResInfo(mockCrs, lb1, wire.ValueSelectionLocal, nil, true)
+	addResInfo(mockCrs, lc1, wire.ValueSelectionLocal, nil, false)
+	// group7
+	addResInfo(mockCrs, la2, wire.ValueSelectionRemote, nil, true)
+	addResInfo(mockCrs, lb2, wire.ValueSelectionRemote, nil, true)
+	addResInfo(mockCrs, lc2, wire.ValueSelectionRemote, nil, false)
+	// group8
+	addResInfo(mockCrs, la3, wire.ValueSelectionOther, []byte("newValue"), true)
+	addResInfo(mockCrs, lb3, wire.ValueSelectionOther, []byte("newValue"), true)
+	addResInfo(mockCrs, lc3, wire.ValueSelectionOther, []byte("newValue"), false)
+	// group9
+	addResInfo(mockCrs, la4, wire.ValueSelectionLocal, nil, true)
+	addResInfo(mockCrs, lb4, wire.ValueSelectionLocal, nil, true)
+	addResInfo(mockCrs, lc4, wire.ValueSelectionLocal, nil, false)
+
 	setMockCRStream(mockCrs)
 }
 
@@ -251,6 +427,29 @@ func TestResolveViaApp(t *testing.T) {
 	verifyCreateNew(t, iSt.updObjects, g, true)
 	verifyCreateNew(t, iSt.updObjects, a, false)
 
+	// group6
+	verifyResolution(t, iSt.updObjects, la1, pickLocal)
+	// to avoid circular loop in dag pickLocal is converted to createNew
+	verifyCreateNew(t, iSt.updObjects, lb1, false)
+	verifyResolution(t, iSt.updObjects, lc1, pickLocal)
+
+	// group7
+	verifyResolution(t, iSt.updObjects, la2, pickRemote)
+	verifyResolution(t, iSt.updObjects, lb2, pickRemote)
+	// since localHead == remoteHead, the response is optimized and converted to
+	// pickLocal
+	verifyResolution(t, iSt.updObjects, lc2, pickLocal)
+
+	// group8
+	verifyCreateNew(t, iSt.updObjects, la3, false)
+	verifyCreateNew(t, iSt.updObjects, lb3, false)
+	verifyCreateNew(t, iSt.updObjects, lc3, false)
+
+	// group9
+	verifyResolution(t, iSt.updObjects, la4, pickLocal)
+	verifyResolution(t, iSt.updObjects, lb4, pickLocal)
+	verifyResolution(t, iSt.updObjects, lc4, pickLocal)
+
 	// verify batch ids
 	verifyBatchId(t, iSt.updObjects, NoBatchId, x, b, c, p)
 	bid := iSt.updObjects[y].res.batchId
@@ -258,12 +457,36 @@ func TestResolveViaApp(t *testing.T) {
 		t.Errorf("BatchId for group5 should not be NoBatchId")
 	}
 	verifyBatchId(t, iSt.updObjects, bid, y, z, e, f, a)
+
+	bid = iSt.updObjects[la1].res.batchId
+	if bid == NoBatchId {
+		t.Errorf("BatchId for group6 should not be NoBatchId")
+	}
+	verifyBatchId(t, iSt.updObjects, bid, la1, lb1, lc1)
+
+	bid = iSt.updObjects[la2].res.batchId
+	if bid == NoBatchId {
+		t.Errorf("BatchId for group7 should not be NoBatchId")
+	}
+	verifyBatchId(t, iSt.updObjects, bid, la2, lb2, lc2)
+
+	bid = iSt.updObjects[la3].res.batchId
+	if bid == NoBatchId {
+		t.Errorf("BatchId for group8 should not be NoBatchId")
+	}
+	verifyBatchId(t, iSt.updObjects, bid, la3, lb3, lc3)
+
+	bid = iSt.updObjects[la4].res.batchId
+	if bid == NoBatchId {
+		t.Errorf("BatchId for group9 should not be NoBatchId")
+	}
+	verifyBatchId(t, iSt.updObjects, bid, la4, lb4, lc4)
 }
 
 func verifyConflictInfos(t *testing.T, mockCrs *conflictResolverStream) {
 	var ci wire.ConflictInfo
-	if len(mockCrs.sendQ) != 12 {
-		t.Errorf("ConflictInfo count expected: %v, actual: %v", 9, len(mockCrs.sendQ))
+	if len(mockCrs.sendQ) != 29 {
+		t.Errorf("ConflictInfo count expected: %v, actual: %v", 29, len(mockCrs.sendQ))
 	}
 
 	// group1
@@ -290,10 +513,10 @@ func verifyConflictInfos(t *testing.T, mockCrs *conflictResolverStream) {
 	batchMap := map[uint64]wire.ConflictInfo{}
 	batchMap[getBid(mockCrs.sendQ[4])] = mockCrs.sendQ[4]
 	batchMap[getBid(mockCrs.sendQ[5])] = mockCrs.sendQ[5]
-	ci = batchMap[localBatchId]
-	checkConflictBatch(t, localBatchId, ci, wire.BatchSourceLocal)
-	ci = batchMap[remoteBatchId]
-	checkConflictBatch(t, remoteBatchId, ci, wire.BatchSourceRemote)
+	ci = batchMap[localBatchId1]
+	checkConflictBatch(t, localBatchId1, ci, wire.BatchSourceLocal)
+	ci = batchMap[remoteBatchId1]
+	checkConflictBatch(t, remoteBatchId1, ci, wire.BatchSourceRemote)
 
 	rowMap := map[string]wire.ConflictInfo{}
 	rowMap[getOid(mockCrs.sendQ[6])] = mockCrs.sendQ[6]
@@ -303,19 +526,79 @@ func verifyConflictInfos(t *testing.T, mockCrs *conflictResolverStream) {
 	rowMap[getOid(mockCrs.sendQ[10])] = mockCrs.sendQ[10]
 	rowMap[getOid(mockCrs.sendQ[11])] = mockCrs.sendQ[11]
 	ci = rowMap[y]
-	checkConflictRow(t, y, ci, []uint64{localBatchId, remoteBatchId}, false /*localDeleted*/, false /*remoteDeleted*/)
+	checkConflictRow(t, y, ci, []uint64{localBatchId1, remoteBatchId1}, false /*localDeleted*/, false /*remoteDeleted*/)
 	ci = rowMap[z]
-	checkConflictRow(t, z, ci, []uint64{remoteBatchId}, false /*localDeleted*/, false /*remoteDeleted*/)
+	checkConflictRow(t, z, ci, []uint64{remoteBatchId1}, false /*localDeleted*/, false /*remoteDeleted*/)
 	ci = rowMap[a]
-	checkConflictRow(t, a, ci, []uint64{localBatchId}, false /*localDeleted*/, false /*remoteDeleted*/)
+	checkConflictRow(t, a, ci, []uint64{localBatchId1}, false /*localDeleted*/, false /*remoteDeleted*/)
 	ci = rowMap[e]
-	checkConflictRow(t, e, ci, []uint64{remoteBatchId}, false /*localDeleted*/, false /*remoteDeleted*/)
+	checkConflictRow(t, e, ci, []uint64{remoteBatchId1}, false /*localDeleted*/, false /*remoteDeleted*/)
 	ci = rowMap[f]
-	checkConflictRow(t, f, ci, []uint64{remoteBatchId}, false /*localDeleted*/, false /*remoteDeleted*/)
+	checkConflictRow(t, f, ci, []uint64{remoteBatchId1}, false /*localDeleted*/, false /*remoteDeleted*/)
 	ci = rowMap[g]
-	checkConflictRow(t, g, ci, []uint64{remoteBatchId}, true /*localDeleted*/, false /*remoteDeleted*/)
+	checkConflictRow(t, g, ci, []uint64{remoteBatchId1}, true /*localDeleted*/, false /*remoteDeleted*/)
+	checkContinued(t, mockCrs.sendQ[4:12])
 
-	checkContinued(t, mockCrs.sendQ[4:])
+	// group6
+	ci = mockCrs.sendQ[12]
+	checkConflictBatch(t, remoteBatchId2, ci, wire.BatchSourceRemote)
+	rowMap[getOid(mockCrs.sendQ[13])] = mockCrs.sendQ[13]
+	rowMap[getOid(mockCrs.sendQ[14])] = mockCrs.sendQ[14]
+	rowMap[getOid(mockCrs.sendQ[15])] = mockCrs.sendQ[15]
+	ci = rowMap[la1]
+	checkConflictRow(t, la1, ci, []uint64{remoteBatchId2}, false /*localDeleted*/, false /*remoteDeleted*/)
+	ci = rowMap[lb1]
+	checkConflictRow(t, lb1, ci, []uint64{remoteBatchId2}, false /*localDeleted*/, false /*remoteDeleted*/)
+	ci = rowMap[lc1]
+	checkConflictRow(t, lc1, ci, []uint64{remoteBatchId2}, false /*localDeleted*/, false /*remoteDeleted*/)
+	checkContinued(t, mockCrs.sendQ[12:16])
+
+	// group7
+	ci = mockCrs.sendQ[16]
+	checkConflictBatch(t, remoteBatchId3, ci, wire.BatchSourceRemote)
+	rowMap[getOid(mockCrs.sendQ[17])] = mockCrs.sendQ[17]
+	rowMap[getOid(mockCrs.sendQ[18])] = mockCrs.sendQ[18]
+	rowMap[getOid(mockCrs.sendQ[19])] = mockCrs.sendQ[19]
+	ci = rowMap[la2]
+	checkConflictRow(t, la2, ci, []uint64{remoteBatchId3}, false /*localDeleted*/, false /*remoteDeleted*/)
+	ci = rowMap[lb2]
+	checkConflictRow(t, lb2, ci, []uint64{remoteBatchId3}, false /*localDeleted*/, false /*remoteDeleted*/)
+	ci = rowMap[lc2]
+	checkConflictRow(t, lc2, ci, []uint64{remoteBatchId3}, false /*localDeleted*/, false /*remoteDeleted*/)
+	checkContinued(t, mockCrs.sendQ[16:20])
+
+	// group8
+	ci = mockCrs.sendQ[20]
+	checkConflictBatch(t, remoteBatchId4, ci, wire.BatchSourceRemote)
+	rowMap[getOid(mockCrs.sendQ[21])] = mockCrs.sendQ[21]
+	rowMap[getOid(mockCrs.sendQ[22])] = mockCrs.sendQ[22]
+	rowMap[getOid(mockCrs.sendQ[23])] = mockCrs.sendQ[23]
+	ci = rowMap[la3]
+	checkConflictRow(t, la3, ci, []uint64{remoteBatchId4}, false /*localDeleted*/, false /*remoteDeleted*/)
+	ci = rowMap[lb3]
+	checkConflictRow(t, lb3, ci, []uint64{remoteBatchId4}, false /*localDeleted*/, false /*remoteDeleted*/)
+	ci = rowMap[lc3]
+	checkConflictRow(t, lc3, ci, []uint64{remoteBatchId4}, false /*localDeleted*/, false /*remoteDeleted*/)
+	checkContinued(t, mockCrs.sendQ[20:24])
+
+	// group9
+	batchMap = map[uint64]wire.ConflictInfo{}
+	batchMap[getBid(mockCrs.sendQ[24])] = mockCrs.sendQ[24]
+	batchMap[getBid(mockCrs.sendQ[25])] = mockCrs.sendQ[25]
+	ci = batchMap[localBatchId5]
+	checkConflictBatch(t, localBatchId5, ci, wire.BatchSourceLocal)
+	ci = batchMap[remoteBatchId5]
+	checkConflictBatch(t, remoteBatchId5, ci, wire.BatchSourceRemote)
+	rowMap[getOid(mockCrs.sendQ[26])] = mockCrs.sendQ[26]
+	rowMap[getOid(mockCrs.sendQ[27])] = mockCrs.sendQ[27]
+	rowMap[getOid(mockCrs.sendQ[28])] = mockCrs.sendQ[28]
+	ci = rowMap[la4]
+	checkConflictRow(t, la4, ci, []uint64{localBatchId5, remoteBatchId5}, false /*localDeleted*/, false /*remoteDeleted*/)
+	ci = rowMap[lb4]
+	checkConflictRow(t, lb4, ci, []uint64{localBatchId5}, false /*localDeleted*/, false /*remoteDeleted*/)
+	ci = rowMap[lc4]
+	checkConflictRow(t, lc4, ci, []uint64{remoteBatchId5}, false /*localDeleted*/, false /*remoteDeleted*/)
+	checkContinued(t, mockCrs.sendQ[24:])
 }
 
 func checkContinued(t *testing.T, infoGroup []wire.ConflictInfo) {
@@ -367,7 +650,7 @@ func checkConflictRow(t *testing.T, oid string, ci wire.ConflictInfo, batchIds [
 	if !localDeleted && (st.oldHead != NoVersion) && !bytes.Equal(makeValue(oid, st.oldHead), writeOp.LocalValue.Bytes) {
 		t.Errorf("Oid: %v, Local value expected: %v, actual: %v", oid, string(makeValue(oid, st.oldHead)), string(writeOp.LocalValue.Bytes))
 	}
-	if !reflect.DeepEqual(ciData.BatchIds, batchIds) {
+	if !uint64ArrayEq(batchIds, ciData.BatchIds) {
 		t.Errorf("Oid: %v, BatchIds expected: %v, actual: %v", oid, batchIds, ciData.BatchIds)
 	}
 }

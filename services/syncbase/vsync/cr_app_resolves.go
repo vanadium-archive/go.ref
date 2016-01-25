@@ -189,7 +189,7 @@ func processResInfos(ctx *context.T, iSt *initiationState, results map[string]*w
 		res.batchCount = batchCount
 		switch {
 		case rInfo.Selection == wire.ValueSelectionLocal:
-			if !conflictState.isConflict && !conflictState.isAddedByCr {
+			if createsCycle(conflictState.oldHead, conflictState) {
 				// The object had a remote version and since its not under
 				// conflict, the local version is supposed to be its ancestor.
 				// To avoid a dag cycle, we treat it as a createNew.
@@ -210,8 +210,13 @@ func processResInfos(ctx *context.T, iSt *initiationState, results map[string]*w
 			}
 		case rInfo.Selection == wire.ValueSelectionRemote:
 			res.ty = pickRemote
+			if conflictState.oldHead == conflictState.newHead {
+				// pickRemote gives the same version as pickLocal.
+				// Converting to pickLocal for optimization.
+				res.ty = pickLocal
+			}
 		case rInfo.Selection == wire.ValueSelectionOther:
-			// TODO(jlodhia):[optimization] Do byte comparision to see if
+			// TODO(jlodhia):[optimization] Do byte comparison to see if
 			// the new value is equal to local or remote. If so dont use
 			// createNew.
 			res.ty = createNew
@@ -226,6 +231,19 @@ func processResInfos(ctx *context.T, iSt *initiationState, results map[string]*w
 		}
 		conflictState.res = &res
 	}
+}
+
+// createsCycle detects whether selecting resVer as the resolution would create
+// a cycle in the dag or not.
+func createsCycle(resVer string, conflictState *objConflictState) bool {
+	if !conflictState.isConflict &&
+		(conflictState.newHead != NoVersion) && // object pulled in by CR
+		(conflictState.oldHead != conflictState.newHead) {
+		// This means old head is a parent of new head. If the resolution is
+		// oldHead then it will create a cycle.
+		return resVer == conflictState.oldHead
+	}
+	return false
 }
 
 func getNodeOrFail(ctx *context.T, st store.StoreReader, oid, version string) *DagNode {
