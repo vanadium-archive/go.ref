@@ -39,7 +39,8 @@ public interface {{ .ServiceName }}Server {{ .Extends }} {
 
     {{/* Generate the method signature. */}}
     {{ $method.Doc }}
-    {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext ctx, io.v.v23.rpc.ServerCall call{{ $method.Args }}) throws io.v.v23.verror.VException;
+    @javax.annotation.CheckReturnValue
+    com.google.common.util.concurrent.ListenableFuture<{{ $method.RetType }}> {{ $method.Name }}(io.v.v23.context.VContext context, io.v.v23.rpc.ServerCall call{{ $method.Args }});
 {{ end }}
 }
 `
@@ -47,9 +48,9 @@ public interface {{ .ServiceName }}Server {{ .Extends }} {
 func serverInterfaceOutArg(iface *compile.Interface, method *compile.Method, env *compile.Env) string {
 	switch len(method.OutArgs) {
 	case 0:
-		return "void"
+		return "java.lang.Void"
 	case 1:
-		return javaType(method.OutArgs[0].Type, false, env)
+		return javaType(method.OutArgs[0].Type, true, env)
 	default:
 		return javaPath(path.Join(interfaceFullyQualifiedName(iface)+"Server", method.Name+"Out"))
 	}
@@ -63,7 +64,7 @@ func serverInterfaceStreamingArgType(method *compile.Method, env *compile.Env) s
 	} else if method.OutStream != nil {
 		return fmt.Sprintf("io.v.v23.vdl.ServerSendStream<%s>", sendType)
 	} else if method.InStream != nil {
-		return fmt.Sprintf("io.v.v23.VIterable<%s>", recvType)
+		return fmt.Sprintf("io.v.v23.vdl.ServerRecvStream<%s>", recvType)
 	} else {
 		panic(fmt.Errorf("Streaming method without stream sender and receiver: %v", method))
 	}

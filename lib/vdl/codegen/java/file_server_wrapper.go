@@ -112,38 +112,38 @@ public final class {{ .ServiceName }}ServerWrapper {
      {{/* Iterate over methods defined directly in the body of this server */}}
     {{ range $method := .Methods }}
     {{ $method.JavaDoc }}
-    public {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext _ctx, final io.v.v23.rpc.StreamServerCall _call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    public com.google.common.util.concurrent.ListenableFuture<{{ $method.RetType }}> {{ $method.Name }}(io.v.v23.context.VContext _ctx, final io.v.v23.rpc.StreamServerCall _call{{ $method.DeclarationArgs }}) {
         {{ if $method.IsStreaming }}
-        final io.v.v23.rpc.StreamIterable<{{ $method.RecvType }}> _it = new io.v.v23.rpc.StreamIterable(_call, {{ $method.StreamRecvReflectType }});
-        io.v.v23.vdl.ServerStream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.ServerStream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
+            io.v.v23.vdl.ServerStream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.ServerStream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
             @Override
-            public void send({{ $method.SendType }} item) throws io.v.v23.verror.VException {
-                java.lang.reflect.Type type = {{ $method.StreamSendReflectType }};
-                io.v.v23.VFutures.sync(_call.send(item, type));
+            public com.google.common.util.concurrent.ListenableFuture<Void> send({{ $method.SendType }} _item) {
+                java.lang.reflect.Type _type = {{ $method.StreamSendReflectType }};
+                return _call.send(_item, _type);
             }
             @Override
-            public java.util.Iterator<{{ $method.RecvType }}> iterator() {
-                return _it.iterator();
-            }
-            @Override
-            public io.v.v23.verror.VException error() {
-                return _it.error();
+            public com.google.common.util.concurrent.ListenableFuture<{{ $method.RecvType }}> recv() {
+                java.lang.reflect.Type _type = {{ $method.StreamRecvReflectType }};
+                return com.google.common.util.concurrent.Futures.transform(_call.recv(_type), new com.google.common.base.Function<Object, {{ $method.RecvType }}>() {
+                    @Override
+                    public {{ $method.RecvType }} apply(Object result) {
+                        return ({{ $method.RecvType }}) result;
+                    }
+                });
             }
         };
         {{ end }} {{/* end if $method.IsStreaming */}}
-        {{ if $method.Returns }} return {{ end }} this.server.{{ $method.Name }}(_ctx, _call {{ $method.CallingArgs }} {{ if $method.IsStreaming }} ,_stream {{ end }} );
+        return this.server.{{ $method.Name }}(_ctx, _call {{ $method.CallingArgs }} {{ if $method.IsStreaming }} ,_stream {{ end }} );
     }
 {{end}}
 
 {{/* Iterate over methods from embeded servers and generate code to delegate the work */}}
 {{ range $eMethod := .EmbedMethods }}
     {{ $eMethod.JavaDoc }}
-    public {{ $eMethod.RetType }} {{ $eMethod.Name }}(io.v.v23.context.VContext ctx, io.v.v23.rpc.StreamServerCall call{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    public com.google.common.util.concurrent.ListenableFuture<{{ $eMethod.RetType }}> {{ $eMethod.Name }}(io.v.v23.context.VContext ctx, io.v.v23.rpc.StreamServerCall call{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{/* e.g. return this.stubArith.cosine(ctx, call, [args], options) */}}
-        {{ if $eMethod.Returns }}return{{ end }}  this.wrapper{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(ctx, call{{ $eMethod.CallingArgs }});
+        return this.wrapper{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(ctx, call{{ $eMethod.CallingArgs }});
     }
 {{ end }} {{/* end range .EmbedMethods */}}
-
 }
 `
 
@@ -158,7 +158,6 @@ type serverWrapperMethod struct {
 	RecvType              string
 	RetType               string
 	RetJavaTypes          []string
-	Returns               bool
 	SendType              string
 	StreamRecvReflectType string
 	StreamSendReflectType string
@@ -173,7 +172,6 @@ type serverWrapperEmbedMethod struct {
 	JavaDoc         string
 	Name            string
 	RetType         string
-	Returns         bool
 }
 
 type serverWrapperEmbed struct {
@@ -213,7 +211,6 @@ func processServerWrapperMethod(iface *compile.Interface, method *compile.Method
 		RecvType:              javaType(method.InStream, true, env),
 		RetType:               serverInterfaceOutArg(iface, method, env),
 		RetJavaTypes:          retArgTypes,
-		Returns:               len(method.OutArgs) >= 1,
 		SendType:              javaType(method.OutStream, true, env),
 		StreamRecvReflectType: javaReflectType(method.InStream, env),
 		StreamSendReflectType: javaReflectType(method.OutStream, env),
@@ -229,7 +226,6 @@ func processServerWrapperEmbedMethod(iface *compile.Interface, embedMethod *comp
 		JavaDoc:         javaDoc(embedMethod.Doc, embedMethod.DocSuffix),
 		Name:            vdlutil.FirstRuneToLower(embedMethod.Name),
 		RetType:         serverInterfaceOutArg(iface, embedMethod, env),
-		Returns:         len(embedMethod.OutArgs) >= 1,
 	}
 }
 
