@@ -430,7 +430,6 @@ func (m *manager) readProxyResponse(ctx *context.T, f flow.Flow) ([]naming.Endpo
 	}
 }
 
-// TODO(suharshs): Figure out what blessings to present here. And present discharges.
 type proxyAuthorizer struct{}
 
 func (proxyAuthorizer) AuthorizePeer(
@@ -442,10 +441,10 @@ func (proxyAuthorizer) AuthorizePeer(
 	return nil, nil, nil
 }
 
-func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, serverBlessings []string) (
+func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, proxyBlessings []string) (
 	security.Blessings, map[string]security.Discharge, error) {
-	blessings := v23.GetPrincipal(ctx).BlessingStore().Default()
-	discharges, _ := slib.PrepareDischarges(ctx, blessings, serverBlessings, "", nil)
+	blessings := v23.GetPrincipal(ctx).BlessingStore().ForPeer(proxyBlessings...)
+	discharges, _ := slib.PrepareDischarges(ctx, blessings, proxyBlessings, "", nil)
 	return blessings, discharges, nil
 }
 
