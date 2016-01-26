@@ -5,6 +5,7 @@
 package mdns
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"reflect"
@@ -45,14 +46,8 @@ func encryptionKeys(key string) []idiscovery.EncryptionKey {
 	return []idiscovery.EncryptionKey{idiscovery.EncryptionKey(fmt.Sprintf("key:%x", key))}
 }
 
-func advertise(ctx *context.T, p idiscovery.Plugin, service discovery.Service) (func(), error) {
+func advertise(ctx *context.T, p idiscovery.Plugin, ad idiscovery.Advertisement) (func(), error) {
 	ctx, cancel := context.WithCancel(ctx)
-	ad := idiscovery.Advertisement{
-		ServiceUuid:         idiscovery.NewServiceUUID(service.InterfaceName),
-		Service:             service,
-		EncryptionAlgorithm: idiscovery.TestEncryption,
-		EncryptionKeys:      encryptionKeys(service.InstanceId),
-	}
 	var wg sync.WaitGroup
 	wg.Add(1)
 	if err := p.Advertise(ctx, ad, wg.Done); err != nil {
@@ -68,13 +63,9 @@ func advertise(ctx *context.T, p idiscovery.Plugin, service discovery.Service) (
 func startScan(ctx *context.T, p idiscovery.Plugin, interfaceName string) (<-chan idiscovery.Advertisement, func(), error) {
 	ctx, cancel := context.WithCancel(ctx)
 	scan := make(chan idiscovery.Advertisement)
-	var serviceUuid idiscovery.Uuid
-	if len(interfaceName) > 0 {
-		serviceUuid = idiscovery.NewServiceUUID(interfaceName)
-	}
 	var wg sync.WaitGroup
 	wg.Add(1)
-	if err := p.Scan(ctx, serviceUuid, scan, wg.Done); err != nil {
+	if err := p.Scan(ctx, interfaceName, scan, wg.Done); err != nil {
 		return nil, nil, fmt.Errorf("Scan failed: %v", err)
 	}
 	stop := func() {
@@ -102,17 +93,17 @@ func scan(ctx *context.T, p idiscovery.Plugin, interfaceName string) ([]idiscove
 	}
 }
 
-func match(ads []idiscovery.Advertisement, lost bool, wants ...discovery.Service) bool {
+func match(ads []idiscovery.Advertisement, lost bool, wants ...idiscovery.Advertisement) bool {
 	for _, want := range wants {
 		matched := false
 		for i, ad := range ads {
-			if ad.Service.InstanceId != want.InstanceId {
+			if ad.Service.InstanceId != want.Service.InstanceId {
 				continue
 			}
 			if lost {
 				matched = ad.Lost
 			} else {
-				matched = !ad.Lost && reflect.DeepEqual(ad.Service, want) && ad.EncryptionAlgorithm == idiscovery.TestEncryption && reflect.DeepEqual(ad.EncryptionKeys, encryptionKeys(want.InstanceId))
+				matched = reflect.DeepEqual(ad, want)
 			}
 			if matched {
 				ads = append(ads[:i], ads[i+1:]...)
@@ -126,15 +117,15 @@ func match(ads []idiscovery.Advertisement, lost bool, wants ...discovery.Service
 	return len(ads) == 0
 }
 
-func matchFound(ads []idiscovery.Advertisement, wants ...discovery.Service) bool {
+func matchFound(ads []idiscovery.Advertisement, wants ...idiscovery.Advertisement) bool {
 	return match(ads, false, wants...)
 }
 
-func matchLost(ads []idiscovery.Advertisement, wants ...discovery.Service) bool {
+func matchLost(ads []idiscovery.Advertisement, wants ...idiscovery.Advertisement) bool {
 	return match(ads, true, wants...)
 }
 
-func scanAndMatch(ctx *context.T, p idiscovery.Plugin, interfaceName string, wants ...discovery.Service) error {
+func scanAndMatch(ctx *context.T, p idiscovery.Plugin, interfaceName string, wants ...idiscovery.Advertisement) error {
 	const timeout = 3 * time.Second
 
 	var ads []idiscovery.Advertisement
@@ -150,49 +141,86 @@ func scanAndMatch(ctx *context.T, p idiscovery.Plugin, interfaceName string, wan
 			return nil
 		}
 	}
-	return fmt.Errorf("Match failed; got %v, but wanted %v", ads, wants)
+	return fmt.Errorf("Match failed; got %#v, but wanted %#v", ads, wants)
 }
 
 func TestBasic(t *testing.T) {
 	ctx, shutdown := test.TestContext()
 	defer shutdown()
 
-	services := []discovery.Service{
+	ads := []idiscovery.Advertisement{
 		{
-			InstanceId:    "123",
-			InstanceName:  "service1",
-			InterfaceName: "v.io/x",
-			Attrs: discovery.Attributes{
-				"a": "a1234",
-				"b": "b1234",
+			Service: discovery.Service{
+				InstanceId:    "123",
+				InstanceName:  "service1",
+				InterfaceName: "v.io/x",
+				Attrs: discovery.Attributes{
+					"a": "a1234",
+					"b": "b1234",
+				},
+				Addrs: []string{
+					"/@6@wsh@foo.com:1234@@/x",
+				},
+				Attachments: discovery.Attachments{
+					"a": []byte{11, 12, 13},
+					"p": []byte{21, 22, 23},
+				},
 			},
-			Addrs: []string{
-				"/@6@wsh@foo.com:1234@@/x",
+			EncryptionAlgorithm: idiscovery.TestEncryption,
+			EncryptionKeys:      encryptionKeys("123"),
+			Hash:                []byte{1, 2, 3},
+			DirAddrs: []string{
+				"/@6@wsh@foo.com:1234@@/d",
 			},
 		},
 		{
-			InstanceId:    "456",
-			InstanceName:  "service2",
-			InterfaceName: "v.io/x",
-			Attrs: discovery.Attributes{
-				"a": "a5678",
-				"b": "b5678",
+			Service: discovery.Service{
+				InstanceId:    "456",
+				InstanceName:  "service2",
+				InterfaceName: "v.io/x",
+				Attrs: discovery.Attributes{
+					"a": "a5678",
+					"b": "b5678",
+				},
+				Addrs: []string{
+					"/@6@wsh@bar.com:1234@@/x",
+				},
+				Attachments: discovery.Attachments{
+					"a": []byte{31, 32, 33},
+					"p": []byte{41, 42, 43},
+				},
 			},
-			Addrs: []string{
-				"/@6@wsh@bar.com:1234@@/x",
+			EncryptionAlgorithm: idiscovery.TestEncryption,
+			EncryptionKeys:      encryptionKeys("456"),
+			Hash:                []byte{4, 5, 6},
+			DirAddrs: []string{
+				"/@6@wsh@bar.com:1234@@/d",
 			},
 		},
 		{
-			InstanceId:    "789",
-			InstanceName:  "service3",
-			InterfaceName: "v.io/y",
-			Attrs: discovery.Attributes{
-				"c": "c1234",
-				"d": "d1234",
+			Service: discovery.Service{
+				InstanceId:    "789",
+				InstanceName:  "service3",
+				InterfaceName: "v.io/y",
+				Attrs: discovery.Attributes{
+					"c": "c1234",
+					"d": "d1234",
+				},
+				Addrs: []string{
+					"/@6@wsh@foo.com:1234@@/y",
+					"/@6@wsh@bar.com:1234@@/y",
+				},
+				Attachments: discovery.Attachments{
+					"c": []byte{51, 52, 53},
+					"p": []byte{61, 62, 63},
+				},
 			},
-			Addrs: []string{
-				"/@6@wsh@foo.com:1234@@/y",
-				"/@6@wsh@bar.com:1234@@/y",
+			EncryptionAlgorithm: idiscovery.TestEncryption,
+			EncryptionKeys:      encryptionKeys("789"),
+			Hash:                []byte{7, 8, 9},
+			DirAddrs: []string{
+				"/@6@wsh@foo.com:1234@@/d",
+				"/@6@wsh@bar.com:1234@@/d",
 			},
 		},
 	}
@@ -203,8 +231,8 @@ func TestBasic(t *testing.T) {
 	}
 
 	var stops []func()
-	for _, service := range services {
-		stop, err := advertise(ctx, p1, service)
+	for _, ad := range ads {
+		stop, err := advertise(ctx, p1, ad)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -217,13 +245,13 @@ func TestBasic(t *testing.T) {
 	}
 
 	// Make sure all advertisements are discovered.
-	if err := scanAndMatch(ctx, p2, "v.io/x", services[0], services[1]); err != nil {
+	if err := scanAndMatch(ctx, p2, "v.io/x", ads[0], ads[1]); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, p2, "v.io/y", services[2]); err != nil {
+	if err := scanAndMatch(ctx, p2, "v.io/y", ads[2]); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, p2, "", services...); err != nil {
+	if err := scanAndMatch(ctx, p2, "", ads...); err != nil {
 		t.Error(err)
 	}
 	if err := scanAndMatch(ctx, p2, "v.io/z"); err != nil {
@@ -232,10 +260,10 @@ func TestBasic(t *testing.T) {
 
 	// Make sure it is not discovered when advertising is stopped.
 	stops[0]()
-	if err := scanAndMatch(ctx, p2, "v.io/x", services[1]); err != nil {
+	if err := scanAndMatch(ctx, p2, "v.io/x", ads[1]); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, p2, "", services[1], services[2]); err != nil {
+	if err := scanAndMatch(ctx, p2, "", ads[1], ads[2]); err != nil {
 		t.Error(err)
 	}
 
@@ -246,16 +274,16 @@ func TestBasic(t *testing.T) {
 	}
 	defer scanStop()
 	ad := <-scan
-	if !matchFound([]idiscovery.Advertisement{ad}, services[2]) {
-		t.Errorf("Unexpected scan: %v, but want %v", ad, services[2])
+	if !matchFound([]idiscovery.Advertisement{ad}, ads[2]) {
+		t.Errorf("Unexpected scan: %v, but want %v", ad, ads[2])
 	}
 
 	// Make sure scan returns the lost advertisement when advertising is stopped.
 	stops[2]()
 
 	ad = <-scan
-	if !matchLost([]idiscovery.Advertisement{ad}, services[2]) {
-		t.Errorf("Unexpected scan: %v, but want %v as lost", ad, services[2])
+	if !matchLost([]idiscovery.Advertisement{ad}, ads[2]) {
+		t.Errorf("Unexpected scan: %v, but want %v as lost", ad, ads[2])
 	}
 
 	// Stop advertising the remaining one; Shouldn't discover anything.
@@ -269,16 +297,44 @@ func TestLargeTxt(t *testing.T) {
 	ctx, shutdown := test.TestContext()
 	defer shutdown()
 
-	service := discovery.Service{
-		InstanceId:    "123",
-		InstanceName:  "service2",
-		InterfaceName: strings.Repeat("i", 280),
-		Attrs: discovery.Attributes{
-			"k": strings.Repeat("v", 280),
+	ads := []idiscovery.Advertisement{
+		{
+			Service: discovery.Service{
+				InstanceId:   "123",
+				InstanceName: "service1",
+				//InterfaceName: strings.Repeat("i", 260),
+				InterfaceName: "v.io/y",
+				Attrs: discovery.Attributes{
+					"a": strings.Repeat("v", 260),
+				},
+				Addrs: []string{
+					strings.Repeat("a1", 70),
+					strings.Repeat("a2", 70),
+				},
+				Attachments: discovery.Attachments{
+					"p": bytes.Repeat([]byte{1}, 260),
+				},
+			},
+			EncryptionAlgorithm: idiscovery.TestEncryption,
+			EncryptionKeys:      encryptionKeys("123"),
+			Hash:                []byte{1, 2, 3},
+			DirAddrs:            []string{"d"},
 		},
-		Addrs: []string{
-			strings.Repeat("a1", 100),
-			strings.Repeat("a2", 100),
+		{
+			Service: discovery.Service{
+				InstanceId:    "456",
+				InstanceName:  "service2",
+				InterfaceName: "v.io/y",
+				Attrs:         discovery.Attributes{"a": "v"},
+				Addrs:         []string{"a"},
+				Attachments:   discovery.Attachments{"p": []byte{1}},
+			},
+			EncryptionAlgorithm: idiscovery.TestEncryption,
+			EncryptionKeys:      encryptionKeys(strings.Repeat("k", 260)),
+			Hash:                bytes.Repeat([]byte{1}, 260),
+			DirAddrs: []string{
+				strings.Repeat("d", 260),
+			},
 		},
 	}
 
@@ -286,18 +342,21 @@ func TestLargeTxt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
-	stop, err := advertise(ctx, p1, service)
-	if err != nil {
-		t.Fatal(err)
+
+	for _, ad := range ads {
+		stop, err := advertise(ctx, p1, ad)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer stop()
 	}
-	defer stop()
 
 	p2, err := newMDNS("m2")
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
 
-	if err := scanAndMatch(ctx, p2, "", service); err != nil {
+	if err := scanAndMatch(ctx, p2, "", ads...); err != nil {
 		t.Error(err)
 	}
 }

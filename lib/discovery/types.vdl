@@ -21,10 +21,8 @@ type Uuid []byte
 
 // Advertisement holds a set of service properties to advertise.
 type Advertisement struct {
+	// The service to advertise.
 	Service discovery.Service
-
-	// The service UUID to advertise.
-	ServiceUuid Uuid
 
 	// Type of encryption applied to the advertisement so that it can
 	// only be decoded by authorized principals.
@@ -33,8 +31,14 @@ type Advertisement struct {
 	// decrypt it. The format of this data is a function of the algorithm.
 	EncryptionKeys []EncryptionKey
 
+	// Hash of the current advertisement.
+	Hash []byte
+
+	// The addresses (vanadium object names) that the advertisement directory service
+	// is served on. See directory.vdl.
+	DirAddrs []string
+
 	// TODO(jhahn): Add proximity.
 	// TODO(jhahn): Use proximity for Lost.
 	Lost bool
 }
-
