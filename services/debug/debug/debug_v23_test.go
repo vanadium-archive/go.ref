@@ -43,15 +43,18 @@ func TestV23DebugGlobLogs(t *testing.T) {
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	// Create a temp file before we list the logs.
-	fileName := filepath.Base(sh.MakeTempFile().Name())
+	// Create a temp dir before we list the logs.
+	dirName := sh.MakeTempDir()
 	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
-	stdout := sh.Cmd(binary, "glob", "__debug/logs/*").Stdout()
+	output := sh.Cmd(binary, "--timeout=1m", "glob", "__debug/logs/*").CombinedOutput()
 
-	// The output should contain the filename.
-	want := "/logs/" + fileName
-	if !strings.Contains(stdout, want) {
-		t.Fatalf("output should contain %s but did not\n%s", want, stdout)
+	// The output should contain the dir name.
+	want := "/logs/" + filepath.Base(dirName)
+	if !strings.Contains(output, want) {
+		fi, err := os.Stat(dirName)
+		t.Logf("Stat(%q): (%v, %v)", dirName, fi, err)
+		t.Logf("TempDir: %q", os.TempDir())
+		t.Fatalf("output should contain %s but did not\n%s", want, output)
 	}
 }
 
