@@ -32,7 +32,7 @@ func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, serviceUuid discovery.Uuid, ch chan<- discovery.Advertisement, done func()) error {
+func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- discovery.Advertisement, done func()) error {
 	rescan := make(chan struct{})
 	go func() {
 		var updateSeqSeen int
@@ -59,7 +59,7 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid discovery.Uuid, ch chan<- disc
 			current := make(map[string]discovery.Advertisement)
 			p.mu.Lock()
 			for key, ads := range p.services {
-				if len(serviceUuid) > 0 && key != string(serviceUuid) {
+				if len(interfaceName) > 0 && key != interfaceName {
 					continue
 				}
 				for _, ad := range ads {
@@ -109,7 +109,7 @@ func (p *plugin) Scan(ctx *context.T, serviceUuid discovery.Uuid, ch chan<- disc
 // given advertisement.
 func (p *plugin) RegisterAdvertisement(ad discovery.Advertisement) {
 	p.mu.Lock()
-	key := string(ad.ServiceUuid)
+	key := ad.Service.InterfaceName
 	ads := p.services[key]
 	if i := findAd(ads, ad.Service.InstanceId); i >= 0 {
 		ads[i] = ad
@@ -125,7 +125,7 @@ func (p *plugin) RegisterAdvertisement(ad discovery.Advertisement) {
 // UnregisterAdvertisement unregisters a registered service from the plugin.
 func (p *plugin) UnregisterAdvertisement(ad discovery.Advertisement) {
 	p.mu.Lock()
-	key := string(ad.ServiceUuid)
+	key := ad.Service.InterfaceName
 	ads := p.services[key]
 	if i := findAd(ads, ad.Service.InstanceId); i >= 0 {
 		ads = append(ads[:i], ads[i+1:]...)

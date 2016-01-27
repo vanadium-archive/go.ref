@@ -5,7 +5,7 @@
 package discovery
 
 import (
-	"reflect"
+	"bytes"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -21,10 +21,6 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 	if err != nil {
 		return nil, err
 	}
-	var targetServiceUuid Uuid
-	if len(targetInterfaceName) > 0 {
-		targetServiceUuid = NewServiceUUID(targetInterfaceName)
-	}
 
 	ctx, cancel, err := ds.addTask(ctx)
 	if err != nil {
@@ -38,7 +34,7 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 		ds.removeTask(ctx)
 	})
 	for _, plugin := range ds.plugins {
-		if err := plugin.Scan(ctx, targetServiceUuid, scanCh, barrier.Add()); err != nil {
+		if err := plugin.Scan(ctx, targetInterfaceName, scanCh, barrier.Add()); err != nil {
 			cancel()
 			return nil, err
 		}
@@ -112,7 +108,7 @@ func mergeAdvertisement(found map[string]*Advertisement, ad *Advertisement) (upd
 		switch {
 		case prev == nil:
 			updates = []discovery.Update{discovery.UpdateFound{discovery.Found{Service: ad.Service}}}
-		case !reflect.DeepEqual(prev.Service, ad.Service):
+		case !bytes.Equal(prev.Hash, ad.Hash):
 			updates = []discovery.Update{
 				discovery.UpdateLost{discovery.Lost{Service: prev.Service}},
 				discovery.UpdateFound{discovery.Found{Service: copyService(&ad.Service)}},

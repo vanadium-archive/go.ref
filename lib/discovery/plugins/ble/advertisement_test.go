@@ -5,30 +5,33 @@
 package ble
 
 import (
-	"bytes"
 	"reflect"
 	"testing"
 
+	"github.com/pborman/uuid"
+
+	"v.io/x/ref/lib/discovery"
 	"v.io/x/ref/lib/discovery/plugins/ble/testdata"
 )
 
 func TestConvertingBackAndForth(t *testing.T) {
-	for _, test := range testdata.ConversionTestData {
-		v23Adv := test.VAdvertisement
-		adv := newAdvertisment(v23Adv)
-		if !bytes.Equal(adv.serviceUuid, v23Adv.ServiceUuid) {
-			t.Errorf("wanted: %v, got %v", adv.serviceUuid, v23Adv.ServiceUuid)
+	for i, test := range testdata.ConversionTestData {
+		adv := test.Advertisement
+		serviceUuid := uuid.UUID(discovery.NewServiceUUID(adv.Service.InterfaceName))
+		bleAdv := newBleAdvertisment(serviceUuid, adv)
+		if !uuid.Equal(bleAdv.serviceUuid, serviceUuid) {
+			t.Errorf("[%d]: wanted %v, but got %v", i, serviceUuid, bleAdv.serviceUuid)
 		}
-		if !reflect.DeepEqual(adv.attrs, test.BleAdvertisement) {
-			t.Errorf("wanted: %v, got %v", test.BleAdvertisement, adv.attrs)
+		if !reflect.DeepEqual(bleAdv.attrs, test.BleAdvertisement) {
+			t.Errorf("[%d]: wanted %v, but got %v", i, test.BleAdvertisement, bleAdv.attrs)
 		}
 
-		out, err := adv.toDiscoveryAdvertisement()
+		out, err := bleAdv.toDiscoveryAdvertisement()
 		if err != nil {
-			t.Errorf("unexpected error: %v", err)
+			t.Errorf("[%d]: unexpected error: %v", i, err)
 		}
-		if !reflect.DeepEqual(&v23Adv, out) {
-			t.Errorf("input does not equal output: %v, %v", v23Adv, out)
+		if !reflect.DeepEqual(&adv, out) {
+			t.Errorf("[%d]: wanted %v, but got %v", i, adv, out)
 		}
 	}
 }

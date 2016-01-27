@@ -5,64 +5,34 @@
 package discovery
 
 import (
-	"unicode/utf8"
-
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 )
 
-const (
-	// Limit the maximum length of instance id. Some plugins are using an instance id
-	// as a key (e.g., as a hostname in mDNS) and so its size can be limited by their
-	// protocols.
-	maxInstanceIdLen = 32
-)
-
 var (
 	errAlreadyBeingAdvertised = verror.Register(pkgPath+".errAlreadyBeingAdvertised", verror.NoRetry, "{1:}{2:} already being advertised")
-	errInstanceIdTooLong      = verror.Register(pkgPath+".errInstanceIdTooLong", verror.NoRetry, "{1:}{2:} instance id too long")
-	errInvalidInstanceId      = verror.Register(pkgPath+".errInvalidInstanceId", verror.NoRetry, "{1:}{2:} instance id not valid")
-	errNoInterfaceName        = verror.Register(pkgPath+".errNoInterfaceName", verror.NoRetry, "{1:}{2:} interface name not provided")
-	errNotPackableAttributes  = verror.Register(pkgPath+".errNotPackableAttributes", verror.NoRetry, "{1:}{2:} attribute not packable")
-	errNoAddresses            = verror.Register(pkgPath+".errNoAddress", verror.NoRetry, "{1:}{2:} address not provided")
-	errNotPackableAddresses   = verror.Register(pkgPath+".errNotPackableAddresses", verror.NoRetry, "{1:}{2:} address not packable")
+	errInvalidService         = verror.Register(pkgPath+"errInvalidService", verror.NoRetry, "{1:}{2:} service not valid{:_}")
 )
 
 // Advertise implements discovery.Advertiser.
 func (ds *ds) Advertise(ctx *context.T, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
-	if len(service.InterfaceName) == 0 {
-		return nil, verror.New(errNoInterfaceName, ctx)
-	}
-	if len(service.Addrs) == 0 {
-		return nil, verror.New(errNoAddresses, ctx)
-	}
-
 	if len(service.InstanceId) == 0 {
 		var err error
 		if service.InstanceId, err = newInstanceId(); err != nil {
 			return nil, err
 		}
 	}
-	if len(service.InstanceId) > maxInstanceIdLen {
-		return nil, verror.New(errInstanceIdTooLong, ctx)
-	}
-	if !utf8.ValidString(service.InstanceId) {
-		return nil, verror.New(errInvalidInstanceId, ctx)
+	if err := validateService(service); err != nil {
+		return nil, verror.New(errInvalidService, ctx, err)
 	}
 
-	if err := validateAttributes(service.Attrs); err != nil {
-		return nil, err
-	}
-
-	ad := Advertisement{
-		ServiceUuid: NewServiceUUID(service.InterfaceName),
-		Service:     copyService(service),
-	}
+	ad := Advertisement{Service: copyService(service)}
 	if err := encrypt(&ad, visibility); err != nil {
 		return nil, err
 	}
+	hashAdvertisement(&ad)
 
 	ctx, cancel, err := ds.addTask(ctx)
 	if err != nil {

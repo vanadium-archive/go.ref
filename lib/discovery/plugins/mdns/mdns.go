@@ -40,6 +40,11 @@ const (
 	attrInterface  = "_i"
 	attrAddrs      = "_a"
 	attrEncryption = "_e"
+	attrHash       = "_h"
+	attrDirAddrs   = "_d"
+
+	// The prefix for attribute names for encoded attachments.
+	attrAttachmentPrefix = "__"
 
 	// The prefix for attribute names for encoded large txt records.
 	attrLargeTxtPrefix = "_x"
@@ -71,8 +76,13 @@ type subscription struct {
 	lastSubscription time.Time
 }
 
+func interfaceNameToServiceName(interfaceName string) string {
+	serviceUuid := idiscovery.NewServiceUUID(interfaceName)
+	return uuid.UUID(serviceUuid).String() + serviceNameSuffix
+}
+
 func (p *plugin) Advertise(ctx *context.T, ad idiscovery.Advertisement, done func()) (err error) {
-	serviceName := uuid.UUID(ad.ServiceUuid).String() + serviceNameSuffix
+	serviceName := interfaceNameToServiceName(ad.Service.InterfaceName)
 	// We use the instance uuid as the host name so that we can get the instance uuid
 	// from the lost service instance, which has no txt records at all.
 	hostName := encodeInstanceId(ad.Service.InstanceId)
@@ -88,6 +98,7 @@ func (p *plugin) Advertise(ctx *context.T, ad idiscovery.Advertisement, done fun
 		done()
 		return err
 	}
+
 	// Announce it as v23 service as well so that we can discover
 	// all v23 services through mDNS.
 	err = p.mdns.AddService(v23ServiceName, hostName, 0, txt...)
@@ -104,12 +115,12 @@ func (p *plugin) Advertise(ctx *context.T, ad idiscovery.Advertisement, done fun
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, serviceUuid idiscovery.Uuid, ch chan<- idiscovery.Advertisement, done func()) error {
+func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- idiscovery.Advertisement, done func()) error {
 	var serviceName string
-	if len(serviceUuid) == 0 {
+	if len(interfaceName) == 0 {
 		serviceName = v23ServiceName
 	} else {
-		serviceName = uuid.UUID(serviceUuid).String() + serviceNameSuffix
+		serviceName = interfaceNameToServiceName(interfaceName)
 	}
 
 	go func() {
@@ -195,14 +206,22 @@ func createTxtRecords(ad *idiscovery.Advertisement) ([]string, error) {
 	}
 	if len(ad.Service.Addrs) > 0 {
 		addrs := idiscovery.PackAddresses(ad.Service.Addrs)
-		txt = appendTxtRecord(txt, attrAddrs, string(addrs))
+		txt = appendTxtRecord(txt, attrAddrs, addrs)
 	}
 	if ad.EncryptionAlgorithm != idiscovery.NoEncryption {
 		enc := idiscovery.PackEncryptionKeys(ad.EncryptionAlgorithm, ad.EncryptionKeys)
-		txt = appendTxtRecord(txt, attrEncryption, string(enc))
+		txt = appendTxtRecord(txt, attrEncryption, enc)
 	}
 	for k, v := range ad.Service.Attrs {
 		txt = appendTxtRecord(txt, k, v)
+	}
+	for k, v := range ad.Service.Attachments {
+		txt = appendTxtRecord(txt, attrAttachmentPrefix+k, v)
+	}
+	txt = appendTxtRecord(txt, attrHash, ad.Hash)
+	if len(ad.DirAddrs) > 0 {
+		addrs := idiscovery.PackAddresses(ad.DirAddrs)
+		txt = appendTxtRecord(txt, attrDirAddrs, addrs)
 	}
 	txt, err := maybeSplitLargeTXT(txt)
 	if err != nil {
@@ -218,11 +237,15 @@ func createTxtRecords(ad *idiscovery.Advertisement) ([]string, error) {
 	return txt, nil
 }
 
-func appendTxtRecord(txt []string, k, v string) []string {
+func appendTxtRecord(txt []string, k string, v interface{}) []string {
 	var buf bytes.Buffer
 	buf.WriteString(k)
 	buf.WriteByte('=')
-	buf.WriteString(v)
+	if s, ok := v.(string); ok {
+		buf.WriteString(s)
+	} else {
+		buf.Write(v.([]byte))
+	}
 	kv := buf.String()
 	txt = append(txt, kv)
 	return txt
@@ -246,6 +269,7 @@ func createAdvertisement(service mdns.ServiceInstance) (idiscovery.Advertisement
 	}
 
 	ad.Service.Attrs = make(discovery.Attributes)
+	ad.Service.Attachments = make(discovery.Attachments)
 	for _, rr := range service.TxtRRs {
 		txt, err := maybeJoinLargeTXT(rr.Txt)
 		if err != nil {
@@ -270,8 +294,18 @@ func createAdvertisement(service mdns.ServiceInstance) (idiscovery.Advertisement
 				if ad.EncryptionAlgorithm, ad.EncryptionKeys, err = idiscovery.UnpackEncryptionKeys([]byte(v)); err != nil {
 					return idiscovery.Advertisement{}, err
 				}
+			case attrHash:
+				ad.Hash = []byte(v)
+			case attrDirAddrs:
+				if ad.DirAddrs, err = idiscovery.UnpackAddresses([]byte(v)); err != nil {
+					return idiscovery.Advertisement{}, err
+				}
 			default:
-				ad.Service.Attrs[k] = v
+				if strings.HasPrefix(k, attrAttachmentPrefix) {
+					ad.Service.Attachments[k[len(attrAttachmentPrefix):]] = []byte(v)
+				} else {
+					ad.Service.Attrs[k] = v
+				}
 			}
 		}
 	}

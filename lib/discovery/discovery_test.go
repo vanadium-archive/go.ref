@@ -179,7 +179,7 @@ func TestMerge(t *testing.T) {
 			InterfaceName: "v.io/v23/a",
 			Addrs:         []string{"/h1:123/x"},
 		},
-		ServiceUuid: idiscovery.NewServiceUUID("v.io/v23/a"),
+		Hash: []byte{1, 2, 3},
 	}
 
 	scan, scanStop, err := startScan(ctx, ds, "v.io/v23/a")
@@ -206,6 +206,7 @@ func TestMerge(t *testing.T) {
 	// Two plugins update the service, but we should see the update only once.
 	newAd := ad
 	newAd.Service.Addrs = []string{"/h1:456/x"}
+	newAd.Hash = []byte{4, 5, 6}
 
 	go func() { p1.RegisterAdvertisement(newAd) }()
 	go func() { p2.RegisterAdvertisement(newAd) }()
@@ -255,32 +256,5 @@ func TestClose(t *testing.T) {
 	}
 	if err := scanAndMatch(ctx, ds, "", service); err == nil {
 		t.Error("expect an error; but got none")
-	}
-}
-
-func TestInstanceId(t *testing.T) {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-
-	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
-	defer ds.Close()
-
-	services := []discovery.Service{
-		{
-			InstanceId:    "\x01\x81", // Invalid UTF-8.
-			InterfaceName: "v.io/v23/a",
-			Addrs:         []string{"/h:123/x"},
-		},
-		{
-			InstanceId:    "123456789012345678901234567890123", // Too long.
-			InterfaceName: "v.io/v23/a",
-			Addrs:         []string{"/h:123/y"},
-		},
-	}
-
-	for i, service := range services {
-		if _, err := advertise(ctx, ds, nil, &service); err == nil {
-			t.Errorf("service[%d]: expect an error; but got none", i)
-		}
 	}
 }

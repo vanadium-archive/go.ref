@@ -8,6 +8,8 @@
 package ble
 
 import (
+	"github.com/pborman/uuid"
+
 	"v.io/v23/context"
 	"v.io/x/ref/lib/discovery"
 )
@@ -18,7 +20,8 @@ type blePlugin struct {
 }
 
 func (b *blePlugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func()) error {
-	b.b.addAdvertisement(newAdvertisment(ad))
+	serviceUuid := uuid.UUID(discovery.NewServiceUUID(ad.Service.InterfaceName))
+	b.b.addAdvertisement(newBleAdvertisment(serviceUuid, ad))
 	stop := func() {
 		b.b.removeService(ad.Service.InstanceId)
 		done()
@@ -27,7 +30,8 @@ func (b *blePlugin) Advertise(ctx *context.T, ad discovery.Advertisement, done f
 	return nil
 }
 
-func (b *blePlugin) Scan(ctx *context.T, serviceUuid discovery.Uuid, scan chan<- discovery.Advertisement, done func()) error {
+func (b *blePlugin) Scan(ctx *context.T, interfaceName string, scan chan<- discovery.Advertisement, done func()) error {
+	serviceUuid := uuid.UUID(discovery.NewServiceUUID(interfaceName))
 	ch, id := b.b.addScanner(serviceUuid)
 	drain := func() {
 		for range ch {

@@ -5,6 +5,7 @@
 package ble
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -20,10 +21,11 @@ type bleAdv struct {
 	attrs       map[string][]byte
 }
 
-func newAdvertisment(adv discovery.Advertisement) bleAdv {
+func newBleAdvertisment(serviceUuid uuid.UUID, adv discovery.Advertisement) bleAdv {
 	attrs := map[string][]byte{
 		InstanceIdUuid:    []byte(adv.Service.InstanceId),
 		InterfaceNameUuid: []byte(adv.Service.InterfaceName),
+		HashUuid:          adv.Hash,
 	}
 	if len(adv.Service.InstanceName) > 0 {
 		attrs[InstanceNameUuid] = []byte(adv.Service.InstanceName)
@@ -31,23 +33,33 @@ func newAdvertisment(adv discovery.Advertisement) bleAdv {
 	if len(adv.Service.Addrs) > 0 {
 		attrs[AddrsUuid] = discovery.PackAddresses(adv.Service.Addrs)
 	}
-	if adv.EncryptionAlgorithm != discovery.NoEncryption {
-		attrs[EncryptionUuid] = discovery.PackEncryptionKeys(adv.EncryptionAlgorithm, adv.EncryptionKeys)
-	}
 	for k, v := range adv.Service.Attrs {
 		uuid := uuid.UUID(discovery.NewAttributeUUID(k)).String()
 		attrs[uuid] = []byte(k + "=" + v)
 	}
+	for k, v := range adv.Service.Attachments {
+		k = AttachmentNamePrefix + k
+		uuid := uuid.UUID(discovery.NewAttributeUUID(k)).String()
+		attrs[uuid] = append([]byte(k+"="), v...)
+	}
+	if adv.EncryptionAlgorithm != discovery.NoEncryption {
+		attrs[EncryptionUuid] = discovery.PackEncryptionKeys(adv.EncryptionAlgorithm, adv.EncryptionKeys)
+	}
+	if len(adv.DirAddrs) > 0 {
+		attrs[DirAddrsUuid] = discovery.PackAddresses(adv.DirAddrs)
+	}
 	return bleAdv{
-		serviceUuid: uuid.UUID(adv.ServiceUuid),
+		serviceUuid: serviceUuid,
 		attrs:       attrs,
 	}
 }
 
 func (a *bleAdv) toDiscoveryAdvertisement() (*discovery.Advertisement, error) {
 	adv := &discovery.Advertisement{
-		Service:     vdiscovery.Service{Attrs: make(vdiscovery.Attributes)},
-		ServiceUuid: discovery.Uuid(a.serviceUuid),
+		Service: vdiscovery.Service{
+			Attrs:       make(vdiscovery.Attributes),
+			Attachments: make(vdiscovery.Attachments),
+		},
 	}
 
 	var err error
@@ -67,12 +79,23 @@ func (a *bleAdv) toDiscoveryAdvertisement() (*discovery.Advertisement, error) {
 			if adv.EncryptionAlgorithm, adv.EncryptionKeys, err = discovery.UnpackEncryptionKeys(v); err != nil {
 				return nil, err
 			}
-		default:
-			parts := strings.SplitN(string(v), "=", 2)
-			if len(parts) != 2 {
-				return nil, fmt.Errorf("incorrectly formatted value, %s", v)
+		case HashUuid:
+			adv.Hash = v
+		case DirAddrsUuid:
+			if adv.DirAddrs, err = discovery.UnpackAddresses(v); err != nil {
+				return nil, err
 			}
-			adv.Service.Attrs[parts[0]] = parts[1]
+		default:
+			p := bytes.SplitN(v, []byte{'='}, 2)
+			if len(p) != 2 {
+				return nil, fmt.Errorf("incorrectly formatted value, %v", v)
+			}
+			name := string(p[0])
+			if strings.HasPrefix(name, AttachmentNamePrefix) {
+				adv.Service.Attachments[name[len(AttachmentNamePrefix):]] = p[1]
+			} else {
+				adv.Service.Attrs[name] = string(p[1])
+			}
 		}
 	}
 	return adv, nil

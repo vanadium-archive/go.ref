@@ -5,14 +5,14 @@
 // Package ble implements a ble protocol to support the Vanadium discovery api.
 // The package exports a discovery.Plugin that can be used to use ble for discovery.
 // The advertising packet of Vanadium device should contain a manufacturer data field
-// with the manufacturer id of 1001.  The first 8 bytes of the data is the hash of
-// the services exported.  If the hash has not changed, then it is expected that the
+// with the manufacturer id of 1001.  The first 8 bytes of the data is the stamp of
+// the services exported.  If the stamp has not changed, then it is expected that the
 // services and the properties they contain has not changed either.
 package ble
 
 import (
+	"crypto/rand"
 	"encoding/hex"
-	"hash/fnv"
 	"log"
 	"reflect"
 	"sync"
@@ -39,18 +39,21 @@ var (
 type bleCacheEntry struct {
 	id             string
 	advertisements map[string]*bleAdv
-	hash           string
+	stamp          string
 	lastSeen       time.Time
 }
 
 type bleNeighborhood struct {
 	mu sync.Mutex
 
-	// key is the hex encoded hash of the bleCacheEntry
-	neighborsHashCache map[string]*bleCacheEntry
+	// 8-byte stamp that reflects the current services of the current device.
+	currentStamp []byte
+
+	// key is the hex encoded stamp of the bleCacheEntry.
+	neighborsStampCache map[string]*bleCacheEntry
 	// key is the hex encoded ID of the device.
 	knownNeighbors map[string]*bleCacheEntry
-	// key is the instance id
+	// key is the instance id.
 	services map[string]*gatt.Service
 	// Scanners out standing calls to Scan that need be serviced.  Each time a
 	// new device appears or disappears, the scanner is notified of the event.
@@ -70,29 +73,30 @@ type bleNeighborhood struct {
 	// from the hex encoded device id to the channel to close.
 	timeoutMap map[string]chan struct{}
 
-	// The hash that we use to avoid multiple connections are stored in the
+	// The stamp that we use to avoid multiple connections are stored in the
 	// advertising data, so we need to store somewhere in the bleNeighorhood
 	// until we are ready to save the new device data.  This map is
 	// the keeper of the data.  This is a map from hex encoded device id to
-	// hex encoded hash.
-	pendingHashMap map[string]string
-	name           string
-	device         gatt.Device
-	stopped        chan struct{}
-	nextScanId     int64
+	// hex encoded stamp.
+	pendingStampMap map[string]string
+	name            string
+	device          gatt.Device
+	stopped         chan struct{}
+	nextScanId      int64
 }
 
 func newBleNeighborhood(name string) (*bleNeighborhood, error) {
 	b := &bleNeighborhood{
-		neighborsHashCache: make(map[string]*bleCacheEntry),
-		knownNeighbors:     make(map[string]*bleCacheEntry),
-		name:               name,
-		services:           make(map[string]*gatt.Service),
-		scannersById:       make(map[int64]*scanner),
-		scannersByService:  make(map[string]map[int64]*scanner),
-		timeoutMap:         make(map[string]chan struct{}),
-		pendingHashMap:     make(map[string]string),
-		stopped:            make(chan struct{}),
+		currentStamp:        genStamp(),
+		neighborsStampCache: make(map[string]*bleCacheEntry),
+		knownNeighbors:      make(map[string]*bleCacheEntry),
+		name:                name,
+		services:            make(map[string]*gatt.Service),
+		scannersById:        make(map[int64]*scanner),
+		scannersByService:   make(map[string]map[int64]*scanner),
+		timeoutMap:          make(map[string]chan struct{}),
+		pendingStampMap:     make(map[string]string),
+		stopped:             make(chan struct{}),
 	}
 	if err := b.startBLEService(); err != nil {
 		return nil, err
@@ -111,9 +115,9 @@ func (b *bleNeighborhood) checkTTL() {
 			b.mu.Lock()
 			now := time.Now()
 
-			for k, entry := range b.neighborsHashCache {
+			for k, entry := range b.neighborsStampCache {
 				if entry.lastSeen.Add(ttl).Before(now) {
-					delete(b.neighborsHashCache, k)
+					delete(b.neighborsStampCache, k)
 					delete(b.knownNeighbors, entry.id)
 					for id, adv := range entry.advertisements {
 						for _, scanner := range b.scannersById {
@@ -132,7 +136,9 @@ func (b *bleNeighborhood) addAdvertisement(adv bleAdv) {
 	for k, v := range adv.attrs {
 		gattService.AddCharacteristic(gatt.MustParseUUID(k)).SetValue(v)
 	}
+	stamp := genStamp()
 	b.mu.Lock()
+	b.currentStamp = stamp
 	b.services[string(adv.attrs[InstanceIdUuid])] = gattService
 	v := make([]*gatt.Service, len(b.services))
 	i := 0
@@ -145,7 +151,9 @@ func (b *bleNeighborhood) addAdvertisement(adv bleAdv) {
 }
 
 func (b *bleNeighborhood) removeService(id string) {
+	stamp := genStamp()
 	b.mu.Lock()
+	b.currentStamp = stamp
 	delete(b.services, id)
 	v := make([]*gatt.Service, 0, len(b.services))
 	for _, s := range b.services {
@@ -155,17 +163,17 @@ func (b *bleNeighborhood) removeService(id string) {
 	b.device.SetServices(v)
 }
 
-func (b *bleNeighborhood) addScanner(uid discovery.Uuid) (chan *discovery.Advertisement, int64) {
+func (b *bleNeighborhood) addScanner(uuid uuid.UUID) (chan *discovery.Advertisement, int64) {
 	ch := make(chan *discovery.Advertisement)
 	s := &scanner{
-		uuid: uuid.UUID(uid),
+		uuid: uuid,
 		ch:   ch,
 	}
 	b.mu.Lock()
 	id := b.nextScanId
 	b.nextScanId++
 	b.scannersById[id] = s
-	key := uuid.UUID(uid).String()
+	key := uuid.String()
 	m, found := b.scannersByService[key]
 	if !found {
 		m = map[int64]*scanner{}
@@ -212,14 +220,14 @@ func (b *bleNeighborhood) advertiseAndScan() {
 	}
 }
 
-// seenHash returns whether or not we have seen the hash <h> before.
-func (b *bleNeighborhood) seenHash(id string, h []byte) bool {
+// seenStamp returns whether or not we have seen the stamp <h> before.
+func (b *bleNeighborhood) seenStamp(id string, h []byte) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	key := hex.EncodeToString(h)
-	entry, ok := b.neighborsHashCache[key]
+	entry, ok := b.neighborsStampCache[key]
 	if !ok {
-		b.pendingHashMap[id] = key
+		b.pendingStampMap[id] = key
 		return false
 	}
 
@@ -234,16 +242,29 @@ func (b *bleNeighborhood) seenHash(id string, h []byte) bool {
 	return true
 }
 
-// getVanadiumHash returns the hash of the vanadium device, if this advertisement
+// genStamp returns the stamp of the current vanadium device.
+//
+// TODO(bjornick): 8-byte random number might not be good enough for
+// global uniqueness. We might want to consider a better way to generate
+// stamp like using a unique device id with sequence number.
+func genStamp() []byte {
+	stamp := make([]byte, 16)
+	if _, err := rand.Read(stamp); err != nil {
+		panic(err.Error())
+	}
+	return stamp
+}
+
+// getStamp returns the stamp of the vanadium device, if this advertisement
 // is from a vanadium device.
-func getVanadiumHash(a *gatt.Advertisement) ([]byte, bool) {
+func getStamp(a *gatt.Advertisement) ([]byte, bool) {
 	md := a.ManufacturerData
-	// The manufacturer data for other vanadium devices contains the hash in
+	// The manufacturer data for other vanadium devices contains the stamp in
 	// the first 8 bytes of the data portion of the packet.  Since we can't tell
 	// gatt to only call us for advertisements from a particular manufacturer, we
 	// have to decode the manufacturer field to:
 	//   1) figure out if this is a vanadium device
-	//   2) find the hash of the data.
+	//   2) find the stamp of the device.
 	// The formnat of the manufacturer data is:
 	//    2-bytes for the manufacturer id (in little endian)
 	//    1-byte for the length of the data segment
@@ -269,8 +290,8 @@ func gattUUIDtoUUID(u gatt.UUID) (uuid.UUID, error) {
 
 func (b *bleNeighborhood) getAllServices(p gatt.Peripheral) {
 	b.mu.Lock()
-	h := b.pendingHashMap[p.ID()]
-	delete(b.pendingHashMap, p.ID())
+	h := b.pendingStampMap[p.ID()]
+	delete(b.pendingStampMap, p.ID())
 	b.mu.Unlock()
 	defer func() {
 		b.mu.Lock()
@@ -342,8 +363,8 @@ func (b *bleNeighborhood) startBLEService() error {
 		return err
 	}
 	onPeriphDiscovered := func(p gatt.Peripheral, a *gatt.Advertisement, rssi int) {
-		h, v := getVanadiumHash(a)
-		if v && !b.seenHash(p.ID(), h) {
+		h, v := getStamp(a)
+		if v && !b.seenStamp(p.ID(), h) {
 			log.Println("trying to connect to ", p.Name())
 			// We stop the scanning and advertising so we can connect to the new device.
 			// If one device is changing too frequently we might never find all the devices,
@@ -408,12 +429,11 @@ func (b *bleNeighborhood) startBLEService() error {
 	return nil
 }
 
-func (b *bleNeighborhood) saveDevice(hash string, id string, services map[string]*bleAdv) {
+func (b *bleNeighborhood) saveDevice(stamp string, id string, services map[string]*bleAdv) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if _, found := b.neighborsHashCache[hash]; found {
-		log.Printf("Skipping a new save for the same hash (%s)\n",
-			hash)
+	if _, found := b.neighborsStampCache[stamp]; found {
+		log.Printf("Skipping a new save for the same stamp (%s)\n", stamp)
 		return
 	}
 
@@ -423,11 +443,11 @@ func (b *bleNeighborhood) saveDevice(hash string, id string, services map[string
 	}
 	newEntry := &bleCacheEntry{
 		id:             id,
-		hash:           hash,
+		stamp:          stamp,
 		advertisements: services,
 		lastSeen:       time.Now(),
 	}
-	b.neighborsHashCache[hash] = newEntry
+	b.neighborsStampCache[stamp] = newEntry
 	b.knownNeighbors[id] = newEntry
 
 	for id, newAdv := range services {
@@ -450,21 +470,12 @@ func (b *bleNeighborhood) saveDevice(hash string, id string, services map[string
 }
 
 func (b *bleNeighborhood) computeAdvertisement() *gatt.AdvPacket {
-	// The hash is:
-	// Hash(Hash(name),Hash(b.endpoints))
-	hasher := fnv.New64()
-	w := func(field string) {
-		tmp := fnv.New64()
-		tmp.Write([]byte(field))
-		hasher.Write(tmp.Sum(nil))
-	}
-	w(b.name)
-	for k, _ := range b.services {
-		w(k)
-	}
+	b.mu.Lock()
+	stamp := b.currentStamp
+	b.mu.Unlock()
 	adv := &gatt.AdvPacket{}
 	adv.AppendFlags(0x06)
-	adv.AppendManufacturerData(manufacturerId, hasher.Sum(nil))
+	adv.AppendManufacturerData(manufacturerId, stamp)
 	adv.AppendName(b.name)
 	return adv
 }

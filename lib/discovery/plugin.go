@@ -16,11 +16,11 @@ type Plugin interface {
 	// once when advertising is done or canceled.
 	Advertise(ctx *context.T, ad Advertisement, done func()) error
 
-	// Scan scans services that match the service uuid and returns scanned
-	// advertisements to the channel. A zero-value service uuid means any service.
+	// Scan scans services that match the interface name and returns scanned
+	// advertisements to the channel. An empty interface name means any service.
 	// Scanning will continue until the context is canceled or exceeds its
 	// deadline. done should be called once when scanning is done or canceled.
 	//
 	// TODO(jhahn): Pass a filter on service attributes.
-	Scan(ctx *context.T, serviceUuid Uuid, ch chan<- Advertisement, done func()) error
+	Scan(ctx *context.T, interfaceName string, ch chan<- Advertisement, done func()) error
 }
