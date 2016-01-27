@@ -15,6 +15,21 @@ import (
 	"v.io/v23/discovery"
 )
 
+func TestCopyService(t *testing.T) {
+	rand := rand.New(rand.NewSource(0))
+	for i := 0; i < 10; i++ {
+		v, ok := quick.Value(reflect.TypeOf(discovery.Service{}), rand)
+		if !ok {
+			t.Fatal("failed to populate service")
+		}
+		org := v.Interface().(discovery.Service)
+		copied := copyService(&org)
+		if !reflect.DeepEqual(org, copied) {
+			t.Errorf("copied service is different from the original: %v, %v", org, copied)
+		}
+	}
+}
+
 func TestInstanceId(t *testing.T) {
 	instanceIds := make(map[string]struct{})
 	for x := 0; x < 100; x++ {

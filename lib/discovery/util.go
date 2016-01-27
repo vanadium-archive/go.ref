@@ -29,6 +29,14 @@ func copyService(service *discovery.Service) discovery.Service {
 	}
 	copied.Addrs = make([]string, len(service.Addrs))
 	copy(copied.Addrs, service.Addrs)
+	if n := len(service.Attachments); n > 0 {
+		copied.Attachments = make(discovery.Attachments, n)
+		for k, v := range service.Attachments {
+			copiedV := make([]byte, len(v))
+			copy(copiedV, v)
+			copied.Attachments[k] = copiedV
+		}
+	}
 	return copied
 }
 
