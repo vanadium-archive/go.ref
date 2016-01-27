@@ -20,6 +20,8 @@ The vbecome flags are:
    Role object from which to request the blessing. If set, the blessings from
    this role server are used and --name is ignored. If not set, the default
    blessings of the calling principal are extended with --name.
+ -timeout=2m0s
+   Timeout for the RPCs.
 
 The global flags are:
  -alsologtostderr=true

@@ -35,6 +35,7 @@ import (
 
 var (
 	durationFlag time.Duration
+	timeoutFlag  time.Duration
 	nameFlag     string
 	roleFlag     string
 )
@@ -56,6 +57,7 @@ func main() {
 	syscall.CloseOnExec(keyServerFd)
 
 	cmdVbecome.Flags.DurationVar(&durationFlag, "duration", 1*time.Hour, "Duration for the blessing.")
+	cmdVbecome.Flags.DurationVar(&timeoutFlag, "timeout", 2*time.Minute, "Timeout for the RPCs.")
 	cmdVbecome.Flags.StringVar(&nameFlag, "name", "", "Name to use for the blessing.")
 	cmdVbecome.Flags.StringVar(&roleFlag, "role", "", "Role object from which to request the blessing. If set, the blessings from this role server are used and --name is ignored. If not set, the default blessings of the calling principal are extended with --name.")
 
@@ -174,6 +176,9 @@ func doExec(args []string) error {
 }
 
 func setupRoleBlessings(ctx *context.T, roleStr string) error {
+	ctx, cancel := context.WithTimeout(ctx, timeoutFlag)
+	defer cancel()
+
 	b, err := role.RoleClient(roleStr).SeekBlessings(ctx)
 	if err != nil {
 		return err
