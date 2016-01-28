@@ -279,7 +279,7 @@ func (c connEntries) Len() int {
 }
 
 func (c connEntries) Less(i, j int) bool {
-	return c[i].conn.LastUsedTime().Before(c[j].conn.LastUsedTime())
+	return c[i].conn.LastUsed().Before(c[j].conn.LastUsed())
 }
 
 func (c connEntries) Swap(i, j int) {
