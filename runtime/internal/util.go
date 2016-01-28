@@ -109,12 +109,12 @@ func (IPAddressChooser) ChooseAddresses(network string, addrs []net.Addr) ([]net
 func HasPublicIP(log logging.Logger) bool {
 	state, err := netstate.GetAccessibleIPs()
 	if err != nil {
-		log.Infof("failed to determine network state: %s", err)
+		log.VI(0).Infof("failed to determine network state: %s", err)
 		return false
 	}
 	any := state.Filter(netstate.IsUnicastIP)
 	if len(any) == 0 {
-		log.Infof("failed to find any usable IP addresses at startup")
+		log.VI(1).Infof("failed to find any usable IP addresses at startup")
 		return false
 	}
 	for _, a := range any {
