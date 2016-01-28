@@ -15,6 +15,7 @@ import (
 	"v.io/x/lib/gosh"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent/internal/lockfile"
+	"v.io/x/ref/services/agent/internal/lockutil"
 	"v.io/x/ref/test/v23test"
 )
 
@@ -42,7 +43,7 @@ func TestLockFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err, running := lockfile.StillRunning(bytes)
+	running, err := lockutil.StillRunning(bytes)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +75,7 @@ func TestOtherProcess(t *testing.T) {
 	// Start a new child which creates a lockfile and exits.
 	output := sh.FuncCmd(createLockfile, file).Stdout()
 	if output != "Grabbed lock\n" {
-		t.Fatal("Unexpected output: %s", output)
+		t.Fatalf("Unexpected output: %s", output)
 	}
 
 	// Verify it created a lockfile.
@@ -84,7 +85,7 @@ func TestOtherProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 	// And that we know the lockfile is invalid.
-	err, running := lockfile.StillRunning(bytes)
+	running, err := lockutil.StillRunning(bytes)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestOtherProcess(t *testing.T) {
 	// Now the child should fail to create one.
 	output = sh.FuncCmd(createLockfile, file).Stdout()
 	if output != "Lock failed\n" {
-		t.Fatal("Unexpected output: %s", output)
+		t.Fatalf("Unexpected output: %s", output)
 	}
 }
 
