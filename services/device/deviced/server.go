@@ -41,13 +41,11 @@ var (
 	restartExitCode = flag.Int("restart-exit-code", 0, "exit code to return when device manager should be restarted")
 	nhName          = flag.String("neighborhood-name", "", `if provided, it will enable sharing with the local neighborhood with the provided name. The address of the local mounttable will be published to the neighboorhood and everything in the neighborhood will be visible on the local mounttable.`)
 	dmPort          = flag.Int("deviced-port", 0, "the port number of assign to the device manager service. The hostname/IP address part of --v23.tcp.address is used along with this port. By default, the port is assigned by the OS.")
-	// TODO(suharshs): Remove references to this flag.
-	proxyPort       = flag.Int("proxy-port", 0, "DEPRECATED")
 	usePairingToken = flag.Bool("use-pairing-token", false, "generate a pairing token for the device manager that will need to be provided when a device is claimed")
 )
 
 func init() {
-	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^((name)|(restart-exit-code)|(neighborhood-name)|(deviced-port)|(proxy-port)|(use-pairing-token))$`))
+	cmdline.HideGlobalFlagsExcept(regexp.MustCompile(`^((name)|(restart-exit-code)|(neighborhood-name)|(deviced-port)|(use-pairing-token))$`))
 }
 
 func runServer(ctx *context.T, _ *cmdline.Env, _ []string) error {

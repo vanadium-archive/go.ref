@@ -213,7 +213,7 @@ func installArchive(archive, instance string) {
 func installDevice(instance string) (string, string) {
 	fmt.Println("Installing device manager...")
 	defer fmt.Println("Done installing device manager.")
-	output, err := vm.RunCommand("V23_DEVICE_DIR=`pwd`/dm", "./unpacked/devicex", "install", "./unpacked", "--single_user", "--", "--v23.tcp.address=:8151", "--deviced-port=8150", "--proxy-port=8160", "--use-pairing-token")
+	output, err := vm.RunCommand("V23_DEVICE_DIR=`pwd`/dm", "./unpacked/devicex", "install", "./unpacked", "--single_user", "--", "--v23.tcp.address=:8151", "--deviced-port=8150", "--use-pairing-token")
 	dieIfErr(err, "Installing device manager failed. Output:\n%v", string(output))
 	output, err = vm.RunCommand("V23_DEVICE_DIR=`pwd`/dm", "./unpacked/devicex", "start")
 	dieIfErr(err, "Starting device manager failed. Output:\n%v", string(output))

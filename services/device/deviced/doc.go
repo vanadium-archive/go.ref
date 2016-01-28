@@ -33,8 +33,6 @@ The global flags are:
    provided name. The address of the local mounttable will be published to the
    neighboorhood and everything in the neighborhood will be visible on the local
    mounttable.
- -proxy-port=0
-   DEPRECATED
  -restart-exit-code=0
    exit code to return when device manager should be restarted
  -use-pairing-token=false
