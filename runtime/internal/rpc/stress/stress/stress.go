@@ -56,10 +56,8 @@ func runStressTest(ctx *context.T, env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("invalid output format: %s\n", outFormat)
 	}
 
-	cores := runtime.NumCPU()
-	runtime.GOMAXPROCS(cores)
 	rand.Seed(time.Now().UnixNano())
-	fmt.Fprintf(env.Stdout, "starting stress test against %d server(s) using %d core(s)...\n", len(args), cores)
+	fmt.Fprintf(env.Stdout, "starting stress test against %d server(s) using %d core(s)...\n", len(args), runtime.NumCPU())
 	fmt.Fprintf(env.Stdout, "workers: %d, maxChunkCnt: %d, maxPayloadSize: %d, duration: %v\n", workers, maxChunkCnt, maxPayloadSize, duration)
 
 	start := time.Now()

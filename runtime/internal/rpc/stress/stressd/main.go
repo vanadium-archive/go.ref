@@ -8,7 +8,6 @@
 package main
 
 import (
-	"runtime"
 	"time"
 
 	"v.io/v23"
@@ -39,8 +38,6 @@ var cmdRoot = &cmdline.Command{
 }
 
 func runStressD(ctx *context.T, env *cmdline.Env, args []string) error {
-	runtime.GOMAXPROCS(runtime.NumCPU())
-
 	service, stop := internal.NewService()
 	ctx, server, err := v23.WithNewServer(ctx, name, service, security.AllowEveryone())
 	if err != nil {
