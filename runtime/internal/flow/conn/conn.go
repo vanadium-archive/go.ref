@@ -64,8 +64,10 @@ const (
 )
 
 type healthCheckState struct {
+	requestSent     time.Time
 	requestTimer    *time.Timer
 	requestDeadline time.Time
+	lastRTT         time.Duration
 
 	closeTimer    *time.Timer
 	closeDeadline time.Time
@@ -290,14 +292,15 @@ func (c *Conn) MTU() uint64 {
 	return c.mtu
 }
 
+func (c *Conn) RTT() time.Duration {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	return c.hcstate.lastRTT
+}
+
 func (c *Conn) initializeHealthChecks(ctx *context.T) {
 	now := time.Now()
 	h := &healthCheckState{
-		requestTimer: time.AfterFunc(c.acceptChannelTimeout/2, func() {
-			c.mu.Lock()
-			c.sendMessageLocked(ctx, true, expressPriority, &message.HealthCheckRequest{})
-			c.mu.Unlock()
-		}),
 		requestDeadline: now.Add(c.acceptChannelTimeout / 2),
 
 		closeTimer: time.AfterFunc(c.acceptChannelTimeout, func() {
@@ -305,6 +308,13 @@ func (c *Conn) initializeHealthChecks(ctx *context.T) {
 		}),
 		closeDeadline: now.Add(c.acceptChannelTimeout),
 	}
+	requestTimer := time.AfterFunc(c.acceptChannelTimeout/2, func() {
+		c.mu.Lock()
+		c.sendMessageLocked(ctx, true, expressPriority, &message.HealthCheckRequest{})
+		h.requestSent = time.Now()
+		c.mu.Unlock()
+	})
+	h.requestTimer = requestTimer
 	c.mu.Lock()
 	c.hcstate = h
 	c.mu.Unlock()
@@ -324,6 +334,7 @@ func (c *Conn) handleHealthCheckResponse(ctx *context.T) {
 		c.hcstate.closeDeadline = time.Now().Add(timeout)
 		c.hcstate.requestTimer.Reset(timeout / 2)
 		c.hcstate.requestDeadline = time.Now().Add(timeout / 2)
+		c.hcstate.lastRTT = time.Since(c.hcstate.requestSent)
 	}
 }
 
@@ -398,6 +409,10 @@ func (c *Conn) RemoteBlessings() security.Blessings {
 	return blessings
 }
 
+func (c *Conn) LocalDischarges() map[string]security.Discharge {
+	return c.blessingsFlow.getLatestLocal(nil, c.lBlessings)
+}
+
 func (c *Conn) RemoteDischarges() map[string]security.Discharge {
 	// Its safe to ignore this error. It means that this conn is closed.
 	_, discharges, _ := c.blessingsFlow.getLatestRemote(nil, c.rBKey)
@@ -407,8 +422,8 @@ func (c *Conn) RemoteDischarges() map[string]security.Discharge {
 // CommonVersion returns the RPCVersion negotiated between the local and remote endpoints.
 func (c *Conn) CommonVersion() version.RPCVersion { return c.version }
 
-// LastUsedTime returns the time at which the Conn had bytes read or written on it.
-func (c *Conn) LastUsedTime() time.Time {
+// LastUsed returns the time at which the Conn had bytes read or written on it.
+func (c *Conn) LastUsed() time.Time {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	return c.lastUsedTime
