@@ -133,7 +133,7 @@ func rootBlessings(t *testing.T, sh *v23test.Shell, creds *v23test.Credentials) 
 	principalBin := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
 	blessings := strings.TrimSpace(sh.Cmd(principalBin, "get", "default").WithCredentials(creds).Stdout())
 	cmd := sh.Cmd(principalBin, "dumproots", "-")
-	cmd.Stdin = blessings
+	cmd.SetStdinReader(strings.NewReader(blessings))
 	return strings.Replace(strings.TrimSpace(cmd.Stdout()), "\n", ",", -1)
 }
 

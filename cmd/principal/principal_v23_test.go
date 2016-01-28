@@ -388,7 +388,7 @@ func TestV23RecvBlessingsInteractive(t *testing.T) {
 	// When running the exact command, must be prompted about caveats.
 	{
 		cmd := withCreds(aliceDir, sh.Cmd(bin, append([]string{"bless"}, args...)...))
-		cmd.Stdin = "yeah\n"
+		cmd.SetStdinReader(strings.NewReader("yeah\n"))
 		cmd.ExitErrorIsOk = true
 		cmd.Start()
 		cmd.S.Expect("WARNING: No caveats provided")
@@ -401,7 +401,7 @@ func TestV23RecvBlessingsInteractive(t *testing.T) {
 	// When agreeing to have no caveats, must specify an extension
 	{
 		cmd := withCreds(aliceDir, sh.Cmd(bin, append([]string{"bless"}, args...)...))
-		cmd.Stdin = "yes\n"
+		cmd.SetStdinReader(strings.NewReader("yes\n"))
 		cmd.ExitErrorIsOk = true
 		cmd.Start()
 		cmd.S.Expect("WARNING: No caveats provided")
@@ -412,7 +412,7 @@ func TestV23RecvBlessingsInteractive(t *testing.T) {
 	// When providing both, the bless command should succeed.
 	{
 		cmd := withCreds(aliceDir, sh.Cmd(bin, append([]string{"bless"}, args...)...))
-		cmd.Stdin = "YES\nfriend:bobby\n"
+		cmd.SetStdinReader(strings.NewReader("YES\nfriend:bobby\n"))
 		cmd.Run()
 	}
 	got := removePublicKeys(sh.Cmd(bin, "--v23.credentials="+bobDir, "dump").Stdout())

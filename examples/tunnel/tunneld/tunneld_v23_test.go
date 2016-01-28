@@ -7,6 +7,7 @@ package main_test
 import (
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"v.io/x/ref"
@@ -40,7 +41,7 @@ func TestV23Tunneld(t *testing.T) {
 	// Send input to remote command.
 	want := "HELLO SERVER"
 	cmd = sh.Cmd(vsh, tunnelEndpoint, "cat")
-	cmd.Stdin = want
+	cmd.SetStdinReader(strings.NewReader(want))
 	if got := cmd.Stdout(); want != got {
 		t.Fatalf("unexpected output, got %s, want %s", got, want)
 	}
@@ -50,7 +51,7 @@ func TestV23Tunneld(t *testing.T) {
 	outPath := filepath.Join(outDir, "hello.txt")
 
 	cmd = sh.Cmd(vsh, tunnelEndpoint, "cat > "+outPath)
-	cmd.Stdin = want
+	cmd.SetStdinReader(strings.NewReader(want))
 	cmd.Run()
 	if got, err := ioutil.ReadFile(outPath); err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", outPath, err)

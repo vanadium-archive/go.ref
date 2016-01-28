@@ -39,7 +39,7 @@ func TestV23PassPhraseUse(t *testing.T) {
 	// Create the passphrase
 	c := sh.Cmd(bin, "echo", "Hello")
 	c.Vars[ref.EnvCredentials] = dir
-	c.Stdin = "PASSWORD"
+	c.SetStdinReader(strings.NewReader("PASSWORD"))
 	start(c)
 	c.S.ReadLine() // Skip over ...creating new key... message
 	c.S.Expect("Hello")
@@ -48,7 +48,7 @@ func TestV23PassPhraseUse(t *testing.T) {
 	// Use it successfully
 	c = sh.Cmd(bin, "echo", "Hello")
 	c.Vars[ref.EnvCredentials] = dir
-	c.Stdin = "PASSWORD"
+	c.SetStdinReader(strings.NewReader("PASSWORD"))
 	start(c)
 	c.S.Expect("Hello")
 	c.Wait()
@@ -56,7 +56,7 @@ func TestV23PassPhraseUse(t *testing.T) {
 	// Provide a bad password
 	c = sh.Cmd(bin, "echo", "Hello")
 	c.Vars[ref.EnvCredentials] = dir
-	c.Stdin = "BADPASSWORD"
+	c.SetStdinReader(strings.NewReader("BADPASSWORD"))
 	c.ExitErrorIsOk = true
 	stdout, stderr := c.StdoutStderr()
 	if c.Err == nil {
