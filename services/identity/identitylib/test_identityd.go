@@ -95,7 +95,8 @@ var TestIdentityd = gosh.RegisterFunc("TestIdentityd", func() error {
 		params,
 		caveats.NewMockCaveatSelector(),
 		"",
-		"identity")
+		"identity",
+		"")
 
 	_, eps, externalHttpAddress := s.Listen(ctx, ctx, *externalHttpAddr, *httpAddr, *tlsConfig)
 

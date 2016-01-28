@@ -36,6 +36,7 @@ var (
 	tlsConfig                  string
 	assetsPrefix               string
 	mountPrefix                string
+	dischargerLocation         string
 	browser                    bool
 	oauthEmail                 string
 	remoteSignerBlessings      string
@@ -51,6 +52,7 @@ func init() {
 	cmdTest.Flags.StringVar(&tlsConfig, "tls-config", "", "Comma-separated list of TLS certificate and private key files, in that order.  This must be provided.")
 	cmdTest.Flags.StringVar(&assetsPrefix, "assets-prefix", "", "Host serving the web assets for the identity server.")
 	cmdTest.Flags.StringVar(&mountPrefix, "mount-prefix", "identity", "Mount name prefix to use.  May be rooted.")
+	cmdTest.Flags.StringVar(&dischargerLocation, "discharger-location", "", "The name of the discharger service. May be rooted. If empty, the published name is used.")
 	cmdTest.Flags.BoolVar(&browser, "browser", false, "Whether to open a browser caveat selector.")
 	cmdTest.Flags.StringVar(&oauthEmail, "oauth-email", "testemail@example.com", "Username for the mock oauth to put in the returned blessings.")
 	cmdTest.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
@@ -192,7 +194,8 @@ func runIdentityDTest(ctx *context.T, env *cmdline.Env, args []string) error {
 		params,
 		caveatSelector,
 		assetsPrefix,
-		mountPrefix)
+		mountPrefix,
+		dischargerLocation)
 	s.Serve(ctx, oauthCtx, externalHttpAddr, httpAddr, tlsConfig)
 	return nil
 }

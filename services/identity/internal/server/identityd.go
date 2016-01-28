@@ -59,6 +59,7 @@ type IdentityServer struct {
 	rootedObjectAddrs  []naming.Endpoint
 	assetsPrefix       string
 	mountNamePrefix    string
+	dischargerLocation string
 }
 
 // NewIdentityServer returns a IdentityServer that:
@@ -66,7 +67,7 @@ type IdentityServer struct {
 // - auditor and blessingLogReader to audit the root principal and read audit logs
 // - revocationManager to store revocation data and grant discharges
 // - oauthBlesserParams to configure the identity.OAuthBlesser service
-func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, assetsPrefix, mountNamePrefix string) *IdentityServer {
+func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, assetsPrefix, mountNamePrefix, dischargerLocation string) *IdentityServer {
 	return &IdentityServer{
 		oauthProvider:      oauthProvider,
 		auditor:            auditor,
@@ -76,6 +77,7 @@ func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor,
 		caveatSelector:     caveatSelector,
 		assetsPrefix:       assetsPrefix,
 		mountNamePrefix:    mountNamePrefix,
+		dischargerLocation: dischargerLocation,
 	}
 }
 
@@ -155,6 +157,11 @@ func (s *IdentityServer) Listen(ctx, oauthCtx *context.T, externalHttpAddr, http
 		w.WriteHeader(http.StatusNoContent)
 	})
 
+	dischargerLocation := s.dischargerLocation
+	if dischargerLocation == "" {
+		dischargerLocation = naming.JoinAddressName(published[0], dischargerService)
+	}
+
 	n := "/auth/google/"
 	args := oauth.HandlerArgs{
 		Principal:          principal,
@@ -162,7 +169,7 @@ func (s *IdentityServer) Listen(ctx, oauthCtx *context.T, externalHttpAddr, http
 		Addr:               fmt.Sprintf("%s%s", externalHttpAddr, n),
 		BlessingLogReader:  s.blessingLogReader,
 		RevocationManager:  s.revocationManager,
-		DischargerLocation: naming.JoinAddressName(published[0], dischargerService),
+		DischargerLocation: dischargerLocation,
 		MacaroonBlessingService: func() []string {
 			status := rpcServer.Status()
 			names := make([]string, len(status.Endpoints))

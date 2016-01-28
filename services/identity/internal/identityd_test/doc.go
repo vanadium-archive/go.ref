@@ -23,6 +23,9 @@ The identityd_test flags are:
    Host serving the web assets for the identity server.
  -browser=false
    Whether to open a browser caveat selector.
+ -discharger-location=
+   The name of the discharger service. May be rooted. If empty, the published
+   name is used.
  -external-http-addr=
    External address on which the HTTP server listens on.  If none is provided
    the server will only listen on -http-addr.

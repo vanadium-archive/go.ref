@@ -32,6 +32,7 @@ import (
 var (
 	googleConfigWeb, googleConfigChrome, googleConfigAndroid         string
 	externalHttpAddr, httpAddr, tlsConfig, assetsPrefix, mountPrefix string
+	dischargerLocation                                               string
 	remoteSignerBlessings                                            string
 	oauthRemoteSignerBlessings                                       string
 	sqlConf                                                          string
@@ -56,6 +57,7 @@ func init() {
 
 	// Flag controlling auditing and revocation of Blessing operations
 	cmdIdentityD.Flags.StringVar(&sqlConf, "sql-config", "", "Path to configuration file for MySQL database connection. Database is used to persist blessings for auditing and revocation. "+dbutil.SqlConfigFileDescription)
+	cmdIdentityD.Flags.StringVar(&dischargerLocation, "discharger-location", "", "The name of the discharger service. May be rooted. If empty, the published name is used.")
 }
 
 func main() {
@@ -157,7 +159,8 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		googleOAuthBlesserParams(ctx, googleoauth, revocationManager),
 		caveats.NewBrowserCaveatSelector(assetsPrefix),
 		assetsPrefix,
-		mountPrefix)
+		mountPrefix,
+		dischargerLocation)
 	s.Serve(ctx, oauthCtx, externalHttpAddr, httpAddr, tlsConfig)
 	return nil
 }
