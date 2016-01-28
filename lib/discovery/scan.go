@@ -105,13 +105,14 @@ func mergeAdvertisement(found map[string]*Advertisement, ad *Advertisement) (upd
 		}
 	} else {
 		// TODO(jhahn): Need to compare the proximity as well.
+		service := copyService(&ad.Service)
 		switch {
 		case prev == nil:
-			updates = []discovery.Update{discovery.UpdateFound{discovery.Found{Service: ad.Service}}}
+			updates = []discovery.Update{discovery.UpdateFound{discovery.Found{Service: service}}}
 		case !bytes.Equal(prev.Hash, ad.Hash):
 			updates = []discovery.Update{
 				discovery.UpdateLost{discovery.Lost{Service: prev.Service}},
-				discovery.UpdateFound{discovery.Found{Service: copyService(&ad.Service)}},
+				discovery.UpdateFound{discovery.Found{Service: service}},
 			}
 		}
 		found[ad.Service.InstanceId] = ad
