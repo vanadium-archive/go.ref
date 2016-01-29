@@ -317,10 +317,15 @@ func New(host string) (idiscovery.Plugin, error) {
 }
 
 func newWithLoopback(host string, port int, loopback bool) (idiscovery.Plugin, error) {
-	if len(host) == 0 {
+	switch {
+	case len(host) == 0:
 		// go-mdns-sd doesn't answer when the host name is not set.
 		// Assign a default one if not given.
 		host = "v23()"
+	case host == "localhost":
+		// localhost is a default host name in many places.
+		// Add a suffix for uniqueness.
+		host += "()"
 	}
 	var v4addr, v6addr string
 	if port > 0 {
