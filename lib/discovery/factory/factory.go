@@ -5,23 +5,47 @@
 package factory
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"sync"
 
+	"v.io/v23/context"
 	"v.io/v23/discovery"
 
 	idiscovery "v.io/x/ref/lib/discovery"
 )
 
-// New returns a new Discovery instance with the given protocols.
-//
-// We instantiate a discovery instance lazily so that we do not turn it on
-// until it is actually used.
-func New(protocols ...string) (discovery.T, error) {
-	if injectedInstance != nil {
-		return injectedInstance, nil
-	}
+type lazyFactory struct {
+	ctx       *context.T
+	host      string
+	protocols []string
 
+	once sync.Once
+	d    idiscovery.Factory
+	err  error
+}
+
+func (f *lazyFactory) New() (discovery.T, error) {
+	f.once.Do(func() { f.d, f.err = newFactory(f.ctx, f.host, f.protocols) })
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.d.New()
+}
+
+func (f *lazyFactory) Shutdown() {
+	f.once.Do(func() { f.err = errors.New("factory closed") })
+	if f.d != nil {
+		f.d.Shutdown()
+	}
+}
+
+// New returns a new discovery factory with the given protocols.
+//
+// We instantiate a factory lazily so that we do not turn it on until
+// it is actually used.
+func New(ctx *context.T, protocols ...string) (idiscovery.Factory, error) {
 	host, _ := os.Hostname()
 	if len(host) == 0 {
 		// TODO(jhahn): Should we handle error here?
@@ -40,10 +64,14 @@ func New(protocols ...string) (discovery.T, error) {
 		}
 	}
 
-	return newLazyFactory(func() (discovery.T, error) { return newInstance(host, protocols) }), nil
+	return &lazyFactory{ctx: ctx, host: host, protocols: protocols}, nil
 }
 
-func newInstance(host string, protocols []string) (discovery.T, error) {
+func newFactory(ctx *context.T, host string, protocols []string) (idiscovery.Factory, error) {
+	if injectedFactory != nil {
+		return injectedFactory, nil
+	}
+
 	plugins := make([]idiscovery.Plugin, 0, len(protocols))
 	for _, p := range protocols {
 		plugin, err := pluginFactories[p](host)
@@ -52,13 +80,13 @@ func newInstance(host string, protocols []string) (discovery.T, error) {
 		}
 		plugins = append(plugins, plugin)
 	}
-	return idiscovery.NewWithPlugins(plugins), nil
+	return idiscovery.NewFactory(ctx, plugins...)
 }
 
-var injectedInstance discovery.T
+var injectedFactory idiscovery.Factory
 
-// InjectDiscovery allows a runtime to use the given discovery instance. This
-// should be called before the runtime is initialized. Mostly used for testing.
-func InjectDiscovery(d discovery.T) {
-	injectedInstance = d
+// InjectFactory allows a runtime to use the given discovery factory. This
+// should be called before v23.NewDiscovery() is called. Mostly used for testing.
+func InjectFactory(factory idiscovery.Factory) {
+	injectedFactory = factory
 }

@@ -30,6 +30,7 @@ import (
 
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/apilog"
+	idiscovery "v.io/x/ref/lib/discovery"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/pubsub"
 	"v.io/x/ref/lib/stats"
@@ -56,11 +57,15 @@ const (
 	initKey
 )
 
+var (
+	errDiscoveryNotInitialized = verror.Register(pkgPath+".errDiscoveryNotInitialized", verror.NoRetry, "{1:}{2:} discovery not initialized")
+)
+
 var setPrincipalCounter int32 = -1
 
 type initData struct {
 	appCycle          v23.AppCycle
-	discovery         discovery.T
+	discoveryFactory  idiscovery.Factory
 	protocols         []string
 	settingsPublisher *pubsub.Publisher
 }
@@ -78,7 +83,7 @@ type Runtime struct {
 func Init(
 	ctx *context.T,
 	appCycle v23.AppCycle,
-	discovery discovery.T,
+	discoveryFactory idiscovery.Factory,
 	protocols []string,
 	listenSpec *rpc.ListenSpec,
 	settingsPublisher *pubsub.Publisher,
@@ -88,7 +93,7 @@ func Init(
 
 	ctx = context.WithValue(ctx, initKey, &initData{
 		appCycle:          appCycle,
-		discovery:         discovery,
+		discoveryFactory:  discoveryFactory,
 		protocols:         protocols,
 		settingsPublisher: settingsPublisher,
 	})
@@ -366,12 +371,6 @@ func (*Runtime) WithListenSpec(ctx *context.T, ls rpc.ListenSpec) *context.T {
 	return context.WithValue(ctx, listenKey, ls.Copy())
 }
 
-func (*Runtime) GetDiscovery(ctx *context.T) discovery.T {
-	// nologcall
-	id, _ := ctx.Value(initKey).(*initData)
-	return id.discovery
-}
-
 func (*Runtime) WithBackgroundContext(ctx *context.T) *context.T {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Note we add an extra context with a nil value here.
@@ -392,6 +391,15 @@ func (*Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 		return ctx
 	}
 	return bctx
+}
+
+func (*Runtime) NewDiscovery(ctx *context.T) (discovery.T, error) {
+	// nologcall
+	id, _ := ctx.Value(initKey).(*initData)
+	if id.discoveryFactory != nil {
+		return id.discoveryFactory.New()
+	}
+	return nil, verror.New(errDiscoveryNotInitialized, ctx)
 }
 
 func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {

@@ -60,11 +60,6 @@ func (r *Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
 	panic("unimplemented")
 }
 
-func (r *Runtime) GetDiscovery(ctx *context.T) discovery.T {
-	// nologcall
-	panic("unimplemented")
-}
-
 func (r *Runtime) WithBackgroundContext(ctx *context.T) *context.T {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Note we add an extra context with a nil value here.
@@ -85,6 +80,11 @@ func (r *Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 		return ctx
 	}
 	return bctx
+}
+
+func (r *Runtime) NewDiscovery(ctx *context.T) (discovery.T, error) {
+	// nologcall
+	panic("unimplemented")
 }
 
 func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {

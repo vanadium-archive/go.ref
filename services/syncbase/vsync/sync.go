@@ -89,6 +89,7 @@ type syncService struct {
 	// access the info using the Syncbase names as keys.  The syncgroups
 	// map is a secondary index to access the info using the syncgroup names
 	// as keys of the outer-map, and instance IDs as keys of the inner-map.
+	discovery           discovery.T
 	discoveryIds        map[string]*discovery.Service
 	discoveryPeers      map[string]*discovery.Service
 	discoverySyncgroups map[string]map[string]*discovery.Service
@@ -163,12 +164,17 @@ var (
 // that the syncer can pick from. In addition, the sync module responds to
 // incoming RPCs from remote sync modules and local clients.
 func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string, cl *vclock.VClock, publishInNH bool) (*syncService, error) {
+	discovery, err := v23.NewDiscovery(ctx)
+	if err != nil {
+		return nil, err
+	}
 	s := &syncService{
 		sv:                  sv,
 		batches:             make(batchSet),
 		sgPublishQueue:      list.New(),
 		vclock:              cl,
 		ctx:                 ctx,
+		discovery:           discovery,
 		publishInNH:         publishInNH,
 		cancelAdvSyncgroups: make(map[string]context.CancelFunc),
 	}
@@ -201,7 +207,6 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 	}
 
 	// Open a blob store.
-	var err error
 	s.bst, err = fsblob.Create(ctx, blobStEngine, path.Join(blobRootDir, "blobs"))
 	if err != nil {
 		return nil, err
@@ -262,13 +267,8 @@ func NewSyncDatabase(db interfaces.Database) *syncDatabase {
 func (s *syncService) discoverNeighborhood(ctx *context.T) {
 	defer s.pending.Done()
 
-	scanner := v23.GetDiscovery(ctx)
-	if scanner == nil {
-		vlog.Fatal("sync: discoverNeighborhood: discovery service not initialized")
-	}
-
 	query := `v.InterfaceName="` + ifName + `"`
-	ch, err := scanner.Scan(ctx, query)
+	ch, err := s.discovery.Scan(ctx, query)
 	if err != nil {
 		vlog.Errorf("sync: discoverNeighborhood: cannot start discovery service: %v", err)
 		return
@@ -503,7 +503,7 @@ func (s *syncService) advertiseSyncbaseInNeighborhood() error {
 	ctx, stop := context.WithCancel(s.ctx)
 
 	// Note that duplicate calls to advertise will return an error.
-	_, err := idiscovery.AdvertiseServer(ctx, s.svr, "", &sbService, nil)
+	_, err := idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, nil)
 
 	if err == nil {
 		vlog.VI(4).Infof("sync: advertiseSyncbaseInNeighborhood: successful")
@@ -550,8 +550,7 @@ func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup)
 	vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: advertising %v", sbService)
 
 	// Note that duplicate calls to advertise will return an error.
-	_, err := idiscovery.AdvertiseServer(ctx, s.svr, "", &sbService, nil)
-
+	_, err := idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, nil)
 	if err == nil {
 		vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: successful")
 		s.cancelAdvSyncgroups[sg.Name] = stop
