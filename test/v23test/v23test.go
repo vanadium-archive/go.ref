@@ -152,13 +152,13 @@ func NewShell(t *testing.T, opts Opts) *Shell {
 	}()
 
 	if err := sh.initPrincipalManager(); err != nil {
-		if _, ok := err.(handledError); !ok {
+		if _, ok := err.(errAlreadyHandled); !ok {
 			sh.HandleError(err)
 		}
 		return sh
 	}
 	if err := sh.initCtx(opts.Ctx); err != nil {
-		if _, ok := err.(handledError); !ok {
+		if _, ok := err.(errAlreadyHandled); !ok {
 			sh.HandleError(err)
 		}
 		return sh
@@ -168,7 +168,7 @@ func NewShell(t *testing.T, opts Opts) *Shell {
 	return sh
 }
 
-type handledError struct {
+type errAlreadyHandled struct {
 	error
 }
 
@@ -422,7 +422,7 @@ func fillDefaults(t *testing.T, opts *Opts) {
 func (sh *Shell) initPrincipalManager() error {
 	dir := sh.MakeTempDir()
 	if sh.Err != nil {
-		return handledError{sh.Err}
+		return errAlreadyHandled{sh.Err}
 	}
 	var pm principalManager
 	if useAgent {
@@ -441,8 +441,8 @@ func (sh *Shell) initCtx(ctx *context.T) error {
 	if ctx == nil {
 		var shutdown func()
 		ctx, shutdown = v23.Init()
-		if sh.AddToCleanup(shutdown); sh.Err != nil {
-			return handledError{sh.Err}
+		if sh.AddCleanupHandler(shutdown); sh.Err != nil {
+			return errAlreadyHandled{sh.Err}
 		}
 		if sh.t != nil {
 			creds, err := newRootCredentials(sh.pm)

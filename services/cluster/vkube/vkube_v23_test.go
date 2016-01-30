@@ -16,7 +16,6 @@ import (
 	"testing"
 	"text/template"
 
-	"v.io/x/lib/gosh"
 	"v.io/x/lib/textutil"
 	"v.io/x/ref/test/testutil"
 	"v.io/x/ref/test/v23test"
@@ -66,8 +65,8 @@ func TestV23Vkube(t *testing.T) {
 				c := sh.Cmd(name, args...).WithCredentials(creds)
 				c.ExitErrorIsOk = true
 				plw := textutil.PrefixLineWriter(os.Stdout, filepath.Base(name)+"> ")
-				c.AddStdoutWriter(gosh.NopWriteCloser(plw))
-				c.AddStderrWriter(gosh.NopWriteCloser(plw))
+				c.AddStdoutWriter(plw)
+				c.AddStderrWriter(plw)
 				output := c.CombinedOutput()
 				plw.Flush()
 				if expectSuccess && c.Err != nil {
