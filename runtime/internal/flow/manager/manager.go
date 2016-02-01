@@ -177,7 +177,6 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 	defer m.ls.mu.Unlock()
 	m.ls.mu.Lock()
 	if m.ls.listeners == nil {
-		m.ls.mu.Unlock()
 		ln.Close()
 		return flow.NewErrBadState(ctx, NewErrManagerClosed(ctx))
 	}
