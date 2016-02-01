@@ -390,6 +390,8 @@ func (c *Conn) Dial(ctx *context.T, blessings security.Blessings, discharges map
 	}
 	id := c.nextFid
 	c.nextFid += 2
+	remote = endpointCopy(c.remote)
+	remote.(*inaming.Endpoint).Blessings = c.remote.BlessingNames()
 	return c.newFlowLocked(ctx, id, bkey, dkey, remote, true, false, channelTimeout), nil
 }
 

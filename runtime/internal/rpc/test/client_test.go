@@ -31,13 +31,19 @@ import (
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/runtime/internal/lib/tcputil"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
 	"v.io/x/ref/runtime/protocols/debug"
 	"v.io/x/ref/services/mounttable/mounttablelib"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 	"v.io/x/ref/test/v23test"
 )
+
+func TestMain(m *testing.M) {
+	v23test.TestMain(m)
+}
 
 // testInit creates a new v23test.Shell, starts a root mount table, and
 // optionally starts a simple server.
@@ -893,6 +899,58 @@ func TestReservedMethodErrors(t *testing.T) {
 	logErr("unknown method", verr)
 }
 
-func TestMain(m *testing.M) {
-	v23test.TestMain(m)
+type changeProtocol struct {
+	tcp tcputil.TCP
+
+	mu      sync.Mutex
+	count   int
+	address string
+}
+
+func (c *changeProtocol) Dial(ctx *context.T, protocol, address string, timeout time.Duration) (flow.Conn, error) {
+	return c.tcp.Dial(ctx, protocol, c.address, timeout)
+}
+func (c *changeProtocol) Resolve(ctx *context.T, proctocol, address string) (string, string, error) {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	// Return a new resolved address everytime to disallow cache hits based on resolved address.
+	c.count++
+	return "tcp", fmt.Sprintf("resolved%d", c.count), nil
+}
+func (c *changeProtocol) Listen(ctx *context.T, protocol, address string) (flow.Listener, error) {
+	protocol = "tcp"
+	address = "127.0.0.1:0"
+	l, err := c.tcp.Listen(ctx, protocol, address)
+	if err != nil {
+		return nil, err
+	}
+	c.mu.Lock()
+	c.address = l.Addr().String()
+	c.mu.Unlock()
+	return l, nil
+}
+
+func TestDNSResolutionChange(t *testing.T) {
+	// Scenario: A DNS Resolution changes the ip address a hostname resolves to. It
+	// is important that we make sure that the flow and type flow dialed are still on
+	// the same connection or the rpc will never succeed.
+	flow.RegisterProtocol("change", &changeProtocol{})
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	ctx, cancel := context.WithCancel(ctx)
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{{Protocol: "change", Address: "hostname"}},
+	})
+	_, server, err := v23.WithNewServer(ctx, "", &testServer{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { <-server.Closed() }()
+	defer cancel()
+
+	// The call should succeed.
+	if err := v23.GetClient(ctx).Call(ctx, "/@6@change@hostname@@00000000000000000000000000000000@s@@@", "Closure", nil, nil); err != nil {
+		t.Error(err)
+	}
 }

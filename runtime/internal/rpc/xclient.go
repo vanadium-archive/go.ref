@@ -320,7 +320,7 @@ func (c *xclient) tryCreateFlow(
 		// This flow must outlive the flow we're currently creating.
 		// It lives as long as the connection to which it is bound.
 		tctx, tcancel := context.WithRootCancel(ctx)
-		tflow, err := c.flowMgr.Dial(tctx, ep, typeFlowAuthorizer{}, channelTimeout)
+		tflow, err := c.flowMgr.Dial(tctx, flow.RemoteEndpoint(), typeFlowAuthorizer{}, channelTimeout)
 		if err != nil {
 			write(nil, tcancel)
 		} else if tflow.Conn() != flow.Conn() {

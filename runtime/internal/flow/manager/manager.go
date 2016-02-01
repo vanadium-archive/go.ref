@@ -719,7 +719,13 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			flowConn.Close()
 			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
-		if err := m.cache.Insert(c, network, address, proxy || !c.MatchesRID(remote)); err != nil {
+		isProxy := proxy || !c.MatchesRID(remote)
+		if err := m.cache.Insert(c, network, address, isProxy); err != nil {
+			c.Close(ctx, err)
+			return nil, flow.NewErrBadState(ctx, err)
+		}
+		// Insert the unresolved network/address as well.
+		if err := m.cache.Insert(c, addr.Network(), addr.String(), isProxy); err != nil {
 			c.Close(ctx, err)
 			return nil, flow.NewErrBadState(ctx, err)
 		}
