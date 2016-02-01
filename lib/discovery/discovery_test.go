@@ -23,8 +23,11 @@ func TestBasic(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
-	defer ds.Close()
+	df, err := idiscovery.NewFactory(ctx, mock.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer df.Shutdown()
 
 	services := []discovery.Service{
 		{
@@ -39,31 +42,47 @@ func TestBasic(t *testing.T) {
 			Addrs:         []string{"/h1:123/x", "/h2:123/z"},
 		},
 	}
+
+	d1, err := df.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	var stops []func()
 	for i, _ := range services {
-		stop, err := advertise(ctx, ds, nil, &services[i])
+		stop, err := advertise(ctx, d1, nil, &services[i])
 		if err != nil {
 			t.Fatal(err)
 		}
 		stops = append(stops, stop)
 	}
 
-	// Make sure all advertisements are discovered.
-	if err := scanAndMatch(ctx, ds, "v.io/v23/a", services[0]); err != nil {
+	// Make sure none of advertisements are discoverable by the same discovery instance.
+	if err := scanAndMatch(ctx, d1, ""); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, ds, "v.io/v23/b", services[1]); err != nil {
+
+	// Create a new discovery instance. All advertisements should be discovered with that.
+	d2, err := df.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := scanAndMatch(ctx, d2, "v.io/v23/a", services[0]); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, ds, "", services...); err != nil {
+	if err := scanAndMatch(ctx, d2, "v.io/v23/b", services[1]); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, ds, "v.io/v23/c"); err != nil {
+	if err := scanAndMatch(ctx, d2, "", services...); err != nil {
+		t.Error(err)
+	}
+	if err := scanAndMatch(ctx, d2, "v.io/v23/c"); err != nil {
 		t.Error(err)
 	}
 
 	// Open a new scan channel and consume expected advertisements first.
-	scan, scanStop, err := startScan(ctx, ds, "v.io/v23/a")
+	scan, scanStop, err := startScan(ctx, d2, "v.io/v23/a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,13 +101,13 @@ func TestBasic(t *testing.T) {
 	}
 
 	// Also it shouldn't affect the other.
-	if err := scanAndMatch(ctx, ds, "v.io/v23/b", services[1]); err != nil {
+	if err := scanAndMatch(ctx, d2, "v.io/v23/b", services[1]); err != nil {
 		t.Error(err)
 	}
 
 	// Stop advertising the remaining one; Shouldn't discover any service.
 	stops[1]()
-	if err := scanAndMatch(ctx, ds, ""); err != nil {
+	if err := scanAndMatch(ctx, d2, ""); err != nil {
 		t.Error(err)
 	}
 }
@@ -99,8 +118,8 @@ func TestVisibility(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
-	defer ds.Close()
+	df, _ := idiscovery.NewFactory(ctx, mock.New())
+	defer df.Shutdown()
 
 	service := discovery.Service{
 		InterfaceName: "v.io/v23/a",
@@ -111,35 +130,39 @@ func TestVisibility(t *testing.T) {
 		security.BlessingPattern("v.io:bob"),
 		security.BlessingPattern("v.io:alice").MakeNonExtendable(),
 	}
-	stop, err := advertise(ctx, ds, visibility, &service)
-	defer stop()
+
+	d1, _ := df.New()
+	stop, err := advertise(ctx, d1, visibility, &service)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer stop()
+
+	d2, _ := df.New()
 
 	// Bob and his friend should discover the advertisement.
 	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:bob"))
-	if err := scanAndMatch(ctx, ds, "v.io/v23/a", service); err != nil {
+	if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
 		t.Error(err)
 	}
 	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:bob:friend"))
-	if err := scanAndMatch(ctx, ds, "v.io/v23/a", service); err != nil {
+	if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
 		t.Error(err)
 	}
 
 	// Alice should discover the advertisement, but her friend shouldn't.
 	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:alice"))
-	if err := scanAndMatch(ctx, ds, "v.io/v23/a", service); err != nil {
+	if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
 		t.Error(err)
 	}
 	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:alice:friend"))
-	if err := scanAndMatch(ctx, ds, "v.io/v23/a"); err != nil {
+	if err := scanAndMatch(ctx, d2, "v.io/v23/a"); err != nil {
 		t.Error(err)
 	}
 
 	// Other people shouldn't discover the advertisement.
 	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:carol"))
-	if err := scanAndMatch(ctx, ds, "v.io/v23/a"); err != nil {
+	if err := scanAndMatch(ctx, d2, "v.io/v23/a"); err != nil {
 		t.Error(err)
 	}
 }
@@ -148,8 +171,8 @@ func TestDuplicates(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
-	defer ds.Close()
+	df, _ := idiscovery.NewFactory(ctx, mock.New())
+	defer df.Shutdown()
 
 	service := discovery.Service{
 		InstanceId:    "123",
@@ -157,10 +180,11 @@ func TestDuplicates(t *testing.T) {
 		Addrs:         []string{"/h1:123/x"},
 	}
 
-	if _, err := advertise(ctx, ds, nil, &service); err != nil {
+	d, _ := df.New()
+	if _, err := advertise(ctx, d, nil, &service); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := advertise(ctx, ds, nil, &service); err == nil {
+	if _, err := advertise(ctx, d, nil, &service); err == nil {
 		t.Error("expect an error; but got none")
 	}
 }
@@ -170,8 +194,8 @@ func TestMerge(t *testing.T) {
 	defer shutdown()
 
 	p1, p2 := mock.New(), mock.New()
-	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{p1, p2})
-	defer ds.Close()
+	df, _ := idiscovery.NewFactory(ctx, p1, p2)
+	defer df.Shutdown()
 
 	ad := idiscovery.Advertisement{
 		Service: discovery.Service{
@@ -182,7 +206,8 @@ func TestMerge(t *testing.T) {
 		Hash: []byte{1, 2, 3},
 	}
 
-	scan, scanStop, err := startScan(ctx, ds, "v.io/v23/a")
+	d, _ := df.New()
+	scan, scanStop, err := startScan(ctx, d, "v.io/v23/a")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,34 +252,36 @@ func TestMerge(t *testing.T) {
 	}
 }
 
-func TestClose(t *testing.T) {
+func TestShutdown(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
+	df, _ := idiscovery.NewFactory(ctx, mock.New())
 
 	service := discovery.Service{
 		InterfaceName: "v.io/v23/a",
 		Addrs:         []string{"/h1:123/x"},
 	}
 
-	if _, err := advertise(ctx, ds, nil, &service); err != nil {
+	d1, _ := df.New()
+	if _, err := advertise(ctx, d1, nil, &service); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, ds, "", service); err != nil {
+	d2, _ := df.New()
+	if err := scanAndMatch(ctx, d2, "", service); err != nil {
 		t.Error(err)
 	}
 
 	// Verify Close can be called multiple times.
-	ds.Close()
-	ds.Close()
+	df.Shutdown()
+	df.Shutdown()
 
 	// Make sure advertise and scan do not work after closed.
 	service.InstanceId = "" // To avoid dup error.
-	if _, err := advertise(ctx, ds, nil, &service); err == nil {
+	if _, err := advertise(ctx, d1, nil, &service); err == nil {
 		t.Error("expect an error; but got none")
 	}
-	if err := scanAndMatch(ctx, ds, "", service); err == nil {
+	if err := scanAndMatch(ctx, d2, "", service); err == nil {
 		t.Error("expect an error; but got none")
 	}
 }

@@ -8,18 +8,17 @@ import (
 	"sync"
 
 	"v.io/v23/context"
-	"v.io/v23/discovery"
 	"v.io/v23/verror"
 )
 
-const pkgPath = "v.io/x/ref/runtime/internal/discovery"
+const pkgPath = "v.io/x/ref/lib/discovery"
 
 var (
-	errDiscoveryClosed = verror.Register(pkgPath+".errDiscoveryClosed", verror.NoRetry, "{1:}{2:} discovery closed")
+	errNoDiscoveryPlugin = verror.Register(pkgPath+".errNoDiscoveryPlugin", verror.NoRetry, "{1:}{2:} no discovery plugin")
+	errDiscoveryClosed   = verror.Register(pkgPath+".errDiscoveryClosed", verror.NoRetry, "{1:}{2:} discovery closed")
 )
 
-// ds is an implementation of discovery.T.
-type ds struct {
+type idiscovery struct {
 	plugins []Plugin
 
 	mu     sync.Mutex
@@ -27,57 +26,54 @@ type ds struct {
 	tasks  map[*context.T]func() // GUARDED_BY(mu)
 	wg     sync.WaitGroup
 
-	ads map[string]struct{} // GUARDED_BY(mu)
+	ads map[string]sessionId // GUARDED_BY(mu)
 }
 
-func (ds *ds) Close() {
-	ds.mu.Lock()
-	if ds.closed {
-		ds.mu.Unlock()
+func (d *idiscovery) shutdown() {
+	d.mu.Lock()
+	if d.closed {
+		d.mu.Unlock()
 		return
 	}
-	for _, cancel := range ds.tasks {
+	for _, cancel := range d.tasks {
 		cancel()
 	}
-	ds.closed = true
-	ds.mu.Unlock()
-	ds.wg.Wait()
+	d.closed = true
+	d.mu.Unlock()
+	d.wg.Wait()
 }
 
-func (ds *ds) addTask(ctx *context.T) (*context.T, func(), error) {
-	ds.mu.Lock()
-	if ds.closed {
-		ds.mu.Unlock()
+func (d *idiscovery) addTask(ctx *context.T) (*context.T, func(), error) {
+	d.mu.Lock()
+	if d.closed {
+		d.mu.Unlock()
 		return nil, nil, verror.New(errDiscoveryClosed, ctx)
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	ds.tasks[ctx] = cancel
-	ds.wg.Add(1)
-	ds.mu.Unlock()
+	d.tasks[ctx] = cancel
+	d.wg.Add(1)
+	d.mu.Unlock()
 	return ctx, cancel, nil
 }
 
-func (ds *ds) removeTask(ctx *context.T) {
-	ds.mu.Lock()
-	if _, exist := ds.tasks[ctx]; exist {
-		delete(ds.tasks, ctx)
-		ds.wg.Done()
+func (d *idiscovery) removeTask(ctx *context.T) {
+	d.mu.Lock()
+	if _, exist := d.tasks[ctx]; exist {
+		delete(d.tasks, ctx)
+		d.wg.Done()
 	}
-	ds.mu.Unlock()
+	d.mu.Unlock()
 }
 
-// New returns a new Discovery instance initialized with the given plugins.
-//
-// Mostly for internal use. Consider to use factory.New.
-func NewWithPlugins(plugins []Plugin) discovery.T {
+func newDiscovery(ctx *context.T, plugins []Plugin) (*idiscovery, error) {
 	if len(plugins) == 0 {
-		panic("no plugins")
+		return nil, verror.New(errNoDiscoveryPlugin, ctx)
 	}
-	ds := &ds{
+	d := &idiscovery{
 		plugins: make([]Plugin, len(plugins)),
 		tasks:   make(map[*context.T]func()),
-		ads:     make(map[string]struct{}),
+		ads:     make(map[string]sessionId),
 	}
-	copy(ds.plugins, plugins)
-	return ds
+	copy(d.plugins, plugins)
+	return d, nil
 }

@@ -16,8 +16,7 @@ var (
 	errInvalidService         = verror.Register(pkgPath+"errInvalidService", verror.NoRetry, "{1:}{2:} service not valid{:_}")
 )
 
-// Advertise implements discovery.Advertiser.
-func (ds *ds) Advertise(ctx *context.T, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
+func (d *idiscovery) advertise(ctx *context.T, session sessionId, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
 	if len(service.InstanceId) == 0 {
 		var err error
 		if service.InstanceId, err = newInstanceId(); err != nil {
@@ -34,24 +33,24 @@ func (ds *ds) Advertise(ctx *context.T, service *discovery.Service, visibility [
 	}
 	hashAdvertisement(&ad)
 
-	ctx, cancel, err := ds.addTask(ctx)
+	ctx, cancel, err := d.addTask(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if !ds.addAd(ad.Service.InstanceId) {
+	if !d.addAd(session, ad.Service.InstanceId) {
 		cancel()
-		ds.removeTask(ctx)
+		d.removeTask(ctx)
 		return nil, verror.New(errAlreadyBeingAdvertised, ctx)
 	}
 
 	done := make(chan struct{})
 	barrier := NewBarrier(func() {
-		ds.removeAd(ad.Service.InstanceId)
-		ds.removeTask(ctx)
+		d.removeAd(ad.Service.InstanceId)
+		d.removeTask(ctx)
 		close(done)
 	})
-	for _, plugin := range ds.plugins {
+	for _, plugin := range d.plugins {
 		if err := plugin.Advertise(ctx, ad, barrier.Add()); err != nil {
 			cancel()
 			return nil, err
@@ -60,19 +59,19 @@ func (ds *ds) Advertise(ctx *context.T, service *discovery.Service, visibility [
 	return done, nil
 }
 
-func (ds *ds) addAd(id string) bool {
-	ds.mu.Lock()
-	if _, exist := ds.ads[id]; exist {
-		ds.mu.Unlock()
+func (d *idiscovery) addAd(session sessionId, id string) bool {
+	d.mu.Lock()
+	if _, exist := d.ads[id]; exist {
+		d.mu.Unlock()
 		return false
 	}
-	ds.ads[id] = struct{}{}
-	ds.mu.Unlock()
+	d.ads[id] = session
+	d.mu.Unlock()
 	return true
 }
 
-func (ds *ds) removeAd(id string) {
-	ds.mu.Lock()
-	delete(ds.ads, id)
-	ds.mu.Unlock()
+func (d *idiscovery) removeAd(id string) {
+	d.mu.Lock()
+	delete(d.ads, id)
+	d.mu.Unlock()
 }

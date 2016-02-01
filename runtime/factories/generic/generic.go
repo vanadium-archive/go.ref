@@ -40,7 +40,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 
 	ac := appcycle.New()
-	discovery, err := dfactory.New()
+	discoveryFactory, err := dfactory.New(ctx)
 	if err != nil {
 		ac.Shutdown()
 		return nil, nil, nil, err
@@ -55,17 +55,10 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 
 	ishutdown := func() {
 		ac.Shutdown()
-		discovery.Close()
+		discoveryFactory.Shutdown()
 	}
 
-	runtime, ctx, shutdown, err := grt.Init(ctx,
-		ac,
-		discovery,
-		nil,
-		&listenSpec,
-		nil,
-		commonFlags.RuntimeFlags(),
-		nil)
+	runtime, ctx, shutdown, err := grt.Init(ctx, ac, discoveryFactory, nil, &listenSpec, nil, commonFlags.RuntimeFlags(), nil)
 	if err != nil {
 		ishutdown()
 		return nil, nil, nil, err

@@ -13,8 +13,7 @@ import (
 	"v.io/v23/security"
 )
 
-// Scan implements discovery.Scanner.
-func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error) {
+func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-chan discovery.Update, error) {
 	// TODO(jhahn): Consider to use multiple target services so that the plugins
 	// can filter advertisements more efficiently if possible.
 	matcher, targetInterfaceName, err := newMatcher(ctx, query)
@@ -22,7 +21,7 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 		return nil, err
 	}
 
-	ctx, cancel, err := ds.addTask(ctx)
+	ctx, cancel, err := d.addTask(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -31,9 +30,9 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 	scanCh := make(chan Advertisement, 10)
 	barrier := NewBarrier(func() {
 		close(scanCh)
-		ds.removeTask(ctx)
+		d.removeTask(ctx)
 	})
-	for _, plugin := range ds.plugins {
+	for _, plugin := range d.plugins {
 		if err := plugin.Scan(ctx, targetInterfaceName, scanCh, barrier.Add()); err != nil {
 			cancel()
 			return nil, err
@@ -41,11 +40,11 @@ func (ds *ds) Scan(ctx *context.T, query string) (<-chan discovery.Update, error
 	}
 	// TODO(jhahn): Revisit the buffer size.
 	updateCh := make(chan discovery.Update, 10)
-	go doScan(ctx, matcher, scanCh, updateCh)
+	go d.doScan(ctx, session, matcher, scanCh, updateCh)
 	return updateCh, nil
 }
 
-func doScan(ctx *context.T, matcher matcher, scanCh <-chan Advertisement, updateCh chan<- discovery.Update) {
+func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher matcher, scanCh <-chan Advertisement, updateCh chan<- discovery.Update) {
 	defer close(updateCh)
 
 	// Get the blessing names belong to the principal.
@@ -70,6 +69,10 @@ func doScan(ctx *context.T, matcher matcher, scanCh <-chan Advertisement, update
 				}
 				continue
 			}
+			// Filter out advertisements from the same session.
+			if d.getAdSession(ad.Service.InstanceId) == session {
+				continue
+			}
 			// Note that 'Lost' advertisement may not have full service information.
 			// Thus we do not match the query against it. mergeAdvertisement() will
 			// ignore it if it has not been scanned.
@@ -89,6 +92,13 @@ func doScan(ctx *context.T, matcher matcher, scanCh <-chan Advertisement, update
 			return
 		}
 	}
+}
+
+func (d *idiscovery) getAdSession(id string) sessionId {
+	d.mu.Lock()
+	session := d.ads[id]
+	d.mu.Unlock()
+	return session
 }
 
 func mergeAdvertisement(found map[string]*Advertisement, ad *Advertisement) (updates []discovery.Update) {

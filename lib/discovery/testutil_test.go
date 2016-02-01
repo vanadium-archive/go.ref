@@ -19,13 +19,13 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
-func advertise(ctx *context.T, ds discovery.Advertiser, visibility []security.BlessingPattern, services ...*discovery.Service) (func(), error) {
+func advertise(ctx *context.T, d discovery.T, visibility []security.BlessingPattern, services ...*discovery.Service) (func(), error) {
 	var wg sync.WaitGroup
 	tr := idiscovery.NewTrigger()
 	ctx, cancel := context.WithCancel(ctx)
 	for _, service := range services {
 		wg.Add(1)
-		done, err := ds.Advertise(ctx, service, visibility)
+		done, err := d.Advertise(ctx, service, visibility)
 		if err != nil {
 			cancel()
 			return nil, fmt.Errorf("Advertise failed: %v", err)
@@ -39,22 +39,22 @@ func advertise(ctx *context.T, ds discovery.Advertiser, visibility []security.Bl
 	return stop, nil
 }
 
-func startScan(ctx *context.T, ds discovery.Scanner, interfaceName string) (<-chan discovery.Update, func(), error) {
+func startScan(ctx *context.T, d discovery.T, interfaceName string) (<-chan discovery.Update, func(), error) {
 	var query string
 	if len(interfaceName) > 0 {
 		query = `v.InterfaceName="` + interfaceName + `"`
 	}
 
 	ctx, stop := context.WithCancel(ctx)
-	scan, err := ds.Scan(ctx, query)
+	scan, err := d.Scan(ctx, query)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Scan failed: %v", err)
 	}
 	return scan, stop, err
 }
 
-func scan(ctx *context.T, ds discovery.Scanner, interfaceName string) ([]discovery.Update, error) {
-	scan, stop, err := startScan(ctx, ds, interfaceName)
+func scan(ctx *context.T, d discovery.T, interfaceName string) ([]discovery.Update, error) {
+	scan, stop, err := startScan(ctx, d, interfaceName)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func scan(ctx *context.T, ds discovery.Scanner, interfaceName string) ([]discove
 	}
 }
 
-func scanAndMatch(ctx *context.T, ds discovery.Scanner, interfaceName string, wants ...discovery.Service) error {
+func scanAndMatch(ctx *context.T, d discovery.T, interfaceName string, wants ...discovery.Service) error {
 	const timeout = 3 * time.Second
 
 	var updates []discovery.Update
@@ -79,7 +79,7 @@ func scanAndMatch(ctx *context.T, ds discovery.Scanner, interfaceName string, wa
 		runtime.Gosched()
 
 		var err error
-		updates, err = scan(ctx, ds, interfaceName)
+		updates, err = scan(ctx, d, interfaceName)
 		if err != nil {
 			return err
 		}

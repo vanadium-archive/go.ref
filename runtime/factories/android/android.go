@@ -50,7 +50,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 
 	ac := appcycle.New()
-	discovery, err := dfactory.New("mdns", "ble")
+	discoveryFactory, err := dfactory.New(ctx, "mdns", "ble")
 	if err != nil {
 		ac.Shutdown()
 		return nil, nil, nil, err
@@ -66,12 +66,12 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 
 	ishutdown := func() {
 		ac.Shutdown()
-		discovery.Close()
+		discoveryFactory.Shutdown()
 	}
 
 	publisher := pubsub.NewPublisher()
 
-	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discovery, nil, &listenSpec, publisher, commonFlags.RuntimeFlags(), reservedDispatcher)
+	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discoveryFactory, nil, &listenSpec, publisher, commonFlags.RuntimeFlags(), reservedDispatcher)
 	if err != nil {
 		ishutdown()
 		return nil, nil, nil, err

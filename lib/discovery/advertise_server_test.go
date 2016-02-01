@@ -70,10 +70,11 @@ func setServiceAddrs(service *discovery.Service, eps []naming.Endpoint, suffix s
 }
 
 func TestAdvertiseServer(t *testing.T) {
-	ds := idiscovery.NewWithPlugins([]idiscovery.Plugin{mock.New()})
-	fdiscovery.InjectDiscovery(ds)
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
+
+	df, _ := idiscovery.NewFactory(ctx, mock.New())
+	fdiscovery.InjectFactory(df)
 
 	const suffix = "test"
 
@@ -85,13 +86,14 @@ func TestAdvertiseServer(t *testing.T) {
 		Attrs:         discovery.Attributes{"a1": "v1"},
 	}
 
-	_, err := idiscovery.AdvertiseServer(ctx, mock, suffix, &service, nil)
+	_, err := idiscovery.AdvertiseServer(ctx, nil, mock, suffix, &service, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	d, _ := v23.NewDiscovery(ctx)
 	setServiceAddrs(&service, eps, suffix)
-	if err := scanAndMatch(ctx, ds, "", service); err != nil {
+	if err := scanAndMatch(ctx, d, "", service); err != nil {
 		t.Error(err)
 	}
 
@@ -104,7 +106,7 @@ func TestAdvertiseServer(t *testing.T) {
 		mock.updateNetwork(eps)
 
 		setServiceAddrs(&service, eps, suffix)
-		if err := scanAndMatch(ctx, ds, "", service); err != nil {
+		if err := scanAndMatch(ctx, d, "", service); err != nil {
 			t.Error(err)
 		}
 	}

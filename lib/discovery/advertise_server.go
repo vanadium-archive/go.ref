@@ -18,12 +18,21 @@ import (
 // addresses will be updated automatically when the underlying network are
 // changed. Advertising will continue until the context is canceled or exceeds
 // its deadline and the returned channel will be closed when it stops.
-func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
+//
+// If a discovery instance is not provided, this will create a new one.
+func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix string, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
+	if d == nil {
+		var err error
+		d, err = v23.NewDiscovery(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
 	// Take a copy of the service to avoid any interference from changes in user side.
 	copiedService := copyService(service)
 
 	eps, valid := getEndpoints(server)
-	stop, err := advertiseServer(ctx, &copiedService, eps, suffix, visibility)
+	stop, err := advertiseServer(ctx, d, &copiedService, eps, suffix, visibility)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +49,7 @@ func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service *
 					stop() // Stop the previous advertisement.
 				}
 				eps, valid = getEndpoints(server)
-				stop, err = advertiseServer(ctx, &copiedService, eps, suffix, visibility)
+				stop, err = advertiseServer(ctx, d, &copiedService, eps, suffix, visibility)
 				if err != nil {
 					ctx.Error(err)
 				}
@@ -54,14 +63,13 @@ func AdvertiseServer(ctx *context.T, server rpc.Server, suffix string, service *
 	return done, nil
 }
 
-func advertiseServer(ctx *context.T, service *discovery.Service, eps []naming.Endpoint, suffix string, visibility []security.BlessingPattern) (func(), error) {
+func advertiseServer(ctx *context.T, d discovery.T, service *discovery.Service, eps []naming.Endpoint, suffix string, visibility []security.BlessingPattern) (func(), error) {
 	service.Addrs = make([]string, len(eps))
 	for i, ep := range eps {
 		service.Addrs[i] = naming.JoinAddressName(ep.Name(), suffix)
 	}
-	ds := v23.GetDiscovery(ctx)
 	ctx, cancel := context.WithCancel(ctx)
-	done, err := ds.Advertise(ctx, service, visibility)
+	done, err := d.Advertise(ctx, service, visibility)
 	if err != nil {
 		cancel()
 		return nil, err
