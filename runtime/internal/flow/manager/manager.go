@@ -758,7 +758,7 @@ func (m *manager) internalDialConnection(ctx *context.T, remote naming.Endpoint,
 		isProxy := proxy || !c.MatchesRID(remote)
 		if err := m.cache.Insert(c, network, address, isProxy); err != nil {
 			c.Close(ctx, err)
-			return nil, flow.NewErrBadState(ctx, err)
+			return nil, nil, nil, flow.NewErrBadState(ctx, err)
 		}
 		// Insert the unresolved network/address as well.
 		if err := m.cache.Insert(c, addr.Network(), addr.String(), isProxy); err != nil {
