@@ -290,133 +290,6 @@ func (f *file) closeAndRename(ctx *context.T, newName string, err error) error {
 
 // -----------------------------------------------------------
 
-// addFragment() ensures that the store *fscabs contains a fragment comprising
-// the catenation of the byte vectors named by item[..].block and the contents
-// of the files named by item[..].fileName.  The block field is ignored if
-// fileName!="".  The fragment is not physically added if already present.
-// The fragment is added to the fragment list of the descriptor *desc.
-func (fscabs *FsCaBlobStore) addFragment(ctx *context.T, extHasher hash.Hash,
-	desc *blobDesc, item ...localblobstore.BlockOrFile) (fileName string, size int64, err error) {
-
-	hasher := md5.New()
-	var buf []byte
-	var fileHandleList []*os.File
-
-	// Hash the inputs.
-	for i := 0; i != len(item) && err == nil; i++ {
-		if len(item[i].FileName) != 0 {
-			if buf == nil {
-				buf = make([]byte, 8192, 8192)
-				fileHandleList = make([]*os.File, 0, len(item))
-			}
-			var fileHandle *os.File
-			fileHandle, err = os.Open(filepath.Join(fscabs.rootName, item[i].FileName))
-			if err == nil {
-				fileHandleList = append(fileHandleList, fileHandle)
-				at := item[i].Offset
-				toRead := item[i].Size
-				var haveRead int64
-				for err == nil && (toRead == -1 || haveRead < toRead) {
-					var n int
-					n, err = fileHandle.ReadAt(buf, at)
-					if err == nil {
-						if toRead != -1 && int64(n)+haveRead > toRead {
-							n = int(toRead - haveRead)
-						}
-						haveRead += int64(n)
-						at += int64(n)
-						size += int64(n)
-						hasher.Write(buf[0:n]) // Cannot fail; see Hash interface.
-						extHasher.Write(buf[0:n])
-					}
-				}
-				if err == io.EOF {
-					if toRead == -1 || haveRead == toRead {
-						err = nil // The loop read all that was asked; EOF is a possible outcome.
-					} else { // The loop read less than was asked; request must have been too big.
-						err = verror.New(errSizeTooBigForFragment, ctx, desc.name, item[i].FileName)
-					}
-				}
-			}
-		} else {
-			hasher.Write(item[i].Block) // Cannot fail; see Hash interface.
-			extHasher.Write(item[i].Block)
-			size += int64(len(item[i].Block))
-		}
-	}
-
-	// Compute the hash, and form the file name in the respository.
-	hash := hasher.Sum(nil)
-	relFileName := hashToFileName(casDir, hash)
-	absFileName := filepath.Join(fscabs.rootName, relFileName)
-
-	// Add the fragment's name to *desc's fragments so the garbage
-	// collector will not delete it.
-	fscabs.mu.Lock()
-	desc.fragment = append(desc.fragment, blobFragment{
-		pos:      desc.size,
-		size:     size,
-		offset:   0,
-		fileName: relFileName})
-	fscabs.mu.Unlock()
-
-	// If the file does not already exist, ...
-	if _, statErr := os.Stat(absFileName); err == nil && os.IsNotExist(statErr) {
-		// ... try to create it by writing to a temp file and renaming.
-		var t *file
-		t, err = newTempFile(ctx, filepath.Join(fscabs.rootName, tmpDir))
-		if err == nil {
-			// Copy the byte-sequences and input files to the temp file.
-			j := 0
-			for i := 0; i != len(item) && err == nil; i++ {
-				if len(item[i].FileName) != 0 {
-					at := item[i].Offset
-					toRead := item[i].Size
-					var haveRead int64
-					for err == nil && (toRead == -1 || haveRead < toRead) {
-						var n int
-						n, err = fileHandleList[j].ReadAt(buf, at)
-						if err == nil {
-							if toRead != -1 && int64(n)+haveRead > toRead {
-								n = int(toRead - haveRead)
-							}
-							haveRead += int64(n)
-							at += int64(n)
-							_, err = t.writer.Write(buf[0:n])
-						}
-					}
-					if err == io.EOF { // EOF is the expected outcome.
-						err = nil
-					}
-					j++
-				} else {
-					_, err = t.writer.Write(item[i].Block)
-				}
-			}
-			err = t.closeAndRename(ctx, absFileName, err)
-		}
-	} // else file already exists, nothing more to do.
-
-	for i := 0; i != len(fileHandleList); i++ {
-		fileHandleList[i].Close()
-	}
-
-	if err != nil {
-		err = verror.New(errAppendFailed, ctx, fscabs.rootName, err)
-		// Remove the entry added to fragment list above.
-		fscabs.mu.Lock()
-		desc.fragment = desc.fragment[0 : len(desc.fragment)-1]
-		fscabs.mu.Unlock()
-	} else { // commit the change by updating the size
-		fscabs.mu.Lock()
-		desc.size += size
-		desc.cv.Broadcast() // Tell blobmap BlobReader there's more to read.
-		fscabs.mu.Unlock()
-	}
-
-	return relFileName, size, err
-}
-
 // A blobFragment represents a vector of bytes and its position within a blob.
 type blobFragment struct {
 	pos      int64  // position of this fragment within its containing blob.
@@ -584,6 +457,13 @@ type BlobWriter struct {
 	f      *file     // The file being written.
 	hasher hash.Hash // Running hash of blob.
 
+	// The following three fields represent the state of
+	// a temporary file that, when complete, will become a fragment.
+	// These fields are manipulated by commitBytes() and writeToTempFragment().
+	fragFile *file     // The current (temporary) fragment file being appended to, or nil if none.
+	fragSize int64     // Bytes written to fragment.
+	fragHash hash.Hash // Running hash of fragment.
+
 	// Fields to allow the BlobMap to be written.
 	csBr  *BlobReader     // Reader over the blob that's currently being written.
 	cs    *chunker.Stream // Stream of chunks derived from csBr
@@ -676,6 +556,144 @@ func (fscabs *FsCaBlobStore) ResumeBlobWriter(ctx *context.T, blobName string) (
 	return bw, err
 }
 
+// commitBytes() commits bytes added by AppendBytes(), if any.
+// If any bytes are committed, they are added to *bw's fragment list.
+func (bw *BlobWriter) commitBytes() (err error) {
+	if bw.fragFile != nil {
+		hash := bw.fragHash.Sum(nil)
+		relFileName := hashToFileName(casDir, hash)
+		absFileName := filepath.Join(bw.fscabs.rootName, relFileName)
+
+		// Add the fragment's name to bw.desc's fragments so the garbage
+		// collector will not delete it when it is renamed.  The temporary
+		// file will not be deleted before renaming because the garbage
+		// collector does not delete temporary files that have been
+		// written in the last several hours.
+		bw.fscabs.mu.Lock()
+		bw.desc.fragment = append(bw.desc.fragment, blobFragment{
+			pos:      bw.desc.size,
+			size:     bw.fragSize,
+			offset:   0,
+			fileName: relFileName})
+		bw.fscabs.mu.Unlock()
+
+		if _, statErr := os.Stat(absFileName); statErr != nil && os.IsNotExist(statErr) {
+			// Fragment file does not yet exist; rename the temporary file into place.
+			err = bw.fragFile.closeAndRename(bw.ctx, absFileName, err)
+		} else {
+			// Fragment is already present; delete temporary file.
+			var oldName string
+			oldName, err = bw.fragFile.close(bw.ctx, err)
+			os.Remove(oldName)
+		}
+		if err == nil {
+			_, err = fmt.Fprintf(bw.f.writer, "d %d %d %s\n", bw.fragSize, 0 /*offset*/, relFileName)
+		}
+		if err == nil {
+			err = bw.f.writer.Flush()
+		}
+		if err != nil {
+			err = verror.New(errAppendFailed, bw.ctx, bw.fscabs.rootName, err)
+			// Remove the entry added to fragment list above.
+			bw.fscabs.mu.Lock()
+			bw.desc.fragment = bw.desc.fragment[0 : len(bw.desc.fragment)-1]
+			bw.fscabs.mu.Unlock()
+		} else { // commit the change by updating the size; it's then visible to readers.
+			bw.fscabs.mu.Lock()
+			bw.desc.size += bw.fragSize
+			bw.desc.cv.Broadcast() // Tell blobmap BlobReader there's more to read.
+			bw.fscabs.mu.Unlock()
+		}
+		bw.fragFile = nil
+		bw.fragSize = 0
+		bw.fragHash = nil
+	}
+	return err
+}
+
+// writeToTempFragment() writes buf[] to a temporary file that is eventually to become a fragment of *bw.
+// Bytes are committed as necessary when a temporary file becomes large.
+func (bw *BlobWriter) writeToTempFragment(buf []byte) (err error) {
+	for len(buf) > 0 && err == nil {
+		if bw.fragSize >= maxFragmentSize {
+			err = bw.commitBytes()
+		}
+		if err == nil && bw.fragFile == nil {
+			var fragFile *file
+			fragFile, err = newTempFile(bw.ctx, filepath.Join(bw.fscabs.rootName, tmpDir))
+			if err == nil {
+				bw.fragFile = fragFile
+				bw.fragSize = 0
+				bw.fragHash = md5.New()
+			}
+		}
+		// Process a prefix of buf[] on this iteration that will not violate maxFragmentSize.
+		consume := buf
+		if int64(len(buf))+bw.fragSize > maxFragmentSize {
+			consume = buf[:maxFragmentSize-bw.fragSize]
+		}
+		if err == nil {
+			bw.fragSize += int64(len(consume))
+			bw.fragHash.Write(consume)                 // Cannot fail; see Hash interface.
+			bw.hasher.Write(consume)                   // Cannot fail; see Hash interface.
+			_, err = bw.fragFile.writer.Write(consume) // Writes all bytes unless returned err != nil.
+		}
+		buf = buf[len(consume):] // process rest of buf[] on next iteration
+	}
+	return err
+}
+
+// AppendBytes() tentatively appends bytes to the blob being written by *bw,
+// where the bytes are composed of the byte vectors described by the elements
+// of item[].  The implementation may choose when to commit these bytes to disc,
+// except that they will be committed before the return of a subsequent call to
+// Close() or CloseWithoutFinalize().  Uncomitted bytes may be lost during a crash,
+// and will not be returned by a concurrent reader until they are committed.
+func (bw *BlobWriter) AppendBytes(item ...localblobstore.BlockOrFile) (err error) {
+	if bw.f == nil {
+		panic("fs_cablobstore.BlobWriter programming error: AppendBytes() after Close()")
+	}
+
+	var buf []byte
+	for i := 0; i != len(item) && err == nil; i++ {
+		if len(item[i].FileName) != 0 {
+			if buf == nil {
+				buf = make([]byte, 8192, 8192)
+			}
+			var fileHandle *os.File
+			fileHandle, err = os.Open(filepath.Join(bw.fscabs.rootName, item[i].FileName))
+			if err == nil {
+				at := item[i].Offset
+				toRead := item[i].Size
+				var haveRead int64
+				for err == nil && (toRead == -1 || haveRead < toRead) {
+					var n int
+					n, err = fileHandle.ReadAt(buf, at)
+					if err == nil {
+						if toRead != -1 && int64(n)+haveRead > toRead {
+							n = int(toRead - haveRead)
+						}
+						haveRead += int64(n)
+						at += int64(n)
+						err = bw.writeToTempFragment(buf[0:n])
+					}
+				}
+				if err == io.EOF {
+					if toRead == -1 || haveRead == toRead {
+						err = nil // The loop read all that was asked; EOF is a possible outcome.
+					} else { // The loop read less than was asked; request must have been too big.
+						err = verror.New(errSizeTooBigForFragment, bw.ctx, bw.desc.name, item[i].FileName)
+					}
+				}
+				fileHandle.Close()
+			}
+		} else {
+			err = bw.writeToTempFragment(item[i].Block)
+		}
+	}
+	return err
+}
+
 // forkWriteBlobMap() creates a new thread to run writeBlobMap().  It adds
 // the chunks written to *bw to the blob store's BlobMap.  The caller is
 // expected to call joinWriteBlobMap() at some later point.
@@ -758,8 +776,11 @@ func (bw *BlobWriter) Close() (err error) {
 	} else if bw.desc.finalized {
 		err = verror.New(errBlobAlreadyFinalized, bw.ctx, bw.desc.name)
 	} else {
-		h := bw.hasher.Sum(nil)
-		_, err = fmt.Fprintf(bw.f.writer, "f %s\n", hashToString(h)) // finalize
+		err = bw.commitBytes()
+		if err == nil {
+			h := bw.hasher.Sum(nil)
+			_, err = fmt.Fprintf(bw.f.writer, "f %s\n", hashToString(h)) // finalize
+		}
 		_, err = bw.f.close(bw.ctx, err)
 		bw.f = nil
 		bw.fscabs.mu.Lock()
@@ -781,6 +802,7 @@ func (bw *BlobWriter) CloseWithoutFinalize() (err error) {
 	if bw.f == nil {
 		err = verror.New(errAlreadyClosed, bw.ctx, bw.desc.name)
 	} else {
+		err = bw.commitBytes()
 		bw.fscabs.mu.Lock()
 		bw.desc.openWriter = false
 		bw.desc.cv.Broadcast() // Tell blobmap BlobReader that writing has ceased.
@@ -793,25 +815,6 @@ func (bw *BlobWriter) CloseWithoutFinalize() (err error) {
 	return err
 }
 
-// AppendFragment() appends a fragment to the blob being written by *bw, where
-// the fragment is composed of the byte vectors described by the elements of
-// item[].  The fragment is copied into the blob store.
-func (bw *BlobWriter) AppendFragment(item ...localblobstore.BlockOrFile) (err error) {
-	if bw.f == nil {
-		panic("fs_cablobstore.BlobWriter programming error: AppendFragment() after Close()")
-	}
-	var fragmentName string
-	var size int64
-	fragmentName, size, err = bw.fscabs.addFragment(bw.ctx, bw.hasher, bw.desc, item...)
-	if err == nil {
-		_, err = fmt.Fprintf(bw.f.writer, "d %d %d %s\n", size, 0 /*offset*/, fragmentName)
-	}
-	if err == nil {
-		err = bw.f.writer.Flush()
-	}
-	return err
-}
-
 // AppendBlob() adds a (substring of a) pre-existing blob to the blob being
 // written by *bw.  The fragments of the pre-existing blob are not physically
 // copied; they are referenced by both blobs.
@@ -819,9 +822,13 @@ func (bw *BlobWriter) AppendBlob(blobName string, size int64, offset int64) (err
 	if bw.f == nil {
 		panic("fs_cablobstore.BlobWriter programming error: AppendBlob() after Close()")
 	}
+	err = bw.commitBytes()
 	var desc *blobDesc
-	desc, err = bw.fscabs.getBlob(bw.ctx, blobName)
-	origSize := bw.desc.size
+	var origSize int64
+	if err == nil {
+		desc, err = bw.fscabs.getBlob(bw.ctx, blobName)
+		origSize = bw.desc.size
+	}
 	if err == nil {
 		if size == -1 {
 			size = desc.size - offset
@@ -894,7 +901,7 @@ func (bw *BlobWriter) IsFinalized() bool {
 
 // Size() returns *bw's size.
 func (bw *BlobWriter) Size() int64 {
-	return bw.desc.size
+	return bw.desc.size + bw.fragSize // Count uncommited bytes in size for writer; they aren't yet counted for readers.
 }
 
 // Name() returns *bw's name.

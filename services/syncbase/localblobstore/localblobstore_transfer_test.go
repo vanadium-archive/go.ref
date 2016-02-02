@@ -8,22 +8,26 @@
 package localblobstore_test
 
 import "bytes"
-import "fmt"
 import "io"
 import "io/ioutil"
 import "math/rand"
 import "os"
+import "testing"
 
+import "v.io/v23/context"
+import "v.io/v23/verror"
 import "v.io/x/ref/services/syncbase/localblobstore"
 import "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
 import "v.io/x/ref/services/syncbase/store"
-import "v.io/v23/context"
 import "v.io/x/ref/test"
 import _ "v.io/x/ref/runtime/factories/generic"
 
-// simulateResumption tells the receiver whether to simulate having a partial
-// blob before blob transfer.
-const simulateResumption = true
+// These constants affect the type of transfer simulated by blobTransfer()
+const (
+	simulateSimpleTransfer = 0 // the receiver has none of the blob.
+	simulateResumption     = 1 // the receiver has an unfinalized prefix of the blob.
+	simulatePartialOverlap = 2 // the receiver has some of the blob, but is missing a prefix and a suffix.
+)
 
 // createBlobStore() returns a new BlobStore, and the name of the directory
 // used to implement it.
@@ -38,7 +42,7 @@ func createBlobStore(ctx *context.T) (bs localblobstore.BlobStore, dirName strin
 	return bs, dirName
 }
 
-// createBlob writes a blob to bs of k 32kByte blocks drawn from a determinstic
+// createBlob writes a blob to bs of "count" 32kByte blocks drawn from a determinstic
 // but arbitrary random stream, starting at block offset within that stream.
 // Returns its name, which is "blob" if non-empty, and chosen arbitrarily otherwise.
 // The blob is finalized iff "complete" is true.
@@ -57,7 +61,7 @@ func createBlob(ctx *context.T, bs localblobstore.BlobStore, blob string, comple
 			buffer[b] = byte(r.Int31n(256))
 		}
 		if i >= offset {
-			if err = bw.AppendFragment(block); err != nil {
+			if err = bw.AppendBytes(block); err != nil {
 				panic(err)
 			}
 		}
@@ -97,13 +101,13 @@ func (cs *channelChunkStream) Value(buf []byte) []byte { return cs.value }
 func (cs *channelChunkStream) Err() error              { return nil }
 func (cs *channelChunkStream) Cancel()                 {}
 
-// Example_blobTransfer() demonstrates how to transfer a blob incrementally
+// blobTransfer() demonstrates how to transfer a blob incrementally
 // from one device's blob store to another.  In this code, the communication
 // between sender and receiver is modelled with Go channels.
-func Example_blobTransfer() {
-	ctx, shutdown := test.V23Init()
-	defer shutdown()
-
+// simulate affects what bytes the receiver already has when performing a transfer, see the constants
+// simulateSimpleTransfer, simulateResumption, simulatePartialOverlap, above.
+// The number of chunks transferred is returned.
+func blobTransfer(ctx *context.T, simulate int) int {
 	// ----------------------------------------------
 	// Channels used to send chunk hashes to receiver always end in
 	// ToSender or ToReceiver.
@@ -119,7 +123,7 @@ func Example_blobTransfer() {
 	chunksToReceiver := make(chan []byte)      // to report which chunks receiver needs
 
 	sDone := make(chan bool) // closed when sender done
-	rDone := make(chan bool) // closed when receiver done
+	rDone := make(chan int)  // closed when receiver done; receiver sends number of chunks transferred
 
 	// ----------------------------------------------
 	// The sender.
@@ -216,7 +220,7 @@ func Example_blobTransfer() {
 		chunkHashesToReceiver <-chan []byte,
 		chunkHashesToSender chan<- []byte,
 		chunksToReceiver <-chan []byte,
-		done chan<- bool) {
+		done chan<- int) {
 
 		defer close(done)
 		var err error
@@ -227,10 +231,17 @@ func Example_blobTransfer() {
 		// 2. Receive basic blob data from sender.
 		blobInfo := <-blobDataToReceiver
 
-		if simulateResumption {
+		switch simulate {
+		case simulateSimpleTransfer:
+			// Nothing to do.
+		case simulateResumption:
 			// Write a fraction of the (unfinalized) blob on the receiving side
 			// to check that the transfer process can resume a partial blob.
 			createBlob(ctx, bsR, blobInfo.name, false, 0, 10)
+		case simulatePartialOverlap:
+			// Write a blob with a different name that contains some of the same data.
+			// The prefix and suffix of the full blob will have to be transferred.
+			createBlob(ctx, bsR, "", true, 1, 10)
 		}
 
 		// 3. Tell sender whether the recevier already has the complete
@@ -313,10 +324,15 @@ func Example_blobTransfer() {
 					if ignoreBytes >= step.Size { // Ignore chunks we already have.
 						ignoreBytes -= step.Size
 					} else {
+						if err == nil && len(fragment) != 0 {
+							err = bw.AppendBytes(fragment...)
+							fragment = fragment[:0]
+							fragmentSize = 0
+						}
 						err = bw.AppendBlob(step.Blob, step.Size-ignoreBytes, step.Offset+ignoreBytes)
 						ignoreBytes = 0
 					}
-				} else if ignoreBytes >= int64(len(step.Chunk)) { // Ignoer chunks we already have.
+				} else if ignoreBytes >= int64(len(step.Chunk)) { // Ignore chunks we already have.
 					ignoreBytes -= int64(len(step.Chunk))
 				} else { // Data is from a chunk send by the sender.
 					chunksTransferred++
@@ -324,7 +340,7 @@ func Example_blobTransfer() {
 					fragmentSize += int64(len(step.Chunk)) - ignoreBytes
 					ignoreBytes = 0
 					if fragmentSize > fragmentThreshold {
-						err = bw.AppendFragment(fragment...)
+						err = bw.AppendBytes(fragment...)
 						fragment = fragment[:0]
 						fragmentSize = 0
 					}
@@ -334,13 +350,13 @@ func Example_blobTransfer() {
 				}
 			}
 			if err == nil && len(fragment) != 0 {
-				err = bw.AppendFragment(fragment...)
+				err = bw.AppendBytes(fragment...)
 			}
 			if err2 := bw.Close(); err == nil {
 				err = err2
 			}
 			if err != nil {
-				panic(err)
+				panic(verror.DebugString(err))
 			}
 		}
 
@@ -357,13 +373,44 @@ func Example_blobTransfer() {
 		if err = br.Close(); err != nil {
 			panic(err)
 		}
-		fmt.Printf("%d chunks transferred\n", chunksTransferred)
+		done <- chunksTransferred
 	}(ctx, blobDataToReceiver, needChunksToSender, chunkHashesToReceiver, chunkHashesToSender, chunksToReceiver, rDone)
 
 	// ----------------------------------------------
-	// Wait for sender and receiver to finish.
+	// Wait for sender and receiver to finish, and return the number of chunks the receiver transferred.
 	_ = <-sDone
-	_ = <-rDone
+	return <-rDone
+}
 
-	// Output: 635 chunks transferred
+func TestSimpleTransfer(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	const expectedChunksTransferred = 936
+	var chunksTransferred int = blobTransfer(ctx, simulateSimpleTransfer)
+	if chunksTransferred != expectedChunksTransferred {
+		t.Errorf("simple transfer, expected %d chunks transferred, got %d", expectedChunksTransferred, chunksTransferred)
+	}
+}
+
+func TestResumption(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	const expectedChunksTransferred = 635
+	var chunksTransferred int = blobTransfer(ctx, simulateResumption)
+	if chunksTransferred != expectedChunksTransferred {
+		t.Errorf("resumption transfer, expected %d chunks transferred, got %d", expectedChunksTransferred, chunksTransferred)
+	}
+}
+
+func TestPartialOverlap(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	const expectedChunksTransferred = 647
+	var chunksTransferred int = blobTransfer(ctx, simulatePartialOverlap)
+	if chunksTransferred != expectedChunksTransferred {
+		t.Errorf("partial overlap transfer, expected %d chunks transferred, got %d", expectedChunksTransferred, chunksTransferred)
+	}
 }
