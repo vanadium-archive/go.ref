@@ -68,7 +68,7 @@ func writeBlob(t *testing.T, ctx *context.T, bs localblobstore.BlobStore, blobVe
 
 	// Construct the blob from the pieces.
 	// There is a loop within the loop to exercise the possibility of
-	// passing multiple fragments to AppendFragment().
+	// passing multiple fragments to AppendBytes().
 	for i := 0; i != len(data) && err == nil; {
 		if len(data[i].blob) != 0 {
 			err = bw.AppendBlob(data[i].blob, data[i].size, data[i].offset)
@@ -88,9 +88,9 @@ func writeBlob(t *testing.T, ctx *context.T, bs localblobstore.BlobStore, blobVe
 					pieces = append(pieces, localblobstore.BlockOrFile{Block: data[i].block})
 				}
 			}
-			err = bw.AppendFragment(pieces...)
+			err = bw.AppendBytes(pieces...)
 			if err != nil {
-				t.Errorf("localblobstore.AppendFragment %d:%s failed on %v: %v", len(blobVector), string(content), pieces, err)
+				t.Errorf("localblobstore.AppendBytes %d:%s failed on %v: %v", len(blobVector), string(content), pieces, err)
 			}
 		}
 		if useResume && i < len(data)-1 && err == nil {
@@ -566,8 +566,8 @@ func writeBlobFromReader(t *testing.T, ctx *context.T, bs localblobstore.BlobSto
 			t.Fatalf("callSite %d: unexpected error from reader: %v", callSite, err)
 		}
 		if n > 0 {
-			if err = bw.AppendFragment(localblobstore.BlockOrFile{Block: buf[:n]}); err != nil {
-				t.Fatalf("callSite %d: BlobWriter.AppendFragment failed: %v", callSite, err)
+			if err = bw.AppendBytes(localblobstore.BlockOrFile{Block: buf[:n]}); err != nil {
+				t.Fatalf("callSite %d: BlobWriter.AppendBytes failed: %v", callSite, err)
 			}
 			// Every so often, close without finalizing, and reopen.
 			if (i % 7) == 0 {
@@ -806,8 +806,8 @@ func WriteViaChunks(t *testing.T, ctx *context.T, bs [2]localblobstore.BlobStore
 					step = rs.Value()
 				}
 			}
-			if err = bw.AppendFragment(blocks[:b]...); err != nil {
-				t.Fatalf("AppendFragment on %q failed: %v", bw.Name(), err)
+			if err = bw.AppendBytes(blocks[:b]...); err != nil {
+				t.Fatalf("AppendBytes on %q failed: %v", bw.Name(), err)
 			}
 		}
 	}
@@ -864,8 +864,8 @@ func CreateAndResume(t *testing.T, ctx *context.T, bs localblobstore.BlobStore) 
 	if bw, err = bs.ResumeBlobWriter(ctx, blobName); err != nil {
 		t.Fatalf("localblobstore.ResumeBlobWriter failed: %v\n", err)
 	}
-	if err = bw.AppendFragment(localblobstore.BlockOrFile{Block: []byte("")}); err != nil {
-		t.Fatalf("bw.AppendFragment failed: %v", err)
+	if err = bw.AppendBytes(localblobstore.BlockOrFile{Block: []byte("")}); err != nil {
+		t.Fatalf("bw.AppendBytes failed: %v", err)
 	}
 	if err = bw.CloseWithoutFinalize(); err != nil {
 		t.Fatalf("bw.Close failed: %v\n", err)
@@ -878,8 +878,8 @@ func CreateAndResume(t *testing.T, ctx *context.T, bs localblobstore.BlobStore) 
 	if bw, err = bs.ResumeBlobWriter(ctx, blobName); err != nil {
 		t.Fatalf("localblobstore.ResumeBlobWriter.Close failed: %v\n", err)
 	}
-	if err = bw.AppendFragment(localblobstore.BlockOrFile{Block: content}); err != nil {
-		t.Fatalf("bw.AppendFragment failed: %v", err)
+	if err = bw.AppendBytes(localblobstore.BlockOrFile{Block: content}); err != nil {
+		t.Fatalf("bw.AppendBytes failed: %v", err)
 	}
 	if err = bw.Close(); err != nil {
 		t.Fatalf("bw.Close failed: %v\n", err)

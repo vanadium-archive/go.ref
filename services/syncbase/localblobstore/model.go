@@ -13,7 +13,7 @@
 //      bw, err := bs.NewBlobWriter(ctx, "")  // For a new blob, implementation picks blob name.
 //      if err == nil {
 //		blobName := bw.Name()  // Get name the implementation picked.
-//   	  	... use bw.AppendFragment() to append data to the blob...
+//   	  	... use bw.AppendBytes() to append data to the blob...
 //   	  	... and/or bw.AppendBlob() to append data that's in another existing blob...
 //        	err = bw.Close()
 //   	}
@@ -22,7 +22,7 @@
 //	bw, err := bs.ResumeBlobWriter(ctx, name)
 //	if err == nil {
 //		size := bw.Size() // The store has this many bytes from the blob.
-//		... write the remaining data using bwAppendFragment() and/or bw.AppendBlob()...
+//		... write the remaining data using bw.AppendBytes() and/or bw.AppendBlob()...
 //		err = bw.Close()
 //	}
 //
@@ -46,7 +46,7 @@
 //   needs.
 // - The sender uses LookupChunk() to find the data for each chunk the receiver
 //   needs, and sends it to the receiver.
-// - The receiver applies the recipe steps, with the actual chunkj data from
+// - The receiver applies the recipe steps, with the actual chunk data from
 //   the sender and its own local data.
 package localblobstore
 
@@ -100,7 +100,7 @@ type BlobStore interface {
 	// ChunkStream from a sending device, to yield a recipe for efficient
 	// chunk transfer.  RecipeStep values with non-nil Chunk fields need
 	// the chunk from the sender; once the data is returned it can be
-	// written with BlobWriter.AppendFragment().  Those with blob
+	// written with BlobWriter.AppendBytes().  Those with blob
 	// references can be written locally with BlobWriter.AppendBlob().
 	RecipeStreamFromChunkStream(ctx *context.T, chunkStream ChunkStream) RecipeStream
 
@@ -259,11 +259,13 @@ type BlobWriter interface {
 	// blob are not physically copied; they are referenced by both blobs.
 	AppendBlob(blobName string, size int64, offset int64) (err error)
 
-	// AppendFragment() appends a fragment to the blob being written by the
-	// BlobWriter, where the fragment is composed of the byte vectors
-	// described by the elements of item[].  The fragment is copied into
-	// the blob store.
-	AppendFragment(item ...BlockOrFile) (err error)
+	// AppendBytes() appends bytes from byte vectors or local files to the
+	// blob being written by the BlobWriter.  On return from this call, the
+	// bytes are not necessarily guaranteed to be committed to disc or
+	// available to a concurrent BlobReader.  They will certainly be
+	// committed after a subsequent call to Close() or
+	// CloseWithoutFinalize().
+	AppendBytes(item ...BlockOrFile) (err error)
 
 	// Close() finalizes the BlobWriter, and indicates that the client will
 	// perform no further append operations on the BlobWriter.  Any

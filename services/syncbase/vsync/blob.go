@@ -72,7 +72,7 @@ func (sd *syncDatabase) PutBlob(ctx *context.T, call wire.BlobManagerPutBlobServ
 	stream := call.RecvStream()
 	for stream.Advance() {
 		item := blob.BlockOrFile{Block: stream.Value()}
-		if err = writer.AppendFragment(item); err != nil {
+		if err = writer.AppendBytes(item); err != nil {
 			return err
 		}
 	}
@@ -298,7 +298,7 @@ func (sd *syncDatabase) fetchBlobRemote(ctx *context.T, br wire.BlobRef, statusC
 		peerStream := stream.RecvStream()
 		for peerStream.Advance() {
 			item := blob.BlockOrFile{Block: peerStream.Value()}
-			if err = bWriter.AppendFragment(item); err != nil {
+			if err = bWriter.AppendBytes(item); err != nil {
 				break
 			}
 			curSize := int64(len(item.Block))
