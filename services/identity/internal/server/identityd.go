@@ -157,11 +157,6 @@ func (s *IdentityServer) Listen(ctx, oauthCtx *context.T, externalHttpAddr, http
 		w.WriteHeader(http.StatusNoContent)
 	})
 
-	dischargerLocation := s.dischargerLocation
-	if dischargerLocation == "" {
-		dischargerLocation = naming.JoinAddressName(published[0], dischargerService)
-	}
-
 	n := "/auth/google/"
 	args := oauth.HandlerArgs{
 		Principal:          principal,
@@ -169,7 +164,7 @@ func (s *IdentityServer) Listen(ctx, oauthCtx *context.T, externalHttpAddr, http
 		Addr:               fmt.Sprintf("%s%s", externalHttpAddr, n),
 		BlessingLogReader:  s.blessingLogReader,
 		RevocationManager:  s.revocationManager,
-		DischargerLocation: dischargerLocation,
+		DischargerLocation: s.dischargerLocation,
 		MacaroonBlessingService: func() []string {
 			status := rpcServer.Status()
 			names := make([]string, len(status.Endpoints))
@@ -259,10 +254,13 @@ func (s *IdentityServer) setupBlessingServices(ctx, oauthCtx *context.T, macaroo
 	} else {
 		rootedObjectAddr = s.rootedObjectAddrs[0].Name()
 	}
-	disp.activate(rootedObjectAddr)
+	if s.dischargerLocation == "" {
+		s.dischargerLocation = naming.Join(rootedObjectAddr, dischargerService)
+	}
+	disp.activate(s.dischargerLocation)
 	ctx.Infof("Vanadium Blessing and discharger services will be published at %v", rootedObjectAddr)
 	// Start the HTTP Handler for the OAuth2 access token based blesser.
-	s.oauthBlesserParams.DischargerLocation = naming.Join(rootedObjectAddr, dischargerService)
+	s.oauthBlesserParams.DischargerLocation = s.dischargerLocation
 	http.Handle("/auth/google/bless", handlers.NewOAuthBlessingHandler(oauthCtx, s.oauthBlesserParams))
 	return server, []string{rootedObjectAddr}, nil
 }
@@ -292,8 +290,8 @@ func (d *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, securit
 	return nil, nil, verror.New(verror.ErrNoExist, ctx, suffix)
 }
 
-func (d *dispatcher) activate(serverName string) {
-	d.blesserParams.DischargerLocation = naming.Join(serverName, dischargerService)
+func (d *dispatcher) activate(dischargerLocation string) {
+	d.blesserParams.DischargerLocation = dischargerLocation
 	d.m = map[string]interface{}{
 		macaroonService:     blesser.NewMacaroonBlesserServer(d.macaroonKey),
 		dischargerService:   discharger.DischargerServer(dischargerlib.NewDischarger()),
