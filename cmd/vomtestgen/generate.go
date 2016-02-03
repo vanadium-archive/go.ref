@@ -33,7 +33,7 @@ const (
 	vomdataConfig    = "vomdata.vdl.config"
 )
 
-var versions = []vom.Version{vom.Version80, vom.Version81, vom.Version82}
+var versions = []vom.Version{vom.Version80, vom.Version81}
 
 var cmdGenerate = &cmdline.Command{
 	Runner: cmdline.RunnerFunc(runGenerate),
@@ -106,7 +106,7 @@ func runGenerate(env *cmdline.Env, args []string) error {
 	}
 	for _, version := range versions {
 		baseName := filepath.Base(inName)
-		outName := fmt.Sprintf("%s/data%x/%s", filepath.Dir(inName), version, baseName[:len(baseName)-len(".config")])
+		outName := fmt.Sprintf("%s/data%x/%s", filepath.Dir(inName), uint64(version), baseName[:len(baseName)-len(".config")])
 		// Remove the generated file, so that it doesn't interfere with compiling the
 		// config.  Ignore errors since it might not exist yet.
 		if err := os.Remove(outName); err == nil {
@@ -197,7 +197,7 @@ func generate(config *vdl.Value, version vom.Version) ([]byte, error) {
 // DO NOT UPDATE MANUALLY; read the comments in `+vomdataConfig+`.
 
 package data%x
-`, version)
+`, uint64(version))
 	imports := codegen.ImportsForValue(config, testpkg)
 	if len(imports) > 0 {
 		fmt.Fprintf(buf, "\n%s\n", vdlgen.Imports(imports))
@@ -338,7 +338,7 @@ func toVomHex(version vom.Version, value *vdl.Value) (string, string, string, st
 	if version <= vom.Version81 {
 		d, err := vom.Dump(vombytes)
 		if err != nil {
-			return "", "", "", "", err
+			return "", "", "", "", fmt.Errorf("vom.Dump: %v", err)
 		}
 		vomdump = pre + strings.Replace(d, "\n", "\n"+pre, -1)
 	}

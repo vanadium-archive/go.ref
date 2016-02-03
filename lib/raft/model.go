@@ -82,12 +82,12 @@ type Raft interface {
 
 // RaftConfig is passed to NewRaft to avoid lots of parameters.
 type RaftConfig struct {
-	LogDir            string        // Directory in which to put log and snapshot files.
-	HostPort          string        // For RPCs from other members.
-	ServerName        string        // Where to mount if not empty.
-	Heartbeat         time.Duration // Time between heartbeats.
-	SnapshotThreshold int64         // Approximate number of log entries between snapshots.
-	Acl               access.AccessList  // For sending RPC to the members.
+	LogDir            string            // Directory in which to put log and snapshot files.
+	HostPort          string            // For RPCs from other members.
+	ServerName        string            // Where to mount if not empty.
+	Heartbeat         time.Duration     // Time between heartbeats.
+	SnapshotThreshold int64             // Approximate number of log entries between snapshots.
+	Acl               access.AccessList // For sending RPC to the members.
 }
 
 // NewRaft creates a new raft server.

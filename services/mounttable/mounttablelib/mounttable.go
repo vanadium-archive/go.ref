@@ -142,7 +142,7 @@ func NewMountTableDispatcherWithClock(ctx *context.T, permsFile, persistDir, sta
 		nodeCounter:        stats.NewInteger(naming.Join(statsPrefix, "num-nodes")),
 		serverCounter:      stats.NewInteger(naming.Join(statsPrefix, "num-mounted-servers")),
 		perUserNodeCounter: stats.NewMap(naming.Join(statsPrefix, "num-nodes-per-user")),
-		perUserRPCCounter: stats.NewMap(naming.Join(statsPrefix, "num-rpcs-per-user")),
+		perUserRPCCounter:  stats.NewMap(naming.Join(statsPrefix, "num-rpcs-per-user")),
 		maxNodesPerUser:    defaultMaxNodesPerUser,
 		slm:                newServerListManager(clock),
 	}
