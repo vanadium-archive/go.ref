@@ -59,7 +59,7 @@ func (s *service) Authorize(ctx *context.T, call security.Call) error {
 		}
 	}
 	if l, r := call.LocalBlessings().PublicKey(), call.RemoteBlessings().PublicKey(); l != nil && reflect.DeepEqual(l, r) {
-			return nil
+		return nil
 	}
 	return verror.New(verror.ErrNoAccess, ctx)
 }
@@ -167,7 +167,7 @@ func (s *service) Append(ctx *context.T, call rpc.ServerCall, cmd []byte) (Term,
 	}
 
 	// Assign an index and term to the log entry.
-	le := LogEntry{Term: r.p.CurrentTerm(), Index: r.p.LastIndex()+1, Cmd: cmd}
+	le := LogEntry{Term: r.p.CurrentTerm(), Index: r.p.LastIndex() + 1, Cmd: cmd}
 
 	// Append to our own log.
 	if err := r.p.AppendToLog(ctx, r.p.LastTerm(), r.p.LastIndex(), []LogEntry{le}); err != nil {

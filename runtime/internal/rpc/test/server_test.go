@@ -237,7 +237,7 @@ func setLeafEndpoints(eps []naming.Endpoint) {
 
 type ldServer struct {
 	started chan struct{}
-	wait chan struct{}
+	wait    chan struct{}
 }
 
 func (s *ldServer) Do(ctx *context.T, call rpc.ServerCall) (bool, error) {
@@ -249,11 +249,11 @@ func TestLameDuck(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	cases := []struct{
-		timeout time.Duration
+	cases := []struct {
+		timeout     time.Duration
 		finishError bool
 		wasCanceled bool
-	} {
+	}{
 		{timeout: time.Minute, wasCanceled: false},
 		{timeout: 0, finishError: true},
 	}

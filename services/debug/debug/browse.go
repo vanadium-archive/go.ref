@@ -16,8 +16,8 @@ import (
 	"net/url"
 	"os/exec"
 	"runtime"
-	"strings"
 	"sort"
+	"strings"
 	"time"
 
 	"v.io/v23"
@@ -600,41 +600,39 @@ func (h *profilesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pproflib.PprofProxy(h.ctx, browseProfilesPath, name).ServeHTTP(w, r)
 }
 
-
 const (
-	allTracesLabel = ">0s"
-	oneMsTraceLabel = ">1ms"
-	tenMsTraceLabel = ">10ms"
-	hundredMsTraceLabel = ">100ms"
-	oneSecTraceLabel = ">1s"
-	tenSecTraceLabel = ">10s"
+	allTracesLabel       = ">0s"
+	oneMsTraceLabel      = ">1ms"
+	tenMsTraceLabel      = ">10ms"
+	hundredMsTraceLabel  = ">100ms"
+	oneSecTraceLabel     = ">1s"
+	tenSecTraceLabel     = ">10s"
 	hundredSecTraceLabel = ">100s"
 )
 
 var (
 	labelToCutoff = map[string]float64{
-		allTracesLabel: 0,
-		oneMsTraceLabel: 0.001,
-		tenMsTraceLabel: 0.01,
-		hundredMsTraceLabel: 0.1,
-		oneSecTraceLabel: 1,
-		tenSecTraceLabel: 10,
+		allTracesLabel:       0,
+		oneMsTraceLabel:      0.001,
+		tenMsTraceLabel:      0.01,
+		hundredMsTraceLabel:  0.1,
+		oneSecTraceLabel:     1,
+		tenSecTraceLabel:     10,
 		hundredSecTraceLabel: 100,
 	}
 	sortedLabels = []string{allTracesLabel, oneMsTraceLabel, tenMsTraceLabel, hundredMsTraceLabel, oneSecTraceLabel, tenSecTraceLabel, hundredSecTraceLabel}
 )
 
 type traceWithStart struct {
-	Id string
+	Id    string
 	Start time.Time
 }
 
 type traceSort []traceWithStart
 
-func (t traceSort) Len() int { return len(t) }
+func (t traceSort) Len() int           { return len(t) }
 func (t traceSort) Less(i, j int) bool { return t[i].Start.After(t[j].Start) }
-func (t traceSort) Swap(i, j int) { t[i], t[j] = t[j], t[i]}
-
+func (t traceSort) Swap(i, j int)      { t[i], t[j] = t[j], t[i] }
 
 func bucketTraces(ctx *context.T, name string) (map[string]traceSort, error) {
 	stub := svtrace.StoreClient(name)
@@ -700,19 +698,19 @@ func (a *allTracesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	buckets, err := bucketTraces(ctx, name)
 
 	data := struct {
-		Buckets     map[string]traceSort
+		Buckets      map[string]traceSort
 		SortedLabels []string
-		Err         error
-		ServerName  string
-		CommandLine string
-		Vtrace      *Tracer
+		Err          error
+		ServerName   string
+		CommandLine  string
+		Vtrace       *Tracer
 	}{
-		Buckets:         buckets,
+		Buckets:      buckets,
 		SortedLabels: sortedLabels,
-		Err:         err,
-		CommandLine: fmt.Sprintf("debug vtraces %q", name),
-		ServerName:  server,
-		Vtrace:      tracer,
+		Err:          err,
+		CommandLine:  fmt.Sprintf("debug vtraces %q", name),
+		ServerName:   server,
+		Vtrace:       tracer,
 	}
 	executeTemplate(a.ctx, w, r, tmplBrowseAllTraces, data)
 }
