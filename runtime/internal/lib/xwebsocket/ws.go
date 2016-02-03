@@ -54,13 +54,9 @@ func (WS) Dial(ctx *context.T, protocol, address string, timeout time.Duration) 
 	return WebsocketConn(ws), nil
 }
 
-func (WS) Resolve(ctx *context.T, protocol, address string) (string, string, error) {
-	tcp := mapWebSocketToTCP[protocol]
-	tcpAddr, err := net.ResolveTCPAddr(tcp, address)
-	if err != nil {
-		return "", "", err
-	}
-	return "ws", tcpAddr.String(), nil
+func (WS) Resolve(ctx *context.T, protocol, address string) (string, []string, error) {
+	addrs, err := tcputil.TCPResolveAddrs(ctx, address)
+	return "ws", addrs, err
 }
 
 func (WS) Listen(ctx *context.T, protocol, address string) (flow.Listener, error) {

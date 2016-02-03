@@ -29,8 +29,8 @@ func (WS) Dial(ctx *context.T, protocol, address string, timeout time.Duration) 
 	return WebsocketConn(address, ws), nil
 }
 
-func (WS) Resolve(ctx *context.T, protocol, address string) (string, string, error) {
-	return "ws", address, nil
+func (WS) Resolve(ctx *context.T, protocol, address string) (string, []string, error) {
+	return "ws", []string{address}, nil
 }
 
 func (WS) Listen(ctx *context.T, protocol, address string) (flow.Listener, error) {

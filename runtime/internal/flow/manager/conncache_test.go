@@ -27,6 +27,7 @@ func TestCache(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
+	p, _ := flow.RegisteredProtocol("local")
 
 	c := NewConnCache()
 	remote := &inaming.Endpoint{
@@ -46,36 +47,41 @@ func TestCache(t *testing.T) {
 	caf := makeConnAndFlow(t, ctx, remote)
 	defer caf.stop(ctx)
 	conn := caf.c
-	if err := c.Insert(conn, remote.Protocol, remote.Address, false); err != nil {
+	if err := c.Insert(conn, false); err != nil {
 		t.Fatal(err)
 	}
 	// We should be able to find the conn in the cache.
-	if got, _, _, err := c.ReservedFind(ctx, nullRemote, remote.Protocol, remote.Address, auth); err != nil || got != conn {
+	if got, _, _, err := c.Find(ctx, nullRemote, remote.Protocol, remote.Address, auth, p); err != nil || got != conn {
 		t.Errorf("got %v, want %v, err: %v", got, conn, err)
 	}
 	c.Unreserve(remote.Protocol, remote.Address)
 	// Changing the protocol should fail.
-	if got, _, _, err := c.ReservedFind(ctx, nullRemote, "wrong", remote.Address, auth); err != nil || got != nil {
+	if got, _, _, err := c.Find(ctx, nullRemote, "wrong", remote.Address, auth, p); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	c.Unreserve("wrong", remote.Address)
 	// Changing the address should fail.
-	if got, _, _, err := c.ReservedFind(ctx, nullRemote, remote.Protocol, "wrong", auth); err != nil || got != nil {
+	if got, _, _, err := c.Find(ctx, nullRemote, remote.Protocol, "wrong", auth, p); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	c.Unreserve(remote.Protocol, "wrong")
 	// Changing the blessingNames should fail.
-	if got, _, _, err := c.ReservedFind(ctx, nullRemote, remote.Protocol, remote.Address, flowtest.NewPeerAuthorizer([]string{"wrong"})); err != nil || got != nil {
+	if got, _, _, err := c.Find(ctx, nullRemote, remote.Protocol, remote.Address, flowtest.NewPeerAuthorizer([]string{"wrong"}), p); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	c.Unreserve(remote.Protocol, remote.Address)
 	// But finding a set of blessings that has at least one blessings in remote.Blessings should succeed.
-	if got, _, _, err := c.ReservedFind(ctx, nullRemote, remote.Protocol, remote.Address, flowtest.NewPeerAuthorizer([]string{"foo", remote.Blessings[0]})); err != nil || got != conn {
+	if got, _, _, err := c.Find(ctx, nullRemote, remote.Protocol, remote.Address, flowtest.NewPeerAuthorizer([]string{"foo", remote.Blessings[0]}), p); err != nil || got != conn {
 		t.Errorf("got %v, want %v, err: %v", got, conn, err)
 	}
 	c.Unreserve(remote.Protocol, remote.Address)
 	// Finding by routing ID should work.
-	if got, _, _, err := c.ReservedFind(ctx, remote, "wrong", "wrong", auth); err != nil || got != conn {
+	if got, _, _, err := c.Find(ctx, remote, "wrong", "wrong", auth, p); err != nil || got != conn {
+		t.Errorf("got %v, want %v, err: %v", got, conn, err)
+	}
+	c.Unreserve("wrong", "wrong")
+	// Finding by a valid resolve protocol and address should work.
+	if got, _, _, err := c.Find(ctx, remote, "wrong", "wrong", auth, &resolveProtocol{protocol: remote.Protocol, addresses: []string{remote.Address}}); err != nil || got != conn {
 		t.Errorf("got %v, want %v, err: %v", got, conn, err)
 	}
 	c.Unreserve("wrong", "wrong")
@@ -97,11 +103,11 @@ func TestCache(t *testing.T) {
 	caf = makeConnAndFlow(t, ctx, proxyep)
 	defer caf.stop(ctx)
 	proxyConn := caf.c
-	if err := c.Insert(proxyConn, proxyep.Protocol, proxyep.Address, true); err != nil {
+	if err := c.Insert(proxyConn, true); err != nil {
 		t.Fatal(err)
 	}
 	// Wrong blessingNames should still work
-	if got, _, _, err := c.ReservedFind(ctx, nullProxyep, proxyep.Protocol, proxyep.Address, flowtest.NewPeerAuthorizer([]string{"wrong"})); err != nil || got != proxyConn {
+	if got, _, _, err := c.Find(ctx, nullProxyep, proxyep.Protocol, proxyep.Address, flowtest.NewPeerAuthorizer([]string{"wrong"}), p); err != nil || got != proxyConn {
 		t.Errorf("got %v, want %v, err: %v", got, proxyConn, err)
 	}
 	c.Unreserve(proxyep.Protocol, proxyep.Address)
@@ -126,12 +132,12 @@ func TestCache(t *testing.T) {
 	if err := c.InsertWithRoutingID(ridConn, false); err != nil {
 		t.Fatal(err)
 	}
-	if got, _, _, err := c.ReservedFind(ctx, nullRIDEP, ridEP.Protocol, ridEP.Address, ridauth); err != nil || got != nil {
+	if got, _, _, err := c.Find(ctx, nullRIDEP, ridEP.Protocol, ridEP.Address, ridauth, p); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	c.Unreserve(ridEP.Protocol, ridEP.Address)
 	// Finding by routing ID should work.
-	if got, _, _, err := c.ReservedFind(ctx, ridEP, "wrong", "wrong", ridauth); err != nil || got != ridConn {
+	if got, _, _, err := c.Find(ctx, ridEP, "wrong", "wrong", ridauth, p); err != nil || got != ridConn {
 		t.Errorf("got %v, want %v, err: %v", got, ridConn, err)
 	}
 	c.Unreserve("wrong", "wrong")
@@ -154,13 +160,13 @@ func TestCache(t *testing.T) {
 	otherConn := caf.c
 
 	// Looking up a not yet inserted endpoint should fail.
-	if got, _, _, err := c.ReservedFind(ctx, nullOtherEP, otherEP.Protocol, otherEP.Address, otherAuth); err != nil || got != nil {
+	if got, _, _, err := c.Find(ctx, nullOtherEP, otherEP.Protocol, otherEP.Address, otherAuth, p); err != nil || got != nil {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	// Looking it up again should block until a matching Unreserve call is made.
 	ch := make(chan *connpackage.Conn, 1)
 	go func(ch chan *connpackage.Conn) {
-		conn, _, _, err := c.ReservedFind(ctx, nullOtherEP, otherEP.Protocol, otherEP.Address, otherAuth)
+		conn, _, _, err := c.Find(ctx, nullOtherEP, otherEP.Protocol, otherEP.Address, otherAuth, p)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -168,11 +174,11 @@ func TestCache(t *testing.T) {
 	}(ch)
 
 	// We insert the other conn into the cache.
-	if err := c.Insert(otherConn, otherEP.Protocol, otherEP.Address, false); err != nil {
+	if err := c.Insert(otherConn, false); err != nil {
 		t.Fatal(err)
 	}
 	c.Unreserve(otherEP.Protocol, otherEP.Address)
-	// Now the c.ReservedFind should have unblocked and returned the correct Conn.
+	// Now the c.Find should have unblocked and returned the correct Conn.
 	if cachedConn := <-ch; cachedConn != otherConn {
 		t.Errorf("got %v, want %v", cachedConn, otherConn)
 	}
@@ -181,7 +187,7 @@ func TestCache(t *testing.T) {
 	caf = makeConnAndFlow(t, ctx, remote)
 	defer caf.stop(ctx)
 	dupConn := caf.c
-	if err := c.Insert(dupConn, remote.Protocol, remote.Address, false); err != nil {
+	if err := c.Insert(dupConn, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -215,8 +221,7 @@ func TestLRU(t *testing.T) {
 	conns, stop := nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
-		addr := conn.c.RemoteEndpoint().Addr()
-		if err := c.Insert(conn.c, addr.Network(), addr.String(), false); err != nil {
+		if err := c.Insert(conn.c, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -249,8 +254,7 @@ func TestLRU(t *testing.T) {
 	conns, stop = nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
-		addr := conn.c.RemoteEndpoint().Addr()
-		if err := c.Insert(conn.c, addr.Network(), addr.String(), false); err != nil {
+		if err := c.Insert(conn.c, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -285,8 +289,7 @@ func TestLRU(t *testing.T) {
 	conns, stop = nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
-		addr := conn.c.RemoteEndpoint().Addr()
-		if err := c.Insert(conn.c, addr.Network(), addr.String(), false); err != nil {
+		if err := c.Insert(conn.c, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -319,8 +322,9 @@ func TestLRU(t *testing.T) {
 }
 
 func isInCache(t *testing.T, ctx *context.T, c *ConnCache, conn *connpackage.Conn) bool {
+	p, _ := flow.RegisteredProtocol("local")
 	rep := conn.RemoteEndpoint()
-	rfconn, _, _, err := c.ReservedFind(ctx, rep, rep.Addr().Network(), rep.Addr().String(), flowtest.NewPeerAuthorizer(rep.BlessingNames()))
+	rfconn, _, _, err := c.Find(ctx, rep, rep.Addr().Network(), rep.Addr().String(), flowtest.NewPeerAuthorizer(rep.BlessingNames()), p)
 	if err != nil {
 		t.Error(err)
 	}
@@ -445,4 +449,20 @@ func unionBlessing(ctx *context.T, names ...string) []string {
 		panic(err)
 	}
 	return security.BlessingNames(principal, principal.BlessingStore().Default())
+}
+
+// resolveProtocol returns a fixed protocol and addresses for its Resolve function.
+type resolveProtocol struct {
+	protocol  string
+	addresses []string
+}
+
+func (p *resolveProtocol) Resolve(_ *context.T, _, _ string) (string, []string, error) {
+	return p.protocol, p.addresses, nil
+}
+func (*resolveProtocol) Dial(_ *context.T, _, _ string, _ time.Duration) (flow.Conn, error) {
+	return nil, nil
+}
+func (*resolveProtocol) Listen(_ *context.T, _, _ string) (flow.Listener, error) {
+	return nil, nil
 }

@@ -26,8 +26,8 @@ func (Bidi) Dial(ctx *context.T, network, address string, timeout time.Duration)
 	return nil, NewErrBidiRoutingIdNotCached(ctx)
 }
 
-func (Bidi) Resolve(ctx *context.T, network, address string) (string, string, error) {
-	return "", "", NewErrBidiRoutingIdNotCached(ctx)
+func (Bidi) Resolve(ctx *context.T, network, address string) (string, []string, error) {
+	return "", nil, NewErrBidiRoutingIdNotCached(ctx)
 }
 
 func (Bidi) Listen(ctx *context.T, network, address string) (flow.Listener, error) {

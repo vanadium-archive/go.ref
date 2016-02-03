@@ -114,8 +114,8 @@ func (d *debug) Listen(ctx *context.T, network, address string) (flow.Listener, 
 	}
 	return &listener{base: l, addr: addr(l.Addr().Network() + "/" + l.Addr().String())}, nil
 }
-func (d *debug) Resolve(ctx *context.T, network, address string) (string, string, error) {
-	return network, address, nil
+func (d *debug) Resolve(ctx *context.T, network, address string) (string, []string, error) {
+	return network, []string{address}, nil
 }
 
 func baseProtocol(in string) (network, address string, base flow.Protocol) {

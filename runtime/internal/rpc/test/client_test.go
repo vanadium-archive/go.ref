@@ -908,14 +908,14 @@ type changeProtocol struct {
 }
 
 func (c *changeProtocol) Dial(ctx *context.T, protocol, address string, timeout time.Duration) (flow.Conn, error) {
-	return c.tcp.Dial(ctx, protocol, c.address, timeout)
+	return c.tcp.Dial(ctx, "tcp", c.address, timeout)
 }
-func (c *changeProtocol) Resolve(ctx *context.T, proctocol, address string) (string, string, error) {
+func (c *changeProtocol) Resolve(ctx *context.T, proctocol, address string) (string, []string, error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	// Return a new resolved address everytime to disallow cache hits based on resolved address.
 	c.count++
-	return "tcp", fmt.Sprintf("resolved%d", c.count), nil
+	return "tcp", []string{fmt.Sprintf("resolved%d", c.count)}, nil
 }
 func (c *changeProtocol) Listen(ctx *context.T, protocol, address string) (flow.Listener, error) {
 	protocol = "tcp"

@@ -440,7 +440,7 @@ func (p *killProtocol) Listen(ctx *context.T, protocol, address string) (flow.Li
 	return &kpListener{kp: p, Listener: l}, nil
 }
 
-func (p *killProtocol) Resolve(ctx *context.T, protocol, address string) (string, string, error) {
+func (p *killProtocol) Resolve(ctx *context.T, protocol, address string) (string, []string, error) {
 	return p.protocol.Resolve(ctx, "tcp", address)
 }
 

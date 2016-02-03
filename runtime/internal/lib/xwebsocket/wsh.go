@@ -36,13 +36,9 @@ func (WSH) Dial(ctx *context.T, network, address string, timeout time.Duration) 
 
 // Resolve performs a DNS resolution on the network, address and always
 // returns tcp as its Network.
-func (WSH) Resolve(ctx *context.T, network, address string) (string, string, error) {
-	tcp := mapWebSocketToTCP[network]
-	tcpAddr, err := net.ResolveTCPAddr(tcp, address)
-	if err != nil {
-		return "", "", err
-	}
-	return tcp, tcpAddr.String(), nil
+func (WSH) Resolve(ctx *context.T, network, address string) (string, []string, error) {
+	addrs, err := tcputil.TCPResolveAddrs(ctx, address)
+	return mapWebSocketToTCP[network], addrs, err
 }
 
 // Listener returns a flow.Conn that supports both tcp and

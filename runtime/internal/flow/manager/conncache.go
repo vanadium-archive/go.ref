@@ -14,6 +14,7 @@ import (
 	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
 )
 
@@ -63,14 +64,15 @@ func (c *ConnCache) String() string {
 
 // Insert adds conn to the cache, keyed by both (protocol, address) and (routingID)
 // An error will be returned iff the cache has been closed.
-func (c *ConnCache) Insert(conn *conn.Conn, protocol, address string, proxy bool) error {
+func (c *ConnCache) Insert(conn *conn.Conn, proxy bool) error {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
 		return NewErrCacheClosed(nil)
 	}
 	ep := conn.RemoteEndpoint()
-	k := key(protocol, address)
+	addr := ep.Addr()
+	k := key(addr.Network(), addr.String())
 	entry := &connEntry{
 		conn:    conn,
 		rid:     ep.RoutingID(),
@@ -105,32 +107,17 @@ func (c *ConnCache) InsertWithRoutingID(conn *conn.Conn, proxy bool) error {
 	return nil
 }
 
-func (c *ConnCache) Find(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
-	defer c.mu.Unlock()
-	c.mu.Lock()
-	if c.addrCache == nil {
-		return nil, nil, nil, NewErrCacheClosed(nil)
-	}
-	if rid := remote.RoutingID(); rid != naming.NullRoutingID {
-		if entry, names, rejected = c.removeUndialable(ctx, remote, c.ridCache[rid], auth); entry != nil {
-			return entry, names, rejected, nil
-		}
-	}
-	k := key(remote.Addr().Network(), remote.Addr().String())
-	entry, names, rejected = c.removeUndialable(ctx, remote, c.addrCache[k], auth)
-	return entry, names, rejected, nil
-}
-
-// ReservedFind returns a Conn based on the input remoteEndpoint.
+// Find returns a Conn based on the input remoteEndpoint.
 // nil is returned if there is no such Conn.
 //
-// ReservedFind will return an error iff the cache is closed.
+// Find will return an error iff the cache is closed.
 // If no error is returned, the caller is required to call Unreserve, to avoid
 // deadlock. The (protocol, address) provided to Unreserve must be the same as
-// the arguments provided to ReservedFind.
-// All new ReservedFind calls for the (protocol, address) will Block
+// the arguments provided to Find.
+// All new Find calls for the (protocol, address) will Block
 // until the corresponding Unreserve call is made.
-func (c *ConnCache) ReservedFind(ctx *context.T, remote naming.Endpoint, resolvedNetwork, resolvedAddress string, auth flow.PeerAuthorizer) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
+// p is used to check the cache for resolved protocols.
+func (c *ConnCache) Find(ctx *context.T, remote naming.Endpoint, network, address string, auth flow.PeerAuthorizer, p flow.Protocol) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
@@ -141,7 +128,7 @@ func (c *ConnCache) ReservedFind(ctx *context.T, remote naming.Endpoint, resolve
 			return entry, names, rejected, nil
 		}
 	}
-	k := key(resolvedNetwork, resolvedAddress)
+	k := key(network, address)
 	for c.started[k] {
 		c.cond.Wait()
 		if c.addrCache == nil {
@@ -150,16 +137,54 @@ func (c *ConnCache) ReservedFind(ctx *context.T, remote naming.Endpoint, resolve
 	}
 	c.started[k] = true
 	entry, names, rejected = c.removeUndialable(ctx, remote, c.addrCache[k], auth)
-	return entry, names, rejected, nil
+	if entry != nil {
+		return entry, names, rejected, nil
+	}
+	return c.findResolvedLocked(ctx, remote, network, address, auth, p)
+}
+
+func (c *ConnCache) findResolvedLocked(ctx *context.T, remote naming.Endpoint, network string, address string, auth flow.PeerAuthorizer, p flow.Protocol) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
+	var addresses []string
+	network, addresses, err = resolve(ctx, p, network, address)
+	if err != nil {
+		c.unreserveLocked(network, address)
+		return nil, nil, nil, iflow.MaybeWrapError(flow.ErrResolveFailed, ctx, err)
+	}
+	for _, address := range addresses {
+		k := key(network, address)
+		entry, names, rejected = c.removeUndialable(ctx, remote, c.addrCache[k], auth)
+		if entry != nil {
+			return entry, names, rejected, nil
+		}
+	}
+	// No entries for any of the addresses were in the cache.
+	return nil, nil, nil, nil
+}
+
+func resolve(ctx *context.T, p flow.Protocol, protocol, address string) (string, []string, error) {
+	if p != nil {
+		net, addrs, err := p.Resolve(ctx, protocol, address)
+		if err != nil {
+			return "", nil, err
+		}
+		if len(addrs) > 0 {
+			return net, addrs, nil
+		}
+	}
+	return "", nil, NewErrUnknownProtocol(ctx, protocol)
 }
 
 // Unreserve marks the status of the (protocol, address) as no longer started, and
 // broadcasts waiting threads.
 func (c *ConnCache) Unreserve(protocol, address string) {
 	c.mu.Lock()
+	c.unreserveLocked(protocol, address)
+	c.mu.Unlock()
+}
+
+func (c *ConnCache) unreserveLocked(protocol, address string) {
 	delete(c.started, key(protocol, address))
 	c.cond.Broadcast()
-	c.mu.Unlock()
 }
 
 // Close marks the ConnCache as closed and closes all Conns in the cache.

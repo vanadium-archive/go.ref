@@ -53,12 +53,9 @@ func (TCP) Dial(ctx *context.T, network, address string, timeout time.Duration) 
 }
 
 // Resolve performs a DNS resolution on the provided network and address.
-func (TCP) Resolve(ctx *context.T, network, address string) (string, string, error) {
-	tcpAddr, err := net.ResolveTCPAddr(network, address)
-	if err != nil {
-		return "", "", err
-	}
-	return tcpAddr.Network(), tcpAddr.String(), nil
+func (TCP) Resolve(ctx *context.T, network, address string) (string, []string, error) {
+	addrs, err := TCPResolveAddrs(ctx, address)
+	return network, addrs, err
 }
 
 // Listen returns a listener that sets KeepAlive on all accepted connections.
@@ -107,4 +104,21 @@ type tcpConn struct {
 
 func (c tcpConn) LocalAddr() net.Addr {
 	return c.localAddr
+}
+
+func TCPResolveAddrs(ctx *context.T, address string) ([]string, error) {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, err
+	}
+	var addrs []string
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return nil, err
+	}
+	s := ":" + string(port)
+	for _, ip := range ips {
+		addrs = append(addrs, ip.String()+s)
+	}
+	return addrs, nil
 }

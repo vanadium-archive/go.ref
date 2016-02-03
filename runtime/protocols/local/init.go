@@ -143,8 +143,8 @@ func (l *local) Dial(ctx *context.T, network, address string, timeout time.Durat
 	}
 }
 
-func (l *local) Resolve(ctx *context.T, network, address string) (string, string, error) {
-	return network, address, nil
+func (l *local) Resolve(ctx *context.T, network, address string) (string, []string, error) {
+	return network, []string{address}, nil
 }
 
 func (l *local) Listen(ctx *context.T, network, address string) (flow.Listener, error) {

@@ -686,42 +686,23 @@ func (m *manager) internalDialConnection(ctx *context.T, remote naming.Endpoint,
 	channelTimeout time.Duration, proxy bool) (*conn.Conn, []string, []security.RejectedBlessing, error) {
 	// Fast path, look for the conn based on unresolved network, address, and routingId first.
 	var (
-		protocol         flow.Protocol
-		network, address string
-		addr             = remote.Addr()
+		addr                       = remote.Addr()
+		unresNetwork, unresAddress = addr.Network(), addr.String()
+		protocol, _                = flow.RegisteredProtocol(unresNetwork)
 	)
-	c, names, rejected, err := m.cache.Find(ctx, remote, auth)
+	if len(m.serverAuthorizedPeers) > 0 {
+		auth = &peerAuthorizer{auth, m.serverAuthorizedPeers}
+	}
+	c, names, rejected, err := m.cache.Find(ctx, remote, unresNetwork, unresAddress, auth, protocol)
 	if err != nil {
 		return nil, nil, nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 	}
-	auth = &peerAuthorizer{auth, m.serverAuthorizedPeers}
-	if c == nil {
-		protocol, _ = flow.RegisteredProtocol(addr.Network())
-		// (network, address) in the endpoint might not always match up
-		// with the key used for caching conns. For example:
-		// - conn, err := net.Dial("tcp", "www.google.com:80")
-		//   fmt.Println(conn.RemoteAddr()) // Might yield the corresponding IP address
-		// - Similarly, an unspecified IP address (net.IP.IsUnspecified) like "[::]:80"
-		//   might yield "[::1]:80" (loopback interface) in conn.RemoteAddr().
-		// Thus we look for Conns with the resolved address.
-		network, address, err = resolve(ctx, protocol, addr.Network(), addr.String())
-		if err != nil {
-			return nil, nil, nil, iflow.MaybeWrapError(flow.ErrResolveFailed, ctx, err)
-		}
-		c, names, rejected, err = m.cache.ReservedFind(ctx, remote, network, address, auth)
-		if err != nil {
-			return nil, nil, nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
-		}
-		if c != nil {
-			m.cache.Unreserve(network, address)
-		} else {
-			defer m.cache.Unreserve(network, address)
-		}
-	}
-
-	// We didn't find the connection we want in the cache.  Dial it.
-	if c == nil {
-		flowConn, err := dial(ctx, protocol, network, address)
+	if c != nil {
+		m.cache.Unreserve(unresNetwork, unresAddress)
+	} else {
+		// We didn't find the connection we want in the cache.  Dial it.
+		defer m.cache.Unreserve(unresNetwork, unresAddress)
+		flowConn, err := dial(ctx, protocol, unresNetwork, unresAddress)
 		if err != nil {
 			switch err := err.(type) {
 			case *net.OpError:
@@ -756,17 +737,12 @@ func (m *manager) internalDialConnection(ctx *context.T, remote naming.Endpoint,
 			return nil, nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
 		isProxy := proxy || !c.MatchesRID(remote)
-		if err := m.cache.Insert(c, network, address, isProxy); err != nil {
-			c.Close(ctx, err)
-			return nil, nil, nil, flow.NewErrBadState(ctx, err)
-		}
-		// Insert the unresolved network/address as well.
-		if err := m.cache.Insert(c, addr.Network(), addr.String(), isProxy); err != nil {
+		if err := m.cache.Insert(c, isProxy); err != nil {
 			c.Close(ctx, err)
 			return nil, nil, nil, flow.NewErrBadState(ctx, err)
 		}
 		// Now that c is in the cache we can explicitly unreserve.
-		m.cache.Unreserve(network, address)
+		m.cache.Unreserve(unresNetwork, unresAddress)
 		m.handlerReady(fh, proxy)
 	}
 
@@ -846,17 +822,6 @@ func dial(ctx *context.T, p flow.Protocol, protocol, address string) (flow.Conn,
 	return nil, NewErrUnknownProtocol(ctx, protocol)
 }
 
-func resolve(ctx *context.T, p flow.Protocol, protocol, address string) (string, string, error) {
-	if p != nil {
-		net, addr, err := p.Resolve(ctx, protocol, address)
-		if err != nil {
-			return "", "", err
-		}
-		return net, addr, nil
-	}
-	return "", "", NewErrUnknownProtocol(ctx, protocol)
-}
-
 func listen(ctx *context.T, protocol, address string) (flow.Listener, error) {
 	if p, _ := flow.RegisteredProtocol(protocol); p != nil {
 		ln, err := p.Listen(ctx, protocol, address)
@@ -903,9 +868,6 @@ func (x *peerAuthorizer) AuthorizePeer(
 	localEP, remoteEP naming.Endpoint,
 	remoteBlessings security.Blessings,
 	remoteDischarges map[string]security.Discharge) ([]string, []security.RejectedBlessing, error) {
-	if len(x.authorizedPeers) == 0 {
-		return x.auth.AuthorizePeer(ctx, localEP, remoteEP, remoteBlessings, remoteDischarges)
-	}
 	localPrincipal := v23.GetPrincipal(ctx)
 	// The "Method" and "Suffix" fields of the call are not populated
 	// as they are considered irrelevant for authorizing server blessings.

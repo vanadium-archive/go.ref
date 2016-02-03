@@ -291,7 +291,7 @@ type flowdis struct {
 func (f *flowdis) Dial(ctx *context.T, protocol, address string, timeout time.Duration) (flow.Conn, error) {
 	return f.base.Dial(ctx, "tcp", address, timeout)
 }
-func (f *flowdis) Resolve(ctx *context.T, proctocol, address string) (string, string, error) {
+func (f *flowdis) Resolve(ctx *context.T, proctocol, address string) (string, []string, error) {
 	return f.base.Resolve(ctx, "tcp", address)
 }
 func (f *flowdis) Listen(ctx *context.T, protocol, address string) (flow.Listener, error) {

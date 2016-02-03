@@ -218,6 +218,8 @@ func (p *proxy) listenLoop(ctx *context.T) {
 			err = p.startRouting(ctx, f, m)
 			if err == nil {
 				ctx.Infof("Routing client flow from %v", f.RemoteEndpoint())
+			} else {
+				ctx.Errorf("failed to handle incoming client flow from %v: %v", f.RemoteEndpoint(), err)
 			}
 		case *message.MultiProxyRequest:
 			p.mu.Lock()
@@ -225,6 +227,8 @@ func (p *proxy) listenLoop(ctx *context.T) {
 			if err == nil {
 				p.proxiedProxies = append(p.proxiedProxies, f)
 				ctx.Infof("Proxying proxy at %v", f.RemoteEndpoint())
+			} else {
+				ctx.Errorf("failed to multi-proxy proxy at %v: %v", f.RemoteEndpoint(), err)
 			}
 			p.mu.Unlock()
 		case *message.ProxyServerRequest:
@@ -233,13 +237,12 @@ func (p *proxy) listenLoop(ctx *context.T) {
 			if err == nil {
 				p.proxiedServers = append(p.proxiedServers, f)
 				ctx.Infof("Proxying server at %v", f.RemoteEndpoint())
+			} else {
+				ctx.Errorf("failed to proxy server at %v: %v", f.RemoteEndpoint(), err)
 			}
 			p.mu.Unlock()
 		default:
 			continue
-		}
-		if err != nil {
-			ctx.Errorf("failed to handle incoming connection from %v: %v", f.RemoteEndpoint(), err)
 		}
 	}
 }
