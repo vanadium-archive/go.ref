@@ -10,3 +10,4 @@
 - The same as above with the "latest" results
 - Make the tables sortable
 - Render times in local timezone (and convert timezones in the query to the server)
+- Ability to query results by time range
