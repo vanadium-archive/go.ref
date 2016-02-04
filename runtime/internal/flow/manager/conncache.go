@@ -117,7 +117,8 @@ func (c *ConnCache) InsertWithRoutingID(conn *conn.Conn, proxy bool) error {
 // All new Find calls for the (protocol, address) will Block
 // until the corresponding Unreserve call is made.
 // p is used to check the cache for resolved protocols.
-func (c *ConnCache) Find(ctx *context.T, remote naming.Endpoint, network, address string, auth flow.PeerAuthorizer, p flow.Protocol) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
+func (c *ConnCache) Find(ctx *context.T, remote naming.Endpoint, network, address string, auth flow.PeerAuthorizer,
+	p flow.Protocol) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
@@ -143,11 +144,11 @@ func (c *ConnCache) Find(ctx *context.T, remote naming.Endpoint, network, addres
 	return c.findResolvedLocked(ctx, remote, network, address, auth, p)
 }
 
-func (c *ConnCache) findResolvedLocked(ctx *context.T, remote naming.Endpoint, network string, address string, auth flow.PeerAuthorizer, p flow.Protocol) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
-	var addresses []string
-	network, addresses, err = resolve(ctx, p, network, address)
+func (c *ConnCache) findResolvedLocked(ctx *context.T, remote naming.Endpoint, unresNetwork string, unresAddress string,
+	auth flow.PeerAuthorizer, p flow.Protocol) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
+	network, addresses, err := resolve(ctx, p, unresNetwork, unresAddress)
 	if err != nil {
-		c.unreserveLocked(network, address)
+		c.unreserveLocked(unresNetwork, unresAddress)
 		return nil, nil, nil, iflow.MaybeWrapError(flow.ErrResolveFailed, ctx, err)
 	}
 	for _, address := range addresses {
