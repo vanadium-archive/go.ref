@@ -49,7 +49,7 @@ func main() {
 			cmdStopClusterAgent,
 			cmdClaimClusterAgent,
 			cmdBuildDockerImages,
-			cmdCtl,
+			cmdKubectl,
 		},
 	}
 	cmd.Flags.StringVar(&flagConfigFile, "config", "vkube.cfg", "The 'vkube.cfg' file to use.")
@@ -297,16 +297,16 @@ func runCmdBuildDockerImages(ctx *context.T, env *cmdline.Env, args []string, co
 	return buildDockerImages(config, flagTag, flagVerbose, env.Stdout)
 }
 
-var cmdCtl = &cmdline.Command{
-	Runner:   kubeCmdRunner(runCmdCtl),
-	Name:     "ctl",
+var cmdKubectl = &cmdline.Command{
+	Runner:   kubeCmdRunner(runCmdKubectl),
+	Name:     "kubectl",
 	Short:    "Runs kubectl on the cluster defined in vkube.cfg.",
 	Long:     "Runs kubectl on the cluster defined in vkube.cfg.",
 	ArgsName: "-- <kubectl args>",
 	ArgsLong: "<kubectl args> are passed directly to the kubectl command.",
 }
 
-func runCmdCtl(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
+func runCmdKubectl(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
 	cmd := exec.Command(flagKubectlBin, args...)
 	cmd.Stdin = env.Stdin
 	cmd.Stdout = env.Stdout

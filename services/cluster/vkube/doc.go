@@ -19,7 +19,7 @@ The vkube commands are:
    stop-cluster-agent  Stops the cluster agent.
    claim-cluster-agent Claims the cluster agent.
    build-docker-images Builds the docker images for the cluster and pod agents.
-   ctl                 Runs kubectl on the cluster defined in vkube.cfg.
+   kubectl             Runs kubectl on the cluster defined in vkube.cfg.
    help                Display help for commands or topics
 
 The vkube flags are:
@@ -211,16 +211,16 @@ The vkube build-docker-images flags are:
  -kubectl=kubectl
    The 'kubectl' binary to use.
 
-Vkube ctl
+Vkube kubectl
 
 Runs kubectl on the cluster defined in vkube.cfg.
 
 Usage:
-   vkube ctl [flags] -- <kubectl args>
+   vkube kubectl [flags] -- <kubectl args>
 
 <kubectl args> are passed directly to the kubectl command.
 
-The vkube ctl flags are:
+The vkube kubectl flags are:
  -config=vkube.cfg
    The 'vkube.cfg' file to use.
  -gcloud=gcloud
