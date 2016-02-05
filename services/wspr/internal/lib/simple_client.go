@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
@@ -86,13 +87,12 @@ func (c *simpleMockClient) Call(ctx *context.T, name, method string, inArgs, out
 	return call.Finish(outArgs...)
 }
 
-// Close implements rpc.Client
-func (*simpleMockClient) Close() {
+// Implement rpc.Client.
+func (*simpleMockClient) Connection(*context.T, string, ...rpc.CallOpt) (flow.ManagedConn, error) {
+	return nil, nil
 }
-
-func (*simpleMockClient) Closed() <-chan struct{} {
-	return nil
-}
+func (*simpleMockClient) Close()                  {}
+func (*simpleMockClient) Closed() <-chan struct{} { return nil }
 
 // mockCall implements rpc.ClientCall
 type mockCall struct {

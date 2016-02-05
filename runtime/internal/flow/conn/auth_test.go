@@ -133,6 +133,9 @@ func (fc *fakeDischargeClient) Call(_ *context.T, _, _ string, inArgs, outArgs [
 func (fc *fakeDischargeClient) StartCall(*context.T, string, string, []interface{}, ...rpc.CallOpt) (rpc.ClientCall, error) {
 	return nil, nil
 }
+func (fc *fakeDischargeClient) Connection(*context.T, string, ...rpc.CallOpt) (flow.ManagedConn, error) {
+	return nil, nil
+}
 func (fc *fakeDischargeClient) Close()                  {}
 func (fc *fakeDischargeClient) Closed() <-chan struct{} { return nil }
 
