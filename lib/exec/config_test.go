@@ -5,8 +5,10 @@
 package exec
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
+	"unicode/utf8"
 
 	"v.io/v23/verror"
 )
@@ -40,20 +42,48 @@ func TestConfig(t *testing.T) {
 	}
 }
 
+func vomCodec(o, n Config) error {
+	s, err := o.Serialize()
+	if err != nil {
+		return err
+	}
+	if err := n.MergeFrom(s); err != nil {
+		return err
+	}
+	return nil
+}
+
 // TestSerialize checks that serializing the config and merging from a
 // serialized config work as expected.
 func TestSerialize(t *testing.T) {
+	testCodec(t, vomCodec)
+}
+
+func jsonCodec(o, n Config) error {
+	s, err := json.Marshal(o)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(s, n)
+}
+
+// TestSerializeJSON checks that serializing the config and merging from a
+// serialized JSON config work as expected.
+func TestSerializedJSON(t *testing.T) {
+	testCodec(t, jsonCodec)
+}
+
+func testCodec(t *testing.T, fn func(o, n Config) error) {
 	c := NewConfig()
 	c.Set("k1", "v1")
 	c.Set("k2", "v2")
-	s, err := c.Serialize()
-	if err != nil {
-		t.Fatalf("Failed to serialize: %v", err)
-	}
+
 	readC := NewConfig()
-	if err := readC.MergeFrom(s); err != nil {
-		t.Fatalf("Failed to deserialize: %v", err)
+	err := fn(c, readC)
+	if err != nil {
+		t.Fatalf("Failed to serialize/deserialize: %v", err)
 	}
+
 	checkPresent(t, readC, "k1", "v1")
 	checkPresent(t, readC, "k2", "v2")
 
@@ -63,18 +93,69 @@ func TestSerialize(t *testing.T) {
 
 	c.Set("k1", "newv1") // This should overwrite v1 in the next merge.
 	c.Set("k4", "v4")    // This should be added following the next merge.
-	s, err = c.Serialize()
+
+	err = fn(c, readC)
 	if err != nil {
-		t.Fatalf("Failed to serialize: %v", err)
+		t.Fatalf("Failed to serialize/deserialize: %v", err)
 	}
-	if err := readC.MergeFrom(s); err != nil {
-		t.Fatalf("Failed to deserialize: %v", err)
-	}
+
 	checkPresent(t, readC, "k1", "newv1")
 	checkPresent(t, readC, "k2", "v2")
 	checkPresent(t, readC, "k3", "v3")
 	checkPresent(t, readC, "k4", "v4")
 	if want, got := map[string]string{"k1": "newv1", "k2": "v2", "k3": "v3", "k4": "v4"}, readC.Dump(); !reflect.DeepEqual(want, got) {
 		t.Errorf("Expected %v for Dump, got %v instead", want, got)
+	}
+}
+
+func isbase64(s string) bool {
+	for _, r := range s {
+		if utf8.RuneLen(r) != 1 {
+			return false
+		}
+		switch {
+		case r >= 65 && r <= 90: // A-Z
+			continue
+		case r >= 97 && r <= 122: // a-z
+			continue
+		case r >= 48 && r <= 57: // 0-9
+			continue
+		case r == 43: // +
+			continue
+		case r == 47: // /
+			continue
+		case r == 61: // =
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func TestEnvVar(t *testing.T) {
+	c := NewConfig()
+	c.Set("k1", "v1")
+	c.Set("k2", "v2")
+
+	val, err := EncodeForEnvVar(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !isbase64(val) {
+		t.Fatalf("%v contains a non-base64 character as per RFC 4648", val)
+	}
+
+	n := NewConfig()
+	err = DecodeFromEnvVar(val, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := n.Get("k1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := v, "v1"; got != want {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }

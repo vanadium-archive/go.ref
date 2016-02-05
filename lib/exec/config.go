@@ -5,6 +5,9 @@
 package exec
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"sync"
 
 	"v.io/v23/verror"
@@ -107,4 +110,53 @@ func (c *cfg) MergeFrom(serialized string) error {
 	}
 	c.Unlock()
 	return nil
+}
+
+func (c *cfg) MarshalJSON() ([]byte, error) {
+	c.RLock()
+	defer c.RUnlock()
+	return json.Marshal(c.m)
+}
+
+func (c *cfg) UnmarshalJSON(buf []byte) error {
+	var newM map[string]string
+	if err := json.Unmarshal(buf, &newM); err != nil {
+		return err
+	}
+	c.RLock()
+	for k, v := range newM {
+		c.m[k] = v
+	}
+	c.RUnlock()
+	return nil
+}
+
+// EncodeForEnvVar encodes the supplued config using JSON and base64
+// so that it can be passed as a value for an environment
+// variable. JSON is used to allow for the greatest level of
+// interoperability.
+func EncodeForEnvVar(config Config) (string, error) {
+	c, ok := config.(*cfg)
+	if !ok {
+		return "", fmt.Errorf("%T is the wrong type", config)
+	}
+	s, err := json.Marshal(c)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(s), nil
+}
+
+// DecodeFromEnvVar decodes a base64 encoded JSON representation
+// into the supplied config. See EncodeForEnvVar.
+func DecodeFromEnvVar(value string, config Config) error {
+	c, ok := config.(*cfg)
+	if !ok {
+		return fmt.Errorf("%T is the wrong type", config)
+	}
+	data, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		return err
+	}
+	return c.UnmarshalJSON(data)
 }
