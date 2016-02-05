@@ -954,3 +954,33 @@ func TestDNSResolutionChange(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestClientConnection(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	ctx, cancel := context.WithCancel(ctx)
+	name := "mountpoint/server"
+	_, server, err := v23.WithNewServer(ctx, name, &testServer{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { <-server.Closed() }()
+	defer cancel()
+
+	client := v23.GetClient(ctx)
+
+	conn, err := client.Connection(ctx, name)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// StartCall should use the same connection that was just created.
+	call, err := client.StartCall(ctx, name, "Closure", nil, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if got, want := call.Security().LocalEndpoint().String(), conn.LocalEndpoint().String(); got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
