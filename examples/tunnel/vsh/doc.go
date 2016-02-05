@@ -41,12 +41,14 @@ Usage:
 [command] is the shell command and args to run, for non-interactive vsh.
 
 The vsh flags are:
- -L=
-   Forward local to remote, format is "localAddress,remoteAddress".
+ -L=[]
+   Forward local to remote, format is "localAddress,remoteAddress". May be
+   repeated.
  -N=false
    Do not execute a shell.  Only do port forwarding.
- -R=
-   Forward remote to local, format is "remoteAddress,localAddress".
+ -R=[]
+   Forward remote to local, format is "remoteAddress,localAddress". May be
+   repeated.
  -T=false
    Disable pseudo-terminal allocation.
  -local-protocol=tcp

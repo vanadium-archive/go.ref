@@ -31,16 +31,28 @@ import (
 )
 
 var (
-	disablePty, forcePty, noShell                                  bool
-	portForward, reversePortForward, localProtocol, remoteProtocol string
+	disablePty, forcePty, noShell   bool
+	localProtocol, remoteProtocol   string
+	portForward, reversePortForward stringList
 )
+
+type stringList []string
+
+func (sl *stringList) String() string {
+	return fmt.Sprint(*sl)
+}
+
+func (sl *stringList) Set(value string) error {
+	*sl = append(*sl, value)
+	return nil
+}
 
 func main() {
 	cmdVsh.Flags.BoolVar(&disablePty, "T", false, "Disable pseudo-terminal allocation.")
 	cmdVsh.Flags.BoolVar(&forcePty, "t", false, "Force allocation of pseudo-terminal.")
 	cmdVsh.Flags.BoolVar(&noShell, "N", false, "Do not execute a shell.  Only do port forwarding.")
-	cmdVsh.Flags.StringVar(&portForward, "L", "", `Forward local to remote, format is "localAddress,remoteAddress".`)
-	cmdVsh.Flags.StringVar(&reversePortForward, "R", "", `Forward remote to local, format is "remoteAddress,localAddress".`)
+	cmdVsh.Flags.Var(&portForward, "L", `Forward local to remote, format is "localAddress,remoteAddress". May be repeated.`)
+	cmdVsh.Flags.Var(&reversePortForward, "R", `Forward remote to local, format is "remoteAddress,localAddress". May be repeated.`)
 	cmdVsh.Flags.StringVar(&localProtocol, "local-protocol", "tcp", "Local network protocol for port forwarding.")
 	cmdVsh.Flags.StringVar(&remoteProtocol, "remote-protocol", "tcp", "Remote network protocol for port forwarding.")
 	cmdline.HideGlobalFlagsExcept()
@@ -93,11 +105,11 @@ func runVsh(ctx *context.T, env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("%v", err)
 	}
 
-	if len(portForward) > 0 {
-		go runPortForwarding(ctx, serverName)
+	for _, pf := range portForward {
+		go runPortForwarding(ctx, serverName, pf)
 	}
-	if len(reversePortForward) > 0 {
-		go runReversePortForwarding(ctx, serverName)
+	for _, rpf := range reversePortForward {
+		go runReversePortForwarding(ctx, serverName, rpf)
 	}
 
 	if noShell {
@@ -180,7 +192,7 @@ func objectNameAndCommandLine(env *cmdline.Env, args []string) (string, string, 
 	return name, cmd, nil
 }
 
-func runPortForwarding(ctx *context.T, serverName string) {
+func runPortForwarding(ctx *context.T, serverName, portForward string) {
 	// portForward is localAddress,remoteAddress
 	parts := strings.Split(portForward, ",")
 	if len(parts) != 2 {
@@ -261,7 +273,7 @@ func (a *authorizerGranterHack) Grant(_ *context.T, call security.Call) (securit
 	return security.Blessings{}, nil
 }
 
-func runReversePortForwarding(ctx *context.T, serverName string) {
+func runReversePortForwarding(ctx *context.T, serverName, reversePortForward string) {
 	// reversePortForward is remoteAddress,localAddress
 	parts := strings.Split(reversePortForward, ",")
 	if len(parts) != 2 {
