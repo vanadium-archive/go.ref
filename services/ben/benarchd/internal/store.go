@@ -36,6 +36,10 @@ type Benchmark struct {
 	Name     string       // Name (e.g. v.io/v23/security.BenchmarkSign) of the Benchmark.
 	Scenario ben.Scenario // The scenario under which the benchmark was run.
 	Uploader string       // Identity of the user that uploaded the results.
+
+	// Results from most recently uploaded runs for this benchmark.
+	NanoSecsPerOp   float64
+	MegaBytesPerSec float64
 }
 
 type Iterator interface {

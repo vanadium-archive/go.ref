@@ -40,6 +40,7 @@ type sqlStore struct {
 	insertSourceCode                 *sql.Stmt
 	insertUpload                     *sql.Stmt
 	insertBenchmark, selectBenchmark *sql.Stmt
+	updateBenchmark                  *sql.Stmt
 	insertRun                        *sql.Stmt
 	selectRunsByBenchmark            *sql.Stmt
 	selectSourceCode                 *sql.Stmt
@@ -99,6 +100,10 @@ func (s *sqlStore) Save(ctx *context.T, scenario ben.Scenario, code ben.SourceCo
 		if err != nil {
 			return tagerr("benchmark", err)
 		}
+		// Cache this "latest" result values
+		if _, err := tx.Stmt(s.updateBenchmark).Exec(run.NanoSecsPerOp, run.MegaBytesPerSec, bm); err != nil {
+			return tagerr("update_benchmark", err)
+		}
 		if _, err := tx.Stmt(s.insertRun).Exec(bm, upload, run.Iterations, run.NanoSecsPerOp, run.AllocsPerOp, run.AllocedBytesPerOp, run.MegaBytesPerSec, run.Parallelism); err != nil {
 			return tagerr("run", err)
 		}
@@ -152,6 +157,8 @@ func (i *sqlBmItr) Value() Benchmark {
 	i.scanErr = i.rows.Scan(
 		&i.id,
 		&ret.Name,
+		&ret.NanoSecsPerOp,
+		&ret.MegaBytesPerSec,
 		&ret.Scenario.Os.Name,
 		&ret.Scenario.Os.Version,
 		&ret.Scenario.Cpu.Architecture,
@@ -301,6 +308,10 @@ func (s *sqlStore) initStmts() error {
 			"SELECT ID From Benchmark WHERE Scenario = ? AND Name = ?",
 		},
 		{
+			&s.updateBenchmark,
+			"UPDATE Benchmark SET NanoSecsPerOp = ?, MegaBytesPerSec = ? WHERE ID = ?",
+		},
+		{
 			&s.insertRun,
 			`
 INSERT INTO Run (Benchmark, Upload, Iterations, NanoSecsPerOp, AllocsPerOp, AllocedBytesPerOp, MegaBytesPerSec, Parallelism)
@@ -326,6 +337,8 @@ ORDER BY Upload.Timestamp DESC
 SELECT
 	Benchmark.ID,
 	Benchmark.Name,
+	Benchmark.NanoSecsPerOp,
+	Benchmark.MegaBytesPerSec,
 	OS.Name,
 	OS.Version,
 	CPU.Architecture,
@@ -447,9 +460,11 @@ FOREIGN KEY(SourceCode) REFERENCES SourceCode(ID)
 		},
 		{
 			"Benchmark", `
-ID       INTEGER PRIMARY KEY AUTO_INCREMENT,
-Scenario INTEGER,
-Name     VARCHAR(255),
+ID              INTEGER PRIMARY KEY AUTO_INCREMENT,
+Scenario        INTEGER,
+Name            VARCHAR(255),
+NanoSecsPerOp   DOUBLE,
+MegaBytesPerSec DOUBLE,
 
 UNIQUE(Scenario, Name),
 

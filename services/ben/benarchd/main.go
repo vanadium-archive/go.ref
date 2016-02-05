@@ -84,7 +84,7 @@ func run(ctx *context.T, env *cmdline.Env, args []string) error {
 	if flagPublicHTTPAddr != "" {
 		pubAddr = flagPublicHTTPAddr
 	}
-	_, v23server, err := v23.WithNewServer(ctx, flagName, internal.NewArchiver(store, pubAddr), internal.Authorizer())
+	_, v23server, err := v23.WithNewServer(ctx, flagName, internal.NewArchiver(store, pubAddr+"/?q="), internal.Authorizer())
 	if err != nil {
 		return err
 	}

@@ -69,10 +69,10 @@ func (h *handler) handleQuery(w http.ResponseWriter, query *Query) {
 		h.runs(w, bm, itr)
 		return
 	}
-	h.benchmarks(w, bm, bmarks)
+	h.benchmarks(w, query.String(), bm, bmarks)
 }
 
-func (h *handler) benchmarks(w http.ResponseWriter, first Benchmark, itr BenchmarkIterator) {
+func (h *handler) benchmarks(w http.ResponseWriter, query string, first Benchmark, itr BenchmarkIterator) {
 	var (
 		cancel = make(chan struct{})
 		items  = make(chan Benchmark, 2)
@@ -96,9 +96,11 @@ func (h *handler) benchmarks(w http.ResponseWriter, first Benchmark, itr Benchma
 		}
 	}()
 	args := struct {
+		Query string
 		Items <-chan Benchmark
 		Err   <-chan error
 	}{
+		Query: query,
 		Items: items,
 		Err:   errs,
 	}
@@ -287,6 +289,17 @@ var (
   <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
     <main class="mdl-layout__content">
       <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
+        <div class="mdl-card__supporting-text">
+        <form action="#">
+            <div class="mdl-textfield mdl-js-textfield">
+              <input class="mdl-textfield__input" type="text" id="q" name="q" value="{{.Query}}"/>
+              <label class="mdl-textfield__label" for="q">{{.Query}}</label>
+            </div>
+            <input value="Search" type="submit" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"/>
+        </form>
+        </div>
+      </section>
+      <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
       <div class="mdl-card mdl-cell mdl-cell--12-col">
         <div class="mdl-card__supporting-text">
           <h4>Benchmarks</h4>
@@ -294,9 +307,10 @@ var (
             <thead>
             <tr>
               <th>Name</th>
-              <th>OS</th>
-              <th>CPU</th>
-              <th>Uploader</th>
+              <th title="nanoseconds per iteration">ns/op</th>
+              <th title="operating system on which benchmarks were run">OS</th>
+              <th title="CPU architecture on which benchmarks were run">CPU</th>
+              <th title="who uploaded results for this benchmark">Uploader</th>
               <th>Label</th>
             </tr>
             </thead>
@@ -304,8 +318,9 @@ var (
                 {{range .Items}}
                 <tr>
                 <td><a href="/?id={{.ID | urlquery}}">{{.Name}}</a></td>
-                <td>{{.Scenario.Os.Name}} ({{.Scenario.Os.Version}})</td>
-                <td>{{.Scenario.Cpu.Architecture}} ({{.Scenario.Cpu.Description}})</td>
+                <td>{{.NanoSecsPerOp}}</td>
+                <td><div id="os_{{.ID}}">{{.Scenario.Os.Name}}</div><div class="mdl-tooltip" for="os_{{.ID}}">{{.Scenario.Os.Version}}</div></td>
+                <td><div id="cpu_{{.ID}}">{{.Scenario.Cpu.Architecture}}</div><div class="mdl-tooltip" for="cpu_{{.ID}}">{{.Scenario.Cpu.Description}}</div></td>
                 <td>{{.Uploader}}</td>
                 <td>{{.Scenario.Label}}</td>
                 </tr>
@@ -376,23 +391,23 @@ var (
           <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp fixed-width">
             <thead>
             <tr>
-              <th>ns/op</th>
-              <th>allocs/op</th>
-              <th>allocated bytes/op</th>
-              <th>MB/s</th>
-              <th class="mdl-data-table__cell--non-numeric">Uploaded</th>
-              <th class="mdl-data-table__cell--non-numeric">SourceCode</th>
+              <th title="nanoseconds per iteration">ns/op</th>
+              <th title="number of memory allocations per iteration">allocs/op</th>
+              <th title="number of bytes of memory allocations per iteration">allocated bytes/op</th>
+              <th title="megabytes processed per second">MB/s</th>
+              <th title="timestamp when results were uploaded" class="mdl-data-table__cell--non-numeric">Uploaded</th>
+              <th title="description of source code" class="mdl-data-table__cell--non-numeric">SourceCode</th>
               <th>Iterations</th>
-              <th>Parallelism</th>
+              <th title="parallelism used to run benchmark, e.g., GOMAXPROCS for Go benchmarks">Parallelism</th>
             </tr>
             </thead>
             <tbody>
               {{range .Items}}
               <tr>
                 <td>{{.Run.NanoSecsPerOp}}</td>
-                <td>{{.Run.AllocsPerOp}}</td>
-                <td>{{.Run.AllocedBytesPerOp}}</td>
-                <td>{{.Run.MegaBytesPerSec}}</td>
+                <td>{{if .Run.AllocsPerOp}}{{.Run.AllocsPerOp}}{{end}}</td>
+                <td>{{if .Run.AllocedBytesPerOp}}{{.Run.AllocedBytesPerOp}}{{end}}</td>
+                <td>{{if .Run.MegaBytesPerSec}}{{.Run.MegaBytesPerSec}}{{end}}</td>
                 <td>{{.UploadTime}}</td>
                 <td><a href="?s={{urlquery .SourceCodeID}}">(sources)</a></td>
                 <td>{{.Run.Iterations}}</td>
