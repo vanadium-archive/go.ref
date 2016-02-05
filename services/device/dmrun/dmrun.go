@@ -74,10 +74,10 @@ var dmBins = [...]string{
 }
 
 const (
-	vcloudBin   = "v.io/x/devtools/vcloud"
-	deviceBin   = "v.io/x/ref/services/device/device"
-	devicexRepo = "release.go.x.ref"
-	devicex     = "services/device/devicex"
+	vcloudBin     = "v.io/x/devtools/vcloud"
+	deviceBin     = "v.io/x/ref/services/device/device"
+	devicexRemote = "https://vanadium.googlesource.com/release.go.x.ref"
+	devicex       = "services/device/devicex"
 )
 
 func die(format string, args ...interface{}) {
@@ -396,7 +396,7 @@ func main() {
 	vmOpts := handleFlags()
 	dmBinaries := buildV23Binaries(append([]string{deviceBin}, dmBins[:]...)...)
 	device, dmBinaries = dmBinaries[0], dmBinaries[1:]
-	archive := createArchive(append(dmBinaries, getPath(devicexRepo, devicex)))
+	archive := createArchive(append(dmBinaries, getPath(devicexRemote, devicex)))
 
 	vm, vmInstanceName, vmInstanceIP := setupInstance(vmOpts)
 	cleanupOnDeath = func() {
