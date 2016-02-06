@@ -27,7 +27,7 @@
 //
 // Any process communicating via Vanadium RPCs needs to have an identity
 // represented as a Blessing
-// (https://github.com/vanadium/docs/blob/master/concepts/security.md).
+// (https://vanadium.github.io/concepts/security.html).
 //
 // So, the current story is this:
 // 1 The mojo syncbase app/service fetches an OAuth2 token from the

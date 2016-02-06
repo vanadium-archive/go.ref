@@ -24,7 +24,7 @@ var listBlessings = template.Must(template.New("auditor").Parse(`<!doctype html>
     <h1 class="page-head">Authorize Vanadium apps with Google</h1>
     <p>
       The Vanadium Identity Provider authorizes Vanadium blessings based on your Google Account.<br>
-      <a href="https://github.com/vanadium/docs/blob/master/glossary.md#identity-provider">Learn more</a>
+      <a href="https://vanadium.github.io/glossary.html#identity-provider">Learn more</a>
     </p>
 
     <div class="blessings-list">
@@ -69,7 +69,7 @@ var listBlessings = template.Must(template.New("auditor").Parse(`<!doctype html>
       {{end}} {{/* if .Error */}}
     {{else}} {{/* range .Log */}}
       <p>
-        <a href="https://github.com/vanadium/docs/blob/master/installation.md">Install Vanadium</a> to set up your first blessing.
+        <a href="https://vanadium.github.io/installation/">Install Vanadium</a> to set up your first blessing.
       </p>
     {{end}} {{/* range .Log */}}
     </div>

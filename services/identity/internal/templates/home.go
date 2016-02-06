@@ -23,7 +23,7 @@ var home = template.Must(template.New("main").Parse(`<!doctype html>
     <h1 class="page-head">Authorize Vanadium apps with Google</h1>
     <p>
       The Vanadium Identity Provider authorizes Vanadium blessings based on your Google Account.<br>
-      <a href="https://github.com/vanadium/docs/blob/master/glossary.md#identity-provider">Learn more</a>
+      <a href="https://vanadium.github.io/glossary.html#identity-provider">Learn more</a>
     </p>
     <p>
       <a href="/auth/google/{{.ListBlessingsRoute}}" class="button-passive">

@@ -50,7 +50,7 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
             Using Vanadium in production applications is discouraged at this
           time.</strong><br>
           During this preview, the
-          <a href="https://github.com/vanadium/docs/blob/master/glossary.md#blessing-root" target="_">
+          <a href="https://vanadium.github.io/glossary.html#blessing-root" target="_">
             blessing root
           </a>
           may change without notice.

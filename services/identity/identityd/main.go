@@ -86,7 +86,7 @@ More details on Google OAuth at:
   https://developers.google.com/accounts/docs/OAuth2Login
 
 More details on the design of identityd at:
-  https://github.com/vanadium/docs/blob/master/designdocs/identity-service.md
+  https://vanadium.github.io/designdocs/identity-service.html
 `,
 }
 
