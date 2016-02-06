@@ -169,7 +169,9 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange, dialer bo
 	if rSetup.PeerNaClPublicKey == nil {
 		return nil, nil, NewErrMissingSetupOption(ctx, "peerNaClPublicKey")
 	}
+	c.mu.Lock()
 	binding := c.mp.setupEncryption(ctx, pk, sk, rSetup.PeerNaClPublicKey)
+	c.mu.Unlock()
 	if c.version >= version.RPCVersion14 {
 		// We include the setup messages in the channel binding to prevent attacks
 		// where a man in the middle changes fields in the Setup message (e.g. a
