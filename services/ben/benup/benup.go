@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
@@ -100,7 +101,11 @@ func runUpload(ctx *context.T, env *cmdline.Env, args []string) error {
 		scn  = make(chan ben.Scenario)
 	)
 	go parseRuns(scn, runs, input, errs)
-	go sendRuns(env, ctx, scn, code, runs, errs)
+	if flagDryRun {
+		go printRuns(env, scn, code, runs, errs)
+	} else {
+		go sendRuns(env, ctx, scn, code, runs, errs)
+	}
 	// Wait for both to terminate (two sends on errch)
 	for i := 0; i < 2; i++ {
 		if err := <-errs; err != nil {
@@ -218,43 +223,72 @@ func parseBendroidLine(output *string, prefix, line string) bool {
 	return false
 }
 
-func sendRuns(env *cmdline.Env, ctx *context.T, scn <-chan ben.Scenario, code ben.SourceCode, in <-chan ben.Run, errch chan<- error) {
-	scenario := <-scn
-	if flagDryRun {
-		fmt.Fprintln(env.Stdout, "SOURCE CODE:")
-		fmt.Fprintln(env.Stdout, code)
-		fmt.Fprintf(env.Stdout, "SCENARIO:")
-		prettyPrint(env, scenario)
-		fmt.Fprintln(env.Stdout)
-		fmt.Fprintln(env.Stdout, "RUNS:")
-	}
-	var runs []ben.Run
+func printRuns(env *cmdline.Env, scn <-chan ben.Scenario, code ben.SourceCode, in <-chan ben.Run, errch chan<- error) {
+	fmt.Fprintln(env.Stdout, "SOURCE CODE:")
+	fmt.Fprintln(env.Stdout, code)
+	fmt.Fprintf(env.Stdout, "SCENARIO:")
+	prettyPrint(env, <-scn)
+	fmt.Fprintln(env.Stdout)
+	fmt.Fprintln(env.Stdout, "RUNS:")
+	n := 0
 	for r := range in {
-		// Can get fancy here: For example, upload all the runs
-		// collected in the last 30 seconds so that uploads are
-		// "real-time" and do not have to wait for the slowest
-		// benchmark.
-		if flagDryRun {
-			fmt.Fprintf(env.Stdout, "%d: %+v\n", len(runs), r)
-		}
-		runs = append(runs, r)
+		n++
+		fmt.Fprintf(env.Stdout, "%d: %+v\n", n, r)
 	}
-	if len(runs) == 0 {
+	errch <- nil
+}
+
+func sendRuns(env *cmdline.Env, ctx *context.T, scn <-chan ben.Scenario, code ben.SourceCode, in <-chan ben.Run, errch chan<- error) {
+	var (
+		scenario = <-scn
+		runs     []ben.Run
+		uploaded int
+		urls     []string
+		timer    = time.After(time.Minute)
+		archive  = func() error {
+			if len(runs) == 0 {
+				return nil
+			}
+			url, err := archive.BenchmarkArchiverClient(flagArchiver).Archive(ctx, scenario, code, runs)
+			if err != nil {
+				errch <- err
+				return err
+			}
+			urls = append(urls, url)
+			uploaded += len(runs)
+			runs = runs[:0]
+			return nil
+		}
+	)
+	// Collect runs, every minute flush results out to the archiver.
+	done := false
+	for !done {
+		select {
+		case r, more := <-in:
+			if !more {
+				done = true
+				break
+			}
+			runs = append(runs, r)
+		case <-timer:
+			if archive() != nil {
+				return
+			}
+			timer = time.After(time.Minute)
+		}
+	}
+	if archive() != nil {
+		return
+	}
+	if uploaded == 0 {
 		fmt.Fprintln(env.Stdout, "No benchmarks found to upload")
 		errch <- nil
 		return
 	}
-	if flagDryRun {
-		errch <- nil
-		return
+	fmt.Fprintf(env.Stdout, "Uploaded %d benchmark(s) to %v\n", uploaded, flagArchiver)
+	for _, url := range urls {
+		fmt.Fprintln(env.Stdout, "Results at:", url)
 	}
-	url, err := archive.BenchmarkArchiverClient(flagArchiver).Archive(ctx, scenario, code, runs)
-	if err != nil {
-		errch <- fmt.Errorf("failed to archive: %v", err)
-		return
-	}
-	fmt.Fprintf(env.Stdout, "Uploaded %d benchmark(s) to %v\n", len(runs), flagArchiver)
-	fmt.Fprintln(env.Stdout, "Results at:", url)
 	errch <- nil
 }
 
