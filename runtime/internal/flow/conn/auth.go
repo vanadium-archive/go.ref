@@ -214,7 +214,11 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte, dialer bool) (secu
 	for {
 		msg, err := c.mp.readMsg(ctx)
 		if err != nil {
-			return security.Blessings{}, nil, NewErrRecv(ctx, c.remote.String(), err)
+			remote := ""
+			if c.remote != nil {
+				remote = c.remote.String()
+			}
+			return security.Blessings{}, nil, NewErrRecv(ctx, remote, err)
 		}
 		if rauth, _ = msg.(*message.Auth); rauth != nil {
 			break
