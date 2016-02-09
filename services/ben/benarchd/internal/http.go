@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -25,6 +26,16 @@ type handler struct {
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch path.Base(r.URL.Path) {
+	case "sortable.js":
+		w.Header().Set("Content-Type", "application/javascript")
+		w.Write(jsSortable)
+		return
+	case "sortable.css":
+		w.Header().Set("Content-Type", "text/css")
+		w.Write(cssSortable)
+		return
+	}
 	if id := strings.TrimSpace(r.FormValue("id")); len(id) > 0 {
 		bm, itr := h.store.Runs(id)
 		defer itr.Close()
@@ -189,6 +200,119 @@ var (
   </div>
 </footer>
 {{end}}`
+	jsSortable = []byte(`
+var tables = document.getElementsByClassName('mdl-data-table-sortable');
+[].forEach.call(tables, makeTableSortable)
+
+function makeTableSortable(tb) {
+    var data = extractData();
+    var headers = tb.getElementsByClassName('mdl-data-table__header-sortable');
+    [].forEach.call(headers, makeColumnSortable)
+
+    function makeColumnSortable(th, index) {
+        appendSortIcon(th);
+        th.isSortedAsc = th.classList.contains('mdl-data-table__header--sorted-ascending');
+        var isnum = th.classList.contains('mdl-data-table__header-sortable-numeric');
+        th.addEventListener('click', function() {
+            var sortAsc = !th.isSortedAsc;
+            [].forEach.call(headers, function reset(h) {
+                h.classList.remove('mdl-data-table__header--sorted-ascending');
+                h.classList.remove('mdl-data-table__header--sorted-descending');
+                h.isSortedAsc = null;
+            });
+            th.classList.add(sortAsc ? 'mdl-data-table__header--sorted-ascending': 'mdl-data-table__header--sorted-descending');
+            sortData(index, isnum, sortAsc);
+            reorderRows();
+            th.isSortedAsc = sortAsc;
+        });
+    }
+
+    function sortData(index, isnum, ascending) {
+        data.sort(function(a, b) {
+            if(isnum) {
+                var anum = Number(a.data[index]);
+                var bnum = Number(b.data[index]);
+                if(ascending) {
+                        return anum-bnum;
+                } else {
+                        return bnum-anum;
+                }
+            }
+            if(ascending) {
+                return a.data[index].localeCompare(b.data[index]);
+            } else {
+                return b.data[index].localeCompare(a.data[index]);
+            }
+        });
+    }
+
+    function reorderRows() {
+        for(var i = 0; i < data.length; i++ ) {
+            tb.appendChild(data[i].row);
+        }
+        return data;
+    }
+
+    function extractData() {
+        var data = [];
+        for(var i = 1; i < tb.rows.length; i++ ) {
+            var row = tb.rows[i];
+            data[i-1] = {row: row, data: []};
+            for(var j = 0; j < row.cells.length; j++ ) {
+              var cell = row.cells[j];
+              var target = cell.getElementsByClassName('mdl-data-table__cell-data')[0] || cell;
+              data[i-1].data[j] = target.textContent;
+            }
+        }
+        return data;
+    }
+
+    function appendSortIcon(th) {
+        var icon = document.createElement('span');
+        icon.className = 'mdl-data-table__sorticon';
+        th.appendChild(icon);
+    }
+}`)
+	cssSortable = []byte(`
+.mdl-data-table__sorticon {
+    transition: 0.2s ease-in-out;
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-left: 5px;
+    margin-right: 5px;
+    vertical-align: sub;
+    opacity: 0;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 24 24" fit="" preserveAspectRatio="xMidYMid meet" style="pointer-events: none; display: block;"><path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z"></path></svg>') no-repeat;
+}
+
+.mdl-data-table__header--sorted-ascending,
+.mdl-data-table__header--sorted-descending {
+    color: rgba(0, 0, 0, .87) !important;
+}
+
+.mdl-data-table__header--sorted-ascending .mdl-data-table__sorticon {
+    opacity: 1 !important;
+}
+
+.mdl-data-table__header--sorted-descending .mdl-data-table__sorticon {
+    opacity: 1 !important;
+    transform: rotate(180deg);
+}
+
+.mdl-data-table__header-sortable {
+    cursor: default;
+}
+
+.mdl-data-table__header-sortable:hover {
+    color: rgba(0, 0, 0, .87) !important;
+}
+
+.mdl-data-table__header-sortable:hover .mdl-data-table__sorticon {
+    opacity: 0.26;
+}
+</style>
+`)
 	tmplHome = newTemplate(".home", `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -284,6 +408,7 @@ var (
 <head>
     <title>Benchmark Results Archive</title>
     {{template "styling"}}
+    <link rel="stylesheet" href="sortable.css">
 </head>
 <body class="mdl-demo mdl-color--grey-100 mdl-color-text--grey-700 mdl-base">
   <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
@@ -303,26 +428,26 @@ var (
       <div class="mdl-card mdl-cell mdl-cell--12-col">
         <div class="mdl-card__supporting-text">
           <h4>Benchmarks</h4>
-          <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp">
+          <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp mdl-data-table-sortable">
             <thead>
             <tr>
-              <th>Name</th>
-              <th title="nanoseconds per iteration">ns/op</th>
-              <th title="operating system on which benchmarks were run">OS</th>
-              <th title="CPU architecture on which benchmarks were run">CPU</th>
-              <th title="who uploaded results for this benchmark">Uploader</th>
-              <th>Label</th>
+              <th class="mdl-data-table__header-sortable">Name</th>
+              <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="nanoseconds per iteration">ns/op</th>
+              <th class="mdl-data-table__header-sortable" title="operating system on which benchmarks were run">OS</th>
+              <th class="mdl-data-table__header-sortable" title="CPU architecture on which benchmarks were run">CPU</th>
+              <th class="mdl-data-table__header-sortable" title="who uploaded results for this benchmark">Uploader</th>
+              <th class="mdl-data-table__header-sortable">Label</th>
             </tr>
             </thead>
             <tbody>
                 {{range .Items}}
                 <tr>
-                <td><a href="/?id={{.ID | urlquery}}">{{.Name}}</a></td>
+                <td class="mdl-data-table__cell--non-numeric"><a href="/?id={{.ID | urlquery}}">{{.Name}}</a></td>
                 <td>{{.NanoSecsPerOp}}</td>
-                <td><div id="os_{{.ID}}">{{.Scenario.Os.Name}}</div><div class="mdl-tooltip" for="os_{{.ID}}">{{.Scenario.Os.Version}}</div></td>
-                <td><div id="cpu_{{.ID}}">{{.Scenario.Cpu.Architecture}}</div><div class="mdl-tooltip" for="cpu_{{.ID}}">{{.Scenario.Cpu.Description}}</div></td>
-                <td>{{.Uploader}}</td>
-                <td>{{.Scenario.Label}}</td>
+                <td class="mdl-data-table__cell--non-numeric"><div id="os_{{.ID}}">{{.Scenario.Os.Name}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="os_{{.ID}}">{{.Scenario.Os.Version}}</div></td>
+                <td class="mdl-data-table__cell--non-numeric"><div id="cpu_{{.ID}}">{{.Scenario.Cpu.Architecture}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="cpu_{{.ID}}">{{.Scenario.Cpu.Description}}</div></td>
+                <td class="mdl-data-table__cell--non-numeric">{{.Uploader}}</td>
+                <td class="mdl-data-table__cell--non-numeric">{{.Scenario.Label}}</td>
                 </tr>
                 {{end}}
                 {{range .Err}}
@@ -334,6 +459,7 @@ var (
       </div>
       </section>
     </main>
+    <script src="/sortable.js"></script>
     {{template "footer"}}
   </div>
 </body>
@@ -345,6 +471,7 @@ var (
 <head>
     <title>Benchmark Results Archive</title>
     {{template "styling"}}
+    <link rel="stylesheet" href="sortable.css">
     <style>
     .fixed-width { font-family: monospace; }
     </style>
@@ -388,17 +515,17 @@ var (
       <div class="mdl-card mdl-cell mdl-cell--12-col">
         <div class="mdl-card__supporting-text">
           <h4>Runs</h4>
-          <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp fixed-width">
+          <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp fixed-width mdl-data-table-sortable">
             <thead>
             <tr>
-              <th title="nanoseconds per iteration">ns/op</th>
-              <th title="number of memory allocations per iteration">allocs/op</th>
-              <th title="number of bytes of memory allocations per iteration">allocated bytes/op</th>
-              <th title="megabytes processed per second">MB/s</th>
-              <th title="timestamp when results were uploaded" class="mdl-data-table__cell--non-numeric">Uploaded</th>
+              <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="nanoseconds per iteration">ns/op</th>
+              <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="number of memory allocations per iteration">allocs/op</th>
+              <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="number of bytes of memory allocations per iteration">allocated bytes/op</th>
+              <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="megabytes processed per second">MB/s</th>
+              <th class="mdl-data-table__header-sortable" title="timestamp when results were uploaded" class="mdl-data-table__cell--non-numeric mdl-data-table__header--sorted-descending">Uploaded</th>
               <th title="description of source code" class="mdl-data-table__cell--non-numeric">SourceCode</th>
-              <th>Iterations</th>
-              <th title="parallelism used to run benchmark, e.g., GOMAXPROCS for Go benchmarks">Parallelism</th>
+              <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric">Iterations</th>
+              <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="parallelism used to run benchmark, e.g., GOMAXPROCS for Go benchmarks">Parallelism</th>
             </tr>
             </thead>
             <tbody>
@@ -408,8 +535,8 @@ var (
                 <td>{{if .Run.AllocsPerOp}}{{.Run.AllocsPerOp}}{{end}}</td>
                 <td>{{if .Run.AllocedBytesPerOp}}{{.Run.AllocedBytesPerOp}}{{end}}</td>
                 <td>{{if .Run.MegaBytesPerSec}}{{.Run.MegaBytesPerSec}}{{end}}</td>
-                <td>{{.UploadTime}}</td>
-                <td><a href="?s={{urlquery .SourceCodeID}}">(sources)</a></td>
+                <td class="mdl-data-table__cell--non-numeric">{{.UploadTime}}</td>
+                <td class="mdl-data-table__cell--non-numeric"><a href="?s={{urlquery .SourceCodeID}}">(sources)</a></td>
                 <td>{{.Run.Iterations}}</td>
                 <td>{{.Run.Parallelism}}</td>
               </tr>
@@ -423,6 +550,7 @@ var (
       </div>
       </section>
     </main>
+    <script src="/sortable.js"></script>
     {{template "footer"}}
   </div>
 </body>
