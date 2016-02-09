@@ -7,7 +7,5 @@
   (i.e., detect ben.SourceCode based on the git repository state?)
 - Page to list out all benchmark results (across all scenarios) for a particular (BenchmarkName, SourceCode) pair
   (e.g., results for foo/bar.BenchmarkBaz across linux, darwin, arm, amd64 for a particular snapshot of the code)
-- The same as above with the "latest" results
-- Make the tables sortable
 - Render times in local timezone (and convert timezones in the query to the server)
 - Ability to query results by time range
