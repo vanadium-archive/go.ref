@@ -65,7 +65,7 @@ func scan(ctx *context.T, d discovery.T, interfaceName string) ([]discovery.Upda
 		select {
 		case update := <-scan:
 			updates = append(updates, update)
-		case <-time.After(5 * time.Millisecond):
+		case <-time.After(50 * time.Millisecond):
 			return updates, nil
 		}
 	}
