@@ -123,6 +123,7 @@ func (h *handler) runs(w http.ResponseWriter, bm Benchmark, itr RunIterator) {
 		Run          ben.Run
 		SourceCodeID string
 		UploadTime   time.Time
+		Index        int
 	}
 	var (
 		cancel = make(chan struct{})
@@ -133,10 +134,12 @@ func (h *handler) runs(w http.ResponseWriter, bm Benchmark, itr RunIterator) {
 	go func() {
 		defer close(errs)
 		defer close(items)
+		idx := 0
 		for itr.Advance() {
+			idx++
 			r, s, t := itr.Value()
 			select {
-			case items <- item{r, s, t}:
+			case items <- item{r, s, t, idx}:
 			case <-cancel:
 				return
 			}
@@ -432,7 +435,7 @@ function makeTableSortable(tb) {
             <thead>
             <tr>
               <th class="mdl-data-table__header-sortable">Name</th>
-              <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="nanoseconds per iteration">ns/op</th>
+              <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="time per iteration">time/op</th>
               <th class="mdl-data-table__header-sortable" title="operating system on which benchmarks were run">OS</th>
               <th class="mdl-data-table__header-sortable" title="CPU architecture on which benchmarks were run">CPU</th>
               <th class="mdl-data-table__header-sortable" title="who uploaded results for this benchmark">Uploader</th>
@@ -443,7 +446,7 @@ function makeTableSortable(tb) {
                 {{range .Items}}
                 <tr>
                 <td class="mdl-data-table__cell--non-numeric"><a href="/?id={{.ID | urlquery}}">{{.Name}}</a></td>
-                <td>{{.NanoSecsPerOp}}</td>
+                <td><div id="time_{{.ID}}">{{.PrettyTime}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="time_{{.ID}}">{{.NanoSecsPerOp}}ns</div></td>
                 <td class="mdl-data-table__cell--non-numeric"><div id="os_{{.ID}}">{{.Scenario.Os.Name}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="os_{{.ID}}">{{.Scenario.Os.Version}}</div></td>
                 <td class="mdl-data-table__cell--non-numeric"><div id="cpu_{{.ID}}">{{.Scenario.Cpu.Architecture}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="cpu_{{.ID}}">{{.Scenario.Cpu.Description}}</div></td>
                 <td class="mdl-data-table__cell--non-numeric">{{.Uploader}}</td>
@@ -518,7 +521,7 @@ function makeTableSortable(tb) {
           <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp fixed-width mdl-data-table-sortable">
             <thead>
             <tr>
-              <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="nanoseconds per iteration">ns/op</th>
+              <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="time per iteration">time/op</th>
               <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="number of memory allocations per iteration">allocs/op</th>
               <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="number of bytes of memory allocations per iteration">allocated bytes/op</th>
               <th class="mdl-data-table__header-sortable mdl-data-table__header-sortable-numeric" title="megabytes processed per second">MB/s</th>
@@ -531,7 +534,7 @@ function makeTableSortable(tb) {
             <tbody>
               {{range .Items}}
               <tr>
-                <td>{{.Run.NanoSecsPerOp}}</td>
+                <td><div id="run_{{.Index}}">{{.Run.PrettyTime}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="run_{{.Index}}">{{.Run.NanoSecsPerOp}}ns</div></td>
                 <td>{{if .Run.AllocsPerOp}}{{.Run.AllocsPerOp}}{{end}}</td>
                 <td>{{if .Run.AllocedBytesPerOp}}{{.Run.AllocedBytesPerOp}}{{end}}</td>
                 <td>{{if .Run.MegaBytesPerSec}}{{.Run.MegaBytesPerSec}}{{end}}</td>

@@ -7,7 +7,9 @@ package ben
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -19,4 +21,13 @@ func (c SourceCode) ID() string {
 	}
 	hash := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(hash[:])
+}
+
+// PrettyTime returns a string representing r.NanoSecsPerOp in a more
+// human-friendly form, similar to time.Duration.String.
+func (r Run) PrettyTime() string {
+	if r.NanoSecsPerOp < 100 {
+		return fmt.Sprintf("%vns", r.NanoSecsPerOp)
+	}
+	return time.Duration(int64(r.NanoSecsPerOp)).String()
 }

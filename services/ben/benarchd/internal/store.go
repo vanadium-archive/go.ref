@@ -42,6 +42,13 @@ type Benchmark struct {
 	MegaBytesPerSec float64
 }
 
+func (b Benchmark) PrettyTime() string {
+	if b.NanoSecsPerOp < 100 {
+		return fmt.Sprintf("%vns", b.NanoSecsPerOp)
+	}
+	return time.Duration(int64(b.NanoSecsPerOp)).String()
+}
+
 type Iterator interface {
 	Advance() bool
 	Err() error
