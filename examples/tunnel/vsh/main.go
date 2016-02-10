@@ -43,6 +43,11 @@ func (sl *stringList) String() string {
 }
 
 func (sl *stringList) Set(value string) error {
+	for _, v := range *sl {
+		if v == value {
+			return nil
+		}
+	}
 	*sl = append(*sl, value)
 	return nil
 }
