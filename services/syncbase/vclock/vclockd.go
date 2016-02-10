@@ -168,7 +168,9 @@ func (d *VClockD) DoNtpUpdate() error {
 	ntpData, err := d.ntpSource.NtpSync(NtpSampleCount)
 	d.ntpSourceMu.RUnlock()
 	if err != nil {
-		vlog.Errorf("vclockd: DoNtpUpdate: failed to fetch NTP time: %v", err)
+		// Do not use Errorf, since this happens whenever a device is disconnected,
+		// as well as when running tests in development mode.
+		vlog.VI(2).Infof("vclockd: DoNtpUpdate: failed to fetch NTP time: %v", err)
 		return err
 	}
 	vlog.VI(2).Infof("vclockd: DoNtpUpdate: NTP skew is %v", ntpData.skew)
