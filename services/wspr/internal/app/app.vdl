@@ -31,7 +31,7 @@ type RpcRequest struct {
 //
 //   type RpcCallOptions struct {
 //     AllowedServersPolicy ?[]security.BlessingPattern
-//     RetryTimeout         ?time.Duration
+//     Granter              ?GranterHandle
 //   }
 //
 // Unfortunately, optional types are currently only supported for structs, not
@@ -41,7 +41,6 @@ type RpcRequest struct {
 
 type RpcCallOption union {
 	AllowedServersPolicy []security.BlessingPattern
-	RetryTimeout         time.Duration
 	Granter GranterHandle
 }
 

@@ -650,6 +650,46 @@ func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAut
 	return m.internalDial(ctx, remote, auth, channelTimeout, false)
 }
 
+// DialCached creates a Flow to the provided remote endpoint using only cached
+// connections from previous Listen or Dial calls.
+// If no cached connection exists, an error will be returned.
+//
+// 'auth' is used to determine the blessings that will be sent to the remote end.
+//
+// channelTimeout specifies the duration we are willing to wait before determining
+// that connections managed by this Manager are unhealthy and should be
+// closed.
+func (m *manager) DialCached(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer, channelTimeout time.Duration) (flow.Flow, error) {
+	var (
+		err                        error
+		c                          *conn.Conn
+		names                      []string
+		rejected                   []security.RejectedBlessing
+		addr                       = remote.Addr()
+		unresNetwork, unresAddress = addr.Network(), addr.String()
+		protocol, _                = flow.RegisteredProtocol(unresNetwork)
+	)
+	if rid := remote.RoutingID(); rid != naming.NullRoutingID {
+		// In the case the endpoint has a RoutingID we only want to check the cache
+		// for the RoutingID because we want to guarantee that the connection we
+		// return is to the end server and not a connection to an intermediate proxy.
+		c, names, rejected, err = m.cache.FindWithRoutingID(ctx, remote, auth)
+	} else {
+		c, names, rejected, err = m.cache.Find(ctx, remote, unresNetwork, unresAddress, auth, protocol)
+		if err == nil {
+			m.cache.Unreserve(unresNetwork, unresAddress)
+		}
+	}
+	if err != nil {
+		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
+	}
+	if c == nil {
+		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, NewErrConnNotInCache(ctx, remote.String()))
+	}
+
+	return dialFlow(ctx, c, remote, names, rejected, channelTimeout, auth)
+}
+
 func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer,
 	channelTimeout time.Duration, proxy bool) (flow.Flow, error) {
 	// Fast path, look for the conn based on unresolved network, address, and routingId first.
@@ -751,6 +791,11 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		}
 	}
 
+	return dialFlow(ctx, c, remote, names, rejected, channelTimeout, auth)
+}
+
+func dialFlow(ctx *context.T, c *conn.Conn, remote naming.Endpoint, names []string, rejected []security.RejectedBlessing,
+	channelTimeout time.Duration, auth flow.PeerAuthorizer) (flow.Flow, error) {
 	// Find the proper blessings and dial the final flow.
 	blessings, discharges, err := auth.BlessingsForPeer(ctx, names)
 	if err != nil {

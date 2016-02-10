@@ -107,6 +107,22 @@ func (c *ConnCache) InsertWithRoutingID(conn *conn.Conn, proxy bool) error {
 	return nil
 }
 
+// Find returns a Conn based only on the RoutingID of remote.
+func (c *ConnCache) FindWithRoutingID(ctx *context.T, remote naming.Endpoint,
+	auth flow.PeerAuthorizer) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	if c.addrCache == nil {
+		return nil, nil, nil, NewErrCacheClosed(nil)
+	}
+	if rid := remote.RoutingID(); rid != naming.NullRoutingID {
+		if entry, names, rejected := c.removeUndialable(ctx, remote, c.ridCache[rid], auth); entry != nil {
+			return entry, names, rejected, nil
+		}
+	}
+	return nil, nil, nil, nil
+}
+
 // Find returns a Conn based on the input remoteEndpoint.
 // nil is returned if there is no such Conn.
 //

@@ -14,9 +14,8 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
-	"time"
 	"v.io/v23/security"
-	time_2 "v.io/v23/vdlroot/time"
+	"v.io/v23/vdlroot/time"
 	"v.io/v23/vtrace"
 	"v.io/x/ref/services/wspr/internal/rpc/server"
 )
@@ -27,7 +26,7 @@ type RpcRequest struct {
 	NumInArgs    int32
 	NumOutArgs   int32
 	IsStreaming  bool
-	Deadline     time_2.Deadline
+	Deadline     time.Deadline
 	TraceRequest vtrace.Request
 	Context      server.Context
 	CallOptions  []RpcCallOption
@@ -52,8 +51,6 @@ type (
 	}
 	// RpcCallOptionAllowedServersPolicy represents field AllowedServersPolicy of the RpcCallOption union type.
 	RpcCallOptionAllowedServersPolicy struct{ Value []security.BlessingPattern }
-	// RpcCallOptionRetryTimeout represents field RetryTimeout of the RpcCallOption union type.
-	RpcCallOptionRetryTimeout struct{ Value time.Duration }
 	// RpcCallOptionGranter represents field Granter of the RpcCallOption union type.
 	RpcCallOptionGranter struct{ Value GranterHandle }
 	// __RpcCallOptionReflect describes the RpcCallOption union type.
@@ -62,7 +59,6 @@ type (
 		Type  RpcCallOption
 		Union struct {
 			AllowedServersPolicy RpcCallOptionAllowedServersPolicy
-			RetryTimeout         RpcCallOptionRetryTimeout
 			Granter              RpcCallOptionGranter
 		}
 	}
@@ -73,12 +69,7 @@ func (x RpcCallOptionAllowedServersPolicy) Interface() interface{}              
 func (x RpcCallOptionAllowedServersPolicy) Name() string                        { return "AllowedServersPolicy" }
 func (x RpcCallOptionAllowedServersPolicy) __VDLReflect(__RpcCallOptionReflect) {}
 
-func (x RpcCallOptionRetryTimeout) Index() int                          { return 1 }
-func (x RpcCallOptionRetryTimeout) Interface() interface{}              { return x.Value }
-func (x RpcCallOptionRetryTimeout) Name() string                        { return "RetryTimeout" }
-func (x RpcCallOptionRetryTimeout) __VDLReflect(__RpcCallOptionReflect) {}
-
-func (x RpcCallOptionGranter) Index() int                          { return 2 }
+func (x RpcCallOptionGranter) Index() int                          { return 1 }
 func (x RpcCallOptionGranter) Interface() interface{}              { return x.Value }
 func (x RpcCallOptionGranter) Name() string                        { return "Granter" }
 func (x RpcCallOptionGranter) __VDLReflect(__RpcCallOptionReflect) {}

@@ -22,4 +22,5 @@ error (
   ListeningWithNullRid() {"en": "manager cannot listen when created with NullRoutingID"}
   ProxyResponse(msg string) {"en": "proxy returned{:msg}"}
   NoBlessingsForPeer(peerNames []string, rejected []security.RejectedBlessing, err error) {"en": "no blessings tagged for peer {peerNames}, rejected:{rejected}{:err}"}
+  ConnNotInCache(remote string)  {"en": "connection to {remote} not in cache"}
 )

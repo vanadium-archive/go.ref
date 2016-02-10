@@ -18,7 +18,6 @@ import (
 	"v.io/v23/i18n"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
-	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	vtime "v.io/v23/vdlroot/time"
@@ -134,25 +133,25 @@ func (c *xclient) StartCall(ctx *context.T, name, method string, args []interfac
 	if !ctx.Initialized() {
 		return nil, verror.ExplicitNew(verror.ErrBadArg, i18n.LangID("en-us"), "<rpc.Client>", "StartCall", "context not initialized")
 	}
-	deadline := getDeadline(ctx, opts)
-	return c.startCall(ctx, name, method, args, deadline, opts)
+	connOpts := getConnectionOptions(ctx, opts)
+	return c.startCall(ctx, name, method, args, connOpts, opts)
 }
 
 func (c *xclient) Call(ctx *context.T, name, method string, inArgs, outArgs []interface{}, opts ...rpc.CallOpt) error {
 	defer apilog.LogCallf(ctx, "name=%.10s...,method=%.10s...,inArgs=,outArgs=,opts...=%v", name, method, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	deadline := getDeadline(ctx, opts)
+	connOpts := getConnectionOptions(ctx, opts)
 	for retries := uint(0); ; retries++ {
-		call, err := c.startCall(ctx, name, method, inArgs, deadline, opts)
+		call, err := c.startCall(ctx, name, method, inArgs, connOpts, opts)
 		if err != nil {
 			return err
 		}
 		switch err := call.Finish(outArgs...); {
 		case err == nil:
 			return nil
-		case !shouldRetryBackoff(verror.Action(err), deadline, opts):
+		case !shouldRetryBackoff(verror.Action(err), connOpts):
 			ctx.VI(4).Infof("Cannot retry after error: %s", err)
 			return err
-		case !backoff(retries, deadline):
+		case !backoff(retries, connOpts.connDeadline):
 			return err
 		default:
 			ctx.VI(4).Infof("Retrying due to error: %s", err)
@@ -160,9 +159,9 @@ func (c *xclient) Call(ctx *context.T, name, method string, inArgs, outArgs []in
 	}
 }
 
-func (c *xclient) startCall(ctx *context.T, name, method string, args []interface{}, deadline time.Time, opts []rpc.CallOpt) (rpc.ClientCall, error) {
+func (c *xclient) startCall(ctx *context.T, name, method string, args []interface{}, connOpts *connectionOpts, opts []rpc.CallOpt) (rpc.ClientCall, error) {
 	ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("<rpc.Client>%q.%s", name, method))
-	r, err := c.connectToName(ctx, name, method, args, deadline, opts)
+	r, err := c.connectToName(ctx, name, method, args, connOpts, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -172,16 +171,15 @@ func (c *xclient) startCall(ctx *context.T, name, method string, args []interfac
 		return nil, err
 	}
 
-	deadline, _ = ctx.Deadline()
-	if verr := fc.start(r.suffix, method, args, deadline, opts); verr != nil {
+	if verr := fc.start(r.suffix, method, args, opts); verr != nil {
 		return nil, verr
 	}
 	return fc, nil
 }
 
 func (c *xclient) Connection(ctx *context.T, name string, opts ...rpc.CallOpt) (flow.ManagedConn, error) {
-	deadline := getDeadline(ctx, opts)
-	r, err := c.connectToName(ctx, name, "", nil, deadline, opts)
+	connOpts := getConnectionOptions(ctx, opts)
+	r, err := c.connectToName(ctx, name, "", nil, connOpts, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -201,19 +199,19 @@ type serverStatus struct {
 
 // connectToName attempts too connect to the provided name. It may retry connecting
 // to the servers the name resolves to based on the type of error encountered.
-// Once deadline is reached, it will stop retrying.
-func (c *xclient) connectToName(ctx *context.T, name, method string, args []interface{}, deadline time.Time, opts []rpc.CallOpt) (*serverStatus, error) {
+// Once connOpts.connDeadline is reached, it will stop retrying.
+func (c *xclient) connectToName(ctx *context.T, name, method string, args []interface{}, connOpts *connectionOpts, opts []rpc.CallOpt) (*serverStatus, error) {
 	span := vtrace.GetSpan(ctx)
 	for retries := uint(0); ; retries++ {
-		r, action, requireResolve, err := c.tryConnectToName(ctx, name, method, args, opts)
+		r, action, requireResolve, err := c.tryConnectToName(ctx, name, method, args, connOpts, opts)
 		switch {
 		case err == nil:
 			return r, nil
-		case !shouldRetry(action, requireResolve, deadline, opts):
+		case !shouldRetry(action, requireResolve, connOpts, opts):
 			span.Annotatef("Cannot retry after error: %s", err)
 			span.Finish()
 			return nil, err
-		case !backoff(retries, deadline):
+		case !backoff(retries, connOpts.connDeadline):
 			span.Annotatef("Retries exhausted")
 			span.Finish()
 			return nil, err
@@ -233,7 +231,7 @@ func (c *xclient) connectToName(ctx *context.T, name, method string, args []inte
 // you can re-resolve.
 //
 // TODO(toddw): Remove action from out-args, the error should tell us the action.
-func (c *xclient) tryConnectToName(ctx *context.T, name, method string, args []interface{}, opts []rpc.CallOpt) (*serverStatus, verror.ActionCode, bool, error) {
+func (c *xclient) tryConnectToName(ctx *context.T, name, method string, args []interface{}, connOpts *connectionOpts, opts []rpc.CallOpt) (*serverStatus, verror.ActionCode, bool, error) {
 	blessingPattern, name := security.SplitPatternName(name)
 	resolved, err := c.ns.Resolve(ctx, name, getNamespaceOpts(opts)...)
 	switch {
@@ -269,12 +267,6 @@ func (c *xclient) tryConnectToName(ctx *context.T, name, method string, args []i
 	ch := make(chan *serverStatus, len(resolved.Servers))
 	authorizer := newServerAuthorizer(blessingPattern, opts...)
 	peerAuth := peerAuthorizer{authorizer, method, args}
-	channelTimeout := time.Duration(0)
-	for _, opt := range opts {
-		if t, ok := opt.(options.ChannelTimeout); ok {
-			channelTimeout = time.Duration(t)
-		}
-	}
 	for i, server := range resolved.Names() {
 		c.mu.Lock()
 		if c.closing {
@@ -284,7 +276,7 @@ func (c *xclient) tryConnectToName(ctx *context.T, name, method string, args []i
 		c.wg.Add(1)
 		c.mu.Unlock()
 
-		go c.tryConnectToServer(ctx, i, name, server, method, args, peerAuth, channelTimeout, ch)
+		go c.tryConnectToServer(ctx, i, name, server, method, args, peerAuth, connOpts, ch)
 	}
 
 	for {
@@ -339,7 +331,7 @@ func (c *xclient) tryConnectToServer(
 	name, server, method string,
 	args []interface{},
 	auth flow.PeerAuthorizer,
-	channelTimeout time.Duration,
+	connOpts *connectionOpts,
 	ch chan<- *serverStatus) {
 	defer c.wg.Done()
 	status := &serverStatus{index: index, server: server}
@@ -369,37 +361,48 @@ func (c *xclient) tryConnectToServer(
 		status.serverErr = suberr(verror.New(errInvalidEndpoint, ctx))
 		return
 	}
-	flow, err := c.flowMgr.Dial(ctx, ep, auth, channelTimeout)
-	if err != nil {
-		ctx.VI(2).Infof("rpc: failed to create Flow with %v: %v", server, err)
-		status.serverErr = suberr(err)
-		return
-	}
-	if write := c.typeCache.writer(flow.Conn()); write != nil {
-		// Create the type flow with a root-cancellable context.
-		// This flow must outlive the flow we're currently creating.
-		// It lives as long as the connection to which it is bound.
-		tctx, tcancel := context.WithRootCancel(ctx)
-		tflow, err := c.flowMgr.Dial(tctx, flow.RemoteEndpoint(), typeFlowAuthorizer{}, channelTimeout)
+	var flw flow.Flow
+	if connOpts.useOnlyCached {
+		flw, err = c.flowMgr.DialCached(ctx, ep, auth, connOpts.channelTimeout)
 		if err != nil {
-			write(nil, tcancel)
-		} else if tflow.Conn() != flow.Conn() {
-			tflow.Close()
-			write(nil, tcancel)
-		} else if _, err = tflow.Write([]byte{typeFlow}); err != nil {
-			tflow.Close()
-			write(nil, tcancel)
-		} else {
-			write(tflow, tcancel)
+			ctx.VI(2).Infof("rpc: failed to find cached Conn to %v: %v", server, err)
+			status.serverErr = suberr(err)
+			return
+		}
+	} else {
+		flw, err = c.flowMgr.Dial(ctx, ep, auth, connOpts.channelTimeout)
+		if err != nil {
+			ctx.VI(2).Infof("rpc: failed to create Flow with %v: %v", server, err)
+			status.serverErr = suberr(err)
+			return
+		}
+		if write := c.typeCache.writer(flw.Conn()); write != nil {
+			// Create the type flow with a root-cancellable context.
+			// This flow must outlive the flow we're currently creating.
+			// It lives as long as the connection to which it is bound.
+			tctx, tcancel := context.WithRootCancel(ctx)
+			tflow, err := c.flowMgr.Dial(tctx, flw.RemoteEndpoint(), typeFlowAuthorizer{}, connOpts.channelTimeout)
+			if err != nil {
+				write(nil, tcancel)
+			} else if tflow.Conn() != flw.Conn() {
+				tflow.Close()
+				write(nil, tcancel)
+			} else if _, err = tflow.Write([]byte{typeFlow}); err != nil {
+				tflow.Close()
+				write(nil, tcancel)
+			} else {
+				write(tflow, tcancel)
+			}
 		}
 	}
-	status.typeEnc, status.typeDec, err = c.typeCache.get(ctx, flow.Conn())
+
+	status.typeEnc, status.typeDec, err = c.typeCache.get(ctx, flw.Conn())
 	if err != nil {
 		status.serverErr = suberr(newErrTypeFlowFailure(ctx, err))
-		flow.Close()
+		flw.Close()
 		return
 	}
-	status.flow = flow
+	status.flow = flw
 }
 
 // cleanupTryConnectToName ensures we've waited for every response from the tryConnectToServer
@@ -569,12 +572,13 @@ func (fc *flowXClient) close(err error) error {
 	return err
 }
 
-func (fc *flowXClient) start(suffix, method string, args []interface{}, deadline time.Time, opts []rpc.CallOpt) error {
+func (fc *flowXClient) start(suffix, method string, args []interface{}, opts []rpc.CallOpt) error {
 	grantedB, err := fc.initSecurity(fc.ctx, method, suffix, opts)
 	if err != nil {
 		berr := verror.New(verror.ErrNotTrusted, fc.ctx, err)
 		return fc.close(berr)
 	}
+	deadline, _ := fc.ctx.Deadline()
 	req := rpc.Request{
 		Suffix:           suffix,
 		Method:           method,
@@ -854,39 +858,29 @@ func (x peerAuthorizer) BlessingsForPeer(ctx *context.T, peerNames []string) (
 	return clientB, dis, nil
 }
 
-func getDeadline(ctx *context.T, opts []rpc.CallOpt) time.Time {
-	// Context specified deadline.
-	deadline, hasDeadline := ctx.Deadline()
-	if !hasDeadline {
-		// Default deadline.
-		deadline = time.Now().Add(defaultCallTimeout)
-	}
-	if r, ok := getRetryTimeoutOpt(opts); ok {
-		// Caller specified deadline.
-		deadline = time.Now().Add(r)
-	}
-	return deadline
-}
-
-func shouldRetryBackoff(action verror.ActionCode, deadline time.Time, opts []rpc.CallOpt) bool {
+func shouldRetryBackoff(action verror.ActionCode, connOpts *connectionOpts) bool {
 	switch {
-	case noRetry(opts):
+	case connOpts.noRetry:
 		return false
 	case action != verror.RetryBackoff:
 		return false
-	case time.Now().After(deadline):
+	case time.Now().After(connOpts.connDeadline):
 		return false
 	}
 	return true
 }
 
-func shouldRetry(action verror.ActionCode, requireResolve bool, deadline time.Time, opts []rpc.CallOpt) bool {
+func shouldRetry(action verror.ActionCode, requireResolve bool, connOpts *connectionOpts, opts []rpc.CallOpt) bool {
 	switch {
-	case noRetry(opts):
+	case connOpts.noRetry:
+		return false
+	case connOpts.useOnlyCached:
+		// If we should only used cached connections, it doesn't make sense to retry
+		// looking in the cache.
 		return false
 	case action != verror.RetryConnection && action != verror.RetryRefetch:
 		return false
-	case time.Now().After(deadline):
+	case time.Now().After(connOpts.connDeadline):
 		return false
 	case requireResolve && getNoNamespaceOpt(opts):
 		// If we're skipping resolution and there are no servers for

@@ -28,6 +28,7 @@ var (
 	ErrListeningWithNullRid      = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ListeningWithNullRid", verror.NoRetry, "{1:}{2:} manager cannot listen when created with NullRoutingID")
 	ErrProxyResponse             = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ProxyResponse", verror.NoRetry, "{1:}{2:} proxy returned{:3}")
 	ErrNoBlessingsForPeer        = verror.Register("v.io/x/ref/runtime/internal/flow/manager.NoBlessingsForPeer", verror.NoRetry, "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
+	ErrConnNotInCache            = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ConnNotInCache", verror.NoRetry, "{1:}{2:} connection to {3} not in cache")
 )
 
 func init() {
@@ -41,6 +42,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrListeningWithNullRid.ID), "{1:}{2:} manager cannot listen when created with NullRoutingID")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrProxyResponse.ID), "{1:}{2:} proxy returned{:3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoBlessingsForPeer.ID), "{1:}{2:} no blessings tagged for peer {3}, rejected:{4}{:5}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrConnNotInCache.ID), "{1:}{2:} connection to {3} not in cache")
 }
 
 // NewErrUnknownProtocol returns an error with the ErrUnknownProtocol ID.
@@ -91,4 +93,9 @@ func NewErrProxyResponse(ctx *context.T, msg string) error {
 // NewErrNoBlessingsForPeer returns an error with the ErrNoBlessingsForPeer ID.
 func NewErrNoBlessingsForPeer(ctx *context.T, peerNames []string, rejected []security.RejectedBlessing, err error) error {
 	return verror.New(ErrNoBlessingsForPeer, ctx, peerNames, rejected, err)
+}
+
+// NewErrConnNotInCache returns an error with the ErrConnNotInCache ID.
+func NewErrConnNotInCache(ctx *context.T, remote string) error {
+	return verror.New(ErrConnNotInCache, ctx, remote)
 }

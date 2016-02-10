@@ -976,11 +976,41 @@ func TestClientConnection(t *testing.T) {
 	}
 
 	// StartCall should use the same connection that was just created.
-	call, err := client.StartCall(ctx, name, "Closure", nil, nil)
+	call, err := client.StartCall(ctx, name, "Closure", nil)
 	if err != nil {
 		t.Error(err)
 	}
 	if got, want := call.Security().LocalEndpoint().String(), conn.LocalEndpoint().String(); got != want {
 		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestConnectionTimeout(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	ctx, cancel := context.WithCancel(ctx)
+	name := "mountpoint/server"
+	_, server, err := v23.WithNewServer(ctx, name, &testServer{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { <-server.Closed() }()
+	defer cancel()
+
+	client := v23.GetClient(ctx)
+
+	// A connection timeout of zero should fail since the a connection to the server
+	// doesn't yet exist in the the client's manager's cache.
+	if err := client.Call(ctx, name, "Closure", nil, nil, options.ConnectionTimeout(0)); err == nil {
+		t.Errorf("got err = <nil>, wanted call to fail")
+	}
+	// Making a rpc with a non-zero connection timeout should work.
+	if err := client.Call(ctx, name, "Closure", nil, nil, options.ConnectionTimeout(5*time.Second)); err != nil {
+		t.Error(err)
+	}
+	// Now the connection should be in the cache so connection timeout of zero should work.
+	if err := client.Call(ctx, name, "Closure", nil, nil, options.ConnectionTimeout(0)); err != nil {
+		t.Error(err)
 	}
 }

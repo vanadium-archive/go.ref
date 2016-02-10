@@ -231,8 +231,6 @@ func (c *Controller) callOpts(opts []RpcCallOption) ([]rpc.CallOpt, error) {
 		switch v := opt.(type) {
 		case RpcCallOptionAllowedServersPolicy:
 			callOpts = append(callOpts, options.ServerAuthorizer{access.AccessList{In: v.Value}})
-		case RpcCallOptionRetryTimeout:
-			callOpts = append(callOpts, options.RetryTimeout(v.Value))
 		case RpcCallOptionGranter:
 			callOpts = append(callOpts, &jsGranter{c, v.Value})
 		default:

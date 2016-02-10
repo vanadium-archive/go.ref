@@ -7,6 +7,7 @@ package rpc
 import (
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -41,28 +42,51 @@ func (ReservedNameDispatcher) RPCServerOpt() {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 }
 
-func getRetryTimeoutOpt(opts []rpc.CallOpt) (time.Duration, bool) {
+type connectionOpts struct {
+	connDeadline   time.Time
+	channelTimeout time.Duration
+	useOnlyCached  bool
+	noRetry        bool
+}
+
+func getConnectionOptions(ctx *context.T, opts []rpc.CallOpt) *connectionOpts {
+	now := time.Now()
+	var copts connectionOpts
 	for _, o := range opts {
-		if r, ok := o.(options.RetryTimeout); ok {
-			return time.Duration(r), true
+		switch t := o.(type) {
+		case options.ConnectionTimeout:
+			if dur := time.Duration(t); dur == 0 {
+				copts.useOnlyCached = true
+			} else {
+				// Use the minimum of all the timeouts passed in.
+				if dl := now.Add(dur); dl.Before(copts.connDeadline) || copts.connDeadline.IsZero() {
+					copts.connDeadline = dl
+				}
+			}
+		case options.ChannelTimeout:
+			// Use the minimum channel timeout.
+			if dur := time.Duration(t); dur < copts.channelTimeout || copts.channelTimeout == 0 {
+				copts.channelTimeout = time.Duration(t)
+			}
+		case options.NoRetry:
+			copts.noRetry = true
 		}
 	}
-	return 0, false
+	// If the context deadline is sooner than connection deadline, use it instead.
+	if dl, hasDl := ctx.Deadline(); hasDl && (dl.Before(copts.connDeadline) || copts.connDeadline.IsZero()) {
+		copts.connDeadline = dl
+	}
+	// If no deadline has been set yet, use the default call timeout.
+	if copts.connDeadline.IsZero() {
+		copts.connDeadline = now.Add(defaultCallTimeout)
+	}
+	return &copts
 }
 
 func getNoNamespaceOpt(opts []rpc.CallOpt) bool {
 	for _, o := range opts {
 		switch o.(type) {
 		case options.Preresolved:
-			return true
-		}
-	}
-	return false
-}
-
-func noRetry(opts []rpc.CallOpt) bool {
-	for _, o := range opts {
-		if _, ok := o.(options.NoRetry); ok {
 			return true
 		}
 	}
