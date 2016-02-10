@@ -22,11 +22,14 @@ import (
 
 type runner struct {
 	run  func(*context.T, *cmdline.Env, []string) error
-	init func() (*context.T, v23.Shutdown)
+	init func() (*context.T, v23.Shutdown, error)
 }
 
 func (r runner) Run(env *cmdline.Env, args []string) error {
-	ctx, shutdown := r.init()
+	ctx, shutdown, err := r.init()
+	if err != nil {
+		return err
+	}
 	defer shutdown()
 	return r.run(ctx, env, args)
 }
@@ -35,7 +38,7 @@ func (r runner) Run(env *cmdline.Env, args []string) error {
 // a context as the first arg.  The context is created via v23.Init when Run is
 // called on the returned Runner.
 func RunnerFunc(run func(*context.T, *cmdline.Env, []string) error) cmdline.Runner {
-	return runner{run, v23.Init}
+	return runner{run, v23.TryInit}
 }
 
 // RunnerFuncWithInit is like RunnerFunc, but allows specifying the init
@@ -67,7 +70,7 @@ func RunnerFunc(run func(*context.T, *cmdline.Env, []string) error) cmdline.Runn
 // runRoot.  The advantage of using RunnerFuncWithInit is that your regular code
 // can use a context with a 1 minute timeout, while your testing code can use
 // v23cmd.ParseAndRunForTest to pass a context with a 10 second timeout.
-func RunnerFuncWithInit(run func(*context.T, *cmdline.Env, []string) error, init func() (*context.T, v23.Shutdown)) cmdline.Runner {
+func RunnerFuncWithInit(run func(*context.T, *cmdline.Env, []string) error, init func() (*context.T, v23.Shutdown, error)) cmdline.Runner {
 	return runner{run, init}
 }
 

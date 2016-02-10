@@ -65,9 +65,9 @@ const (
 	forTestValue = "<for test value>"
 )
 
-func initFunc() (*context.T, v23.Shutdown) {
-	ctx, shutdown := v23.Init()
-	return context.WithValue(ctx, initKey, initValue), shutdown
+func initFunc() (*context.T, v23.Shutdown, error) {
+	ctx, shutdown, err := v23.TryInit()
+	return context.WithValue(ctx, initKey, initValue), shutdown, err
 }
 
 func TestParseAndRun(t *testing.T) {
