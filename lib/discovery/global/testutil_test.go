@@ -82,7 +82,7 @@ func scan(ctx *context.T, ds discovery.T, instanceId string) ([]discovery.Update
 		select {
 		case update := <-scan:
 			updates = append(updates, update)
-		case <-time.After(30 * time.Millisecond):
+		case <-time.After(100 * time.Millisecond):
 			return updates, nil
 		}
 	}
