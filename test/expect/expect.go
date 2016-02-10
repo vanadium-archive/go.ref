@@ -63,13 +63,13 @@ var (
 type Session struct {
 	input     *bufio.Reader
 	timeout   time.Duration
-	t         *testing.T
+	t         testing.TB
 	verbose   bool
 	oerr, err error
 }
 
 // NewSession creates a new Session. The parameter t may be safely be nil.
-func NewSession(t *testing.T, input io.Reader, timeout time.Duration) *Session {
+func NewSession(t testing.TB, input io.Reader, timeout time.Duration) *Session {
 	return &Session{t: t, timeout: timeout, input: bufio.NewReader(input)}
 }
 

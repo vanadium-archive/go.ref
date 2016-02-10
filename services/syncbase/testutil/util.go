@@ -29,17 +29,17 @@ import (
 	tsecurity "v.io/x/ref/test/testutil"
 )
 
-func Fatal(t *testing.T, args ...interface{}) {
+func Fatal(t testing.TB, args ...interface{}) {
 	debug.PrintStack()
 	t.Fatal(args...)
 }
 
-func Fatalf(t *testing.T, format string, args ...interface{}) {
+func Fatalf(t testing.TB, format string, args ...interface{}) {
 	debug.PrintStack()
 	t.Fatalf(format, args...)
 }
 
-func CreateApp(t *testing.T, ctx *context.T, s syncbase.Service, name string) syncbase.App {
+func CreateApp(t testing.TB, ctx *context.T, s syncbase.Service, name string) syncbase.App {
 	a := s.App(name)
 	if err := a.Create(ctx, nil); err != nil {
 		Fatalf(t, "a.Create() failed: %v", err)
@@ -47,7 +47,7 @@ func CreateApp(t *testing.T, ctx *context.T, s syncbase.Service, name string) sy
 	return a
 }
 
-func CreateNoSQLDatabase(t *testing.T, ctx *context.T, a syncbase.App, name string) nosql.Database {
+func CreateNoSQLDatabase(t testing.TB, ctx *context.T, a syncbase.App, name string) nosql.Database {
 	d := a.NoSQLDatabase(name, nil)
 	if err := d.Create(ctx, nil); err != nil {
 		Fatalf(t, "d.Create() failed: %v", err)
@@ -55,7 +55,7 @@ func CreateNoSQLDatabase(t *testing.T, ctx *context.T, a syncbase.App, name stri
 	return d
 }
 
-func CreateTable(t *testing.T, ctx *context.T, d nosql.Database, name string) nosql.Table {
+func CreateTable(t testing.TB, ctx *context.T, d nosql.Database, name string) nosql.Table {
 	tb := d.Table(name)
 	if err := tb.Create(ctx, nil); err != nil {
 		Fatalf(t, "tb.Create() failed: %v", err)
@@ -134,13 +134,13 @@ func ScanMatches(ctx *context.T, tb nosql.Table, r nosql.RowRange, wantKeys []st
 	return nil
 }
 
-func CheckScan(t *testing.T, ctx *context.T, tb nosql.Table, r nosql.RowRange, wantKeys []string, wantValues []interface{}) {
+func CheckScan(t testing.TB, ctx *context.T, tb nosql.Table, r nosql.RowRange, wantKeys []string, wantValues []interface{}) {
 	if err := ScanMatches(ctx, tb, r, wantKeys, wantValues); err != nil {
 		Fatalf(t, err.Error())
 	}
 }
 
-func CheckExec(t *testing.T, ctx *context.T, db nosql.DatabaseHandle, q string, wantHeaders []string, wantResults [][]*vdl.Value) {
+func CheckExec(t testing.TB, ctx *context.T, db nosql.DatabaseHandle, q string, wantHeaders []string, wantResults [][]*vdl.Value) {
 	gotHeaders, it, err := db.Exec(ctx, q)
 	if err != nil {
 		t.Errorf("query %q: got %v, want nil", q, err)
@@ -161,7 +161,7 @@ func CheckExec(t *testing.T, ctx *context.T, db nosql.DatabaseHandle, q string, 
 	}
 }
 
-func CheckExecError(t *testing.T, ctx *context.T, db nosql.DatabaseHandle, q string, wantErrorID verror.ID) {
+func CheckExecError(t testing.TB, ctx *context.T, db nosql.DatabaseHandle, q string, wantErrorID verror.ID) {
 	_, rs, err := db.Exec(ctx, q)
 	if err == nil {
 		if rs.Advance() {
@@ -177,7 +177,7 @@ func CheckExecError(t *testing.T, ctx *context.T, db nosql.DatabaseHandle, q str
 
 // CheckWatch checks that the sequence of elements from the watch stream starts
 // with the given slice of watch changes.
-func CheckWatch(t *testing.T, wstream nosql.WatchStream, changes []nosql.WatchChange) {
+func CheckWatch(t testing.TB, wstream nosql.WatchStream, changes []nosql.WatchChange) {
 	for _, want := range changes {
 		if !wstream.Advance() {
 			Fatalf(t, "wstream.Advance() reached the end: %v", wstream.Err())
@@ -211,7 +211,7 @@ func DefaultSchema(version int32) *nosql.Schema {
 ////////////////////////////////////////
 // Internal helpers
 
-func getPermsOrDie(t *testing.T, ctx *context.T, ac util.AccessController) access.Permissions {
+func getPermsOrDie(t testing.TB, ctx *context.T, ac util.AccessController) access.Permissions {
 	perms, _, err := ac.GetPermissions(ctx)
 	if err != nil {
 		Fatalf(t, "GetPermissions failed: %v", err)

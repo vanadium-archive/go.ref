@@ -83,7 +83,7 @@ func (c *Cmd) WithCredentials(cr *Credentials) *Cmd {
 type Shell struct {
 	*gosh.Shell
 	Ctx *context.T
-	t   *testing.T
+	t   testing.TB
 	pm  principalManager
 }
 
@@ -104,7 +104,7 @@ var calledInitTestMain = false
 
 // NewShell creates a new Shell. 't' may be nil. Use v23.GetPrincipal(sh.Ctx) to
 // get the bound principal, if needed.
-func NewShell(t *testing.T, opts Opts) *Shell {
+func NewShell(t testing.TB, opts Opts) *Shell {
 	fillDefaults(t, &opts)
 
 	// Note: gosh only requires gosh.InitMain to be called if the user uses
@@ -255,7 +255,7 @@ func TestMain(m *testing.M) {
 // unless integration tests are being run, i.e. unless the -v23.tests flag is
 // set.
 // TODO(sadovsky): Switch to using -test.short. See TODO above.
-func SkipUnlessRunningIntegrationTests(t *testing.T) {
+func SkipUnlessRunningIntegrationTests(t testing.TB) {
 	// Note: The "jiri test run vanadium-integration-test" command looks for test
 	// function names that start with "TestV23", and runs "go test" for only those
 	// packages containing at least one such test. That's how it avoids passing
@@ -276,7 +276,7 @@ func SkipUnlessRunningIntegrationTests(t *testing.T) {
 ////////////////////////////////////////////////////////////////////////////////
 // Methods for starting subprocesses
 
-func initSession(t *testing.T, c *Cmd) {
+func initSession(t testing.TB, c *Cmd) {
 	c.S = expect.NewSession(t, c.StdoutPipe(), time.Minute)
 	c.S.SetVerbosity(testing.Verbose())
 }
@@ -391,7 +391,7 @@ func callerName() (string, error) {
 	return name[strings.LastIndex(name, ".")+1:], nil
 }
 
-func fillDefaults(t *testing.T, opts *Opts) {
+func fillDefaults(t testing.TB, opts *Opts) {
 	if opts.Fatalf == nil {
 		if t != nil {
 			opts.Fatalf = func(format string, v ...interface{}) {
