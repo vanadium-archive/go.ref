@@ -102,7 +102,7 @@ func TestAppend(t *testing.T) {
 	thb := rs[0].heartbeat
 
 	// One of the raft members should time out not hearing a leader and start an election.
-	r1 := waitForElection(t, rs, 5*thb)
+	r1 := waitForElection(t, rs, thb)
 	if r1 == nil {
 		t.Fatalf("too long to find a leader")
 	}
@@ -126,7 +126,7 @@ func TestAppend(t *testing.T) {
 
 	// Kill off one instance and see if we keep committing.
 	r1.Stop()
-	r2 := waitForElection(t, rs, 5*thb)
+	r2 := waitForElection(t, rs, thb)
 	if r2 == nil {
 		t.Fatalf("too long to find a leader")
 	}

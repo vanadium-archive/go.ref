@@ -16,7 +16,8 @@ import (
 
 // waitForElection waits for a new leader to be elected.  We also make sure there
 // is only one leader.
-func waitForElection(t *testing.T, rs []*raft, timeout time.Duration) *raft {
+func waitForElection(t *testing.T, rs []*raft, heartbeat time.Duration) *raft {
+	timeout := 20 * heartbeat
 	start := time.Now()
 	for {
 		var leader *raft
@@ -42,25 +43,36 @@ func waitForElection(t *testing.T, rs []*raft, timeout time.Duration) *raft {
 	}
 }
 
+func doAppend(m map[string][]string, leader, id string) {
+	if _, ok := m[leader]; !ok {
+		m[leader] = []string{id}
+	} else {
+		m[leader] = append(m[leader], id)
+	}
+}
+
 // waitForLeaderAgreement makes sure all working servers agree on the leader.
-func waitForLeaderAgreement(rs []*raft, timeout time.Duration) bool {
+func waitForLeaderAgreement(rs []*raft, heartbeat time.Duration) bool {
+	timeout := 20 * heartbeat
 	start := time.Now()
 	for {
-		leader := make(map[string]string)
+		leaderMap := make(map[string][]string)
 		for _, r := range rs {
 			id, role, l := r.Status()
 			switch role {
 			case RoleLeader:
-				leader[id] = id
+				doAppend(leaderMap, id, id)
 			case RoleFollower:
-				leader[l] = id
+				doAppend(leaderMap, l, id)
+			case RoleCandidate:
+				doAppend(leaderMap, "???", id)
 			}
 		}
-		if len(leader) == 1 {
+		if len(leaderMap) == 1 {
 			return true
 		}
 		if time.Now().Sub(start) > timeout {
-			vlog.Errorf("oops %v", leader)
+			vlog.Errorf("oops %v", leaderMap)
 			return false
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -77,7 +89,7 @@ func TestElection(t *testing.T) {
 	thb := rs[0].heartbeat
 
 	// One of the raft members should time out not hearing a leader and start an election.
-	r1 := waitForElection(t, rs, 5*thb)
+	r1 := waitForElection(t, rs, thb)
 	if r1 == nil {
 		t.Fatalf("too long to find a leader")
 	}
@@ -88,7 +100,7 @@ func TestElection(t *testing.T) {
 
 	// Stop the leader and wait for the next election.
 	r1.Stop()
-	r2 := waitForElection(t, rs, 5*thb)
+	r2 := waitForElection(t, rs, thb)
 	if r2 == nil {
 		t.Fatalf("too long to find a leader")
 	}
@@ -98,7 +110,7 @@ func TestElection(t *testing.T) {
 
 	// One more time.
 	r2.Stop()
-	r3 := waitForElection(t, rs, 5*thb)
+	r3 := waitForElection(t, rs, thb)
 	if r3 == nil {
 		t.Fatalf("too long to find a leader")
 	}
@@ -108,14 +120,14 @@ func TestElection(t *testing.T) {
 
 	// One more time.  Shouldn't succeed since we no longer have a quorum.
 	r3.Stop()
-	r4 := waitForElection(t, rs, 5*thb)
+	r4 := waitForElection(t, rs, thb)
 	if r4 != nil {
 		t.Fatalf("shouldn't have a leader with no quorum")
 	}
 
 	// Restart r1.  We should be back to a quorum so an election should succeed.
 	restart(t, ctx, rs, cs, r1)
-	r4 = waitForElection(t, rs, 5*thb)
+	r4 = waitForElection(t, rs, thb)
 	if r4 == nil {
 		t.Fatalf("too long to find a leader")
 	}
@@ -125,7 +137,7 @@ func TestElection(t *testing.T) {
 
 	// Restart r2.  Within thb time the new guy should agree with everyone else on who the leader is.
 	restart(t, ctx, rs, cs, r2)
-	if !waitForLeaderAgreement(rs, 3*thb) {
+	if !waitForLeaderAgreement(rs, thb) {
 		t.Fatalf("no leader agreement")
 	}
 	vlog.Infof("TestElection passed")
@@ -141,7 +153,7 @@ func TestPerformanceElection(t *testing.T) {
 	thb := rs[0].heartbeat
 
 	// One of the raft members should time out not hearing a leader and start an election.
-	r1 := waitForElection(t, rs, 5*thb)
+	r1 := waitForElection(t, rs, thb)
 	if r1 == nil {
 		t.Fatalf("too long to find a leader")
 	}
@@ -156,7 +168,7 @@ func TestPerformanceElection(t *testing.T) {
 	for i := 0; i < 200; i++ {
 		x := i % 5
 		rs[x].StartElection()
-		if !waitForLeaderAgreement(rs, 5*thb) {
+		if !waitForLeaderAgreement(rs, thb) {
 			t.Fatalf("no leader agreement")
 		}
 	}

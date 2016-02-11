@@ -101,7 +101,7 @@ func (s *service) RequestVote(ctx *context.T, call rpc.ServerCall, term Term, ca
 	// If the term is higher than the current election term, then we are into a new election.
 	if term > r.p.CurrentTerm() {
 		r.setRoleAndWatchdogTimer(RoleFollower)
-		r.p.SetVotedFor("")
+		r.p.SetCurrentTermAndVotedFor(term, "")
 	}
 	vf := r.p.VotedFor()
 
@@ -118,7 +118,8 @@ func (s *service) RequestVote(ctx *context.T, call rpc.ServerCall, term Term, ca
 		return r.p.CurrentTerm(), false, nil
 	}
 
-	// Vote for candidate.
+	// Vote for candidate and make sure we're a follower.
+	r.setRole(RoleFollower)
 	r.p.SetCurrentTermAndVotedFor(term, candidate)
 	return r.p.CurrentTerm(), true, nil
 }
@@ -138,12 +139,18 @@ func (s *service) AppendToLog(ctx *context.T, call rpc.ServerCall, term Term, le
 
 	// At this point we  accept the sender as leader and become a follower.
 	if r.leader != leader {
-		vlog.Infof("@%s new leader %s during AppendToLog", r.me.id, leader)
+		vlog.VI(2).Infof("@%s new leader %s during AppendToLog", r.me.id, leader)
 	}
 	r.leader = leader
 	r.lcv.Broadcast()
+
+	// Update our term if we are behind.
+	if term > r.p.CurrentTerm() {
+		r.p.SetCurrentTermAndVotedFor(term, "")
+	}
+
+	// Restart our timer since we just heard from the leader.
 	r.setRoleAndWatchdogTimer(RoleFollower)
-	r.p.SetVotedFor("")
 
 	// Append if we can.
 	if err := r.p.AppendToLog(ctx, prevTerm, prevIndex, entries); err != nil {
@@ -202,12 +209,18 @@ func (s *service) InstallSnapshot(ctx *context.T, call raftProtoInstallSnapshotS
 
 	// At this point we  accept the sender as leader and become a follower.
 	if r.leader != leader {
-		vlog.Infof("@%s new leader %s during InstallSnapshot", r.me.id, leader)
+		vlog.VI(2).Infof("@%s new leader %s during InstallSnapshot", r.me.id, leader)
 	}
 	r.leader = leader
 	r.lcv.Broadcast()
+
+	// Update our term if we are behind.
+	if term > r.p.CurrentTerm() {
+		r.p.SetCurrentTermAndVotedFor(term, "")
+	}
+
+	// Restart our timer since we just heard from the leader.
 	r.setRoleAndWatchdogTimer(RoleFollower)
-	r.p.SetVotedFor("")
 
 	// Store the snapshot and restore client from it.
 	return r.p.SnapshotFromLeader(ctx, appliedTerm, appliedIndex, call)

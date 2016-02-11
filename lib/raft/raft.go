@@ -301,6 +301,8 @@ func (r *raft) setRoleAndWatchdogTimer(role int) {
 		// Set a timer to start an election if we no longer hear from the leader.
 		r.resetTimerFuzzy(2 * r.heartbeat)
 	case RoleLeader:
+		r.leader = r.me.id
+
 		// Set known follower status to default values.
 		for _, m := range r.memberSet {
 			if m.id != r.me.id {
@@ -308,13 +310,24 @@ func (r *raft) setRoleAndWatchdogTimer(role int) {
 				m.matchIndex = 0
 			}
 		}
-		r.leader = r.me.id
-		// Tell followers we are now the leader.
-		r.appendNull()
+
+		// Set my match index to the last one logged.
+		r.setMatchIndex(r.me, r.p.LastIndex())
+
+		// Let waiters know a new leader exists.
+		r.lcv.Broadcast()
 	case RoleCandidate:
-		// Set a timer to restart the election if noone becomes leader.
-		r.resetTimerFuzzy(r.heartbeat)
+		// If this goes off, we lost an election and need to start a new one.
+		// We make it longer than the follower timeout because we make have
+		// lost due to safety so give someone else a chance.
+		r.resetTimerFuzzy(4 * r.heartbeat)
 	}
+}
+
+// setRole called with r.l locked.
+func (r *raft) setRole(role int) {
+	vlog.VI(2).Infof("@%s %s->%s", r.me.id, roleToString(r.role), roleToString(role))
+	r.role = role
 }
 
 func (r *raft) appendNull() {
@@ -353,13 +366,13 @@ func (r *raft) StartElection() {
 
 func (r *raft) startElection() {
 	// If we can't get a response in 2 seconds, something is really wrong.
-	ctx, _ := context.WithTimeout(r.ctx, time.Duration(2)*time.Second)
+	ctx, _ := context.WithTimeout(r.ctx, 2*time.Second)
 	if err := r.p.IncCurrentTerm(); err != nil {
 		// If this fails, there's no way to recover.
 		vlog.Fatalf("incrementing current term: %s", err)
 		return
 	}
-	vlog.VI(2).Infof("@%s startElection new term %d", r.me.id, r.p.CurrentTerm())
+	vlog.Infof("@%s startElection new term %d", r.me.id, r.p.CurrentTerm())
 
 	msg := []interface{}{
 		r.p.CurrentTerm(),
@@ -380,24 +393,32 @@ func (r *raft) startElection() {
 	r.Unlock()
 
 	// We have to do this outside the lock or the system will deadlock when two members start overlapping votes.
-	c := make(chan bool)
+	type reply struct {
+		term Term
+		ok   bool
+	}
+	c := make(chan reply)
 	for _, id := range members {
 		go func(id string) {
-			var term Term
-			var ok bool
+			var rep reply
 			client := v23.GetClient(ctx)
-			if err := client.Call(ctx, id, "RequestVote", msg, []interface{}{&term, &ok}, options.Preresolved{}); err != nil {
-				vlog.VI(2).Infof("@%s sending RequestVote to %s: %s", r.me.id, id, err)
+			if err := client.Call(ctx, id, "RequestVote", msg, []interface{}{&rep.term, &rep.ok}, options.Preresolved{}); err != nil {
+				vlog.Infof("@%s sending RequestVote to %s: %s", r.me.id, id, err)
 			}
-			c <- ok
+			c <- rep
 		}(id)
 	}
 
 	// Wait till all the voters have voted or timed out.
 	oks := 1 // We vote for ourselves.
+	highest := Term(0)
 	for range members {
-		if <-c {
+		rep := <-c
+		if rep.ok {
 			oks++
+		}
+		if rep.term > highest {
+			highest = rep.term
 		}
 	}
 
@@ -405,14 +426,20 @@ func (r *raft) startElection() {
 	// We have to check the role since someone else may have become the leader during the round and
 	// made us a follower.
 	if oks <= len(members)/2 || r.role != RoleCandidate {
+		if highest > r.p.CurrentTerm() {
+			// If someone answered with a higher term, stop being a candidate.
+			r.setRoleAndWatchdogTimer(RoleFollower)
+			r.p.SetCurrentTerm(highest)
+		}
 		vlog.VI(2).Infof("@%s lost election with %d votes", r.me.id, oks)
 		return
 	}
 	vlog.Infof("@%s won election with %d votes", r.me.id, oks)
 	r.setRoleAndWatchdogTimer(RoleLeader)
-	r.leader = r.me.id
-	r.setMatchIndex(r.me, r.p.LastIndex())
-	r.lcv.Broadcast()
+
+	// Tell followers we are now the leader.
+	r.appendNull()
+
 }
 
 // applyCommits applies any committed entries.
