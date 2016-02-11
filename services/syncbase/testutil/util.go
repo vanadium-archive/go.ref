@@ -188,23 +188,11 @@ func CheckWatch(t testing.TB, wstream nosql.WatchStream, changes []nosql.WatchCh
 	}
 }
 
-type MockSchemaUpgrader struct {
-	CallCount int
-}
-
-func (msu *MockSchemaUpgrader) Run(db nosql.Database, oldVersion, newVersion int32) error {
-	msu.CallCount++
-	return nil
-}
-
-var _ nosql.SchemaUpgrader = (*MockSchemaUpgrader)(nil)
-
 func DefaultSchema(version int32) *nosql.Schema {
 	return &nosql.Schema{
 		Metadata: wire.SchemaMetadata{
 			Version: version,
 		},
-		Upgrader: nosql.SchemaUpgrader(&MockSchemaUpgrader{}),
 	}
 }
 
