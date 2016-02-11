@@ -67,6 +67,9 @@ type raftProto interface {
 	// Returns the term and index of the append entry or an error.
 	Append(cmd []byte) (term Term, index Index | error)
 
+	// Committed returns the commit index of the leader.
+	Committed() (index Index | error)
+
 	// InstallSnapshot is sent from the leader to follower to install the given snapshot.  It is
 	// sent when it becomes apparent that the leader does not have log entries needed by the follower
 	// to progress.  'term' and 'index' represent the last LogEntry RaftClient.Apply()ed to the

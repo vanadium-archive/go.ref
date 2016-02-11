@@ -68,10 +68,8 @@ type raft struct {
 	// Client interface.
 	client RaftClient
 
-	// applied is the highest log entry applied to the client.  All access/update is in a single
-	// go routine.
+	// applied is the highest log entry applied to the client.
 	applied struct {
-		sync.RWMutex
 		index Index
 		term  Term
 	}
@@ -108,6 +106,16 @@ type raft struct {
 
 	// Wait here for leadership to change.
 	lcv *sync.Cond
+
+	// Variables for the sync loop.
+	sync struct {
+		sync.Mutex
+		requested   uint64 // Incremented each sync request.
+		requestedcv *sync.Cond
+		done        uint64 // Updated to last request prior to the current sync.
+		donecv      *sync.Cond
+		stopped     chan struct{}
+	}
 }
 
 // logentry is the in memory structure for each logged item.  It is
@@ -164,6 +172,8 @@ func newRaft(ctx *context.T, config *RaftConfig, client RaftClient) (*raft, erro
 	r.newCommit = make(chan Index, 100)
 	r.ccv = sync.NewCond(r)
 	r.lcv = sync.NewCond(r)
+	r.sync.donecv = sync.NewCond(&r.sync)
+	r.sync.requestedcv = sync.NewCond(&r.sync)
 
 	// The RPC interface to other members.
 	eps, err := r.s.newService(nctx, r, config.ServerName, config.HostPort, config.Acl)
@@ -223,12 +233,14 @@ func (r *raft) Start() {
 	}
 	r.timer = time.NewTimer(2 * r.heartbeat)
 
-	// Signaling for stopping the perFollower and serverEvents go routines.
+	// serverEvents serializes events for this server.
 	r.stop = make(chan struct{})
 	r.stopped = make(chan struct{})
-
-	// serverEvents serializes events for this server.
 	go r.serverEvents()
+
+	// syncLoop syncs with the leader when needed.
+	r.sync.stopped = make(chan struct{})
+	go r.syncLoop()
 
 	// perFollowers updates the followers when we're the leader.
 	for _, m := range r.memberSet {
@@ -256,6 +268,11 @@ func (r *raft) Stop() {
 
 	// Wait for serverEvents to stop.
 	<-r.stopped
+
+	// Wait for syncLoop to stop.
+	r.sync.donecv.Broadcast()
+	r.sync.requestedcv.Broadcast()
+	<-r.sync.stopped
 
 	// Wait for all the perFollower routines to stop.
 	for _, m := range r.memberSet {
@@ -416,18 +433,18 @@ func (r *raft) applyCommits(commitIndex Index) {
 		}
 
 		// But we do have to lock our writes.
-		r.applied.Lock()
+		r.Lock()
 		r.applied.index = next
 		r.applied.term = le.Term
-		r.applied.Unlock()
+		r.Unlock()
 	}
 
 	r.p.ConsiderSnapshot(r.ctx, r.applied.term, r.applied.index)
 }
 
 func (r *raft) lastApplied() Index {
-	r.applied.RLock()
-	defer r.applied.RUnlock()
+	r.Lock()
+	defer r.Unlock()
 	return r.applied.index
 }
 
@@ -740,12 +757,14 @@ func roleToString(r int) string {
 }
 
 func (r *raft) waitForApply(ctx *context.T, term Term, index Index) (error, error) {
+	r.Lock()
+	defer r.Unlock()
 	for {
-		r.applied.RLock()
-		applied := r.applied.index
-		r.applied.RUnlock()
-
-		if applied >= index {
+		if r.applied.index >= index {
+			if term == 0 {
+				// Special case: we don't care about Apply() error or committed term, only that we've reached index.
+				return nil, nil
+			}
 			le := r.p.Lookup(index)
 			if le == nil || le.Term != term {
 				// There was an election and the log entry was lost.
@@ -761,25 +780,35 @@ func (r *raft) waitForApply(ctx *context.T, term Term, index Index) (error, erro
 		default:
 		}
 
-		// Wait for an apply to happen.
-		r.Lock()
+		// Wait for an apply to happen.  r will be unlocked during the wait.
 		r.ccv.Wait()
-		r.Unlock()
 	}
+}
+
+// waitForLeadership waits until there is an elected leader.
+func (r *raft) waitForLeadership(ctx *context.T) (string, int, Index, bool) {
+	r.Lock()
+	defer r.Unlock()
+	for len(r.leader) == 0 {
+		// Give up if the caller doesn't want to wait.
+		select {
+		case <-ctx.Done():
+			return "", 0, 0, true
+		default:
+		}
+		r.lcv.Wait()
+	}
+	return r.leader, r.role, r.commitIndex, false
 }
 
 // Append tells the leader to append to the log.  The first error is the result of the client.Apply.  The second
 // is any error from raft.
-func (r *raft) Append(ctx *context.T, cmd []byte) (applyErr error, err error) {
+func (r *raft) Append(ctx *context.T, cmd []byte) (error, error) {
 	for {
-		r.Lock()
-		if len(r.leader) == 0 {
-			r.lcv.Wait()
+		leader, role, _, timedOut := r.waitForLeadership(ctx)
+		if timedOut {
+			return nil, verror.New(errTimedOut, ctx)
 		}
-		leader := r.leader
-		role := r.role
-		r.Unlock()
-
 		switch role {
 		case RoleLeader:
 			term, index, err := r.s.Append(ctx, nil, cmd)
@@ -798,7 +827,8 @@ func (r *raft) Append(ctx *context.T, cmd []byte) (applyErr error, err error) {
 			if len(leader) == 0 {
 				break
 			}
-			if err = client.Call(ctx, leader, "Append", []interface{}{cmd}, []interface{}{&term, &index}, options.Preresolved{}); err == nil {
+			err := client.Call(ctx, leader, "Append", []interface{}{cmd}, []interface{}{&term, &index}, options.Preresolved{})
+			if err == nil {
 				return r.waitForApply(ctx, term, index)
 			}
 			// If the leader can't do it, give up.
@@ -810,8 +840,8 @@ func (r *raft) Append(ctx *context.T, cmd []byte) (applyErr error, err error) {
 		// Give up if the caller doesn't want to wait.
 		select {
 		case <-ctx.Done():
-			err = verror.New(errTimedOut, ctx)
-			return
+			err := verror.New(errTimedOut, ctx)
+			return nil, err
 		default:
 		}
 	}
@@ -824,4 +854,92 @@ func (r *raft) Leader() (bool, string) {
 		return true, r.leader
 	}
 	return false, r.leader
+}
+
+// syncWithLeader synchronizes with the leader.  On return we have applied the commit index
+// that existed before the call.
+func (r *raft) syncWithLeader(ctx *context.T) error {
+	for {
+		leader, role, commitIndex, timedOut := r.waitForLeadership(ctx)
+		if timedOut {
+			return verror.New(errTimedOut, ctx)
+		}
+
+		switch role {
+		case RoleLeader:
+			r.waitForApply(ctx, 0, commitIndex)
+			return nil
+		case RoleFollower:
+			client := v23.GetClient(ctx)
+			var index Index
+			err := client.Call(ctx, leader, "Committed", []interface{}{}, []interface{}{&index}, options.Preresolved{})
+			if err == nil {
+				r.waitForApply(ctx, 0, index)
+				return nil
+			}
+			// If the leader can't do it, give up.
+			if verror.ErrorID(err) != errNotLeader.ID {
+				return err
+			}
+		}
+
+		// Give up if the caller doesn't want to wait.
+		select {
+		case <-ctx.Done():
+			return verror.New(errTimedOut, ctx)
+		default:
+		}
+	}
+}
+
+// syncLoop is a go routine that syncs whenever necessary with the leader.
+func (r *raft) syncLoop() {
+	for {
+		// Wait for someone to request syncing.
+		r.sync.Lock()
+		for r.sync.requested <= r.sync.done {
+			select {
+			case <-r.stop:
+				close(r.sync.stopped)
+				r.sync.Unlock()
+				return
+			default:
+			}
+			r.sync.requestedcv.Wait()
+		}
+		requested := r.sync.requested
+		r.sync.Unlock()
+
+		// Perform the sync outside the lock.
+		if err := r.syncWithLeader(r.ctx); err != nil {
+			continue
+		}
+
+		// Wake up waiters.
+		r.sync.Lock()
+		r.sync.done = requested
+		r.sync.Unlock()
+		r.sync.donecv.Broadcast()
+	}
+}
+
+// Sync waits for this member to have applied the current commit indexl.
+func (r *raft) Sync(ctx *context.T) error {
+	r.sync.Lock()
+	defer r.sync.Unlock()
+	r.sync.requested++
+	requested := r.sync.requested
+	r.sync.requestedcv.Broadcast()
+	// Wait for our sync to complete.
+	for requested > r.sync.done {
+		select {
+		case <-r.stop:
+			return verror.New(errTimedOut, ctx)
+		case <-ctx.Done():
+			return verror.New(errTimedOut, ctx)
+		default:
+		}
+		r.sync.donecv.Wait()
+	}
+	return nil
 }

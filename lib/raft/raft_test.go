@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
@@ -155,4 +156,52 @@ func TestAppend(t *testing.T) {
 	}
 
 	vlog.Infof("TestAppend passed")
+}
+
+func syncer(t *testing.T, ctx *context.T, ch chan struct{}, r *raft, c *client, n int) {
+	for {
+		if c.TotalApplied() >= n {
+			break
+		}
+		r.Sync(ctx)
+	}
+	ch <- struct{}{}
+}
+
+// TestSync just makes sure syncers don't get stuck.  I'm not entirely certain how to test that they
+// are actually in sync when the Sync returns.
+func TestSync(t *testing.T) {
+	vlog.Infof("TestAppend")
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	rs, cs := buildRafts(t, ctx, 5, nil)
+	defer cleanUp(rs)
+	thb := rs[0].heartbeat
+
+	leader := waitForElection(t, rs, 5*thb)
+	if leader == nil {
+		t.Fatalf("too long to find a leader")
+	}
+
+	// Sync on all members independently.
+	nappends := 300
+	c := make(chan struct{}, len(rs))
+	for i := range rs {
+		i := i
+		go syncer(t, ctx, c, rs[i], cs[i], nappends)
+	}
+
+	// Send requests without waiting letting replicas catch up on their own.
+	for i := 0; i < nappends; i++ {
+		cmd := fmt.Sprintf("the rain in spain %d", i)
+		if apperr, err := leader.Append(ctx, []byte(cmd)); apperr != nil || err != nil {
+			t.Fatalf("append %s failed with %s", cmd, err)
+		}
+	}
+
+	// Wait for termination.
+	for i := 0; i < len(rs); i++ {
+		<-c
+	}
 }

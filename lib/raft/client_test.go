@@ -24,11 +24,11 @@ type client struct {
 	sync.RWMutex
 	cmds    [][]byte // applied commands
 	id      string
-	applied Index
+	applied Index // highest index applied
 }
 
 func (c *client) Apply(cmd []byte, index Index) error {
-	//vlog.Infof("Applying %d %s", index, cmd)
+	vlog.VI(2).Infof("Applying %d %s", index, cmd)
 	c.Lock()
 	c.cmds = append(c.cmds, cmd)
 	c.applied = index
@@ -40,6 +40,12 @@ func (c *client) Applied() Index {
 	c.RLock()
 	defer c.RUnlock()
 	return c.applied
+}
+
+func (c *client) TotalApplied() int {
+	c.RLock()
+	defer c.RUnlock()
+	return len(c.cmds)
 }
 
 func (c *client) SaveToSnapshot(ctx *context.T, wr io.Writer, response chan<- error) error {

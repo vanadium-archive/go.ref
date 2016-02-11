@@ -92,6 +92,8 @@ type raftProtoClientMethods interface {
 	//
 	// Returns the term and index of the append entry or an error.
 	Append(_ *context.T, cmd []byte, _ ...rpc.CallOpt) (term Term, index Index, _ error)
+	// Committed returns the commit index of the leader.
+	Committed(*context.T, ...rpc.CallOpt) (index Index, _ error)
 	// InstallSnapshot is sent from the leader to follower to install the given snapshot.  It is
 	// sent when it becomes apparent that the leader does not have log entries needed by the follower
 	// to progress.  'term' and 'index' represent the last LogEntry RaftClient.Apply()ed to the
@@ -136,6 +138,11 @@ func (c implraftProtoClientStub) AppendToLog(ctx *context.T, i0 Term, i1 string,
 
 func (c implraftProtoClientStub) Append(ctx *context.T, i0 []byte, opts ...rpc.CallOpt) (o0 Term, o1 Index, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "Append", []interface{}{i0}, []interface{}{&o0, &o1}, opts...)
+	return
+}
+
+func (c implraftProtoClientStub) Committed(ctx *context.T, opts ...rpc.CallOpt) (o0 Index, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Committed", nil, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -242,6 +249,8 @@ type raftProtoServerMethods interface {
 	//
 	// Returns the term and index of the append entry or an error.
 	Append(_ *context.T, _ rpc.ServerCall, cmd []byte) (term Term, index Index, _ error)
+	// Committed returns the commit index of the leader.
+	Committed(*context.T, rpc.ServerCall) (index Index, _ error)
 	// InstallSnapshot is sent from the leader to follower to install the given snapshot.  It is
 	// sent when it becomes apparent that the leader does not have log entries needed by the follower
 	// to progress.  'term' and 'index' represent the last LogEntry RaftClient.Apply()ed to the
@@ -280,6 +289,8 @@ type raftProtoServerStubMethods interface {
 	//
 	// Returns the term and index of the append entry or an error.
 	Append(_ *context.T, _ rpc.ServerCall, cmd []byte) (term Term, index Index, _ error)
+	// Committed returns the commit index of the leader.
+	Committed(*context.T, rpc.ServerCall) (index Index, _ error)
 	// InstallSnapshot is sent from the leader to follower to install the given snapshot.  It is
 	// sent when it becomes apparent that the leader does not have log entries needed by the follower
 	// to progress.  'term' and 'index' represent the last LogEntry RaftClient.Apply()ed to the
@@ -334,6 +345,10 @@ func (s implraftProtoServerStub) AppendToLog(ctx *context.T, call rpc.ServerCall
 
 func (s implraftProtoServerStub) Append(ctx *context.T, call rpc.ServerCall, i0 []byte) (Term, Index, error) {
 	return s.impl.Append(ctx, call, i0)
+}
+
+func (s implraftProtoServerStub) Committed(ctx *context.T, call rpc.ServerCall) (Index, error) {
+	return s.impl.Committed(ctx, call)
 }
 
 func (s implraftProtoServerStub) InstallSnapshot(ctx *context.T, call *raftProtoInstallSnapshotServerCallStub, i0 Term, i1 string, i2 Term, i3 Index) error {
@@ -405,6 +420,13 @@ var descraftProto = rpc.InterfaceDesc{
 			},
 			OutArgs: []rpc.ArgDesc{
 				{"term", ``},  // Term
+				{"index", ``}, // Index
+			},
+		},
+		{
+			Name: "Committed",
+			Doc:  "// Committed returns the commit index of the leader.",
+			OutArgs: []rpc.ArgDesc{
 				{"index", ``}, // Index
 			},
 		},
