@@ -807,7 +807,7 @@ func GetPid(t *testing.T, ctx *context.T, appID, instanceID string) int {
 // PollingWait polls a given process to make sure that it has exited
 // before continuing or fails with a time-out.
 func PollingWait(t *testing.T, pid int) {
-	timeOut := time.After(5 * time.Second)
+	timeOut := time.After(30 * time.Second)
 	for syscall.Kill(pid, 0) == nil {
 		select {
 		case <-timeOut:

@@ -9,7 +9,6 @@ import (
 	"os"
 	"syscall"
 	"testing"
-	"time"
 
 	"v.io/v23/services/device"
 	"v.io/x/lib/envvar"
@@ -66,15 +65,7 @@ func TestReapReconciliationViaAppCycle(t *testing.T) {
 
 	// Kill instance[0] and wait until it exits before proceeding.
 	syscall.Kill(pid, 9)
-	timeOut := time.After(5 * time.Second)
-	for syscall.Kill(pid, 0) == nil {
-		select {
-		case <-timeOut:
-			t.Fatalf("Timed out waiting for PID %v to terminate", pid)
-		case <-time.After(time.Millisecond):
-			// Try again.
-		}
-	}
+	utiltest.PollingWait(t, pid)
 
 	// Run another device manager to replace the dead one.
 	dm = utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
