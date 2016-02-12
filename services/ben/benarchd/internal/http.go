@@ -445,8 +445,8 @@ function makeTableSortable(tb) {
             <tbody>
                 {{range .Items}}
                 <tr>
-                <td class="mdl-data-table__cell--non-numeric"><a href="/?id={{.ID | urlquery}}">{{.Name}}</a></td>
-                <td><div id="time_{{.ID}}">{{.PrettyTime}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="time_{{.ID}}">{{.NanoSecsPerOp}}ns</div></td>
+                <td class="mdl-data-table__cell--non-numeric"><a href="?id={{.ID | urlquery}}">{{.Name}}</a></td>
+                <td><div id="time_{{.ID}}">{{.PrettyTime}}</div><div class="mdl-tooltip" for="time_{{.ID}}"><span class="mdl-data-table__cell-data">{{.NanoSecsPerOp}}</span>ns</div></td>
                 <td class="mdl-data-table__cell--non-numeric"><div id="os_{{.ID}}">{{.Scenario.Os.Name}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="os_{{.ID}}">{{.Scenario.Os.Version}}</div></td>
                 <td class="mdl-data-table__cell--non-numeric"><div id="cpu_{{.ID}}">{{.Scenario.Cpu.Architecture}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="cpu_{{.ID}}">{{.Scenario.Cpu.Description}}</div></td>
                 <td class="mdl-data-table__cell--non-numeric">{{.Uploader}}</td>
@@ -486,7 +486,7 @@ function makeTableSortable(tb) {
       <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
       <div class="mdl-card mdl-cell mdl-cell--12-col">
         <div class="mdl-card__supporting-text">
-          <h4>{{.Name}}</h4>
+          <h4><a href="?q={{.Name | urlquery}}">{{.Name}}</a></h4>
           <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp">
             <tbody>
               <tr>
