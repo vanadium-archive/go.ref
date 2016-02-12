@@ -227,6 +227,9 @@ func WithNewDispatchingServer(ctx *context.T,
 		// ongoing requests.  Hopefully this will bring all outstanding
 		// operations to a close.
 		s.cancel()
+		// Note that since the context has been canceled, publisher.WaitForStop and <-flowMgr.Closed()
+		// should return right away.
+		s.publisher.WaitForStop()
 		<-s.flowMgr.Closed()
 		s.Lock()
 		close(s.valid)
