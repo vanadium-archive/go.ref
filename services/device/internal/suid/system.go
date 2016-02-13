@@ -80,7 +80,7 @@ func (hw *WorkParameters) Exec() error {
 	if hw.dryrun {
 		log.Printf("[dryrun] syscall.Setgid(%d)", hw.gid)
 		log.Printf("[dryrun] syscall.Setuid(%d)", hw.uid)
-	} else {
+	} else if syscall.Getuid() != hw.uid || syscall.Getgid() != hw.gid {
 		attr.Sys.Credential = new(syscall.Credential)
 		attr.Sys.Credential.Gid = uint32(hw.gid)
 		attr.Sys.Credential.Uid = uint32(hw.uid)
