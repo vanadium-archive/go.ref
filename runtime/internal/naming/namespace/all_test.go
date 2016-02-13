@@ -42,15 +42,17 @@ func resolveWithRetry(ctx *context.T, name string, opts ...naming.NamespaceOpt) 
 func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
 	ctx, shutdown := test.V23Init()
 	var (
-		err error
-		psc = testutil.NewPrincipal("sc")
-		pc  = testutil.NewPrincipal("c")
+		err    error
+		psc    = testutil.NewPrincipal("sc")
+		pc     = testutil.NewPrincipal("c")
+		bsc, _ = psc.BlessingStore().Default()
+		bc, _  = pc.BlessingStore().Default()
 	)
 	// Setup the principals so that they recognize each other.
-	if err := security.AddToRoots(psc, pc.BlessingStore().Default()); err != nil {
+	if err := security.AddToRoots(psc, bc); err != nil {
 		t.Fatal(err)
 	}
-	if err := security.AddToRoots(pc, psc.BlessingStore().Default()); err != nil {
+	if err := security.AddToRoots(pc, bsc); err != nil {
 		t.Fatal(err)
 	}
 	if sc, err = v23.WithPrincipal(ctx, psc); err != nil {

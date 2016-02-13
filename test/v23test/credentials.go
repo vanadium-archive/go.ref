@@ -51,11 +51,13 @@ func newRootCredentials(pm principalManager) (*Credentials, error) {
 
 func addDefaultBlessings(self, other security.Principal, extensions ...string) error {
 	for _, extension := range extensions {
-		blessings, err := self.Bless(other.PublicKey(), self.BlessingStore().Default(), extension, security.UnconstrainedUse())
+		bself, _ := self.BlessingStore().Default()
+		blessings, err := self.Bless(other.PublicKey(), bself, extension, security.UnconstrainedUse())
 		if err != nil {
 			return err
 		}
-		union, err := security.UnionOfBlessings(other.BlessingStore().Default(), blessings)
+		bother, _ := other.BlessingStore().Default()
+		union, err := security.UnionOfBlessings(bother, blessings)
 		if err != nil {
 			return err
 		}

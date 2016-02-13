@@ -55,7 +55,7 @@ func setupConns(t *testing.T,
 			handler = fh(dflows)
 			dep = ridep
 		}
-		dBlessings := v23.GetPrincipal(dctx).BlessingStore().Default()
+		dBlessings, _ := v23.GetPrincipal(dctx).BlessingStore().Default()
 		d, _, _, err := NewDialed(dctx, dBlessings, dmrw, dep, ep, versions, peerAuthorizer{dBlessings, dAuth}, time.Minute, 0, handler)
 		dch <- d
 		derrch <- err
@@ -65,7 +65,7 @@ func setupConns(t *testing.T,
 		if aflows != nil {
 			handler = fh(aflows)
 		}
-		aBlessings := v23.GetPrincipal(actx).BlessingStore().Default()
+		aBlessings, _ := v23.GetPrincipal(actx).BlessingStore().Default()
 		a, err := NewAccepted(actx, aBlessings, aAuth, amrw, ridep, versions, time.Minute, 0, handler)
 		ach <- a
 		aerrch <- err

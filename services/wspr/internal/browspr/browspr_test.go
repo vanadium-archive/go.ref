@@ -167,7 +167,8 @@ found:
 	// dummy account will be used and will be rejected by the authorizer.
 	accountName := "test-account"
 	bp := v23.GetPrincipal(browspr.ctx)
-	if err := browspr.principalManager.AddAccount(accountName, bp.BlessingStore().Default()); err != nil {
+	bpBlessings, _ := bp.BlessingStore().Default()
+	if err := browspr.principalManager.AddAccount(accountName, bpBlessings); err != nil {
 		t.Fatalf("Failed to add account: %v", err)
 	}
 	if err := browspr.accountManager.AssociateAccount(ctx, msgOrigin, accountName, nil); err != nil {

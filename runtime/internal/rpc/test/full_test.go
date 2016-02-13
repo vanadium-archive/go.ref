@@ -330,7 +330,7 @@ func TestGranter(t *testing.T) {
 			starterr:   "hell no",
 		},
 		{
-			granter:     granter{b: v23.GetPrincipal(cctx).BlessingStore().Default()},
+			granter:     granter{b: defaultBlessings(cctx)},
 			finishErrID: verror.ErrNoAccess,
 			finisherr:   "blessing granted not bound to this server",
 		},
@@ -389,7 +389,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 		bServerClientExpired   = bless(t, sctx, cctx, "expired", cavExpired)
 		bServerClientTPValid   = bless(t, sctx, cctx, "dischargeable_third_party_caveat", cavTPValid)
 		bServerClientTPExpired = bless(t, sctx, cctx, "expired_third_party_caveat", cavTPExpired)
-		bClient                = v23.GetPrincipal(cctx).BlessingStore().Default()
+		bClient, _             = v23.GetPrincipal(cctx).BlessingStore().Default()
 		bRandom, _             = v23.GetPrincipal(cctx).BlessSelf("random")
 
 		tests = []struct {
@@ -486,8 +486,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 
 	// Set a blessing on the client's blessing store to be presented to
 	// the discharge server.
-	v23.GetPrincipal(cctx).BlessingStore().Set(
-		v23.GetPrincipal(cctx).BlessingStore().Default(), "test-blessing:$")
+	v23.GetPrincipal(cctx).BlessingStore().Set(defaultBlessings(cctx), "test-blessing:$")
 
 	// testutil.NewPrincipal sets up a principal that shares blessings
 	// with all servers, undo that.
@@ -596,7 +595,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 		}
 		_, s, err := v23.WithNewDispatchingServer(scctx, "mountpoint/server", &testServerDisp{&testServer{}})
 		if err != nil {
-			t.Fatal(err, v23.GetPrincipal(scctx).BlessingStore().Default())
+			t.Fatal(err, defaultBlessings(scctx))
 		}
 		call, err := v23.GetClient(ctx).StartCall(ctx, test.name, "Method", nil, test.opts...)
 		if !matchesErrorPattern(err, test.errID, test.err) {
@@ -753,10 +752,12 @@ func TestRPCClientBlessingsPublicKey(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	sctx := withPrincipal(t, ctx, "server")
-	bserver := v23.GetPrincipal(sctx).BlessingStore().Default()
-	cctx := withPrincipal(t, ctx, "client")
-	bclient := v23.GetPrincipal(cctx).BlessingStore().Default()
+	var (
+		sctx    = withPrincipal(t, ctx, "server")
+		bserver = defaultBlessings(sctx)
+		cctx    = withPrincipal(t, ctx, "client")
+		bclient = defaultBlessings(cctx)
+	)
 	cctx, err := v23.WithPrincipal(cctx,
 		vsecurity.MustForkPrincipal(
 			v23.GetPrincipal(cctx),
@@ -766,7 +767,7 @@ func TestRPCClientBlessingsPublicKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bvictim := v23.GetPrincipal(withPrincipal(t, ctx, "victim")).BlessingStore().Default()
+	bvictim := defaultBlessings(withPrincipal(t, ctx, "victim"))
 
 	_, s, err := v23.WithNewDispatchingServer(sctx, "", testServerDisp{&testServer{}})
 	if err != nil {
@@ -1339,4 +1340,9 @@ func TestSetupAttack(t *testing.T) {
 	if err := v23.GetClient(ctx).Call(ctx, "mountpoint/server", "Closure", nil, nil, options.NoRetry{}); err == nil {
 		t.Errorf("expected error but got <nil>")
 	}
+}
+
+func defaultBlessings(ctx *context.T) security.Blessings {
+	b, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	return b
 }

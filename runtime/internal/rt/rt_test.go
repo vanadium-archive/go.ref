@@ -44,7 +44,7 @@ func TestInit(t *testing.T) {
 	if p.BlessingStore() == nil {
 		t.Fatalf("The principal must have a BlessingStore")
 	}
-	if p.BlessingStore().Default().IsZero() {
+	if got, _ := p.BlessingStore().Default(); got.IsZero() {
 		t.Errorf("Principal().BlessingStore().Default() should not be the zero value")
 	}
 	if p.BlessingStore().ForPeer().IsZero() {
@@ -89,7 +89,8 @@ func validatePrincipal(p security.Principal) error {
 	if p == nil {
 		return fmt.Errorf("nil principal")
 	}
-	call := security.NewCall(&security.CallParams{LocalPrincipal: p, RemoteBlessings: p.BlessingStore().Default()})
+	remote, _ := p.BlessingStore().Default()
+	call := security.NewCall(&security.CallParams{LocalPrincipal: p, RemoteBlessings: remote})
 	ctx, cancel := context.RootContext()
 	defer cancel()
 	blessings, rejected := security.RemoteBlessingNames(ctx, call)
@@ -100,7 +101,8 @@ func validatePrincipal(p security.Principal) error {
 }
 
 func defaultBlessing(p security.Principal) string {
-	call := security.NewCall(&security.CallParams{LocalPrincipal: p, RemoteBlessings: p.BlessingStore().Default()})
+	remote, _ := p.BlessingStore().Default()
+	call := security.NewCall(&security.CallParams{LocalPrincipal: p, RemoteBlessings: remote})
 	ctx, cancel := context.RootContext()
 	defer cancel()
 	b, _ := security.RemoteBlessingNames(ctx, call)

@@ -380,7 +380,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	dmrw, amrw := flowtest.Pipe(t, ctx, "local", "")
 	dch := make(chan *connpackage.Conn)
 	ach := make(chan *connpackage.Conn)
-	lBlessings := v23.GetPrincipal(ctx).BlessingStore().Default()
+	lBlessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	go func() {
 		d, _, _, err := connpackage.NewDialed(ctx, lBlessings, dmrw, ep, ep,
 			version.RPCVersionRange{Min: 1, Max: 5},
@@ -448,7 +448,7 @@ func unionBlessing(ctx *context.T, names ...string) []string {
 	if err := principal.BlessingStore().SetDefault(union); err != nil {
 		panic(err)
 	}
-	return security.BlessingNames(principal, principal.BlessingStore().Default())
+	return security.BlessingNames(principal, union)
 }
 
 // resolveProtocol returns a fixed protocol and addresses for its Resolve function.

@@ -68,10 +68,14 @@ func TestPrepareDischarges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	security.AddToRoots(pclient, pdischarger.BlessingStore().Default())
-	security.AddToRoots(pclient, v23.GetPrincipal(ctx).BlessingStore().Default())
-	security.AddToRoots(pdischarger, pclient.BlessingStore().Default())
-	security.AddToRoots(pdischarger, v23.GetPrincipal(ctx).BlessingStore().Default())
+	defaultBlessings := func(p security.Principal) security.Blessings {
+		d, _ := p.BlessingStore().Default()
+		return d
+	}
+	security.AddToRoots(pclient, defaultBlessings(pdischarger))
+	security.AddToRoots(pclient, defaultBlessings(v23.GetPrincipal(ctx)))
+	security.AddToRoots(pdischarger, defaultBlessings(pclient))
+	security.AddToRoots(pdischarger, defaultBlessings(v23.GetPrincipal(ctx)))
 
 	expcav, err := security.NewExpiryCaveat(time.Now().Add(time.Hour))
 	if err != nil {

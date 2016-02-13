@@ -27,7 +27,7 @@ func TestIDProvider(t *testing.T) {
 	if err := p.Roots().Recognized(idpkey, "foo:bar"); err != nil {
 		t.Error(err)
 	}
-	def := p.BlessingStore().Default()
+	def, _ := p.BlessingStore().Default()
 	peers := p.BlessingStore().ForPeer("anyone_else")
 	if def.IsZero() {
 		t.Errorf("BlessingStore should have a default blessing")

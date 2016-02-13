@@ -81,7 +81,8 @@ func NewIDProvider(name string) *IDProvider {
 // IDProviderFromPrincipal creates and IDProvider for the given principal.  It
 // will bless other principals with extensions of its default blessing.
 func IDProviderFromPrincipal(p security.Principal) *IDProvider {
-	return &IDProvider{p, p.BlessingStore().Default()}
+	b, _ := p.BlessingStore().Default()
+	return &IDProvider{p, b}
 }
 
 // Bless sets up the provided principal to use blessings from idp as its

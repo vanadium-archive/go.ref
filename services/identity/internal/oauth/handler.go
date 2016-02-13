@@ -172,6 +172,7 @@ func (h *handler) listBlessingsCallback(ctx *context.T, w http.ResponseWriter, r
 		Token          string
 		Error          error
 	}
+	self, _ := h.args.Principal.BlessingStore().Default()
 	tmplargs := struct {
 		Log                              chan tmplentry
 		Email, RevokeRoute, AssetsPrefix string
@@ -182,7 +183,7 @@ func (h *handler) listBlessingsCallback(ctx *context.T, w http.ResponseWriter, r
 		Email:            email,
 		RevokeRoute:      revokeRoute,
 		AssetsPrefix:     h.args.AssetsPrefix,
-		Self:             h.args.Principal.BlessingStore().Default(),
+		Self:             self,
 		GoogleServers:    h.args.GoogleServers,
 		DischargeServers: h.args.DischargeServers,
 	}

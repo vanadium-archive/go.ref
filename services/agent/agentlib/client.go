@@ -160,7 +160,9 @@ func (c *client) PublicKey() security.PublicKey {
 }
 
 func (c *client) BlessingStore() security.BlessingStore {
-	return &blessingStore{caller: c.caller, key: c.key, noCacheTimes: c.noCacheTimes}
+	closedCh := make(chan struct{})
+	close(closedCh)
+	return &blessingStore{caller: c.caller, key: c.key, noCacheTimes: c.noCacheTimes, closedCh: closedCh}
 }
 
 func (c *client) Roots() security.BlessingRoots {
@@ -171,6 +173,7 @@ type blessingStore struct {
 	caller       caller
 	key          security.PublicKey
 	noCacheTimes bool
+	closedCh     chan struct{}
 }
 
 func (b *blessingStore) Set(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
@@ -191,14 +194,21 @@ func (b *blessingStore) SetDefault(blessings security.Blessings) error {
 	return b.caller.call("BlessingStoreSetDefault", results(), blessings)
 }
 
-func (b *blessingStore) Default() security.Blessings {
+func (b *blessingStore) Default() (security.Blessings, <-chan struct{}) {
 	var blessings security.Blessings
 	err := b.caller.call("BlessingStoreDefault", results(&blessings))
 	if err != nil {
 		logger.Global().Infof("error calling BlessingStoreDefault: %v", err)
-		return security.Blessings{}
+		return security.Blessings{}, b.closedCh
 	}
-	return blessings
+	// In practice, this agent based blessing store is always cached and
+	// thus this retuned channel isn't used. However, in order to be
+	// conservative, return closed channel in the hopes that anyone relying
+	// on this being accurate will find this out more easily (for example,
+	// constantly refreshing the Default because the returned channel is
+	// closed) that if we silently hid the notifications by returning a
+	// channel that would never be closed.
+	return blessings, b.closedCh
 }
 
 func (b *blessingStore) PublicKey() security.PublicKey {

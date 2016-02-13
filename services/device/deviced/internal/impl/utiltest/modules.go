@@ -92,6 +92,7 @@ func deviceManagerFunc(publishName string, args ...string) error {
 	// will precipitate an immediate process exit.
 	shutdownChan := signals.ShutdownOnSignals(ctx)
 	listenSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	claimableEps, stop, err := starter.Start(ctx, starter.Args{
 		Namespace: starter.NamespaceArgs{
 			ListenSpec: listenSpec,
@@ -100,7 +101,7 @@ func deviceManagerFunc(publishName string, args ...string) error {
 			Name:            publishName,
 			ListenSpec:      listenSpec,
 			ConfigState:     configState,
-			TestMode:        strings.HasSuffix(fmt.Sprint(v23.GetPrincipal(ctx).BlessingStore().Default()), "/testdm"),
+			TestMode:        strings.HasSuffix(fmt.Sprint(blessings), "/testdm"),
 			RestartCallback: func() { fmt.Println("restart handler") },
 			PairingToken:    pairingToken,
 		},

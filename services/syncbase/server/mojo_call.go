@@ -26,7 +26,7 @@ func newMojoServerCall(ctx *context.T, srv rpc.Server, suffix string, method rpc
 	// HACK: For now, we set the remote (client, i.e. Mojo app) blessing to be the
 	// same as the local (server, i.e. Syncbase Mojo service) blessing.
 	// TODO(sadovsky): Eliminate this hack.
-	blessings := p.BlessingStore().Default()
+	blessings, _ := p.BlessingStore().Default()
 	return &mojoServerCall{
 		sec: security.NewCall(&security.CallParams{
 			Method:          method.Name,

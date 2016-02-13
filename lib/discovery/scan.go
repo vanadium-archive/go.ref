@@ -55,7 +55,8 @@ func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher matcher, 
 	principal := v23.GetPrincipal(ctx)
 	var names []string
 	if principal != nil {
-		names = security.BlessingNames(principal, principal.BlessingStore().Default())
+		blessings, _ := principal.BlessingStore().Default()
+		names = security.BlessingNames(principal, blessings)
 	}
 
 	found := make(map[string]*Advertisement)

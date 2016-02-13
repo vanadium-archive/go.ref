@@ -114,7 +114,7 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 func New(ctx *context.T, rid naming.RoutingID, dhcpPublisher *pubsub.Publisher, channelTimeout time.Duration) flow.Manager {
 	var serverBlessings security.Blessings
 	if rid != naming.NullRoutingID {
-		serverBlessings = v23.GetPrincipal(ctx).BlessingStore().Default()
+		serverBlessings, _ = v23.GetPrincipal(ctx).BlessingStore().Default()
 	}
 	return NewWithBlessings(ctx, serverBlessings, rid, nil, dhcpPublisher, channelTimeout)
 }

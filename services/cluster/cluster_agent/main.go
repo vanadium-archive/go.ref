@@ -63,7 +63,8 @@ type granter struct {
 
 func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings, error) {
 	p := call.LocalPrincipal()
-	return p.Bless(call.RemoteBlessings().PublicKey(), p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
+	def, _ := p.BlessingStore().Default()
+	return p.Bless(call.RemoteBlessings().PublicKey(), def, g.extension, security.UnconstrainedUse())
 }
 
 var cmdForgetSecret = &cmdline.Command{

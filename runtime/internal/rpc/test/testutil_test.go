@@ -77,8 +77,8 @@ func (s *singleBlessingStore) SetDefault(b security.Blessings) error {
 	s.def = b
 	return nil
 }
-func (s *singleBlessingStore) Default() security.Blessings {
-	return s.def
+func (s *singleBlessingStore) Default() (security.Blessings, <-chan struct{}) {
+	return s.def, nil
 }
 func (s *singleBlessingStore) PublicKey() security.PublicKey {
 	return s.pk // This may be inconsistent with s.b & s.def, by design, for tests.

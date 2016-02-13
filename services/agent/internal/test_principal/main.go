@@ -62,7 +62,8 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 		errorf("%v environment variable is not set", ref.EnvAgentPath)
 	}
 	// A pristine agent has a single blessing "agent_principal" (from agentd/main.go).
-	if got, want := security.BlessingNames(p, p.BlessingStore().Default()), []string{"agent_principal"}; !reflect.DeepEqual(got, want) {
+	def, defCh := p.BlessingStore().Default()
+	if got, want := security.BlessingNames(p, def), []string{"agent_principal"}; !reflect.DeepEqual(got, want) {
 		errorf("Got %v want %v", got, want)
 	}
 
@@ -114,13 +115,15 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err := p.BlessingStore().SetDefault(security.Blessings{}); err != nil {
 		errorf("BlessingStore().SetDefault: %v", err)
 	}
-	if def := p.BlessingStore().Default(); !def.IsZero() {
+	<-defCh // SetDefault should trigger a notification
+	if def, defCh = p.BlessingStore().Default(); !def.IsZero() {
 		errorf("BlessingStore().Default returned %v, want empty", def)
 	}
 	if err := p.BlessingStore().SetDefault(b); err != nil {
 		errorf("BlessingStore().SetDefault: %v", err)
 	}
-	if def := p.BlessingStore().Default(); !reflect.DeepEqual(def, b) {
+	<-defCh
+	if def, defCh = p.BlessingStore().Default(); !reflect.DeepEqual(def, b) {
 		errorf("BlessingStore().Default returned [%v], want [%v]", def, b)
 	}
 	// BlessingStore: Set & ForPeer

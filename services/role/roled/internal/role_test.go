@@ -116,7 +116,7 @@ func TestSeekBlessings(t *testing.T) {
 	}
 	addr := newRoleServer(t, newPrincipalContext(t, ctx, root, "roles"), workdir)
 	for _, tc := range testcases {
-		user := v23.GetPrincipal(tc.ctx).BlessingStore().Default()
+		user, _ := v23.GetPrincipal(tc.ctx).BlessingStore().Default()
 		c := role.RoleClient(naming.Join(addr, tc.role))
 		blessings, err := c.SeekBlessings(tc.ctx)
 		if verror.ErrorID(err) != tc.errID {

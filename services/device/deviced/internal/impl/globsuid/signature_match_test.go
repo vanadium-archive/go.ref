@@ -107,7 +107,8 @@ func TestDownloadSignatureMatch(t *testing.T) {
 
 	// Changing the publisher blessing to one that is covered by the DM roots, should
 	// allow the app installation to succeed.
-	envelope.Publisher, err = p.Bless(p.PublicKey(), p.BlessingStore().Default(), "publisher", security.UnconstrainedUse())
+	b, _ := p.BlessingStore().Default()
+	envelope.Publisher, err = p.Bless(p.PublicKey(), b, "publisher", security.UnconstrainedUse())
 	if err != nil {
 		t.Fatalf("Failed to generate trusted publisher blessings: %v", err)
 	}

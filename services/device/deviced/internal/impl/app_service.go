@@ -629,11 +629,12 @@ func addPublisherBlessings(ctx *context.T, instanceDir string, p security.Princi
 
 	// Extend the device manager blessing with each publisher blessing provided
 	dmPrincipal := v23.GetPrincipal(ctx)
+	dmBlessings, _ := dmPrincipal.BlessingStore().Default()
 
 	blessings, _ := publisherBlessingNames(ctx, *envelope)
 	for _, s := range blessings {
 		ctx.VI(2).Infof("adding publisher blessing %v for app %v", s, envelope.Title)
-		tmpBlessing, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "a"+security.ChainSeparator+s, security.UnconstrainedUse())
+		tmpBlessing, err := dmPrincipal.Bless(p.PublicKey(), dmBlessings, "a"+security.ChainSeparator+s, security.UnconstrainedUse())
 		if err != nil {
 			return b, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Bless failed: %v", err))
 		}
@@ -867,11 +868,11 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	for k, v := range config {
 		cfg.Set(k, v)
 	}
+	publisherBlessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	cfg.Set(mgmt.ParentNameConfigKey, listener.name())
 	cfg.Set(mgmt.ProtocolConfigKey, "tcp")
 	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
-	cfg.Set(mgmt.PublisherBlessingPrefixesKey,
-		v23.GetPrincipal(ctx).BlessingStore().Default().String())
+	cfg.Set(mgmt.PublisherBlessingPrefixesKey, publisherBlessings.String())
 	if len(info.AppCycleBlessings) == 0 {
 		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("info.AppCycleBessings is missing"))
 	}
@@ -1794,13 +1795,14 @@ func (i *appService) instanceStatus(ctx *context.T) (device.InstanceStatus, erro
 
 func createCallbackBlessings(ctx *context.T, app security.PublicKey) (string, error) {
 	dm := v23.GetPrincipal(ctx) // device manager principal
+	dmB, _ := dm.BlessingStore().Default()
 	// NOTE(caprita/ataly): Giving the app an unconstrained blessing from
 	// the device manager's default presents the app with a blessing that's
 	// potentially more powerful than what is strictly needed to allow
 	// communication between device manager and app (which could be more
 	// narrowly accomplished by using a custom-purpose self-signed blessing
 	// that the device manger produces solely to talk to the app).
-	b, err := dm.Bless(app, dm.BlessingStore().Default(), "callback", security.UnconstrainedUse())
+	b, err := dm.Bless(app, dmB, "callback", security.UnconstrainedUse())
 	if err != nil {
 		return "", verror.New(errors.ErrOperationFailed, ctx, err)
 	}

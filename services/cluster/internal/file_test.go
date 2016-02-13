@@ -33,7 +33,8 @@ func TestFileStorage(t *testing.T) {
 	for i := 0; i < N; i++ {
 		name := fmt.Sprintf("blessing%d", i)
 		secret := name
-		b, _ := p.Bless(p.PublicKey(), p.BlessingStore().Default(), name, security.UnconstrainedUse())
+		b, _ := p.BlessingStore().Default()
+		b, _ = p.Bless(p.PublicKey(), b, name, security.UnconstrainedUse())
 		secrets[secret] = b
 		if err := fs.Put(secret, b); err != nil {
 			t.Errorf("unexpected Put(%v) failure: %v", secret, err)

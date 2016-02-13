@@ -55,9 +55,14 @@ func dialFlow(t *testing.T, ctx *context.T, dc *Conn, b security.Blessings, d ma
 	return df
 }
 
+func defaultBlessings(ctx *context.T) security.Blessings {
+	d, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	return d
+}
+
 func defaultBlessingName(t *testing.T, ctx *context.T) string {
 	p := v23.GetPrincipal(ctx)
-	b := p.BlessingStore().Default()
+	b, _ := p.BlessingStore().Default()
 	names := security.BlessingNames(p, b)
 	if len(names) != 1 {
 		t.Fatalf("Error in setting up test: default blessings have names %v, want exactly 1 name", names)
@@ -84,7 +89,8 @@ func BlessWithTPCaveat(t *testing.T, ctx *context.T, p security.Principal, s str
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := dp.Bless(p.PublicKey(), dp.BlessingStore().Default(), s, tpcav)
+	toextend, _ := dp.BlessingStore().Default()
+	b, err := dp.Bless(p.PublicKey(), toextend, s, tpcav)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,17 +165,14 @@ func TestUnidirectional(t *testing.T) {
 	defer dc.Close(dctx, nil)
 	defer ac.Close(actx, nil)
 
-	df1 := dialFlow(t, dctx, dc, v23.GetPrincipal(dctx).BlessingStore().Default(), dd)
+	df1 := dialFlow(t, dctx, dc, defaultBlessings(dctx), dd)
 	af1 := <-aflows
-	checkFlowBlessings(t, df1, af1,
-		v23.GetPrincipal(dctx).BlessingStore().Default(),
-		v23.GetPrincipal(actx).BlessingStore().Default())
+	checkFlowBlessings(t, df1, af1, defaultBlessings(dctx), defaultBlessings(actx))
 
 	db2, dd2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(dctx), "other")
 	df2 := dialFlow(t, dctx, dc, db2, dd2)
 	af2 := <-aflows
-	checkFlowBlessings(t, df2, af2, db2,
-		v23.GetPrincipal(actx).BlessingStore().Default())
+	checkFlowBlessings(t, df2, af2, db2, defaultBlessings(actx))
 
 	// We should not be able to dial in the other direction, because that flow
 	// manager is not willing to accept flows.
@@ -200,29 +203,23 @@ func TestBidirectional(t *testing.T) {
 	defer dc.Close(dctx, nil)
 	defer ac.Close(actx, nil)
 
-	df1 := dialFlow(t, dctx, dc, v23.GetPrincipal(dctx).BlessingStore().Default(), dd)
+	df1 := dialFlow(t, dctx, dc, defaultBlessings(dctx), dd)
 	af1 := <-aflows
-	checkFlowBlessings(t, df1, af1,
-		v23.GetPrincipal(dctx).BlessingStore().Default(),
-		v23.GetPrincipal(actx).BlessingStore().Default())
+	checkFlowBlessings(t, df1, af1, defaultBlessings(dctx), defaultBlessings(actx))
 
 	db2, dd2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(dctx), "other")
 	df2 := dialFlow(t, dctx, dc, db2, dd2)
 	af2 := <-aflows
-	checkFlowBlessings(t, df2, af2, db2,
-		v23.GetPrincipal(actx).BlessingStore().Default())
+	checkFlowBlessings(t, df2, af2, db2, defaultBlessings(actx))
 
-	af3 := dialFlow(t, actx, ac, v23.GetPrincipal(actx).BlessingStore().Default(), ad)
+	af3 := dialFlow(t, actx, ac, defaultBlessings(actx), ad)
 	df3 := <-dflows
-	checkFlowBlessings(t, af3, df3,
-		v23.GetPrincipal(actx).BlessingStore().Default(),
-		v23.GetPrincipal(dctx).BlessingStore().Default())
+	checkFlowBlessings(t, af3, df3, defaultBlessings(actx), defaultBlessings(dctx))
 
 	ab2, ad2 := BlessWithTPCaveat(t, ctx, v23.GetPrincipal(actx), "aother")
 	af4 := dialFlow(t, actx, ac, ab2, ad2)
 	df4 := <-dflows
-	checkFlowBlessings(t, af4, df4, ab2,
-		v23.GetPrincipal(dctx).BlessingStore().Default())
+	checkFlowBlessings(t, af4, df4, ab2, defaultBlessings(dctx))
 }
 
 func TestPrivateMutualAuth(t *testing.T) {

@@ -120,7 +120,8 @@ func bless(ctx *context.T, p security.Principal, name string) error {
 	}
 
 	rp := v23.GetPrincipal(ctx)
-	blessing, err := rp.Bless(p.PublicKey(), rp.BlessingStore().Default(), name, caveat)
+	def, _ := rp.BlessingStore().Default()
+	blessing, err := rp.Bless(p.PublicKey(), def, name, caveat)
 	if err != nil {
 		vlog.Errorf("Couldn't bless")
 		return err

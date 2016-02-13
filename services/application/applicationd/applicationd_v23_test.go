@@ -68,13 +68,14 @@ func TestV23ApplicationRepository(t *testing.T) {
 	// Create an application envelope.
 	appRepoSuffix := "test-application/v1"
 	appEnvelopeFile := sh.MakeTempFile()
+	publisherBlessings, _ := publisher.Principal.BlessingStore().Default()
 	wantEnvelope, err := json.MarshalIndent(application.Envelope{
 		Title: "title",
 		Binary: application.SignedFile{
 			File:      "foo",
 			Signature: sig,
 		},
-		Publisher: publisher.Principal.BlessingStore().Default(),
+		Publisher: publisherBlessings,
 	}, "", "  ")
 	if err != nil {
 		t.Fatal(err)

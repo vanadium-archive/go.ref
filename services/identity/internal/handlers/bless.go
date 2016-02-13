@@ -148,7 +148,7 @@ func (a *accessTokenBlesser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := v23.GetPrincipal(a.ctx)
-	with := p.BlessingStore().Default()
+	with, _ := p.BlessingStore().Default()
 
 	caveats, err := a.blessingCaveats(r, p)
 	if err != nil {

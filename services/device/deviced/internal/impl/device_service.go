@@ -314,14 +314,15 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		cmd.Env = append(cmd.Env, ref.EnvCredentials+"="+credentialsDir)
 	}
 	dmPrincipal := v23.GetPrincipal(ctx)
-	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "testdm", security.UnconstrainedUse())
-	if err := p.BlessingStore().SetDefault(dmBlessings); err != nil {
+	dmBlessings, _ := dmPrincipal.BlessingStore().Default()
+	testDmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmBlessings, "testdm", security.UnconstrainedUse())
+	if err := p.BlessingStore().SetDefault(testDmBlessings); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.SetDefault() failed: %v", err))
 	}
-	if _, err := p.BlessingStore().Set(dmBlessings, security.AllPrincipals); err != nil {
+	if _, err := p.BlessingStore().Set(testDmBlessings, security.AllPrincipals); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 	}
-	if err := security.AddToRoots(p, dmBlessings); err != nil {
+	if err := security.AddToRoots(p, testDmBlessings); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 

@@ -267,7 +267,8 @@ func (a *agentd) BlessingStoreDebugString() (string, error) {
 func (a *agentd) BlessingStoreDefault() (security.Blessings, error) {
 	defer a.mu.RUnlock()
 	a.mu.RLock()
-	return a.principal.BlessingStore().Default(), nil
+	b, _ := a.principal.BlessingStore().Default()
+	return b, nil
 }
 
 func (a *agentd) BlessingStoreCacheDischarge(discharge security.Discharge, caveat security.Caveat, impetus security.DischargeImpetus) error {

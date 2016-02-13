@@ -123,8 +123,11 @@ func runGcreds(ctx *context.T, env *cmdline.Env, args []string) error {
 
 func refreshCreds(ctx *context.T) {
 	for {
-		p := v23.GetPrincipal(ctx)
-		exp := p.BlessingStore().Default().Expiry()
+		var (
+			p    = v23.GetPrincipal(ctx)
+			b, _ = p.BlessingStore().Default()
+			exp  = b.Expiry()
+		)
 		if exp.IsZero() {
 			// Nothing to do.
 			return

@@ -38,7 +38,8 @@ type granter struct {
 
 func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings, error) {
 	p := call.LocalPrincipal()
-	return p.Bless(call.RemoteBlessings().PublicKey(), p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
+	b, _ := p.BlessingStore().Default()
+	return p.Bless(call.RemoteBlessings().PublicKey(), b, g.extension, security.UnconstrainedUse())
 }
 
 func runInstantiate(ctx *context.T, env *cmdline.Env, args []string) error {
@@ -63,7 +64,8 @@ func runInstantiate(ctx *context.T, env *cmdline.Env, args []string) error {
 				return fmt.Errorf("Instantiate failed: %v", err)
 			}
 			// TODO(caprita,rthellend): Get rid of security.UnconstrainedUse().
-			blessings, err := principal.Bless(pubKey, principal.BlessingStore().Default(), grant, security.UnconstrainedUse())
+			toextend, _ := principal.BlessingStore().Default()
+			blessings, err := principal.Bless(pubKey, toextend, grant, security.UnconstrainedUse())
 			if err != nil {
 				return fmt.Errorf("Instantiate failed: %v", err)
 			}

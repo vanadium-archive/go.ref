@@ -174,7 +174,8 @@ func setupThirdPartyCaveatServerClient(ctx *context.T) {
 	// Create a DischargeServer and a principal with a corresponding ThirdPartyCaveat.
 	tpcav := internal.NewDischargeServer(ctx)
 	p := v23.GetPrincipal(ctx)
-	tpcavb, err := p.Bless(p.PublicKey(), p.BlessingStore().Default(), "tpcav", tpcav)
+	b, _ := p.BlessingStore().Default()
+	tpcavb, err := p.Bless(p.PublicKey(), b, "tpcav", tpcav)
 	if err != nil {
 		ctx.Fatal(err)
 	}

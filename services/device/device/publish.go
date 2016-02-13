@@ -234,8 +234,8 @@ func runPublish(ctx *context.T, env *cmdline.Env, args []string) error {
 
 func getPublisherBlessing(ctx *context.T, extension string) (security.Blessings, error) {
 	p := v23.GetPrincipal(ctx)
-	b, err := p.Bless(p.PublicKey(), p.BlessingStore().Default(), extension, security.UnconstrainedUse())
-
+	bDef, _ := p.BlessingStore().Default()
+	b, err := p.Bless(p.PublicKey(), bDef, extension, security.UnconstrainedUse())
 	if err != nil {
 		return security.Blessings{}, err
 	}
@@ -246,7 +246,7 @@ func getPublisherBlessing(ctx *context.T, extension string) (security.Blessings,
 	// not be rejected
 	call := security.NewCall(&security.CallParams{
 		RemoteBlessings: b,
-		LocalBlessings:  p.BlessingStore().Default(),
+		LocalBlessings:  bDef,
 		LocalPrincipal:  p,
 		Timestamp:       time.Now().Add(minValidPublisherDuration),
 	})
