@@ -171,4 +171,6 @@ func TestSuidHelperImpl(t *testing.T) {
 	if err := suid.Run(os.Environ()); err != nil {
 		logger.Global().Fatalf("Failed to Run() setuidhelper: %v", err)
 	}
+	// Don't show "PASS"
+	os.Exit(0)
 }

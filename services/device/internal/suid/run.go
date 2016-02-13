@@ -26,5 +26,11 @@ func Run(environ []string) error {
 		return err
 	}
 
+	if work.chown {
+		// We were called with --chown, and Chown() was called above.
+		// There is nothing else to do.
+		return nil
+	}
+
 	return work.Exec()
 }

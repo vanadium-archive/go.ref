@@ -93,7 +93,7 @@ func (hw *WorkParameters) Exec() error {
 	pid, _, err := syscall.StartProcess(hw.argv0, hw.argv, attr)
 	if err != nil {
 		if !hw.dryrun {
-			log.Printf("StartProcess failed: attr: %#v, attr.Sys: %#v, attr.Sys.Cred: %#v error: %v", attr, attr.Sys, attr.Sys.Credential, err)
+			log.Printf("StartProcess failed: argv: %q %#v attr: %#v, attr.Sys: %#v, attr.Sys.Cred: %#v error: %v", hw.argv0, hw.argv, attr, attr.Sys, attr.Sys.Credential, err)
 		} else {
 			log.Printf("StartProcess failed: %v", err)
 		}
