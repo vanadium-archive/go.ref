@@ -5,6 +5,7 @@
 package impl
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -131,17 +132,25 @@ func (s suidHelperState) getAppCmd(ctx *context.T, a *suidAppCmdArgs) (*exec.Cmd
 // modal operations. Only other routines implementing specific suidhelper
 // operations (like terminatePid and deleteFileTree) should call this directly.
 func (s suidHelperState) internalModalOp(ctx *context.T, stdout, stderr io.Writer, arg ...string) error {
+	var captureStdout, captureStderr bytes.Buffer
+	stdoutWriters := []io.Writer{&captureStdout}
+	stderrWriters := []io.Writer{&captureStderr}
+	if stdout != nil {
+		stdoutWriters = append(stdoutWriters, stdout)
+	}
+	if stderr != nil {
+		stderrWriters = append(stderrWriters, stderr)
+	}
+
 	cmd := exec.Command(s.helperPath)
 	cmd.Args = append(cmd.Args, arg...)
-	if stderr != nil {
-		cmd.Stderr = stderr
-	}
-	if stdout != nil {
-		cmd.Stdout = stdout
-	}
+	cmd.Stdout = io.MultiWriter(stdoutWriters...)
+	cmd.Stderr = io.MultiWriter(stderrWriters...)
 
 	if err := cmd.Run(); err != nil {
 		ctx.Errorf("failed calling helper with args (%v): %v", arg, err)
+		ctx.Errorf("stdout: %s", captureStdout.String())
+		ctx.Errorf("stderr: %s", captureStderr.String())
 		return err
 	}
 	return nil
