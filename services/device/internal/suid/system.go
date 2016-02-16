@@ -128,6 +128,8 @@ func (hw *WorkParameters) Kill() error {
 		case syscall.ESRCH:
 			// No such PID.
 			log.Printf("process pid %d already killed", pid)
+		case nil:
+			log.Printf("process pid %d killed successfully", pid)
 		default:
 			// Something went wrong.
 			return verror.New(errKillFailed, nil, pid, err)
