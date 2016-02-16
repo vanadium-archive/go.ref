@@ -122,7 +122,8 @@ func SignedEnvelopeFromShell(ctx *context.T, sh *v23test.Shell, vars, flags []st
 
 	// Add a publisher blessing
 	p := v23.GetPrincipal(ctx)
-	publisher, err := p.Bless(p.PublicKey(), p.BlessingStore().Default(), "angryapp.v10", security.UnconstrainedUse())
+	b, _ := p.BlessingStore().Default()
+	publisher, err := p.Bless(p.PublicKey(), b, "angryapp.v10", security.UnconstrainedUse())
 	if err != nil {
 		return application.Envelope{}, err
 	}
@@ -312,7 +313,8 @@ type granter struct {
 
 func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings, error) {
 	p := call.LocalPrincipal()
-	return p.Bless(call.RemoteBlessings().PublicKey(), p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
+	b, _ := p.BlessingStore().Default()
+	return p.Bless(call.RemoteBlessings().PublicKey(), b, g.extension, security.UnconstrainedUse())
 }
 
 func LaunchAppImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {
@@ -335,11 +337,12 @@ func NewInstanceImpl(t *testing.T, ctx *context.T, appID, grant string) (string,
 		switch msg := call.RecvStream().Value().(type) {
 		case device.BlessServerMessageInstancePublicKey:
 			p := v23.GetPrincipal(ctx)
+			b, _ := p.BlessingStore().Default()
 			pubKey, err := security.UnmarshalPublicKey(msg.Value)
 			if err != nil {
 				return "", err
 			}
-			blessings, err := p.Bless(pubKey, p.BlessingStore().Default(), grant, security.UnconstrainedUse())
+			blessings, err := p.Bless(pubKey, b, grant, security.UnconstrainedUse())
 			if err != nil {
 				return "", errors.New("bless failed")
 			}

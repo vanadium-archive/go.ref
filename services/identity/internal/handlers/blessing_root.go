@@ -47,7 +47,8 @@ func (b BlessingRoot) base64vomResponse(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	cacheMu.RUnlock()
-	roots := security.RootBlessings(b.P.BlessingStore().Default())
+	blessings, _ := b.P.BlessingStore().Default()
+	roots := security.RootBlessings(blessings)
 	strs := make([]string, len(roots))
 	for i, r := range roots {
 		v, err := vom.Encode(r)
@@ -78,7 +79,8 @@ func (b BlessingRoot) jsonResponse(w http.ResponseWriter, r *http.Request) {
 	// TODO(ashankar): This is making the assumption that the identity
 	// service has a single blessing, which may not be true in general.
 	// Revisit this.
-	name, der, err := util.RootCertificateDetails(b.P.BlessingStore().Default())
+	def, _ := b.P.BlessingStore().Default()
+	name, der, err := util.RootCertificateDetails(def)
 	if err != nil {
 		util.HTTPServerError(w, err)
 		return

@@ -90,7 +90,8 @@ func TestDeviceManagerClaim(t *testing.T) {
 	utiltest.InstallAppExpectError(t, octx, verror.ErrNoServers.ID)
 	// Even if it does recognize the device (by virtue of recognizing the
 	// claimant), the device will not allow it to install.
-	if err := security.AddToRoots(v23.GetPrincipal(octx), v23.GetPrincipal(claimantCtx).BlessingStore().Default()); err != nil {
+	claimantB, _ := v23.GetPrincipal(claimantCtx).BlessingStore().Default()
+	if err := security.AddToRoots(v23.GetPrincipal(octx), claimantB); err != nil {
 		t.Fatal(err)
 	}
 	utiltest.InstallAppExpectError(t, octx, verror.ErrNoAccess.ID)

@@ -69,7 +69,8 @@ func TestWatchLogPerms(t *testing.T) {
 	util.Put(ctx, st, tb.prefixPermsKey(""), perms)
 	util.Put(ctx, st, tb.permsIndexStart(""), "")
 	util.Put(ctx, st, tb.permsIndexLimit(""), "")
-	call := &mockCall{b: v23.GetPrincipal(ctx).BlessingStore().Default()}
+	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	call := &mockCall{b: blessings}
 	var expected []watchable.Op
 	resumeMarker, _ := watchable.GetResumeMarker(st)
 	// Generate Put/Delete events.

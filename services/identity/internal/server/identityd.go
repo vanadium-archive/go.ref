@@ -191,6 +191,7 @@ func (s *IdentityServer) Listen(ctx, oauthCtx *context.T, externalHttpAddr, http
 	http.Handle(n, h)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		self, _ := principal.BlessingStore().Default()
 		tmplArgs := struct {
 			Self                            security.Blessings
 			GoogleServers, DischargeServers []string
@@ -198,7 +199,7 @@ func (s *IdentityServer) Listen(ctx, oauthCtx *context.T, externalHttpAddr, http
 			AssetsPrefix                    string
 			Email                           string
 		}{
-			Self:               principal.BlessingStore().Default(),
+			Self:               self,
 			GoogleServers:      args.GoogleServers,
 			DischargeServers:   args.DischargeServers,
 			ListBlessingsRoute: oauth.ListBlessingsRoute,
@@ -225,7 +226,9 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 // All Vanadium services are started on the same port.
 func (s *IdentityServer) setupBlessingServices(ctx, oauthCtx *context.T, macaroonKey []byte) (rpc.Server, []string, error) {
 	disp := newDispatcher(macaroonKey, s.oauthBlesserParams)
-	blessingNames := security.BlessingNames(v23.GetPrincipal(ctx), v23.GetPrincipal(ctx).BlessingStore().Default())
+	p := v23.GetPrincipal(ctx)
+	b, _ := p.BlessingStore().Default()
+	blessingNames := security.BlessingNames(p, b)
 	if len(blessingNames) == 0 {
 		return nil, nil, verror.New(verror.ErrInternal, ctx, fmt.Sprintf("identity server has no blessings?"))
 	}

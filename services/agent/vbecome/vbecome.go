@@ -146,7 +146,8 @@ func bless(ctx *context.T, p security.Principal, name string) error {
 	}
 
 	rp := v23.GetPrincipal(ctx)
-	blessing, err := rp.Bless(p.PublicKey(), rp.BlessingStore().Default(), name, caveat)
+	rblessing, _ := rp.BlessingStore().Default()
+	blessing, err := rp.Bless(p.PublicKey(), rblessing, name, caveat)
 	if err != nil {
 		ctx.Errorf("Couldn't bless")
 		return err

@@ -123,6 +123,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	rg := testutil.NewRandGenerator(t.Logf)
 
 	selfPrincipal := testutil.NewPrincipal("self")
+	selfBlessings, _ := selfPrincipal.BlessingStore().Default()
 	selfCtx, err := v23.WithPrincipal(ctx, selfPrincipal)
 	if err != nil {
 		t.Fatalf("WithPrincipal failed: %v", err)
@@ -136,7 +137,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	prepDirectory(t, storedir)
 
 	otherPrincipal := testutil.NewPrincipal("other")
-	if err := security.AddToRoots(otherPrincipal, selfPrincipal.BlessingStore().Default()); err != nil {
+	if err := security.AddToRoots(otherPrincipal, selfBlessings); err != nil {
 		t.Fatalf("AddToRoots() failed: %v", err)
 	}
 	otherCtx, err := v23.WithPrincipal(selfCtx, otherPrincipal)
@@ -200,7 +201,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	ctx.VI(2).Infof("self blesses other as self/other and locks the bini/private binary to itself.")
-	selfBlessing := selfPrincipal.BlessingStore().Default()
+	selfBlessing, _ := selfPrincipal.BlessingStore().Default()
 	otherBlessing, err := selfPrincipal.Bless(otherPrincipal.PublicKey(), selfBlessing, "other", security.UnconstrainedUse())
 	if err != nil {
 		t.Fatalf("selfPrincipal.Bless() failed: %v", err)
@@ -410,6 +411,7 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	defer shutdown()
 
 	selfPrincipal := testutil.NewPrincipal("self")
+	selfBlessings, _ := selfPrincipal.BlessingStore().Default()
 	selfCtx, err := v23.WithPrincipal(ctx, selfPrincipal)
 	if err != nil {
 		t.Fatalf("WithPrincipal failed: %v", err)
@@ -423,7 +425,7 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	prepDirectory(t, storedir)
 
 	otherPrincipal := testutil.NewPrincipal("other")
-	if err := security.AddToRoots(otherPrincipal, selfPrincipal.BlessingStore().Default()); err != nil {
+	if err := security.AddToRoots(otherPrincipal, selfBlessings); err != nil {
 		t.Fatalf("AddToRoots() failed: %v", err)
 	}
 

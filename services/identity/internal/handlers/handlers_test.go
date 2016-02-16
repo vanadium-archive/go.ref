@@ -89,8 +89,8 @@ func TestBlessingRootBase64VOM(t *testing.T) {
 	} else if err = vom.Decode(v, &root); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := root, p.BlessingStore().Default(); !reflect.DeepEqual(got, want) {
-		t.Errorf("Got %v, want %v", got, want)
+	if want, _ := p.BlessingStore().Default(); !reflect.DeepEqual(root, want) {
+		t.Errorf("Got %v, want %v", root, want)
 	}
 }
 
@@ -168,7 +168,8 @@ func TestBless(t *testing.T) {
 	}
 
 	// Make the blessee trust the blesser's roots
-	if err := security.AddToRoots(blesseePrin, blesserPrin.BlessingStore().Default()); err != nil {
+	blesserB, _ := blesserPrin.BlessingStore().Default()
+	if err := security.AddToRoots(blesseePrin, blesserB); err != nil {
 		t.Fatal(err)
 	}
 

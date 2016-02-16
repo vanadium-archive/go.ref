@@ -55,21 +55,24 @@ func (t *storeTester) testSetDefault(s security.BlessingStore) error {
 	if err := s.SetDefault(security.Blessings{}); err != nil {
 		return fmt.Errorf("SetDefault({}): %v", err)
 	}
-	if got := s.Default(); !got.IsZero() {
+	var notify <-chan struct{}
+	var got security.Blessings
+	if got, notify = s.Default(); !got.IsZero() {
 		return fmt.Errorf("Default returned %v, wanted empty", got)
 	}
 	if err := s.SetDefault(t.def); err != nil {
 		return fmt.Errorf("SetDefault(%v): %v", t.def, err)
 	}
-	if got, want := s.Default(), t.def; !reflect.DeepEqual(got, want) {
-		return fmt.Errorf("Default returned %v, want %v", got, want)
+	<-notify
+	if got, _ = s.Default(); !reflect.DeepEqual(got, t.def) {
+		return fmt.Errorf("Default returned %v, want %v", got, t.def)
 	}
 	// Changing default to an invalid blessing should not affect the existing default.
 	if err := matchesError(s.SetDefault(t.other), "public key does not match"); err != nil {
 		return err
 	}
-	if got, want := s.Default(), t.def; !reflect.DeepEqual(got, want) {
-		return fmt.Errorf("Default returned %v, want %v", got, want)
+	if got, _ := s.Default(); !reflect.DeepEqual(got, t.def) {
+		return fmt.Errorf("Default returned %v, want %v", got, t.def)
 	}
 	return nil
 }
@@ -177,8 +180,8 @@ func TestBlessingStorePersistence(t *testing.T) {
 	if err := tester.testForPeer(s); err != nil {
 		t.Error(err)
 	}
-	if got, want := s.Default(), tester.def; !reflect.DeepEqual(got, want) {
-		t.Fatalf("Default(): got: %v, want: %v", got, want)
+	if got, _ := s.Default(); !reflect.DeepEqual(got, tester.def) {
+		t.Fatalf("Default(): got: %v, want: %v", got, tester.def)
 	}
 }
 

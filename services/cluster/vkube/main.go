@@ -270,7 +270,7 @@ var cmdClaimClusterAgent = &cmdline.Command{
 }
 
 func runCmdClaimClusterAgent(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
-	myBlessings := v23.GetPrincipal(ctx).BlessingStore().Default()
+	myBlessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	claimer := clusterAgentClaimer(config)
 	if !myBlessings.CouldHaveNames([]string{claimer}) {
 		return fmt.Errorf("principal isn't the expected claimer: got %q, expected %q", myBlessings, claimer)

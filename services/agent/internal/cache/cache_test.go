@@ -173,8 +173,10 @@ func TestDefaultBlessing(t *testing.T) {
 	p := testutil.NewPrincipal("bob")
 	store, cache := createStore(p)
 
-	bob := store.Default()
-	if cached := cache.Default(); !reflect.DeepEqual(bob, cached) {
+	bob, _ := store.Default()
+	var notify <-chan struct{}
+	var cached security.Blessings
+	if cached, notify = cache.Default(); !reflect.DeepEqual(bob, cached) {
 		t.Errorf("Default(): got: %v, want: %v", cached, bob)
 	}
 
@@ -186,13 +188,10 @@ func TestDefaultBlessing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetDefault failed: %v", err)
 	}
-
-	if cached := cache.Default(); !reflect.DeepEqual(bob, cached) {
-		t.Errorf("Default(): got: %v, want: %v", cached, bob)
-	}
-
 	cache.flush()
-	if cached := cache.Default(); !reflect.DeepEqual(alice, cached) {
+	// This should trigger a notification (via closure of the channel)
+	<-notify
+	if cached, notify = cache.Default(); !reflect.DeepEqual(alice, cached) {
 		t.Errorf("Default(): got: %v, want: %v", cached, alice)
 	}
 
@@ -204,19 +203,20 @@ func TestDefaultBlessing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetDefault failed: %v", err)
 	}
+	<-notify
 
-	if cur := store.Default(); !reflect.DeepEqual(carol, cur) {
+	if cur, _ := store.Default(); !reflect.DeepEqual(carol, cur) {
 		t.Errorf("Default(): got: %v, want: %v", cur, carol)
 	}
-	if cached := cache.Default(); !reflect.DeepEqual(carol, cached) {
+	if cached, notify = cache.Default(); !reflect.DeepEqual(carol, cached) {
 		t.Errorf("Default(): got: %v, want: %v", cached, carol)
 	}
 
-	john := testutil.NewPrincipal("john")
-	if nil == cache.SetDefault(john.BlessingStore().Default()) {
+	john, _ := testutil.NewPrincipal("john").BlessingStore().Default()
+	if nil == cache.SetDefault(john) {
 		t.Errorf("Expected error setting default with bad key.")
 	}
-	if cached := cache.Default(); !reflect.DeepEqual(carol, cached) {
+	if cached, _ = cache.Default(); !reflect.DeepEqual(carol, cached) {
 		t.Errorf("Default(): got: %v, want: %v", cached, carol)
 	}
 
@@ -227,12 +227,12 @@ func TestSet(t *testing.T) {
 	store, cache := createStore(p)
 	var noBlessings security.Blessings
 
-	bob := store.Default()
+	bob, _ := store.Default()
 	alice, err := p.BlessSelf("alice")
 	if err != nil {
 		t.Fatalf("BlessSelf failed: %v", err)
 	}
-	john := testutil.NewPrincipal("john").BlessingStore().Default()
+	john, _ := testutil.NewPrincipal("john").BlessingStore().Default()
 
 	store.Set(noBlessings, "...")
 	if _, err := cache.Set(bob, "bob"); err != nil {
@@ -284,7 +284,7 @@ func TestForPeerCaching(t *testing.T) {
 	p := testutil.NewPrincipal("bob")
 	store, cache := createStore(p)
 
-	bob := store.Default()
+	bob, _ := store.Default()
 	alice, err := p.BlessSelf("alice")
 	if err != nil {
 		t.Fatalf("BlessSelf failed: %v", err)

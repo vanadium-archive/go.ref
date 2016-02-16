@@ -68,7 +68,7 @@ func FixedBlessingsStore(b security.Blessings, dcache DischargeCache) security.B
 	if dcache == nil {
 		dcache = &dischargeCacheImpl{m: make(map[dischargeCacheKey]CachedDischarge)}
 	}
-	return &fixedBlessingsStore{b, dcache}
+	return &fixedBlessingsStore{b, dcache, make(chan struct{})}
 }
 
 type forkedPrincipal struct {
@@ -100,7 +100,7 @@ func (s *immutableBlessingStore) ForPeer(peerBlessings ...string) security.Bless
 func (s *immutableBlessingStore) SetDefault(security.Blessings) error {
 	return verror.New(errImmutable, nil, fmt.Sprintf("%T", s), "SetDefault")
 }
-func (s *immutableBlessingStore) Default() security.Blessings {
+func (s *immutableBlessingStore) Default() (security.Blessings, <-chan struct{}) {
 	return s.impl.Default()
 }
 func (s *immutableBlessingStore) PublicKey() security.PublicKey {
@@ -162,6 +162,7 @@ func (c *dischargeCacheImpl) Discharge(caveat security.Caveat, impetus security.
 type fixedBlessingsStore struct {
 	b      security.Blessings
 	dcache DischargeCache
+	ch     chan struct{}
 }
 
 func (s *fixedBlessingsStore) Set(security.Blessings, security.BlessingPattern) (security.Blessings, error) {
@@ -173,8 +174,8 @@ func (s *fixedBlessingsStore) ForPeer(peerBlessings ...string) security.Blessing
 func (s *fixedBlessingsStore) SetDefault(security.Blessings) error {
 	return verror.New(errImmutable, nil, fmt.Sprintf("%T", s), "SetDefault")
 }
-func (s *fixedBlessingsStore) Default() security.Blessings {
-	return s.b
+func (s *fixedBlessingsStore) Default() (security.Blessings, <-chan struct{}) {
+	return s.b, s.ch
 }
 func (s *fixedBlessingsStore) PublicKey() security.PublicKey {
 	return s.b.PublicKey()

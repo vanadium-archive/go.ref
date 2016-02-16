@@ -113,10 +113,12 @@ func fetchEnvelope(ctx *context.T, origin string) (*application.Envelope, error)
 }
 
 func publisherBlessingNames(ctx *context.T, env application.Envelope) ([]string, []security.RejectedBlessing) {
+	p := v23.GetPrincipal(ctx)
+	b, _ := p.BlessingStore().Default()
 	call := security.NewCall(&security.CallParams{
 		RemoteBlessings: env.Publisher,
-		LocalBlessings:  v23.GetPrincipal(ctx).BlessingStore().Default(),
-		LocalPrincipal:  v23.GetPrincipal(ctx),
+		LocalBlessings:  b,
+		LocalPrincipal:  p,
 		Timestamp:       time.Now(),
 	})
 	names, rejected := security.RemoteBlessingNames(ctx, call)

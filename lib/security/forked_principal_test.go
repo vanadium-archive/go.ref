@@ -33,7 +33,6 @@ func TestFixedBlessingStore(t *testing.T) {
 	}
 	for idx, c := range []call{
 		{"ForPeer", []interface{}{"foobar"}},
-		{"Default", nil},
 		{"PublicKey", nil},
 		{"PeerBlessings", nil},
 		{"CacheDischarge", []interface{}{d, tpcav, security.DischargeImpetus{}}},
@@ -45,7 +44,13 @@ func TestFixedBlessingStore(t *testing.T) {
 			t.Errorf("#%d: %v", idx, err)
 		}
 	}
-
+	// Check call to Default separately since both the stores should return
+	// the same blessing but possibly different channels.
+	def1, _ := s1.Default()
+	def2, _ := s2.Default()
+	if !reflect.DeepEqual(def1, def2) {
+		t.Errorf("Default: Got %v, want %v", def1, def2)
+	}
 }
 
 func TestImmutableBlessingStore(t *testing.T) {

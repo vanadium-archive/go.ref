@@ -50,9 +50,9 @@ func (AllowAllPeersAuthorizer) AuthorizePeer(
 	return nil, nil, nil
 }
 
-func (AllowAllPeersAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
-	security.Blessings, map[string]security.Discharge, error) {
-	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
+func (AllowAllPeersAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (security.Blessings, map[string]security.Discharge, error) {
+	b, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	return b, nil, nil
 }
 
 type peersAuthorizer []string
@@ -89,7 +89,7 @@ func (p peersAuthorizer) AuthorizePeer(
 	return peerNames, rejectedPeerNames, fmt.Errorf("not authorized")
 }
 
-func (peersAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (
-	security.Blessings, map[string]security.Discharge, error) {
-	return v23.GetPrincipal(ctx).BlessingStore().Default(), nil, nil
+func (peersAuthorizer) BlessingsForPeer(ctx *context.T, _ []string) (security.Blessings, map[string]security.Discharge, error) {
+	b, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	return b, nil, nil
 }

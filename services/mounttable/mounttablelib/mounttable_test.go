@@ -877,7 +877,8 @@ func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shu
 			// testutil.NewPrincipal has already setup each
 			// principal to use the same blessing for both server
 			// and client activities.
-			if err := security.AddToRoots(p1, v23.GetPrincipal(other).BlessingStore().Default()); err != nil {
+			bother, _ := v23.GetPrincipal(other).BlessingStore().Default()
+			if err := security.AddToRoots(p1, bother); err != nil {
 				panic(err)
 			}
 		}

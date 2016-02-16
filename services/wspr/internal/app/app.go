@@ -784,7 +784,7 @@ func (c *Controller) BlessingStoreSetDefault(_ *context.T, _ rpc.ServerCall, inp
 // BlessingStoreDefault fetches the default blessings for the principal of the controller.
 func (c *Controller) BlessingStoreDefault(*context.T, rpc.ServerCall) (principal.BlessingsId, error) {
 	p := v23.GetPrincipal(c.ctx)
-	outBlessings := p.BlessingStore().Default()
+	outBlessings, _ := p.BlessingStore().Default()
 
 	if outBlessings.IsZero() {
 		return 0, nil

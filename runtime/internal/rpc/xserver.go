@@ -114,11 +114,14 @@ func WithNewDispatchingServer(ctx *context.T,
 	}
 	ctx, stop := context.WithCancel(ctx)
 	statsPrefix := naming.Join("rpc", "server", "routing-id", rid.String())
+	// TODO(mattr,ashankar): Have the server listen on this channel of
+	// changing default blessings and update itself.
+	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	s := &xserver{
 		ctx:               ctx,
 		stop:              stop,
 		cancel:            stop,
-		blessings:         v23.GetPrincipal(ctx).BlessingStore().Default(),
+		blessings:         blessings,
 		stats:             newRPCStats(statsPrefix),
 		settingsPublisher: settingsPublisher,
 		valid:             make(chan struct{}),

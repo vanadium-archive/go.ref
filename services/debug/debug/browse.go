@@ -223,7 +223,9 @@ func runDelegate(ctx *context.T, env *cmdline.Env, args []string) error {
 	} else {
 		caveats = append(caveats, c)
 	}
-	blessing, err := v23.GetPrincipal(ctx).Bless(pub, v23.GetPrincipal(ctx).BlessingStore().Default(), extension, caveats[0], caveats[1:]...)
+	p := v23.GetPrincipal(ctx)
+	b, _ := p.BlessingStore().Default()
+	blessing, err := p.Bless(pub, b, extension, caveats[0], caveats[1:]...)
 	if err != nil {
 		return err
 	}

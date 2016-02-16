@@ -25,7 +25,7 @@ import (
 // CreateName creates a name using the username and hostname.
 func CreateName(ctx *context.T) string {
 	p := v23.GetPrincipal(ctx)
-	b := p.BlessingStore().Default()
+	b, _ := p.BlessingStore().Default()
 	return naming.EncodeAsNameElement(strings.Join(security.BlessingNames(p, b), ","))
 }
 

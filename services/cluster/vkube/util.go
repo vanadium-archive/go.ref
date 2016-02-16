@@ -148,7 +148,8 @@ type granter struct {
 
 func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings, error) {
 	p := call.LocalPrincipal()
-	return p.Bless(call.RemoteBlessings().PublicKey(), p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
+	b, _ := p.BlessingStore().Default()
+	return p.Bless(call.RemoteBlessings().PublicKey(), b, g.extension, security.UnconstrainedUse())
 }
 
 // deleteSecret deletes a Secret object and its associated secret key and
@@ -386,8 +387,9 @@ func kubectl(args ...string) ([]byte, error) {
 // rootBlessings returns the root blessings for the current principal.
 func rootBlessings(ctx *context.T) string {
 	p := v23.GetPrincipal(ctx)
+	b, _ := p.BlessingStore().Default()
 	b64 := []string{}
-	for _, root := range security.RootBlessings(p.BlessingStore().Default()) {
+	for _, root := range security.RootBlessings(b) {
 		data, err := vom.Encode(root)
 		if err != nil {
 			ctx.Fatalf("vom.Encode failed: %v", err)

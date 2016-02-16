@@ -41,7 +41,8 @@ func TestV23ClusterAgentD(t *testing.T) {
 	// Create a blessing (root:alice:prod) that alice will use to talk to
 	// the cluster agent.
 	alicePrincipal := aliceCreds.Principal
-	if prodBlessing, err := alicePrincipal.Bless(alicePrincipal.PublicKey(), alicePrincipal.BlessingStore().Default(), "prod", security.UnconstrainedUse()); err != nil {
+	aliceBlessings, _ := alicePrincipal.BlessingStore().Default()
+	if prodBlessing, err := alicePrincipal.Bless(alicePrincipal.PublicKey(), aliceBlessings, "prod", security.UnconstrainedUse()); err != nil {
 		t.Fatalf("Failed to create alice:prod blessing: %v", err)
 	} else if _, err := alicePrincipal.BlessingStore().Set(prodBlessing, security.BlessingPattern("root:agent")); err != nil {
 		t.Fatalf("Failed to set alice:prod for root:agent: %v", err)

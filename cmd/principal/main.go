@@ -90,8 +90,9 @@ that this tool is running in.
 `,
 		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
 			p := v23.GetPrincipal(ctx)
+			def, _ := p.BlessingStore().Default()
 			if flagDumpShort {
-				fmt.Printf("%s\n", printAnnotatedBlessingsNames(p.BlessingStore().Default()))
+				fmt.Printf("%s\n", printAnnotatedBlessingsNames(def))
 				return nil
 			}
 			fmt.Printf("Public key : %v\n", p.PublicKey())
@@ -103,7 +104,7 @@ that this tool is running in.
 			// information about each blessing in the store, but
 			// that would require deeper changes beyond the
 			// principal tool.
-			fmt.Printf("Default Blessings : %s\n", printAnnotatedBlessingsNames(p.BlessingStore().Default()))
+			fmt.Printf("Default Blessings : %s\n", printAnnotatedBlessingsNames(def))
 			fmt.Println("---------------- BlessingStore ----------------")
 			fmt.Printf("%v", p.BlessingStore().DebugString())
 			fmt.Println("---------------- BlessingRoots ----------------")
@@ -295,7 +296,7 @@ blessing.
 					return fmt.Errorf("failed to read blessings from --with=%q: %v", flagBlessWith, err)
 				}
 			} else {
-				with = p.BlessingStore().Default()
+				with, _ = p.BlessingStore().Default()
 			}
 			caveats, err := caveatsFromFlags(flagBlessFor, &flagBlessCaveats)
 			if err != nil {
@@ -433,7 +434,8 @@ Providing --caveats <chain_name> will print the caveats on the certificate chain
 with chain_name.
 `,
 		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
-			return printBlessingsInfo(v23.GetPrincipal(ctx).BlessingStore().Default())
+			def, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+			return printBlessingsInfo(def)
 		}),
 	}
 
@@ -660,7 +662,7 @@ forked principal.
 					return fmt.Errorf("failed to read blessings from --with=%q: %v", flagForkWith, err)
 				}
 			} else {
-				with = v23.GetPrincipal(ctx).BlessingStore().Default()
+				with, _ = v23.GetPrincipal(ctx).BlessingStore().Default()
 			}
 
 			if flagCreateOverwrite {

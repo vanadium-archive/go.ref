@@ -39,6 +39,7 @@ type blessingStore struct {
 	signer     serialization.Signer
 	mu         sync.RWMutex
 	state      blessingStoreState // GUARDED_BY(mu)
+	defCh      chan struct{}      // GUARDED_BY(mu) - Notifications for changes in the default blessings
 }
 
 func (bs *blessingStore) Set(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
@@ -84,10 +85,10 @@ func (bs *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
 	return ret
 }
 
-func (bs *blessingStore) Default() security.Blessings {
+func (bs *blessingStore) Default() (security.Blessings, <-chan struct{}) {
 	bs.mu.RLock()
 	defer bs.mu.RUnlock()
-	return bs.state.DefaultBlessings
+	return bs.state.DefaultBlessings, bs.defCh
 }
 
 func (bs *blessingStore) SetDefault(blessings security.Blessings) error {
@@ -102,6 +103,8 @@ func (bs *blessingStore) SetDefault(blessings security.Blessings) error {
 		bs.state.DefaultBlessings = oldDefault
 		return err
 	}
+	close(bs.defCh)
+	bs.defCh = make(chan struct{})
 	return nil
 }
 
@@ -272,6 +275,7 @@ func newInMemoryBlessingStore(publicKey security.PublicKey) security.BlessingSto
 			PeerBlessings: make(map[security.BlessingPattern]security.Blessings),
 			Discharges:    make(map[dischargeCacheKey]CachedDischarge),
 		},
+		defCh: make(chan struct{}),
 	}
 }
 
@@ -324,6 +328,7 @@ func newPersistingBlessingStore(serializer SerializerReaderWriter, signer serial
 		publicKey:  signer.PublicKey(),
 		serializer: serializer,
 		signer:     signer,
+		defCh:      make(chan struct{}),
 	}
 	if err := bs.deserialize(); err != nil {
 		return nil, err

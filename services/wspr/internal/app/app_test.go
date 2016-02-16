@@ -42,8 +42,9 @@ var testPrincipal = testutil.NewPrincipal("test")
 // that it is revealed to all clients and servers.
 func newBlessedPrincipal(ctx *context.T) security.Principal {
 	principal := v23.GetPrincipal(ctx)
+	blessings, _ := principal.BlessingStore().Default()
 	p := testutil.NewPrincipal()
-	b, err := principal.Bless(p.PublicKey(), principal.BlessingStore().Default(), "delegate", security.UnconstrainedUse())
+	b, err := principal.Bless(p.PublicKey(), blessings, "delegate", security.UnconstrainedUse())
 	if err != nil {
 		panic(err)
 	}
@@ -439,7 +440,8 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 	client := v23.GetClient(rt.controller.Context())
 	// And have the client recognize the server, otherwise it won't
 	// authorize calls to it.
-	security.AddToRoots(v23.GetPrincipal(rt.controller.Context()), v23.GetPrincipal(ctx).BlessingStore().Default())
+	serverb, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	security.AddToRoots(v23.GetPrincipal(rt.controller.Context()), serverb)
 
 	if err != nil {
 		t.Fatalf("unable to create client: %v", err)

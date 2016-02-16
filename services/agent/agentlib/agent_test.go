@@ -45,8 +45,8 @@ import (
 var getPrincipalAndHang = gosh.RegisterFunc("getPrincipalAndHang", func() {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	p := v23.GetPrincipal(ctx)
-	fmt.Printf("DEFAULT_BLESSING=%s\n", p.BlessingStore().Default())
+	b, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	fmt.Printf("DEFAULT_BLESSING=%s\n", b)
 	ioutil.ReadAll(os.Stdin)
 })
 
@@ -111,10 +111,15 @@ func TestAgent(t *testing.T) {
 	var (
 		p                       = testutil.NewPrincipal("agentTest")
 		agent1, agent2, cleanup = setupAgentPair(t, p)
+		def                     = func(p security.Principal) security.Blessings {
+			b, _ := p.BlessingStore().Default()
+			return b
+		}
+		defP = def(p)
+		def1 = def(agent1)
+		def2 = def(agent2)
 	)
 	defer cleanup()
-
-	defP, def1, def2 := p.BlessingStore().Default(), agent1.BlessingStore().Default(), agent2.BlessingStore().Default()
 
 	if !reflect.DeepEqual(defP, def1) {
 		t.Errorf("Default blessing mismatch. Wanted %v, got %v", defP, def1)
@@ -132,7 +137,7 @@ func TestAgent(t *testing.T) {
 	if err = p.BlessingStore().SetDefault(blessing); err != nil {
 		t.Fatal(err)
 	}
-	def1, def2 = agent1.BlessingStore().Default(), agent2.BlessingStore().Default()
+	def1, def2 = def(agent1), def(agent2)
 	if !reflect.DeepEqual(defP, def1) {
 		t.Errorf("Default blessing mismatch. Wanted %v, got %v", defP, def1)
 	}
@@ -149,18 +154,17 @@ func TestAgent(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The principal and the other client should both reflect the change.
-	newDefault := p.BlessingStore().Default()
-	if !reflect.DeepEqual(newDefault, blessing) {
+	if newDefault := def(p); !reflect.DeepEqual(newDefault, blessing) {
 		t.Errorf("Default blessing mismatch. Wanted %v, got %v", blessing, newDefault)
 	}
 	// There's no synchronization, so keep fetching from the other client.
 	// Eventually it should get notified of the new value.
-	for i := 0; i < 10000 && !reflect.DeepEqual(blessing, agent1.BlessingStore().Default()); i += 1 {
+	for i := 0; i < 10000 && !reflect.DeepEqual(blessing, def(agent1)); i += 1 {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	if !reflect.DeepEqual(agent1.BlessingStore().Default(), blessing) {
-		t.Errorf("Default blessing mismatch. Wanted %v, got %v", blessing, agent1.BlessingStore().Default())
+	if got := def(agent1); !reflect.DeepEqual(got, blessing) {
+		t.Errorf("Default blessing mismatch. Wanted %v, got %v", blessing, got)
 	}
 }
 
@@ -231,7 +235,7 @@ func runSignBenchmark(b *testing.B, p security.Principal) {
 func runDefaultBenchmark(b *testing.B, p security.Principal) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if d := p.BlessingStore().Default(); d.IsZero() {
+		if d, _ := p.BlessingStore().Default(); d.IsZero() {
 			b.Fatal("empty blessings")
 		}
 	}

@@ -64,7 +64,7 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 		return fmt.Errorf("Principal failed: %v", err)
 	}
 
-	bOrigin := pOrigin.BlessingStore().Default()
+	bOrigin, _ := pOrigin.BlessingStore().Default()
 	// Validate the integrity of the bits.
 	buf := new(bytes.Buffer)
 

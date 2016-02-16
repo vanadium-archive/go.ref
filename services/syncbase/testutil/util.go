@@ -245,9 +245,10 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 func NewCtx(ctx *context.T, rootp security.Principal, suffix string) *context.T {
 	// Principal for the new context.
 	p := tsecurity.NewPrincipal(suffix)
+	rootb, _ := rootp.BlessingStore().Default()
 
 	// Bless the new principal as "root:<suffix>".
-	blessings, err := rootp.Bless(p.PublicKey(), rootp.BlessingStore().Default(), suffix, security.UnconstrainedUse())
+	blessings, err := rootp.Bless(p.PublicKey(), rootb, suffix, security.UnconstrainedUse())
 	if err != nil {
 		vlog.Fatal("rootp.Bless() failed: ", err)
 	}

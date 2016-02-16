@@ -65,7 +65,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 		// testing (see services/device/deviced/internal/impl/device_service.go,
 		// specifically testDeviceManager function).
 		// FIx that up so it is no longer the case?
-		blessings = rt.GetPrincipal(ctx).BlessingStore().Default()
+		blessings, _ = rt.GetPrincipal(ctx).BlessingStore().Default()
 	}
 	// Arguably could use the same principal with a different blessing store
 	// and blessing roots. However, at the time of this writing there wasn't

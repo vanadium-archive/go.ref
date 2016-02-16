@@ -154,7 +154,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	instanceDebug := utiltest.Debug(t, ctx, appID, instance1ID)
 
 	// Verify the app's default blessings.
-	if !strings.Contains(instanceDebug, fmt.Sprintf("Default Blessings                %s:forapp", v23.GetPrincipal(ctx).BlessingStore().Default().String())) {
+	if def, _ := v23.GetPrincipal(ctx).BlessingStore().Default(); !strings.Contains(instanceDebug, fmt.Sprintf("Default Blessings                %s:forapp", def)) {
 		t.Fatalf("debug response doesn't contain expected info: %v", instanceDebug)
 	}
 
@@ -566,7 +566,7 @@ func verifyTidying(t *testing.T, root, globpath string, shouldKeep map[string]bo
 // a context that can be used to publish an envelope with a signed binary.
 func setupPublishingCredentials(ctx *context.T) (*context.T, error) {
 	IDPPrincipal := testutil.NewPrincipal("identitypro")
-	IDPBlessing := IDPPrincipal.BlessingStore().Default()
+	IDPBlessing, _ := IDPPrincipal.BlessingStore().Default()
 
 	PubPrincipal := testutil.NewPrincipal()
 	UserPrincipal := v23.GetPrincipal(ctx)
@@ -636,8 +636,8 @@ func verifyAppPeerBlessings(t *testing.T, ctx, pubCtx *context.T, instanceDebug 
 
 	// Compute a map of the blessings we expect to find
 	expBlessings := make(map[string]bool)
-	baseBlessing := v23.GetPrincipal(ctx).BlessingStore().Default().String()
-	expBlessings[baseBlessing+":forapp"] = false
+	baseBlessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	expBlessings[baseBlessing.String()+":forapp"] = false
 
 	// App blessings should be the cross product of device manager and publisher blessings
 
@@ -645,7 +645,7 @@ func verifyAppPeerBlessings(t *testing.T, ctx, pubCtx *context.T, instanceDebug 
 	// want it to have more than one in future. (Today, a device manager typically has a
 	// blessing from its claimer, but in many cases there might be other blessings too, such
 	// as one from the manufacturer, or one from the organization that owns the device.)
-	dmBlessings := []string{baseBlessing + ":mydevice"}
+	dmBlessings := []string{baseBlessing.String() + ":mydevice"}
 	pubBlessings := strings.Split(e.Publisher.String(), ",")
 	for _, dmb := range dmBlessings {
 		for _, pb := range pubBlessings {

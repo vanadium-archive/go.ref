@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"v.io/v23/context"
-	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/ref/internal/logger"
@@ -222,43 +220,42 @@ type cachedStore struct {
 	mu     *sync.RWMutex
 	pubkey security.PublicKey
 	def    security.Blessings
-	hasDef bool
+	defCh  chan struct{}
 	peers  map[security.BlessingPattern]security.Blessings
 	impl   security.BlessingStore
 }
 
-func (s *cachedStore) Default() (result security.Blessings) {
+func (s *cachedStore) Default() (security.Blessings, <-chan struct{}) {
 	s.mu.RLock()
-	if !s.hasDef {
+	if s.defCh == nil {
 		s.mu.RUnlock()
 		return s.fetchAndCacheDefault()
 	}
-	result = s.def
+	b := s.def
+	c := s.defCh
 	s.mu.RUnlock()
-	return
+	return b, c
 }
 
 func (s *cachedStore) SetDefault(blessings security.Blessings) error {
 	defer s.mu.Unlock()
 	s.mu.Lock()
 	err := s.impl.SetDefault(blessings)
-	if err != nil {
-		// We're not sure what happened, so we need to re-read the default.
-		s.hasDef = false
-		return err
+	if s.defCh != nil {
+		close(s.defCh)
+		s.defCh = nil
 	}
-	s.def = blessings
-	s.hasDef = true
-	return nil
+	return err
 }
 
-func (s *cachedStore) fetchAndCacheDefault() security.Blessings {
-	result := s.impl.Default()
+func (s *cachedStore) fetchAndCacheDefault() (security.Blessings, <-chan struct{}) {
+	defCh := make(chan struct{})
 	s.mu.Lock()
+	result, _ := s.impl.Default()
 	s.def = result
-	s.hasDef = true
+	s.defCh = defCh
 	s.mu.Unlock()
-	return result
+	return s.def, s.defCh
 }
 
 func (s *cachedStore) ForPeer(peerBlessings ...string) security.Blessings {
@@ -335,7 +332,10 @@ func (s *cachedStore) Discharge(caveat security.Caveat, impetus security.Dischar
 
 // Must be called while holding mu.
 func (s *cachedStore) flush() {
-	s.hasDef = false
+	if s.defCh != nil {
+		close(s.defCh)
+		s.defCh = nil
+	}
 	s.peers = nil
 }
 
@@ -369,29 +369,6 @@ func (s dummySigner) Sign(purpose, message []byte) (security.Signature, error) {
 
 func (s dummySigner) PublicKey() security.PublicKey {
 	return s.pubkey
-}
-
-func NewCachedPrincipal(ctx *context.T, impl agent.Principal, call rpc.ClientCall) (p agent.Principal, err error) {
-	p, flush, err := NewCachedPrincipalX(impl)
-
-	if err == nil {
-		go func() {
-			var x bool
-			for {
-				if recvErr := call.Recv(&x); recvErr != nil {
-					if ctx.Err() != context.Canceled {
-						logger.Global().Errorf("Error from agent: %v", recvErr)
-					}
-					flush()
-					call.Finish()
-					return
-				}
-				flush()
-			}
-		}()
-	}
-
-	return
 }
 
 func NewCachedPrincipalX(impl agent.Principal) (p agent.Principal, flush func(), err error) {

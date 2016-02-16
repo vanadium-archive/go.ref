@@ -99,7 +99,7 @@ func (proxyAuthorizer) AuthorizePeer(
 
 func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, serverBlessings []string) (
 	security.Blessings, map[string]security.Discharge, error) {
-	blessings := v23.GetPrincipal(ctx).BlessingStore().Default()
+	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	discharges, _ := slib.PrepareDischarges(ctx, blessings, serverBlessings, "", nil)
 	return blessings, discharges, nil
 }

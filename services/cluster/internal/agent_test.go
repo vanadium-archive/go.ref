@@ -24,10 +24,11 @@ func TestClusterAgent(t *testing.T) {
 	agentP := testutil.NewPrincipal("agent")
 	serviceP := testutil.NewPrincipal("service")
 	instanceP := testutil.NewPrincipal("instance")
+	serviceB, _ := serviceP.BlessingStore().Default()
 
 	agent := impl.NewAgent(agentP, impl.NewFileStorage(workdir))
 
-	blessings1, err := serviceP.Bless(agentP.PublicKey(), serviceP.BlessingStore().Default(), "foo", security.UnconstrainedUse())
+	blessings1, err := serviceP.Bless(agentP.PublicKey(), serviceB, "foo", security.UnconstrainedUse())
 	if err != nil {
 		t.Fatalf("serviceP.Bless failed: %v", err)
 	}
