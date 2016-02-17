@@ -497,6 +497,12 @@ function makeTableSortable(tb) {
                 <td class="mdl-data-table__cell--non-numeric">CPU</td>
                 <td class="mdl-data-table__cell--non-numeric">{{.Scenario.Cpu.Architecture}} ({{.Scenario.Cpu.Description}})</td>
               </tr>
+	      {{with .Scenario.Cpu.ClockSpeedMhz}}
+	      <tr>
+                <td class="mdl-data-table__cell--non-numeric">ClockSpeed</td>
+                <td class="mdl-data-table__cell--non-numeric">{{.}} MHz</td>
+	      </tr>
+	      {{end}}
               <tr>
                 <td class="mdl-data-table__cell--non-numeric">Uploader</td>
                 <td class="mdl-data-table__cell--non-numeric">{{.Uploader}}</td>

@@ -38,6 +38,13 @@ type server struct {
 }
 
 func (s *server) Archive(ctx *context.T, call rpc.ServerCall, scenario ben.Scenario, code ben.SourceCode, runs []ben.Run) (string, error) {
+	// Various fields must be set.
+	if len(scenario.Cpu.Architecture) == 0 {
+		return "", fmt.Errorf("Cpu.Architecture must be specified")
+	}
+	if len(scenario.Os.Name) == 0 {
+		return "", fmt.Errorf("Os.Name must be specified")
+	}
 	uploaderBlessings, _ := security.RemoteBlessingNames(ctx, call.Security())
 	// If there are multiple blessing names pack them into a single
 	// string using NoExtension - which cannot be a substring in

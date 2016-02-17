@@ -242,7 +242,6 @@ func (s *sqlStore) Runs(id string) (Benchmark, RunIterator) {
 
 func (s *sqlStore) insertAndGetID(tx *sql.Tx, insrt, slct *sql.Stmt, args ...interface{}) (int64, error) {
 	// First try selecting since the common case is expected to be that.
-	// statement to get the id.
 	var id int64
 	if err := tx.Stmt(slct).QueryRow(args...).Scan(&id); err == nil {
 		return id, nil
@@ -250,7 +249,7 @@ func (s *sqlStore) insertAndGetID(tx *sql.Tx, insrt, slct *sql.Stmt, args ...int
 		return 0, err
 	}
 	if result, err := tx.Stmt(insrt).Exec(args...); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("INSERT failed. Arguments: %v. Error: %v", args, err)
 	} else if id, err := result.LastInsertId(); err == nil {
 		return id, nil
 	}
