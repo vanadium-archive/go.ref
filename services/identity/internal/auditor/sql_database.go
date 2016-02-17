@@ -27,7 +27,7 @@ type databaseEntry struct {
 // newSQLDatabase returns a SQL implementation of the database interface.
 // If the table does not exist it creates it.
 func newSQLDatabase(ctx *context.T, db *sql.DB, table string) (database, error) {
-	createStmt, err := db.Prepare(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ( Email NVARCHAR(256), Caveats BLOB, Timestamp DATETIME, Blessings BLOB );", table))
+	createStmt, err := db.Prepare(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s ( Email VARBINARY(256), Caveats BLOB, Timestamp DATETIME, Blessings BLOB, KEY (Email, Timestamp) );", table))
 	if err != nil {
 		return nil, err
 	}
