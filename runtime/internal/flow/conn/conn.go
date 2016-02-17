@@ -272,17 +272,19 @@ func NewAccepted(
 		c.loopWG.Done()
 	}()
 	timer := time.NewTimer(handshakeTimeout)
+	var ferr error
 	select {
 	case <-done:
+		ferr = err
 	case <-timer.C:
-		err = verror.NewErrTimeout(ctx)
+		ferr = verror.NewErrTimeout(ctx)
 	case <-ctx.Done():
-		err = verror.NewErrCanceled(ctx)
+		ferr = verror.NewErrCanceled(ctx)
 	}
 	timer.Stop()
-	if err != nil {
-		c.Close(ctx, err)
-		return nil, err
+	if ferr != nil {
+		c.Close(ctx, ferr)
+		return nil, ferr
 	}
 	c.initializeHealthChecks(ctx, rtt)
 	c.refreshDischarges(ctx, true, lAuthorizedPeers)
