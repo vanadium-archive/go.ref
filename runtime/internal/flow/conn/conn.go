@@ -184,9 +184,10 @@ func NewDialed(
 		acceptChannelTimeout: channelTimeout,
 	}
 	done := make(chan struct{})
+	var rtt time.Duration
 	c.loopWG.Add(1)
 	go func() {
-		names, rejected, err = c.dialHandshake(ctx, versions, auth)
+		names, rejected, rtt, err = c.dialHandshake(ctx, versions, auth)
 		close(done)
 		c.loopWG.Done()
 	}()
@@ -205,7 +206,7 @@ func NewDialed(
 		c.Close(ctx, ferr)
 		return nil, nil, nil, ferr
 	}
-	c.initializeHealthChecks(ctx)
+	c.initializeHealthChecks(ctx, rtt)
 	// We send discharges asynchronously to prevent making a second RPC while
 	// trying to build up the connection for another. If the two RPCs happen to
 	// go to the same server a deadlock will result.
@@ -261,16 +262,18 @@ func NewAccepted(
 		activeWriters:        make([]writer, numPriorities),
 		acceptChannelTimeout: channelTimeout,
 	}
-	errCh := make(chan error, 1)
+	done := make(chan struct{}, 1)
+	var rtt time.Duration
+	var err error
 	c.loopWG.Add(1)
 	go func() {
+		rtt, err = c.acceptHandshake(ctx, versions, lAuthorizedPeers)
+		close(done)
 		c.loopWG.Done()
-		errCh <- c.acceptHandshake(ctx, versions, lAuthorizedPeers)
 	}()
-	var err error
 	timer := time.NewTimer(handshakeTimeout)
 	select {
-	case err = <-errCh:
+	case <-done:
 	case <-timer.C:
 		err = verror.NewErrTimeout(ctx)
 	case <-ctx.Done():
@@ -281,7 +284,7 @@ func NewAccepted(
 		c.Close(ctx, err)
 		return nil, err
 	}
-	c.initializeHealthChecks(ctx)
+	c.initializeHealthChecks(ctx, rtt)
 	c.refreshDischarges(ctx, true, lAuthorizedPeers)
 	c.loopWG.Add(1)
 	go c.readLoop(ctx)
@@ -292,13 +295,18 @@ func (c *Conn) MTU() uint64 {
 	return c.mtu
 }
 
+// RTT returns the round trip time of a message to the remote end.
+// Note the initial estimate of the RTT from the accepted side of a connection
+// my be long because we don't fully factor out certificate verification time.
+// The RTT will be updated with the receipt of every healthCheckResponse, so
+// this overestimate doesn't remain for long when the channel timeout is low.
 func (c *Conn) RTT() time.Duration {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	return c.hcstate.lastRTT
 }
 
-func (c *Conn) initializeHealthChecks(ctx *context.T) {
+func (c *Conn) initializeHealthChecks(ctx *context.T, firstRTT time.Duration) {
 	now := time.Now()
 	h := &healthCheckState{
 		requestDeadline: now.Add(c.acceptChannelTimeout / 2),
@@ -307,6 +315,7 @@ func (c *Conn) initializeHealthChecks(ctx *context.T) {
 			c.internalClose(ctx, false, NewErrChannelTimeout(ctx))
 		}),
 		closeDeadline: now.Add(c.acceptChannelTimeout),
+		lastRTT:       firstRTT,
 	}
 	requestTimer := time.AfterFunc(c.acceptChannelTimeout/2, func() {
 		c.mu.Lock()

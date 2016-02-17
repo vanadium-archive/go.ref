@@ -80,3 +80,23 @@ func TestLargeWrite(t *testing.T) {
 	go doWrite(t, af, randData)
 	wg.Wait()
 }
+
+func TestConnRTT(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	payload := []byte{0}
+	ctx, shutdown := v23.Init()
+	df, flows, cl := setupFlow(t, "local", "", ctx, ctx, true)
+	defer cl()
+	defer shutdown()
+
+	go doWrite(t, df, payload)
+	af := <-flows
+
+	ctx.Infof("%v, %v", df.Conn().RTT(), af.Conn().RTT())
+	if df.Conn().RTT() == 0 {
+		t.Errorf("dialed conn's RTT should be non-zero")
+	}
+	if af.Conn().RTT() == 0 {
+		t.Errorf("accepted conn's RTT should be non-zero")
+	}
+}
