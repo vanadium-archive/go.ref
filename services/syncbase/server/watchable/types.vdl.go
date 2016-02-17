@@ -9,6 +9,7 @@ package watchable
 
 import (
 	// VDL system imports
+	"fmt"
 	"v.io/v23/vdl"
 
 	// VDL user imports
@@ -103,6 +104,68 @@ func (SyncSnapshotOp) __VDLReflect(struct {
 }) {
 }
 
+// StateChange represents the set of types of state change requests possible.
+type StateChange int
+
+const (
+	StateChangePauseSync StateChange = iota
+	StateChangeResumeSync
+)
+
+// StateChangeAll holds all labels for StateChange.
+var StateChangeAll = [...]StateChange{StateChangePauseSync, StateChangeResumeSync}
+
+// StateChangeFromString creates a StateChange from a string label.
+func StateChangeFromString(label string) (x StateChange, err error) {
+	err = x.Set(label)
+	return
+}
+
+// Set assigns label to x.
+func (x *StateChange) Set(label string) error {
+	switch label {
+	case "PauseSync", "pausesync":
+		*x = StateChangePauseSync
+		return nil
+	case "ResumeSync", "resumesync":
+		*x = StateChangeResumeSync
+		return nil
+	}
+	*x = -1
+	return fmt.Errorf("unknown label %q in watchable.StateChange", label)
+}
+
+// String returns the string label of x.
+func (x StateChange) String() string {
+	switch x {
+	case StateChangePauseSync:
+		return "PauseSync"
+	case StateChangeResumeSync:
+		return "ResumeSync"
+	}
+	return ""
+}
+
+func (StateChange) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/watchable.StateChange"`
+	Enum struct{ PauseSync, ResumeSync string }
+}) {
+}
+
+// DbStateChangeRequestOp represents a database state change request.
+// Specifically there are two events that create this op:
+// PauseSync, indicating a client request to pause sync on this db.
+// ResumeSync, indicating a client request to resume sync on this db.
+// Client watcher will ignore this op.
+type DbStateChangeRequestOp struct {
+	RequestType StateChange
+}
+
+func (DbStateChangeRequestOp) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/watchable.DbStateChangeRequestOp"`
+}) {
+}
+
 type (
 	// Op represents any single field of the Op union type.
 	//
@@ -129,17 +192,20 @@ type (
 	OpSyncgroup struct{ Value SyncgroupOp }
 	// OpSyncSnapshot represents field SyncSnapshot of the Op union type.
 	OpSyncSnapshot struct{ Value SyncSnapshotOp }
+	// OpDbStateChangeRequest represents field DbStateChangeRequest of the Op union type.
+	OpDbStateChangeRequest struct{ Value DbStateChangeRequestOp }
 	// __OpReflect describes the Op union type.
 	__OpReflect struct {
 		Name  string `vdl:"v.io/x/ref/services/syncbase/server/watchable.Op"`
 		Type  Op
 		Union struct {
-			Get          OpGet
-			Scan         OpScan
-			Put          OpPut
-			Delete       OpDelete
-			Syncgroup    OpSyncgroup
-			SyncSnapshot OpSyncSnapshot
+			Get                  OpGet
+			Scan                 OpScan
+			Put                  OpPut
+			Delete               OpDelete
+			Syncgroup            OpSyncgroup
+			SyncSnapshot         OpSyncSnapshot
+			DbStateChangeRequest OpDbStateChangeRequest
 		}
 	}
 )
@@ -174,6 +240,11 @@ func (x OpSyncSnapshot) Interface() interface{}   { return x.Value }
 func (x OpSyncSnapshot) Name() string             { return "SyncSnapshot" }
 func (x OpSyncSnapshot) __VDLReflect(__OpReflect) {}
 
+func (x OpDbStateChangeRequest) Index() int               { return 6 }
+func (x OpDbStateChangeRequest) Interface() interface{}   { return x.Value }
+func (x OpDbStateChangeRequest) Name() string             { return "DbStateChangeRequest" }
+func (x OpDbStateChangeRequest) __VDLReflect(__OpReflect) {}
+
 // LogEntry represents a single store operation. This operation may have been
 // part of a transaction, as signified by the Continued boolean. Read-only
 // operations (and read-only transactions) are not logged.
@@ -203,6 +274,8 @@ func init() {
 	vdl.Register((*DeleteOp)(nil))
 	vdl.Register((*SyncgroupOp)(nil))
 	vdl.Register((*SyncSnapshotOp)(nil))
+	vdl.Register((*StateChange)(nil))
+	vdl.Register((*DbStateChangeRequestOp)(nil))
 	vdl.Register((*Op)(nil))
 	vdl.Register((*LogEntry)(nil))
 }

@@ -8,7 +8,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/x/ref/services/syncbase/store"
-	"v.io/x/ref/services/syncbase/vclock"
 )
 
 // Service is an internal interface to the service layer.
@@ -20,7 +19,7 @@ type Service interface {
 	Sync() SyncServerMethods
 
 	// VClock returns the vclock instance for this service.
-	VClock() *vclock.VClock
+	VClock() VClock
 
 	// App returns the App with the specified name.
 	App(ctx *context.T, call rpc.ServerCall, appName string) (App, error)

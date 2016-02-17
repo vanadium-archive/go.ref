@@ -49,7 +49,7 @@ func (s *mockService) Sync() interfaces.SyncServerMethods {
 	return s.sync
 }
 
-func (s *mockService) VClock() *vclock.VClock {
+func (s *mockService) VClock() interfaces.VClock {
 	return s.vclock
 }
 

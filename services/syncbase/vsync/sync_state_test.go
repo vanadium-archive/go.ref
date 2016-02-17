@@ -74,6 +74,7 @@ func TestPutGetDbSyncState(t *testing.T) {
 	wantSt := &DbSyncState{
 		GenVecs:   gv,
 		SgGenVecs: sggv,
+		IsPaused:  true,
 	}
 	if err := putDbSyncState(nil, tx, wantSt); err != nil {
 		t.Fatalf("putDbSyncState failed, err %v", err)
@@ -130,6 +131,63 @@ func TestPutGetDelLogRec(t *testing.T) {
 	}
 
 	checkLogRec(t, st, id, gen, false, nil)
+}
+
+func TestSyncPauseAndResumeInCache(t *testing.T) {
+	svc := createService(t)
+	defer destroyService(t, svc)
+
+	s := svc.sync
+	if !s.isDbSyncable(nil, "mockapp", "mockdb") {
+		t.Errorf("isDbSyncable returned false")
+	}
+
+	// Test Pause.
+	s.updateInMemoryPauseSt(nil, "mockapp", "mockdb", true)
+	if s.isDbSyncable(nil, "mockapp", "mockdb") {
+		t.Errorf("isDbSyncable expected to return false")
+	}
+
+	// Test Resume.
+	s.updateInMemoryPauseSt(nil, "mockapp", "mockdb", false)
+	if !s.isDbSyncable(nil, "mockapp", "mockdb") {
+		t.Errorf("isDbSyncable returned false")
+	}
+}
+
+func TestSyncPauseAndResumeInDb(t *testing.T) {
+	svc := createService(t)
+	defer destroyService(t, svc)
+
+	s := svc.sync
+	st := svc.St()
+	if !s.isDbSyncable(nil, "mockapp", "mockdb") {
+		t.Errorf("isDbSyncable returned false")
+	}
+
+	// Test Pause.
+	commitAndVerifySyncStateChange(t, s, st, true)
+	// Test Resume.
+	commitAndVerifySyncStateChange(t, s, st, false)
+}
+
+func commitAndVerifySyncStateChange(t *testing.T, s *syncService, st store.Store, expected bool) {
+	tx := st.NewTransaction()
+	if err := s.updateDbPauseSt(nil, tx, "mockapp", "mockdb", expected); err != nil {
+		t.Errorf("Error while updating with isPaused=%t : %v", expected, err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Errorf("Commit error: %v", err)
+	}
+
+	// Check disk state.
+	ss, err := getDbSyncState(nil, st)
+	if err != nil {
+		t.Errorf("Lookup error %v", err)
+	}
+	if ss.IsPaused != expected {
+		t.Errorf("Expected pause to be true but found false")
+	}
 }
 
 //////////////////////////////

@@ -35,11 +35,10 @@ func (d *databaseReq) GetSchemaMetadata(ctx *context.T, call rpc.ServerCall) (wi
 }
 
 func (d *databaseReq) SetSchemaMetadata(ctx *context.T, call rpc.ServerCall, metadata wire.SchemaMetadata) error {
-	// Check if database exists
+	// Check if database exists.
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.Name())
 	}
-
 	// Check permissions on Database and store schema metadata.
 	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
 		dbData := DatabaseData{}

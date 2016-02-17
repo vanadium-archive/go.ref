@@ -269,9 +269,9 @@ func (s *service) AddNames(ctx *context.T, svr rpc.Server) error {
 
 // Close shuts down this Syncbase instance.
 //
-// TODO(hpucha): Close or cleanup Syncbase app/db data structures and call
-// s.vclockD.Close().
+// TODO(hpucha): Close or cleanup Syncbase app/db data structures.
 func (s *service) Close() {
+	s.vclockD.Close()
 	vsync.Close(s.sync)
 }
 
@@ -361,7 +361,7 @@ func (s *service) Sync() interfaces.SyncServerMethods {
 	return s.sync
 }
 
-func (s *service) VClock() *vclock.VClock {
+func (s *service) VClock() interfaces.VClock {
 	return s.vclock
 }
 

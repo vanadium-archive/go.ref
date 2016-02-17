@@ -406,6 +406,24 @@ func (d *databaseReq) ListTables(ctx *context.T, call rpc.ServerCall) ([]string,
 	}
 }
 
+func (d *databaseReq) PauseSync(ctx *context.T, call rpc.ServerCall) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.name)
+	}
+	return store.RunInTransaction(d.St(), func(tx store.Transaction) error {
+		return watchable.AddDbStateChangeRequestOp(ctx, tx, watchable.StateChangePauseSync)
+	})
+}
+
+func (d *databaseReq) ResumeSync(ctx *context.T, call rpc.ServerCall) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.name)
+	}
+	return store.RunInTransaction(d.St(), func(tx store.Transaction) error {
+		return watchable.AddDbStateChangeRequestOp(ctx, tx, watchable.StateChangeResumeSync)
+	})
+}
+
 ////////////////////////////////////////
 // interfaces.Database methods
 

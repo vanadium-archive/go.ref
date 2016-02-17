@@ -12,9 +12,12 @@ import (
 
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
 )
+
+var _ interfaces.VClock = (*VClock)(nil)
 
 // VClock holds everything needed to provide UTC time estimates.
 // VClock is thread-safe.
