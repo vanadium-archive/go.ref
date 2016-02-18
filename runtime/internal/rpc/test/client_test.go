@@ -301,7 +301,7 @@ func TestStartCallErrors(t *testing.T) {
 	}
 	logErr("no context", err)
 
-	// TODO(mattr): This test doesn't pass because xclient doesn't look for this
+	// TODO(mattr): This test doesn't pass because client doesn't look for this
 	// error.
 	// p1 := security.PublicKeyAuthorizer(testutil.NewPrincipal().PublicKey())
 	// p2 := security.PublicKeyAuthorizer(testutil.NewPrincipal().PublicKey())

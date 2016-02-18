@@ -30,7 +30,7 @@ func TestRoaming(t *testing.T) {
 	defer shutdown()
 
 	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
-		return NewXClient(ctx, v23.GetNamespace(ctx), opts...)
+		return NewClient(ctx, v23.GetNamespace(ctx), opts...)
 	})
 
 	publisher := pubsub.NewPublisher()

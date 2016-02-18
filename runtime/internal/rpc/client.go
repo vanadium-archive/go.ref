@@ -72,7 +72,7 @@ type clientFlowManagerOpt struct {
 
 func (clientFlowManagerOpt) RPCClientOpt() {}
 
-type xclient struct {
+type client struct {
 	flowMgr            flow.Manager
 	ns                 namespace.T
 	preferredProtocols []string
@@ -90,11 +90,11 @@ type xclient struct {
 	closed  chan struct{}
 }
 
-var _ rpc.Client = (*xclient)(nil)
+var _ rpc.Client = (*client)(nil)
 
-func NewXClient(ctx *context.T, ns namespace.T, opts ...rpc.ClientOpt) rpc.Client {
+func NewClient(ctx *context.T, ns namespace.T, opts ...rpc.ClientOpt) rpc.Client {
 	ctx, cancel := context.WithCancel(ctx)
-	c := &xclient{
+	c := &client{
 		ctx:       ctx,
 		ns:        ns,
 		typeCache: newTypeCache(),
@@ -128,7 +128,7 @@ func NewXClient(ctx *context.T, ns namespace.T, opts ...rpc.ClientOpt) rpc.Clien
 	return c
 }
 
-func (c *xclient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...rpc.CallOpt) (rpc.ClientCall, error) {
+func (c *client) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...rpc.CallOpt) (rpc.ClientCall, error) {
 	defer apilog.LogCallf(ctx, "name=%.10s...,method=%.10s...,args=,opts...=%v", name, method, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	if !ctx.Initialized() {
 		return nil, verror.ExplicitNew(verror.ErrBadArg, i18n.LangID("en-us"), "<rpc.Client>", "StartCall", "context not initialized")
@@ -137,7 +137,7 @@ func (c *xclient) StartCall(ctx *context.T, name, method string, args []interfac
 	return c.startCall(ctx, name, method, args, connOpts, opts)
 }
 
-func (c *xclient) Call(ctx *context.T, name, method string, inArgs, outArgs []interface{}, opts ...rpc.CallOpt) error {
+func (c *client) Call(ctx *context.T, name, method string, inArgs, outArgs []interface{}, opts ...rpc.CallOpt) error {
 	defer apilog.LogCallf(ctx, "name=%.10s...,method=%.10s...,inArgs=,outArgs=,opts...=%v", name, method, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	connOpts := getConnectionOptions(ctx, opts)
 	for retries := uint(0); ; retries++ {
@@ -159,14 +159,14 @@ func (c *xclient) Call(ctx *context.T, name, method string, inArgs, outArgs []in
 	}
 }
 
-func (c *xclient) startCall(ctx *context.T, name, method string, args []interface{}, connOpts *connectionOpts, opts []rpc.CallOpt) (rpc.ClientCall, error) {
+func (c *client) startCall(ctx *context.T, name, method string, args []interface{}, connOpts *connectionOpts, opts []rpc.CallOpt) (rpc.ClientCall, error) {
 	ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("<rpc.Client>%q.%s", name, method))
 	r, err := c.connectToName(ctx, name, method, args, connOpts, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	fc, err := newFlowXClient(ctx, r.flow, r.typeEnc, r.typeDec)
+	fc, err := newFlowClient(ctx, r.flow, r.typeEnc, r.typeDec)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (c *xclient) startCall(ctx *context.T, name, method string, args []interfac
 	return fc, nil
 }
 
-func (c *xclient) Connection(ctx *context.T, name string, opts ...rpc.CallOpt) (flow.ManagedConn, error) {
+func (c *client) Connection(ctx *context.T, name string, opts ...rpc.CallOpt) (flow.ManagedConn, error) {
 	connOpts := getConnectionOptions(ctx, opts)
 	r, err := c.connectToName(ctx, name, "", nil, connOpts, opts)
 	if err != nil {
@@ -200,7 +200,7 @@ type serverStatus struct {
 // connectToName attempts too connect to the provided name. It may retry connecting
 // to the servers the name resolves to based on the type of error encountered.
 // Once connOpts.connDeadline is reached, it will stop retrying.
-func (c *xclient) connectToName(ctx *context.T, name, method string, args []interface{}, connOpts *connectionOpts, opts []rpc.CallOpt) (*serverStatus, error) {
+func (c *client) connectToName(ctx *context.T, name, method string, args []interface{}, connOpts *connectionOpts, opts []rpc.CallOpt) (*serverStatus, error) {
 	span := vtrace.GetSpan(ctx)
 	for retries := uint(0); ; retries++ {
 		r, action, requireResolve, err := c.tryConnectToName(ctx, name, method, args, connOpts, opts)
@@ -231,7 +231,7 @@ func (c *xclient) connectToName(ctx *context.T, name, method string, args []inte
 // you can re-resolve.
 //
 // TODO(toddw): Remove action from out-args, the error should tell us the action.
-func (c *xclient) tryConnectToName(ctx *context.T, name, method string, args []interface{}, connOpts *connectionOpts, opts []rpc.CallOpt) (*serverStatus, verror.ActionCode, bool, error) {
+func (c *client) tryConnectToName(ctx *context.T, name, method string, args []interface{}, connOpts *connectionOpts, opts []rpc.CallOpt) (*serverStatus, verror.ActionCode, bool, error) {
 	blessingPattern, name := security.SplitPatternName(name)
 	resolved, err := c.ns.Resolve(ctx, name, getNamespaceOpts(opts)...)
 	switch {
@@ -325,7 +325,7 @@ func (c *xclient) tryConnectToName(ctx *context.T, name, method string, args []i
 // authorizer, both during creation of the VC underlying the flow and the
 // flow itself.
 // TODO(cnicolaou): implement real, configurable load balancing.
-func (c *xclient) tryConnectToServer(
+func (c *client) tryConnectToServer(
 	ctx *context.T,
 	index int,
 	name, server, method string,
@@ -437,7 +437,7 @@ func cleanupTryConnectToName(skip *serverStatus, responses []*serverStatus, ch c
 // failedTryConnectToName performs asynchronous cleanup for connectToName, and returns an
 // appropriate error from the responses we've already received.  All parallel
 // calls in tryConnectToName failed or we timed out if we get here.
-func (c *xclient) failedTryConnectToName(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (*serverStatus, verror.ActionCode, bool, error) {
+func (c *client) failedTryConnectToName(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (*serverStatus, verror.ActionCode, bool, error) {
 	go cleanupTryConnectToName(nil, responses, ch)
 	c.ns.FlushCacheEntry(ctx, name)
 	suberrs := []verror.SubErr{}
@@ -487,18 +487,18 @@ func (c *xclient) failedTryConnectToName(ctx *context.T, name, method string, re
 	return nil, topLevelAction, false, verror.AddSubErrs(verror.New(topLevelError, ctx), ctx, suberrs...)
 }
 
-func (c *xclient) Close() {
+func (c *client) Close() {
 	c.stop()
 	<-c.Closed()
 }
 
-func (c *xclient) Closed() <-chan struct{} {
+func (c *client) Closed() <-chan struct{} {
 	return c.closed
 }
 
-// flowXClient implements the RPC client-side protocol for a single RPC, over a
+// flowClient implements the RPC client-side protocol for a single RPC, over a
 // flow that's already connected to the server.
-type flowXClient struct {
+type flowClient struct {
 	ctx          *context.T          // context to annotate with call details
 	flow         *conn.BufferingFlow // the underlying flow
 	dec          *vom.Decoder        // to decode responses and results from the server
@@ -512,16 +512,16 @@ type flowXClient struct {
 	finished     bool // has Finish() already been called?
 }
 
-var _ rpc.ClientCall = (*flowXClient)(nil)
-var _ rpc.Stream = (*flowXClient)(nil)
+var _ rpc.ClientCall = (*flowClient)(nil)
+var _ rpc.Stream = (*flowClient)(nil)
 
-func newFlowXClient(ctx *context.T, flow flow.Flow, typeEnc *vom.TypeEncoder, typeDec *vom.TypeDecoder) (*flowXClient, error) {
+func newFlowClient(ctx *context.T, flow flow.Flow, typeEnc *vom.TypeEncoder, typeDec *vom.TypeDecoder) (*flowClient, error) {
 	bf := conn.NewBufferingFlow(ctx, flow)
 	if _, err := bf.Write([]byte{dataFlow}); err != nil {
 		flow.Close()
 		return nil, err
 	}
-	fc := &flowXClient{
+	fc := &flowClient{
 		ctx:  ctx,
 		flow: bf,
 		dec:  vom.NewDecoderWithTypeDecoder(bf, typeDec),
@@ -536,7 +536,7 @@ func newFlowXClient(ctx *context.T, flow flow.Flow, typeEnc *vom.TypeEncoder, ty
 // Cancelation takes precedence over timeout. This is needed because
 // a timeout can lead to any other number of errors due to the underlying
 // network connection being shutdown abruptly.
-func (fc *flowXClient) close(err error) error {
+func (fc *flowClient) close(err error) error {
 	subErr := verror.SubErr{Err: err, Options: verror.Print}
 	subErr.Name = "remote=" + fc.flow.RemoteEndpoint().String()
 	if cerr := fc.flow.Close(); cerr != nil && err == nil {
@@ -572,7 +572,7 @@ func (fc *flowXClient) close(err error) error {
 	return err
 }
 
-func (fc *flowXClient) start(suffix, method string, args []interface{}, opts []rpc.CallOpt) error {
+func (fc *flowClient) start(suffix, method string, args []interface{}, opts []rpc.CallOpt) error {
 	grantedB, err := fc.initSecurity(fc.ctx, method, suffix, opts)
 	if err != nil {
 		berr := verror.New(verror.ErrNotTrusted, fc.ctx, err)
@@ -601,7 +601,7 @@ func (fc *flowXClient) start(suffix, method string, args []interface{}, opts []r
 	return fc.flow.Flush()
 }
 
-func (fc *flowXClient) initSecurity(ctx *context.T, method, suffix string, opts []rpc.CallOpt) (security.Blessings, error) {
+func (fc *flowClient) initSecurity(ctx *context.T, method, suffix string, opts []rpc.CallOpt) (security.Blessings, error) {
 	// The "Method" and "Suffix" fields of the call are not populated
 	// as they are considered irrelevant for authorizing server blessings.
 	// (This makes the call used here consistent with
@@ -637,7 +637,7 @@ func (fc *flowXClient) initSecurity(ctx *context.T, method, suffix string, opts 
 	return grantedB, nil
 }
 
-func (fc *flowXClient) Send(item interface{}) error {
+func (fc *flowClient) Send(item interface{}) error {
 	defer apilog.LogCallf(nil, "item=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	if fc.sendClosed {
 		return verror.New(verror.ErrAborted, fc.ctx)
@@ -652,7 +652,7 @@ func (fc *flowXClient) Send(item interface{}) error {
 	return fc.flow.Flush()
 }
 
-func (fc *flowXClient) Recv(itemptr interface{}) error {
+func (fc *flowClient) Recv(itemptr interface{}) error {
 	defer apilog.LogCallf(nil, "itemptr=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	switch {
 	case fc.response.Error != nil:
@@ -687,12 +687,12 @@ func (fc *flowXClient) Recv(itemptr interface{}) error {
 	return nil
 }
 
-func (fc *flowXClient) CloseSend() error {
+func (fc *flowClient) CloseSend() error {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return fc.closeSend()
 }
 
-func (fc *flowXClient) closeSend() error {
+func (fc *flowClient) closeSend() error {
 	fc.sendClosedMu.Lock()
 	defer fc.sendClosedMu.Unlock()
 	if fc.sendClosed {
@@ -722,7 +722,7 @@ func (fc *flowXClient) closeSend() error {
 
 // TODO(toddw): Should we require Finish to be called, even if send or recv
 // return an error?
-func (fc *flowXClient) Finish(resultptrs ...interface{}) error {
+func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 	defer apilog.LogCallf(nil, "resultptrs...=%v", resultptrs)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	defer vtrace.GetSpan(fc.ctx).Finish()
 	if fc.finished {
@@ -796,12 +796,12 @@ func (fc *flowXClient) Finish(resultptrs ...interface{}) error {
 	return nil
 }
 
-func (fc *flowXClient) RemoteBlessings() ([]string, security.Blessings) {
+func (fc *flowClient) RemoteBlessings() ([]string, security.Blessings) {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return fc.remoteBNames, fc.flow.RemoteBlessings()
 }
 
-func (fc *flowXClient) Security() security.Call {
+func (fc *flowClient) Security() security.Call {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	return fc.secCall
 }

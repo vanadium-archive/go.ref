@@ -299,7 +299,7 @@ func (f *flowdis) Listen(ctx *context.T, protocol, address string) (flow.Listene
 }
 
 func registerDisProtocol(wrap string, conns chan disconnect) {
-	// We only register this flow protocol to make the test work in xclients mode.
+	// We only register this flow protocol to make the test work in clients mode.
 	protocol, _ := flow.RegisteredProtocol("tcp")
 	flow.RegisterProtocol("dis", &flowdis{base: protocol})
 }

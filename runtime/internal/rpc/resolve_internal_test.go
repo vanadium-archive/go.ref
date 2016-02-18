@@ -10,7 +10,7 @@ import (
 )
 
 func InternalServerResolveToEndpoint(ctx *context.T, s rpc.Server, name string) (string, error) {
-	eps, err := s.(*xserver).resolveToEndpoint(ctx, name)
+	eps, err := s.(*server).resolveToEndpoint(ctx, name)
 	if err != nil {
 		return "", err
 	}

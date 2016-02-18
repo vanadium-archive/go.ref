@@ -53,7 +53,7 @@ const (
 	bidiProtocol   = "bidi"
 )
 
-type xserver struct {
+type server struct {
 	sync.Mutex
 	// stop is kept for backward compatibilty to implement Stop().
 	// TODO(mattr): deprecate Stop.
@@ -117,7 +117,7 @@ func WithNewDispatchingServer(ctx *context.T,
 	// TODO(mattr,ashankar): Have the server listen on this channel of
 	// changing default blessings and update itself.
 	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
-	s := &xserver{
+	s := &server{
 		ctx:               ctx,
 		stop:              stop,
 		cancel:            stop,
@@ -248,7 +248,7 @@ func WithNewDispatchingServer(ctx *context.T,
 	return s.ctx, s, nil
 }
 
-func (s *xserver) Status() rpc.ServerStatus {
+func (s *server) Status() rpc.ServerStatus {
 	status := rpc.ServerStatus{}
 	status.ServesMountTable = s.servesMountTable
 	status.Mounts = s.publisher.Status()
@@ -268,7 +268,7 @@ func (s *xserver) Status() rpc.ServerStatus {
 }
 
 // resolveToEndpoint resolves an object name or address to an endpoint.
-func (s *xserver) resolveToEndpoint(ctx *context.T, address string) ([]naming.Endpoint, error) {
+func (s *server) resolveToEndpoint(ctx *context.T, address string) ([]naming.Endpoint, error) {
 	var resolved *naming.MountEntry
 	var err error
 	// TODO(mattr): Why should ns be nil?
@@ -304,14 +304,14 @@ func (s *xserver) resolveToEndpoint(ctx *context.T, address string) ([]naming.En
 }
 
 // createEndpoint adds server publishing information to the ep from the manager.
-func (s *xserver) createEndpoint(lep naming.Endpoint) *inaming.Endpoint {
+func (s *server) createEndpoint(lep naming.Endpoint) *inaming.Endpoint {
 	n := *(lep.(*inaming.Endpoint))
 	n.IsMountTable = s.servesMountTable
 	n.IsLeaf = s.isLeaf
 	return &n
 }
 
-func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
+func (s *server) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 	defer s.Unlock()
 	s.Lock()
 	var pctx *context.T
@@ -339,7 +339,7 @@ func (s *xserver) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 	go s.acceptLoop(ctx)
 }
 
-func (s *xserver) connectToProxy(ctx *context.T, name string) {
+func (s *server) connectToProxy(ctx *context.T, name string) {
 	defer s.active.Done()
 	for delay := reconnectDelay; ; delay = nextDelay(delay) {
 		select {
@@ -363,14 +363,14 @@ func (s *xserver) connectToProxy(ctx *context.T, name string) {
 	}
 }
 
-func (s *xserver) updateValidLocked() {
+func (s *server) updateValidLocked() {
 	if s.valid != nil {
 		close(s.valid)
 		s.valid = make(chan struct{})
 	}
 }
 
-func (s *xserver) tryProxyEndpoints(ctx *context.T, name string, eps []naming.Endpoint) (<-chan struct{}, error) {
+func (s *server) tryProxyEndpoints(ctx *context.T, name string, eps []naming.Endpoint) (<-chan struct{}, error) {
 	var ch <-chan struct{}
 	var lastErr error
 	for _, ep := range eps {
@@ -389,7 +389,7 @@ func nextDelay(delay time.Duration) time.Duration {
 	return delay
 }
 
-func (s *xserver) updateEndpointsLoop(changed <-chan struct{}) {
+func (s *server) updateEndpointsLoop(changed <-chan struct{}) {
 	defer s.active.Done()
 	for changed != nil {
 		<-changed
@@ -401,7 +401,7 @@ func (s *xserver) updateEndpointsLoop(changed <-chan struct{}) {
 	}
 }
 
-func (s *xserver) updateEndpointsLocked(leps []naming.Endpoint) {
+func (s *server) updateEndpointsLocked(leps []naming.Endpoint) {
 	endpoints := make(map[string]*inaming.Endpoint)
 	for _, ep := range leps {
 		sep := s.createEndpoint(ep)
@@ -443,7 +443,7 @@ func setDiff(a, b map[string]*inaming.Endpoint) map[string]*inaming.Endpoint {
 	return ret
 }
 
-func (s *xserver) acceptLoop(ctx *context.T) error {
+func (s *server) acceptLoop(ctx *context.T) error {
 	var calls sync.WaitGroup
 	defer func() {
 		calls.Wait()
@@ -491,7 +491,7 @@ func (s *xserver) acceptLoop(ctx *context.T) error {
 	}
 }
 
-func (s *xserver) AddName(name string) error {
+func (s *server) AddName(name string) error {
 	defer apilog.LogCallf(nil, "name=%.10s...", name)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	if len(name) == 0 {
 		return verror.New(verror.ErrBadArg, s.ctx, "name is empty")
@@ -503,7 +503,7 @@ func (s *xserver) AddName(name string) error {
 	return nil
 }
 
-func (s *xserver) RemoveName(name string) {
+func (s *server) RemoveName(name string) {
 	defer apilog.LogCallf(nil, "name=%.10s...", name)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.Lock()
 	defer s.Unlock()
@@ -511,21 +511,21 @@ func (s *xserver) RemoveName(name string) {
 	s.publisher.RemoveName(name)
 }
 
-func (s *xserver) Stop() error {
+func (s *server) Stop() error {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	s.stop()
 	<-s.Closed()
 	return nil
 }
 
-func (s *xserver) Closed() <-chan struct{} {
+func (s *server) Closed() <-chan struct{} {
 	return s.ctx.Done()
 }
 
 // flowServer implements the RPC server-side protocol for a single RPC, over a
 // flow that's already connected to the client.
-type xflowServer struct {
-	server *xserver            // rpc.Server that this flow server belongs to
+type flowServer struct {
+	server *server             // rpc.Server that this flow server belongs to
 	disp   rpc.Dispatcher      // rpc.Dispatcher that will serve RPCs on this flow
 	flow   *conn.BufferingFlow // underlying flow
 
@@ -541,12 +541,12 @@ type xflowServer struct {
 }
 
 var (
-	_ rpc.StreamServerCall = (*xflowServer)(nil)
-	_ security.Call        = (*xflowServer)(nil)
+	_ rpc.StreamServerCall = (*flowServer)(nil)
+	_ security.Call        = (*flowServer)(nil)
 )
 
-func newXFlowServer(flow flow.Flow, server *xserver) (*xflowServer, error) {
-	fs := &xflowServer{
+func newXFlowServer(flow flow.Flow, server *server) (*flowServer, error) {
+	fs := &flowServer{
 		server:     server,
 		disp:       server.disp,
 		flow:       conn.NewBufferingFlow(server.ctx, flow),
@@ -558,7 +558,7 @@ func newXFlowServer(flow flow.Flow, server *xserver) (*xflowServer, error) {
 // authorizeVtrace works by simulating a call to __debug/vtrace.Trace.  That
 // rpc is essentially equivalent in power to the data we are attempting to
 // attach here.
-func (fs *xflowServer) authorizeVtrace(ctx *context.T) error {
+func (fs *flowServer) authorizeVtrace(ctx *context.T) error {
 	// Set up a context as though we were calling __debug/vtrace.
 	params := &security.CallParams{}
 	params.Copy(fs)
@@ -588,7 +588,7 @@ func authorize(ctx *context.T, call security.Call, auth security.Authorizer) err
 	return nil
 }
 
-func (fs *xflowServer) serve() error {
+func (fs *flowServer) serve() error {
 	defer fs.flow.Close()
 
 	ctx, results, err := fs.processRequest()
@@ -644,7 +644,7 @@ func (fs *xflowServer) serve() error {
 	return nil
 }
 
-func (fs *xflowServer) readRPCRequest(ctx *context.T) (*rpc.Request, error) {
+func (fs *flowServer) readRPCRequest(ctx *context.T) (*rpc.Request, error) {
 	// Decode the initial request.
 	var req rpc.Request
 	if err := fs.dec.Decode(&req); err != nil {
@@ -653,7 +653,7 @@ func (fs *xflowServer) readRPCRequest(ctx *context.T) (*rpc.Request, error) {
 	return &req, nil
 }
 
-func (fs *xflowServer) processRequest() (*context.T, []interface{}, error) {
+func (fs *flowServer) processRequest() (*context.T, []interface{}, error) {
 	fs.starttime = time.Now()
 
 	// Set an initial deadline on the flow to ensure that we don't wait forever
@@ -747,7 +747,7 @@ func (fs *xflowServer) processRequest() (*context.T, []interface{}, error) {
 // consistently get the server's error response.
 // TODO(suharshs): Figure out a better way to solve this race condition without
 // unnecessarily reading all arguments.
-func (fs *xflowServer) drainDecoderArgs(n int) error {
+func (fs *flowServer) drainDecoderArgs(n int) error {
 	for i := 0; i < n; i++ {
 		if err := fs.dec.Ignore(); err != nil {
 			return err
@@ -761,7 +761,7 @@ func (fs *xflowServer) drainDecoderArgs(n int) error {
 // with rpc.DebugKeyword, we use the internal debug dispatcher to look up the
 // invoker. Otherwise, and we use the server's dispatcher. The suffix and method
 // value may be modified to match the actual suffix and method to use.
-func (fs *xflowServer) lookup(ctx *context.T, suffix string, method string) (rpc.Invoker, security.Authorizer, error) {
+func (fs *flowServer) lookup(ctx *context.T, suffix string, method string) (rpc.Invoker, security.Authorizer, error) {
 	if naming.IsReserved(method) {
 		return reservedInvoker(fs.disp, fs.server.dispReserved), security.AllowEveryone(), nil
 	}
@@ -788,7 +788,7 @@ func (fs *xflowServer) lookup(ctx *context.T, suffix string, method string) (rpc
 	return nil, nil, verror.New(verror.ErrUnknownSuffix, ctx, suffix)
 }
 
-func (fs *xflowServer) readGrantedBlessings(ctx *context.T, req *rpc.Request) error {
+func (fs *flowServer) readGrantedBlessings(ctx *context.T, req *rpc.Request) error {
 	if req.GrantedBlessings.IsZero() {
 		return nil
 	}
@@ -809,7 +809,7 @@ func (fs *xflowServer) readGrantedBlessings(ctx *context.T, req *rpc.Request) er
 }
 
 // Send implements the rpc.Stream method.
-func (fs *xflowServer) Send(item interface{}) error {
+func (fs *flowServer) Send(item interface{}) error {
 	defer apilog.LogCallf(nil, "item=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// The empty response header indicates what follows is a streaming result.
 	if err := fs.enc.Encode(rpc.Response{}); err != nil {
@@ -822,7 +822,7 @@ func (fs *xflowServer) Send(item interface{}) error {
 }
 
 // Recv implements the rpc.Stream method.
-func (fs *xflowServer) Recv(itemptr interface{}) error {
+func (fs *flowServer) Recv(itemptr interface{}) error {
 	defer apilog.LogCallf(nil, "itemptr=")(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	var req rpc.Request
 	if err := fs.dec.Decode(&req); err != nil {
@@ -837,59 +837,59 @@ func (fs *xflowServer) Recv(itemptr interface{}) error {
 
 // Implementations of rpc.ServerCall and security.Call methods.
 
-func (fs *xflowServer) Security() security.Call {
+func (fs *flowServer) Security() security.Call {
 	//nologcall
 	return fs
 }
-func (fs *xflowServer) LocalDischarges() map[string]security.Discharge {
+func (fs *flowServer) LocalDischarges() map[string]security.Discharge {
 	//nologcall
 	return fs.flow.LocalDischarges()
 }
-func (fs *xflowServer) RemoteDischarges() map[string]security.Discharge {
+func (fs *flowServer) RemoteDischarges() map[string]security.Discharge {
 	//nologcall
 	return fs.flow.RemoteDischarges()
 }
-func (fs *xflowServer) Server() rpc.Server {
+func (fs *flowServer) Server() rpc.Server {
 	//nologcall
 	return fs.server
 }
-func (fs *xflowServer) Timestamp() time.Time {
+func (fs *flowServer) Timestamp() time.Time {
 	//nologcall
 	return fs.starttime
 }
-func (fs *xflowServer) Method() string {
+func (fs *flowServer) Method() string {
 	//nologcall
 	return fs.method
 }
-func (fs *xflowServer) MethodTags() []*vdl.Value {
+func (fs *flowServer) MethodTags() []*vdl.Value {
 	//nologcall
 	return fs.tags
 }
-func (fs *xflowServer) Suffix() string {
+func (fs *flowServer) Suffix() string {
 	//nologcall
 	return fs.suffix
 }
-func (fs *xflowServer) LocalPrincipal() security.Principal {
+func (fs *flowServer) LocalPrincipal() security.Principal {
 	//nologcall
 	return v23.GetPrincipal(fs.server.ctx)
 }
-func (fs *xflowServer) LocalBlessings() security.Blessings {
+func (fs *flowServer) LocalBlessings() security.Blessings {
 	//nologcall
 	return fs.flow.LocalBlessings()
 }
-func (fs *xflowServer) RemoteBlessings() security.Blessings {
+func (fs *flowServer) RemoteBlessings() security.Blessings {
 	//nologcall
 	return fs.flow.RemoteBlessings()
 }
-func (fs *xflowServer) GrantedBlessings() security.Blessings {
+func (fs *flowServer) GrantedBlessings() security.Blessings {
 	//nologcall
 	return fs.grantedBlessings
 }
-func (fs *xflowServer) LocalEndpoint() naming.Endpoint {
+func (fs *flowServer) LocalEndpoint() naming.Endpoint {
 	//nologcall
 	return fs.flow.LocalEndpoint()
 }
-func (fs *xflowServer) RemoteEndpoint() naming.Endpoint {
+func (fs *flowServer) RemoteEndpoint() naming.Endpoint {
 	//nologcall
 	return fs.flow.RemoteEndpoint()
 }
