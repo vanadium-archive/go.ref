@@ -227,6 +227,23 @@ func AddSyncSnapshotOp(ctx *context.T, tx store.Transaction, key, version []byte
 	return nil
 }
 
+// AddDbStateChangeRequestOp injects a database state change request in the log
+// entries that the transaction writes when it is committed. The sync watcher
+// receives the request at the proper position in the timeline (the transaction
+// commit) and makes appropriate updates to the db state causing the request to
+// take effect.
+// Note: this is an internal function used by nosql.database
+func AddDbStateChangeRequestOp(ctx *context.T, tx store.Transaction, stateChangeType StateChange) error {
+	wtx := tx.(*transaction)
+	wtx.mu.Lock()
+	defer wtx.mu.Unlock()
+	if wtx.err != nil {
+		return convertError(wtx.err)
+	}
+	wtx.ops = append(wtx.ops, &OpDbStateChangeRequest{DbStateChangeRequestOp{RequestType: stateChangeType}})
+	return nil
+}
+
 // SetTransactionFromSync marks this transaction as created by sync as opposed
 // to one created by an application.  The net effect is that, at commit time,
 // the log entries written are marked as made by sync.  This allows the sync

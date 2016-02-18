@@ -14,6 +14,7 @@ package vsync
 // sync Watcher to learn of the changes.
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -141,6 +142,12 @@ func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st
 // sync metadata (DAG & log records) and updates the watch resume marker.
 func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName string, st store.Store, logs []*watchable.LogEntry, resMark watch.ResumeMarker) {
 	if len(logs) == 0 {
+		return
+	}
+
+	if processDbStateChangeLogRecord(ctx, s, st, appName, dbName, logs[0], resMark) {
+		// A batch containing DbStateChange will not have any more records.
+		// This batch is done processing.
 		return
 	}
 
@@ -439,6 +446,44 @@ func newLocalLogRec(ctx *context.T, tx store.Transaction, key, version []byte, d
 	}
 	rec.Metadata.UpdTime = unixNanoToTime(timestamp)
 	return &rec
+}
+
+// processDbStateChangeLogRecord checks if the log entry is a
+// DbStateChangeRequest and if so, it executes the state change request
+// appropriately.
+func processDbStateChangeLogRecord(ctx *context.T, s *syncService, st store.Store, appName, dbName string, logEnt *watchable.LogEntry, resMark watch.ResumeMarker) bool {
+	switch op := logEnt.Op.(type) {
+	case watchable.OpDbStateChangeRequest:
+		dbStateChangeRequest := op.Value
+		vlog.VI(1).Infof("sync: processDbStateChangeLogRecord: found a dbState change log record with state %#v", dbStateChangeRequest)
+		isPaused := false
+		if err := store.RunInTransaction(st, func(tx store.Transaction) error {
+			switch dbStateChangeRequest.RequestType {
+			case watchable.StateChangePauseSync:
+				vlog.VI(1).Infof("sync: processDbStateChangeLogRecord: PauseSync request found. Pausing sync.")
+				isPaused = true
+			case watchable.StateChangeResumeSync:
+				vlog.VI(1).Infof("sync: processDbStateChangeLogRecord: ResumeSync request found. Resuming sync.")
+				isPaused = false
+			default:
+				return fmt.Errorf("Unexpected DbStateChangeRequest found: %#v", dbStateChangeRequest)
+			}
+			// Update isPaused state in db.
+			if err := s.updateDbPauseSt(ctx, tx, appName, dbName, isPaused); err != nil {
+				return err
+			}
+			return setResMark(ctx, tx, resMark)
+		}); err != nil {
+			// TODO(rdaoud): don't crash, quarantine this app database.
+			vlog.Fatalf("sync: processDbStateChangeLogRecord: %s, %s: watcher failed to reset dbState bits: %v", appName, dbName, err)
+		}
+		// Update isPaused state in cache.
+		s.updateInMemoryPauseSt(ctx, appName, dbName, isPaused)
+		return true
+
+	default:
+		return false
+	}
 }
 
 // processSyncgroupLogRecord checks if the log entry is a syncgroup update and,

@@ -127,6 +127,17 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 	vlog.VI(3).Infof("sync: sendDeltasPerDatabase: recvd %s, %s: sgids %v, genvecs %v, sg %v",
 		rSt.appName, rSt.dbName, rSt.sgIds, rSt.initVecs, rSt.sg)
 
+	// There is no need to acquire syncService.thLock since responder uses
+	// the generation cut by initiator. The initiator maintains the atomicity
+	// of operations performed within a pause-resume block when a generation is
+	// cut. Hence either none of these operations are present within the
+	// generation or all of them are present.
+	if !rSt.sync.isDbSyncable(ctx, rSt.appName, rSt.dbName) {
+		// The database is offline. Skip the db till it becomes syncable again.
+		vlog.VI(1).Infof("sync: sendDeltasPerDatabase: database not allowed to sync, skipping sync on db %s for app %s", rSt.dbName, rSt.appName)
+		return interfaces.NewErrDbOffline(ctx, rSt.dbName, rSt.appName)
+	}
+
 	// Phase 1 of sendDeltas: Authorize the initiator and respond to the
 	// caller only for the syncgroups that allow access.
 	err := rSt.authorizeAndFilterSyncgroups(ctx)

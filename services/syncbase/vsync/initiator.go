@@ -454,6 +454,28 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 	iSt.config.sync.thLock.Lock()
 	defer iSt.config.sync.thLock.Unlock()
 
+	// isDbSyncable reads the in-memory syncState for this db to verify if
+	// it is allowed to sync or not. This state is mutated by watcher based
+	// on incoming pause/resume requests.
+	// The requirement for pause is that any write after the pause must not
+	// be synced until sync is resumed. The same for resume is that every write
+	// before resume must be seen and added to sync datastructure before sync
+	// resumes.
+	// thLock is used to achieve the above requirements. Watcher acquires this
+	// lock when it processes new entries in the queue. Before cutting a new
+	// generation the initiator acquires this lock and then checks if the
+	// database is syncable or not. If it is, it cuts a new generation and then
+	// releases the thLock. This makes sure that the generation cut by the
+	// initiator is either before sync is paused or no generation is cut and
+	// initiator aborts.
+	// Note: Responder does not need to acquire thLock since it uses the
+	// generation cut by initiator. See responder.go for more details.
+	if !iSt.config.sync.isDbSyncable(ctx, iSt.config.appName, iSt.config.dbName) {
+		// The database is offline. Skip the db till it becomes syncable again.
+		vlog.VI(1).Infof("sync: prepareDataDeltaReq: database not allowed to sync, skipping sync on db %s for app %s", iSt.config.dbName, iSt.config.appName)
+		return interfaces.NewErrDbOffline(ctx, iSt.config.dbName, iSt.config.appName)
+	}
+
 	// Freeze the most recent batch of local changes before fetching
 	// remote changes from a peer. This frozen state is used by the
 	// responder when responding to GetDeltas RPC.
@@ -544,6 +566,12 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 func (iSt *initiationState) prepareSGDeltaReq(ctx *context.T) error {
 	iSt.config.sync.thLock.Lock()
 	defer iSt.config.sync.thLock.Unlock()
+
+	if !iSt.config.sync.isDbSyncable(ctx, iSt.config.appName, iSt.config.dbName) {
+		// The database is offline. Skip the db till it becomes syncable again.
+		vlog.VI(1).Infof("sync: prepareSGDeltaReq: database not allowed to sync, skipping sync on db %s for app %s", iSt.config.dbName, iSt.config.appName)
+		return interfaces.NewErrDbOffline(ctx, iSt.config.dbName, iSt.config.appName)
+	}
 
 	if err := iSt.config.sync.checkptLocalGen(ctx, iSt.config.appName, iSt.config.dbName, iSt.config.sgIds); err != nil {
 		return err
@@ -1210,6 +1238,16 @@ func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 
 	// TODO(hpucha): Add knowledge compaction.
 
+	// Read sync state from db within transaction to achieve atomic
+	// read-modify-write semantics for isolation.
+	dsOnDisk, err := getDbSyncState(ctx, iSt.tx)
+	if err != nil {
+		if verror.ErrorID(err) != verror.ErrNoExist.ID {
+			return err
+		}
+		dsOnDisk = &DbSyncState{}
+	}
+	ds.IsPaused = dsOnDisk.IsPaused
 	return putDbSyncState(ctx, iSt.tx, ds)
 }
 

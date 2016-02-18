@@ -29,6 +29,7 @@ func (SyncData) __VDLReflect(struct {
 type DbSyncState struct {
 	GenVecs   interfaces.Knowledge // knowledge capturing the locally-known generations of remote peers for data in Database.
 	SgGenVecs interfaces.Knowledge // knowledge capturing the locally-known generations of remote peers for syncgroups in Database.
+	IsPaused  bool                 // tracks whether sync is paused by client.
 }
 
 func (DbSyncState) __VDLReflect(struct {

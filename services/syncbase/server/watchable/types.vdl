@@ -66,14 +66,32 @@ type SyncSnapshotOp struct {
 	PermVersion []byte
 }
 
+// StateChange represents the set of types of state change requests possible.
+type StateChange enum {
+	// PauseSync pauses sync for the db.
+	PauseSync
+	// ResumeSync resumes sync for the db.
+	ResumeSync
+}
+
+// DbStateChangeRequestOp represents a database state change request.
+// Specifically there are two events that create this op:
+// PauseSync, indicating a client request to pause sync on this db.
+// ResumeSync, indicating a client request to resume sync on this db.
+// Client watcher will ignore this op.
+type DbStateChangeRequestOp struct {
+	RequestType StateChange
+}
+
 // Op represents a store operation.
 type Op union {
-	Get          GetOp
-	Scan         ScanOp
-	Put          PutOp
-	Delete       DeleteOp
-	Syncgroup    SyncgroupOp
-	SyncSnapshot SyncSnapshotOp
+	Get                  GetOp
+	Scan                 ScanOp
+	Put                  PutOp
+	Delete               DeleteOp
+	Syncgroup            SyncgroupOp
+	SyncSnapshot         SyncSnapshotOp
+	DbStateChangeRequest DbStateChangeRequestOp
 }
 
 // LogEntry represents a single store operation. This operation may have been

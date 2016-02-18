@@ -90,6 +90,9 @@ type dbSyncStateInMem struct {
 	// Note: Generation vectors contain state from remote devices only.
 	genvecs   interfaces.Knowledge
 	sggenvecs interfaces.Knowledge
+
+	// Tracks if sync is paused for this database.
+	isPaused bool
 }
 
 func (in *dbSyncStateInMem) deepCopy() *dbSyncStateInMem {
@@ -103,6 +106,7 @@ func (in *dbSyncStateInMem) deepCopy() *dbSyncStateInMem {
 
 	out.genvecs = in.genvecs.DeepCopy()
 	out.sggenvecs = in.sggenvecs.DeepCopy()
+	out.isPaused = in.isPaused
 
 	return out
 }
@@ -151,6 +155,7 @@ func (s *syncService) initSync(ctx *context.T) error {
 			// Initialize in memory state from the persistent state.
 			dsInMem.genvecs = ds.GenVecs
 			dsInMem.sggenvecs = ds.SgGenVecs
+			dsInMem.isPaused = ds.IsPaused
 		}
 
 		vlog.VI(2).Infof("sync: initSync: initing app %v db %v, dsInMem %v", appName, dbName, dsInMem)
@@ -350,16 +355,7 @@ func (s *syncService) reserveGenAndPosInternal(appName, dbName, sgoid string, ge
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
-	name := appDbName(appName, dbName)
-	ds, ok := s.syncState[name]
-	if !ok {
-		ds = &dbSyncStateInMem{
-			data: &localGenInfoInMem{gen: 1},
-			sgs:  make(map[string]*localGenInfoInMem),
-		}
-		s.syncState[name] = ds
-	}
-
+	ds := s.getOrCreateSyncStateInternal(appName, dbName)
 	var info *localGenInfoInMem
 	if sgoid != "" {
 		var ok bool
@@ -494,6 +490,49 @@ func (s *syncService) putDbGenInfoRemote(ctx *context.T, appName, dbName string,
 	}
 
 	return nil
+}
+
+// isDbSyncable checks if the given database is currently syncable.
+func (s *syncService) isDbSyncable(ctx *context.T, appName, dbName string) bool {
+	s.syncStateLock.Lock()
+	defer s.syncStateLock.Unlock()
+	ds := s.getOrCreateSyncStateInternal(appName, dbName)
+	return !ds.isPaused
+}
+
+// updateInMemoryPauseSt updates the in-memory state with the given isPaused state.
+func (s *syncService) updateInMemoryPauseSt(ctx *context.T, appName, dbName string, isPaused bool) {
+	s.syncStateLock.Lock()
+	defer s.syncStateLock.Unlock()
+	ds := s.getOrCreateSyncStateInternal(appName, dbName)
+	ds.isPaused = isPaused
+}
+
+// updateDbPauseSt updates the db with the given isPaused state.
+func (s *syncService) updateDbPauseSt(ctx *context.T, tx store.Transaction, appName, dbName string, isPaused bool) error {
+	vlog.VI(3).Infof("sync: updateDbPauseSt: updating sync paused for db %s in app %s with value %t", dbName, appName, isPaused)
+	ss, err := getDbSyncState(ctx, tx)
+	if err != nil {
+		if verror.ErrorID(err) != verror.ErrNoExist.ID {
+			return err
+		}
+		ss = &DbSyncState{}
+	}
+	ss.IsPaused = isPaused
+	return putDbSyncState(ctx, tx, ss)
+}
+
+func (s *syncService) getOrCreateSyncStateInternal(appName, dbName string) *dbSyncStateInMem {
+	name := appDbName(appName, dbName)
+	ds, ok := s.syncState[name]
+	if !ok {
+		ds = &dbSyncStateInMem{
+			data: &localGenInfoInMem{gen: 1},
+			sgs:  make(map[string]*localGenInfoInMem),
+		}
+		s.syncState[name] = ds
+	}
+	return s.syncState[name]
 }
 
 // appDbName combines the app and db names to return a globally unique name for

@@ -26,6 +26,7 @@ var (
 	ErrDupSyncgroupPublish = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.DupSyncgroupPublish", verror.NoRetry, "{1:}{2:} duplicate publish on syncgroup: {3}")
 	ErrConnFail            = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.ConnFail", verror.NoRetry, "{1:}{2:} connection to peer failed{:_}")
 	ErrBrokenCrConnection  = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.BrokenCrConnection", verror.NoRetry, "{1:}{2:} CrConnection stream to client does not exist or is broken")
+	ErrDbOffline           = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.DbOffline", verror.NoRetry, "{1:}{2:} database {3} in app {4} is offline and cannot be synced{:_}")
 	ErrGetTimeFailed       = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.GetTimeFailed", verror.NoRetry, "{1:}{2:} GetTime failed{:_}")
 	ErrNotAdmin            = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.NotAdmin", verror.NoRetry, "{1:}{2:} not an admin of the syncgroup")
 )
@@ -34,6 +35,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDupSyncgroupPublish.ID), "{1:}{2:} duplicate publish on syncgroup: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrConnFail.ID), "{1:}{2:} connection to peer failed{:_}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBrokenCrConnection.ID), "{1:}{2:} CrConnection stream to client does not exist or is broken")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDbOffline.ID), "{1:}{2:} database {3} in app {4} is offline and cannot be synced{:_}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrGetTimeFailed.ID), "{1:}{2:} GetTime failed{:_}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNotAdmin.ID), "{1:}{2:} not an admin of the syncgroup")
 }
@@ -51,6 +53,11 @@ func NewErrConnFail(ctx *context.T) error {
 // NewErrBrokenCrConnection returns an error with the ErrBrokenCrConnection ID.
 func NewErrBrokenCrConnection(ctx *context.T) error {
 	return verror.New(ErrBrokenCrConnection, ctx)
+}
+
+// NewErrDbOffline returns an error with the ErrDbOffline ID.
+func NewErrDbOffline(ctx *context.T, dbName string, appName string) error {
+	return verror.New(ErrDbOffline, ctx, dbName, appName)
 }
 
 // NewErrGetTimeFailed returns an error with the ErrGetTimeFailed ID.
