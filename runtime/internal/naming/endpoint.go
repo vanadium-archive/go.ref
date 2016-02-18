@@ -28,8 +28,6 @@ var (
 	hostportEP               = regexp.MustCompile("^(?:\\((.*)\\)@)?([^@]+)$")
 )
 
-// TODO(suharshs): Remove endpoint version 5 after the transition to 6 is complete.
-
 // Network is the string returned by naming.Endpoint.Network implementations
 // defined in this package.
 const Network = "v23"
@@ -73,8 +71,6 @@ func NewEndpoint(input string) (*Endpoint, error) {
 	switch version {
 	case 6:
 		err = ep.parseV6(parts)
-	case 5:
-		err = ep.parseV5(parts)
 	default:
 		err = errInvalidEndpointString
 	}
@@ -112,39 +108,6 @@ func parseMountTableFlag(input string) (bool, bool, error) {
 		}
 	}
 	return false, false, fmt.Errorf("flag is either missing or too long")
-}
-
-func (ep *Endpoint) parseV5(parts []string) error {
-	if len(parts) < 5 {
-		return errInvalidEndpointString
-	}
-
-	ep.Protocol = parts[1]
-	if len(ep.Protocol) == 0 {
-		ep.Protocol = naming.UnknownProtocol
-	}
-
-	var ok bool
-	if ep.Address, ok = naming.Unescape(parts[2]); !ok {
-		return fmt.Errorf("invalid address: bad escape %s", parts[2])
-	}
-	if len(ep.Address) == 0 {
-		ep.Address = net.JoinHostPort("", "0")
-	}
-
-	if err := ep.RID.FromString(parts[3]); err != nil {
-		return fmt.Errorf("invalid routing id: %v", err)
-	}
-
-	var err error
-	if ep.IsMountTable, ep.IsLeaf, err = parseMountTableFlag(parts[4]); err != nil {
-		return fmt.Errorf("invalid mount table flag: %v", err)
-	}
-	// Join the remaining and re-split.
-	if str := strings.Join(parts[5:], separator); len(str) > 0 {
-		ep.Blessings = strings.Split(str, blessingsSeparator)
-	}
-	return nil
 }
 
 func (ep *Endpoint) parseV6(parts []string) error {
@@ -213,17 +176,6 @@ var defaultVersion = 6
 func (ep *Endpoint) VersionedString(version int) string {
 	// nologcall
 	switch version {
-	case 5:
-		mt := "s"
-		switch {
-		case ep.IsLeaf:
-			mt = "l"
-		case ep.IsMountTable:
-			mt = "m"
-		}
-		blessings := strings.Join(ep.Blessings, blessingsSeparator)
-		return fmt.Sprintf("@5@%s@%s@%s@%s@%s@@",
-			ep.Protocol, naming.Escape(ep.Address, "@"), ep.RID, mt, blessings)
 	case 6:
 		mt := "s"
 		switch {
