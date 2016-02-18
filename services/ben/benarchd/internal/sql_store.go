@@ -284,7 +284,7 @@ func (s *sqlStore) initStmts() error {
 		},
 		{
 			&s.selectScenario,
-			"SELECT ID FROM Scenario WHERE OS = ? AND CPU = ? AND Uploader = LOWER(?) AND Label = LOWER(?)",
+			"SELECT ID FROM Scenario WHERE CPU = ? AND OS = ? AND Uploader = LOWER(?) AND Label = LOWER(?)",
 		},
 		{
 			&s.insertSourceCode,
