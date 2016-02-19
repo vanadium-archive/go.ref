@@ -160,6 +160,7 @@ func parseRuns(scn chan<- ben.Scenario, out chan<- ben.Run, in io.Reader, errch 
 		}
 		var s ben.Scenario
 		s.Os.Name = "android"
+		s.Label = flagLabel
 		bendroid := true
 		for bendroid {
 			// https://github.com/vanadium/go.devtools/blob/4fd6edf469d84a5be8d00a11283fe7febeafe30f/bendroid/templates.go#L149
