@@ -51,21 +51,78 @@ func (d *databaseReq) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobS
 	}
 	// Get the resume marker and fetch the initial state if necessary.
 	resumeMarker := req.ResumeMarker
-	if bytes.Equal(resumeMarker, []byte("now")) || len(resumeMarker) == 0 {
-		var err error
-		if resumeMarker, err = watchable.GetResumeMarker(d.st); err != nil {
-			return err
-		}
-		if len(req.ResumeMarker) == 0 {
-			// TODO(rogulenko): Fetch the initial state.
-			return verror.NewErrNotImplemented(ctx)
-		}
-	}
 	t := tableReq{
 		name: table,
 		d:    d,
 	}
+	if bytes.Equal(resumeMarker, []byte("now")) {
+		var err error
+		if resumeMarker, err = watchable.GetResumeMarker(d.st); err != nil {
+			return err
+		}
+	}
+	if len(resumeMarker) == 0 {
+		var err error
+		if resumeMarker, err = t.scanInitialState(ctx, call, prefix); err != nil {
+			return err
+		}
+	}
 	return t.watchUpdates(ctx, call, prefix, resumeMarker)
+}
+
+// scanInitialState sends the initial state of the watched prefix as one batch.
+// TODO(ivanpi): Send dummy update for empty prefix to be compatible with
+// v.io/v23/services/watch.
+func (t *tableReq) scanInitialState(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string) (watch.ResumeMarker, error) {
+	sntx := t.d.st.NewSnapshot()
+	defer sntx.Abort()
+	// Get resume marker inside snapshot.
+	resumeMarker, err := watchable.GetResumeMarker(sntx)
+	if err != nil {
+		return nil, err
+	}
+	// Scan initial state, sending accessible rows as single batch.
+	it := sntx.Scan(util.ScanPrefixArgs(util.JoinKeyParts(util.RowPrefix, t.name), prefix))
+	sender := &watchBatchSender{
+		send: call.SendStream().Send,
+	}
+	key, value := []byte{}, []byte{}
+	for it.Advance() {
+		key, value = it.Key(key), it.Value(value)
+		// Check perms.
+		// See comment in util/constants.go for why we use SplitNKeyParts.
+		parts := util.SplitNKeyParts(string(key), 3)
+		externalKey := parts[2]
+		if _, err := t.checkAccess(ctx, call, sntx, externalKey); err != nil {
+			// TODO(ivanpi): Inaccessible rows are skipped. Figure out how to signal
+			// this to caller.
+			if verror.ErrorID(err) == verror.ErrNoAccess.ID {
+				continue
+			} else {
+				it.Cancel()
+				return nil, err
+			}
+		}
+		if err := sender.addChange(
+			naming.Join(t.name, externalKey),
+			watch.Exists,
+			vdl.ValueOf(wire.StoreChange{
+				Value: value,
+				// Note: FromSync cannot be reconstructed from scan.
+				FromSync: false,
+			})); err != nil {
+			it.Cancel()
+			return nil, err
+		}
+	}
+	if err := it.Err(); err != nil {
+		return nil, verror.New(verror.ErrInternal, ctx, err)
+	}
+	// Finalize initial state batch.
+	if err := sender.finishBatch(resumeMarker); err != nil {
+		return nil, err
+	}
+	return resumeMarker, nil
 }
 
 // watchUpdates waits for database updates and sends them to the client.
@@ -114,32 +171,30 @@ func (t *tableReq) watchUpdates(ctx *context.T, call watch.GlobWatcherWatchGlobS
 		}
 	}()
 
-	sender := call.SendStream()
+	sender := &watchBatchSender{
+		send: call.SendStream().Send,
+	}
 	for {
 		// Drain the log queue.
 		for {
+			// TODO(ivanpi): Switch to streaming log batch entries? Since sync and
+			// conflict resolution merge batches, very large batches may not be
+			// unrealistic. However, sync currently also processes an entire batch at
+			// a time, and would need to be updated as well.
 			logs, nextResumeMarker, err := watchable.ReadBatchFromLog(t.d.st, resumeMarker)
 			if err != nil {
 				return err
 			}
 			if logs == nil {
-				// No new log records available now.
+				// No new log records available at this time.
 				break
 			}
 			resumeMarker = nextResumeMarker
-			changes, err := t.processLogBatch(ctx, call, prefix, logs)
-			if err != nil {
+			if err := t.processLogBatch(ctx, call, prefix, logs, sender); err != nil {
 				return err
 			}
-			if changes == nil {
-				// All batch changes are filtered out.
-				continue
-			}
-			changes[len(changes)-1].ResumeMarker = resumeMarker
-			for _, change := range changes {
-				if err := sender.Send(change); err != nil {
-					return err
-				}
+			if err := sender.finishBatch(resumeMarker); err != nil {
+				return err
 			}
 		}
 		// Wait for new updates or cancel.
@@ -154,12 +209,11 @@ func (t *tableReq) watchUpdates(ctx *context.T, call watch.GlobWatcherWatchGlobS
 	}
 }
 
-// processLogBatch converts []*watchable.LogEntry to []watch.Change, filtering
-// out unnecessary or inaccessible log records.
-func (t *tableReq) processLogBatch(ctx *context.T, call rpc.ServerCall, prefix string, logs []*watchable.LogEntry) ([]watch.Change, error) {
+// processLogBatch converts []*watchable.LogEntry to a watch.Change stream,
+// filtering out unnecessary or inaccessible log records.
+func (t *tableReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string, logs []*watchable.LogEntry, sender *watchBatchSender) error {
 	sn := t.d.st.NewSnapshot()
 	defer sn.Abort()
-	var changes []watch.Change
 	for _, logEntry := range logs {
 		var opKey string
 		switch op := logEntry.Op.(type) {
@@ -182,35 +236,78 @@ func (t *tableReq) processLogBatch(ctx *context.T, call rpc.ServerCall, prefix s
 		}
 		if _, err := t.checkAccess(ctx, call, sn, row); err != nil {
 			if verror.ErrorID(err) != verror.ErrNoAccess.ID {
-				return nil, err
+				return err
 			}
 			continue
-		}
-		change := watch.Change{
-			Name:      naming.Join(table, row),
-			Continued: true,
 		}
 		switch op := logEntry.Op.(type) {
 		case watchable.OpPut:
 			rowValue, err := watchable.GetAtVersion(ctx, sn, op.Value.Key, nil, op.Value.Version)
 			if err != nil {
-				return nil, err
+				return err
 			}
-			change.State = watch.Exists
-			change.Value = vdl.ValueOf(wire.StoreChange{
-				Value:    rowValue,
-				FromSync: logEntry.FromSync,
-			})
+			if err := sender.addChange(naming.Join(table, row),
+				watch.Exists,
+				vdl.ValueOf(wire.StoreChange{
+					Value:    rowValue,
+					FromSync: logEntry.FromSync,
+				})); err != nil {
+				return err
+			}
 		case watchable.OpDelete:
-			change.State = watch.DoesNotExist
-			change.Value = vdl.ValueOf(wire.StoreChange{
-				FromSync: logEntry.FromSync,
-			})
+			if err := sender.addChange(naming.Join(table, row),
+				watch.DoesNotExist,
+				vdl.ValueOf(wire.StoreChange{
+					FromSync: logEntry.FromSync,
+				})); err != nil {
+				return err
+			}
 		}
-		changes = append(changes, change)
 	}
-	if len(changes) > 0 {
-		changes[len(changes)-1].Continued = false
+	return nil
+}
+
+// watchBatchSender sends a sequence of watch changes forming a batch, delaying
+// sends to allow setting the Continued flag on the last change.
+type watchBatchSender struct {
+	// Function for sending changes to the stream. Must be set.
+	send func(item watch.Change) error
+
+	// Change set by previous addChange, sent by next addChange or finishBatch.
+	staged *watch.Change
+}
+
+// addChange sends the previously added change (if any) with Continued set to
+// true and stages the new one to be sent by the next addChange or finishBatch.
+func (w *watchBatchSender) addChange(name string, state int32, value *vdl.Value) error {
+	// Send previously staged change now that we know the batch is continuing.
+	if w.staged != nil {
+		w.staged.Continued = true
+		if err := w.send(*w.staged); err != nil {
+			return err
+		}
 	}
-	return changes, nil
+	// Stage new change.
+	w.staged = &watch.Change{
+		Name:  name,
+		State: state,
+		Value: value,
+	}
+	return nil
+}
+
+// finishBatch sends the previously added change (if any) with Continued set to
+// false, finishing the batch.
+func (w *watchBatchSender) finishBatch(resumeMarker watch.ResumeMarker) error {
+	// Send previously staged change as last in batch.
+	if w.staged != nil {
+		w.staged.Continued = false
+		w.staged.ResumeMarker = resumeMarker
+		if err := w.send(*w.staged); err != nil {
+			return err
+		}
+	}
+	// Clear staged change.
+	w.staged = nil
+	return nil
 }
