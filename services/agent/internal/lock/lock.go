@@ -37,6 +37,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"v.io/x/ref/lib/timekeeper"
@@ -78,8 +79,10 @@ type dirLock struct {
 	timeKeeper timekeeper.TimeKeeper
 	// tryLockHook allows injection of test logic at the end of tryLock.
 	tryLockHook func()
-	// randomizer is used to jitter sleep time.
+	// randomizer is used to jitter sleep time. Guarded by randMutex.
 	randomizer *rand.Rand
+	// randMutex guards against concurrent access to randomizer.
+	randMutex sync.Mutex
 }
 
 func newDirLock(dir string, t timekeeper.TimeKeeper) *dirLock {
@@ -180,7 +183,9 @@ func (l *dirLock) unlock(index int) error {
 func (l *dirLock) sleep() {
 	// randomize sleep time to avoid sleep/wake cycle alignment among
 	// processes contending for the same lock.
+	l.randMutex.Lock()
 	sleepDuration := sleepTime + time.Duration(l.randomizer.Int63n(int64(sleepJitter)))
+	l.randMutex.Unlock()
 	l.timeKeeper.Sleep(sleepDuration)
 }
 
