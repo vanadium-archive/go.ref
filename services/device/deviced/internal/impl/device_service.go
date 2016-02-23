@@ -268,7 +268,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 
 	// Setup up the child process callback.
 	callbackState := s.callback
-	listener := callbackState.listenFor(mgmt.ChildNameConfigKey)
+	listener := callbackState.listenFor(ctx, mgmt.ChildNameConfigKey)
 	defer listener.cleanup()
 	cfg := vexec.NewConfig()
 
@@ -326,29 +326,21 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 
-	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: cfg})
-	// Start the child process.
-	if err := handle.Start(); err != nil {
+	env, err := vexec.WriteConfigToEnv(cfg, cmd.Env)
+	if err != nil {
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("encoding config failed %v", err))
+	}
+	cmd.Env = env
+
+	if err := cmd.Start(); err != nil {
 		ctx.Errorf("Start() failed: %v", err)
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Start() failed: %v", err))
-	}
-	defer func() {
-		if err := handle.Clean(); err != nil {
-			ctx.Errorf("Clean() failed: %v", err)
-		}
-	}()
-
-	// Wait for the child process to start.
-	if err := handle.WaitForReady(childReadyTimeout); err != nil {
-		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("WaitForReady(%v) failed: %v", childReadyTimeout, err))
 	}
 
 	// Watch for the exit of the child. Failures could cause it to happen at any time
 	waitchan := make(chan error, 1)
 	go func() {
-		// Wait timeout needs to be long enough to give the rest of the operations time to run
-		err := handle.Wait(2*childReadyTimeout + childWaitTimeout)
-		if err != nil {
+		if err := cmd.Wait(); err != nil {
 			waitchan <- verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("new device manager failed to exit cleanly: %v", err))
 		}
 		close(waitchan)
@@ -365,8 +357,11 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	if err := dmClient.Delete(ctx); err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Delete() failed: %v", err))
 	}
-	if err := <-waitchan; err != nil {
-		return err
+	select {
+	case err := <-waitchan:
+		return err // err is nil if cmd.Wait succceeded
+	case <-time.After(childWaitTimeout):
+		return verror.New(errors.ErrOperationFailed, ctx, "new device manager failed to run in allotted time")
 	}
 	return nil
 }

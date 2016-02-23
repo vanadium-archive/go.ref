@@ -20,7 +20,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
-	vexec "v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/runtime/factories/roaming"
@@ -50,15 +50,27 @@ func init() {
 
 func runServer(ctx *context.T, _ *cmdline.Env, _ []string) error {
 	var testMode bool
+
 	// If this device manager was started by another device manager, it must
 	// be part of a self update to test that this binary works. In that
 	// case, we need to disable a lot of functionality.
-	if handle, err := vexec.GetChildHandle(); err == nil {
-		if _, err := handle.Config.Get(mgmt.ParentNameConfigKey); err == nil {
+	if parentConfig, err := exec.ReadConfigFromOSEnv(); parentConfig != nil && err == nil {
+		if _, err := parentConfig.Get(mgmt.ParentNameConfigKey); err == nil {
 			testMode = true
 			ctx.Infof("TEST MODE")
 		}
+	} else {
+		// TODO(cnicolaou): backwards compatibility, remove when binaries are pushed to prod.
+		if parentConfig == nil && err == nil {
+			if handle, err := exec.GetChildHandle(); handle != nil && err == nil {
+				if _, err := handle.Config.Get(mgmt.ParentNameConfigKey); err == nil {
+					testMode = true
+					ctx.Infof("TEST MODE")
+				}
+			}
+		}
 	}
+
 	configState, err := config.Load()
 	if err != nil {
 		ctx.Errorf("Failed to load config passed from parent: %v", err)

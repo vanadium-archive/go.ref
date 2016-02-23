@@ -853,7 +853,7 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	}
 	// Setup up the child process callback.
 	callbackState := i.callback
-	listener := callbackState.listenFor(mgmt.AppCycleManagerConfigKey)
+	listener := callbackState.listenFor(ctx, mgmt.AppCycleManagerConfigKey)
 	defer listener.cleanup()
 	cfg := vexec.NewConfig()
 	installationLink := filepath.Join(instanceDir, "installation")
@@ -868,11 +868,11 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	for k, v := range config {
 		cfg.Set(k, v)
 	}
-	publisherBlessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	publisherBlessingsPrefix, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	cfg.Set(mgmt.ParentNameConfigKey, listener.name())
 	cfg.Set(mgmt.ProtocolConfigKey, "tcp")
 	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
-	cfg.Set(mgmt.PublisherBlessingPrefixesKey, publisherBlessings.String())
+	cfg.Set(mgmt.PublisherBlessingPrefixesKey, publisherBlessingsPrefix.String())
 	if len(info.AppCycleBlessings) == 0 {
 		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("info.AppCycleBessings is missing"))
 	}
@@ -891,7 +891,9 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	// to go before anything that conditionally adds to Extrafiles, like the agent
 	// setup code immediately below.
 	var handshaker appHandshaker
-	handshaker.prepareToStart(ctx, cmd)
+	if err := handshaker.prepareToStart(ctx, cmd); err != nil {
+		return 0, err
+	}
 	defer handshaker.cleanup()
 
 	// Set up any agent-specific state.
@@ -924,34 +926,33 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	default:
 		cmd.Env = append(cmd.Env, ref.EnvCredentials+"="+filepath.Join(instanceDir, "credentials"))
 	}
-	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: cfg})
-	defer func() {
-		if handle != nil {
-			if err := handle.Clean(); err != nil {
-				ctx.Errorf("Clean() failed: %v", err)
-			}
-		}
-	}()
+
+	env, err := vexec.WriteConfigToEnv(cfg, cmd.Env)
+	if err != nil {
+		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("encoding config failed %v", err))
+	}
+	cmd.Env = env
 
 	// Start the child process.
-	startErr := handle.Start()
+	startErr := cmd.Start()
 	// Perform unconditional cleanup before dealing with any error from
-	// handle.Start()
+	// cmd.Start()
 	if agentCleaner != nil {
 		agentCleaner()
 	}
-	// Now react to any error in handle.Start()
+	// Now react to any error in cmd.Start()
 	if startErr != nil {
 		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Start() failed: %v", err))
 	}
 
 	// Wait for the suidhelper to exit. This is blocking as we assume the
 	// helper won't get stuck.
-	if err := handle.Wait(0); err != nil {
+	if err := cmd.Wait(); err != nil {
 		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Wait() on suidhelper failed: %v", err))
 	}
 
-	pid, childName, err := handshaker.doHandshake(ctx, handle, listener)
+	defer ctx.FlushLog()
+	pid, childName, err := handshaker.doHandshake(ctx, cmd, listener)
 
 	if err != nil {
 		return 0, err
@@ -961,7 +962,6 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	if err := saveInstanceInfo(ctx, instanceDir, info); err != nil {
 		return 0, err
 	}
-	handle = nil
 	stopServingAgentSocket = false
 	return pid, nil
 }

@@ -20,7 +20,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/verror"
-	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/device/internal/suid"
 )
@@ -91,10 +90,10 @@ func (a *appHandshaker) cleanup() {
 // prepareToStart sets up the pipe used to talk to the helper. It must be called before
 // the app is started so that the app will inherit the file descriptor
 func (a *appHandshaker) prepareToStart(ctx *context.T, cmd *exec.Cmd) error {
-	if suid.PipeToParentFD != (len(cmd.ExtraFiles) + vexec.FileOffset) {
+	if suid.PipeToParentFD != len(cmd.ExtraFiles)+3 {
 		return verror.New(errors.ErrOperationFailed, ctx,
-			fmt.Sprintf("FD expected by helper (%v) was not available (%v) (%v)",
-				suid.PipeToParentFD, len(cmd.ExtraFiles), vexec.FileOffset))
+			fmt.Sprintf("FD expected by helper (%v) was not available (%v)",
+				suid.PipeToParentFD, len(cmd.ExtraFiles)))
 	}
 	var err error
 	a.helperRead, a.helperWrite, err = os.Pipe()
@@ -109,9 +108,9 @@ func (a *appHandshaker) prepareToStart(ctx *context.T, cmd *exec.Cmd) error {
 // doAppHandshake executes the startup handshake for the app. Upon success, it returns the
 // pid and appCycle manager name for the started app.
 //
-// handle should have been set up to use a helper for the app and handle.Start()
-// and handle.Wait() should already have been called (so we know the helper is done)
-func (a *appHandshaker) doHandshake(ctx *context.T, handle *vexec.ParentHandle, listener callbackListener) (int, string, error) {
+// cmd should have been set up to use a helper for the app and cmd.Start()
+// and cmd.Wait() should already have been called (so we know the helper is done)
+func (a *appHandshaker) doHandshake(ctx *context.T, cmd *exec.Cmd, listener callbackListener) (int, string, error) {
 	// Close our copy of helperWrite to make helperRead return EOF once the
 	// helper's copy of helperWrite is closed.
 	a.helperWrite.Close()
@@ -127,48 +126,11 @@ func (a *appHandshaker) doHandshake(ctx *context.T, handle *vexec.ParentHandle, 
 	ctx.VI(1).Infof("read app pid %v from child", pidFromHelper)
 
 	// Watch the app pid in case it exits.
-	pidExitedChan := make(chan struct{}, 1)
 	watcher := newAppWatcher(pidFromHelper, func() {
 		listener.stop()
-		close(pidExitedChan)
 	})
 	go watcher.watchAppPid(ctx)
 	defer watcher.stop()
-
-	// Wait for the child to say it's ready and provide its own pid via the init handshake
-	childReadyErrChan := make(chan error, 1)
-	go func() {
-		if err := handle.WaitForReady(childReadyTimeout); err != nil {
-			childReadyErrChan <- verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("WaitForReady(%v) failed: %v", childReadyTimeout, err))
-		}
-		childReadyErrChan <- nil
-	}()
-
-	// Wait until we get the pid from the app, but return early if
-	// the watcher notices that the app failed
-	pidFromChild := 0
-
-	select {
-	case <-pidExitedChan:
-		return 0, "", verror.New(errors.ErrOperationFailed, ctx,
-			fmt.Sprintf("App exited (pid %d)", pidFromHelper))
-
-	case err := <-childReadyErrChan:
-		if err != nil {
-			return 0, "", err
-		}
-		// Note: handle.Pid() is the pid of the helper, rather than that
-		// of the app that the helper then forked. ChildPid is the pid
-		// received via the app startup handshake
-		pidFromChild = handle.ChildPid()
-	}
-
-	if pidFromHelper != pidFromChild {
-		// Something nasty is going on (the child may be lying).
-		suidHelper.terminatePid(ctx, pidFromHelper, nil, nil)
-		return 0, "", verror.New(errors.ErrOperationFailed, ctx,
-			fmt.Sprintf("Child pids do not match! (%d != %d)", pidFromHelper, pidFromChild))
-	}
 
 	// The appWatcher will stop the listener if the pid dies while waiting below
 	childName, err := listener.waitForValue(childReadyTimeout)

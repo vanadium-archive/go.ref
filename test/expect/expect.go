@@ -99,10 +99,14 @@ func (s *Session) SetVerbosity(v bool) {
 }
 
 func (s *Session) log(err error, format string, args ...interface{}) {
+	s.logWithDepth(err, 2, format, args...)
+}
+
+func (s *Session) logWithDepth(err error, depth int, format string, args ...interface{}) {
 	if !s.verbose {
 		return
 	}
-	_, path, line, _ := runtime.Caller(2)
+	_, path, line, _ := runtime.Caller(depth + 1)
 	errstr := ""
 	if err != nil {
 		errstr = err.Error() + ": "
@@ -331,7 +335,7 @@ func (s *Session) expectSetRE(numLines int, expected ...string) ([][]string, err
 		}
 		line, err := s.read(readLine)
 		line = strings.TrimRight(line, "\n")
-		s.log(err, "ExpectSetRE: %s", line)
+		s.logWithDepth(err, 2, "ExpectSetRE: %s", line)
 		if err != nil {
 			if numLines >= 0 {
 				return nil, err

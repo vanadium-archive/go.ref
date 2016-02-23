@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"reflect"
 	"strings"
 	"testing"
@@ -19,7 +18,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/services/appcycle"
-	"v.io/x/lib/envvar"
 	"v.io/x/lib/gosh"
 	"v.io/x/ref"
 	vexec "v.io/x/ref/lib/exec"
@@ -263,7 +261,7 @@ func (c *configServer) Set(_ *context.T, _ rpc.ServerCall, key, value string) er
 
 }
 
-func setupRemoteAppCycleMgr(t *testing.T) (*context.T, *vexec.ParentHandle, *expect.Session, appcycle.AppCycleClientMethods, func()) {
+func setupRemoteAppCycleMgr(t *testing.T) (*context.T, *v23test.Cmd, *expect.Session, appcycle.AppCycleClientMethods, func()) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	ctx := sh.Ctx
 	failed := true
@@ -272,7 +270,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, *vexec.ParentHandle, *exp
 			sh.Cleanup()
 		}
 	}()
-	goshCmd := sh.FuncCmd(app)
+	cmd := sh.FuncCmd(app)
 
 	ch := make(chan string, 1)
 	service := device.ConfigServer(&configServer{ch})
@@ -287,33 +285,24 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, *vexec.ParentHandle, *exp
 	config.Set(mgmt.ParentNameConfigKey, configServiceName)
 	config.Set(mgmt.ProtocolConfigKey, "tcp")
 	config.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
-	config.Set(mgmt.SecurityAgentPathConfigKey, goshCmd.Vars[ref.EnvAgentPath])
-
-	cmd := exec.Command(goshCmd.Args[0], goshCmd.Args[1:]...)
-	cmd.Env = envvar.MapToSlice(goshCmd.Vars)
-	stdout, err := cmd.StdoutPipe()
+	config.Set(mgmt.SecurityAgentPathConfigKey, cmd.Vars[ref.EnvAgentPath])
+	encodedConfig, err := vexec.EncodeForEnvVar(config)
 	if err != nil {
-		t.Fatalf("StdoutPipe failed: %v", err)
+		t.Fatal(err)
 	}
-	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: config})
-	if err := handle.Start(); err != nil {
-		t.Fatalf("Start failed: %v", err)
-	}
-	if err := handle.WaitForReady(20 * time.Second); err != nil {
-		t.Fatalf("WaitForReady failed: %v", err)
-	}
+	cmd.Vars[vexec.V23_EXEC_CONFIG] = encodedConfig
+	cmd.Start()
 
 	appCycleName := ""
 	select {
 	case appCycleName = <-ch:
 	case <-time.After(time.Minute):
-		t.Errorf("timeout")
+		t.Fatalf("timeout")
 	}
-	s := expect.NewSession(t, stdout, time.Minute)
-	s.Expect("ready")
+	cmd.S.Expect("ready")
 	appCycle := appcycle.AppCycleClient(appCycleName)
 	failed = false
-	return ctx, handle, s, appCycle, sh.Cleanup
+	return ctx, cmd, cmd.S, appCycle, sh.Cleanup
 }
 
 // TestRemoteForceStop verifies that the child process exits when sending it
@@ -324,9 +313,11 @@ func TestRemoteForceStop(t *testing.T) {
 	if err := appCycle.ForceStop(ctx); err == nil || !strings.Contains(err.Error(), "EOF") {
 		t.Fatalf("Expected EOF error, got %v instead", err)
 	}
+	h.ExitErrorIsOk = true
 	s.ExpectEOF()
 	want := fmt.Sprintf("exit status %d", testForceStopExitCode)
-	if err := h.Wait(0); err == nil || err.Error() != want {
+	h.Wait()
+	if err := h.Err; err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
 	}
 }
@@ -363,7 +354,8 @@ func TestRemoteStop(t *testing.T) {
 	s.Expect("Doing some work")
 	s.Expect("Doing some more work")
 	s.ExpectEOF()
-	if err := h.Wait(0); err != nil {
+	h.Wait()
+	if err := h.Err; err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 }

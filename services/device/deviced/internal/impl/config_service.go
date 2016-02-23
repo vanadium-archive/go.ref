@@ -61,6 +61,7 @@ type callbackListener interface {
 
 // listener implements callbackListener
 type listener struct {
+	ctx     *context.T
 	id      string
 	cs      *callbackState
 	ch      <-chan string
@@ -75,11 +76,12 @@ func (l *listener) waitForValue(timeout time.Duration) (string, error) {
 	case <-time.After(timeout):
 		return "", verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Waiting for callback timed out after %v", timeout))
 	case <-l.stopper:
-		return "", verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Stopped while waiting for callack"))
+		return "", verror.New(errors.ErrOperationFailed, nil, fmt.Sprintf("Stopped while waiting for callback"))
 	}
 }
 
 func (l *listener) stop() {
+	l.ctx.FlushLog()
 	close(l.stopper)
 }
 
@@ -91,7 +93,7 @@ func (l *listener) name() string {
 	return l.n
 }
 
-func (c *callbackState) listenFor(key string) callbackListener {
+func (c *callbackState) listenFor(ctx *context.T, key string) callbackListener {
 	id := c.generateID()
 	callbackName := naming.Join(c.name, configSuffix, id)
 	// Make the channel buffered to avoid blocking the Set method when
@@ -101,6 +103,7 @@ func (c *callbackState) listenFor(key string) callbackListener {
 	c.register(id, key, callbackChan)
 	stopchan := make(chan struct{}, 1)
 	return &listener{
+		ctx:     ctx,
 		id:      id,
 		cs:      c,
 		ch:      callbackChan,

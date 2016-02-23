@@ -6,7 +6,6 @@ package impl
 
 import (
 	"v.io/v23/context"
-	"v.io/v23/verror"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/services/device"
@@ -15,10 +14,17 @@ import (
 // InvokeCallback provides the parent device manager with the given name (which
 // is expected to be this device manager's object name).
 func InvokeCallback(ctx *context.T, name string) {
-	handle, err := exec.GetChildHandle()
-	if err == nil {
+	config, err := exec.ReadConfigFromOSEnv()
+	if config == nil && err == nil {
+		// TODO(cnicolaou): backwards compatibility, remove when binaries are pushed to prod.
+		handle, err := exec.GetChildHandle()
+		if handle != nil && err == nil {
+			config = handle.Config
+		}
+	}
+	if config != nil && err == nil {
 		// Device manager was started by self-update, notify the parent.
-		callbackName, err := handle.Config.Get(mgmt.ParentNameConfigKey)
+		callbackName, err := config.Get(mgmt.ParentNameConfigKey)
 		if err != nil {
 			// Device manager was not started by self-update, return silently.
 			return
@@ -29,7 +35,5 @@ func InvokeCallback(ctx *context.T, name string) {
 		if err := client.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {
 			ctx.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNameConfigKey, name, err)
 		}
-	} else if verror.ErrorID(err) != exec.ErrNoVersion.ID {
-		ctx.Fatalf("GetChildHandle() failed: %v", err)
 	}
 }

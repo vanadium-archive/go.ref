@@ -10,38 +10,47 @@ import (
 	"os"
 	"strings"
 
-	"v.io/x/lib/netstate"
-
 	"v.io/v23/logging"
 	"v.io/v23/verror"
-
+	"v.io/x/lib/netstate"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/flags"
 )
+
+func legacyExec() (exec.Config, error) {
+	handle, err := exec.GetChildHandle()
+	if err == nil {
+		return handle.Config, nil
+	} else if verror.ErrorID(err) == exec.ErrNoVersion.ID {
+		// Do not initialize the mgmt runtime if the process has not
+		// been started through the vanadium exec library by a device
+		// manager.
+		return nil, nil
+	}
+	return nil, err
+}
 
 // ParseFlags parses all registered flags taking into account overrides from other
 // configuration and environment variables. It must be called by the profile and
 // flags.RuntimeFlags() must be passed to the runtime initialization function. The
 // profile can use or modify the flags as it pleases.
 func ParseFlags(f *flags.Flags) error {
-	handle, err := exec.GetChildHandle()
-	if err == nil {
-		// The process has been started through the vanadium exec
-		// library.
-	} else if verror.ErrorID(err) == exec.ErrNoVersion.ID {
-		// The process has not been started through the vanadium exec
-		// library. No further action is needed.
-	} else {
+	config, err := exec.ReadConfigFromOSEnv()
+	if config == nil && err == nil {
+		// TODO(cnicolaou): backwards compatibility, remove when binaries are pushed to prod.
+		config, err = legacyExec()
+	}
+	if err != nil {
 		return err
 	}
 
 	// Parse runtime flags.
-	var config map[string]string
-	if handle != nil {
-		config = handle.Config.Dump()
+	var args map[string]string
+	if config != nil {
+		args = config.Dump()
 	}
-	return f.Parse(os.Args[1:], config)
+	return f.Parse(os.Args[1:], args)
 }
 
 // ParseFlagsAndConfigurGlobalLogger calls ParseFlags and then

@@ -23,10 +23,11 @@ import (
 const pkgPath = "v.io/x/ref/option/internal/rt"
 
 var (
+	errInvalidConfig   = verror.Register(pkgPath+".errInvalidConfig", verror.NoRetry, "{1:}{2:} {3} failed to decode config {:_}")
 	errConfigKeyNotSet = verror.Register(pkgPath+".errConfigKeyNotSet", verror.NoRetry, "{1:}{2:} {3} is not set{:_}")
 )
 
-func (rt *Runtime) initMgmt(ctx *context.T) error {
+func legacyExec() (exec.Config, error) {
 	handle, err := exec.GetChildHandle()
 	if err == nil {
 		// No error; fall through.
@@ -34,24 +35,51 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 		// Do not initialize the mgmt runtime if the process has not
 		// been started through the vanadium exec library by a device
 		// manager.
-		return nil
+		return nil, nil
 	} else {
-		return err
+		return nil, err
 	}
-	parentName, err := handle.Config.Get(mgmt.ParentNameConfigKey)
-	if err != nil {
+	if _, err := handle.Config.Get(mgmt.ParentNameConfigKey); err != nil {
 		// If the ParentNameConfigKey is not set, then this process has
 		// not been started by the device manager, but the parent process
 		// is still a Vanadium process using the exec library so we
 		// call SetReady to let it know that this child process has
 		// successfully started.
-		return handle.SetReady()
+		return nil, handle.SetReady()
 	}
-	if ctx, err = setListenSpec(ctx, rt, handle); err != nil {
+	return handle.Config, handle.SetReady()
+}
+
+func (rt *Runtime) initMgmt(ctx *context.T) error {
+	config, err := exec.ReadConfigFromOSEnv()
+	if config == nil && err == nil {
+		// TODO(cnicolaou): backwards compatibility, remove when binaries are pushed to prod.
+		legacyConfig, legacyErr := legacyExec()
+		if legacyConfig == nil || legacyErr != nil {
+			return legacyErr
+		}
+		if legacyConfig != nil {
+			// fallthrough
+			config = legacyConfig
+		} else {
+			// Do not initialize the mgmt runtime if the process has not
+			// been started by a vanadium process that passes a Config
+			// structure to us.
+			return nil
+		}
+		return nil
+	}
+	if err != nil {
+		verror.New(errConfigKeyNotSet, ctx, mgmt.ProtocolConfigKey)
+		return err
+	}
+
+	parentName, err := config.Get(mgmt.ParentNameConfigKey)
+	if ctx, err = setListenSpec(ctx, rt, config); err != nil {
 		return err
 	}
 	var blessings security.Blessings
-	if b64blessings, err := handle.Config.Get(mgmt.AppCycleBlessingsKey); err == nil {
+	if b64blessings, err := config.Get(mgmt.AppCycleBlessingsKey); err == nil {
 		vombytes, err := base64.URLEncoding.DecodeString(b64blessings)
 		if err == nil {
 			err = vom.Decode(vombytes, &blessings)
@@ -104,11 +132,11 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 		server.Stop()
 		return err
 	}
-	return handle.SetReady()
+	return nil
 }
 
-func setListenSpec(ctx *context.T, rt *Runtime, handle *exec.ChildHandle) (*context.T, error) {
-	protocol, err := handle.Config.Get(mgmt.ProtocolConfigKey)
+func setListenSpec(ctx *context.T, rt *Runtime, config exec.Config) (*context.T, error) {
+	protocol, err := config.Get(mgmt.ProtocolConfigKey)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +144,7 @@ func setListenSpec(ctx *context.T, rt *Runtime, handle *exec.ChildHandle) (*cont
 		return nil, verror.New(errConfigKeyNotSet, ctx, mgmt.ProtocolConfigKey)
 	}
 
-	address, err := handle.Config.Get(mgmt.AddressConfigKey)
+	address, err := config.Get(mgmt.AddressConfigKey)
 	if err != nil {
 		return nil, err
 	}

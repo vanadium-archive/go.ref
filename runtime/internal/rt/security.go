@@ -56,14 +56,26 @@ func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal s
 }
 
 func ipcAgent() (agent.Principal, error) {
-	handle, err := exec.GetChildHandle()
-	if err != nil && verror.ErrorID(err) != exec.ErrNoVersion.ID {
-		return nil, err
+	var config exec.Config
+	config, err := exec.ReadConfigFromOSEnv()
+	if config == nil || err != nil {
+		// TODO(cnicolaou): backwards compatibility,
+		// remove when binaries are pushed to prod and replace with
+		// if err != nil {
+		//     return nil, err
+		// }
+		handle, err := exec.GetChildHandle()
+		if err != nil && verror.ErrorID(err) != exec.ErrNoVersion.ID {
+			return nil, err
+		}
+		if handle != nil {
+			config = handle.Config
+		}
 	}
 	var path string
-	if handle != nil {
+	if config != nil {
 		// We were started by a parent (presumably, device manager).
-		path, _ = handle.Config.Get(mgmt.SecurityAgentPathConfigKey)
+		path, _ = config.Get(mgmt.SecurityAgentPathConfigKey)
 	} else {
 		path = os.Getenv(ref.EnvAgentPath)
 	}

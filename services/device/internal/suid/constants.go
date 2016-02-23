@@ -7,5 +7,5 @@ package suid
 const (
 	// fd of the pipe to be used to return the pid of the forked child to the
 	// device manager.
-	PipeToParentFD = 5
+	PipeToParentFD = 3
 )

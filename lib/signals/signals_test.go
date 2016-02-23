@@ -9,18 +9,15 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"syscall"
 	"testing"
-	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/services/appcycle"
-	"v.io/x/lib/envvar"
 	"v.io/x/lib/gosh"
 	"v.io/x/ref"
 	vexec "v.io/x/ref/lib/exec"
@@ -29,7 +26,6 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/v23test"
 )
 
@@ -329,7 +325,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	defer sh.Cleanup()
 	ctx := sh.Ctx
 
-	goshCmd := sh.FuncCmd(handleDefaults)
+	cmd := sh.FuncCmd(handleDefaults)
 
 	ch := make(chan string, 1)
 	_, server, err := v23.WithNewServer(ctx, "", device.ConfigServer(&configServer{ch}), securityflag.NewAuthorizerOrDie())
@@ -342,30 +338,17 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	config.Set(mgmt.ParentNameConfigKey, configServiceName)
 	config.Set(mgmt.ProtocolConfigKey, "tcp")
 	config.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
-	config.Set(mgmt.SecurityAgentPathConfigKey, goshCmd.Vars[ref.EnvAgentPath])
-	cmd := exec.Command(goshCmd.Args[0], goshCmd.Args[1:]...)
-	cmd.Env = envvar.MapToSlice(goshCmd.Vars)
-	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: config})
-
-	stdout, err := cmd.StdoutPipe()
+	config.Set(mgmt.SecurityAgentPathConfigKey, cmd.Vars[ref.EnvAgentPath])
+	val, err := vexec.EncodeForEnvVar(config)
 	if err != nil {
-		t.Fatalf("StdoutPipe failed: %v", err)
+		t.Fatalf("encoding config failed %v", err)
 	}
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		t.Fatalf("StdinPipe failed: %v", err)
-	}
-	cmd.Stderr = os.Stdout
-	if err := handle.Start(); err != nil {
-		t.Fatalf("Start failed: %v", err)
-	}
-	if err := handle.WaitForReady(20 * time.Second); err != nil {
-		t.Fatalf("WaitForReady failed: %v", err)
-	}
+	cmd.Vars[vexec.V23_EXEC_CONFIG] = val
+	stdin := cmd.StdinPipe()
+	cmd.Start()
 
 	appCycleName := <-ch
-	s := expect.NewSession(t, stdout, time.Minute)
-	s.Expect("ready")
+	cmd.S.Expect("ready")
 	appCycle := appcycle.AppCycleClient(appCycleName)
 	stream, err := appCycle.Stop(ctx)
 	if err != nil {
@@ -378,12 +361,10 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	if err := stream.Finish(); err != nil {
 		t.Fatalf("Finish failed: %v", err)
 	}
-	s.Expectf("received signal %s", v23.RemoteStop)
+	cmd.S.Expectf("received signal %s", v23.RemoteStop)
 	fmt.Fprintf(stdin, "close\n")
-	s.ExpectEOF()
-	if err := handle.Wait(0); err != nil {
-		t.Fatalf("Wait failed: %v", err)
-	}
+	cmd.S.ExpectEOF()
+	cmd.Wait()
 }
 
 func TestMain(m *testing.M) {

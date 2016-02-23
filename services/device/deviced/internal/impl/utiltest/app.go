@@ -88,11 +88,12 @@ func ping(ctx *context.T, flagValue string) {
 		DefaultPeerBlessings: v23.GetPrincipal(ctx).BlessingStore().ForPeer("nonexistent").String(),
 	}
 
-	if handle, err := exec.GetChildHandle(); err != nil {
-		vlog.Fatalf("Couldn't get Child Handle: %v", err)
+	config, err := exec.ReadConfigFromOSEnv()
+	if config == nil || err != nil {
+		vlog.Fatalf("Couldn't get Config: %v", err)
 	} else {
-		args.PubBlessingPrefixes, _ = handle.Config.Get(mgmt.PublisherBlessingPrefixesKey)
-		args.InstanceName, _ = handle.Config.Get(mgmt.InstanceNameKey)
+		args.PubBlessingPrefixes, _ = config.Get(mgmt.PublisherBlessingPrefixesKey)
+		args.InstanceName, _ = config.Get(mgmt.InstanceNameKey)
 	}
 
 	client := v23.GetClient(ctx)
@@ -189,7 +190,7 @@ func (p PingServer) WaitForPingArgs(t *testing.T) PingArgs {
 func (p PingServer) VerifyPingArgs(t *testing.T, username, flagValue, envValue string) PingArgs {
 	args := p.WaitForPingArgs(t)
 	if args.Username != username || args.FlagValue != flagValue || args.EnvValue != envValue {
-		t.Fatal(testutil.FormatLogLine(2, "got ping args %q, expected [username = %v, flag value = %v, env value = %v]", args, username, flagValue, envValue))
+		t.Fatal(testutil.FormatLogLine(2, "got ping args %v, expected [username = %v, flag value = %v, env value = %v]", args, username, flagValue, envValue))
 	}
 	return args // Useful for tests that want to check other values in the PingArgs result.
 }
