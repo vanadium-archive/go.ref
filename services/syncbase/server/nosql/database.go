@@ -19,7 +19,6 @@ import (
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
 	pubutil "v.io/v23/syncbase/util"
-	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
@@ -292,9 +291,9 @@ func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerC
 		sender := call.SendStream()
 		// Push the headers first -- the client will retrieve them and return
 		// them separately from the results.
-		var resultHeaders []*vdl.Value
+		var resultHeaders []*vom.RawBytes
 		for _, header := range headers {
-			resultHeaders = append(resultHeaders, vdl.ValueOf(header))
+			resultHeaders = append(resultHeaders, vom.RawBytesOf(header))
 		}
 		sender.Send(resultHeaders)
 		for rs.Advance() {
@@ -599,7 +598,7 @@ type kvs struct {
 	curr      int
 	validRow  bool
 	currKey   string
-	currValue *vdl.Value
+	currValue *vom.RawBytes
 	it        []store.Stream // array of store.Streams
 	err       error
 }
@@ -617,7 +616,7 @@ func (s *kvs) Advance() bool {
 			s.currKey = parts[2]
 			// value
 			valueBytes := s.it[s.curr].Value(nil)
-			var currValue *vdl.Value
+			var currValue *vom.RawBytes
 			if err := vom.Decode(valueBytes, &currValue); err != nil {
 				s.validRow = false
 				s.err = err
@@ -644,7 +643,7 @@ func (s *kvs) Advance() bool {
 	return false
 }
 
-func (s *kvs) KeyValue() (string, *vdl.Value) {
+func (s *kvs) KeyValue() (string, *vom.RawBytes) {
 	if !s.validRow {
 		return "", nil
 	}

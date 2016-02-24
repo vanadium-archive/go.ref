@@ -11,6 +11,7 @@ import (
 	// VDL system imports
 	"fmt"
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 
 	// VDL user imports
 	"v.io/v23/vtrace"
@@ -18,7 +19,7 @@ import (
 
 // The response from the javascript server to the proxy.
 type ServerRpcReply struct {
-	Results       []*vdl.Value
+	Results       []*vom.RawBytes
 	Err           error
 	TraceResponse vtrace.Response
 }

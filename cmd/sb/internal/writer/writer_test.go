@@ -12,12 +12,13 @@ import (
 
 	"v.io/v23/syncbase/nosql"
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 	db "v.io/x/ref/cmd/sb/internal/demodb"
 	"v.io/x/ref/cmd/sb/internal/writer"
 )
 
 type fakeResultStream struct {
-	rows [][]*vdl.Value
+	rows [][]*vom.RawBytes
 	curr int
 }
 
@@ -56,11 +57,11 @@ func array2String(s1, s2 string) db.Array2String {
 }
 
 func newResultStream(iRows [][]interface{}) nosql.ResultStream {
-	vRows := make([][]*vdl.Value, len(iRows))
+	vRows := make([][]*vom.RawBytes, len(iRows))
 	for i, iRow := range iRows {
-		vRow := make([]*vdl.Value, len(iRow))
+		vRow := make([]*vom.RawBytes, len(iRow))
 		for j, iCol := range iRow {
-			vRow[j] = vdl.ValueOf(iCol)
+			vRow[j] = vom.RawBytesOf(iCol)
 		}
 		vRows[i] = vRow
 	}
@@ -75,7 +76,7 @@ func (f *fakeResultStream) Advance() bool {
 	return f.curr < len(f.rows)
 }
 
-func (f *fakeResultStream) Result() []*vdl.Value {
+func (f *fakeResultStream) Result() []*vom.RawBytes {
 	if f.curr == -1 {
 		panic("call advance first")
 	}
@@ -244,7 +245,7 @@ bar |
 						Rec: map[db.Array2String]db.Recursive{
 							array2String("a", "b"): db.Recursive{},
 							array2String("x\nx", "y\"y"): db.Recursive{
-								Any:   vdl.ValueOf(db.AgencyReportExperianReport{Value: db.ExperianCreditReport{Rating: db.ExperianRatingGood}}),
+								Any:   vom.RawBytesOf(db.AgencyReportExperianReport{Value: db.ExperianCreditReport{Rating: db.ExperianRatingGood}}),
 								Maybe: nil,
 								Rec:   nil,
 							},
@@ -528,7 +529,7 @@ func TestWriteJson(t *testing.T) {
 						Rec: map[db.Array2String]db.Recursive{
 							array2String("a", "棎鶊鵱"): db.Recursive{},
 							array2String("x", "y"): db.Recursive{
-								Any: vdl.ValueOf(db.CreditReport{
+								Any: vom.RawBytesOf(db.CreditReport{
 									Agency: db.CreditAgencyExperian,
 									Report: db.AgencyReportExperianReport{Value: db.ExperianCreditReport{Rating: db.ExperianRatingGood}},
 								}),

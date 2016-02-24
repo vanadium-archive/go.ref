@@ -5,13 +5,12 @@
 package security
 
 import (
-	"reflect"
 	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/v23/vdl"
+	"v.io/v23/vom"
 )
 
 // DischargeRefreshFraction determines how early before their expiration
@@ -175,9 +174,9 @@ func mkDischargeImpetus(serverBlessings []string, method string, args []interfac
 	}
 	impetus.Method = method
 	if len(args) > 0 {
-		impetus.Arguments = make([]*vdl.Value, len(args))
+		impetus.Arguments = make([]*vom.RawBytes, len(args))
 		for i, a := range args {
-			vArg, err := vdl.ValueFromReflect(reflect.ValueOf(a))
+			vArg, err := vom.RawBytesFromValue(a)
 			if err != nil {
 				continue
 			}

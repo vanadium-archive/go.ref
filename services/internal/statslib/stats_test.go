@@ -17,6 +17,7 @@ import (
 	"v.io/v23/services/stats"
 	"v.io/v23/services/watch"
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/histogram"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -95,9 +96,9 @@ func TestStatsImpl(t *testing.T) {
 		if !iterator.Advance() {
 			t.Fatalf("expected more stream values")
 		}
-		got := iterator.Value()
-		expected := watch.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(10), ResumeMarker: noRM}
-		if !reflect.DeepEqual(got, expected) {
+		got := vdl.ValueOf(iterator.Value())
+		expected := vdl.ValueOf(watch.Change{Name: "testing/foo/bar", Value: vom.RawBytesOf(int64(10)), ResumeMarker: noRM})
+		if !vdl.EqualValue(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
 
@@ -106,9 +107,9 @@ func TestStatsImpl(t *testing.T) {
 		if !iterator.Advance() {
 			t.Fatalf("expected more stream values")
 		}
-		got = iterator.Value()
-		expected = watch.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(15), ResumeMarker: noRM}
-		if !reflect.DeepEqual(got, expected) {
+		got = vdl.ValueOf(iterator.Value())
+		expected = vdl.ValueOf(watch.Change{Name: "testing/foo/bar", Value: vom.RawBytesOf(int64(15)), ResumeMarker: noRM})
+		if !vdl.EqualValue(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
 
@@ -117,9 +118,9 @@ func TestStatsImpl(t *testing.T) {
 		if !iterator.Advance() {
 			t.Fatalf("expected more stream values")
 		}
-		got = iterator.Value()
-		expected = watch.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(17), ResumeMarker: noRM}
-		if !reflect.DeepEqual(got, expected) {
+		got = vdl.ValueOf(iterator.Value())
+		expected = vdl.ValueOf(watch.Change{Name: "testing/foo/bar", Value: vom.RawBytesOf(int64(17)), ResumeMarker: noRM})
+		if !vdl.EqualValue(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
 		cancel()
@@ -136,8 +137,9 @@ func TestStatsImpl(t *testing.T) {
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		if want := vdl.Int64Value(17); !vdl.EqualValue(value, want) {
-			t.Errorf("unexpected result. Got %v, want %v", value, want)
+		vv := vdl.ValueOf(value)
+		if want := vdl.Int64Value(17); !vdl.EqualValue(vv, want) {
+			t.Errorf("unexpected result. Got %v, want %v", vv, want)
 		}
 	}
 
@@ -148,6 +150,7 @@ func TestStatsImpl(t *testing.T) {
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
+		vv := vdl.ValueOf(value)
 		want := vdl.ValueOf(s_stats.HistogramValue{
 			Count: 10,
 			Sum:   45,
@@ -161,8 +164,8 @@ func TestStatsImpl(t *testing.T) {
 				s_stats.HistogramBucket{LowBound: 15, Count: 0},
 			},
 		})
-		if !vdl.EqualValue(value, want) {
-			t.Errorf("unexpected result. Got %v, want %v", value, want)
+		if !vdl.EqualValue(vv, want) {
+			t.Errorf("unexpected result. Got %v, want %v", vv, want)
 		}
 	}
 }

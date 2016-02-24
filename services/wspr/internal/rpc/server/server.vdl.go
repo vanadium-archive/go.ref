@@ -13,6 +13,7 @@ import (
 	"v.io/v23/i18n"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 
 	// VDL user imports
 	"v.io/v23/security"
@@ -34,7 +35,7 @@ func (Context) __VDLReflect(struct {
 type SecurityCall struct {
 	Method                string
 	Suffix                string
-	MethodTags            []*vdl.Value
+	MethodTags            []*vom.RawBytes
 	LocalBlessings        principal.BlessingsId
 	LocalBlessingStrings  []string
 	RemoteBlessings       principal.BlessingsId
@@ -86,7 +87,7 @@ type ServerRpcRequest struct {
 	ServerId uint32
 	Handle   int32
 	Method   string
-	Args     []*vdl.Value
+	Args     []*vom.RawBytes
 	Call     ServerRpcRequestCall
 }
 

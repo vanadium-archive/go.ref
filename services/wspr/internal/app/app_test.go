@@ -207,7 +207,7 @@ func (t *typeWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func makeRPCResponse(outArgs ...*vdl.Value) (string, []lib.Response) {
+func makeRPCResponse(outArgs ...*vom.RawBytes) (string, []lib.Response) {
 	writer := typeWriter{}
 	typeEncoder := vom.NewTypeEncoder(&writer)
 	var buf bytes.Buffer
@@ -223,7 +223,7 @@ func makeRPCResponse(outArgs ...*vdl.Value) (string, []lib.Response) {
 }
 
 func TestCallingGoServer(t *testing.T) {
-	resp, typeMessages := makeRPCResponse(vdl.Int32Value(5))
+	resp, typeMessages := makeRPCResponse(vom.RawBytesOf(int32(5)))
 	runGoServerTestCase(t, goServerTestCase{
 		expectedTypeStream: typeMessages,
 		method:             "Add",
@@ -248,7 +248,7 @@ func TestCallingGoServerWithError(t *testing.T) {
 }
 
 func TestCallingGoWithStreaming(t *testing.T) {
-	resp, typeMessages := makeRPCResponse(vdl.Int32Value(10))
+	resp, typeMessages := makeRPCResponse(vom.RawBytesOf(int32(10)))
 	runGoServerTestCase(t, goServerTestCase{
 		expectedTypeStream: typeMessages,
 		method:             "StreamingAdd",
@@ -387,7 +387,7 @@ type jsServerTestCase struct {
 	serverStream []interface{}
 	// The final response sent by the Javascript server to the
 	// app.
-	finalResponse *vdl.Value
+	finalResponse *vom.RawBytes
 	// The final error sent by the Javascript server to the app.
 	err error
 
@@ -477,7 +477,7 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 		expectedStream = expectedStream[1:]
 	}
 
-	var result *vdl.Value
+	var result *vom.RawBytes
 	err = call.Finish(&result)
 	if verror.ErrorID(err) != verror.ErrorID(testCase.err) {
 		t.Errorf("unexpected err: got %#v, expected %#v", err, testCase.err)
@@ -487,7 +487,7 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 		return
 	}
 
-	if got, want := result, testCase.finalResponse; !vdl.EqualValue(got, want) {
+	if got, want := result, testCase.finalResponse; !reflect.DeepEqual(got, want) {
 		t.Errorf("unexected final response: got %v, want %v", got, want)
 	}
 
@@ -511,7 +511,7 @@ func TestSimpleJSServer(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
 		inArgs:        []interface{}{int32(1), int32(2)},
-		finalResponse: vdl.Int32Value(3),
+		finalResponse: vom.RawBytesOf(int32(3)),
 	})
 }
 
@@ -519,7 +519,7 @@ func TestJSServerWithAuthorizer(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
 		inArgs:        []interface{}{int32(1), int32(2)},
-		finalResponse: vdl.Int32Value(3),
+		finalResponse: vom.RawBytesOf(int32(3)),
 		hasAuthorizer: true,
 	})
 }
@@ -539,7 +539,7 @@ func TestJSServerWithAuthorizerAndAuthError(t *testing.T) {
 		method:        "Add",
 		inArgs:        []interface{}{int32(1), int32(2)},
 		hasAuthorizer: true,
-		finalResponse: vdl.Int32Value(3),
+		finalResponse: vom.RawBytesOf(int32(3)),
 		err:           err,
 	})
 }
@@ -547,7 +547,7 @@ func TestJSServerWihStreamingInputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "StreamingAdd",
 		clientStream:  []interface{}{int32(3), int32(4)},
-		finalResponse: vdl.Int32Value(10),
+		finalResponse: vom.RawBytesOf(int32(10)),
 	})
 }
 
@@ -555,7 +555,7 @@ func TestJSServerWihStreamingOutputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "StreamingAdd",
 		serverStream:  []interface{}{int32(3), int32(4)},
-		finalResponse: vdl.Int32Value(10),
+		finalResponse: vom.RawBytesOf(int32(10)),
 	})
 }
 
@@ -564,7 +564,7 @@ func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 		method:        "StreamingAdd",
 		clientStream:  []interface{}{int32(1), int32(2)},
 		serverStream:  []interface{}{int32(3), int32(4)},
-		finalResponse: vdl.Int32Value(10),
+		finalResponse: vom.RawBytesOf(int32(10)),
 	})
 }
 

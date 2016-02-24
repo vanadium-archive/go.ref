@@ -31,7 +31,10 @@ func isByteList(t *vdl.Type) bool {
 }
 
 func tagValue(data goData, v *vdl.Value) string {
-	return typedConst(data, vdl.AnyValue(v))
+	// Use vdl.Value here because tags aren't sent across the wire and it is
+	// more convenient to use vdl.Value.
+	// Note: this is the only case because nil elems are not allowed in tags.
+	return data.Pkg("v.io/v23/vdl") + "ValueOf(" + typedConst(data, v) + ")"
 }
 
 // TODO(bprosnitz): Generate the full tag name e.g. security.Read instead of
@@ -83,15 +86,24 @@ func untypedConst(data goData, v *vdl.Value) string {
 	switch k {
 	case vdl.Any:
 		if elem := v.Elem(); elem != nil {
-			// We need to generate a Go expression of type *vdl.Value that represents
-			// elem.  Since the rest of our logic can already generate the Go code for
-			// any value, we just wrap it in vdl.ValueOf to produce the final result.
+			// We need to generate a Go expression of type *vom.RawBytes or *vdl.Value
+			// that represents elem.  Since the rest of our logic can already generate
+			// the Go code for any value, we just wrap it in *vom.RawBytes / *vdl.Value
+			// to produce the final result.
 			//
 			// This may seem like a strange roundtrip, but results in less generator
 			// and generated code.
-			return data.Pkg("v.io/v23/vdl") + "ValueOf(" + typedConst(data, elem) + ")"
+			if shouldUseVdlValueForAny(data.File.Package) {
+				return data.Pkg("v.io/v23/vdl") + "ValueOf(" + typedConst(data, elem) + ")"
+			} else {
+				return data.Pkg("v.io/v23/vom") + "RawBytesOf(" + typedConst(data, elem) + ")"
+			}
 		}
-		return "(*" + data.Pkg("v.io/v23/vdl") + "Value)(nil)"
+		if shouldUseVdlValueForAny(data.File.Package) {
+			return "(*" + data.Pkg("v.io/v23/vdl") + "Value)(nil)"
+		} else {
+			return "(*" + data.Pkg("v.io/v23/vom") + "RawBytes)(nil)"
+		}
 	case vdl.Optional:
 		if elem := v.Elem(); elem != nil {
 			return untypedConst(data, elem)

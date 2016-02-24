@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 	"v.io/x/ref/services/wspr/internal/channel"
 )
 
@@ -49,12 +50,16 @@ func TestChannelRpcs(t *testing.T) {
 	numCalls := 0
 
 	// reusedHandler handles requests to the same type name.
-	reusedHandler := func(v *vdl.Value) (*vdl.Value, error) {
+	reusedHandler := func(v *vom.RawBytes) (*vom.RawBytes, error) {
 		callCountLock.Lock()
 		numCalls++
 		callCountLock.Unlock()
 
-		return vdl.Int64Value(v.Int() - 1000), nil
+		var i int64
+		if err := v.ToValue(&i); err != nil {
+			return nil, err
+		}
+		return vom.RawBytesOf(i - 1000), nil
 	}
 
 	wg := sync.WaitGroup{}
@@ -64,25 +69,25 @@ func TestChannelRpcs(t *testing.T) {
 
 		// Get the message handler. Either the reused handle or a unique handle for this
 		// test, depending on the type name.
-		var handler func(v *vdl.Value) (*vdl.Value, error)
+		var handler func(v *vom.RawBytes) (*vom.RawBytes, error)
 		if test.Type == reusedTypeName {
 			handler = reusedHandler
 		} else {
-			handler = func(v *vdl.Value) (*vdl.Value, error) {
+			handler = func(v *vom.RawBytes) (*vom.RawBytes, error) {
 				callCountLock.Lock()
 				numCalls++
 				callCountLock.Unlock()
 
-				if got, want := v, vdl.Int64Value(int64(test.ReqVal)); !vdl.EqualValue(got, want) {
+				if got, want := vdl.ValueOf(v), vdl.Int64Value(int64(test.ReqVal)); !vdl.EqualValue(got, want) {
 					t.Errorf("For test %d, got %v, want %v", i, got, want)
 				}
-				return vdl.Int64Value(int64(test.RespVal)), test.Err
+				return vom.RawBytesOf(vdl.Int64Value(int64(test.RespVal))), test.Err
 			}
 		}
 		test.RecvChannel.RegisterRequestHandler(test.Type, handler)
 
 		// Perform the RPC.
-		result, err := test.SendChannel.PerformRpc(test.Type, vdl.Int64Value(int64(test.ReqVal)))
+		result, err := test.SendChannel.PerformRpc(test.Type, vom.RawBytesOf(int64(test.ReqVal)))
 		if test.Err != nil {
 			if err == nil {
 				t.Errorf("For test %d, expected an error but didn't get one", i)
@@ -92,7 +97,11 @@ func TestChannelRpcs(t *testing.T) {
 				t.Errorf("For test %d, received unexpected error %v", i, err)
 				return
 			}
-			if got, want := result, vdl.Int64Value(int64(test.RespVal)); !vdl.EqualValue(got, want) {
+			var ires int64
+			if err := result.ToValue(&ires); err != nil {
+				t.Fatalf("error converting to int value: %v", err)
+			}
+			if got, want := ires, int64(test.RespVal); got != want {
 				t.Errorf("For test %d, got %v, want %v", i, got, want)
 			}
 		}

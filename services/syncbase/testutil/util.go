@@ -22,6 +22,7 @@ import (
 	"v.io/v23/syncbase/util"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/server"
 	"v.io/x/ref/services/syncbase/store"
@@ -140,7 +141,7 @@ func CheckScan(t testing.TB, ctx *context.T, tb nosql.Table, r nosql.RowRange, w
 	}
 }
 
-func CheckExec(t testing.TB, ctx *context.T, db nosql.DatabaseHandle, q string, wantHeaders []string, wantResults [][]*vdl.Value) {
+func CheckExec(t testing.TB, ctx *context.T, db nosql.DatabaseHandle, q string, wantHeaders []string, wantResults [][]*vom.RawBytes) {
 	gotHeaders, it, err := db.Exec(ctx, q)
 	if err != nil {
 		t.Errorf("query %q: got %v, want nil", q, err)
@@ -148,7 +149,7 @@ func CheckExec(t testing.TB, ctx *context.T, db nosql.DatabaseHandle, q string, 
 	if !reflect.DeepEqual(gotHeaders, wantHeaders) {
 		t.Errorf("query %q: got %v, want %v", q, gotHeaders, wantHeaders)
 	}
-	gotResults := [][]*vdl.Value{}
+	gotResults := [][]*vom.RawBytes{}
 	for it.Advance() {
 		gotResult := it.Result()
 		gotResults = append(gotResults, gotResult)
@@ -156,8 +157,8 @@ func CheckExec(t testing.TB, ctx *context.T, db nosql.DatabaseHandle, q string, 
 	if it.Err() != nil {
 		t.Errorf("query %q: got %v, want nil", q, it.Err())
 	}
-	if !reflect.DeepEqual(gotResults, wantResults) {
-		t.Errorf("query %q: got %v, want %v", q, gotResults, wantResults)
+	if got, want := vdl.ValueOf(gotResults), vdl.ValueOf(wantResults); !vdl.EqualValue(got, want) {
+		t.Errorf("query %q: got %v, want %v", q, got, want)
 	}
 }
 

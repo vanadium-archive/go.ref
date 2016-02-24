@@ -431,7 +431,7 @@ type execStreamImpl struct {
 }
 
 func (s *execStreamImpl) Send(item interface{}) error {
-	v, ok := item.([]*vdl.Value)
+	rb, ok := item.([]*vom.RawBytes)
 	if !ok {
 		return verror.NewErrInternal(s.ctx)
 	}
@@ -440,14 +440,20 @@ func (s *execStreamImpl) Send(item interface{}) error {
 	// Currently, exec is the only method that uses 'any' rather than '[]byte'.
 	// https://github.com/vanadium/issues/issues/766
 	var values [][]byte
-	for _, vdlValue := range v {
+	for _, raw := range rb {
 		var bytes []byte
 		// The value type can be either string (for column headers and row keys) or
 		// []byte (for values).
-		if vdlValue.Kind() == vdl.String {
-			bytes = []byte(vdlValue.RawString())
+		if raw.Type.Kind() == vdl.String {
+			var str string
+			if err := raw.ToValue(&str); err != nil {
+				return err
+			}
+			bytes = []byte(str)
 		} else {
-			bytes = vdlValue.Bytes()
+			if err := raw.ToValue(&bytes); err != nil {
+				return err
+			}
 		}
 		values = append(values, bytes)
 	}

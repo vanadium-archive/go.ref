@@ -214,7 +214,7 @@ found:
 		NamespaceRoots: nil,
 		Proxy:          "",
 	}
-	_, err = browspr.HandleCreateInstanceRpc(vdl.ValueOf(createInstanceMessage))
+	_, err = browspr.HandleCreateInstanceRpc(vom.RawBytesOf(createInstanceMessage))
 
 	err = browspr.HandleMessage(msgInstanceId, msgOrigin, typeMessage)
 	if err != nil {
@@ -260,7 +260,7 @@ found:
 	if err := decoder.Decode(&result); err != nil {
 		t.Errorf("Failed to vom decode args from %v: %v", data, err)
 	}
-	if got, want := result.OutArgs[0], vdl.StringValue("[InputValue]"); !vdl.EqualValue(got, want) {
+	if got, want := vdl.ValueOf(result.OutArgs[0]), vdl.StringValue("[InputValue]"); !vdl.EqualValue(got, want) {
 		t.Errorf("Result got %v, want %v", got, want)
 	}
 }

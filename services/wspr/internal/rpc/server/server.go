@@ -17,7 +17,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
@@ -164,9 +163,9 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			GrantedBlessings: grantedBlessings,
 		}
 
-		var vdlValArgs []*vdl.Value = make([]*vdl.Value, len(args))
+		var rawBytesArgs []*vom.RawBytes = make([]*vom.RawBytes, len(args))
 		for i, arg := range args {
-			vdlValArgs[i] = vdl.ValueOf(arg)
+			rawBytesArgs[i] = vom.RawBytesOf(arg)
 		}
 
 		// Send a invocation request to JavaScript
@@ -174,7 +173,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			ServerId: s.id,
 			Handle:   handle,
 			Method:   lib.LowercaseFirstCharacter(methodName),
-			Args:     vdlValArgs,
+			Args:     rawBytesArgs,
 			Call:     rpcCall,
 		}
 		vomMessage, err := lib.HexVomEncode(message, s.helper.TypeEncoder())
@@ -278,7 +277,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			ServerId: s.id,
 			Handle:   handle,
 			Method:   "Glob__",
-			Args:     []*vdl.Value{vdl.ValueOf(pattern)},
+			Args:     []*vom.RawBytes{vom.RawBytesOf(pattern)},
 			Call:     rpcCall,
 		}
 		vomMessage, err := lib.HexVomEncode(message, s.helper.TypeEncoder())
@@ -503,9 +502,9 @@ func ConvertSecurityCall(helper ServerHelper, ctx *context.T, call security.Call
 	if call.RemoteEndpoint() != nil {
 		remoteEndpoint = call.RemoteEndpoint().String()
 	}
-	anymtags := make([]*vdl.Value, len(call.MethodTags()))
+	anymtags := make([]*vom.RawBytes, len(call.MethodTags()))
 	for i, mtag := range call.MethodTags() {
-		anymtags[i] = mtag
+		anymtags[i] = vom.RawBytesOf(mtag)
 	}
 	secCall := SecurityCall{
 		Method:          lib.LowercaseFirstCharacter(call.Method()),

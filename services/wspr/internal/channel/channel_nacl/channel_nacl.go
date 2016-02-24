@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"runtime/ppapi"
 
-	"v.io/v23/vdl"
 	"v.io/v23/vom"
 	"v.io/x/ref/services/wspr/internal/channel" // contains most of the logic, factored out for testing
 )
@@ -43,7 +42,7 @@ func (c *Channel) RegisterRequestHandler(typ string, handler channel.RequestHand
 	c.impl.RegisterRequestHandler(typ, handler)
 }
 
-func (c *Channel) PerformRpc(typ string, body *vdl.Value) (*vdl.Value, error) {
+func (c *Channel) PerformRpc(typ string, body *vom.RawBytes) (*vom.RawBytes, error) {
 	return c.impl.PerformRpc(typ, body)
 }
 

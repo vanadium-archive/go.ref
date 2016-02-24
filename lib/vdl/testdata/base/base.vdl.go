@@ -18,6 +18,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 )
 
 type NamedBool bool
@@ -271,7 +272,7 @@ type Scalars struct {
 	A12 complex128
 	A13 string
 	A14 error
-	A15 *vdl.Value
+	A15 *vom.RawBytes
 	A16 *vdl.Type
 	B0  NamedBool
 	B1  NamedByte
@@ -505,7 +506,7 @@ var CScalars = Scalars{
 	A11: 11,
 	A12: 12,
 	A13: "abc",
-	A15: vdl.ValueOf(false),
+	A15: vom.RawBytesOf(false),
 	A16: vdl.TypeOf(false),
 	B0:  true,
 	B1:  1,

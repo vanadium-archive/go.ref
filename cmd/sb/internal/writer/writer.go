@@ -16,6 +16,7 @@ import (
 	"v.io/v23/syncbase/nosql"
 	"v.io/v23/vdl"
 	vtime "v.io/v23/vdlroot/time"
+	"v.io/v23/vom"
 )
 
 type Justification int
@@ -44,7 +45,7 @@ func WriteTable(out io.Writer, columnNames []string, rs nosql.ResultStream) erro
 			if justification[i] == Unknown {
 				justification[i] = getJustification(column)
 			}
-			columnStr := toString(column, false)
+			columnStr := toStringRaw(column, false)
 			row[i] = columnStr
 			columnLen := utf8.RuneCountInString(columnStr)
 			if columnLen > columnWidths[i] {
@@ -90,8 +91,8 @@ func writeBorder(out io.Writer, columnWidths []int) {
 	io.WriteString(out, "-+\n")
 }
 
-func getJustification(val *vdl.Value) Justification {
-	switch val.Kind() {
+func getJustification(val *vom.RawBytes) Justification {
+	switch val.Type.Kind() {
 	// TODO(kash): Floating point numbers should have the decimal point line up.
 	case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64,
 		vdl.Float32, vdl.Float64, vdl.Complex64, vdl.Complex128:
@@ -114,7 +115,7 @@ func WriteCSV(out io.Writer, columnNames []string, rs nosql.ResultStream, delimi
 	for rs.Advance() {
 		delim := ""
 		for _, column := range rs.Result() {
-			str := doubleQuoteForCSV(toString(column, false), delimiter)
+			str := doubleQuoteForCSV(toStringRaw(column, false), delimiter)
 			io.WriteString(out, fmt.Sprintf("%s%s", delim, str))
 			delim = delimiter
 		}
@@ -164,6 +165,10 @@ func WriteJson(out io.Writer, columnNames []string, rs nosql.ResultStream) error
 	}
 	io.WriteString(out, "]\n")
 	return rs.Err()
+}
+
+func toStringRaw(rb *vom.RawBytes, nested bool) string {
+	return toString(vdl.ValueOf(rb), nested)
 }
 
 // Converts VDL value to readable yet parseable string representation.
@@ -276,8 +281,8 @@ func listToString(begin, sep, end string, n int, elemToString func(i int) string
 }
 
 // Converts VDL value to JSON representation.
-func toJson(val *vdl.Value) string {
-	jf := toJsonFriendly(val)
+func toJson(val *vom.RawBytes) string {
+	jf := toJsonFriendly(vdl.ValueOf(val))
 	jOut, err := json.Marshal(jf)
 	if err != nil {
 		panic(fmt.Sprintf("JSON marshalling failed: %v", err))

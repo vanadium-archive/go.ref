@@ -14,8 +14,8 @@ import (
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/services/watch"
 	pubutil "v.io/v23/syncbase/util"
-	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/server/watchable"
 )
@@ -106,7 +106,7 @@ func (t *tableReq) scanInitialState(ctx *context.T, call watch.GlobWatcherWatchG
 		if err := sender.addChange(
 			naming.Join(t.name, externalKey),
 			watch.Exists,
-			vdl.ValueOf(wire.StoreChange{
+			vom.RawBytesOf(wire.StoreChange{
 				Value: value,
 				// Note: FromSync cannot be reconstructed from scan.
 				FromSync: false,
@@ -248,7 +248,7 @@ func (t *tableReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGl
 			}
 			if err := sender.addChange(naming.Join(table, row),
 				watch.Exists,
-				vdl.ValueOf(wire.StoreChange{
+				vom.RawBytesOf(wire.StoreChange{
 					Value:    rowValue,
 					FromSync: logEntry.FromSync,
 				})); err != nil {
@@ -257,7 +257,7 @@ func (t *tableReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGl
 		case watchable.OpDelete:
 			if err := sender.addChange(naming.Join(table, row),
 				watch.DoesNotExist,
-				vdl.ValueOf(wire.StoreChange{
+				vom.RawBytesOf(wire.StoreChange{
 					FromSync: logEntry.FromSync,
 				})); err != nil {
 				return err
@@ -279,7 +279,7 @@ type watchBatchSender struct {
 
 // addChange sends the previously added change (if any) with Continued set to
 // true and stages the new one to be sent by the next addChange or finishBatch.
-func (w *watchBatchSender) addChange(name string, state int32, value *vdl.Value) error {
+func (w *watchBatchSender) addChange(name string, state int32, value *vom.RawBytes) error {
 	// Send previously staged change now that we know the batch is continuing.
 	if w.staged != nil {
 		w.staged.Continued = true

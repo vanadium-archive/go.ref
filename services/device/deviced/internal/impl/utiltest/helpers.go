@@ -804,7 +804,11 @@ func GetPid(t *testing.T, ctx *context.T, appID, instanceID string) int {
 	if err != nil {
 		t.Fatalf("Value() failed: %v", err)
 	}
-	return int(v.Int())
+	var pid int
+	if err := v.ToValue(&pid); err != nil {
+		t.Fatal(err)
+	}
+	return pid
 }
 
 // PollingWait polls a given process to make sure that it has exited

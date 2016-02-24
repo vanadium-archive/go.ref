@@ -15,6 +15,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/wspr/internal/principal"
 	"v.io/x/ref/test"
@@ -65,17 +66,17 @@ func TestHandleCreateAccount(t *testing.T) {
 	defer teardown()
 
 	// Verify that HandleAuthGetAccountsRpc returns empty.
-	nilValue := vdl.ValueOf(GetAccountsMessage{})
+	nilValue := vom.RawBytesOf(GetAccountsMessage{})
 	a, err := browspr.HandleAuthGetAccountsRpc(nilValue)
 	if err != nil {
 		t.Fatalf("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
 	}
-	if a.Len() > 0 {
+	if vdl.ValueOf(a).Len() > 0 {
 		t.Fatalf("Expected accounts to be empty array but got %v", a)
 	}
 
 	// Add one account.
-	message1 := vdl.ValueOf(CreateAccountMessage{
+	message1 := vom.RawBytesOf(CreateAccountMessage{
 		Token: "mock-access-token-1",
 	})
 	account1, err := browspr.HandleAuthCreateAccountRpc(message1)
@@ -84,7 +85,7 @@ func TestHandleCreateAccount(t *testing.T) {
 	}
 
 	// Verify that principalManager has the new account
-	if b, err := browspr.principalManager.BlessingsForAccount(account1.RawString()); err != nil || b.IsZero() {
+	if b, err := browspr.principalManager.BlessingsForAccount(stringInRawBytes(t, account1)); err != nil || b.IsZero() {
 		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account1, b, err)
 	}
 
@@ -93,12 +94,12 @@ func TestHandleCreateAccount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
 	}
-	if want := vdl.ValueOf([]string{account1.RawString()}); !vdl.EqualValue(want, gotAccounts1) {
+	if want := vom.RawBytesOf([]string{stringInRawBytes(t, account1)}); !reflect.DeepEqual(want, gotAccounts1) {
 		t.Fatalf("Expected account to be %v but got empty but got %v", want, gotAccounts1)
 	}
 
 	// Add another account
-	message2 := vdl.ValueOf(CreateAccountMessage{
+	message2 := vom.RawBytesOf(CreateAccountMessage{
 		Token: "mock-access-token-2",
 	})
 	account2, err := browspr.HandleAuthCreateAccountRpc(message2)
@@ -112,19 +113,19 @@ func TestHandleCreateAccount(t *testing.T) {
 		t.Fatalf("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
 	}
 	var got []string
-	if err := vdl.Convert(&got, gotAccounts2); err != nil {
-		t.Fatalf("vdl.Convert failed: %v", err)
+	if err := gotAccounts2.ToValue(&got); err != nil {
+		t.Fatalf("ToValue failed: %v", err)
 	}
 	sort.Strings(got)
-	if want := []string{account1.RawString(), account2.RawString()}; !reflect.DeepEqual(want, got) {
+	if want := []string{stringInRawBytes(t, account1), stringInRawBytes(t, account2)}; !reflect.DeepEqual(want, got) {
 		t.Fatalf("Expected account to be %v but got %v", want, got)
 	}
 
 	// Verify that principalManager has both accounts
-	if b, err := browspr.principalManager.BlessingsForAccount(account1.RawString()); err != nil || b.IsZero() {
+	if b, err := browspr.principalManager.BlessingsForAccount(stringInRawBytes(t, account1)); err != nil || b.IsZero() {
 		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account1, b, err)
 	}
-	if b, err := browspr.principalManager.BlessingsForAccount(account2.RawString()); err != nil || b.IsZero() {
+	if b, err := browspr.principalManager.BlessingsForAccount(stringInRawBytes(t, account2)); err != nil || b.IsZero() {
 		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account2, b, err)
 	}
 }
@@ -147,18 +148,18 @@ func TestHandleAssocAccount(t *testing.T) {
 	origin := "https://my.webapp.com:443"
 
 	// Verify that HandleAuthOriginHasAccountRpc returns false
-	hasAccountMessage := vdl.ValueOf(OriginHasAccountMessage{
+	hasAccountMessage := vom.RawBytesOf(OriginHasAccountMessage{
 		Origin: origin,
 	})
 	hasAccount, err := browspr.HandleAuthOriginHasAccountRpc(hasAccountMessage)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hasAccount.Bool() {
+	if vdl.ValueOf(hasAccount).Bool() {
 		t.Fatalf("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
 	}
 
-	assocAccountMessage := vdl.ValueOf(AssociateAccountMessage{
+	assocAccountMessage := vom.RawBytesOf(AssociateAccountMessage{
 		Account: account,
 		Origin:  origin,
 	})
@@ -172,7 +173,7 @@ func TestHandleAssocAccount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !hasAccount.Bool() {
+	if !vdl.ValueOf(hasAccount).Bool() {
 		t.Fatalf("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be true but was false", hasAccountMessage)
 	}
 
@@ -193,7 +194,7 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 
 	account := "mock-account"
 	origin := "https://my.webapp.com:443"
-	message := vdl.ValueOf(AssociateAccountMessage{
+	message := vom.RawBytesOf(AssociateAccountMessage{
 		Account: account,
 		Origin:  origin,
 	})
@@ -213,14 +214,22 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 	}
 
 	// Verify that HandleAuthOriginHasAccountRpc returns false
-	hasAccountMessage := vdl.ValueOf(OriginHasAccountMessage{
+	hasAccountMessage := vom.RawBytesOf(OriginHasAccountMessage{
 		Origin: origin,
 	})
 	hasAccount, err := browspr.HandleAuthOriginHasAccountRpc(hasAccountMessage)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hasAccount.Bool() {
+	if vdl.ValueOf(hasAccount).Bool() {
 		t.Fatalf("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
 	}
+}
+
+func stringInRawBytes(t *testing.T, rb *vom.RawBytes) string {
+	var str string
+	if err := rb.ToValue(&str); err != nil {
+		t.Fatal(err)
+	}
+	return str
 }

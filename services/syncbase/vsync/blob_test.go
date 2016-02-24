@@ -120,17 +120,17 @@ func TestExtractBlobRefs(t *testing.T) {
 	// appearing later in the array to verify that the early-break
 	// optimization doesn't apply when "any" is used.
 	v9 := td.BlobAny{"foobar", nil}
-	v9.Baa = append(v9.Baa, vdl.ValueOf("xxxxx"))
-	v9.Baa = append(v9.Baa, vdl.ValueOf(999999))
-	v9.Baa = append(v9.Baa, vdl.ValueOf(br))
-	v9.Baa = append(v9.Baa, vdl.ValueOf(v1))
-	v9.Baa = append(v9.Baa, vdl.ValueOf(v2))
-	v9.Baa = append(v9.Baa, vdl.ValueOf(v3))
-	v9.Baa = append(v9.Baa, vdl.ValueOf(v4))
-	v9.Baa = append(v9.Baa, vdl.ValueOf(v5))
-	v9.Baa = append(v9.Baa, vdl.ValueOf(v6))
-	v9.Baa = append(v9.Baa, vdl.ValueOf(v7))
-	v9.Baa = append(v9.Baa, vdl.ValueOf(v8))
+	v9.Baa = append(v9.Baa, vom.RawBytesOf("xxxxx"))
+	v9.Baa = append(v9.Baa, vom.RawBytesOf(999999))
+	v9.Baa = append(v9.Baa, vom.RawBytesOf(br))
+	v9.Baa = append(v9.Baa, vom.RawBytesOf(v1))
+	v9.Baa = append(v9.Baa, vom.RawBytesOf(v2))
+	v9.Baa = append(v9.Baa, vom.RawBytesOf(v3))
+	v9.Baa = append(v9.Baa, vom.RawBytesOf(v4))
+	v9.Baa = append(v9.Baa, vom.RawBytesOf(v5))
+	v9.Baa = append(v9.Baa, vom.RawBytesOf(v6))
+	v9.Baa = append(v9.Baa, vom.RawBytesOf(v7))
+	v9.Baa = append(v9.Baa, vom.RawBytesOf(v8))
 	checkBlobRefs(t, "struct with array of any", v9, "456", "123", "111", "222", "333",
 		"777", "888", "999", "11", "22", "33", "xyz", "haha", "hoho", "hihi")
 

@@ -5,14 +5,13 @@
 package discovery
 
 import (
-	"reflect"
-
 	"v.io/v23/context"
 	"v.io/v23/query/engine"
 	"v.io/v23/query/engine/datasource"
 	"v.io/v23/query/engine/public"
 	"v.io/v23/query/syncql"
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 )
 
 // matcher is the interface for a matcher to match advertisements against a query.
@@ -30,7 +29,7 @@ func (m trueMatcher) match(*Advertisement) bool { return true }
 type dDS struct {
 	ctx  *context.T
 	k    string
-	v    *vdl.Value
+	v    *vom.RawBytes
 	done bool
 }
 
@@ -59,11 +58,11 @@ func (ds *dDS) Advance() bool {
 	return true
 }
 
-func (ds *dDS) KeyValue() (string, *vdl.Value) { return ds.k, ds.v }
-func (ds *dDS) Err() error                     { return nil }
-func (ds *dDS) Cancel()                        { ds.done = true }
+func (ds *dDS) KeyValue() (string, *vom.RawBytes) { return ds.k, ds.v }
+func (ds *dDS) Err() error                        { return nil }
+func (ds *dDS) Cancel()                           { ds.done = true }
 
-func (ds *dDS) addKeyValue(k string, v *vdl.Value) {
+func (ds *dDS) addKeyValue(k string, v *vom.RawBytes) {
 	ds.k, ds.v = k, v
 	ds.done = false
 }
@@ -109,7 +108,7 @@ type queryMatcher struct {
 }
 
 func (m *queryMatcher) match(ad *Advertisement) bool {
-	v, err := vdl.ValueFromReflect(reflect.ValueOf(ad.Service))
+	v, err := vom.RawBytesFromValue(ad.Service)
 	if err != nil {
 		m.ds.ctx.Error(err)
 		return false

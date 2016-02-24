@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"reflect"
 	"sync"
 	"time"
 
@@ -180,7 +179,7 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall r
 			w.Error(verror.New(marshallingError, ctx, "ResponseStreamClose"))
 		}
 	}
-	results := make([]*vdl.Value, msg.NumOutArgs)
+	results := make([]*vom.RawBytes, msg.NumOutArgs)
 	wireBlessingsType := vdl.TypeOf(security.WireBlessings{})
 	// This array will have pointers to the values in results.
 	resultptrs := make([]interface{}, msg.NumOutArgs)
@@ -193,19 +192,19 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall r
 		return
 	}
 	for i, val := range results {
-		if val.Type() == wireBlessingsType {
+		if val.Type == wireBlessingsType {
 			var blessings security.Blessings
-			if err := vdl.Convert(&blessings, val); err != nil {
+			if err := val.ToValue(&blessings); err != nil {
 				w.Error(err)
 				return
 			}
-			results[i] = vdl.ValueOf(c.blessingsCache.Put(blessings))
+			results[i] = vom.RawBytesOf(c.blessingsCache.Put(blessings))
 		}
 	}
 	c.sendRPCResponse(ctx, w, span, results)
 }
 
-func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vtrace.Span, results []*vdl.Value) {
+func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vtrace.Span, results []*vom.RawBytes) {
 	span.Finish()
 	response := RpcResponse{
 		OutArgs:       results,
@@ -468,15 +467,15 @@ func (c *Controller) handleInternalCall(ctx *context.T, invoker rpc.Invoker, msg
 		}
 	}
 
-	// Convert results from []interface{} to []*vdl.Value.
-	vresults := make([]*vdl.Value, len(results))
+	// Convert results from []interface{} to []*vom.RawBytes.
+	vresults := make([]*vom.RawBytes, len(results))
 	for i, res := range results {
-		vv, err := vdl.ValueFromReflect(reflect.ValueOf(res))
+		v, err := vom.RawBytesFromValue(res)
 		if err != nil {
 			w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 			return
 		}
-		vresults[i] = vv
+		vresults[i] = v
 	}
 	c.sendRPCResponse(ctx, w, span, vresults)
 }
@@ -536,7 +535,7 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 
 	inArgs := make([]interface{}, msg.NumInArgs)
 	for i := range inArgs {
-		var v *vdl.Value
+		var v *vom.RawBytes
 		if err := decoder.Decode(&v); err != nil {
 			w.Error(err)
 			return

@@ -11,6 +11,7 @@ import (
 	// VDL system imports
 	"fmt"
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 
 	// VDL user imports
 	"time"
@@ -350,7 +351,7 @@ func (Times) __VDLReflect(struct {
 }
 
 type Recursive struct {
-	Any   *vdl.Value
+	Any   *vom.RawBytes
 	Maybe *Times
 	Rec   map[Array2String]Recursive
 }
@@ -410,7 +411,7 @@ func (Student) __VDLReflect(struct {
 
 type AnythingGoes struct {
 	NameOfType string
-	Anything   *vdl.Value
+	Anything   *vom.RawBytes
 }
 
 func (AnythingGoes) __VDLReflect(struct {

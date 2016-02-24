@@ -12,6 +12,7 @@ package app
 import (
 	// VDL system imports
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 
 	// VDL user imports
 	"v.io/v23/security"
@@ -112,7 +113,7 @@ func (x RpcServerOptionServesMountTable) Name() string                          
 func (x RpcServerOptionServesMountTable) __VDLReflect(__RpcServerOptionReflect) {}
 
 type RpcResponse struct {
-	OutArgs       []*vdl.Value
+	OutArgs       []*vom.RawBytes
 	TraceResponse vtrace.Response
 }
 

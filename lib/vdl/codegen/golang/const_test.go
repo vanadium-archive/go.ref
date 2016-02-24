@@ -66,8 +66,8 @@ B: 123,
 }`},
 		{"UnionABC", vUnionABC, `TestUnion(TestUnionA{"abc"})`},
 		{"Union123", vUnion123, `TestUnion(TestUnionB{int64(123)})`},
-		{"AnyABC", vAnyABC, `vdl.ValueOf("abc")`},
-		{"Any123", vAny123, `vdl.ValueOf(int64(123))`},
+		{"AnyABC", vAnyABC, `vom.RawBytesOf("abc")`},
+		{"Any123", vAny123, `vom.RawBytesOf(int64(123))`},
 		{"TypeObjectBool", vdl.TypeObjectValue(vdl.BoolType), `vdl.TypeOf(false)`},
 		{"TypeObjectString", vdl.TypeObjectValue(vdl.StringType), `vdl.TypeOf("")`},
 		{"TypeObjectBytes", vdl.TypeObjectValue(vdl.ListType(vdl.ByteType)), `vdl.TypeOf([]byte(nil))`},
@@ -89,6 +89,9 @@ B: 123,
 	}
 	data := goData{Env: compile.NewEnv(-1)}
 	for _, test := range tests {
+		data.File = &compile.File{
+			Package: &compile.Package{},
+		}
 		if got, want := typedConst(data, test.V), test.Want; got != want {
 			t.Errorf("%s\n GOT %s\nWANT %s", test.Name, got, want)
 		}

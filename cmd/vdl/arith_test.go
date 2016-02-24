@@ -23,6 +23,7 @@ import (
 	"v.io/x/ref/lib/vdl/testdata/base"
 	"v.io/x/ref/test"
 
+	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
@@ -71,8 +72,8 @@ func (*serverArith) GenError(_ *context.T, _ rpc.ServerCall) error {
 	return generatedError
 }
 
-func (*serverArith) QuoteAny(_ *context.T, _ rpc.ServerCall, any *vdl.Value) (*vdl.Value, error) {
-	return vdl.StringValue(any.String()), nil
+func (*serverArith) QuoteAny(_ *context.T, _ rpc.ServerCall, any *vom.RawBytes) (*vom.RawBytes, error) {
+	panic("this should never be called")
 }
 
 type serverCalculator struct {

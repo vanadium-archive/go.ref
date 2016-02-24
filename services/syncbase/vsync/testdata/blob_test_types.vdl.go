@@ -10,6 +10,7 @@ package blobtestsvdl
 import (
 	// VDL system imports
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 
 	// VDL user imports
 	"v.io/v23/services/syncbase/nosql"
@@ -74,7 +75,7 @@ func (BlobSet) __VDLReflect(struct {
 
 type BlobAny struct {
 	Info string
-	Baa  []*vdl.Value
+	Baa  []*vom.RawBytes
 }
 
 func (BlobAny) __VDLReflect(struct {

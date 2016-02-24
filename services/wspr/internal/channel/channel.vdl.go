@@ -10,12 +10,13 @@ package channel
 import (
 	// VDL system imports
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 )
 
 type Request struct {
 	Type string
 	Seq  uint32
-	Body *vdl.Value
+	Body *vom.RawBytes
 }
 
 func (Request) __VDLReflect(struct {
@@ -26,7 +27,7 @@ func (Request) __VDLReflect(struct {
 type Response struct {
 	ReqSeq uint32
 	Err    string // TODO(bprosnitz) change this back to error when it is possible to do so. (issue 368)
-	Body   *vdl.Value
+	Body   *vom.RawBytes
 }
 
 func (Response) __VDLReflect(struct {

@@ -327,9 +327,16 @@ func addValueTypeDeps(v *vdl.Value, env *compile.Env, deps *deps, user importMap
 // collected all imports and resolved collisions.
 func systemImports(deps deps, file *compile.File) importMap {
 	system := make(importMap)
-	if deps.any || deps.typeObject || deps.methodTags || len(file.TypeDefs) > 0 {
+	if deps.typeObject || deps.methodTags || len(file.TypeDefs) > 0 {
 		// System import for vdl.Value, vdl.Type and vdl.Register.
 		system["v.io/v23/vdl"] = "vdl"
+	}
+	if deps.any {
+		if shouldUseVdlValueForAny(file.Package) {
+			system["v.io/v23/vdl"] = "vdl"
+		} else {
+			system["v.io/v23/vom"] = "vom"
+		}
 	}
 	if deps.enumTypeDef {
 		system["fmt"] = "fmt"

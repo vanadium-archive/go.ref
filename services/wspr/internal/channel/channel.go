@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"sync"
 
-	"v.io/v23/vdl"
+	"v.io/v23/vom"
 )
 
-type RequestHandler func(*vdl.Value) (*vdl.Value, error)
+type RequestHandler func(*vom.RawBytes) (*vom.RawBytes, error)
 
 type MessageSender func(Message)
 
@@ -32,7 +32,7 @@ func NewChannel(messageHandler MessageSender) *Channel {
 	}
 }
 
-func (c *Channel) PerformRpc(typ string, body *vdl.Value) (*vdl.Value, error) {
+func (c *Channel) PerformRpc(typ string, body *vom.RawBytes) (*vom.RawBytes, error) {
 	c.lock.Lock()
 	c.lastSeq++
 	lastSeq := c.lastSeq

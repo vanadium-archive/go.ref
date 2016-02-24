@@ -31,6 +31,7 @@ import (
 	"v.io/v23/services/watch"
 	"v.io/v23/uniqueid"
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/signals"
@@ -464,7 +465,8 @@ func doWatch(ctx *context.T, pattern string, results chan<- string, errors chan<
 	}
 }
 
-func formatValue(value *vdl.Value) (string, error) {
+func formatValue(rb *vom.RawBytes) (string, error) {
+	value := vdl.ValueOf(rb)
 	var ret string
 	if showType {
 		ret += value.Type().String() + ": "

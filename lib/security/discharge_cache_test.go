@@ -10,6 +10,7 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 )
 
 func testDischargeCache(t *testing.T, s security.BlessingStore) {
@@ -27,7 +28,7 @@ func testDischargeCache(t *testing.T, s security.BlessingStore) {
 		dServer  = mkDischarge(discharger.MintDischarge(serverCav, security.UnconstrainedUse()))
 
 		emptyImp       = security.DischargeImpetus{}
-		argsImp        = security.DischargeImpetus{Arguments: []*vdl.Value{&vdl.Value{}}}
+		argsImp        = security.DischargeImpetus{Arguments: []*vom.RawBytes{vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType))}}
 		methodImp      = security.DischargeImpetus{Method: "foo"}
 		otherMethodImp = security.DischargeImpetus{Method: "bar"}
 		serverImp      = security.DischargeImpetus{Server: []security.BlessingPattern{security.BlessingPattern("fooserver")}}

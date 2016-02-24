@@ -60,7 +60,11 @@ func typeGo(data goData, t *vdl.Type) string {
 	if def := data.Env.FindTypeDef(t); def != nil {
 		switch {
 		case t == vdl.AnyType:
-			return "*" + data.Pkg("v.io/v23/vdl") + "Value"
+			if shouldUseVdlValueForAny(data.File.Package) {
+				return "*" + data.Pkg("v.io/v23/vdl") + "Value"
+			} else {
+				return "*" + data.Pkg("v.io/v23/vom") + "RawBytes"
+			}
 		case t == vdl.TypeObjectType:
 			return "*" + data.Pkg("v.io/v23/vdl") + "Type"
 		case def.File == compile.BuiltInFile:
@@ -89,6 +93,28 @@ func typeGo(data goData, t *vdl.Type) string {
 	default:
 		panic(fmt.Errorf("vdl: typeGo unhandled type %v %v", t.Kind(), t))
 	}
+}
+
+func shouldUseVdlValueForAny(pkg *compile.Package) bool {
+	// The vdl package uses vdl.Value due to an import cycle:  vom imports vdl
+	if pkg.Path == "v.io/v23/vdl" {
+		return true
+	}
+	// The signature package uses vdl.Value for two reasons:
+	// - an import cycle (vom imports vdlroot imports signature) to register
+	// important types
+	// - any is only used in the signature package for method tags, and these
+	// will likely be used in a reflective manner anyways (though interface{}
+	// may be a good alternative for this case)
+	if pkg.Path == "signature" {
+		return true
+	}
+	// The testdata package uses vdl.Value due to an import cycle:
+	// vom imports testdata/*
+	if strings.HasPrefix(pkg.Path, "v.io/v23/vom/testdata") {
+		return true
+	}
+	return false
 }
 
 // typeDefGo prints the type definition for a type.

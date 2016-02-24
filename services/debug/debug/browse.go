@@ -29,7 +29,6 @@ import (
 	"v.io/v23/services/stats"
 	svtrace "v.io/v23/services/vtrace"
 	"v.io/v23/uniqueid"
-	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
@@ -391,7 +390,7 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		CommandLine    string
 		Vtrace         *Tracer
 		StatName       string
-		Value          *vdl.Value
+		Value          *vom.RawBytes
 		Children       []string
 		ChildrenErrors []error
 		Globbed        bool
@@ -921,9 +920,11 @@ func makeTemplate(name, content string) *template.Template {
 			return v23.NewEndpoint(n)
 		},
 		"endpointName": func(ep naming.Endpoint) string { return ep.Name() },
-		"goValueFromVDL": func(v *vdl.Value) interface{} {
+		"goValueFromVOM": func(v *vom.RawBytes) interface{} {
 			var ret interface{}
-			vdl.Convert(&ret, v)
+			if err := v.ToValue(&ret); err != nil {
+				panic(err)
+			}
 			return ret
 		},
 		"nextColor": func() string {
@@ -1100,7 +1101,7 @@ var (
   <div class="mdl-cell mdl-cell--12-col">
     <table class="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp">
     <tbody>
-    {{with $goVal := goValueFromVDL .Value}}
+    {{with $goVal := goValueFromVOM .Value}}
     <tr>
       <td class="mdl-data-table__cell--non-numeric">Value (Go)</td>
       <td class="mdl-data-table__cell--non-numeric"><pre>{{$goVal}}</pre></td>

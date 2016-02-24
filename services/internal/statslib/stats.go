@@ -7,7 +7,6 @@
 package statslib
 
 import (
-	"reflect"
 	"time"
 
 	"v.io/v23/context"
@@ -16,8 +15,8 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/services/stats"
 	"v.io/v23/services/watch"
-	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	libstats "v.io/x/ref/lib/stats"
 )
 
@@ -69,7 +68,7 @@ Loop:
 			c := watch.Change{
 				Name:  v.Key,
 				State: watch.Exists,
-				Value: vdl.ValueOf(v.Value),
+				Value: vom.RawBytesOf(v.Value),
 			}
 			changes = append(changes, c)
 		}
@@ -94,7 +93,7 @@ Loop:
 }
 
 // Value returns the value of the receiver object.
-func (i *statsService) Value(ctx *context.T, _ rpc.ServerCall) (*vdl.Value, error) {
+func (i *statsService) Value(ctx *context.T, _ rpc.ServerCall) (*vom.RawBytes, error) {
 	ctx.VI(1).Infof("%v.Value()", i.suffix)
 
 	rv, err := libstats.Value(i.suffix)
@@ -106,9 +105,9 @@ func (i *statsService) Value(ctx *context.T, _ rpc.ServerCall) (*vdl.Value, erro
 	case err != nil:
 		return nil, verror.New(errOperationFailed, ctx, i.suffix)
 	}
-	vv, err := vdl.ValueFromReflect(reflect.ValueOf(rv))
+	rb, err := vom.RawBytesFromValue(rv)
 	if err != nil {
 		return nil, verror.New(verror.ErrInternal, ctx, i.suffix, err)
 	}
-	return vv, nil
+	return rb, nil
 }

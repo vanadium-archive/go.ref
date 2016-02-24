@@ -30,6 +30,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/ibe"
 	"v.io/x/lib/netstate"
@@ -706,7 +707,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		},
 		{ // Require everything
 			Requirements: security.ThirdPartyRequirements{ReportServer: true, ReportMethod: true, ReportArguments: true},
-			Impetus:      security.DischargeImpetus{Server: []security.BlessingPattern{"test-blessing:server"}, Method: "Method", Arguments: []*vdl.Value{vdl.StringValue("argument")}},
+			Impetus:      security.DischargeImpetus{Server: []security.BlessingPattern{"test-blessing:server"}, Method: "Method", Arguments: []*vom.RawBytes{vom.RawBytesOf("argument")}},
 		},
 		{ // Require only the method name
 			Requirements: security.ThirdPartyRequirements{ReportMethod: true},
@@ -734,8 +735,8 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		//
 		// TODO(ashankar): Should the impetus of the RPC that initiated the
 		// VIF/VC creation be propagated?
-		if got, want := impetus[len(impetus)-1], test.Impetus; !reflect.DeepEqual(got, want) {
-			t.Errorf("Test %+v: Got impetus %v, want %v", test.Requirements, got, want)
+		if got, want := vdl.ValueOf(impetus[len(impetus)-1]), vdl.ValueOf(test.Impetus); !vdl.EqualValue(got, want) {
+			t.Errorf("Test %+v: Got impetus %#v, want %#v", test.Requirements, got, want)
 		}
 		// But the context used for all of this should be the same
 		// (thereby allowing debug traces to link VIF/VC creation with

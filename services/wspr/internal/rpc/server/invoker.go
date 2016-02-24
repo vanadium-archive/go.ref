@@ -72,7 +72,7 @@ func (i *invoker) Invoke(ctx *context.T, call rpc.StreamServerCall, methodName s
 
 	vtrace.GetStore(ctx).Merge(reply.TraceResponse)
 
-	// Convert the reply.Results from []*vdl.Value to []interface{}
+	// Convert the reply.Results from []*vom.RawBytes to []interface{}
 	results := make([]interface{}, len(reply.Results))
 	for i, r := range reply.Results {
 		results[i] = r

@@ -15,6 +15,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
+	"v.io/v23/vom"
 
 	// VDL user imports
 	"v.io/x/ref/lib/vdl/testdata/arith/exp"
@@ -68,7 +69,7 @@ type ArithClientMethods interface {
 	// StreamingAdd shows a bidirectional stream.
 	StreamingAdd(*context.T, ...rpc.CallOpt) (ArithStreamingAddClientCall, error)
 	// QuoteAny shows the any built-in type, representing a value of any type.
-	QuoteAny(_ *context.T, a *vdl.Value, _ ...rpc.CallOpt) (*vdl.Value, error)
+	QuoteAny(_ *context.T, a *vom.RawBytes, _ ...rpc.CallOpt) (*vom.RawBytes, error)
 }
 
 // ArithClientStub adds universal methods to ArithClientMethods.
@@ -129,7 +130,7 @@ func (c implArithClientStub) StreamingAdd(ctx *context.T, opts ...rpc.CallOpt) (
 	return
 }
 
-func (c implArithClientStub) QuoteAny(ctx *context.T, i0 *vdl.Value, opts ...rpc.CallOpt) (o0 *vdl.Value, err error) {
+func (c implArithClientStub) QuoteAny(ctx *context.T, i0 *vom.RawBytes, opts ...rpc.CallOpt) (o0 *vom.RawBytes, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "QuoteAny", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
@@ -330,7 +331,7 @@ type ArithServerMethods interface {
 	// StreamingAdd shows a bidirectional stream.
 	StreamingAdd(*context.T, ArithStreamingAddServerCall) (total int32, _ error)
 	// QuoteAny shows the any built-in type, representing a value of any type.
-	QuoteAny(_ *context.T, _ rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
+	QuoteAny(_ *context.T, _ rpc.ServerCall, a *vom.RawBytes) (*vom.RawBytes, error)
 }
 
 // ArithServerStubMethods is the server interface containing
@@ -357,7 +358,7 @@ type ArithServerStubMethods interface {
 	// StreamingAdd shows a bidirectional stream.
 	StreamingAdd(*context.T, *ArithStreamingAddServerCallStub) (total int32, _ error)
 	// QuoteAny shows the any built-in type, representing a value of any type.
-	QuoteAny(_ *context.T, _ rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
+	QuoteAny(_ *context.T, _ rpc.ServerCall, a *vom.RawBytes) (*vom.RawBytes, error)
 }
 
 // ArithServerStub adds universal methods to ArithServerStubMethods.
@@ -417,7 +418,7 @@ func (s implArithServerStub) StreamingAdd(ctx *context.T, call *ArithStreamingAd
 	return s.impl.StreamingAdd(ctx, call)
 }
 
-func (s implArithServerStub) QuoteAny(ctx *context.T, call rpc.ServerCall, i0 *vdl.Value) (*vdl.Value, error) {
+func (s implArithServerStub) QuoteAny(ctx *context.T, call rpc.ServerCall, i0 *vom.RawBytes) (*vom.RawBytes, error) {
 	return s.impl.QuoteAny(ctx, call, i0)
 }
 
@@ -504,10 +505,10 @@ var descArith = rpc.InterfaceDesc{
 			Name: "QuoteAny",
 			Doc:  "// QuoteAny shows the any built-in type, representing a value of any type.",
 			InArgs: []rpc.ArgDesc{
-				{"a", ``}, // *vdl.Value
+				{"a", ``}, // *vom.RawBytes
 			},
 			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // *vdl.Value
+				{"", ``}, // *vom.RawBytes
 			},
 		},
 	},

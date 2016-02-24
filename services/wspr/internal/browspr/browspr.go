@@ -7,13 +7,12 @@ package browspr
 
 import (
 	"fmt"
-	"reflect"
 	"sync"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/v23/vdl"
+	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/ref/lib/security"
 	"v.io/x/ref/services/wspr/internal/account"
@@ -116,9 +115,9 @@ func (b *Browspr) HandleMessage(instanceId int32, origin string, msg app.Message
 
 // HandleCleanupRpc cleans up the specified instance state. (For instance,
 // when a browser tab is closed)
-func (b *Browspr) HandleCleanupRpc(val *vdl.Value) (*vdl.Value, error) {
+func (b *Browspr) HandleCleanupRpc(val *vom.RawBytes) (*vom.RawBytes, error) {
 	var msg CleanupMessage
-	if err := vdl.Convert(&msg, val); err != nil {
+	if err := val.ToValue(&msg); err != nil {
 		return nil, fmt.Errorf("HandleCleanupRpc did not receive CleanupMessage, received: %v, %v", val, err)
 	}
 
@@ -144,9 +143,9 @@ func (b *Browspr) HandleCleanupRpc(val *vdl.Value) (*vdl.Value, error) {
 // which is exchanged for blessings from the vanadium blessing server.
 // An account based on the blessings is then added to WSPR's principal
 // manager, and the set of blessing strings are returned to the client.
-func (b *Browspr) HandleAuthCreateAccountRpc(val *vdl.Value) (*vdl.Value, error) {
+func (b *Browspr) HandleAuthCreateAccountRpc(val *vom.RawBytes) (*vom.RawBytes, error) {
 	var msg CreateAccountMessage
-	if err := vdl.Convert(&msg, val); err != nil {
+	if err := val.ToValue(&msg); err != nil {
 		return nil, fmt.Errorf("HandleAuthCreateAccountRpc did not receive CreateAccountMessage, received: %v, %v", val, err)
 	}
 
@@ -156,13 +155,13 @@ func (b *Browspr) HandleAuthCreateAccountRpc(val *vdl.Value) (*vdl.Value, error)
 		return nil, err
 	}
 
-	return vdl.ValueFromReflect(reflect.ValueOf(account))
+	return vom.RawBytesFromValue(account)
 }
 
 // HandleAssociateAccountMessage associates an account with the specified origin.
-func (b *Browspr) HandleAuthAssociateAccountRpc(val *vdl.Value) (*vdl.Value, error) {
+func (b *Browspr) HandleAuthAssociateAccountRpc(val *vom.RawBytes) (*vom.RawBytes, error) {
 	var msg AssociateAccountMessage
-	if err := vdl.Convert(&msg, val); err != nil {
+	if err := val.ToValue(&msg); err != nil {
 		return nil, fmt.Errorf("HandleAuthAssociateAccountRpc did not receive AssociateAccountMessage, received: %v, %v", val, err)
 	}
 	ctx, _ := vtrace.WithNewTrace(b.ctx)
@@ -173,28 +172,28 @@ func (b *Browspr) HandleAuthAssociateAccountRpc(val *vdl.Value) (*vdl.Value, err
 }
 
 // HandleAuthGetAccountsRpc gets the root account name from the account manager.
-func (b *Browspr) HandleAuthGetAccountsRpc(*vdl.Value) (*vdl.Value, error) {
+func (b *Browspr) HandleAuthGetAccountsRpc(*vom.RawBytes) (*vom.RawBytes, error) {
 	accounts := b.accountManager.GetAccounts()
-	return vdl.ValueFromReflect(reflect.ValueOf(accounts))
+	return vom.RawBytesFromValue(accounts)
 }
 
 // HandleAuthOriginHasAccountRpc returns true iff the origin has an associated
 // principal.
-func (b *Browspr) HandleAuthOriginHasAccountRpc(val *vdl.Value) (*vdl.Value, error) {
+func (b *Browspr) HandleAuthOriginHasAccountRpc(val *vom.RawBytes) (*vom.RawBytes, error) {
 	var msg OriginHasAccountMessage
-	if err := vdl.Convert(&msg, val); err != nil {
+	if err := val.ToValue(&msg); err != nil {
 		return nil, fmt.Errorf("HandleAuthOriginHasAccountRpc did not receive OriginHasAccountMessage, received: %v, %v", val, err)
 	}
 
 	res := b.accountManager.OriginHasAccount(msg.Origin)
-	return vdl.ValueFromReflect(reflect.ValueOf(res))
+	return vom.RawBytesFromValue(res)
 }
 
 // HandleCreateInstanceRpc sets the namespace root and proxy on the pipe, if
 // any are provided.
-func (b *Browspr) HandleCreateInstanceRpc(val *vdl.Value) (*vdl.Value, error) {
+func (b *Browspr) HandleCreateInstanceRpc(val *vom.RawBytes) (*vom.RawBytes, error) {
 	var msg CreateInstanceMessage
-	if err := vdl.Convert(&msg, val); err != nil {
+	if err := val.ToValue(&msg); err != nil {
 		return nil, fmt.Errorf("HandleCreateInstanceMessage did not receive CreateInstanceMessage, received: %v, %v", val, err)
 	}
 

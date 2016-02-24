@@ -19,7 +19,7 @@ func TestType(t *testing.T) {
 		T    *vdl.Type
 		Want string
 	}{
-		{vdl.AnyType, `*vdl.Value`},
+		{vdl.AnyType, `*vom.RawBytes`},
 		{vdl.TypeObjectType, `*vdl.Type`},
 		{vdl.BoolType, `bool`},
 		{vdl.StringType, `string`},
@@ -42,6 +42,9 @@ func TestType(t *testing.T) {
 	}
 	data := goData{Env: compile.NewEnv(-1)}
 	for _, test := range tests {
+		data.File = &compile.File{
+			Package: &compile.Package{},
+		}
 		if got, want := typeGo(data, test.T), test.Want; got != want {
 			t.Errorf("%s\nGOT %s\nWANT %s", test.T, got, want)
 		}

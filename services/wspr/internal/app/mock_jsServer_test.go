@@ -14,7 +14,6 @@ import (
 	"testing"
 
 	"v.io/v23/context"
-	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -35,8 +34,8 @@ type mockJSServer struct {
 	authError            error
 	inArgs               []interface{}
 	controllerReady      sync.RWMutex
-	finalResponse        *vdl.Value
-	receivedResponse     *vdl.Value
+	finalResponse        *vom.RawBytes
+	receivedResponse     *vom.RawBytes
 	finalError           error
 	hasCalledAuth        bool
 	// Right now we keep track of the flow count by hand, but maybe we
@@ -73,7 +72,7 @@ func (m *mockJSServer) Send(responseType lib.ResponseType, msg interface{}) erro
 		if m.receivedResponse != nil {
 			return fmt.Errorf("Two responses received. First was: %#v. Second was: %#v", m.receivedResponse, msg)
 		}
-		m.receivedResponse = vdl.ValueOf(msg)
+		m.receivedResponse = vom.RawBytesOf(msg)
 		return nil
 	case lib.ResponseLog, lib.ResponseBlessingsCacheMessage:
 		m.flowCount += 2
@@ -240,7 +239,7 @@ func (m *mockJSServer) handleServerRequest(ctx *context.T, v interface{}) error 
 
 	vals := make([]interface{}, len(msg.Args))
 	for i, vArg := range msg.Args {
-		if err := vdl.Convert(&vals[i], vArg); err != nil {
+		if err := vArg.ToValue(&vals[i]); err != nil {
 			panic(err)
 		}
 	}
@@ -318,7 +317,7 @@ func (m *mockJSServer) handleStream(ctx *context.T, msg interface{}) error {
 func (m *mockJSServer) handleStreamClose(ctx *context.T, msg interface{}) error {
 	m.sender.Wait()
 	reply := lib.ServerRpcReply{
-		Results: []*vdl.Value{m.finalResponse},
+		Results: []*vom.RawBytes{m.finalResponse},
 		Err:     m.finalError,
 	}
 

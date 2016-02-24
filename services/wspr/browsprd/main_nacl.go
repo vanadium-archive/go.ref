@@ -17,7 +17,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/logging"
 	"v.io/v23/security"
-	"v.io/v23/vdl"
+	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/internal/logger"
 	vsecurity "v.io/x/ref/lib/security"
@@ -199,10 +199,10 @@ func decodeAndUnmarshalPublicKey(k string) (security.PublicKey, error) {
 	return security.UnmarshalPublicKey(decodedK)
 }
 
-func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, error) {
+func (inst *browsprInstance) HandleStartMessage(val *vom.RawBytes) (*vom.RawBytes, error) {
 	inst.logger.VI(1).Info("Starting Browspr")
 	var msg browspr.StartMessage
-	if err := vdl.Convert(&msg, val); err != nil {
+	if err := val.ToValue(&msg); err != nil {
 		return nil, fmt.Errorf("HandleStartMessage did not receive StartMessage, received: %v, %v", val, err)
 	}
 
