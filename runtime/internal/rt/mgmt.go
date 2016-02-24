@@ -67,7 +67,6 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 			// structure to us.
 			return nil
 		}
-		return nil
 	}
 	if err != nil {
 		verror.New(errConfigKeyNotSet, ctx, mgmt.ProtocolConfigKey)
