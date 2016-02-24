@@ -90,7 +90,7 @@ func markNotRunning(ctx *context.T, runner *appRunner, idir string) {
 		// 2. Remove experiences a failure (e.g. filesystem becoming R/O)
 		// 3. The app is in the process of being Kill'ed when the reaper poll
 		// finds the process dead and attempts a restart.
-		ctx.Errorf("reaper transitionInstance(%v, %v, %v) failed: %v\n", idir, device.InstanceStateRunning, device.InstanceStateNotRunning, err)
+		ctx.Errorf("reaper transitionInstance(%v, %v, %v) failed: %v", idir, device.InstanceStateRunning, device.InstanceStateNotRunning, err)
 	}
 }
 
@@ -175,6 +175,8 @@ func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int
 			}
 		case <-time.After(time.Second):
 			// Poll once / second.
+			// TODO(caprita): Configure this to use timekeeper to
+			// allow simulated time injection for testing.
 			poll(ctx)
 		}
 	}
