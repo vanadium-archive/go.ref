@@ -114,15 +114,15 @@ func (DagNode) __VDLReflect(struct {
 }
 
 // BatchInfo holds the information on a write batch:
-// - The map of syncable (versioned) objects: {oid: version}
-// - The map of linked objects {oid: version} that were not explicitly written
-//   as part of the batch but were reaffirmed during conflict resolution along
-//   with other objects written in this batch by the app by choosing "pickLocal"
-//   or "pickRemote". NOTE: this map is non empty only for batches created
-//   during conflict resolution. Unlike the Objects map, the collection of
-//   oid:version present in this map do not point back to this batch. They point
-//   to the batches that there were originally created in.
-// - The total count of batch objects, including non-syncable ones.
+//  * The map of syncable (versioned) objects: {oid: version}
+//  * The map of linked objects {oid: version} that were not explicitly written
+//    as part of the batch but were reaffirmed during conflict resolution along
+//    with other objects written in this batch by the app by choosing
+//    "pickLocal" or "pickRemote". NOTE: this map is non empty only for batches
+//    created during conflict resolution. Unlike the Objects map, the collection
+//    of oid:version present in this map do not point back to this batch. They
+//    point to the batches that there were originally created in.
+//  * The total count of batch objects, including non-syncable ones.
 // TODO(rdaoud): add support to track the read and scan sets.
 type BatchInfo struct {
 	Objects       map[string]string
