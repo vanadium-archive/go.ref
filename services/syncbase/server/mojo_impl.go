@@ -474,11 +474,23 @@ func (s *execStreamImpl) Recv(_ interface{}) error {
 
 var _ rpc.Stream = (*execStreamImpl)(nil)
 
-func (m *mojoImpl) DbExec(name string, query string, ptr mojom.ExecStream_Pointer) (mojom.Error, error) {
+func (m *mojoImpl) DbExec(name string, query string, params [][]byte, ptr mojom.ExecStream_Pointer) (mojom.Error, error) {
 	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Exec"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
+	}
+
+	// TODO(ivanpi): For now, Dart always gives us []byte, and here we convert
+	// []byte to vom.RawBytes as required by Exec. This will need to change once
+	// we support VDL/VOM in Dart.
+	// https://github.com/vanadium/issues/issues/766
+	paramsVom := make([]*vom.RawBytes, len(params))
+	for i, p := range params {
+		var err error
+		if paramsVom[i], err = vom.RawBytesFromValue(p); err != nil {
+			return toMojoError(err), nil
+		}
 	}
 
 	proxy := mojom.NewExecStreamProxy(ptr, bindings.GetAsyncWaiter())
@@ -495,7 +507,7 @@ func (m *mojoImpl) DbExec(name string, query string, ptr mojom.ExecStream_Pointe
 	}}
 
 	go func() {
-		var err = stub.Exec(ctx, execServerCallStub, noSchema, query)
+		var err = stub.Exec(ctx, execServerCallStub, noSchema, query, paramsVom)
 		// NOTE(nlacasse): Since we are already streaming, we send any error back
 		// to the client on the stream.  The Exec function itself should not
 		// return an error at this point.
