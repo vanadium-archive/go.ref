@@ -249,7 +249,7 @@ func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall, schemaVersion i
 	return err
 }
 
-func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, schemaVersion int32, q string) error {
+func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, schemaVersion int32, q string, params []*vom.RawBytes) error {
 	// RunInTransaction() cannot be used here because we may or may not be creating a
 	// transaction.  qe.Exec must be called and the statement must be parsed before
 	// we know if a snapshot or a transaction should be created.  To duplicate the
@@ -258,7 +258,7 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 	maxAttempts := 100
 	attempt := 0
 	for {
-		err := d.execInternal(ctx, call, schemaVersion, q)
+		err := d.execInternal(ctx, call, schemaVersion, q, params)
 		if attempt >= maxAttempts || verror.ErrorID(err) != store.ErrConcurrentTransaction.ID {
 			return err
 		}
@@ -266,7 +266,7 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 	}
 }
 
-func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerCall, schemaVersion int32, q string) error {
+func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerCall, schemaVersion int32, q string, params []*vom.RawBytes) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.name)
 	}
@@ -281,7 +281,11 @@ func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerC
 			sntx: nil, // Filled in later with existing or created sn/tx.
 			tx:   nil, // Only filled in if new tx created.
 		}
-		headers, rs, err := engine.Create(db).Exec(q)
+		st, err := engine.Create(db).PrepareStatement(q)
+		if err != nil {
+			return execCommitOrAbort(db, err)
+		}
+		headers, rs, err := st.Exec(params...)
 		if err != nil {
 			return execCommitOrAbort(db, err)
 		}
@@ -492,7 +496,7 @@ func (d *database) ResetCrConnectionStream() {
 // queryDb implements ds.Database.
 type queryDb struct {
 	ctx  *context.T
-	call wire.DatabaseExecServerCall
+	call rpc.ServerCall
 	req  *databaseReq
 	sntx store.SnapshotOrTransaction
 	tx   store.Transaction // If transaction, this will be same as sntx (else nil)
