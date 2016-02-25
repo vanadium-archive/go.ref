@@ -353,37 +353,40 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		prefix      = naming.Join(server, "__debug", "stats")
 		name        = naming.Join(prefix, stat)
 		ctx, tracer = newTracer(h.ctx)
+		hasValue    = true
 	)
 	v, err := stats.StatsClient(name).Value(withTimeout(ctx))
+	if verror.ErrorID(err) == verror.ErrNoExist.ID {
+		// Stat does not exist as a value, that's okay.
+		err = nil
+		hasValue = false
+	}
 	var children []string
 	var childrenErrors []error
-	if verror.ErrorID(err) == verror.ErrNoExist.ID {
-		// The stat itself isn't readable, maybe it is globable?
-		if glob, globErr := v23.GetNamespace(ctx).Glob(withTimeout(ctx), naming.Join(name, "*")); globErr == nil {
-			for e := range glob {
-				switch e := e.(type) {
-				case *naming.GlobReplyEntry:
-					children = append(children, strings.TrimPrefix(e.Value.Name, prefix))
-				case *naming.GlobReplyError:
-					childrenErrors = append(childrenErrors, e.Value.Error)
-				}
+	if glob, globErr := v23.GetNamespace(ctx).Glob(withTimeout(ctx), naming.Join(name, "*")); globErr == nil {
+		for e := range glob {
+			switch e := e.(type) {
+			case *naming.GlobReplyEntry:
+				children = append(children, strings.TrimPrefix(e.Value.Name, prefix))
+			case *naming.GlobReplyError:
+				childrenErrors = append(childrenErrors, e.Value.Error)
 			}
-			if len(children) == 1 {
-				// Single child, save an extra click
-				redirect, err := url.Parse(r.URL.String())
-				if err == nil {
-					q := redirect.Query()
-					q.Set("n", server)
-					q.Set("s", children[0])
-					redirect.RawQuery = q.Encode()
-					ctx.Infof("Redirecting from %v to %v", r.URL, redirect)
-					http.Redirect(w, r, redirect.String(), http.StatusTemporaryRedirect)
-					return
-				}
-			}
-		} else {
-			err = globErr
 		}
+		if len(children) == 1 && !hasValue {
+			// Single child, save an extra click
+			redirect, err := url.Parse(r.URL.String())
+			if err == nil {
+				q := redirect.Query()
+				q.Set("n", server)
+				q.Set("s", children[0])
+				redirect.RawQuery = q.Encode()
+				ctx.Infof("Redirecting from %v to %v", r.URL, redirect)
+				http.Redirect(w, r, redirect.String(), http.StatusTemporaryRedirect)
+				return
+			}
+		}
+	} else if err == nil {
+		err = globErr
 	}
 	args := struct {
 		ServerName     string
@@ -405,10 +408,10 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ChildrenErrors: childrenErrors,
 		Globbed:        len(children)+len(childrenErrors) > 0,
 	}
-	if args.Globbed {
-		args.CommandLine = fmt.Sprintf("debug glob %q", naming.Join(name, "*"))
+	if hasValue {
+		args.CommandLine = fmt.Sprintf("debug stats watch %q", name)
 	} else {
-		args.CommandLine = fmt.Sprintf("debug stats read %q", name)
+		args.CommandLine = fmt.Sprintf("debug glob %q", naming.Join(name, "*"))
 	}
 	executeTemplate(h.ctx, w, r, tmplBrowseStats, args)
 }
@@ -1080,22 +1083,6 @@ var (
 `)
 
 	tmplBrowseStats = makeTemplate("stats", `
-{{if .Globbed}}
-<section class="section--center mdl-grid">
-  <h5>Glob</h5>
-  <div class="mdl-cell mdl-cell--12-col">
-  <ul>
-  {{range .Children}}
-  <li><a href="/stats?n={{urlquery $.ServerName}}&s={{urlquery .}}">{{.}}</a></li>
-  {{end}}
-  {{range .ChildrenErrors}}
-  <li>ERROR({{verrorID .}}): {{.}}</li>
-  {{end}}
-  </ul>
-  </div>
-</section>
-{{end}}
-
 {{if .Value}}
 <section class="section--center mdl-grid">
   <div class="mdl-cell mdl-cell--12-col">
@@ -1125,8 +1112,21 @@ var (
   </div>
 </section>
 {{end}}
-
-{{if not .Globbed}}
+{{if .Globbed}}
+<section class="section--center mdl-grid">
+  <h5>Glob</h5>
+  <div class="mdl-cell mdl-cell--12-col">
+  <ul>
+  {{range .Children}}
+  <li><a href="/stats?n={{urlquery $.ServerName}}&s={{urlquery .}}">{{.}}</a></li>
+  {{end}}
+  {{range .ChildrenErrors}}
+  <li>ERROR({{verrorID .}}): {{.}}</li>
+  {{end}}
+  </ul>
+  </div>
+</section>
+{{else}}
 {{with .Error}}
 <section class="section--center mdl-grid">
   <h5><i class="material-icons">info</i>ERROR({{verrorID .}})</h5>
