@@ -22,7 +22,11 @@ func (c rpcCall) RemoteEndpoint() naming.Endpoint { return nil }
 
 func fakeContextAndCall(provider, user security.Principal) (*context.T, rpc.ServerCall) {
 	ctx, _ := context.RootContext()
-	return ctx, rpcCall{secCall: security.NewCall(&security.CallParams{
+	return ctx, fakeCall(provider, user)
+}
+
+func fakeCall(provider, user security.Principal) rpc.ServerCall {
+	return rpcCall{secCall: security.NewCall(&security.CallParams{
 		LocalPrincipal:  provider,
 		LocalBlessings:  blessSelf(provider, "provider"),
 		RemoteBlessings: blessSelf(user, "self-signed-user"),

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/v23/context"
-	"v.io/x/ref/internal/logger"
+	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/test"
 )
 
 const (
@@ -21,13 +21,11 @@ const (
 )
 
 func TestCSRFTokenWithoutCookie(t *testing.T) {
-	ctx, _ := context.RootContext()
-	ctx = context.WithLogger(ctx, logger.Global())
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
 	r := newRequest()
-	c, err := NewCSRFCop(ctx)
-	if err != nil {
-		t.Fatalf("NewCSRFCop failed: %v", err)
-	}
+	c := NewCSRFCop(ctx)
 	w := httptest.NewRecorder()
 	tok, err := c.NewToken(w, r, cookieName, nil)
 	if err != nil {
@@ -64,13 +62,10 @@ func TestCSRFTokenWithoutCookie(t *testing.T) {
 }
 
 func TestCSRFTokenWithCookie(t *testing.T) {
-	ctx, _ := context.RootContext()
-	ctx = context.WithLogger(ctx, logger.Global())
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	r := newRequest()
-	c, err := NewCSRFCop(ctx)
-	if err != nil {
-		t.Fatalf("NewCSRFCop failed: %v", err)
-	}
+	c := NewCSRFCop(ctx)
 	w := httptest.NewRecorder()
 	r.AddCookie(&http.Cookie{Name: cookieName, Value: "u776AC7hf794pTtGVlO50w=="})
 	tok, err := c.NewToken(w, r, cookieName, nil)
@@ -95,13 +90,10 @@ func TestCSRFTokenWithCookie(t *testing.T) {
 }
 
 func TestCSRFTokenWithData(t *testing.T) {
-	ctx, _ := context.RootContext()
-	ctx = context.WithLogger(ctx, logger.Global())
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	r := newRequest()
-	c, err := NewCSRFCop(ctx)
-	if err != nil {
-		t.Fatalf("NewCSRFCop failed: %v", err)
-	}
+	c := NewCSRFCop(ctx)
 	w := httptest.NewRecorder()
 	r.AddCookie(&http.Cookie{Name: cookieName, Value: "u776AC7hf794pTtGVlO50w=="})
 	tok, err := c.NewToken(w, r, cookieName, 1)

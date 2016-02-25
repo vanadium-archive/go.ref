@@ -5,42 +5,53 @@
 package util
 
 import (
-	"bytes"
-	"crypto/hmac"
-	"crypto/sha256"
 	"fmt"
+
+	"v.io/v23/security"
+	"v.io/v23/vom"
 )
 
-// Macaroon encapsulates an arbitrary slice of data with an HMAC for integrity protection.
+// Macaroon encapsulates an arbitrary slice of data signed with a Private Key.
 // Term borrowed from http://research.google.com/pubs/pub41892.html.
 type Macaroon string
 
-// NewMacaroon creates an opaque token that encodes "data".
-//
-// Input can be extracted from the returned token only if the key provided to NewMacaroon is known.
-func NewMacaroon(key, data []byte) Macaroon {
-	return Macaroon(b64encode(append(data, computeHMAC(key, data)...)))
+type MacaroonMessage struct {
+	Data []byte
+	Sig  security.Signature
 }
 
-// Decode returns the input if the macaroon is decodable with the provided key.
-func (m Macaroon) Decode(key []byte) (input []byte, err error) {
+// NewMacaroon creates an opaque token that encodes "data".
+//
+// Input can be extracted from the returned token only if the Signature is
+// valid.
+func NewMacaroon(principal security.Principal, data []byte) (Macaroon, error) {
+	if data == nil {
+		data = []byte{}
+	}
+	sig, err := principal.Sign(data)
+	if err != nil {
+		return Macaroon(""), err
+	}
+	v, err := vom.Encode(MacaroonMessage{Data: data, Sig: sig})
+	if err != nil {
+		return Macaroon(""), err
+	}
+	return Macaroon(b64encode(v)), nil
+}
+
+// Decode returns the input if the macaroon was signed by the current
+// principal.
+func (m Macaroon) Decode(principal security.Principal) (input []byte, err error) {
 	decoded, err := b64decode(string(m))
 	if err != nil {
 		return nil, err
 	}
-	if len(decoded) < sha256.Size {
-		return nil, fmt.Errorf("invalid macaroon, too small")
+	var msg MacaroonMessage
+	if err := vom.Decode(decoded, &msg); err != nil {
+		return nil, err
 	}
-	data := decoded[:len(decoded)-sha256.Size]
-	decodedHMAC := decoded[len(decoded)-sha256.Size:]
-	if !bytes.Equal(decodedHMAC, computeHMAC(key, data)) {
-		return nil, fmt.Errorf("invalid macaroon, HMAC does not match")
+	if msg.Sig.Verify(principal.PublicKey(), msg.Data) {
+		return msg.Data, nil
 	}
-	return data, nil
-}
-
-func computeHMAC(key, data []byte) []byte {
-	hm := hmac.New(sha256.New, key)
-	hm.Write(data)
-	return hm.Sum(nil)
+	return nil, fmt.Errorf("invalid macaroon, Signature does not match")
 }

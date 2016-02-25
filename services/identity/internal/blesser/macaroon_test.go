@@ -5,47 +5,50 @@
 package blesser
 
 import (
-	"crypto/rand"
 	"reflect"
 	"testing"
 	"time"
 
+	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/util"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 
+	"v.io/v23"
 	"v.io/v23/security"
 	"v.io/v23/vom"
 )
 
 func TestMacaroonBlesser(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
 	var (
-		key            = make([]byte, 16)
 		provider, user = testutil.NewPrincipal(), testutil.NewPrincipal()
 		userKey, _     = user.PublicKey().MarshalBinary()
 		cOnlyMethodFoo = newCaveat(security.NewMethodCaveat("Foo"))
-		ctx, call      = fakeContextAndCall(provider, user)
+		call           = fakeCall(provider, user)
 	)
-	if _, err := rand.Read(key); err != nil {
-		t.Fatal(err)
-	}
-	blesser := NewMacaroonBlesserServer(key)
+	ctx, _ = v23.WithPrincipal(ctx, provider)
+
+	blesser := NewMacaroonBlesserServer()
 
 	m := oauth.BlessingMacaroon{Creation: time.Now().Add(-1 * time.Hour), Name: "foo", PublicKey: userKey}
 	wantErr := "macaroon has expired"
-	if _, err := blesser.Bless(ctx, call, newMacaroon(t, key, m)); err == nil || err.Error() != wantErr {
+	if _, err := blesser.Bless(ctx, call, newMacaroon(t, provider, m)); err == nil || err.Error() != wantErr {
 		t.Errorf("Bless(...) failed with error: %v, want: %v", err, wantErr)
 	}
 
 	otherKey, _ := testutil.NewPrincipal().PublicKey().MarshalBinary()
 	m = oauth.BlessingMacaroon{Creation: time.Now(), Name: "foo", PublicKey: otherKey}
 	wantErr = "remote end's public key does not match public key in macaroon"
-	if _, err := blesser.Bless(ctx, call, newMacaroon(t, key, m)); err == nil || err.Error() != wantErr {
+	if _, err := blesser.Bless(ctx, call, newMacaroon(t, provider, m)); err == nil || err.Error() != wantErr {
 		t.Errorf("Bless(...) failed with error: %v, want: %v", err, wantErr)
 	}
 
 	m = oauth.BlessingMacaroon{Creation: time.Now(), PublicKey: userKey, Name: "bugsbunny", Caveats: []security.Caveat{cOnlyMethodFoo}}
-	b, err := blesser.Bless(ctx, call, newMacaroon(t, key, m))
+	b, err := blesser.Bless(ctx, call, newMacaroon(t, provider, m))
 	if err != nil {
 		t.Errorf("Bless failed: %v", err)
 	}
@@ -86,10 +89,14 @@ func TestMacaroonBlesser(t *testing.T) {
 	}
 }
 
-func newMacaroon(t *testing.T, key []byte, m oauth.BlessingMacaroon) string {
+func newMacaroon(t *testing.T, p security.Principal, m oauth.BlessingMacaroon) string {
 	encMac, err := vom.Encode(m)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return string(util.NewMacaroon(key, encMac))
+	mac, err := util.NewMacaroon(p, encMac)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(mac)
 }

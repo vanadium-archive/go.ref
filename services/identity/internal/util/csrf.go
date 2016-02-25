@@ -5,7 +5,7 @@
 package util
 
 import (
-	"crypto/hmac"
+	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -13,34 +13,23 @@ import (
 	"net/http"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/vom"
 )
 
 const (
 	cookieLen = 16
-	keyLength = 16
 )
 
 // CSRFCop implements utilities for generating and validating tokens for
 // cross-site-request-forgery prevention (also called XSRF).
 type CSRFCop struct {
-	key []byte
 	ctx *context.T
 }
 
-func (c *CSRFCop) keyForCookie(cookie []byte) []byte {
-	hm := hmac.New(sha256.New, c.key)
-	hm.Write(cookie)
-	return hm.Sum(nil)
-}
-
-func NewCSRFCop(ctx *context.T) (*CSRFCop, error) {
-	key := make([]byte, keyLength)
-	if _, err := rand.Read(key); err != nil {
-		return nil, fmt.Errorf("newCSRFCop failed: %v", err)
-	}
-	return &CSRFCop{key: key, ctx: ctx}, nil
+func NewCSRFCop(ctx *context.T) *CSRFCop {
+	return &CSRFCop{ctx: ctx}
 }
 
 // NewToken creates an anti-cross-site-request-forgery, aka CSRF aka XSRF token
@@ -57,7 +46,9 @@ func (c *CSRFCop) NewToken(w http.ResponseWriter, r *http.Request, cookieName st
 			return "", err
 		}
 	}
-	return string(NewMacaroon(c.keyForCookie(cookieValue), encData)), nil
+	hash := sha256.Sum256(cookieValue)
+	mac, err := NewMacaroon(v23.GetPrincipal(c.ctx), append(hash[:], encData...))
+	return string(mac), err
 }
 
 // ValidateToken checks the validity of the provided CSRF token for the
@@ -73,12 +64,19 @@ func (c *CSRFCop) ValidateToken(token string, req *http.Request, cookieName stri
 	if err != nil {
 		return fmt.Errorf("invalid cookie")
 	}
-	encodedInput, err := Macaroon(token).Decode(c.keyForCookie(cookieValue))
+	encodedInput, err := Macaroon(token).Decode(v23.GetPrincipal(c.ctx))
 	if err != nil {
 		return err
 	}
+	if len(encodedInput) < sha256.Size {
+		return fmt.Errorf("invalid token data: too short")
+	}
+	hash := sha256.Sum256(cookieValue)
+	if !bytes.Equal(hash[:], encodedInput[:sha256.Size]) {
+		return fmt.Errorf("invalid token data")
+	}
 	if decoded != nil {
-		if err := vom.Decode(encodedInput, decoded); err != nil {
+		if err := vom.Decode(encodedInput[sha256.Size:], decoded); err != nil {
 			return fmt.Errorf("invalid token data: %v", err)
 		}
 	}

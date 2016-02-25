@@ -14,6 +14,7 @@ import (
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/util"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -21,19 +22,18 @@ import (
 )
 
 type macaroonBlesser struct {
-	key []byte
 }
 
 // NewMacaroonBlesserServer provides an identity.MacaroonBlesser Service that generates blessings
 // after unpacking a BlessingMacaroon.
-func NewMacaroonBlesserServer(key []byte) identity.MacaroonBlesserServerStub {
-	return identity.MacaroonBlesserServer(&macaroonBlesser{key})
+func NewMacaroonBlesserServer() identity.MacaroonBlesserServerStub {
+	return identity.MacaroonBlesserServer(&macaroonBlesser{})
 }
 
 func (b *macaroonBlesser) Bless(ctx *context.T, call rpc.ServerCall, macaroon string) (security.Blessings, error) {
 	secCall := call.Security()
 	var empty security.Blessings
-	inputs, err := util.Macaroon(macaroon).Decode(b.key)
+	inputs, err := util.Macaroon(macaroon).Decode(v23.GetPrincipal(ctx))
 	if err != nil {
 		return empty, err
 	}

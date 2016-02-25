@@ -34,6 +34,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/vom"
@@ -105,16 +106,13 @@ func redirectURL(baseURL, suffix string) string {
 // NewHandler returns an http.Handler that expects to be rooted at args.Addr
 // and can be used to authenticate with args.OAuthProvider, mint a new
 // identity and bless it with the OAuthProvider email address.
-func NewHandler(ctx *context.T, args HandlerArgs) (http.Handler, error) {
-	csrfCop, err := util.NewCSRFCop(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("NewHandler failed to create csrfCop: %v", err)
-	}
+func NewHandler(ctx *context.T, args HandlerArgs) http.Handler {
+	csrfCop := util.NewCSRFCop(ctx)
 	return &handler{
 		args:    args,
 		csrfCop: csrfCop,
 		ctx:     ctx,
-	}, nil
+	}
 }
 
 type handler struct {
@@ -462,7 +460,12 @@ func (h *handler) sendMacaroon(ctx *context.T, w http.ResponseWriter, r *http.Re
 		return
 	}
 	params := url.Values{}
-	params.Add("macaroon", string(util.NewMacaroon(h.args.MacaroonKey, macBytes)))
+	mac, err := util.NewMacaroon(v23.GetPrincipal(ctx), macBytes)
+	if err != nil {
+		h.sendErrorToTool(ctx, w, r, inputMacaroon.ToolState, baseURL, err)
+		return
+	}
+	params.Add("macaroon", string(mac))
 	params.Add("state", inputMacaroon.ToolState)
 	for _, s := range objectNames {
 		params.Add("object_name", s)

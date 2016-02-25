@@ -6,7 +6,6 @@
 package server
 
 import (
-	"crypto/rand"
 	"fmt"
 	mrand "math/rand"
 	"net"
@@ -141,12 +140,7 @@ func (s *IdentityServer) Listen(ctx, oauthCtx *context.T, externalHttpAddr, http
 	principal := v23.GetPrincipal(ctx)
 	http.Handle("/auth/blessing-root", handlers.BlessingRoot{principal})
 
-	macaroonKey := make([]byte, 32)
-	if _, err := rand.Read(macaroonKey); err != nil {
-		ctx.Fatalf("macaroonKey generation failed: %v", err)
-	}
-
-	rpcServer, published, err := s.setupBlessingServices(ctx, oauthCtx, macaroonKey)
+	rpcServer, published, err := s.setupBlessingServices(ctx, oauthCtx)
 	if err != nil {
 		ctx.Fatalf("Failed to setup vanadium services for blessing: %v", err)
 	}
@@ -160,7 +154,6 @@ func (s *IdentityServer) Listen(ctx, oauthCtx *context.T, externalHttpAddr, http
 	n := "/auth/google/"
 	args := oauth.HandlerArgs{
 		Principal:          principal,
-		MacaroonKey:        macaroonKey,
 		Addr:               fmt.Sprintf("%s%s", externalHttpAddr, n),
 		BlessingLogReader:  s.blessingLogReader,
 		RevocationManager:  s.revocationManager,
@@ -184,11 +177,7 @@ func (s *IdentityServer) Listen(ctx, oauthCtx *context.T, externalHttpAddr, http
 	if !reflect.DeepEqual(s.oauthBlesserParams, emptyParams) {
 		args.GoogleServers = appendSuffixTo(published, oauthBlesserService)
 	}
-	h, err := oauth.NewHandler(ctx, args)
-	if err != nil {
-		ctx.Fatalf("Failed to create HTTP handler for oauth authentication: %v", err)
-	}
-	http.Handle(n, h)
+	http.Handle(n, oauth.NewHandler(ctx, args))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		self, _ := principal.BlessingStore().Default()
@@ -224,8 +213,8 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 
 // Starts the Vanadium and HTTP services for blessing, and the Vanadium service for discharging.
 // All Vanadium services are started on the same port.
-func (s *IdentityServer) setupBlessingServices(ctx, oauthCtx *context.T, macaroonKey []byte) (rpc.Server, []string, error) {
-	disp := newDispatcher(macaroonKey, s.oauthBlesserParams)
+func (s *IdentityServer) setupBlessingServices(ctx, oauthCtx *context.T) (rpc.Server, []string, error) {
+	disp := newDispatcher(s.oauthBlesserParams)
 	p := v23.GetPrincipal(ctx)
 	b, _ := p.BlessingStore().Default()
 	blessingNames := security.BlessingNames(p, b)
@@ -270,9 +259,8 @@ func (s *IdentityServer) setupBlessingServices(ctx, oauthCtx *context.T, macaroo
 
 // newDispatcher returns a dispatcher for both the blessing and the
 // discharging service.
-func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams) *dispatcher {
+func newDispatcher(blesserParams blesser.OAuthBlesserParams) *dispatcher {
 	d := &dispatcher{}
-	d.macaroonKey = macaroonKey
 	d.blesserParams = blesserParams
 	d.wg.Add(1) // Will be removed at activate.
 	return d
@@ -281,7 +269,6 @@ func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams)
 type dispatcher struct {
 	m             map[string]interface{}
 	wg            sync.WaitGroup
-	macaroonKey   []byte
 	blesserParams blesser.OAuthBlesserParams
 }
 
@@ -296,7 +283,7 @@ func (d *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, securit
 func (d *dispatcher) activate(dischargerLocation string) {
 	d.blesserParams.DischargerLocation = dischargerLocation
 	d.m = map[string]interface{}{
-		macaroonService:     blesser.NewMacaroonBlesserServer(d.macaroonKey),
+		macaroonService:     blesser.NewMacaroonBlesserServer(),
 		dischargerService:   discharger.DischargerServer(dischargerlib.NewDischarger()),
 		oauthBlesserService: blesser.NewOAuthBlesserServer(d.blesserParams),
 	}
