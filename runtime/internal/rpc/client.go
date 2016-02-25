@@ -102,16 +102,19 @@ func NewClient(ctx *context.T, ns namespace.T, opts ...rpc.ClientOpt) rpc.Client
 		closed:    make(chan struct{}),
 	}
 
+	connIdleExpiry := time.Duration(0)
 	for _, opt := range opts {
 		switch v := opt.(type) {
 		case PreferredProtocols:
 			c.preferredProtocols = v
 		case clientFlowManagerOpt:
 			c.flowMgr = v.mgr
+		case IdleConnectionExpiry:
+			connIdleExpiry = time.Duration(v)
 		}
 	}
 	if c.flowMgr == nil {
-		c.flowMgr = manager.New(ctx, naming.NullRoutingID, nil, 0)
+		c.flowMgr = manager.New(ctx, naming.NullRoutingID, nil, 0, connIdleExpiry)
 	}
 
 	go func() {
@@ -381,7 +384,7 @@ func (c *client) tryConnectToServer(
 			// This flow must outlive the flow we're currently creating.
 			// It lives as long as the connection to which it is bound.
 			tctx, tcancel := context.WithRootCancel(ctx)
-			tflow, err := c.flowMgr.Dial(tctx, flw.RemoteEndpoint(), typeFlowAuthorizer{}, connOpts.channelTimeout)
+			tflow, err := c.flowMgr.DialSideChannel(tctx, flw.RemoteEndpoint(), typeFlowAuthorizer{}, connOpts.channelTimeout)
 			if err != nil {
 				write(nil, tcancel)
 			} else if tflow.Conn() != flw.Conn() {

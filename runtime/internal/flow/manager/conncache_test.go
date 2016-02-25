@@ -29,7 +29,7 @@ func TestCache(t *testing.T) {
 	defer shutdown()
 	p, _ := flow.RegisteredProtocol("local")
 
-	c := NewConnCache()
+	c := NewConnCache(0)
 	remote := &inaming.Endpoint{
 		Protocol:  "tcp",
 		Address:   "127.0.0.1:1111",
@@ -217,7 +217,7 @@ func TestLRU(t *testing.T) {
 	defer shutdown()
 
 	// Ensure that the least recently created conns are killed by KillConnections.
-	c := NewConnCache()
+	c := NewConnCache(0)
 	conns, stop := nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
@@ -250,7 +250,7 @@ func TestLRU(t *testing.T) {
 	}
 
 	// Ensure that writing to conns marks conns as more recently used.
-	c = NewConnCache()
+	c = NewConnCache(0)
 	conns, stop = nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
@@ -285,7 +285,7 @@ func TestLRU(t *testing.T) {
 	}
 
 	// Ensure that reading from conns marks conns as more recently used.
-	c = NewConnCache()
+	c = NewConnCache(0)
 	conns, stop = nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
@@ -317,6 +317,106 @@ func TestLRU(t *testing.T) {
 		<-conn.c.Closed()
 		if isInCache(t, ctx, c, conn.c) {
 			t.Errorf("conn %v should not be in cache", conn)
+		}
+	}
+}
+
+func TestIdleConns(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	// Ensure that idle conns are killed by the cache.
+	// Set the idle timeout very low to ensure all the connections are closed.
+	c := NewConnCache(1)
+	conns, stop := nConnAndFlows(t, ctx, 10)
+	defer stop()
+	for _, conn := range conns {
+		// close the flows so the conns aren't kept alive due to ongoing flows.
+		conn.f.Close()
+		if err := c.Insert(conn.c, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	time.Sleep(2 * time.Millisecond)
+	if err := c.KillConnections(ctx, 0); err != nil {
+		t.Fatal(err)
+	}
+	if !cacheSizeMatches(c) {
+		t.Errorf("the size of the caches and LRU list do not match")
+	}
+	// All connections should be lameducked.
+	for _, conn := range conns {
+		if status := conn.c.Status(); status < connpackage.EnteringLameDuck {
+			t.Errorf("conn %v should have been lameducked", conn)
+		}
+	}
+	// We wait for the acknowledgement of the lameduck, then KillConnections should
+	// actually close the connections.
+	for _, conn := range conns {
+		<-conn.c.EnterLameDuck(ctx)
+	}
+	if err := c.KillConnections(ctx, 0); err != nil {
+		t.Fatal(err)
+	}
+	// All connections should be removed from the cache.
+	for _, conn := range conns {
+		<-conn.c.Closed()
+		if isInCache(t, ctx, c, conn.c) {
+			t.Errorf("conn %v should not be in cache", conn)
+		}
+	}
+
+	// Set the idle timeout very high to ensure none of the connections are closed.
+	c = NewConnCache(time.Hour)
+	conns, stop = nConnAndFlows(t, ctx, 10)
+	defer stop()
+	for _, conn := range conns {
+		// close the flows so the conns aren't kept alive due to ongoing flows.
+		conn.f.Close()
+		if err := c.Insert(conn.c, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := c.KillConnections(ctx, 0); err != nil {
+		t.Fatal(err)
+	}
+	if !cacheSizeMatches(c) {
+		t.Errorf("the size of the caches and LRU list do not match")
+	}
+	for _, conn := range conns {
+		if status := conn.c.Status(); status >= connpackage.EnteringLameDuck {
+			t.Errorf("conn %v should not have been closed or lameducked", conn)
+		}
+		if !isInCache(t, ctx, c, conn.c) {
+			t.Errorf("conn %v(%p) should still be in cache:\n%s",
+				conn.c.RemoteEndpoint(), conn.c, c)
+		}
+	}
+
+	// Ensure that a low idle timeout, but live flows on the conns keep the connection alive.
+	c = NewConnCache(1)
+	conns, stop = nConnAndFlows(t, ctx, 10)
+	defer stop()
+	for _, conn := range conns {
+		// don't close the flows so that the conns are kept alive.
+		if err := c.Insert(conn.c, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := c.KillConnections(ctx, 0); err != nil {
+		t.Fatal(err)
+	}
+	if !cacheSizeMatches(c) {
+		t.Errorf("the size of the caches and LRU list do not match")
+	}
+	for _, conn := range conns {
+		if status := conn.c.Status(); status >= connpackage.LameDuckAcknowledged {
+			t.Errorf("conn %v should not have been closed or lameducked", conn)
+		}
+		if !isInCache(t, ctx, c, conn.c) {
+			t.Errorf("conn %v(%p) should still be in cache:\n%s",
+				conn.c.RemoteEndpoint(), conn.c, c)
 		}
 	}
 }
@@ -402,7 +502,7 @@ func makeConnAndFlow(t *testing.T, ctx *context.T, ep naming.Endpoint) connAndFl
 	}()
 	conn := <-dch
 	aconn := <-ach
-	f, err := conn.Dial(ctx, conn.LocalBlessings(), nil, conn.RemoteEndpoint(), 0)
+	f, err := conn.Dial(ctx, conn.LocalBlessings(), nil, conn.RemoteEndpoint(), 0, false)
 	if err != nil {
 		t.Fatal(err)
 	}

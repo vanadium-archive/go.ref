@@ -68,6 +68,7 @@ type initData struct {
 	discoveryFactory  idiscovery.Factory
 	protocols         []string
 	settingsPublisher *pubsub.Publisher
+	connIdleExpiry    time.Duration
 }
 
 type vtraceDependency struct{}
@@ -88,7 +89,8 @@ func Init(
 	listenSpec *rpc.ListenSpec,
 	settingsPublisher *pubsub.Publisher,
 	flags flags.RuntimeFlags,
-	reservedDispatcher rpc.Dispatcher) (*Runtime, *context.T, v23.Shutdown, error) {
+	reservedDispatcher rpc.Dispatcher,
+	connIdleExpiry time.Duration) (*Runtime, *context.T, v23.Shutdown, error) {
 	r := &Runtime{deps: dependency.NewGraph()}
 
 	ctx = context.WithValue(ctx, initKey, &initData{
@@ -96,6 +98,7 @@ func Init(
 		discoveryFactory:  discoveryFactory,
 		protocols:         protocols,
 		settingsPublisher: settingsPublisher,
+		connIdleExpiry:    connIdleExpiry,
 	})
 
 	if listenSpec != nil {
@@ -294,8 +297,12 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	ns, _ := ctx.Value(namespaceKey).(namespace.T)
-	if id, _ := ctx.Value(initKey).(*initData); id.protocols != nil {
+	id, _ := ctx.Value(initKey).(*initData)
+	if id.protocols != nil {
 		otherOpts = append(otherOpts, irpc.PreferredProtocols(id.protocols))
+	}
+	if id.connIdleExpiry > 0 {
+		otherOpts = append(otherOpts, irpc.IdleConnectionExpiry(id.connIdleExpiry))
 	}
 	var client rpc.Client
 	deps := []interface{}{vtraceDependency{}}
@@ -422,7 +429,7 @@ func (r *Runtime) NewFlowManager(ctx *context.T, channelTimeout time.Duration) (
 		return nil, err
 	}
 	id, _ := ctx.Value(initKey).(*initData)
-	return manager.New(ctx, rid, id.settingsPublisher, channelTimeout), nil
+	return manager.New(ctx, rid, id.settingsPublisher, channelTimeout, id.connIdleExpiry), nil
 }
 
 func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*pubsub.Publisher, []rpc.ServerOpt, error) {
@@ -435,6 +442,9 @@ func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*pubs
 	id, _ := ctx.Value(initKey).(*initData)
 	if id.protocols != nil {
 		otherOpts = append(otherOpts, irpc.PreferredServerResolveProtocols(id.protocols))
+	}
+	if id.connIdleExpiry > 0 {
+		otherOpts = append(otherOpts, irpc.IdleConnectionExpiry(id.connIdleExpiry))
 	}
 	return id.settingsPublisher, otherOpts, nil
 }

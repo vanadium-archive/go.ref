@@ -34,4 +34,5 @@ error (
   CannotEncryptDischarges(peers []security.BlessingPattern, err error) {"en": "cannot encrypt discharges for peers {peers}{:err}"}
   NoCrypter() {"en": "no blessings-based crypter available"}
   NoPrivateKey() {"en": "no blessings private key available for decryption"}
+  IdleConnKilled() {"en": "Connection killed because idle expiry was reached."}
 )

@@ -34,6 +34,7 @@ import (
 
 const (
 	reapCacheInterval = 5 * time.Minute
+	minCacheInterval  = 10 * time.Millisecond // the minimum time we are willing to poll the cache for idle or closed connections.
 	handshakeTimeout  = time.Minute
 )
 
@@ -47,6 +48,8 @@ type manager struct {
 	serverAuthorizedPeers []security.BlessingPattern // empty list implies all peers are authorized to see the server's blessings.
 	serverNames           []string
 	acceptChannelTimeout  time.Duration
+	idleExpiry            time.Duration // time after which idle connections will be closed.
+	cacheTicker           *time.Ticker
 }
 
 type listenState struct {
@@ -71,13 +74,16 @@ type endpointState struct {
 	roaming      bool
 }
 
-func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid naming.RoutingID, serverAuthorizedPeers []security.BlessingPattern, dhcpPublisher *pubsub.Publisher, channelTimeout time.Duration) flow.Manager {
+func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid naming.RoutingID,
+	serverAuthorizedPeers []security.BlessingPattern, dhcpPublisher *pubsub.Publisher,
+	channelTimeout time.Duration, idleExpiry time.Duration) flow.Manager {
 	m := &manager{
 		rid:                  rid,
 		closed:               make(chan struct{}),
-		cache:                NewConnCache(),
+		cache:                NewConnCache(idleExpiry),
 		ctx:                  ctx,
 		acceptChannelTimeout: channelTimeout,
+		idleExpiry:           idleExpiry,
 	}
 	if rid != naming.NullRoutingID {
 		m.serverBlessings = serverBlessings
@@ -92,18 +98,26 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 			proxyErrors:    make(map[string]error),
 		}
 	}
+	// Pick a interval that is the minimum of the idleExpiry and the reapCacheInterval.
+	cacheInterval := reapCacheInterval
+	if idleExpiry > 0 && idleExpiry/2 < cacheInterval {
+		cacheInterval = idleExpiry / 2
+	}
+	if cacheInterval < minCacheInterval {
+		cacheInterval = minCacheInterval
+	}
+	m.cacheTicker = time.NewTicker(cacheInterval)
 	go func() {
-		ticker := time.NewTicker(reapCacheInterval)
 		for {
 			select {
 			case <-ctx.Done():
 				m.stopListening()
 				m.cache.Close(ctx)
-				ticker.Stop()
 				close(m.closed)
 				return
-			case <-ticker.C:
-				// Periodically kill closed connections.
+			case <-m.cacheTicker.C:
+				// Periodically kill closed connections and remove expired connections,
+				// based on the idleExpiry passed to the NewConnCache constructor.
 				m.cache.KillConnections(ctx, 0)
 			}
 		}
@@ -111,18 +125,20 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 	return m
 }
 
-func New(ctx *context.T, rid naming.RoutingID, dhcpPublisher *pubsub.Publisher, channelTimeout time.Duration) flow.Manager {
+func New(ctx *context.T, rid naming.RoutingID, dhcpPublisher *pubsub.Publisher,
+	channelTimeout time.Duration, idleExpiry time.Duration) flow.Manager {
 	var serverBlessings security.Blessings
 	if rid != naming.NullRoutingID {
 		serverBlessings, _ = v23.GetPrincipal(ctx).BlessingStore().Default()
 	}
-	return NewWithBlessings(ctx, serverBlessings, rid, nil, dhcpPublisher, channelTimeout)
+	return NewWithBlessings(ctx, serverBlessings, rid, nil, dhcpPublisher, channelTimeout, idleExpiry)
 }
 
 func (m *manager) stopListening() {
 	if m.ls == nil {
 		return
 	}
+	m.cacheTicker.Stop()
 	m.ls.mu.Lock()
 	listeners := m.ls.listeners
 	m.ls.listeners = nil
@@ -311,7 +327,7 @@ func (m *manager) ProxyListen(ctx *context.T, name string, ep naming.Endpoint) (
 	if m.ls == nil {
 		return nil, NewErrListeningWithNullRid(ctx)
 	}
-	f, err := m.internalDial(ctx, ep, proxyAuthorizer{}, m.acceptChannelTimeout, true)
+	f, err := m.internalDial(ctx, ep, proxyAuthorizer{}, m.acceptChannelTimeout, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -647,7 +663,13 @@ func (m *manager) Accept(ctx *context.T) (flow.Flow, error) {
 // that connections managed by this Manager are unhealthy and should be
 // closed.
 func (m *manager) Dial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer, channelTimeout time.Duration) (flow.Flow, error) {
-	return m.internalDial(ctx, remote, auth, channelTimeout, false)
+	return m.internalDial(ctx, remote, auth, channelTimeout, false, false)
+}
+
+// DialSideChannel behaves the same as Dial, except that the returned flow is
+// not factored in when deciding the underlying connection's idleness, etc.
+func (m *manager) DialSideChannel(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer, channelTimeout time.Duration) (flow.Flow, error) {
+	return m.internalDial(ctx, remote, auth, channelTimeout, false, true)
 }
 
 // DialCached creates a Flow to the provided remote endpoint using only cached
@@ -687,11 +709,11 @@ func (m *manager) DialCached(ctx *context.T, remote naming.Endpoint, auth flow.P
 		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, NewErrConnNotInCache(ctx, remote.String()))
 	}
 
-	return dialFlow(ctx, c, remote, names, rejected, channelTimeout, auth)
+	return dialFlow(ctx, c, remote, names, rejected, channelTimeout, auth, false)
 }
 
 func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer,
-	channelTimeout time.Duration, proxy bool) (flow.Flow, error) {
+	channelTimeout time.Duration, proxy bool, sideChannel bool) (flow.Flow, error) {
 	// Fast path, look for the conn based on unresolved network, address, and routingId first.
 	var (
 		addr                       = remote.Addr()
@@ -758,7 +780,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 	// We now need to make a flow to a proxy and upgrade it to a conn to the final server.
 	if !c.MatchesRID(remote) {
 		proxyConn := c
-		f, err := proxyConn.Dial(ctx, security.Blessings{}, nil, remote, channelTimeout)
+		f, err := proxyConn.Dial(ctx, security.Blessings{}, nil, remote, channelTimeout, false)
 		if err != nil {
 			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
@@ -780,7 +802,8 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			auth,
 			handshakeTimeout,
 			m.acceptChannelTimeout,
-			fh)
+			fh,
+		)
 		if err != nil {
 			proxyConn.Close(ctx, err)
 			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
@@ -791,17 +814,17 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		}
 	}
 
-	return dialFlow(ctx, c, remote, names, rejected, channelTimeout, auth)
+	return dialFlow(ctx, c, remote, names, rejected, channelTimeout, auth, sideChannel)
 }
 
 func dialFlow(ctx *context.T, c *conn.Conn, remote naming.Endpoint, names []string, rejected []security.RejectedBlessing,
-	channelTimeout time.Duration, auth flow.PeerAuthorizer) (flow.Flow, error) {
+	channelTimeout time.Duration, auth flow.PeerAuthorizer, sideChannel bool) (flow.Flow, error) {
 	// Find the proper blessings and dial the final flow.
 	blessings, discharges, err := auth.BlessingsForPeer(ctx, names)
 	if err != nil {
 		return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, NewErrNoBlessingsForPeer(ctx, names, rejected, err))
 	}
-	f, err := c.Dial(ctx, blessings, discharges, remote, channelTimeout)
+	f, err := c.Dial(ctx, blessings, discharges, remote, channelTimeout, sideChannel)
 	if err != nil {
 		return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 	}

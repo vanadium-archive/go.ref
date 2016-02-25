@@ -129,10 +129,10 @@ func TestDialAfterConnClose(t *testing.T) {
 	d.Close(ctx, fmt.Errorf("Closing randomly."))
 	<-d.Closed()
 	<-a.Closed()
-	if _, err := d.Dial(ctx, d.LocalBlessings(), nil, nil, 0); err == nil {
+	if _, err := d.Dial(ctx, d.LocalBlessings(), nil, nil, 0, false); err == nil {
 		t.Errorf("Nil error dialing on dialer")
 	}
-	if _, err := a.Dial(ctx, a.LocalBlessings(), nil, nil, 0); err == nil {
+	if _, err := a.Dial(ctx, a.LocalBlessings(), nil, nil, 0, false); err == nil {
 		t.Errorf("Nil error dialing on acceptor")
 	}
 }
@@ -188,7 +188,7 @@ func TestFlowCancelOnWrite(t *testing.T) {
 		ac.Close(ctx, nil)
 	}()
 	dctx, cancel := context.WithCancel(ctx)
-	df, err := dc.Dial(dctx, dc.LocalBlessings(), nil, nil, 0)
+	df, err := dc.Dial(dctx, dc.LocalBlessings(), nil, nil, 0, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ func TestFlowCancelOnRead(t *testing.T) {
 		ac.Close(ctx, nil)
 	}()
 	dctx, cancel := context.WithCancel(ctx)
-	df, err := dc.Dial(dctx, dc.LocalBlessings(), nil, nil, 0)
+	df, err := dc.Dial(dctx, dc.LocalBlessings(), nil, nil, 0, false)
 	if err != nil {
 		t.Fatal(err)
 	}

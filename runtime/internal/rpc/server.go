@@ -133,6 +133,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		lameDuckTimeout:   5 * time.Second,
 	}
 	channelTimeout := time.Duration(0)
+	connIdleExpiry := time.Duration(0)
 	var authorizedPeers []security.BlessingPattern
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -162,6 +163,8 @@ func WithNewDispatchingServer(ctx *context.T,
 				// of authorized peers. (2) can be enforced using Resolve ACLs.
 				return ctx, nil, verror.New(verror.ErrBadArg, ctx, newErrServerPeersWithPublishing(ctx))
 			}
+		case IdleConnectionExpiry:
+			connIdleExpiry = time.Duration(opt)
 		}
 	}
 
@@ -174,7 +177,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		s.ctx, s.cancel = context.WithRootCancel(ctx)
 	}
 
-	s.flowMgr = manager.NewWithBlessings(s.ctx, s.blessings, rid, authorizedPeers, settingsPublisher, channelTimeout)
+	s.flowMgr = manager.NewWithBlessings(s.ctx, s.blessings, rid, authorizedPeers, settingsPublisher, channelTimeout, connIdleExpiry)
 	s.ctx, _, err = v23.WithNewClient(s.ctx,
 		clientFlowManagerOpt{s.flowMgr},
 		PreferredProtocols(s.preferredProtocols))
