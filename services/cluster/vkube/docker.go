@@ -17,7 +17,7 @@ import (
 
 const (
 	clusterAgentDockerfile = `
-FROM google/debian:wheezy
+FROM ubuntu:14.04
 
 # gcloud
 RUN apt-get update && apt-get install -y -qq --no-install-recommends wget unzip python php5-mysql php5-cli php5-cgi openjdk-7-jre-headless openssh-client python-openssl && apt-get clean
@@ -30,8 +30,7 @@ RUN google-cloud-sdk/install.sh --usage-reporting=false --path-update=true --bas
 ENV PATH /google-cloud-sdk/bin:$PATH
 
 # vanadium
-#RUN apt-get install --no-install-recommends -y -q libssl1.0.0
-ADD claimable cluster_agent cluster_agentd vrpc init.sh /usr/local/bin/
+COPY claimable cluster_agent cluster_agentd vrpc init.sh /usr/local/bin/
 RUN chmod 755 /usr/local/bin/*
 CMD ["/usr/local/bin/init.sh"]
 `
@@ -60,9 +59,8 @@ exec /usr/local/bin/cluster_agentd \
 `
 
 	podAgentDockerfile = `
-FROM google/debian:wheezy
-RUN apt-get update && apt-get install --no-install-recommends -y -q libssl1.0.0 && apt-get clean
-ADD pod_agentd principal /usr/local/bin/
+FROM busybox
+COPY pod_agentd principal /usr/local/bin/
 `
 )
 
@@ -93,10 +91,10 @@ func buildDockerImages(config *vkubeConfig, tag string, verbose bool, stdout io.
 		{"Dockerfile", []byte(clusterAgentDockerfile)},
 		{"init.sh", []byte(clusterAgentInitSh)},
 	}, []dockerCmd{
-		{"jiri", []string{"go", "build", "-o", "claimable", "v.io/x/ref/services/device/claimable"}},
-		{"jiri", []string{"go", "build", "-o", "cluster_agent", "v.io/x/ref/services/cluster/cluster_agent"}},
-		{"jiri", []string{"go", "build", "-o", "cluster_agentd", "v.io/x/ref/services/cluster/cluster_agentd"}},
-		{"jiri", []string{"go", "build", "-o", "vrpc", "v.io/x/ref/cmd/vrpc"}},
+		{"jiri", goBuildArgs("claimable", "v.io/x/ref/services/device/claimable")},
+		{"jiri", goBuildArgs("cluster_agent", "v.io/x/ref/services/cluster/cluster_agent")},
+		{"jiri", goBuildArgs("cluster_agentd", "v.io/x/ref/services/cluster/cluster_agentd")},
+		{"jiri", goBuildArgs("vrpc", "v.io/x/ref/cmd/vrpc")},
 		{"docker", []string{"build", "-t", imageName, "."}},
 		{"docker", []string{"tag", imageName, imageNameTag}},
 		{flagGcloudBin, []string{"--project=" + config.Project, "docker", "push", imageName}},
@@ -112,8 +110,8 @@ func buildDockerImages(config *vkubeConfig, tag string, verbose bool, stdout io.
 	if err := buildDockerImage([]dockerFile{
 		{"Dockerfile", []byte(podAgentDockerfile)},
 	}, []dockerCmd{
-		{"jiri", []string{"go", "build", "-o", "pod_agentd", "v.io/x/ref/services/agent/pod_agentd"}},
-		{"jiri", []string{"go", "build", "-o", "principal", "v.io/x/ref/cmd/principal"}},
+		{"jiri", goBuildArgs("pod_agentd", "v.io/x/ref/services/agent/pod_agentd")},
+		{"jiri", goBuildArgs("principal", "v.io/x/ref/cmd/principal")},
 		{"docker", []string{"build", "-t", imageName, "."}},
 		{"docker", []string{"tag", imageName, imageNameTag}},
 		{flagGcloudBin, []string{"--project=" + config.Project, "docker", "push", imageName}},
@@ -122,6 +120,19 @@ func buildDockerImages(config *vkubeConfig, tag string, verbose bool, stdout io.
 	}
 	fmt.Fprintf(stdout, "Pushed %s successfully.\n", imageNameTag)
 	return nil
+}
+
+func goBuildArgs(binary, target string) []string {
+	return []string{
+		"go",
+		"build",
+		"-o",
+		binary,
+		// TODO(rthellend): Remove -tags noopenssl after we move to Go 1.6.
+		"-tags", "noopenssl",
+		"-ldflags", "-extldflags \"-static\"",
+		target,
+	}
 }
 
 func removeTag(name string) string {

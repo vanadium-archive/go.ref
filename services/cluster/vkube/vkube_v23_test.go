@@ -82,8 +82,8 @@ func TestV23Vkube(t *testing.T) {
 		docker      = cmd("docker", true)
 		vkubeOK     = cmd(vkubeBin, true, "--config="+vkubeCfgPath)
 		vkubeFail   = cmd(vkubeBin, false, "--config="+vkubeCfgPath)
-		kubectlOK   = cmd(vkubeBin, true, "--config="+vkubeCfgPath, "ctl", "--", "--namespace="+id)
-		kubectlFail = cmd(vkubeBin, false, "--config="+vkubeCfgPath, "ctl", "--", "--namespace="+id)
+		kubectlOK   = cmd(vkubeBin, true, "--config="+vkubeCfgPath, "kubectl", "--", "--namespace="+id)
+		kubectlFail = cmd(vkubeBin, false, "--config="+vkubeCfgPath, "kubectl", "--", "--namespace="+id)
 		vshOK       = cmd(vshBin, true)
 	)
 
@@ -196,14 +196,19 @@ func setupDockerDirectory(workdir string) (string, error) {
 	if err := os.Mkdir(dockerDir, 0755); err != nil {
 		return "", err
 	}
-	if err := ioutil.WriteFile(filepath.Join(dockerDir, "Dockerfile"), []byte(
-		`FROM google/debian:wheezy
-RUN apt-get update && apt-get install -y -qq --no-install-recommends libssl1.0.0 && apt-get clean
-ADD tunneld /usr/local/bin/
-`), 0644); err != nil {
+	if err := ioutil.WriteFile(
+		filepath.Join(dockerDir, "Dockerfile"),
+		[]byte("FROM busybox\nCOPY tunneld /usr/local/bin/\n"),
+		0644,
+	); err != nil {
 		return "", err
 	}
-	if out, err := exec.Command("jiri", "go", "build", "-o", filepath.Join(dockerDir, "tunneld"), "v.io/x/ref/examples/tunnel/tunneld").CombinedOutput(); err != nil {
+	if out, err := exec.Command("jiri", "go", "build",
+		"-o", filepath.Join(dockerDir, "tunneld"),
+		// TODO(rthellend): Remove -tags noopenssl after we move to Go 1.6.
+		"-tags", "noopenssl",
+		"-ldflags", "-extldflags \"-static\"",
+		"v.io/x/ref/examples/tunnel/tunneld").CombinedOutput(); err != nil {
 		return "", fmt.Errorf("build failed: %v: %s", err, string(out))
 	}
 	return dockerDir, nil
