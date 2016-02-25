@@ -11,7 +11,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/v23/verror"
 	"v.io/x/ref"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
@@ -58,19 +57,8 @@ func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal s
 func ipcAgent() (agent.Principal, error) {
 	var config exec.Config
 	config, err := exec.ReadConfigFromOSEnv()
-	if config == nil || err != nil {
-		// TODO(cnicolaou): backwards compatibility,
-		// remove when binaries are pushed to prod and replace with
-		// if err != nil {
-		//     return nil, err
-		// }
-		handle, err := exec.GetChildHandle()
-		if err != nil && verror.ErrorID(err) != exec.ErrNoVersion.ID {
-			return nil, err
-		}
-		if handle != nil {
-			config = handle.Config
-		}
+	if err != nil {
+		return nil, err
 	}
 	var path string
 	if config != nil {

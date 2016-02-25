@@ -59,16 +59,6 @@ func runServer(ctx *context.T, _ *cmdline.Env, _ []string) error {
 			testMode = true
 			ctx.Infof("TEST MODE")
 		}
-	} else {
-		// TODO(cnicolaou): backwards compatibility, remove when binaries are pushed to prod.
-		if parentConfig == nil && err == nil {
-			if handle, err := exec.GetChildHandle(); handle != nil && err == nil {
-				if _, err := handle.Config.Get(mgmt.ParentNameConfigKey); err == nil {
-					testMode = true
-					ctx.Infof("TEST MODE")
-				}
-			}
-		}
 	}
 
 	configState, err := config.Load()
