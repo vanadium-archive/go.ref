@@ -251,8 +251,6 @@ func TestMultipleEndpoints(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
-	t.Skip("https://github.com/vanadium/issues/issues/650")
-
 	_, ctx, _, cleanup := testInit(t, false)
 	defer cleanup()
 
@@ -266,51 +264,20 @@ func TestTimeout(t *testing.T) {
 	}
 }
 
-func logErrors(t *testing.T, msg string, logerr, logstack, debugString bool, err error) {
-	_, file, line, _ := runtime.Caller(2)
-	loc := fmt.Sprintf("%s:%d", filepath.Base(file), line)
-	if logerr {
-		t.Logf("%s: %s: %v", loc, msg, err)
-	}
-	if logstack {
-		t.Logf("%s: %s: %v", loc, msg, verror.Stack(err).String())
-	}
-	if debugString {
-		t.Logf("%s: %s: %v", loc, msg, verror.DebugString(err))
-	}
-}
-
 func TestStartCallErrors(t *testing.T) {
-	// TODO(suharshs,mattr): This test will be enabled once the new client is written and solves the flakiness.
-	t.Skip("TODO(suharshs,mattr): This test is very flaky and is temporarily disabled.")
-
 	sh, ctx, _, cleanup := testInit(t, false)
 	defer cleanup()
 
 	client := v23.GetClient(ctx)
 	ns := v23.GetNamespace(ctx)
-
-	logErr := func(msg string, err error) {
-		logErrors(t, msg, true, false, false, err)
-	}
+	ns.CacheCtl(naming.DisableCache(true))
 
 	emptyCtx := &context.T{}
 	emptyCtx = context.WithLogger(emptyCtx, logger.Global())
 	_, err := client.StartCall(emptyCtx, "noname", "nomethod", nil)
 	if verror.ErrorID(err) != verror.ErrBadArg.ID {
-		t.Fatalf("wrong error: %s", err)
+		t.Errorf("wrong error: %s", err)
 	}
-	logErr("no context", err)
-
-	// TODO(mattr): This test doesn't pass because client doesn't look for this
-	// error.
-	// p1 := security.PublicKeyAuthorizer(testutil.NewPrincipal().PublicKey())
-	// p2 := security.PublicKeyAuthorizer(testutil.NewPrincipal().PublicKey())
-	// _, err = client.StartCall(ctx, "noname", "nomethod", nil, options.ServerAuthorizer{p1}, options.ServerAuthorizer{p2})
-	// if verror.ErrorID(err) != verror.ErrBadArg.ID {
-	// 	t.Fatalf("wrong error: %s", err)
-	// }
-	// logErr("too many public keys", err)
 
 	// This will fail with NoServers, but because there is no mount table
 	// to communicate with. The error message should include a
@@ -318,34 +285,30 @@ func TestStartCallErrors(t *testing.T) {
 	ns.SetRoots("/127.0.0.1:8101")
 	_, err = client.StartCall(ctx, "noname", "nomethod", nil, options.NoRetry{})
 	if verror.ErrorID(err) != verror.ErrNoServers.ID {
-		t.Fatalf("wrong error: %s", err)
+		t.Errorf("wrong error: %s", err)
 	}
 	if want := "connection refused"; !strings.Contains(verror.DebugString(err), want) {
-		t.Fatalf("wrong error: %s - doesn't contain %q", err, want)
+		t.Errorf("wrong error: %s - doesn't contain %q", err, want)
 	}
-	logErr("no mount table", err)
 
 	// This will fail with NoServers, but because there really is no
 	// name registered with the mount table.
 	startRootMT(t, sh, false)
 	_, err = client.StartCall(ctx, "noname", "nomethod", nil, options.NoRetry{})
 	if verror.ErrorID(err) != verror.ErrNoServers.ID {
-		t.Fatalf("wrong error: %s", err)
+		t.Errorf("wrong error: %s", err)
 	}
 	if unwanted := "connection refused"; strings.Contains(err.Error(), unwanted) {
-		t.Fatalf("wrong error: %s - does contain %q", err, unwanted)
+		t.Errorf("wrong error: %s - does contain %q", err, unwanted)
 	}
-	logErr("no name registered", err)
 
 	// The following tests will fail with NoServers, but because there are
-	// no protocols that the client and servers (mount table, and "name") share.
-	nctx, nclient, err := v23.WithNewClient(ctx, irpc.PreferredProtocols([]string{"wsh"}))
-
+	// no protocols that the client and servers (mounttable, and "name") share.
+	nctx, nclient, err := v23.WithNewClient(ctx, irpc.PreferredProtocols([]string{"boo"}))
 	addr := naming.FormatEndpoint("nope", "127.0.0.1:1081")
 	if err := ns.Mount(ctx, "name", addr, time.Minute); err != nil {
 		t.Fatal(err)
 	}
-
 	// This will fail in its attempt to call ResolveStep to the mount table
 	// because we are using both the new context and the new client.
 	_, err = nclient.StartCall(nctx, "name", "nomethod", nil, options.NoRetry{})
@@ -355,8 +318,6 @@ func TestStartCallErrors(t *testing.T) {
 	if want := "ResolveStep"; !strings.Contains(err.Error(), want) {
 		t.Fatalf("wrong error: %s - doesn't contain %q", err, want)
 	}
-	logErr("mismatched protocols", err)
-
 	// This will fail in its attempt to invoke the actual RPC because
 	// we are using the old context (which supplies the context for the calls
 	// to ResolveStep) and the new client.
@@ -365,13 +326,11 @@ func TestStartCallErrors(t *testing.T) {
 		t.Fatalf("wrong error: %s", err)
 	}
 	if want := "nope"; !strings.Contains(err.Error(), want) {
-		t.Fatalf("wrong error: %s - doesn't contain %q", err, want)
+		t.Errorf("wrong error: %s - doesn't contain %q", err, want)
 	}
 	if unwanted := "ResolveStep"; strings.Contains(err.Error(), unwanted) {
-		t.Fatalf("wrong error: %s - does contain %q", err, unwanted)
-
+		t.Errorf("wrong error: %s - does contain %q", err, unwanted)
 	}
-	logErr("mismatched protocols", err)
 
 	// The following two tests will fail due to a timeout.
 	ns.SetRoots("/203.0.113.10:8101")
@@ -379,29 +338,24 @@ func TestStartCallErrors(t *testing.T) {
 	// This call will timeout talking to the mount table.
 	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{})
 	if verror.ErrorID(err) != verror.ErrTimeout.ID {
-		t.Fatalf("wrong error: %s", err)
+		t.Errorf("wrong error: %s", err)
 	}
 	if call != nil {
-		t.Fatalf("expected call to be nil")
+		t.Errorf("expected call to be nil")
 	}
-	logErr("timeout to mount table", err)
 
-	// TODO(mattr): This test is temporarily disabled.  It's very flaky
-	// and we're about to move to a new version of the client.  We will
-	// fix it in the new client.
 	// This, second test, will fail due a timeout contacting the server itself.
-	// addr = naming.FormatEndpoint("tcp", "203.0.113.10:8101")
+	addr = naming.FormatEndpoint("tcp", "203.0.113.10:8101")
 
-	// nctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
-	// new_name := naming.JoinAddressName(addr, "")
-	// call, err = client.StartCall(nctx, new_name, "noname", nil, options.NoRetry{})
-	// if verror.ErrorID(err) != verror.ErrTimeout.ID {
-	// 	t.Fatalf("wrong error: %s", err)
-	// }
-	// if call != nil {
-	// 	t.Fatalf("expected call to be nil")
-	// }
-	// logErr("timeout to server", err)
+	nctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
+	new_name := naming.JoinAddressName(addr, "")
+	call, err = client.StartCall(nctx, new_name, "noname", nil, options.NoRetry{})
+	if verror.ErrorID(err) != verror.ErrTimeout.ID {
+		t.Errorf("wrong error: %s", err)
+	}
+	if call != nil {
+		t.Errorf("expected call to be nil")
+	}
 }
 
 type closeConn struct {
@@ -432,10 +386,6 @@ func TestStartCallBadProtocol(t *testing.T) {
 
 	client := v23.GetClient(ctx)
 
-	logErr := func(msg string, err error) {
-		logErrors(t, msg, true, false, false, err)
-	}
-
 	wg := &sync.WaitGroup{}
 	nctx := debug.WithFilter(ctx, func(c flow.Conn) flow.Conn {
 		wg.Add(1)
@@ -448,7 +398,6 @@ func TestStartCallBadProtocol(t *testing.T) {
 	if call != nil {
 		t.Errorf("expected call to be nil")
 	}
-	logErr("broken connection", err)
 
 	// Make sure we failed because we really did close the connection
 	// with our filter
@@ -460,10 +409,6 @@ func TestStartCallSecurity(t *testing.T) {
 	defer cleanup()
 
 	client := v23.GetClient(ctx)
-
-	logErr := func(msg string, err error) {
-		logErrors(t, msg, true, false, false, err)
-	}
 
 	// Create a context with a new principal that doesn't match the server,
 	// so that the client will not trust the server.
@@ -478,7 +423,6 @@ func TestStartCallSecurity(t *testing.T) {
 	if call != nil {
 		t.Fatalf("expected call to be nil")
 	}
-	logErr("client does not trust server", err)
 }
 
 var childPing = gosh.RegisterFunc("childPing", func(name string) error {
@@ -734,14 +678,16 @@ func TestNoMountTable(t *testing.T) {
 // connection to the server if the server dies and comes back (on the same
 // endpoint).
 func TestReconnect(t *testing.T) {
-	t.Skip()
-
 	sh, ctx, _, cleanup := testInit(t, false)
 	defer cleanup()
 
 	cmd, serverName := startEchoServer(t, sh, "mymessage", "", "")
 	serverEP, _ := naming.SplitAddressName(serverName)
 	ep, _ := inaming.NewEndpoint(serverEP)
+	// create a serverName of just the host:port format so that it will work with
+	// servers on the same host port but with different routing ids.
+	ep.RID = naming.NullRoutingID
+	serverName = ep.Name()
 
 	makeCall := func(ctx *context.T, opts ...rpc.CallOpt) (string, error) {
 		ctx, _ = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
@@ -866,13 +812,23 @@ func TestMethodErrors(t *testing.T) {
 	}
 }
 
+func logErrors(t *testing.T, msg string, logerr, logstack, debugString bool, err error) {
+	_, file, line, _ := runtime.Caller(2)
+	loc := fmt.Sprintf("%s:%d", filepath.Base(file), line)
+	if logerr {
+		t.Logf("%s: %s: %v", loc, msg, err)
+	}
+	if logstack {
+		t.Logf("%s: %s: %v", loc, msg, verror.Stack(err).String())
+	}
+	if debugString {
+		t.Logf("%s: %s: %v", loc, msg, verror.DebugString(err))
+	}
+}
+
 func TestReservedMethodErrors(t *testing.T) {
 	_, ctx, name, cleanup := testInit(t, true)
 	defer cleanup()
-
-	logErr := func(msg string, err error) {
-		logErrors(t, msg, true, false, false, err)
-	}
 
 	// This call will fail because the __xx suffix is not supported by
 	// the dispatcher implementing Signature.
@@ -886,7 +842,6 @@ func TestReservedMethodErrors(t *testing.T) {
 	if verror.ErrorID(verr) != verror.ErrUnknownSuffix.ID {
 		t.Fatalf("wrong error: %s", verr)
 	}
-	logErr("unknown suffix", verr)
 
 	// This call will fail for the same reason, but with a different error,
 	// saying that MethodSignature is an unknown method.
@@ -898,7 +853,6 @@ func TestReservedMethodErrors(t *testing.T) {
 	if verror.ErrorID(verr) != verror.ErrUnknownMethod.ID {
 		t.Fatalf("wrong error: %s", verr)
 	}
-	logErr("unknown method", verr)
 }
 
 type changeProtocol struct {

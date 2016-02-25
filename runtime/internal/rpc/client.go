@@ -16,7 +16,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/i18n"
-	"v.io/v23/namespace"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -74,7 +73,6 @@ func (clientFlowManagerOpt) RPCClientOpt() {}
 
 type client struct {
 	flowMgr            flow.Manager
-	ns                 namespace.T
 	preferredProtocols []string
 	ctx                *context.T
 	// stop is kept for backward compatibilty to implement Close().
@@ -92,11 +90,10 @@ type client struct {
 
 var _ rpc.Client = (*client)(nil)
 
-func NewClient(ctx *context.T, ns namespace.T, opts ...rpc.ClientOpt) rpc.Client {
+func NewClient(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
 	ctx, cancel := context.WithCancel(ctx)
 	c := &client{
 		ctx:       ctx,
-		ns:        ns,
 		typeCache: newTypeCache(),
 		stop:      cancel,
 		closed:    make(chan struct{}),
@@ -288,7 +285,7 @@ func (c *client) connectToName(ctx *context.T, name, method string, args []inter
 // TODO(toddw): Remove action from out-args, the error should tell us the action.
 func (c *client) tryConnectToName(ctx *context.T, name, method string, args []interface{}, connOpts *connectionOpts, opts []rpc.CallOpt) (*serverStatus, verror.ActionCode, bool, error) {
 	blessingPattern, name := security.SplitPatternName(name)
-	resolved, err := c.ns.Resolve(ctx, name, getNamespaceOpts(opts)...)
+	resolved, err := v23.GetNamespace(ctx).Resolve(ctx, name, getNamespaceOpts(opts)...)
 	switch {
 	case verror.ErrorID(err) == naming.ErrNoSuchName.ID:
 		return nil, verror.RetryRefetch, false, verror.New(verror.ErrNoServers, ctx, name)
@@ -494,7 +491,7 @@ func cleanupTryConnectToName(skip *serverStatus, responses []*serverStatus, ch c
 // calls in tryConnectToName failed or we timed out if we get here.
 func (c *client) failedTryConnectToName(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (*serverStatus, verror.ActionCode, bool, error) {
 	go cleanupTryConnectToName(nil, responses, ch)
-	c.ns.FlushCacheEntry(ctx, name)
+	v23.GetNamespace(ctx).FlushCacheEntry(ctx, name)
 	suberrs := []verror.SubErr{}
 	topLevelError := verror.ErrNoServers
 	topLevelAction := verror.RetryRefetch
