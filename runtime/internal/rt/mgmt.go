@@ -23,54 +23,18 @@ import (
 const pkgPath = "v.io/x/ref/option/internal/rt"
 
 var (
-	errInvalidConfig   = verror.Register(pkgPath+".errInvalidConfig", verror.NoRetry, "{1:}{2:} {3} failed to decode config {:_}")
+	errInvalidConfig   = verror.Register(pkgPath+".errInvalidConfig", verror.NoRetry, "{1:}{2:} failed to decode config from the OS environment {:_}")
 	errConfigKeyNotSet = verror.Register(pkgPath+".errConfigKeyNotSet", verror.NoRetry, "{1:}{2:} {3} is not set{:_}")
 )
 
-func legacyExec() (exec.Config, error) {
-	handle, err := exec.GetChildHandle()
-	if err == nil {
-		// No error; fall through.
-	} else if verror.ErrorID(err) == exec.ErrNoVersion.ID {
-		// Do not initialize the mgmt runtime if the process has not
-		// been started through the vanadium exec library by a device
-		// manager.
-		return nil, nil
-	} else {
-		return nil, err
-	}
-	if _, err := handle.Config.Get(mgmt.ParentNameConfigKey); err != nil {
-		// If the ParentNameConfigKey is not set, then this process has
-		// not been started by the device manager, but the parent process
-		// is still a Vanadium process using the exec library so we
-		// call SetReady to let it know that this child process has
-		// successfully started.
-		return nil, handle.SetReady()
-	}
-	return handle.Config, handle.SetReady()
-}
-
 func (rt *Runtime) initMgmt(ctx *context.T) error {
 	config, err := exec.ReadConfigFromOSEnv()
-	if config == nil && err == nil {
-		// TODO(cnicolaou): backwards compatibility, remove when binaries are pushed to prod.
-		legacyConfig, legacyErr := legacyExec()
-		if legacyConfig == nil || legacyErr != nil {
-			return legacyErr
-		}
-		if legacyConfig != nil {
-			// fallthrough
-			config = legacyConfig
-		} else {
-			// Do not initialize the mgmt runtime if the process has not
-			// been started by a vanadium process that passes a Config
-			// structure to us.
-			return nil
-		}
-	}
 	if err != nil {
-		verror.New(errConfigKeyNotSet, ctx, mgmt.ProtocolConfigKey)
-		return err
+		return verror.New(errInvalidConfig, ctx, err)
+	}
+	if config == nil {
+		// Config was not set.
+		return nil
 	}
 
 	parentName, err := config.Get(mgmt.ParentNameConfigKey)

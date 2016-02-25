@@ -15,25 +15,19 @@ import (
 // is expected to be this device manager's object name).
 func InvokeCallback(ctx *context.T, name string) {
 	config, err := exec.ReadConfigFromOSEnv()
-	if config == nil && err == nil {
-		// TODO(cnicolaou): backwards compatibility, remove when binaries are pushed to prod.
-		handle, err := exec.GetChildHandle()
-		if handle != nil && err == nil {
-			config = handle.Config
-		}
+	if err != nil || config == nil {
+		return
 	}
-	if config != nil && err == nil {
-		// Device manager was started by self-update, notify the parent.
-		callbackName, err := config.Get(mgmt.ParentNameConfigKey)
-		if err != nil {
-			// Device manager was not started by self-update, return silently.
-			return
-		}
-		client := device.ConfigClient(callbackName)
-		ctx, cancel := context.WithTimeout(ctx, rpcContextTimeout)
-		defer cancel()
-		if err := client.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {
-			ctx.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNameConfigKey, name, err)
-		}
+	// Device manager was started by self-update, notify the parent.
+	callbackName, err := config.Get(mgmt.ParentNameConfigKey)
+	if err != nil {
+		// Device manager was not started by self-update, return silently.
+		return
+	}
+	client := device.ConfigClient(callbackName)
+	ctx, cancel := context.WithTimeout(ctx, rpcContextTimeout)
+	defer cancel()
+	if err := client.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {
+		ctx.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNameConfigKey, name, err)
 	}
 }

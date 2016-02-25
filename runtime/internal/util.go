@@ -11,25 +11,11 @@ import (
 	"strings"
 
 	"v.io/v23/logging"
-	"v.io/v23/verror"
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/flags"
 )
-
-func legacyExec() (exec.Config, error) {
-	handle, err := exec.GetChildHandle()
-	if err == nil {
-		return handle.Config, nil
-	} else if verror.ErrorID(err) == exec.ErrNoVersion.ID {
-		// Do not initialize the mgmt runtime if the process has not
-		// been started through the vanadium exec library by a device
-		// manager.
-		return nil, nil
-	}
-	return nil, err
-}
 
 // ParseFlags parses all registered flags taking into account overrides from other
 // configuration and environment variables. It must be called by the profile and
@@ -37,14 +23,9 @@ func legacyExec() (exec.Config, error) {
 // profile can use or modify the flags as it pleases.
 func ParseFlags(f *flags.Flags) error {
 	config, err := exec.ReadConfigFromOSEnv()
-	if config == nil && err == nil {
-		// TODO(cnicolaou): backwards compatibility, remove when binaries are pushed to prod.
-		config, err = legacyExec()
-	}
 	if err != nil {
 		return err
 	}
-
 	// Parse runtime flags.
 	var args map[string]string
 	if config != nil {
