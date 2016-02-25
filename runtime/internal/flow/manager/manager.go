@@ -759,7 +759,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			version.Supported,
 			auth,
 			handshakeTimeout,
-			m.acceptChannelTimeout,
+			0,
 			fh,
 		)
 		if err != nil {
@@ -801,7 +801,7 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			version.Supported,
 			auth,
 			handshakeTimeout,
-			m.acceptChannelTimeout,
+			0,
 			fh,
 		)
 		if err != nil {

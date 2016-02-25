@@ -433,7 +433,7 @@ func (c *client) tryConnectToServer(
 			// This flow must outlive the flow we're currently creating.
 			// It lives as long as the connection to which it is bound.
 			tctx, tcancel := context.WithRootCancel(ctx)
-			tflow, err := c.flowMgr.DialSideChannel(tctx, flw.RemoteEndpoint(), typeFlowAuthorizer{}, connOpts.channelTimeout)
+			tflow, err := c.flowMgr.DialSideChannel(tctx, flw.RemoteEndpoint(), typeFlowAuthorizer{}, 0)
 			if err != nil {
 				write(nil, tcancel)
 			} else if tflow.Conn() != flw.Conn() {
