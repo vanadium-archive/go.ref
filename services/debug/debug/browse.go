@@ -87,8 +87,11 @@ TODO(ashankar):?
   (3) Signature: Display the interfaces, types etc. defined by any suffix in the
   remote process. in the mean time, use the 'vrpc signature' command for this purpose.
 `,
-		ArgsName: "<name>",
-		ArgsLong: "<name> is the vanadium object name of the remote process to inspect",
+		ArgsName: "<name> [<name>] [<name>]",
+		ArgsLong: `
+<name> is the vanadium object name of the remote process to inspect.
+If multiple names are provided, they are considered equivalent and any one of them that can
+is accessible is used.`,
 	}
 
 	cmdDelegate = &cmdline.Command{
@@ -120,8 +123,12 @@ remote process as myservices/myservice with the same authorization as Alice.
 )
 
 func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
-	if got, want := 1, len(args); got != want {
-		return env.UsageErrorf("must provide a single vanadium object name")
+	if len(args) == 0 {
+		return env.UsageErrorf("must provide at least a single vanadium object name")
+	}
+	name, err := selectName(ctx, args)
+	if err != nil {
+		return err
 	}
 	if len(flagBrowsePrivateKey) != 0 {
 		keybytes, err := base64.URLEncoding.DecodeString(flagBrowsePrivateKey)
@@ -175,7 +182,7 @@ func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
 		return err
 	}
 	go http.Serve(ln, nil)
-	url := "http://" + ln.Addr().String() + "/?n=" + url.QueryEscape(args[0])
+	url := "http://" + ln.Addr().String() + "/?n=" + url.QueryEscape(name)
 	fmt.Printf("Visit %s and Ctrl-C to quit\n", url)
 	// Open the browser if we can
 	switch runtime.GOOS {
@@ -254,6 +261,39 @@ func executeTemplate(ctx *context.T, w http.ResponseWriter, r *http.Request, tmp
 		fmt.Fprintf(w, "ERROR:%v", err)
 		ctx.Errorf("Error executing template %q: %v", tmpl.Name(), err)
 	}
+}
+
+func selectName(ctx *context.T, options []string) (string, error) {
+	// TODO(ashankar,mattr): This is way more complicated than it should
+	// be.  What we really want is to be able to have the RPC system take
+	// in these many names and pick the best one (accessible, shorted path)
+	// in every subsequent call. For now, just try them all in parallel and
+	// return the first one that works.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	working := make(chan int, len(options))
+	errorch := make(chan error, len(options))
+	for i := range options {
+		go func(idx int) {
+			pc, err := v23.GetClient(ctx).PinConnection(ctx, options[idx])
+			if err != nil {
+				errorch <- err
+				return
+			}
+			working <- idx
+			pc.Unpin()
+		}(i)
+	}
+	var errors []error
+	for i := 0; i < len(options); i++ {
+		select {
+		case idx := <-working:
+			return options[idx], nil
+		case err := <-errorch:
+			errors = append(errors, err)
+		}
+	}
+	return "", fmt.Errorf("failed to contact server: %v", errors)
 }
 
 // Tracer forces collection of a trace rooted at the call to newTracer.

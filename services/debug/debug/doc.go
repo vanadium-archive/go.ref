@@ -291,9 +291,11 @@ A dump of some possible future features: TODO(ashankar):?
   remote process. in the mean time, use the 'vrpc signature' command for this purpose.
 
 Usage:
-   debug browse [flags] <name>
+   debug browse [flags] <name> [<name>] [<name>]
 
-<name> is the vanadium object name of the remote process to inspect
+<name> is the vanadium object name of the remote process to inspect. If multiple
+names are provided, they are considered equivalent and any one of them that can
+is accessible is used.
 
 The debug browse flags are:
  -addr=
