@@ -296,7 +296,6 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 	otherOpts := append([]rpc.ClientOpt{}, opts...)
 
 	p, _ := ctx.Value(principalKey).(security.Principal)
-	ns, _ := ctx.Value(namespaceKey).(namespace.T)
 	id, _ := ctx.Value(initKey).(*initData)
 	if id.protocols != nil {
 		otherOpts = append(otherOpts, irpc.PreferredProtocols(id.protocols))
@@ -304,9 +303,8 @@ func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context
 	if id.connIdleExpiry > 0 {
 		otherOpts = append(otherOpts, irpc.IdleConnectionExpiry(id.connIdleExpiry))
 	}
-	var client rpc.Client
 	deps := []interface{}{vtraceDependency{}}
-	client = irpc.NewClient(ctx, ns, otherOpts...)
+	client := irpc.NewClient(ctx, otherOpts...)
 	newctx := context.WithValue(ctx, clientKey, client)
 	if p != nil {
 		deps = append(deps, p)
