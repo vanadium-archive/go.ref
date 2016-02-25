@@ -7,10 +7,8 @@ package discovery
 import (
 	"bytes"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/discovery"
-	"v.io/v23/security"
 )
 
 func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-chan discovery.Update, error) {
@@ -47,23 +45,11 @@ func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-ch
 func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher matcher, scanCh <-chan Advertisement, updateCh chan<- discovery.Update) {
 	defer close(updateCh)
 
-	// Get the blessing names belong to the principal.
-	//
-	// TODO(jhahn): It isn't clear that we will always have the blessing required to decrypt
-	// the advertisement as their "default" blessing - indeed it may not even be in the store.
-	// Revisit this issue.
-	principal := v23.GetPrincipal(ctx)
-	var names []string
-	if principal != nil {
-		blessings, _ := principal.BlessingStore().Default()
-		names = security.BlessingNames(principal, blessings)
-	}
-
 	found := make(map[string]*Advertisement)
 	for {
 		select {
 		case ad := <-scanCh:
-			if err := decrypt(&ad, names); err != nil {
+			if err := decrypt(ctx, &ad); err != nil {
 				// Couldn't decrypt it. Ignore it.
 				if err != errNoPermission {
 					ctx.Error(err)

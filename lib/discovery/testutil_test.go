@@ -11,12 +11,15 @@ import (
 	"sync"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 	"v.io/v23/security"
 
 	idiscovery "v.io/x/ref/lib/discovery"
+	"v.io/x/ref/lib/security/bcrypter"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/test/testutil"
 )
 
 func advertise(ctx *context.T, d discovery.T, visibility []security.BlessingPattern, services ...*discovery.Service) (func(), error) {
@@ -65,7 +68,7 @@ func scan(ctx *context.T, d discovery.T, interfaceName string) ([]discovery.Upda
 		select {
 		case update := <-scan:
 			updates = append(updates, update)
-		case <-time.After(50 * time.Millisecond):
+		case <-time.After(800 * time.Millisecond):
 			return updates, nil
 		}
 	}
@@ -118,4 +121,21 @@ func matchFound(updates []discovery.Update, wants ...discovery.Service) bool {
 
 func matchLost(updates []discovery.Update, wants ...discovery.Service) bool {
 	return match(updates, true, wants...)
+}
+
+func withDerivedCrypter(ctx *context.T, root *bcrypter.Root, blessing string) (*context.T, error) {
+	ctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal(blessing))
+	if err != nil {
+		return nil, err
+	}
+	key, err := root.Extract(ctx, blessing)
+	if err != nil {
+		return nil, err
+	}
+	crypter := bcrypter.NewCrypter()
+	ctx = bcrypter.WithCrypter(ctx, crypter)
+	if err := crypter.AddKey(ctx, key); err != nil {
+		return nil, err
+	}
+	return ctx, nil
 }
