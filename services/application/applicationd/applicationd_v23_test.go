@@ -48,7 +48,7 @@ func TestV23ApplicationRepository(t *testing.T) {
 
 	// Start the application repository.
 	appRepoName := "test-app-repo"
-	sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/application/applicationd"),
+	sh.Cmd(v23test.BuildGoPkg(sh, "v.io/x/ref/services/application/applicationd"),
 		"-name="+appRepoName,
 		"-store="+sh.MakeTempDir(),
 		"-v=2",
@@ -56,7 +56,7 @@ func TestV23ApplicationRepository(t *testing.T) {
 
 	// Build the client binary (must be a delegate of the server to pass
 	// the default authorization policy).
-	clientBin := sh.BuildGoPkg("v.io/x/ref/services/application/application")
+	clientBin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/application/application")
 	clientCreds := sh.ForkCredentials("applicationd:client")
 
 	// Generate publisher blessings

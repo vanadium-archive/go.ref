@@ -29,7 +29,7 @@ func TestV23Benarchd(t *testing.T) {
 	dbfile := tempFile(t)
 	defer os.Remove(dbfile)
 	benarchd := sh.Cmd(
-		sh.BuildGoPkg("v.io/x/ref/services/ben/benarchd"),
+		v23test.BuildGoPkg(sh, "v.io/x/ref/services/ben/benarchd"),
 		"--store=sqlite3:"+dbfile,
 		"--v23.tcp.address=127.0.0.1:0",
 		"--logtostderr").
@@ -46,7 +46,7 @@ func TestV23Benarchd(t *testing.T) {
 	}
 
 	// Fire up a few uploads from benup
-	benup := sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/ben/benup"), "--archiver", v23addr).WithCredentials(sh.ForkCredentials("benupuser"))
+	benup := sh.Cmd(v23test.BuildGoPkg(sh, "v.io/x/ref/services/ben/benup"), "--archiver", v23addr).WithCredentials(sh.ForkCredentials("benupuser"))
 	benup.SetStdinReader(bytes.NewBufferString(`
 BENDROIDCPU_ARCHITECTURE=arm64-v8a,armeabi-v7a,armeabi
 BENDROIDCPU_DESCRIPTION=google Nexus 5X bullhead

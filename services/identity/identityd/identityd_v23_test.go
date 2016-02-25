@@ -97,7 +97,7 @@ func TestV23IdentityServer(t *testing.T) {
 	// In production, the two share a common root certificate and thus
 	// recognize each other. The same is done here: sh.Credentials.Principal
 	// wields the root key.
-	identityd := sh.BuildGoPkg("v.io/x/ref/services/identity/internal/identityd_test")
+	identityd := v23test.BuildGoPkg(sh, "v.io/x/ref/services/identity/internal/identityd_test")
 	creds := sh.ForkCredentials("u")
 	oauthCreds := sh.ForkCredentials("o")
 
@@ -110,7 +110,7 @@ func TestV23IdentityServer(t *testing.T) {
 
 	// Use the principal tool to seekblessings.
 	// This tool will not run with any credentials: Its whole purpose is to "seek" them!
-	principal := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+	principal := v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 	// Test an initial seekblessings call.
 	seekBlessings(t, sh, principal, httpAddr)
 	// Test that a subsequent call succeeds with the same

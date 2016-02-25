@@ -58,7 +58,7 @@ func verifyOutput(t *testing.T, outDir string) {
 func TestVDLGenerator(t *testing.T) {
 	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
 	defer sh.Cleanup()
-	vdlBin := sh.BuildGoPkg("v.io/x/ref/cmd/vdl")
+	vdlBin := gosh.BuildGoPkg(sh, sh.MakeTempDir(), "v.io/x/ref/cmd/vdl")
 
 	// Use vdl to generate Go code from input, into a temporary directory.
 	outDir := sh.MakeTempDir()
@@ -73,7 +73,7 @@ func TestVDLGenerator(t *testing.T) {
 func TestVDLGeneratorBuiltInVDLRoot(t *testing.T) {
 	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
 	defer sh.Cleanup()
-	vdlBin := sh.BuildGoPkg("v.io/x/ref/cmd/vdl")
+	vdlBin := gosh.BuildGoPkg(sh, sh.MakeTempDir(), "v.io/x/ref/cmd/vdl")
 
 	outDir := sh.MakeTempDir()
 	outOpt := fmt.Sprintf("--go-out-dir=%s", outDir)

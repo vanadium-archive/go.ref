@@ -32,7 +32,7 @@ func maybeAddTcpAddressFlag(sh *Shell, args *[]string) {
 // wait for it to exit.
 func (sh *Shell) StartRootMountTable(args ...string) func(sig os.Signal) {
 	sh.Ok()
-	path := sh.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
+	path := BuildGoPkg(sh, "v.io/x/ref/services/mounttable/mounttabled")
 	if sh.Err != nil {
 		return nil
 	}
@@ -62,7 +62,7 @@ func (sh *Shell) StartRootMountTable(args ...string) func(sig os.Signal) {
 // TODO(sadovsky): Maybe take a Permissions object instead of permsLiteral.
 func (sh *Shell) StartSyncbase(c *Credentials, name, rootDir, permsLiteral string, args ...string) func(sig os.Signal) {
 	sh.Ok()
-	path := sh.BuildGoPkg("v.io/x/ref/services/syncbase/syncbased")
+	path := BuildGoPkg(sh, "v.io/x/ref/services/syncbase/syncbased")
 	if sh.Err != nil {
 		return nil
 	}

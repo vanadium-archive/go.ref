@@ -116,8 +116,8 @@ func TestV23BinaryRepositoryIntegration(t *testing.T) {
 	// The client must run as a "delegate" of the server in order to pass
 	// the default authorization checks on the server.
 	var (
-		binaryRepoBin   = sh.BuildGoPkg("v.io/x/ref/services/binary/binaryd")
-		clientBin       = sh.BuildGoPkg("v.io/x/ref/services/binary/binary")
+		binaryRepoBin   = v23test.BuildGoPkg(sh, "v.io/x/ref/services/binary/binaryd")
+		clientBin       = v23test.BuildGoPkg(sh, "v.io/x/ref/services/binary/binary")
 		binaryRepoCreds = sh.ForkCredentials("binaryd")
 		clientCreds     = sh.ForkCredentials("binaryd:client")
 	)

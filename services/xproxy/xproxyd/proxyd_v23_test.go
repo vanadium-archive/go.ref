@@ -33,7 +33,7 @@ func TestV23Proxyd(t *testing.T) {
 		proxydCreds = sh.ForkCredentials("proxyd")
 		serverCreds = sh.ForkCredentials("server")
 		clientCreds = sh.ForkCredentials("client")
-		proxyd      = sh.BuildGoPkg("v.io/x/ref/services/xproxy/xproxyd")
+		proxyd      = v23test.BuildGoPkg(sh, "v.io/x/ref/services/xproxy/xproxyd")
 	)
 
 	// Start proxyd.

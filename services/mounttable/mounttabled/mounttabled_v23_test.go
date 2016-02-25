@@ -37,7 +37,7 @@ func TestV23Mount(t *testing.T) {
 	sh.StartRootMountTable("--neighborhood-name=" + neighborhood)
 
 	name := sh.Vars[ref.EnvNamespacePrefix]
-	clientBin := sh.BuildGoPkg("v.io/x/ref/cmd/mounttable")
+	clientBin := v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/mounttable")
 	clientCreds := sh.ForkCredentials("cmd")
 
 	// Get the neighborhood endpoint from the mounttable.

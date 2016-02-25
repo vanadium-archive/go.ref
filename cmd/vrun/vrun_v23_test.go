@@ -22,9 +22,9 @@ func TestV23Agentd(t *testing.T) {
 	var (
 		clientDir, serverDir = createClientAndServerCredentials(t, sh)
 		tmpdir               = sh.MakeTempDir()
-		vrun                 = sh.BuildGoPkg("v.io/x/ref/cmd/vrun")
-		pingpong             = sh.BuildGoPkg("v.io/x/ref/services/agent/internal/pingpong")
-		agentd               = sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+		vrun                 = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/vrun")
+		pingpong             = v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/internal/pingpong")
+		agentd               = v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/agentd")
 	)
 
 	cmd := sh.Cmd(agentd, pingpong)

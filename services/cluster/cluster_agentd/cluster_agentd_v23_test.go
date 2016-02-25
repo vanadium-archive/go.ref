@@ -49,10 +49,10 @@ func TestV23ClusterAgentD(t *testing.T) {
 	}
 
 	var (
-		agentBin     = sh.BuildGoPkg("v.io/x/ref/services/cluster/cluster_agentd")
-		clientBin    = sh.BuildGoPkg("v.io/x/ref/services/cluster/cluster_agent")
-		podAgentBin  = sh.BuildGoPkg("v.io/x/ref/services/agent/pod_agentd")
-		principalBin = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		agentBin     = v23test.BuildGoPkg(sh, "v.io/x/ref/services/cluster/cluster_agentd")
+		clientBin    = v23test.BuildGoPkg(sh, "v.io/x/ref/services/cluster/cluster_agent")
+		podAgentBin  = v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/pod_agentd")
+		principalBin = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 	)
 
 	// Start the cluster agent.
@@ -131,7 +131,7 @@ func TestV23ClusterAgentD(t *testing.T) {
 // Note: This is identical to rootBlessings in
 // v.io/x/ref/services/device/claimable/claimable_v23_test.go.
 func rootBlessings(t *testing.T, sh *v23test.Shell, creds *v23test.Credentials) string {
-	principalBin := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+	principalBin := v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 	blessings := strings.TrimSpace(sh.Cmd(principalBin, "get", "default").WithCredentials(creds).Stdout())
 	cmd := sh.Cmd(principalBin, "dumproots", "-")
 	cmd.SetStdinReader(strings.NewReader(blessings))

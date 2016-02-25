@@ -57,10 +57,10 @@ func TestV23ProfileRepository(t *testing.T) {
 		"-name=" + profileRepoName, "-store=" + profileRepoStore,
 		"-v23.tcp.address=127.0.0.1:0",
 	}
-	profiledBin := sh.BuildGoPkg("v.io/x/ref/services/profile/profiled")
+	profiledBin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/profile/profiled")
 	sh.Cmd(profiledBin, args...).Start()
 
-	clientBin := sh.BuildGoPkg("v.io/x/ref/services/profile/profile")
+	clientBin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/profile/profile")
 
 	// Create a profile.
 	const profile = "test-profile"

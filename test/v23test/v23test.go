@@ -94,7 +94,6 @@ type Opts struct {
 	Logf                 func(format string, v ...interface{})
 	PropagateChildOutput bool
 	ChildOutputDir       string
-	BinDir               string
 	// Ctx is the Vanadium context to use. If nil, NewShell will call v23.Init to
 	// create a context.
 	Ctx *context.T
@@ -124,7 +123,6 @@ func NewShell(t testing.TB, opts Opts) *Shell {
 			Logf:                 opts.Logf,
 			PropagateChildOutput: opts.PropagateChildOutput,
 			ChildOutputDir:       opts.ChildOutputDir,
-			BinDir:               opts.BinDir,
 		}),
 		t: t,
 	}
@@ -137,7 +135,7 @@ func NewShell(t testing.TB, opts Opts) *Shell {
 	if envChildOutputDir != "TMPDIR" { // sanity check
 		panic(envChildOutputDir)
 	}
-	for _, key := range []string{envBinDir, ref.EnvCredentials, ref.EnvAgentPath} {
+	for _, key := range []string{ref.EnvCredentials, ref.EnvAgentPath} {
 		delete(sh.Vars, key)
 	}
 	if sh.t != nil {
@@ -209,6 +207,21 @@ func (sh *Shell) Cleanup() {
 	if sh.t != nil && sh.t.Failed() && test.IntegrationTestsDebugShellOnError {
 		sh.DebugSystemShell()
 	}
+}
+
+// BuildGoPkg compiles a Go package using the "go build" command and writes the
+// resulting binary to V23_BIN_DIR, or to the -o flag location if specified. If
+// -o is relative, it is interpreted as relative to V23_BIN_DIR. If the binary
+// already exists at the target location, it is not rebuilt. Returns the
+// absolute path to the binary.
+func BuildGoPkg(sh *Shell, pkg string, flags ...string) string {
+	sh.Ok()
+	binDir := os.Getenv(envBinDir)
+	if binDir == "" {
+		sh.HandleError(errors.New("v23test: missing V23_BIN_DIR"))
+		return ""
+	}
+	return gosh.BuildGoPkg(sh.Shell, binDir, pkg, flags...)
 }
 
 // InitTestMain is intended for developers with complex setup or teardown
@@ -314,9 +327,8 @@ func (sh *Shell) FuncCmd(f *gosh.Func, args ...interface{}) *Cmd {
 // DebugSystemShell
 
 // DebugSystemShell drops the user into a debug system shell (e.g. bash) that
-// includes all environment variables from sh, and sets V23_BIN_DIR to
-// sh.Opts.BinDir. If there is no controlling TTY, DebugSystemShell does
-// nothing.
+// includes all environment variables from sh. If there is no controlling TTY,
+// DebugSystemShell does nothing.
 func (sh *Shell) DebugSystemShell() {
 	// Make sure we have non-nil Fatalf and Logf functions.
 	opts := Opts{Fatalf: sh.Opts.Fatalf, Logf: sh.Opts.Logf}
@@ -345,7 +357,6 @@ func (sh *Shell) DebugSystemShell() {
 	}
 	env := envvar.MergeMaps(envvar.SliceToMap(os.Environ()), sh.Vars)
 	env[envPrincipal] = sh.ForkCredentials("debug").Handle
-	env[envBinDir] = sh.Opts.BinDir
 	attr.Env = envvar.MapToSlice(env)
 
 	write := func(s string) {
@@ -413,9 +424,6 @@ func fillDefaults(t testing.TB, opts *Opts) {
 	}
 	if opts.ChildOutputDir == "" {
 		opts.ChildOutputDir = os.Getenv(envChildOutputDir)
-	}
-	if opts.BinDir == "" {
-		opts.BinDir = os.Getenv(envBinDir)
 	}
 }
 

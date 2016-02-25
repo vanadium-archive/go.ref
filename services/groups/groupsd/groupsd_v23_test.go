@@ -45,8 +45,8 @@ func TestV23GroupServerIntegration(t *testing.T) {
 
 	// Build binaries for the client and server.
 	var (
-		clientBin  = sh.BuildGoPkg("v.io/x/ref/services/groups/groups")
-		serverBin  = sh.BuildGoPkg("v.io/x/ref/services/groups/groupsd", "-tags=leveldb")
+		clientBin  = v23test.BuildGoPkg(sh, "v.io/x/ref/services/groups/groups")
+		serverBin  = v23test.BuildGoPkg(sh, "v.io/x/ref/services/groups/groupsd", "-tags=leveldb")
 		serverName = "groups-server"
 		groupA     = naming.Join(serverName, "groupA")
 		groupB     = naming.Join(serverName, "groupB")
@@ -232,8 +232,8 @@ func TestV23GroupServerAuthorization(t *testing.T) {
 
 	// Build binaries for the groups client and server.
 	var (
-		clientBin  = sh.BuildGoPkg("v.io/x/ref/services/groups/groups")
-		serverBin  = sh.BuildGoPkg("v.io/x/ref/services/groups/groupsd")
+		clientBin  = v23test.BuildGoPkg(sh, "v.io/x/ref/services/groups/groups")
+		serverBin  = v23test.BuildGoPkg(sh, "v.io/x/ref/services/groups/groupsd")
 		serverName = "groups-server"
 		readers    = naming.Join(serverName, "readers")
 		writers    = naming.Join(serverName, "writers")

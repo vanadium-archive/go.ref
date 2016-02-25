@@ -147,10 +147,10 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 		// applicationd/binaryd servers will be run by alice too.
 		// TODO: applicationd/binaryd should run as a separate "service" role, as
 		// alice is just a user.
-		namespaceBin    = sh.Cmd(sh.BuildGoPkg("v.io/x/ref/cmd/namespace")).WithCredentials(aliceCreds)
-		deviceBin       = sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/device/device")).WithCredentials(aliceCreds)
-		binarydBin      = sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/binary/binaryd")).WithCredentials(aliceCreds)
-		applicationdBin = sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/application/applicationd")).WithCredentials(aliceCreds)
+		namespaceBin    = sh.Cmd(v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/namespace")).WithCredentials(aliceCreds)
+		deviceBin       = sh.Cmd(v23test.BuildGoPkg(sh, "v.io/x/ref/services/device/device")).WithCredentials(aliceCreds)
+		binarydBin      = sh.Cmd(v23test.BuildGoPkg(sh, "v.io/x/ref/services/binary/binaryd")).WithCredentials(aliceCreds)
+		applicationdBin = sh.Cmd(v23test.BuildGoPkg(sh, "v.io/x/ref/services/application/applicationd")).WithCredentials(aliceCreds)
 
 		// The devicex script is not provided with any credentials, it
 		// will generate its own.  This means that on "devicex start"
@@ -176,7 +176,7 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 	// adminstrator (which is usually a role account)
 	adminCreds := sh.ForkCredentials("r:admin")
 	adminDeviceBin := deviceBin.WithCredentials(adminCreds)
-	debugBin := sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/debug/debug")).WithCredentials(adminCreds)
+	debugBin := sh.Cmd(v23test.BuildGoPkg(sh, "v.io/x/ref/services/debug/debug")).WithCredentials(adminCreds)
 
 	// A special set of credentials will be used to give two blessings to the device manager
 	// when claiming it -- one blessing will be from the corporate administrator role who owns
@@ -191,8 +191,8 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 	// signs and pushes binaries
 	pubCreds := sh.ForkCredentials("a:rovio")
 	pubDeviceBin := deviceBin.WithCredentials(pubCreds)
-	applicationBin := sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/application/application")).WithCredentials(pubCreds)
-	binaryBin := sh.Cmd(sh.BuildGoPkg("v.io/x/ref/services/binary/binary")).WithCredentials(pubCreds)
+	applicationBin := sh.Cmd(v23test.BuildGoPkg(sh, "v.io/x/ref/services/application/application")).WithCredentials(pubCreds)
+	binaryBin := sh.Cmd(v23test.BuildGoPkg(sh, "v.io/x/ref/services/binary/binary")).WithCredentials(pubCreds)
 
 	if withSuid {
 		// In multiuser mode, deviceUserFlag needs execute access to
@@ -455,7 +455,7 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 
 	// Upload a deviced binary
 	devicedAppBinName := binarydName + "/deviced"
-	withArgs(binaryBin, "upload", devicedAppBinName, sh.BuildGoPkg("v.io/x/ref/services/device/deviced")).Run()
+	withArgs(binaryBin, "upload", devicedAppBinName, v23test.BuildGoPkg(sh, "v.io/x/ref/services/device/deviced")).Run()
 	// Allow root:r:admin and its devices to read the binary
 	withArgs(deviceBin, "acl", "set", devicedAppBinName, "root:r:admin", "Read").Run()
 
@@ -583,7 +583,7 @@ func withArgs(cmd *v23test.Cmd, args ...string) *v23test.Cmd {
 func buildAndCopyBinaries(t *testing.T, sh *v23test.Shell, destinationDir string, packages ...string) {
 	var args []string
 	for _, pkg := range packages {
-		args = append(args, sh.BuildGoPkg(pkg))
+		args = append(args, v23test.BuildGoPkg(sh, pkg))
 	}
 	args = append(args, destinationDir)
 	sh.Cmd("/bin/cp", args...).Run()

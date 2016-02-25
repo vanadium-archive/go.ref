@@ -36,7 +36,7 @@ func TestV23ClaimableServer(t *testing.T) {
 	badClientCreds1 := sh.ForkCredentials("child")
 	badClientCreds2 := sh.ForkCredentials("other-guy")
 
-	serverBin := sh.BuildGoPkg("v.io/x/ref/services/device/claimable")
+	serverBin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/device/claimable")
 	server := sh.Cmd(serverBin,
 		"--v23.tcp.address=127.0.0.1:0",
 		"--perms-dir="+permsDir,
@@ -46,7 +46,7 @@ func TestV23ClaimableServer(t *testing.T) {
 	server.Start()
 	addr := server.S.ExpectVar("NAME")
 
-	clientBin := sh.BuildGoPkg("v.io/x/ref/services/device/device")
+	clientBin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/device/device")
 
 	testcases := []struct {
 		creds      *v23test.Credentials
@@ -76,7 +76,7 @@ func TestV23ClaimableServer(t *testing.T) {
 // Note: Identical to rootBlessings in
 // v.io/x/ref/services/cluster/cluster_agentd/cluster_agentd_v23_test.go.
 func rootBlessings(t *testing.T, sh *v23test.Shell, creds *v23test.Credentials) string {
-	principalBin := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+	principalBin := v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 	blessings := strings.TrimSpace(sh.Cmd(principalBin, "get", "default").WithCredentials(creds).Stdout())
 	cmd := sh.Cmd(principalBin, "dumproots", "-")
 	cmd.SetStdinReader(strings.NewReader(blessings))

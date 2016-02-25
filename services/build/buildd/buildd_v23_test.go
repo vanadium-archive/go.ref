@@ -41,8 +41,8 @@ func TestV23BuildServerIntegration(t *testing.T) {
 	// Since Permissions are not setup on the server, the client must pass the
 	// default authorization policy, i.e., must be a "delegate" of the server.
 	var (
-		buildServerBin   = sh.BuildGoPkg("v.io/x/ref/services/build/buildd")
-		buildBin         = sh.BuildGoPkg("v.io/x/ref/services/build/build")
+		buildServerBin   = v23test.BuildGoPkg(sh, "v.io/x/ref/services/build/buildd")
+		buildBin         = v23test.BuildGoPkg(sh, "v.io/x/ref/services/build/build")
 		buildServerCreds = sh.ForkCredentials("buildd")
 		buildCreds       = sh.ForkCredentials("buildd:client")
 	)

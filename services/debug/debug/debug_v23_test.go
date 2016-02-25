@@ -25,7 +25,7 @@ func TestV23DebugGlob(t *testing.T) {
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := v23test.BuildGoPkg(sh, "v.io/x/ref/services/debug/debug")
 	stdout := sh.Cmd(binary, "glob", "__debug/*").Stdout()
 
 	var want string
@@ -45,7 +45,7 @@ func TestV23DebugGlobLogs(t *testing.T) {
 
 	// Create a temp dir before we list the logs.
 	dirName := sh.MakeTempDir()
-	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := v23test.BuildGoPkg(sh, "v.io/x/ref/services/debug/debug")
 	output := sh.Cmd(binary, "--timeout=1m", "glob", "__debug/logs/*").CombinedOutput()
 
 	// The output should contain the dir name.
@@ -65,7 +65,7 @@ func TestV23ReadHostname(t *testing.T) {
 	sh.StartRootMountTable()
 
 	path := "__debug/stats/system/hostname"
-	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := v23test.BuildGoPkg(sh, "v.io/x/ref/services/debug/debug")
 	stdout := sh.Cmd(binary, "stats", "read", path).Stdout()
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -91,7 +91,7 @@ func TestV23LogSize(t *testing.T) {
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := v23test.BuildGoPkg(sh, "v.io/x/ref/services/debug/debug")
 	testLogData := "This is a test log file"
 	file := createTestLogFile(t, sh, testLogData)
 
@@ -113,7 +113,7 @@ func TestV23StatsRead(t *testing.T) {
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := v23test.BuildGoPkg(sh, "v.io/x/ref/services/debug/debug")
 	testLogData := "This is a test log file\n"
 	file := createTestLogFile(t, sh, testLogData)
 	logName := filepath.Base(file.Name())
@@ -158,7 +158,7 @@ func TestV23StatsWatch(t *testing.T) {
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := v23test.BuildGoPkg(sh, "v.io/x/ref/services/debug/debug")
 	testLogData := "This is a test log file\n"
 	file := createTestLogFile(t, sh, testLogData)
 	logName := filepath.Base(file.Name())
@@ -202,7 +202,7 @@ func TestV23VTrace(t *testing.T) {
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := v23test.BuildGoPkg(sh, "v.io/x/ref/services/debug/debug")
 	logContent := "Hello, world!\n"
 	logPath := "__debug/logs/" + filepath.Base(createTestLogFile(t, sh, logContent).Name())
 	// Create a log file with tracing, read it and check that the resulting trace exists.
@@ -258,7 +258,7 @@ func TestV23Pprof(t *testing.T) {
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	binary := sh.BuildGoPkg("v.io/x/ref/services/debug/debug")
+	binary := v23test.BuildGoPkg(sh, "v.io/x/ref/services/debug/debug")
 	stdout := sh.Cmd(binary, "pprof", "run", "__debug/pprof", "heap", "--text").Stdout()
 
 	// Assert that a profile indicating the heap size was written out.

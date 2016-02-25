@@ -54,8 +54,8 @@ func TestV23Vkube(t *testing.T) {
 
 	creds := sh.ForkCredentials("alice")
 
-	vkubeBin := sh.BuildGoPkg("v.io/x/ref/services/cluster/vkube")
-	vshBin := sh.BuildGoPkg("v.io/x/ref/examples/tunnel/vsh")
+	vkubeBin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/cluster/vkube")
+	vshBin := v23test.BuildGoPkg(sh, "v.io/x/ref/examples/tunnel/vsh")
 
 	var (
 		cmd = func(name string, expectSuccess bool, baseArgs ...string) func(args ...string) string {

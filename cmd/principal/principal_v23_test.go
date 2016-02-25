@@ -55,7 +55,7 @@ func TestV23BlessSelf(t *testing.T) {
 		aliceBlessingFile = filepath.Join(outputDir, "aliceself")
 	)
 
-	bin := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+	bin := v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 	sh.Cmd(bin, "create", aliceDir, "alice").Run()
 
 	redirect(t, withCreds(aliceDir, sh.Cmd(bin, "blessself", "alicereborn")), aliceBlessingFile)
@@ -78,7 +78,7 @@ func TestV23Store(t *testing.T) {
 
 	var (
 		outputDir   = sh.MakeTempDir()
-		bin         = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin         = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		aliceDir    = filepath.Join(outputDir, "alice")
 		aliceFriend = filepath.Join(outputDir, "alice.bless")
 		bobDir      = filepath.Join(outputDir, "bob")
@@ -142,7 +142,7 @@ func TestV23Dump(t *testing.T) {
 
 	var (
 		outputDir       = sh.MakeTempDir()
-		bin             = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin             = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		aliceDir        = filepath.Join(outputDir, "alice")
 		aliceExpiredDir = filepath.Join(outputDir, "alice-expired")
 	)
@@ -200,7 +200,7 @@ func TestV23GetRecognizedRoots(t *testing.T) {
 
 	var (
 		outputDir = sh.MakeTempDir()
-		bin       = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin       = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
 
@@ -222,7 +222,7 @@ func TestV23GetPeermap(t *testing.T) {
 
 	var (
 		outputDir = sh.MakeTempDir()
-		bin       = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin       = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
 
@@ -262,7 +262,7 @@ func TestV23RecvBlessings(t *testing.T) {
 
 	var (
 		outputDir    = sh.MakeTempDir()
-		bin          = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin          = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		aliceDir     = filepath.Join(outputDir, "alice")
 		bobDir       = filepath.Join(outputDir, "bob")
 		carolDir     = filepath.Join(outputDir, "carol")
@@ -371,7 +371,7 @@ func TestV23RecvBlessingsInteractive(t *testing.T) {
 
 	var (
 		outputDir = sh.MakeTempDir()
-		bin       = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin       = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 		bobDir    = filepath.Join(outputDir, "bob")
 	)
@@ -439,7 +439,7 @@ func TestV23Fork(t *testing.T) {
 
 	var (
 		outputDir             = sh.MakeTempDir()
-		bin                   = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin                   = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		aliceDir              = filepath.Join(outputDir, "alice")
 		alicePhoneDir         = filepath.Join(outputDir, "alice-phone")
 		alicePhoneCalendarDir = filepath.Join(outputDir, "alice-phone-calendar")
@@ -532,7 +532,7 @@ func TestV23Create(t *testing.T) {
 
 	var (
 		outputDir = sh.MakeTempDir()
-		bin       = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin       = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
 
@@ -561,7 +561,7 @@ func TestV23Caveats(t *testing.T) {
 		aliceBlessingFile = filepath.Join(outputDir, "aliceself")
 	)
 
-	bin := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+	bin := v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 	sh.Cmd(bin, "create", aliceDir, "alice").Run()
 
 	args := []string{
@@ -595,7 +595,7 @@ func TestV23ForkWithoutVDLPATH(t *testing.T) {
 
 	var (
 		parent = sh.MakeTempDir()
-		bin    = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin    = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 	)
 
 	sh.Cmd(bin, "create", parent, "parent").Run()
@@ -610,7 +610,7 @@ func TestV23ForkWithoutCaveats(t *testing.T) {
 	var (
 		parent = sh.MakeTempDir()
 		child  = sh.MakeTempDir()
-		bin    = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin    = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 	)
 
 	sh.Cmd(bin, "create", parent, "parent").Run()
@@ -640,7 +640,7 @@ func TestV23Bless(t *testing.T) {
 	defer sh.Cleanup()
 
 	var (
-		bin      = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin      = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		dir      = sh.MakeTempDir()
 		aliceDir = filepath.Join(dir, "alice")
 		bobDir   = filepath.Join(dir, "bob")
@@ -731,7 +731,7 @@ func TestV23AddBlessingsToRoots(t *testing.T) {
 	defer sh.Cleanup()
 
 	var (
-		bin          = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin          = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		aliceDir     = sh.MakeTempDir()
 		bobDir       = sh.MakeTempDir()
 		blessingFile = filepath.Join(sh.MakeTempDir(), "bobfile")
@@ -771,7 +771,7 @@ func TestV23AddKeyToRoots(t *testing.T) {
 	defer sh.Cleanup()
 
 	var (
-		bin       = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin       = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		outputDir = sh.MakeTempDir()
 		aliceDir  = filepath.Join(outputDir, "alice")
 		bobDir    = filepath.Join(outputDir, "bob")
@@ -800,7 +800,7 @@ func TestV23DumpRoots(t *testing.T) {
 	defer sh.Cleanup()
 
 	var (
-		bin             = sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+		bin             = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 		outputDir       = sh.MakeTempDir()
 		aliceDir        = filepath.Join(outputDir, "alice")
 		bobDir          = filepath.Join(outputDir, "bob")

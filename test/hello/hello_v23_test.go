@@ -53,8 +53,8 @@ func TestV23HelloDirect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create credentials: %v", err)
 	}
-	clientbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
-	serverbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
+	clientbin := v23test.BuildGoPkg(sh, "v.io/x/ref/test/hello/helloclient")
+	serverbin := v23test.BuildGoPkg(sh, "v.io/x/ref/test/hello/helloserver")
 
 	server := withCreds(creds["helloserver"], sh.Cmd(serverbin))
 	server.Start()
@@ -74,9 +74,9 @@ func TestV23HelloAgentd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create credentials: %v", err)
 	}
-	agentdbin := sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
-	serverbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
-	clientbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
+	agentdbin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/agentd")
+	serverbin := v23test.BuildGoPkg(sh, "v.io/x/ref/test/hello/helloserver")
+	clientbin := v23test.BuildGoPkg(sh, "v.io/x/ref/test/hello/helloclient")
 
 	server := withCreds(creds["helloserver"], sh.Cmd(serverbin))
 	server.Start()
@@ -96,10 +96,10 @@ func TestV23HelloMounttabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create credentials: %v", err)
 	}
-	agentdbin := sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
-	mounttabledbin := sh.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
-	serverbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
-	clientbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
+	agentdbin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/agentd")
+	mounttabledbin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/mounttable/mounttabled")
+	serverbin := v23test.BuildGoPkg(sh, "v.io/x/ref/test/hello/helloserver")
+	clientbin := v23test.BuildGoPkg(sh, "v.io/x/ref/test/hello/helloclient")
 
 	name := "hello"
 	mounttabled := withCreds(creds["mounttabled"], sh.Cmd(agentdbin, mounttabledbin, "--v23.tcp.address", "127.0.0.1:0"))
@@ -121,11 +121,11 @@ func TestV23HelloProxy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create credentials: %v", err)
 	}
-	agentdbin := sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
-	mounttabledbin := sh.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
-	xproxydbin := sh.BuildGoPkg("v.io/x/ref/services/xproxy/xproxyd")
-	serverbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloserver")
-	clientbin := sh.BuildGoPkg("v.io/x/ref/test/hello/helloclient")
+	agentdbin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/agentd")
+	mounttabledbin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/mounttable/mounttabled")
+	xproxydbin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/xproxy/xproxyd")
+	serverbin := v23test.BuildGoPkg(sh, "v.io/x/ref/test/hello/helloserver")
+	clientbin := v23test.BuildGoPkg(sh, "v.io/x/ref/test/hello/helloclient")
 
 	name := "hello"
 	mounttabled := withCreds(creds["mounttabled"], sh.Cmd(agentdbin, mounttabledbin, "--v23.tcp.address", "127.0.0.1:0"))

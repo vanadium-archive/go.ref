@@ -34,9 +34,9 @@ func TestV23BecomeRole(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
-	vbecome := sh.BuildGoPkg("v.io/x/ref/services/agent/vbecome")
-	principal := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
-	roled := sh.BuildGoPkg("v.io/x/ref/services/role/roled")
+	vbecome := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/vbecome")
+	principal := v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
+	roled := v23test.BuildGoPkg(sh, "v.io/x/ref/services/role/roled")
 
 	sh.StartRootMountTable()
 
@@ -60,8 +60,8 @@ func TestV23BecomeName(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
-	vbecome := sh.BuildGoPkg("v.io/x/ref/services/agent/vbecome")
-	principal := sh.BuildGoPkg("v.io/x/ref/cmd/principal")
+	vbecome := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/vbecome")
+	principal := v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
 
 	sh.StartRootMountTable()
 

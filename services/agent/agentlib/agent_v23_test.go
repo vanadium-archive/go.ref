@@ -33,7 +33,7 @@ func TestV23PassPhraseUse(t *testing.T) {
 	sh := v23test.NewShell(t, v23test.Opts{})
 	defer sh.Cleanup()
 
-	bin := sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+	bin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/agentd")
 	dir := sh.MakeTempDir()
 
 	// Create the passphrase
@@ -77,8 +77,8 @@ func TestV23AllPrincipalMethods(t *testing.T) {
 
 	// Test all methods of the principal interface.
 	// (Errors are printed to STDERR)
-	testbin := sh.BuildGoPkg("v.io/x/ref/services/agent/internal/test_principal")
-	agentd := sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+	testbin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/internal/test_principal")
+	agentd := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/agentd")
 
 	c := sh.Cmd(agentd, testbin)
 	c.Vars[ref.EnvCredentials] = sh.MakeTempDir()
@@ -96,8 +96,8 @@ func TestV23AgentProcesses(t *testing.T) {
 	// the server.
 	var (
 		clientDir, serverDir = createClientAndServerCredentials(t, sh)
-		pingpong             = sh.BuildGoPkg("v.io/x/ref/services/agent/internal/pingpong")
-		agentd               = sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+		pingpong             = v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/internal/pingpong")
+		agentd               = v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/agentd")
 	)
 
 	server := sh.Cmd(agentd, pingpong)
@@ -150,8 +150,8 @@ func TestV23AgentRestartExitCode(t *testing.T) {
 
 	var (
 		clientDir, serverDir = createClientAndServerCredentials(t, sh)
-		pingpong             = sh.BuildGoPkg("v.io/x/ref/services/agent/internal/pingpong")
-		agentd               = sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+		pingpong             = v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/internal/pingpong")
+		agentd               = v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/agentd")
 
 		scriptDir = sh.MakeTempDir()
 		counter   = filepath.Join(scriptDir, "counter")
@@ -246,7 +246,7 @@ func TestV23KeyManager(t *testing.T) {
 	var (
 		agentDir, otherDir = sh.MakeTempDir(), sh.MakeTempDir()
 		agentSock          = filepath.Join(agentDir, "agent.sock") // "agent.sock" comes from agentd/main.go
-		agentd             = sh.BuildGoPkg("v.io/x/ref/services/agent/agentd")
+		agentd             = v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/agentd")
 		clientSock         = filepath.Join(sh.MakeTempDir(), "client.sock")
 		script             = filepath.Join(sh.MakeTempDir(), "test.sh")
 

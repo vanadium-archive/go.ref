@@ -20,9 +20,9 @@ func TestV23Tunneld(t *testing.T) {
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
-	tunneldBin := sh.BuildGoPkg("v.io/x/ref/examples/tunnel/tunneld")
-	vsh := sh.BuildGoPkg("v.io/x/ref/examples/tunnel/vsh")
-	mounttableBin := sh.BuildGoPkg("v.io/x/ref/cmd/mounttable")
+	tunneldBin := v23test.BuildGoPkg(sh, "v.io/x/ref/examples/tunnel/tunneld")
+	vsh := v23test.BuildGoPkg(sh, "v.io/x/ref/examples/tunnel/vsh")
+	mounttableBin := v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/mounttable")
 
 	// Start tunneld with a known endpoint.
 	cmd := sh.Cmd(tunneldBin, "--v23.tcp.address=127.0.0.1:0", "--name=tunnel/test")
