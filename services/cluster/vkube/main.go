@@ -86,6 +86,7 @@ func kubeCmdRunner(kcmd func(ctx *context.T, env *cmdline.Env, args []string, co
 		defer os.Remove(f.Name())
 		f.Close()
 
+		fmt.Fprintf(env.Stderr, "Project: %s Zone: %s Cluster: %s\n\n", config.Project, config.Zone, config.Cluster)
 		if out, err := exec.Command(flagGcloudBin, "container", "clusters", "get-credentials", config.Cluster, "--project", config.Project, "--zone", config.Zone).CombinedOutput(); err != nil {
 			return fmt.Errorf("failed to get credentials for %q: %v: %s", config.Cluster, err, out)
 		}
