@@ -76,8 +76,6 @@ func NewErrNotAdmin(ctx *context.T) error {
 // Sync defines methods for data exchange between Syncbases.
 // TODO(hpucha): Flesh this out further.
 type SyncClientMethods interface {
-	// Pingable is a pingable RPC server.
-	PingableClientMethods
 	// GetTime returns metadata related to the Syncbase virtual clock, including
 	// system clock values, last NTP timestamp, num reboots, etc.
 	GetTime(_ *context.T, req TimeReq, initiator string, _ ...rpc.CallOpt) (TimeResp, error)
@@ -140,13 +138,11 @@ type SyncClientStub interface {
 
 // SyncClient returns a client stub for Sync.
 func SyncClient(name string) SyncClientStub {
-	return implSyncClientStub{name, PingableClient(name)}
+	return implSyncClientStub{name}
 }
 
 type implSyncClientStub struct {
 	name string
-
-	PingableClientStub
 }
 
 func (c implSyncClientStub) GetTime(ctx *context.T, i0 TimeReq, i1 string, opts ...rpc.CallOpt) (o0 TimeResp, err error) {
@@ -519,8 +515,6 @@ func (c *implSyncFetchChunksClientCall) Finish() (err error) {
 // Sync defines methods for data exchange between Syncbases.
 // TODO(hpucha): Flesh this out further.
 type SyncServerMethods interface {
-	// Pingable is a pingable RPC server.
-	PingableServerMethods
 	// GetTime returns metadata related to the Syncbase virtual clock, including
 	// system clock values, last NTP timestamp, num reboots, etc.
 	GetTime(_ *context.T, _ rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
@@ -580,8 +574,6 @@ type SyncServerMethods interface {
 // The only difference between this interface and SyncServerMethods
 // is the streaming methods.
 type SyncServerStubMethods interface {
-	// Pingable is a pingable RPC server.
-	PingableServerStubMethods
 	// GetTime returns metadata related to the Syncbase virtual clock, including
 	// system clock values, last NTP timestamp, num reboots, etc.
 	GetTime(_ *context.T, _ rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
@@ -648,8 +640,7 @@ type SyncServerStub interface {
 // an object that may be used by rpc.Server.
 func SyncServer(impl SyncServerMethods) SyncServerStub {
 	stub := implSyncServerStub{
-		impl:               impl,
-		PingableServerStub: PingableServer(impl),
+		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
@@ -663,8 +654,7 @@ func SyncServer(impl SyncServerMethods) SyncServerStub {
 
 type implSyncServerStub struct {
 	impl SyncServerMethods
-	PingableServerStub
-	gs *rpc.GlobState
+	gs   *rpc.GlobState
 }
 
 func (s implSyncServerStub) GetTime(ctx *context.T, call rpc.ServerCall, i0 TimeReq, i1 string) (TimeResp, error) {
@@ -704,7 +694,7 @@ func (s implSyncServerStub) Globber() *rpc.GlobState {
 }
 
 func (s implSyncServerStub) Describe__() []rpc.InterfaceDesc {
-	return []rpc.InterfaceDesc{SyncDesc, PingableDesc}
+	return []rpc.InterfaceDesc{SyncDesc}
 }
 
 // SyncDesc describes the Sync interface.
@@ -715,9 +705,6 @@ var descSync = rpc.InterfaceDesc{
 	Name:    "Sync",
 	PkgPath: "v.io/x/ref/services/syncbase/server/interfaces",
 	Doc:     "// Sync defines methods for data exchange between Syncbases.\n// TODO(hpucha): Flesh this out further.",
-	Embeds: []rpc.EmbedDesc{
-		{"Pingable", "v.io/x/ref/services/syncbase/server/interfaces", "// Pingable is a pingable RPC server."},
-	},
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "GetTime",

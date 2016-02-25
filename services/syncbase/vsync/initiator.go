@@ -111,10 +111,7 @@ func (s *syncService) getDBDeltas(ctx *context.T, gdbName string, info sgMemberI
 	// not be revealed when that database is not being synced.
 	//
 	// TODO(hpucha): Revisit which blessings are sent.
-	blessingNames, updPeer, err := s.identifyPeer(ctx, peer)
-	if err != nil {
-		return updPeer, err
-	}
+	blessingNames := s.identifyPeer(ctx, peer)
 
 	// The initiation config is shared across the sync rounds in an
 	// initiation. The mount tables in the config are pruned to eliminate
@@ -124,9 +121,9 @@ func (s *syncService) getDBDeltas(ctx *context.T, gdbName string, info sgMemberI
 	// already failed ones.
 	//
 	// TODO(hpucha): Clean up sharing of the initiationConfig.
-	c, err := newInitiationConfig(ctx, s, gdbName, info, updPeer)
+	c, err := newInitiationConfig(ctx, s, gdbName, info, peer)
 	if err != nil {
-		return updPeer, err
+		return peer, err
 	}
 
 	// Filter the syncgroups using the peer blessings, and populate the
@@ -147,27 +144,17 @@ func (s *syncService) getDBDeltas(ctx *context.T, gdbName string, info sgMemberI
 	return c.peer, err
 }
 
-// identifyPeer obtains the blessings from the remote peer.
-func (s *syncService) identifyPeer(ctxIn *context.T, peer connInfo) ([]string, connInfo, error) {
-	vlog.VI(2).Infof("sync: identifyPeer: begin for peer %v", peer)
-	defer vlog.VI(2).Infof("sync: identifyPeer: end for peer %v", peer)
-
-	ctx, cancel := context.WithCancel(ctxIn)
-	defer cancel()
-
-	var blessingNames []string
-	rpcArgs := []interface{}{nil, peer.relName}
-	op := func(ctx *context.T, peer string) (interface{}, error) {
-		call, err := v23.GetClient(ctx).StartCall(ctx, peer, "GetDeltas", rpcArgs)
-		if err != nil {
-			return nil, err
-		}
-		blessingNames, _ = call.RemoteBlessings()
-		call.Finish()
-		return nil, nil
-	}
-	updPeer, _, err := runAtPeer(ctx, peer, op)
-	return blessingNames, updPeer, err
+func (s *syncService) identifyPeer(ctx *context.T, peer connInfo) []string {
+	conn := peer.pinned.Conn()
+	blessingNames, _ := security.RemoteBlessingNames(ctx, security.NewCall(&security.CallParams{
+		Timestamp:        time.Now(),
+		LocalPrincipal:   v23.GetPrincipal(ctx),
+		RemoteBlessings:  conn.RemoteBlessings(),
+		RemoteDischarges: conn.RemoteDischarges(),
+		LocalEndpoint:    conn.LocalEndpoint(),
+		RemoteEndpoint:   conn.RemoteEndpoint(),
+	}))
+	return blessingNames
 }
 
 // filterSyncgroups uses the remote peer's blessings to obtain the set of
@@ -273,8 +260,13 @@ func (s *syncService) getDeltas(ctxIn *context.T, c *initiationConfig, sg bool) 
 		// The authorizer passed to the RPC ensures that the remote
 		// peer's blessing names are the same as obtained in the
 		// identification step done previously.
+		//
+		// We set options.ConnectionTimeout to 0 here to indicate that we only want to
+		// use connections that exist in the client cache. This is because we are trying
+		// to connect to a peer that is active as determined by the peer manager.
 		iSt.stream, err = c.GetDeltas(ctx, iSt.req, iSt.config.sync.name,
-			options.ServerAuthorizer{iSt.config.auth}, options.ChannelTimeout(connectionTimeOut))
+			options.ServerAuthorizer{iSt.config.auth}, options.ChannelTimeout(channelTimeout),
+			options.ConnectionTimeout(syncConnectionTimeout))
 		return nil, err
 	}
 
@@ -1333,11 +1325,7 @@ func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) (interface{}, er
 
 	ctx, cancel := context.WithCancel(ctxIn)
 
-	// We start a timer to bound the amount of time we wait to
-	// initiate a connection.
-	t := time.AfterFunc(connectionTimeOut, cancel)
 	resp, err := op(ctx, absName)
-	t.Stop()
 
 	if err == nil {
 		vlog.VI(4).Infof("sync: runRemoteOp: end op established for %s", absName)
