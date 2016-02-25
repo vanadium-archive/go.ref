@@ -139,7 +139,7 @@ func (fc *fakeDischargeClient) Call(_ *context.T, _, _ string, inArgs, outArgs [
 func (fc *fakeDischargeClient) StartCall(*context.T, string, string, []interface{}, ...rpc.CallOpt) (rpc.ClientCall, error) {
 	return nil, nil
 }
-func (fc *fakeDischargeClient) Connection(*context.T, string, ...rpc.CallOpt) (flow.ManagedConn, error) {
+func (fc *fakeDischargeClient) PinConnection(*context.T, string, ...rpc.CallOpt) (flow.PinnedConn, error) {
 	return nil, nil
 }
 func (fc *fakeDischargeClient) Close()                  {}

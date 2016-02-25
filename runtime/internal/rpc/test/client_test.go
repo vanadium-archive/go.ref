@@ -31,6 +31,7 @@ import (
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/lib/tcputil"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
@@ -956,13 +957,13 @@ func TestDNSResolutionChange(t *testing.T) {
 	}
 }
 
-func TestClientConnection(t *testing.T) {
+func TestPinConnection(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
 	ctx, cancel := context.WithCancel(ctx)
 	name := "mountpoint/server"
-	_, server, err := v23.WithNewServer(ctx, name, &testServer{}, nil)
+	_, server, err := v23.WithNewServer(ctx, name, &testServer{}, nil, options.LameDuckTimeout(0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -971,7 +972,7 @@ func TestClientConnection(t *testing.T) {
 
 	client := v23.GetClient(ctx)
 
-	conn, err := client.Connection(ctx, name)
+	pinnedConn, err := client.PinConnection(ctx, name)
 	if err != nil {
 		t.Error(err)
 	}
@@ -981,8 +982,34 @@ func TestClientConnection(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if got, want := call.Security().LocalEndpoint().String(), conn.LocalEndpoint().String(); got != want {
+	if got, want := call.Security().LocalEndpoint().String(), pinnedConn.Conn().LocalEndpoint().String(); got != want {
 		t.Errorf("got %v, want %v", got, want)
+	}
+	call.Finish()
+
+	// Closing the original conn should automatically reconnect to the server.
+	origConn := pinnedConn.Conn()
+	origConn.(*conn.Conn).Close(ctx, nil)
+	<-origConn.Closed()
+	for {
+		if origConn != pinnedConn.Conn() {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	// Closing an unpinned conn should not reconnect.
+	pinnedConn.Unpin()
+	origConn = pinnedConn.Conn()
+	origConn.(*conn.Conn).Close(ctx, nil)
+	<-origConn.Closed()
+	time.Sleep(300 * time.Millisecond)
+	if origConn != pinnedConn.Conn() {
+		t.Errorf("Conn should not have reconnected.")
+	}
+	// The pinned conn should also become idle.
+	if !origConn.(*conn.Conn).IsIdle(ctx, time.Millisecond) {
+		t.Errorf("Conn should have been idle.")
 	}
 }
 

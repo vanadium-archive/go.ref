@@ -180,15 +180,67 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 	return fc, nil
 }
 
-func (c *client) Connection(ctx *context.T, name string, opts ...rpc.CallOpt) (flow.ManagedConn, error) {
+func (c *client) PinConnection(ctx *context.T, name string, opts ...rpc.CallOpt) (flow.PinnedConn, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	connOpts := getConnectionOptions(ctx, opts)
 	r, err := c.connectToName(ctx, name, "", nil, connOpts, opts)
 	if err != nil {
 		return nil, err
 	}
-	conn := r.flow.Conn()
-	r.flow.Close()
-	return conn, nil
+	pinned := &pinnedConn{
+		cancel: cancel,
+		done:   ctx.Done(),
+		conn:   r.flow.Conn(),
+	}
+	c.wg.Add(1)
+	go c.reconnectPinnedConn(ctx, pinned, name, connOpts, opts...)
+	return pinned, nil
+}
+
+type pinnedConn struct {
+	cancel context.CancelFunc
+	done   <-chan struct{}
+
+	mu   sync.Mutex
+	conn flow.ManagedConn
+}
+
+func (p *pinnedConn) Conn() flow.ManagedConn {
+	defer p.mu.Unlock()
+	p.mu.Lock()
+	return p.conn
+}
+
+func (p *pinnedConn) Unpin() {
+	p.cancel()
+}
+
+func (c *client) reconnectPinnedConn(ctx *context.T, p *pinnedConn, name string, connOpts *connectionOpts, opts ...rpc.CallOpt) {
+	defer c.wg.Done()
+	delay := reconnectDelay
+	for {
+		p.mu.Lock()
+		closed := p.conn.Closed()
+		p.mu.Unlock()
+		select {
+		case <-closed:
+			r, err := c.connectToName(ctx, name, "", nil, connOpts, opts)
+			if err != nil {
+				time.Sleep(delay)
+				delay = nextDelay(delay)
+			} else {
+				delay = reconnectDelay
+				p.mu.Lock()
+				p.conn = r.flow.Conn()
+				closed = p.conn.Closed()
+				p.mu.Unlock()
+			}
+		case <-p.done:
+			// Reaching here means that the ctx passed to PinConnection is cancelled,
+			// so the flow on the conn created in PinConnection is closed here.
+			return
+		}
+	}
 }
 
 type serverStatus struct {

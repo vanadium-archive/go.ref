@@ -88,7 +88,7 @@ func (c *simpleMockClient) Call(ctx *context.T, name, method string, inArgs, out
 }
 
 // Implement rpc.Client.
-func (*simpleMockClient) Connection(*context.T, string, ...rpc.CallOpt) (flow.ManagedConn, error) {
+func (*simpleMockClient) PinConnection(*context.T, string, ...rpc.CallOpt) (flow.PinnedConn, error) {
 	return nil, nil
 }
 func (*simpleMockClient) Close()                  {}
