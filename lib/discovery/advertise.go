@@ -28,7 +28,7 @@ func (d *idiscovery) advertise(ctx *context.T, session sessionId, service *disco
 	}
 
 	ad := Advertisement{Service: copyService(service)}
-	if err := encrypt(&ad, visibility); err != nil {
+	if err := encrypt(ctx, &ad, visibility); err != nil {
 		return nil, err
 	}
 	hashAdvertisement(&ad)

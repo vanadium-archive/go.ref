@@ -9,11 +9,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"strings"
 
 	"golang.org/x/crypto/nacl/secretbox"
 
+	"v.io/v23/context"
 	"v.io/v23/security"
+	"v.io/v23/vom"
+
+	"v.io/x/ref/lib/security/bcrypter"
 )
 
 var (
@@ -22,20 +25,28 @@ var (
 	errNoPermission = errors.New("no permission")
 )
 
-// encrypt identity-based encrypts the service so that only users who match with one of
-// the given blessing patterns can decrypt it. Nil patterns means no encryption.
-func encrypt(ad *Advertisement, patterns []security.BlessingPattern) error {
+// encrypt encrypts the service so that only users who possess blessings
+// matching one of the given blessing patterns can decrypt it. Nil patterns
+// means no encryption.
+func encrypt(ctx *context.T, ad *Advertisement, patterns []security.BlessingPattern) error {
 	if len(patterns) == 0 {
 		ad.EncryptionAlgorithm = NoEncryption
 		return nil
 	}
 
-	sharedKey, keys, err := newSharedKey(patterns)
-	if err != nil {
+	var sharedKey [32]byte
+	if _, err := rand.Read(sharedKey[:]); err != nil {
 		return err
 	}
-	ad.EncryptionAlgorithm = TestEncryption
-	ad.EncryptionKeys = keys
+
+	ad.EncryptionAlgorithm = IbeEncryption
+	ad.EncryptionKeys = make([]EncryptionKey, len(patterns))
+	var err error
+	for i, pattern := range patterns {
+		if ad.EncryptionKeys[i], err = wrapSharedKey(ctx, sharedKey, pattern); err != nil {
+			return err
+		}
+	}
 
 	// We only encrypt addresses for now.
 	//
@@ -44,29 +55,40 @@ func encrypt(ad *Advertisement, patterns []security.BlessingPattern) error {
 	for i, addr := range ad.Service.Addrs {
 		var n [24]byte
 		binary.LittleEndian.PutUint64(n[:], uint64(i))
-		encrypted[i] = string(secretbox.Seal(nil, []byte(addr), &n, sharedKey))
+		encrypted[i] = string(secretbox.Seal(nil, []byte(addr), &n, &sharedKey))
 	}
 	ad.Service.Addrs = encrypted
 	return nil
 }
 
-// decrypt decrypts the service with the given blessing names.
-func decrypt(ad *Advertisement, names []string) error {
+// decrypt decrypts the service using a blessings-based crypter
+// from the provided context.
+//
+// TODO(ataly, ashankar, jhahn): Currently we are using the go
+// implementation of the 'bn256' pairings library which causes
+// the IBE decryption cost to be 42ms. As a result, clients
+// processing discovery advertisements ust use conservative timeouts
+// of at least 200ms to ensure that the advertisement is decrypted.
+// Once we switch to the C implementation of the library, the
+// decryption cost, and therefore this timeout, will come down.
+func decrypt(ctx *context.T, ad *Advertisement) error {
 	if ad.EncryptionAlgorithm == NoEncryption {
 		// Not encrypted.
 		return nil
 	}
-	if len(names) == 0 {
-		// No identifiers.
-		return errNoPermission
-	}
 
-	if ad.EncryptionAlgorithm != TestEncryption {
+	if ad.EncryptionAlgorithm != IbeEncryption {
 		return fmt.Errorf("unsupported encryption algorithm: %v", ad.EncryptionAlgorithm)
 	}
-	sharedKey, err := decryptSharedKey(ad.EncryptionKeys, names)
-	if err != nil {
-		return err
+
+	var (
+		sharedKey *[32]byte
+		err       error
+	)
+	for _, key := range ad.EncryptionKeys {
+		if sharedKey, err = unwrapSharedKey(ctx, key); err == nil {
+			break
+		}
 	}
 	if sharedKey == nil {
 		return errNoPermission
@@ -91,62 +113,53 @@ func decrypt(ad *Advertisement, names []string) error {
 	return nil
 }
 
-// newSharedKey creates a new shared encryption key and identity-based encrypts
-// the shared key with the given blessing patterns.
-func newSharedKey(patterns []security.BlessingPattern) (*[32]byte, []EncryptionKey, error) {
+func wrapSharedKey(ctx *context.T, sharedKey [32]byte, pattern security.BlessingPattern) (EncryptionKey, error) {
+	crypter := bcrypter.GetCrypter(ctx)
+	ctxt, err := crypter.Encrypt(ctx, pattern, sharedKey[:])
+	if err != nil {
+		return nil, err
+	}
+	return encodeEncryptionKey(ctxt)
+}
+
+func unwrapSharedKey(ctx *context.T, key EncryptionKey) (*[32]byte, error) {
+	crypter := bcrypter.GetCrypter(ctx)
+	ctxt, err := decodeEncryptionKey(key)
+	if err != nil {
+		return nil, err
+	}
+	decrypted, err := crypter.Decrypt(ctx, ctxt)
+	if err != nil {
+		return nil, err
+	}
+	if decryptedLen := len(decrypted); decryptedLen != 32 {
+		return nil, fmt.Errorf("decrypted shared key has length %v, want %v", decryptedLen, 32)
+	}
 	var sharedKey [32]byte
-	if _, err := rand.Read(sharedKey[:]); err != nil {
-		return nil, nil, err
-	}
-
-	keys := make([]EncryptionKey, len(patterns))
-	// TODO(jhahn): Replace this fake with the real IBE.
-	for i, pattern := range patterns {
-		var k [32]byte
-		copy(k[:], pattern)
-		keys[i] = secretbox.Seal(nil, sharedKey[:], &[24]byte{}, &k)
-	}
-	return &sharedKey, keys, nil
+	copy(sharedKey[:], decrypted)
+	return &sharedKey, nil
 }
 
-// decryptSharedKey decrypts the identity-based encrypted shared key with the
-// given blessing names.
-func decryptSharedKey(keys []EncryptionKey, names []string) (*[32]byte, error) {
-	// TODO(jhahn): Replace this fake with the real IBE.
-	for _, name := range names {
-		for _, pattern := range prefixPatterns(name) {
-			var k [32]byte
-			copy(k[:], pattern)
-			for _, key := range keys {
-				decrypted, ok := secretbox.Open(nil, key, &[24]byte{}, &k)
-				if !ok {
-					continue
-				}
-				if len(decrypted) != 32 {
-					return nil, errors.New("shared key decryption error")
-				}
-				var sharedKey [32]byte
-				copy(sharedKey[:], decrypted)
-				return &sharedKey, nil
-			}
-		}
+func encodeEncryptionKey(ctxt *bcrypter.Ciphertext) (EncryptionKey, error) {
+	var wctxt bcrypter.WireCiphertext
+	ctxt.ToWire(&wctxt)
+	// TODO(ataly, jhahn): Use a more efficient encoding than
+	// VOM, if possible.
+	b, err := vom.Encode(wctxt)
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil
+	return EncryptionKey(b), nil
 }
 
-// prefixPatterns returns blessing patterns that can be matched by the given name.
-func prefixPatterns(name string) []string {
-	patterns := []string{
-		name,
-		name + security.ChainSeparator + string(security.NoExtension),
+func decodeEncryptionKey(key EncryptionKey) (*bcrypter.Ciphertext, error) {
+	var (
+		wctxt bcrypter.WireCiphertext
+		ctxt  bcrypter.Ciphertext
+	)
+	if err := vom.Decode([]byte(key), &wctxt); err != nil {
+		return nil, err
 	}
-	for {
-		i := strings.LastIndex(name, security.ChainSeparator)
-		if i < 0 {
-			break
-		}
-		name = name[:i]
-		patterns = append(patterns, name)
-	}
-	return patterns
+	ctxt.FromWire(wctxt)
+	return &ctxt, nil
 }

@@ -8,15 +8,15 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/discovery"
 	"v.io/v23/security"
 
+	"v.io/x/lib/ibe"
 	idiscovery "v.io/x/ref/lib/discovery"
 	"v.io/x/ref/lib/discovery/plugins/mock"
+	"v.io/x/ref/lib/security/bcrypter"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/testutil"
 )
 
 func TestBasic(t *testing.T) {
@@ -117,8 +117,19 @@ func TestBasic(t *testing.T) {
 func TestVisibility(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
+	master, err := ibe.SetupBB2()
+	if err != nil {
+		ctx.Fatalf("ibe.SetupBB2 failed: %v", err)
+	}
 
-	df, _ := idiscovery.NewFactory(ctx, mock.New())
+	root := bcrypter.NewRoot("v.io", master)
+	crypter := bcrypter.NewCrypter()
+	if err := crypter.AddParams(ctx, root.Params()); err != nil {
+		ctx.Fatalf("AddParams failed: %v", err)
+	}
+	sctx := bcrypter.WithCrypter(ctx, crypter)
+
+	df, _ := idiscovery.NewFactory(sctx, mock.New())
 	defer df.Shutdown()
 
 	service := discovery.Service{
@@ -132,7 +143,7 @@ func TestVisibility(t *testing.T) {
 	}
 
 	d1, _ := df.New()
-	stop, err := advertise(ctx, d1, visibility, &service)
+	stop, err := advertise(sctx, d1, visibility, &service)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,28 +152,33 @@ func TestVisibility(t *testing.T) {
 	d2, _ := df.New()
 
 	// Bob and his friend should discover the advertisement.
-	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:bob"))
-	if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
+	if ctx, err := withDerivedCrypter(ctx, root, "v.io:bob"); err != nil {
+		t.Error(err)
+	} else if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
 		t.Error(err)
 	}
-	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:bob:friend"))
-	if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
+	if ctx, err = withDerivedCrypter(ctx, root, "v.io:bob:friend"); err != nil {
+		t.Error(err)
+	} else if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
 		t.Error(err)
 	}
 
 	// Alice should discover the advertisement, but her friend shouldn't.
-	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:alice"))
-	if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
+	if ctx, err = withDerivedCrypter(ctx, root, "v.io:alice"); err != nil {
+		t.Error(err)
+	} else if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
 		t.Error(err)
 	}
-	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:alice:friend"))
-	if err := scanAndMatch(ctx, d2, "v.io/v23/a"); err != nil {
+	if ctx, err = withDerivedCrypter(ctx, root, "v.io:alice:friend"); err != nil {
+		t.Error(err)
+	} else if err := scanAndMatch(ctx, d2, "v.io/v23/a"); err != nil {
 		t.Error(err)
 	}
 
 	// Other people shouldn't discover the advertisement.
-	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("v.io:carol"))
-	if err := scanAndMatch(ctx, d2, "v.io/v23/a"); err != nil {
+	if ctx, err = withDerivedCrypter(ctx, root, "v.io:carol"); err != nil {
+		t.Error(err)
+	} else if err := scanAndMatch(ctx, d2, "v.io/v23/a"); err != nil {
 		t.Error(err)
 	}
 }
