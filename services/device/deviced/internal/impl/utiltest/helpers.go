@@ -208,7 +208,7 @@ func ClaimDevice(t *testing.T, ctx *context.T, claimableName, deviceName, extens
 		ctx.VI(4).Infof("Resolve(%q) failed: %v", err)
 		time.Sleep(time.Millisecond)
 		if elapsed := time.Since(start); elapsed > time.Minute {
-			t.Fatalf("Device hasn't remounted itself in %v since it was claimed", elapsed)
+			t.Fatal(testutil.FormatLogLine(2, "Device hasn't remounted itself in %v since it was claimed", elapsed))
 		}
 	}
 }
@@ -500,6 +500,37 @@ func VerifyState(t *testing.T, ctx *context.T, want interface{}, nameComponents 
 	return version
 }
 
+func WaitForState(t *testing.T, ctx *context.T, want interface{}, nameComponents ...string) {
+	timeOut := time.After(30 * time.Second)
+	for {
+		s, err := AppStub(nameComponents...).Status(ctx)
+		// err may be non-nil when the app state cannot be determined.
+		// This can happen as a result of
+		// getInstanceState/getInstallationState not being thread-safe
+		// when the app state is changing.  For such cases, just retry.
+		if err == nil {
+			var state interface{}
+			switch s := s.(type) {
+			case device.StatusInstance:
+				state = s.Value.State
+			case device.StatusInstallation:
+				state = s.Value.State
+			default:
+				t.Error(testutil.FormatLogLine(2, "Status(%v) returned unknown type: %T", nameComponents, s))
+			}
+			if state == want {
+				return
+			}
+		}
+		select {
+		case <-timeOut:
+			t.Fatal(testutil.FormatLogLine(2, "Timed out waiting for %v to reach state %v", nameComponents, want))
+		case <-time.After(time.Millisecond):
+			// Try again.
+		}
+	}
+}
+
 // Code to make Association lists sortable.
 type byIdentity []device.Association
 
@@ -527,11 +558,11 @@ func GenerateSuidHelperScript(t *testing.T, root string) string {
 	logger.Global().VI(1).Infof("script\n%s", output)
 
 	if err := os.MkdirAll(root, 0755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
+		t.Fatal(testutil.FormatLogLine(2, "MkdirAll failed: %v", err))
 	}
 	path := filepath.Join(root, "helper.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
-		t.Fatalf("WriteFile(%v) failed: %v", path, err)
+		t.Fatal(testutil.FormatLogLine(2, "WriteFile(%v) failed: %v", path, err))
 	}
 	return path
 }
@@ -556,11 +587,11 @@ done
 exec ${ARGS[@]}
 `
 	if err := os.MkdirAll(root, 0755); err != nil {
-		t.Fatalf("MkdirAll failed: %v", err)
+		t.Fatal(testutil.FormatLogLine(2, "MkdirAll failed: %v", err))
 	}
 	path := filepath.Join(root, "agenthelper.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
-		t.Fatalf("WriteFile(%v) failed: %v", path, err)
+		t.Fatal(testutil.FormatLogLine(2, "WriteFile(%v) failed: %v", path, err))
 	}
 	return path
 }
@@ -592,7 +623,7 @@ func StartupHelper(t *testing.T) (func(), *context.T, *v23test.Shell, *applicati
 
 	root, rootCleanup := servicetest.SetupRootDir(t, "devicemanager")
 	if err := versioning.SaveCreatorInfo(ctx, root); err != nil {
-		t.Fatal(err)
+		t.Fatal(testutil.FormatLogLine(2, "SaveCreatorInfo failed: %v", err))
 	}
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -764,7 +795,7 @@ func SetNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
 func UserName(t *testing.T) string {
 	u, err := user.Current()
 	if err != nil {
-		t.Fatalf("user.Current() failed: %v", err)
+		t.Fatal(testutil.FormatLogLine(2, "user.Current() failed: %v", err))
 	}
 	return u.Username
 }
@@ -772,27 +803,27 @@ func UserName(t *testing.T) string {
 func StartRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() {
 	rootDir, err := binarylib.SetupRootDir("")
 	if err != nil {
-		t.Fatalf("binarylib.SetupRootDir failed: %v", err)
+		t.Fatal(testutil.FormatLogLine(2, "binarylib.SetupRootDir failed: %v", err))
 	}
 	state, err := binarylib.NewState(rootDir, "", 3)
 	if err != nil {
-		t.Fatalf("binarylib.NewState failed: %v", err)
+		t.Fatal(testutil.FormatLogLine(2, "binarylib.NewState failed: %v", err))
 	}
 	d, err := binarylib.NewDispatcher(ctx, state)
 	if err != nil {
-		t.Fatalf("server.NewDispatcher failed: %v", err)
+		t.Fatal(testutil.FormatLogLine(2, "server.NewDispatcher failed: %v", err))
 	}
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, von, d)
 	if err != nil {
-		t.Fatalf("server.ServeDispatcher failed: %v", err)
+		t.Fatal(testutil.FormatLogLine(2, "server.ServeDispatcher failed: %v", err))
 	}
 	WaitForMount(t, ctx, von, server)
 	return func() {
 		if err := server.Stop(); err != nil {
-			t.Fatalf("server.Stop failed: %v", err)
+			t.Fatal(testutil.FormatLogLine(2, "server.Stop failed: %v", err))
 		}
 		if err := os.RemoveAll(rootDir); err != nil {
-			t.Fatalf("os.RemoveAll(%q) failed: %v", rootDir, err)
+			t.Fatal(testutil.FormatLogLine(2, "os.RemoveAll(%q) failed: %v", rootDir, err))
 		}
 	}
 }
@@ -802,11 +833,11 @@ func GetPid(t *testing.T, ctx *context.T, appID, instanceID string) int {
 	c := stats.StatsClient(name)
 	v, err := c.Value(ctx)
 	if err != nil {
-		t.Fatalf("Value() failed: %v", err)
+		t.Fatal(testutil.FormatLogLine(2, "Value() failed: %v", err))
 	}
 	var pid int
 	if err := v.ToValue(&pid); err != nil {
-		t.Fatal(err)
+		t.Fatal(testutil.FormatLogLine(2, "ToValue() failed: %v", err))
 	}
 	return pid
 }
@@ -819,7 +850,7 @@ func PollingWait(t *testing.T, pid int) {
 		select {
 		case <-timeOut:
 			syscall.Kill(pid, 9)
-			t.Fatalf("Timed out waiting for PID %v to terminate", pid)
+			t.Fatal(testutil.FormatLogLine(2, "Timed out waiting for PID %v to terminate", pid))
 		case <-time.After(time.Millisecond):
 			// Try again.
 		}
