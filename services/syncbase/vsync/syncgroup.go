@@ -1176,7 +1176,7 @@ func (s *syncService) advertiseSyncbase(ctx *context.T, call rpc.ServerCall, sg 
 func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCall, sgName, name string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.GenVector, error) {
 	vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: begin %v", sgName)
 
-	ctx, cancel := context.WithTimeout(ctxIn, connectionTimeOut)
+	ctx, cancel := context.WithTimeout(ctxIn, peerConnectionTimeout)
 	c := interfaces.SyncClient(sgName)
 	sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, sgName, name, myInfo)
 	cancel()
@@ -1199,7 +1199,7 @@ func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCa
 	neighbors := ss.filterSyncgroupAdmins(sgName)
 	for _, svc := range neighbors {
 		for _, addr := range svc.Addrs {
-			ctx, cancel := context.WithTimeout(ctxIn, connectionTimeOut)
+			ctx, cancel := context.WithTimeout(ctxIn, peerConnectionTimeout)
 			c := interfaces.SyncClient(naming.Join(addr, util.SyncbaseSuffix))
 			sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, sgName, name, myInfo)
 			cancel()

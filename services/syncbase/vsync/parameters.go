@@ -12,13 +12,22 @@ var (
 	// pending updates from that peer.
 	peerSyncInterval = 50 * time.Millisecond
 
-	// connectionTimeOut is the time duration we wait for a connection to be
+	// channelTimeout is the duration at which health checks will be requested on
+	// connections to peers.
+	channelTimeout = 2 * time.Second
+
+	// peerConnectionTimeout is the time duration we wait for a connection to be
 	// established with a peer.
+	peerConnectionTimeout = 2 * time.Second
+
+	// syncConnectionTimeout is the duration we wait for syncing to begin with a
+	// peer. A value of 0 means we will only use connections that exist in our
+	// cache.
 	//
 	// TODO(hpucha): Make sync connection timeout dynamic based on ping latency.
 	// E.g. perhaps we should use a 2s ping timeout, and use k*pingLatency (for
-	// some k) as getDeltas timeout.
-	connectionTimeOut = 2 * time.Second
+	// some k) as getDeltas timeout
+	syncConnectionTimeout = 0
 
 	// memberViewTTL is the shelf-life of the aggregate view of syncgroup members.
 	memberViewTTL = 2 * time.Second
@@ -37,16 +46,6 @@ var (
 	// peerManagementInterval is the duration between two rounds of peer
 	// management actions.
 	peerManagementInterval = peerSyncInterval / 5
-
-	// healthInfoTimeout is the timeout for a peer's health information
-	// obtained via pinging it. This parameter impacts the size of the
-	// healthy peer cache since we add up to 'pingFanout' peers every
-	// 'peerManagementInterval'.
-	// NOTE(sadovsky): It's important for this parameter to be >= ping's
-	// connection timeout (connectionTimeOut); otherwise, our cache will drain and
-	// sync will repeatedly get blocked on cache re-population, which takes
-	// connectionTimeOut if an unresponsive peer was selected to be pinged.
-	healthInfoTimeOut = connectionTimeOut
 
 	// watchPollInterval is the duration between consecutive watch polling
 	// events across all app databases.  Every watch event loops across all

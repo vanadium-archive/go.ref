@@ -237,11 +237,6 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 	return s, nil
 }
 
-func (s *syncService) Ping(ctx *context.T, call rpc.ServerCall) error {
-	vlog.VI(2).Infof("sync: ping: received")
-	return nil
-}
-
 // Close waits for spawned sync threads to shut down, and closes the local blob
 // store handle.
 func Close(ss interfaces.SyncServerMethods) {

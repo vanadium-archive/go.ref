@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/v23/verror"
 	"v.io/x/lib/set"
@@ -112,16 +113,14 @@ type connInfo struct {
 	// Network addresses of the peer if available. For example, this can be
 	// obtained from neighborhood discovery.
 	addrs []string
-}
 
-// peerHealthInfo contains the connection information and its associated expiry
-// time for a peer that was successfully pinged.
-type peerHealthInfo struct {
-	// connInfo contains all the successfully reachable mount tables or
-	// endpoints based on the whether the selection is in the neighborhood
-	// or mount table mode.
-	peer   connInfo
-	expiry time.Time
+	// pinned is a flow.PinnedConn to the remote end.
+	// pinned.Conn() returns the last successful connection to the remote end.
+	// If the channel returned by pinned.Conn.Closed() is closed, the connection can
+	// no longer be used.
+	// Once pinned.Unpin() is called, the connection will no longer be pinned in
+	// rpc cache, and healthCheck will return to the rpc default health check interval.
+	pinned flow.PinnedConn
 }
 
 type peerManagerImpl struct {
@@ -141,7 +140,7 @@ type peerManagerImpl struct {
 	peerTbl map[string]*peerSyncInfo
 
 	// In-memory cache of healthy peers.
-	healthyPeerCache map[string]*peerHealthInfo
+	healthyPeerCache map[string]*connInfo
 }
 
 func newPeerManager(ctx *context.T, s *syncService, peerSelectionPolicy int) peerManager {
@@ -149,7 +148,7 @@ func newPeerManager(ctx *context.T, s *syncService, peerSelectionPolicy int) pee
 		s:                s,
 		policy:           peerSelectionPolicy,
 		peerTbl:          make(map[string]*peerSyncInfo),
-		healthyPeerCache: make(map[string]*peerHealthInfo),
+		healthyPeerCache: make(map[string]*connInfo),
 	}
 }
 
@@ -205,7 +204,7 @@ func (pm *peerManagerImpl) managePeersInternal(ctx *context.T) {
 			if pm.numFailuresMountTable == 0 {
 				// Drop the peer cache when we switch to using
 				// neighborhood.
-				pm.healthyPeerCache = make(map[string]*peerHealthInfo)
+				pm.healthyPeerCache = make(map[string]*connInfo)
 			}
 			pm.numFailuresMountTable++
 			pm.curCount = roundsToBackoff(pm.numFailuresMountTable)
@@ -219,11 +218,8 @@ func (pm *peerManagerImpl) managePeersInternal(ctx *context.T) {
 		// neighborhood peers until the cache entries expire.
 	}
 
-	// Add the newly found peers to the cache.
-	// TODO(hpucha): Change these times to vclock??
-	expiry := time.Now().Add(healthInfoTimeOut)
 	for _, p := range peers {
-		pm.healthyPeerCache[p.relName] = &peerHealthInfo{peer: *p, expiry: expiry}
+		pm.healthyPeerCache[p.relName] = p
 	}
 }
 
@@ -234,8 +230,8 @@ func (pm *peerManagerImpl) pickPeersToPingRandom(ctx *context.T) ([]*connInfo, b
 	pm.Lock()
 	defer pm.Unlock()
 
-	// Evict expired peers from the cache if any.
-	pm.evictExpiredPeerCacheEntries(ctx)
+	// Evict any closed connection from the cache.
+	pm.evictClosedPeerConnsLocked(ctx)
 
 	var peers []*connInfo
 
@@ -344,7 +340,7 @@ func (pm *peerManagerImpl) pickPeerRandom(ctx *context.T) (connInfo, error) {
 	pm.Lock()
 	defer pm.Unlock()
 
-	pm.evictExpiredPeerCacheEntries(ctx)
+	pm.evictClosedPeerConnsLocked(ctx)
 
 	var nullPeer connInfo
 
@@ -356,7 +352,7 @@ func (pm *peerManagerImpl) pickPeerRandom(ctx *context.T) (connInfo, error) {
 	ind := randIntn(len(pm.healthyPeerCache))
 	for _, info := range pm.healthyPeerCache {
 		if ind == 0 {
-			return info.peer, nil
+			return *info, nil
 		}
 		ind--
 	}
@@ -389,20 +385,7 @@ func (pm *peerManagerImpl) updatePeerFromSyncer(ctx *context.T, peer connInfo, a
 		} else {
 			info.numFailuresMountTable = 0
 		}
-
-		now := time.Now()
-		info.successTs = now
-
-		// Update the health information in healthyPeerCache if the peer is not
-		// yet evicted, and this information is more recent than the
-		// cache.
-		if hinfo, ok := pm.healthyPeerCache[peer.relName]; ok {
-			expiry := attemptTs.Add(healthInfoTimeOut)
-			if hinfo.expiry.Before(expiry) && expiry.After(now) {
-				hinfo.peer = peer
-				hinfo.expiry = expiry
-			}
-		}
+		info.successTs = time.Now()
 	}
 
 	return nil
@@ -427,15 +410,17 @@ func roundsToBackoff(failures uint64) uint64 {
 
 // Caller of this function should hold the lock to manipulate the shared
 // healthyPeerCache.
-func (pm *peerManagerImpl) evictExpiredPeerCacheEntries(ctx *context.T) {
-	now := time.Now()
+func (pm *peerManagerImpl) evictClosedPeerConnsLocked(ctx *context.T) {
 	for p, info := range pm.healthyPeerCache {
-		if now.After(info.expiry) {
+		// TODO(suharshs): If having many goroutines is not a problem, we should have
+		// a goroutine monitoring each conn's status and reconnecting as needed.
+		select {
+		case <-info.pinned.Conn().Closed():
 			delete(pm.healthyPeerCache, p)
+			info.pinned.Unpin()
+		default:
 		}
 	}
-
-	return
 }
 
 func (pm *peerManagerImpl) pingPeers(ctx *context.T, peers []*connInfo) []*connInfo {
@@ -471,7 +456,7 @@ func (pm *peerManagerImpl) pingPeers(ctx *context.T, peers []*connInfo) []*connI
 
 	vlog.VI(4).Infof("sync: pingPeers: sending names %v", names)
 
-	res, err := ping.PingInParallel(ctx, names, connectionTimeOut, connectionTimeOut)
+	res, err := ping.PingInParallel(ctx, names, peerConnectionTimeout, channelTimeout)
 	if err != nil {
 		return nil
 	}
@@ -491,7 +476,7 @@ func (pm *peerManagerImpl) pingPeers(ctx *context.T, peers []*connInfo) []*connI
 		info := nm[r.Name]
 		ci, ok := speers[info.ci.relName]
 		if !ok {
-			ci = &connInfo{relName: info.ci.relName}
+			ci = &connInfo{relName: info.ci.relName, pinned: r.Conn}
 			speers[info.ci.relName] = ci
 			speersArr = append(speersArr, ci)
 		}

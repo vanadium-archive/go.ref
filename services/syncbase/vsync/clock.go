@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"v.io/v23/context"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
@@ -77,7 +78,7 @@ func (s *syncService) syncVClock(ctx *context.T, peer connInfo) error {
 	// when we continue on to the next initiation phase.
 	var timeRespInt interface{}
 	if _, timeRespInt, err = runAtPeer(ctx, peer, func(ctx *context.T, peer string) (interface{}, error) {
-		return interfaces.SyncClient(peer).GetTime(ctx, interfaces.TimeReq{SendTs: origNow}, s.name)
+		return interfaces.SyncClient(peer).GetTime(ctx, interfaces.TimeReq{SendTs: origNow}, s.name, options.ConnectionTimeout(syncConnectionTimeout))
 	}); err != nil {
 		vlog.Errorf("sync: syncVClock: GetTime failed: %v", err)
 		return err

@@ -74,8 +74,6 @@ type Sync interface {
 	// already available local chunks as per the blob recipe.
 	FetchBlobRecipe(br wire.BlobRef) stream<_, ChunkHash> error
 	FetchChunks() stream<ChunkHash, ChunkData> error
-
-	Pingable
 }
 
 error (
