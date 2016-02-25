@@ -39,6 +39,7 @@ var (
 	ErrCannotEncryptDischarges  = verror.Register("v.io/x/ref/runtime/internal/flow/conn.CannotEncryptDischarges", verror.NoRetry, "{1:}{2:} cannot encrypt discharges for peers {3}{:4}")
 	ErrNoCrypter                = verror.Register("v.io/x/ref/runtime/internal/flow/conn.NoCrypter", verror.NoRetry, "{1:}{2:} no blessings-based crypter available")
 	ErrNoPrivateKey             = verror.Register("v.io/x/ref/runtime/internal/flow/conn.NoPrivateKey", verror.NoRetry, "{1:}{2:} no blessings private key available for decryption")
+	ErrIdleConnKilled           = verror.Register("v.io/x/ref/runtime/internal/flow/conn.IdleConnKilled", verror.NoRetry, "{1:}{2:} Connection killed because idle expiry was reached.")
 )
 
 func init() {
@@ -63,6 +64,7 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCannotEncryptDischarges.ID), "{1:}{2:} cannot encrypt discharges for peers {3}{:4}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoCrypter.ID), "{1:}{2:} no blessings-based crypter available")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoPrivateKey.ID), "{1:}{2:} no blessings private key available for decryption")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrIdleConnKilled.ID), "{1:}{2:} Connection killed because idle expiry was reached.")
 }
 
 // NewErrMissingSetupOption returns an error with the ErrMissingSetupOption ID.
@@ -168,4 +170,9 @@ func NewErrNoCrypter(ctx *context.T) error {
 // NewErrNoPrivateKey returns an error with the ErrNoPrivateKey ID.
 func NewErrNoPrivateKey(ctx *context.T) error {
 	return verror.New(ErrNoPrivateKey, ctx)
+}
+
+// NewErrIdleConnKilled returns an error with the ErrIdleConnKilled ID.
+func NewErrIdleConnKilled(ctx *context.T) error {
+	return verror.New(ErrIdleConnKilled, ctx)
 }

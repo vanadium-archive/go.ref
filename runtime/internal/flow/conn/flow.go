@@ -26,6 +26,7 @@ type flw struct {
 	writeCh        chan struct{}
 	remote         naming.Endpoint
 	channelTimeout time.Duration
+	sideChannel    bool
 
 	// NOTE: The remaining variables are actually protected by conn.mu.
 
@@ -55,7 +56,8 @@ type flw struct {
 // Ensure that *flw implements flow.Flow.
 var _ flow.Flow = &flw{}
 
-func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, remote naming.Endpoint, dialed, preopen bool, channelTimeout time.Duration) *flw {
+func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, remote naming.Endpoint,
+	dialed, preopen bool, channelTimeout time.Duration, sideChannel bool) *flw {
 	f := &flw{
 		id:        id,
 		dialed:    dialed,
@@ -71,6 +73,7 @@ func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, remot
 		writeCh:        make(chan struct{}, 1),
 		remote:         remote,
 		channelTimeout: channelTimeout,
+		sideChannel:    sideChannel,
 	}
 	f.next, f.prev = f, f
 	f.ctx, f.cancel = context.WithCancel(ctx)
@@ -527,13 +530,13 @@ func (f *flw) Close() error {
 }
 
 func (f *flw) markUsed() {
-	if f.id >= reservedFlows {
+	if !f.sideChannel && f.id >= reservedFlows {
 		f.conn.markUsed()
 	}
 }
 
 func (f *flw) markUsedLocked() {
-	if f.id >= reservedFlows {
+	if !f.sideChannel && f.id >= reservedFlows {
 		f.conn.markUsedLocked()
 	}
 }

@@ -380,7 +380,8 @@ func (c *Conn) EnterLameDuck(ctx *context.T) chan struct{} {
 }
 
 // Dial dials a new flow on the Conn.
-func (c *Conn) Dial(ctx *context.T, blessings security.Blessings, discharges map[string]security.Discharge, remote naming.Endpoint, channelTimeout time.Duration) (flow.Flow, error) {
+func (c *Conn) Dial(ctx *context.T, blessings security.Blessings, discharges map[string]security.Discharge,
+	remote naming.Endpoint, channelTimeout time.Duration, sideChannel bool) (flow.Flow, error) {
 	if c.remote.RoutingID() == naming.NullRoutingID {
 		return nil, NewErrDialingNonServer(ctx)
 	}
@@ -403,7 +404,7 @@ func (c *Conn) Dial(ctx *context.T, blessings security.Blessings, discharges map
 	c.nextFid += 2
 	remote = endpointCopy(c.remote)
 	remote.(*inaming.Endpoint).Blessings = c.remote.BlessingNames()
-	return c.newFlowLocked(ctx, id, bkey, dkey, remote, true, false, channelTimeout), nil
+	return c.newFlowLocked(ctx, id, bkey, dkey, remote, true, false, channelTimeout, sideChannel), nil
 }
 
 // LocalEndpoint returns the local vanadium Endpoint
@@ -469,9 +470,54 @@ func (c *Conn) Close(ctx *context.T, err error) {
 	<-c.closed
 }
 
-func (c *Conn) internalClose(ctx *context.T, closedRemotely bool, err error) {
+// CloseIfIdle closes the connection if the conn has been idle for idleExpiry,
+// returning true if it closed it.
+func (c *Conn) CloseIfIdle(ctx *context.T, idleExpiry time.Duration) bool {
 	defer c.mu.Unlock()
 	c.mu.Lock()
+	if c.isIdleLocked(ctx, idleExpiry) {
+		c.internalCloseLocked(ctx, false, NewErrIdleConnKilled(ctx))
+		return true
+	}
+	return false
+}
+
+func (c *Conn) IsIdle(ctx *context.T, idleExpiry time.Duration) bool {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	return c.isIdleLocked(ctx, idleExpiry)
+}
+
+// isIdleLocked returns true if the connection has been idle for idleExpiry.
+func (c *Conn) isIdleLocked(ctx *context.T, idleExpiry time.Duration) bool {
+	if c.hasActiveFlowsLocked() {
+		return false
+	}
+	return c.lastUsedTime.Add(idleExpiry).Before(time.Now())
+}
+
+func (c *Conn) HasActiveFlows() bool {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	return c.hasActiveFlowsLocked()
+}
+
+func (c *Conn) hasActiveFlowsLocked() bool {
+	for _, f := range c.flows {
+		if !f.sideChannel {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Conn) internalClose(ctx *context.T, closedRemotely bool, err error) {
+	c.mu.Lock()
+	c.internalCloseLocked(ctx, closedRemotely, err)
+	c.mu.Unlock()
+}
+
+func (c *Conn) internalCloseLocked(ctx *context.T, closedRemotely bool, err error) {
 	debug := ctx.VI(2)
 	debug.Infof("Closing connection: %v", err)
 
@@ -636,7 +682,8 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 			c.mu.Unlock()
 			return nil // Conn is already being closed.
 		}
-		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, nil, false, true, c.acceptChannelTimeout)
+		sideChannel := msg.Flags&message.SideChannelFlag != 0
+		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, nil, false, true, c.acceptChannelTimeout, sideChannel)
 		f.releaseLocked(msg.InitialCounters)
 		c.toRelease[msg.ID] = DefaultBytesBufferedPerFlow
 		c.borrowing[msg.ID] = true

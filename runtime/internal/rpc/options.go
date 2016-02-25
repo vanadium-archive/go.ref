@@ -42,6 +42,17 @@ func (ReservedNameDispatcher) RPCServerOpt() {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 }
 
+// IdleConnectionExpiry is the amount of the time after which the connection cache
+// will close idle connections.
+type IdleConnectionExpiry time.Duration
+
+func (IdleConnectionExpiry) RPCClientOpt() {
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+}
+func (IdleConnectionExpiry) RPCServerOpt() {
+	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
+}
+
 type connectionOpts struct {
 	connDeadline   time.Time
 	channelTimeout time.Duration

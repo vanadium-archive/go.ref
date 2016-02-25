@@ -47,7 +47,8 @@ func setupRuntime() {
 		&listenSpec,
 		nil,
 		commonFlags.RuntimeFlags(),
-		nil)
+		nil,
+		0)
 	if err != nil {
 		panic(err)
 	}

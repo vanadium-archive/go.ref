@@ -1015,3 +1015,48 @@ func TestConnectionTimeout(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestIdleConnectionExpiry(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	ctx, cancel := context.WithCancel(ctx)
+	name := "mountpoint/server"
+	_, server, err := v23.WithNewServer(ctx, name, &testServer{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { <-server.Closed() }()
+	defer cancel()
+
+	// Creating a client with no idle expiry should keep connection cached.
+	ctx, client, err := v23.WithNewClient(ctx)
+	if err := client.Call(ctx, name, "Closure", nil, nil); err != nil {
+		t.Error(err)
+	}
+	// Now the connection should be in the cache so connection timeout of zero should work.
+	if err := client.Call(ctx, name, "Closure", nil, nil, options.ConnectionTimeout(0)); err != nil {
+		t.Error(err)
+	}
+
+	// Creating a client with a very low idle expiry should quickly close idle connections.
+	ctx, client, err = v23.WithNewClient(ctx, irpc.IdleConnectionExpiry(1))
+	if err := client.Call(ctx, name, "Closure", nil, nil); err != nil {
+		t.Error(err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	// Now the connection should no longer be in the cache so connection timeout of zero should fail.
+	if err := client.Call(ctx, name, "Closure", nil, nil, options.ConnectionTimeout(0)); err == nil {
+		t.Errorf("expected call to fail, got success")
+	}
+
+	// Creating a client with a very high idle expiry should keep connection cached.
+	ctx, client, err = v23.WithNewClient(ctx, irpc.IdleConnectionExpiry(time.Hour))
+	if err := client.Call(ctx, name, "Closure", nil, nil); err != nil {
+		t.Error(err)
+	}
+	// Now the connection should be in the cache so connection timeout of zero should work.
+	if err := client.Call(ctx, name, "Closure", nil, nil, options.ConnectionTimeout(0)); err != nil {
+		t.Error(err)
+	}
+}

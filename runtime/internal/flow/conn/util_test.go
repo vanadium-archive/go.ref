@@ -92,7 +92,7 @@ func setupFlows(t *testing.T, network, address string, dctx, actx *context.T, di
 	}
 	for i := 0; i < n; i++ {
 		var err error
-		if dialed[i], err = d.Dial(dctx, d.LocalBlessings(), nil, nil, 0); err != nil {
+		if dialed[i], err = d.Dial(dctx, d.LocalBlessings(), nil, nil, 0, false); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 	}

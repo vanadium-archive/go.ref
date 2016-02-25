@@ -14,6 +14,7 @@ package android
 
 import (
 	"flag"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -34,6 +35,10 @@ import (
 	_ "v.io/x/ref/runtime/protocols/ws"
 	_ "v.io/x/ref/runtime/protocols/wsh"
 	"v.io/x/ref/services/debug/debuglib"
+)
+
+const (
+	connIdleExpiry = 15 * time.Second
 )
 
 var commonFlags *flags.Flags
@@ -71,7 +76,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 
 	publisher := pubsub.NewPublisher()
 
-	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discoveryFactory, nil, &listenSpec, publisher, commonFlags.RuntimeFlags(), reservedDispatcher)
+	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discoveryFactory, nil, &listenSpec, publisher, commonFlags.RuntimeFlags(), reservedDispatcher, connIdleExpiry)
 	if err != nil {
 		ishutdown()
 		return nil, nil, nil, err

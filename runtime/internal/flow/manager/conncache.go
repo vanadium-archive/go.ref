@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/flow"
@@ -27,6 +28,7 @@ type ConnCache struct {
 	ridCache      map[naming.RoutingID]*connEntry // keyed by naming.RoutingID
 	started       map[string]bool                 // keyed by (protocol, address)
 	unmappedConns map[*connEntry]bool             // list of connEntries replaced by other entries
+	idleExpiry    time.Duration
 }
 
 type connEntry struct {
@@ -36,7 +38,9 @@ type connEntry struct {
 	proxy   bool
 }
 
-func NewConnCache() *ConnCache {
+// NewConnCache creates a conncache with and idleExpiry for connections.
+// If idleExpiry is zero, connections will never expire.
+func NewConnCache(idleExpiry time.Duration) *ConnCache {
 	mu := &sync.Mutex{}
 	cond := sync.NewCond(mu)
 	return &ConnCache{
@@ -46,6 +50,7 @@ func NewConnCache() *ConnCache {
 		ridCache:      make(map[naming.RoutingID]*connEntry),
 		started:       make(map[string]bool),
 		unmappedConns: make(map[*connEntry]bool),
+		idleExpiry:    idleExpiry,
 	}
 }
 
@@ -210,16 +215,14 @@ func (c *ConnCache) Close(ctx *context.T) {
 	c.mu.Lock()
 	c.addrCache, c.started = nil, nil
 	err := NewErrCacheClosed(ctx)
-	for _, d := range c.ridCache {
-		d.conn.Close(ctx, err)
-	}
-	for d := range c.unmappedConns {
-		d.conn.Close(ctx, err)
-	}
+	c.iterateOnConnsLocked(ctx, func(e *connEntry) { e.conn.Close(ctx, err) })
 }
 
-// removeUndialable filters connections that are closed, lameducked, or non-proxied
-// connections that do not authorize.
+// removeUndialable removes connections that are:
+// - closed
+// - lameducked
+// and filters connections that are:
+// - non-proxied and fail to authorize.
 func (c *ConnCache) removeUndialable(ctx *context.T, remote naming.Endpoint, e *connEntry, auth flow.PeerAuthorizer) (*conn.Conn, []string, []security.RejectedBlessing) {
 	if e == nil {
 		return nil, nil, nil
@@ -246,9 +249,19 @@ func (c *ConnCache) removeUndialable(ctx *context.T, remote naming.Endpoint, e *
 	return e.conn, nil, nil
 }
 
-// KillConnections will close and remove num LRU Conns in the cache.
-// If connections are already closed they will be removed from the cache.
+// KillConnections will closes at least num Conns in the cache.
 // This is useful when the manager is approaching system FD limits.
+//
+// The policy is as follows:
+// (1) Remove undialable conns from the cache, there is no point
+//     in closing undialable connections to address a FD limit.
+// (2) Close and remove lameducked, expired connections from the cache,
+//     counting non-proxied connections towards the removed FD count (num).
+// (3) LameDuck idle expired connections, killing them if num is still greater
+//     than 0.
+// (4) Finally if 'num' hasn't been reached, remove the LRU remaining conns
+//     until num is reached.
+//
 // If num is greater than the number of connections in the cache, all cached
 // connections will be closed and removed.
 // KillConnections returns an error iff the cache is closed.
@@ -258,58 +271,116 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 	if c.addrCache == nil {
 		return NewErrCacheClosed(ctx)
 	}
-	err := NewErrConnKilledToFreeResources(ctx)
-	pq := make(connEntries, 0, len(c.ridCache))
+	c.removeUndialableConnsLocked(ctx)
+	num -= c.killLameDuckedConnsLocked(ctx)
+	num = c.lameDuckIdleConnsLocked(ctx, num)
+	// If we have killed enough idle connections we can exit early.
+	if num <= 0 {
+		return nil
+	}
+	c.killLRUConnsLocked(ctx, num)
+	return nil
+}
+
+func (c *ConnCache) removeUndialableConnsLocked(ctx *context.T) {
 	for _, e := range c.ridCache {
-		if entry, _, _ := c.removeUndialable(ctx, nil, e, nil); entry == nil {
-			continue
-		}
-		if e.conn.IsEncapsulated() {
-			// Killing a proxied connection doesn't save us any FD resources, just memory.
-			continue
-		}
-		pq = append(pq, e)
+		c.removeUndialable(ctx, nil, e, nil)
 	}
 	for d := range c.unmappedConns {
 		if status := d.conn.Status(); status == conn.Closed {
 			delete(c.unmappedConns, d)
-			continue
 		}
-		if d.conn.IsEncapsulated() {
-			continue
-		}
-		pq = append(pq, d)
 	}
+}
+
+// killLameDuckedConnsLocked kills lameDucked connections, returning the number of
+// connection killed.
+func (c *ConnCache) killLameDuckedConnsLocked(ctx *context.T) int {
+	num := 0
+	killLame := func(e *connEntry) {
+		if status := e.conn.Status(); status == conn.LameDuckAcknowledged {
+			if e.conn.CloseIfIdle(ctx, c.idleExpiry) {
+				c.removeEntryLocked(ctx, e)
+				num++
+			}
+		}
+	}
+	c.iterateOnConnsLocked(ctx, killLame)
+	return num
+}
+
+// lameDuckIdleConnectionsLocked lameDucks idle expired connections.
+// If num > 0, up to num idle connections will be killed instead of lameducked
+// to free FD resources.
+// Otherwise, the the lameducked connections will be closed when all active
+// in subsequent calls of KillConnections, once they become idle.
+// lameDuckIdleConnectionsLocked returns the remaining number of connections
+// that need to be killed to free FD resources.
+func (c *ConnCache) lameDuckIdleConnsLocked(ctx *context.T, num int) int {
+	if c.idleExpiry == 0 {
+		return num
+	}
+	lameDuck := func(e *connEntry) {
+		// TODO(suharshs): This policy is not ideal as we should try to close everything
+		// we can close without potentially losing RPCs first. The ideal policy would
+		// close idle client only connections before closing server connections.
+		if num > 0 && !e.conn.IsEncapsulated() {
+			if e.conn.CloseIfIdle(ctx, c.idleExpiry) {
+				num--
+			}
+			c.removeEntryLocked(ctx, e)
+		} else if e.conn.IsIdle(ctx, c.idleExpiry) {
+			e.conn.EnterLameDuck(ctx)
+		}
+	}
+	c.iterateOnConnsLocked(ctx, lameDuck)
+	return num
+}
+
+func (c *ConnCache) killLRUConnsLocked(ctx *context.T, num int) {
+	err := NewErrConnKilledToFreeResources(ctx)
+	pq := make(connEntries, 0, len(c.ridCache))
+	appendIfEncapsulated := func(e *connEntry) {
+		// Killing a proxied connection doesn't save us any FD resources, just memory.
+		if !e.conn.IsEncapsulated() {
+			pq = append(pq, e)
+		}
+	}
+	c.iterateOnConnsLocked(ctx, appendIfEncapsulated)
 	sort.Sort(pq)
-	for i := 0; i < num; i++ {
-		d := pq[i]
-		d.conn.Close(ctx, err)
-		delete(c.addrCache, d.addrKey)
-		delete(c.ridCache, d.rid)
-		delete(c.unmappedConns, d)
+	for i := 0; i < num && i < len(pq); i++ {
+		e := pq[i]
+		e.conn.Close(ctx, err)
+		c.removeEntryLocked(ctx, e)
 	}
-	return nil
 }
 
 func (c *ConnCache) EnterLameDuckMode(ctx *context.T) {
 	c.mu.Lock()
 	n := len(c.ridCache) + len(c.unmappedConns)
-	conns := make([]*conn.Conn, 0, n)
-	for _, e := range c.ridCache {
-		conns = append(conns, e.conn)
-	}
-	for d := range c.unmappedConns {
-		conns = append(conns, d.conn)
-	}
+	waitfor := make([]chan struct{}, 0, n)
+	c.iterateOnConnsLocked(ctx, func(e *connEntry) { waitfor = append(waitfor, e.conn.EnterLameDuck(ctx)) })
 	c.mu.Unlock()
 
-	waitfor := make([]chan struct{}, 0, n)
-	for _, c := range conns {
-		waitfor = append(waitfor, c.EnterLameDuck(ctx))
-	}
 	for _, w := range waitfor {
 		<-w
 	}
+}
+
+// iterateOnConns runs fn on each connEntry in the cache in a single thread.
+func (c *ConnCache) iterateOnConnsLocked(ctx *context.T, fn func(*connEntry)) {
+	for _, e := range c.ridCache {
+		fn(e)
+	}
+	for e := range c.unmappedConns {
+		fn(e)
+	}
+}
+
+func (c *ConnCache) removeEntryLocked(ctx *context.T, e *connEntry) {
+	delete(c.addrCache, e.addrKey)
+	delete(c.ridCache, e.rid)
+	delete(c.unmappedConns, e)
 }
 
 // TODO(suharshs): If sorting the connections becomes too slow, switch to

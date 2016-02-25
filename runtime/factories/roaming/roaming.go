@@ -72,7 +72,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 
 	publisher := pubsub.NewPublisher()
 
-	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discoveryFactory, nil, &listenSpec, publisher, commonFlags.RuntimeFlags(), reservedDispatcher)
+	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discoveryFactory, nil, &listenSpec, publisher, commonFlags.RuntimeFlags(), reservedDispatcher, 0)
 	if err != nil {
 		ishutdown()
 		return nil, nil, nil, err

@@ -68,7 +68,7 @@ func benchmarkRPCConnection(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		mctx, cancel := context.WithCancel(nctx)
-		m := fmanager.New(mctx, naming.FixedRoutingID(0xc), nil, 0)
+		m := fmanager.New(mctx, naming.FixedRoutingID(0xc), nil, 0, 0)
 		b.StartTimer()
 		_, err := m.Dial(mctx, serverEP, flowtest.AllowAllPeersAuthorizer{}, 0)
 		if err != nil {
@@ -101,7 +101,7 @@ func benchmarkPrivateRPCConnection(ctx *context.T, serverAuth []security.Blessin
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			mctx, cancel := context.WithCancel(nctx)
-			m := fmanager.New(mctx, naming.FixedRoutingID(0xc), nil, 0)
+			m := fmanager.New(mctx, naming.FixedRoutingID(0xc), nil, 0, 0)
 			b.StartTimer()
 			_, err := m.Dial(nctx, privateServerEP, flowtest.AllowAllPeersAuthorizer{}, 0)
 			if err != nil {

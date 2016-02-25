@@ -38,7 +38,7 @@ func (c *Conn) dialHandshake(ctx *context.T, versions version.RPCVersionRange, a
 	}
 	dialedEP := endpointCopy(c.remote)
 	c.remote.(*inaming.Endpoint).RID = remoteEndpoint.RoutingID()
-	bflow := c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true, 0)
+	bflow := c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true, 0, true)
 	bflow.releaseLocked(DefaultBytesBufferedPerFlow)
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG, bflow)
 
@@ -93,7 +93,7 @@ func (c *Conn) acceptHandshake(ctx *context.T, versions version.RPCVersionRange,
 	}
 	c.remote = remoteEndpoint
 	c.blessingsFlow = newBlessingsFlow(ctx, &c.loopWG,
-		c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true, 0))
+		c.newFlowLocked(ctx, blessingsFlowID, 0, 0, nil, true, true, 0, true))
 	signedBinding, err := v23.GetPrincipal(ctx).Sign(append(authAcceptorTag, binding...))
 	if err != nil {
 		return rtt, err
