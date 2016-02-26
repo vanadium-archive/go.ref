@@ -39,7 +39,7 @@ type relateResult struct {
 // command-line client and the "groupsd" server.
 func TestV23GroupServerIntegration(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -226,7 +226,7 @@ func startClient(t *testing.T, sh *v23test.Shell, name string, args ...interface
 // with an groups-based authorizer to test the group server implementation.
 func TestV23GroupServerAuthorization(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 

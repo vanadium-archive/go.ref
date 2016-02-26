@@ -25,7 +25,7 @@ func start(t *testing.T, c *v23test.Cmd) *expect.Session {
 
 func TestV23ClusterAgentD(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	workdir, err := ioutil.TempDir("", "cluster-agentd-test-")

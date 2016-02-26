@@ -31,7 +31,7 @@ func writeRoledConfig() (path string, shutdown func(), err error) {
 
 func TestV23BecomeRole(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	vbecome := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/vbecome")
@@ -57,7 +57,7 @@ func TestV23BecomeRole(t *testing.T) {
 
 func TestV23BecomeName(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	vbecome := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/vbecome")

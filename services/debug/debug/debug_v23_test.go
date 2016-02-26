@@ -21,7 +21,7 @@ import (
 
 func TestV23DebugGlob(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -39,7 +39,7 @@ func TestV23DebugGlob(t *testing.T) {
 
 func TestV23DebugGlobLogs(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -60,7 +60,7 @@ func TestV23DebugGlobLogs(t *testing.T) {
 
 func TestV23ReadHostname(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -87,7 +87,7 @@ func createTestLogFile(t *testing.T, sh *v23test.Shell, content string) *os.File
 
 func TestV23LogSize(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -109,7 +109,7 @@ func TestV23LogSize(t *testing.T) {
 
 func TestV23StatsRead(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -154,7 +154,7 @@ func TestV23StatsRead(t *testing.T) {
 
 func TestV23StatsWatch(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -198,7 +198,7 @@ func performTracedRead(sh *v23test.Shell, debugBinary, path string) string {
 
 func TestV23VTrace(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 
@@ -254,7 +254,7 @@ func TestV23VTrace(t *testing.T) {
 
 func TestV23Pprof(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 

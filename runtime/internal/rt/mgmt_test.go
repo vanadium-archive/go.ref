@@ -111,7 +111,7 @@ var noWaiters = gosh.RegisterFunc("noWaiters", func() {
 // TestNoWaiters verifies that the child process exits in the absence of any
 // wait channel being registered with its runtime.
 func TestNoWaiters(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd := sh.FuncCmd(noWaiters)
@@ -136,7 +136,7 @@ var forceStop = gosh.RegisterFunc("forceStop", func() {
 // TestForceStop verifies that ForceStop causes the child process to exit
 // immediately.
 func TestForceStop(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd := sh.FuncCmd(forceStop)
@@ -262,7 +262,7 @@ func (c *configServer) Set(_ *context.T, _ rpc.ServerCall, key, value string) er
 }
 
 func setupRemoteAppCycleMgr(t *testing.T) (*context.T, *v23test.Cmd, *expect.Session, appcycle.AppCycleClientMethods, func()) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	ctx := sh.Ctx
 	failed := true
 	defer func() {

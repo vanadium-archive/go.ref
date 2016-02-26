@@ -46,7 +46,7 @@ func removeProfile(sh *v23test.Shell, profileBin, name, suffix string) {
 
 func TestV23ProfileRepository(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 

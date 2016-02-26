@@ -12,10 +12,8 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"runtime"
-	"runtime/debug"
 	"strings"
 	"syscall"
 	"testing"
@@ -67,7 +65,7 @@ type Cmd struct {
 // Clone returns a new Cmd with a copy of this Cmd's configuration.
 func (c *Cmd) Clone() *Cmd {
 	res := &Cmd{Cmd: c.Cmd.Clone(), sh: c.sh}
-	initSession(c.sh.t, res)
+	initSession(c.sh.tb, res)
 	return res
 }
 
@@ -83,52 +81,34 @@ func (c *Cmd) WithCredentials(cr *Credentials) *Cmd {
 type Shell struct {
 	*gosh.Shell
 	Ctx *context.T
-	t   testing.TB
+	tb  testing.TB
 	pm  principalManager
-}
-
-// Opts augments gosh.Opts with Vanadium-specific options. See gosh.Opts for
-// field descriptions.
-type Opts struct {
-	Fatalf               func(format string, v ...interface{})
-	Logf                 func(format string, v ...interface{})
-	PropagateChildOutput bool
-	ChildOutputDir       string
-	// Ctx is the Vanadium context to use. If nil, NewShell will call v23.Init to
-	// create a context.
-	Ctx *context.T
 }
 
 var calledInitTestMain = false
 
-// NewShell creates a new Shell. 't' may be nil. Use v23.GetPrincipal(sh.Ctx) to
-// get the bound principal, if needed.
-func NewShell(t testing.TB, opts Opts) *Shell {
-	fillDefaults(t, &opts)
-
+// NewShell creates a new Shell. Tests and benchmarks should pass their
+// testing.TB; non-tests should pass nil. Ctx is the Vanadium context to use; if
+// it's nil, NewShell will call v23.Init to create a context.
+func NewShell(tb testing.TB, ctx *context.T) *Shell {
 	// Note: gosh only requires gosh.InitMain to be called if the user uses
 	// gosh.Shell.FuncCmd, while we require InitTestMain to be called whenever a
-	// user calls NewShell with a non-nil *testing.T. We're stricter than gosh
-	// because we want to make sure that the bin dir gets shared across tests.
-	if t != nil && !calledInitTestMain {
-		t.Fatal("must call v23test.TestMain or v23test.InitTestMain from TestMain")
+	// user calls NewShell with a non-nil testing.TB. We're stricter than gosh
+	// because we want to make sure that V23_BIN_DIR gets shared across tests.
+	if tb != nil && !calledInitTestMain {
+		tb.Fatal("must call v23test.TestMain or v23test.InitTestMain from TestMain")
 		return nil
 	}
 
-	// Note: On error, NewShell returns a *Shell with Opts.Fatalf initialized to
-	// simplify things for the caller.
 	sh := &Shell{
-		Shell: gosh.NewShell(gosh.Opts{
-			Fatalf:               opts.Fatalf,
-			Logf:                 opts.Logf,
-			PropagateChildOutput: opts.PropagateChildOutput,
-			ChildOutputDir:       opts.ChildOutputDir,
-		}),
-		t: t,
+		Shell: gosh.NewShell(tb),
+		tb:    tb,
 	}
 	if sh.Err != nil {
 		return sh
 	}
+	sh.ChildOutputDir = os.Getenv(envChildOutputDir)
+
 	// Filter out any v23test or credentials-related env vars coming from outside.
 	// Note, we intentionally retain envChildOutputDir ("TMPDIR") and
 	// envShellTestProcess, as these should be propagated downstream.
@@ -138,7 +118,7 @@ func NewShell(t testing.TB, opts Opts) *Shell {
 	for _, key := range []string{ref.EnvCredentials, ref.EnvAgentPath} {
 		delete(sh.Vars, key)
 	}
-	if sh.t != nil {
+	if sh.tb != nil {
 		sh.Vars[envShellTestProcess] = "1"
 	}
 
@@ -155,7 +135,7 @@ func NewShell(t testing.TB, opts Opts) *Shell {
 		}
 		return sh
 	}
-	if err := sh.initCtx(opts.Ctx); err != nil {
+	if err := sh.initCtx(ctx); err != nil {
 		if _, ok := err.(errAlreadyHandled); !ok {
 			sh.HandleError(err)
 		}
@@ -204,7 +184,7 @@ func (sh *Shell) ForkContext(extensions ...string) *context.T {
 func (sh *Shell) Cleanup() {
 	// Run sh.Shell.Cleanup even if DebugSystemShell panics.
 	defer sh.Shell.Cleanup()
-	if sh.t != nil && sh.t.Failed() && test.IntegrationTestsDebugShellOnError {
+	if sh.tb != nil && sh.tb.Failed() && test.IntegrationTestsDebugShellOnError {
 		sh.DebugSystemShell()
 	}
 }
@@ -268,35 +248,35 @@ func TestMain(m *testing.M) {
 // unless integration tests are being run, i.e. unless the -v23.tests flag is
 // set.
 // TODO(sadovsky): Switch to using -test.short. See TODO above.
-func SkipUnlessRunningIntegrationTests(t testing.TB) {
+func SkipUnlessRunningIntegrationTests(tb testing.TB) {
 	// Note: The "jiri test run vanadium-integration-test" command looks for test
 	// function names that start with "TestV23", and runs "go test" for only those
 	// packages containing at least one such test. That's how it avoids passing
 	// the -v23.tests flag to packages for which the flag is not registered.
 	name, err := callerName()
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	if !strings.HasPrefix(name, "TestV23") {
-		t.Fatalf("integration test names must start with \"TestV23\": %s", name)
+		tb.Fatalf("integration test names must start with \"TestV23\": %s", name)
 		return
 	}
 	if !test.IntegrationTestsEnabled {
-		t.SkipNow()
+		tb.SkipNow()
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Methods for starting subprocesses
 
-func initSession(t testing.TB, c *Cmd) {
-	c.S = expect.NewSession(t, c.StdoutPipe(), time.Minute)
+func initSession(tb testing.TB, c *Cmd) {
+	c.S = expect.NewSession(tb, c.StdoutPipe(), time.Minute)
 	c.S.SetVerbosity(testing.Verbose())
 }
 
 func newCmd(sh *Shell, c *gosh.Cmd) *Cmd {
 	res := &Cmd{Cmd: c, sh: sh}
-	initSession(sh.t, res)
+	initSession(sh.tb, res)
 	res.Vars[envPrincipal] = sh.ForkCredentials("child").Handle
 	return res
 }
@@ -330,14 +310,9 @@ func (sh *Shell) FuncCmd(f *gosh.Func, args ...interface{}) *Cmd {
 // includes all environment variables from sh. If there is no controlling TTY,
 // DebugSystemShell does nothing.
 func (sh *Shell) DebugSystemShell() {
-	// Make sure we have non-nil Fatalf and Logf functions.
-	opts := Opts{Fatalf: sh.Opts.Fatalf, Logf: sh.Opts.Logf}
-	fillDefaults(sh.t, &opts)
-	fatalf, logf := opts.Fatalf, opts.Logf
-
 	cwd, err := os.Getwd()
 	if err != nil {
-		fatalf("Getwd() failed: %v\n", err)
+		sh.tb.Fatalf("Getwd() failed: %v\n", err)
 		return
 	}
 
@@ -346,7 +321,7 @@ func (sh *Shell) DebugSystemShell() {
 	devtty := "/dev/tty"
 	fd, err := syscall.Open(devtty, syscall.O_RDWR, 0)
 	if err != nil {
-		logf("WARNING: Open(%q) failed: %v\n", devtty, err)
+		sh.tb.Logf("WARNING: Open(%q) failed: %v\n", devtty, err)
 		return
 	}
 
@@ -361,13 +336,13 @@ func (sh *Shell) DebugSystemShell() {
 
 	write := func(s string) {
 		if _, err := file.WriteString(s); err != nil {
-			fatalf("WriteString(%q) failed: %v\n", s, err)
+			sh.tb.Fatalf("WriteString(%q) failed: %v\n", s, err)
 			return
 		}
 	}
 
 	write(">> Starting a new interactive shell\n")
-	write(">> Hit CTRL-D to resume the test\n")
+	write(">> Hit Ctrl-D to resume the test\n")
 
 	shellPath := "/bin/sh"
 	if shellPathFromEnv := os.Getenv("SHELL"); shellPathFromEnv != "" {
@@ -375,14 +350,14 @@ func (sh *Shell) DebugSystemShell() {
 	}
 	proc, err := os.StartProcess(shellPath, []string{}, &attr)
 	if err != nil {
-		fatalf("StartProcess(%q) failed: %v\n", shellPath, err)
+		sh.tb.Fatalf("StartProcess(%q) failed: %v\n", shellPath, err)
 		return
 	}
 
 	// Wait until the user exits the shell.
 	state, err := proc.Wait()
 	if err != nil {
-		fatalf("Wait() failed: %v\n", err)
+		sh.tb.Fatalf("Wait() failed: %v\n", err)
 		return
 	}
 
@@ -400,31 +375,6 @@ func callerName() (string, error) {
 	name := runtime.FuncForPC(pc).Name()
 	// Strip package path.
 	return name[strings.LastIndex(name, ".")+1:], nil
-}
-
-func fillDefaults(t testing.TB, opts *Opts) {
-	if opts.Fatalf == nil {
-		if t != nil {
-			opts.Fatalf = func(format string, v ...interface{}) {
-				debug.PrintStack()
-				t.Fatalf(format, v...)
-			}
-		} else {
-			opts.Fatalf = func(format string, v ...interface{}) {
-				panic(fmt.Sprintf(format, v...))
-			}
-		}
-	}
-	if opts.Logf == nil {
-		if t != nil {
-			opts.Logf = t.Logf
-		} else {
-			opts.Logf = log.Printf
-		}
-	}
-	if opts.ChildOutputDir == "" {
-		opts.ChildOutputDir = os.Getenv(envChildOutputDir)
-	}
 }
 
 func (sh *Shell) initPrincipalManager() error {
@@ -452,7 +402,7 @@ func (sh *Shell) initCtx(ctx *context.T) error {
 		if sh.AddCleanupHandler(shutdown); sh.Err != nil {
 			return errAlreadyHandled{sh.Err}
 		}
-		if sh.t != nil {
+		if sh.tb != nil {
 			creds, err := newRootCredentials(sh.pm)
 			if err != nil {
 				return err
@@ -462,7 +412,7 @@ func (sh *Shell) initCtx(ctx *context.T) error {
 			}
 		}
 	}
-	if sh.t != nil {
+	if sh.tb != nil {
 		ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "tcp", Address: "127.0.0.1:0"}}})
 	}
 	sh.Ctx = ctx

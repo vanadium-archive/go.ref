@@ -69,7 +69,7 @@ func TestStillRunning(t *testing.T) {
 		t.Fatalf("Expected (true, <nil>) got (%t, %v) instead from StillRunning for:\n%v", running, err, string(info))
 	}
 
-	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
+	sh := gosh.NewShell(t)
 	defer sh.Cleanup()
 	if out := sh.FuncCmd(goshCreatePIDFile, d).Stdout(); filepath.Dir(out) != d {
 		t.Fatalf("Unexpected output: %s", out)

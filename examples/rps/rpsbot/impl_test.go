@@ -43,7 +43,7 @@ func startRockPaperScissors(t *testing.T, ctx *context.T) (*RPS, func()) {
 // that all the counters are consistent.
 func TestV23RockPaperScissorsImpl(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 	ctx := sh.Ctx

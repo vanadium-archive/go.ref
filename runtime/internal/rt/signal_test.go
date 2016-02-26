@@ -38,8 +38,9 @@ var withoutRuntime = gosh.RegisterFunc("withoutRuntime", func() {
 })
 
 func TestWithRuntime(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{PropagateChildOutput: true})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
+	sh.PropagateChildOutput = true
 
 	c := sh.FuncCmd(withRuntime)
 	stdin := c.StdinPipe()
@@ -55,8 +56,9 @@ func TestWithRuntime(t *testing.T) {
 }
 
 func TestWithoutRuntime(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{PropagateChildOutput: true})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
+	sh.PropagateChildOutput = true
 
 	c := sh.FuncCmd(withoutRuntime)
 	c.ExitErrorIsOk = true

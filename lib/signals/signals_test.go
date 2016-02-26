@@ -111,7 +111,7 @@ func startFunc(t *testing.T, sh *v23test.Shell, f *gosh.Func, exitErrorIsOk bool
 // TestCleanShutdownSignal verifies that sending a signal to a child that
 // handles it by default causes the child to shut down cleanly.
 func TestCleanShutdownSignal(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd, stdinPipe := startFunc(t, sh, handleDefaults, false)
@@ -126,7 +126,7 @@ func TestCleanShutdownSignal(t *testing.T) {
 // TestCleanShutdownStop verifies that sending a stop command to a child that
 // handles stop commands by default causes the child to shut down cleanly.
 func TestCleanShutdownStop(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd, stdinPipe := startFunc(t, sh, handleDefaults, false)
@@ -141,7 +141,7 @@ func TestCleanShutdownStop(t *testing.T) {
 // that handles stop command as part of a custom set of signals handled, causes
 // the child to shut down cleanly.
 func TestCleanShutdownStopCustom(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd, stdinPipe := startFunc(t, sh, handleCustomWithStop, false)
@@ -163,7 +163,7 @@ func checkExitStatus(t *testing.T, cmd *v23test.Cmd, code int) {
 // TestStopNoHandler verifies that sending a stop command to a child that does
 // not handle stop commands causes the child to exit immediately.
 func TestStopNoHandler(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd, stdinPipe := startFunc(t, sh, handleCustom, true)
@@ -177,7 +177,7 @@ func TestStopNoHandler(t *testing.T) {
 // that handles these signals by default causes the child to exit immediately
 // upon receiving the second signal.
 func TestDoubleSignal(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd, _ := startFunc(t, sh, handleDefaults, true)
@@ -195,7 +195,7 @@ func TestDoubleSignal(t *testing.T) {
 // to a child that handles these by default causes the child to exit immediately
 // upon receiving the stop command.
 func TestSignalAndStop(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd, stdinPipe := startFunc(t, sh, handleDefaults, true)
@@ -212,7 +212,7 @@ func TestSignalAndStop(t *testing.T) {
 // that handles stop commands by default causes the child to exit immediately
 // upon receiving the second stop command.
 func TestDoubleStop(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd, stdinPipe := startFunc(t, sh, handleDefaults, true)
@@ -227,7 +227,7 @@ func TestDoubleStop(t *testing.T) {
 // TestSendUnhandledSignal verifies that sending a signal that the child does
 // not handle causes the child to exit as per the signal being sent.
 func TestSendUnhandledSignal(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd, _ := startFunc(t, sh, handleDefaults, true)
@@ -243,7 +243,7 @@ func TestSendUnhandledSignal(t *testing.T) {
 // process to exit (ensures that there is no dependency in ShutdownOnSignals
 // on having a goroutine read from the returned channel).
 func TestDoubleSignalIgnoreChan(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd, _ := startFunc(t, sh, handleDefaultsIgnoreChan, true)
@@ -261,7 +261,7 @@ func TestDoubleSignalIgnoreChan(t *testing.T) {
 // TestHandlerCustomSignal verifies that sending a non-default signal to a
 // server that listens for that signal causes the server to shut down cleanly.
 func TestHandlerCustomSignal(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	cmd, stdinPipe := startFunc(t, sh, handleCustom, false)
@@ -279,7 +279,7 @@ func TestHandlerCustomSignal(t *testing.T) {
 func TestHandlerCustomSignalWithStop(t *testing.T) {
 	for _, signal := range []syscall.Signal{syscall.SIGABRT, syscall.SIGHUP} {
 		func() {
-			sh := v23test.NewShell(t, v23test.Opts{})
+			sh := v23test.NewShell(t, nil)
 			defer sh.Cleanup()
 
 			cmd, stdinPipe := startFunc(t, sh, handleCustomWithStop, false)
@@ -321,7 +321,7 @@ func (c *configServer) Set(_ *context.T, _ rpc.ServerCall, key, value string) er
 
 // TestCleanRemoteShutdown verifies that remote shutdown works correctly.
 func TestCleanRemoteShutdown(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	ctx := sh.Ctx
 

@@ -63,7 +63,7 @@ func writePermissionsToFile(perms access.Permissions) (string, error) {
 }
 
 func TestNewAuthorizerOrDie(t *testing.T) {
-	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
+	sh := gosh.NewShell(t)
 	defer sh.Cleanup()
 
 	// Create a file.

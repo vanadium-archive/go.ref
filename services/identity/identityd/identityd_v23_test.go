@@ -87,7 +87,7 @@ func testOauthHandler(t *testing.T, addr string) {
 
 func TestV23IdentityServer(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 

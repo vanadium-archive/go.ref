@@ -106,7 +106,7 @@ func uploadFile(t *testing.T, sh *v23test.Shell, creds *v23test.Credentials, bin
 
 func TestV23BinaryRepositoryIntegration(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 

@@ -30,7 +30,7 @@ func start(c *v23test.Cmd) {
 
 func TestV23PassPhraseUse(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	bin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/agentd")
@@ -72,7 +72,7 @@ func TestV23PassPhraseUse(t *testing.T) {
 
 func TestV23AllPrincipalMethods(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	// Test all methods of the principal interface.
@@ -87,7 +87,7 @@ func TestV23AllPrincipalMethods(t *testing.T) {
 
 func TestV23AgentProcesses(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	// Setup two principals: One for the agent that runs the pingpong
@@ -145,7 +145,7 @@ echo "Running client again"
 
 func TestV23AgentRestartExitCode(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	var (
@@ -237,7 +237,7 @@ echo -n $COUNT >{{.Counter}}
 
 func TestV23KeyManager(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	// Start up an agent that serves additional principals.

@@ -49,7 +49,7 @@ func start(c *v23test.Cmd) *expect.Session {
 }
 
 func TestRandSeed(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	s := start(sh.Cmd("jiri", "go", "test", "./testdata"))

@@ -68,7 +68,8 @@ func setNSRoots(t *testing.T, ctx *context.T, roots ...string) {
 // Returns the shell and a cleanup function.
 // TODO(sadovsky): Use v23test.StartRootMountTable.
 func CreateShellAndMountTable(t *testing.T, ctx *context.T) (*v23test.Shell, func()) {
-	sh := v23test.NewShell(t, v23test.Opts{Ctx: ctx, PropagateChildOutput: true})
+	sh := v23test.NewShell(t, ctx)
+	sh.PropagateChildOutput = true
 	ok := false
 	defer func() {
 		if !ok {
@@ -95,7 +96,8 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T) (*v23test.Shell, fun
 // CreateShell builds a new shell.
 // Returns the shell and a cleanup function.
 func CreateShell(t *testing.T, ctx *context.T) (*v23test.Shell, func()) {
-	sh := v23test.NewShell(t, v23test.Opts{Ctx: ctx, PropagateChildOutput: true})
+	sh := v23test.NewShell(t, ctx)
+	sh.PropagateChildOutput = true
 	ok := false
 	defer func() {
 		if !ok {

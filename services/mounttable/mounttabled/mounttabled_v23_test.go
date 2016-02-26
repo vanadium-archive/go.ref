@@ -31,7 +31,7 @@ func start(c *v23test.Cmd) *expect.Session {
 
 func TestV23Mount(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	neighborhood := fmt.Sprintf("test-%s-%d", getHostname(t), os.Getpid())
 	sh.StartRootMountTable("--neighborhood-name=" + neighborhood)

@@ -46,7 +46,7 @@ func setupCreds(sh *v23test.Shell, names ...string) (map[string]string, error) {
 
 func TestV23HelloDirect(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	creds, err := setupCreds(sh, "helloclient", "helloserver")
@@ -67,7 +67,7 @@ func TestV23HelloDirect(t *testing.T) {
 
 func TestV23HelloAgentd(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	creds, err := setupCreds(sh, "helloclient", "helloserver")
@@ -89,7 +89,7 @@ func TestV23HelloAgentd(t *testing.T) {
 
 func TestV23HelloMounttabled(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	creds, err := setupCreds(sh, "helloclient", "helloserver", "mounttabled")
@@ -114,7 +114,7 @@ func TestV23HelloMounttabled(t *testing.T) {
 
 func TestV23HelloProxy(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	creds, err := setupCreds(sh, "helloclient", "helloserver", "mounttabled", "proxyd", "xproxyd")

@@ -202,7 +202,7 @@ func TestAgentDischargeCache(t *testing.T) {
 // the agent. We could potentially expose an option to allow clients to
 // configure this behavior.
 func TestAgentShutdown(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer func() {
 		fmt.Fprintf(os.Stderr, "cleanup...\n")
 		sh.Cleanup()

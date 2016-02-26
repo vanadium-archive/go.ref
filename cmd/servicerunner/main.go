@@ -119,7 +119,7 @@ func run(env *cmdline.Env, args []string) error {
 	// flag.CommandLine.
 	gosh.InitMain()
 
-	sh := v23test.NewShell(nil, v23test.Opts{})
+	sh := v23test.NewShell(nil, nil)
 	defer sh.Cleanup()
 	ctx := sh.Ctx
 

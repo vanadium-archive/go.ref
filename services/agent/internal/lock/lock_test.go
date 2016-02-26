@@ -158,7 +158,7 @@ func TestLevelLock(t *testing.T) {
 func TestLevelLockStale(t *testing.T) {
 	d, l := setup(t)
 	defer os.RemoveAll(d)
-	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
+	sh := gosh.NewShell(t)
 	defer sh.Cleanup()
 
 	verifyFreeLock(t, l, 0)
@@ -238,7 +238,7 @@ func TestLock(t *testing.T) {
 func TestLockStale(t *testing.T) {
 	d, l := setup(t)
 	defer os.RemoveAll(d)
-	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
+	sh := gosh.NewShell(t)
 	defer sh.Cleanup()
 
 	// Lock gets grabbed by the subprocess (which then exits, rendering the
@@ -283,7 +283,7 @@ func assertNumLockFiles(t *testing.T, d string, num int) {
 func TestLockLevelStateChanges(t *testing.T) {
 	d, l := setup(t)
 	defer os.RemoveAll(d)
-	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
+	sh := gosh.NewShell(t)
 	defer sh.Cleanup()
 
 	// Test case 1: Start with clean slate.  The lock is grabbed by the
@@ -498,7 +498,7 @@ const (
 func TestLockLevelConfigurations(t *testing.T) {
 	d, l := setup(t)
 	defer os.RemoveAll(d)
-	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
+	sh := gosh.NewShell(t)
 	defer sh.Cleanup()
 
 	// Generate a stale lock info and an active lock info file.
@@ -661,8 +661,7 @@ func TestLockLevelConfigurations(t *testing.T) {
 func TestStaleLockMany(t *testing.T) {
 	d, l := setup(t)
 	defer os.RemoveAll(d)
-
-	sh := gosh.NewShell(gosh.Opts{Fatalf: t.Fatalf, Logf: t.Logf})
+	sh := gosh.NewShell(t)
 	defer sh.Cleanup()
 
 	// Make a stale lock.

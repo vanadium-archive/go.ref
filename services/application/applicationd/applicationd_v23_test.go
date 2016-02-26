@@ -42,7 +42,7 @@ func removeEnvelope(t *testing.T, sh *v23test.Shell, clientBin string, clientCre
 
 func TestV23ApplicationRepository(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	sh.StartRootMountTable()
 

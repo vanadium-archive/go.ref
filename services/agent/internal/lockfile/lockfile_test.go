@@ -69,7 +69,7 @@ func TestOtherProcess(t *testing.T) {
 	defer os.RemoveAll(dir)
 	file := filepath.Join(dir, "myfile")
 
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	// Start a new child which creates a lockfile and exits.

@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 // testInit creates a new v23test.Shell, starts a root mount table, and
 // optionally starts a simple server.
 func testInit(t *testing.T, startServer bool) (sh *v23test.Shell, ctx *context.T, name string, cleanup func()) {
-	sh = v23test.NewShell(t, v23test.Opts{})
+	sh = v23test.NewShell(t, nil)
 	ctx = sh.Ctx
 	startRootMT(t, sh, false)
 	var cleanupServer func()
@@ -379,7 +379,7 @@ func (c *closeConn) ReadMsg() ([]byte, error) {
 }
 
 func TestStartCallBadProtocol(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	ctx := sh.Ctx
 	defer sh.Cleanup()
 	startRootMT(t, sh, true)

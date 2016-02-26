@@ -30,7 +30,7 @@ func writeln(w io.Writer, s string) {
 // TestSimpleServerSignal verifies that sending a signal to the simple server
 // causes it to exit cleanly.
 func TestSimpleServerSignal(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	c := sh.FuncCmd(simpleServerProgram)
 	stdin := c.StdinPipe()
@@ -47,7 +47,7 @@ func TestSimpleServerSignal(t *testing.T) {
 // TestSimpleServerLocalStop verifies that sending a local stop command to the
 // simple server causes it to exit cleanly.
 func TestSimpleServerLocalStop(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	c := sh.FuncCmd(simpleServerProgram)
 	stdin := c.StdinPipe()
@@ -65,7 +65,7 @@ func TestSimpleServerLocalStop(t *testing.T) {
 // signals to the simple server causes it to initiate the cleanup sequence on
 // the first signal and then exit immediately on the second signal.
 func TestSimpleServerDoubleSignal(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	c := sh.FuncCmd(simpleServerProgram)
 	c.ExitErrorIsOk = true
@@ -86,7 +86,7 @@ func TestSimpleServerDoubleSignal(t *testing.T) {
 // TestSimpleServerLocalForceStop verifies that sending a local ForceStop
 // command to the simple server causes it to exit immediately.
 func TestSimpleServerLocalForceStop(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	c := sh.FuncCmd(simpleServerProgram)
 	stdin := c.StdinPipe()
@@ -107,7 +107,7 @@ func TestSimpleServerLocalForceStop(t *testing.T) {
 // TestSimpleServerKill demonstrates that a SIGKILL still forces the server
 // to exit regardless of our signal handling.
 func TestSimpleServerKill(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	c := sh.FuncCmd(simpleServerProgram)
 	c.ExitErrorIsOk = true
@@ -128,7 +128,7 @@ func TestSimpleServerKill(t *testing.T) {
 // corresponding to all the simulated sequential/parallel and
 // blocking/interruptible shutdown steps), and then exits cleanly.
 func TestComplexServerSignal(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	c := sh.FuncCmd(complexServerProgram)
 	stdin := c.StdinPipe()
@@ -151,7 +151,7 @@ func TestComplexServerSignal(t *testing.T) {
 // printouts corresponding to all the simulated sequential/parallel and
 // blocking/interruptible shutdown steps), and then exits cleanly.
 func TestComplexServerLocalStop(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	c := sh.FuncCmd(complexServerProgram)
 	stdin := c.StdinPipe()
@@ -178,7 +178,7 @@ func TestComplexServerLocalStop(t *testing.T) {
 // the corresponding printouts from the server).  Note that we have no
 // expectations on whether or not the interruptible shutdown steps execute.
 func TestComplexServerDoubleSignal(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	c := sh.FuncCmd(complexServerProgram)
 	c.ExitErrorIsOk = true
@@ -203,7 +203,7 @@ func TestComplexServerDoubleSignal(t *testing.T) {
 // TestComplexServerLocalForceStop verifies that sending a local ForceStop
 // command to the complex server forces it to exit immediately.
 func TestComplexServerLocalForceStop(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	c := sh.FuncCmd(complexServerProgram)
 	stdin := c.StdinPipe()
@@ -224,7 +224,7 @@ func TestComplexServerLocalForceStop(t *testing.T) {
 // TestComplexServerKill demonstrates that a SIGKILL still forces the server to
 // exit regardless of our signal handling.
 func TestComplexServerKill(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 	c := sh.FuncCmd(complexServerProgram)
 	c.ExitErrorIsOk = true

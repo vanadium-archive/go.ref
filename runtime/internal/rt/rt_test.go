@@ -63,7 +63,7 @@ var child = gosh.RegisterFunc("child", func() {
 })
 
 func TestInitArgs(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	c := sh.FuncCmd(child)
@@ -135,7 +135,7 @@ var runner = gosh.RegisterFunc("runner", func() error {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
-	sh := v23test.NewShell(nil, v23test.Opts{Ctx: ctx})
+	sh := v23test.NewShell(nil, ctx)
 	defer sh.Cleanup()
 
 	p := v23.GetPrincipal(sh.Ctx)
@@ -163,7 +163,7 @@ func createCredentialsInDir(t *testing.T, dir string, blessing string) {
 }
 
 func TestPrincipalInheritance(t *testing.T) {
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	// Test that the child inherits from the parent's credentials correctly.
@@ -211,7 +211,7 @@ func TestPrincipalInit(t *testing.T) {
 	}
 
 	// Note, v23test.Shell uses the agent to pass credentials to its children.
-	sh := v23test.NewShell(t, v23test.Opts{})
+	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
 
 	// Test that the shell uses the EnvAgentPath, not EnvCredentials, to pass
