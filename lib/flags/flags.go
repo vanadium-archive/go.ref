@@ -278,8 +278,11 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	}
 
 	fs.Var(&f.namespaceRootsFlag, "v23.namespace.root", "local namespace root; can be repeated to provided multiple roots")
+	fs.Lookup("v23.namespace.root").DefValue = "[" + defaultNamespaceRoot + "]"
 	fs.StringVar(&f.Credentials, "v23.credentials", creds, "directory to use for storing security credentials")
+	fs.Lookup("v23.credentials").DefValue = ""
 	fs.StringVar(&f.I18nCatalogue, "v23.i18n-catalogue", i18nCatalogue, "18n catalogue files to load, comma separated")
+	fs.Lookup("v23.i18n-catalogue").DefValue = ""
 
 	fs.Float64Var(&f.Vtrace.SampleRate, "v23.vtrace.sample-rate", 0.0, "Rate (from 0.0 to 1.0) to sample vtrace traces.")
 	fs.BoolVar(&f.Vtrace.DumpOnShutdown, "v23.vtrace.dump-on-shutdown", true, "If true, dump all stored traces on runtime shutdown.")
