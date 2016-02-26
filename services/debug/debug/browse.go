@@ -126,10 +126,6 @@ func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		return env.UsageErrorf("must provide at least a single vanadium object name")
 	}
-	name, err := selectName(ctx, args)
-	if err != nil {
-		return err
-	}
 	if len(flagBrowsePrivateKey) != 0 {
 		keybytes, err := base64.URLEncoding.DecodeString(flagBrowsePrivateKey)
 		if err != nil {
@@ -162,6 +158,10 @@ func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
 			}
 			return fmt.Errorf("cannot use --blessings: %v", err)
 		}
+	}
+	name, err := selectName(ctx, args)
+	if err != nil {
+		return err
 	}
 	http.Handle("/", &resolveHandler{ctx})
 	http.Handle("/stats", &statsHandler{ctx})
