@@ -14,10 +14,8 @@ import (
 )
 
 const (
-	// Limit the maximum length of instance id. Some plugins are using an instance id
-	// as a key (e.g., as a hostname in mDNS) and so its size can be limited by their
-	// protocols.
-	maxInstanceIdLen = 32
+	maxAdvertisementSize = 512
+	maxAttachmentSize    = 4096
 )
 
 // validateKey returns an error if the key is not suitable for advertising.
@@ -40,8 +38,8 @@ func validateKey(key string) error {
 }
 
 // validateAttributes returns an error if the attributes are not suitable for advertising.
-func validateAttributes(attrs discovery.Attributes) error {
-	for k, v := range attrs {
+func validateAttributes(attributes discovery.Attributes) error {
+	for k, v := range attributes {
 		if err := validateKey(k); err != nil {
 			return err
 		}
@@ -54,33 +52,48 @@ func validateAttributes(attrs discovery.Attributes) error {
 
 // validateAttachments returns an error if the attachments are not suitable for advertising.
 func validateAttachments(attachments discovery.Attachments) error {
-	for k, _ := range attachments {
+	for k, v := range attachments {
 		if err := validateKey(k); err != nil {
 			return err
+		}
+		if len(v) > maxAttachmentSize {
+			return errors.New("too large")
 		}
 	}
 	return nil
 }
 
-// validateService returns an error if the service is not suitable for advertising.
-func validateService(service *discovery.Service) error {
-	if len(service.InstanceId) > maxInstanceIdLen {
-		return errors.New("instance id too long")
+// sizeOfAd returns the size of ad excluding id and attachments.
+func sizeOfAd(ad *discovery.Advertisement) int {
+	size := len(ad.InterfaceName)
+	for _, a := range ad.Addresses {
+		size += len(a)
 	}
-	if !utf8.ValidString(service.InstanceId) {
-		return errors.New("instance id not valid UTF-8 string")
+	for k, v := range ad.Attributes {
+		size += len(k) + len(v)
 	}
-	if len(service.InterfaceName) == 0 {
+	return size
+}
+
+// validateAd returns an error if ad is not suitable for advertising.
+func validateAd(ad *discovery.Advertisement) error {
+	if !ad.Id.IsValid() {
+		return errors.New("id not valid")
+	}
+	if len(ad.InterfaceName) == 0 {
 		return errors.New("interface name not provided")
 	}
-	if len(service.Addrs) == 0 {
+	if len(ad.Addresses) == 0 {
 		return errors.New("address not provided")
 	}
-	if err := validateAttributes(service.Attrs); err != nil {
+	if err := validateAttributes(ad.Attributes); err != nil {
 		return fmt.Errorf("attributes not valid: %v", err)
 	}
-	if err := validateAttachments(service.Attachments); err != nil {
+	if err := validateAttachments(ad.Attachments); err != nil {
 		return fmt.Errorf("attachments not valid: %v", err)
+	}
+	if sizeOfAd(ad) > maxAdvertisementSize {
+		return errors.New("advertisement too large")
 	}
 	return nil
 }

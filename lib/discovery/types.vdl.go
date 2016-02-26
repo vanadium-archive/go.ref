@@ -36,10 +36,9 @@ func (Uuid) __VDLReflect(struct {
 }) {
 }
 
-// Advertisement holds a set of service properties to advertise.
-type Advertisement struct {
-	// The service to advertise.
-	Service discovery.Service
+// AdInfo represents advertisement information for discovery.
+type AdInfo struct {
+	Ad discovery.Advertisement
 	// Type of encryption applied to the advertisement so that it can
 	// only be decoded by authorized principals.
 	EncryptionAlgorithm EncryptionAlgorithm
@@ -47,7 +46,7 @@ type Advertisement struct {
 	// decrypt it. The format of this data is a function of the algorithm.
 	EncryptionKeys []EncryptionKey
 	// Hash of the current advertisement.
-	Hash []byte
+	Hash AdHash
 	// The addresses (vanadium object names) that the advertisement directory service
 	// is served on. See directory.vdl.
 	DirAddrs []string
@@ -56,8 +55,16 @@ type Advertisement struct {
 	Lost bool
 }
 
-func (Advertisement) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/lib/discovery.Advertisement"`
+func (AdInfo) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/lib/discovery.AdInfo"`
+}) {
+}
+
+// An AdHash is a hash of an advertisement.
+type AdHash [8]byte
+
+func (AdHash) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/lib/discovery.AdHash"`
 }) {
 }
 
@@ -65,7 +72,8 @@ func init() {
 	vdl.Register((*EncryptionAlgorithm)(nil))
 	vdl.Register((*EncryptionKey)(nil))
 	vdl.Register((*Uuid)(nil))
-	vdl.Register((*Advertisement)(nil))
+	vdl.Register((*AdInfo)(nil))
+	vdl.Register((*AdHash)(nil))
 }
 
 const NoEncryption = EncryptionAlgorithm(0)

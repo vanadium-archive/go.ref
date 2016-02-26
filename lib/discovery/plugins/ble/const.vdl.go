@@ -9,13 +9,11 @@ package ble
 
 // This uuids are v5 uuid generated out of band.  These constants need
 // to be accessible in all the languages that have a ble implementation
-const InstanceIdUuid = "02ce37dd-7449-5a0a-b1a0-d1bc91ff16cb" // NewAttributeUUID("_instanceid")
-
-const InstanceNameUuid = "ffbdcff3-e56f-58f0-8c1a-e416c39aac0d" // NewAttributeUUID("_instancename")
+const IdUuid = "bf0a3657-37cb-5aad-8c13-00c1d69a141c" // NewAttributeUUID("_id")
 
 const InterfaceNameUuid = "b2cadfd4-d003-576c-acad-58b8e3a9cbc8" // NewAttributeUUID("_interfacename")
 
-const AddrsUuid = "ad2566b7-59d8-50ae-8885-222f43f65fdc" // NewAttributeUUID("_addrs")
+const AddressesUuid = "fe3fa941-1eda-5265-806f-d5127794a9a9" // NewAttributeUUID("_addresses")
 
 const EncryptionUuid = "6286d80a-adaa-519a-8a06-281a4645a607" // NewAttributeUUID("_encryption")
 

@@ -13,14 +13,18 @@ import (
 	"v.io/v23/security"
 )
 
-// AdvertiseServer advertises the server with the given service. It uses the
-// server's endpoints and the given suffix as the service addresses, and the
-// addresses will be updated automatically when the underlying network are
-// changed. Advertising will continue until the context is canceled or exceeds
-// its deadline and the returned channel will be closed when it stops.
+// AdvertiseServer advertises the server with the given advertisement. It uses
+// the server's endpoints and the given suffix as the advertisement addresses,
+// and the addresses will be updated automatically when the underlying network
+// are changed.
+//
+// The advertisement should not be changed while it is being advertised.
+//
+// Advertising will continue until the context is canceled or exceeds its deadline
+// and the returned channel will be closed when it stops.
 //
 // If a discovery instance is not provided, this will create a new one.
-func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix string, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
+func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix string, ad *discovery.Advertisement, visibility []security.BlessingPattern) (<-chan struct{}, error) {
 	if d == nil {
 		var err error
 		d, err = v23.NewDiscovery(ctx)
@@ -28,28 +32,23 @@ func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix st
 			return nil, err
 		}
 	}
-	// Take a copy of the service to avoid any interference from changes in user side.
-	copiedService := copyService(service)
 
-	eps, valid := getEndpoints(server)
-	stop, err := advertiseServer(ctx, d, &copiedService, eps, suffix, visibility)
+	eps, updateCh := getEndpoints(server)
+	stop, err := advertiseServer(ctx, d, ad, eps, suffix, visibility)
 	if err != nil {
 		return nil, err
 	}
-
-	// Copy back the instance id.
-	service.InstanceId = copiedService.InstanceId
 
 	done := make(chan struct{})
 	go func() {
 		for {
 			select {
-			case <-valid:
+			case <-updateCh:
 				if stop != nil {
 					stop() // Stop the previous advertisement.
 				}
-				eps, valid = getEndpoints(server)
-				stop, err = advertiseServer(ctx, d, &copiedService, eps, suffix, visibility)
+				eps, updateCh = getEndpoints(server)
+				stop, err = advertiseServer(ctx, d, ad, eps, suffix, visibility)
 				if err != nil {
 					ctx.Error(err)
 				}
@@ -63,13 +62,13 @@ func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix st
 	return done, nil
 }
 
-func advertiseServer(ctx *context.T, d discovery.T, service *discovery.Service, eps []naming.Endpoint, suffix string, visibility []security.BlessingPattern) (func(), error) {
-	service.Addrs = make([]string, len(eps))
+func advertiseServer(ctx *context.T, d discovery.T, ad *discovery.Advertisement, eps []naming.Endpoint, suffix string, visibility []security.BlessingPattern) (func(), error) {
+	ad.Addresses = make([]string, len(eps))
 	for i, ep := range eps {
-		service.Addrs[i] = naming.JoinAddressName(ep.Name(), suffix)
+		ad.Addresses[i] = naming.JoinAddressName(ep.Name(), suffix)
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	done, err := d.Advertise(ctx, service, visibility)
+	done, err := d.Advertise(ctx, ad, visibility)
 	if err != nil {
 		cancel()
 		return nil, err

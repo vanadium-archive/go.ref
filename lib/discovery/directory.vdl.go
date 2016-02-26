@@ -15,6 +15,7 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
+	"v.io/v23/discovery"
 	"v.io/v23/security/access"
 )
 
@@ -24,7 +25,7 @@ import (
 // Directory is the interface for advertisement directory service.
 type DirectoryClientMethods interface {
 	// Lookup returns the advertisement of the given service instance.
-	Lookup(_ *context.T, InstanceId string, _ ...rpc.CallOpt) (Advertisement, error)
+	Lookup(_ *context.T, id discovery.AdId, _ ...rpc.CallOpt) (AdInfo, error)
 }
 
 // DirectoryClientStub adds universal methods to DirectoryClientMethods.
@@ -42,7 +43,7 @@ type implDirectoryClientStub struct {
 	name string
 }
 
-func (c implDirectoryClientStub) Lookup(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 Advertisement, err error) {
+func (c implDirectoryClientStub) Lookup(ctx *context.T, i0 discovery.AdId, opts ...rpc.CallOpt) (o0 AdInfo, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "Lookup", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
@@ -53,7 +54,7 @@ func (c implDirectoryClientStub) Lookup(ctx *context.T, i0 string, opts ...rpc.C
 // Directory is the interface for advertisement directory service.
 type DirectoryServerMethods interface {
 	// Lookup returns the advertisement of the given service instance.
-	Lookup(_ *context.T, _ rpc.ServerCall, InstanceId string) (Advertisement, error)
+	Lookup(_ *context.T, _ rpc.ServerCall, id discovery.AdId) (AdInfo, error)
 }
 
 // DirectoryServerStubMethods is the server interface containing
@@ -91,7 +92,7 @@ type implDirectoryServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implDirectoryServerStub) Lookup(ctx *context.T, call rpc.ServerCall, i0 string) (Advertisement, error) {
+func (s implDirectoryServerStub) Lookup(ctx *context.T, call rpc.ServerCall, i0 discovery.AdId) (AdInfo, error) {
 	return s.impl.Lookup(ctx, call, i0)
 }
 
@@ -116,10 +117,10 @@ var descDirectory = rpc.InterfaceDesc{
 			Name: "Lookup",
 			Doc:  "// Lookup returns the advertisement of the given service instance.",
 			InArgs: []rpc.ArgDesc{
-				{"InstanceId", ``}, // string
+				{"id", ``}, // discovery.AdId
 			},
 			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // Advertisement
+				{"", ``}, // AdInfo
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},

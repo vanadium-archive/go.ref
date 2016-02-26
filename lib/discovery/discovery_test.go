@@ -14,6 +14,7 @@ import (
 	"v.io/x/lib/ibe"
 	idiscovery "v.io/x/ref/lib/discovery"
 	"v.io/x/ref/lib/discovery/plugins/mock"
+	"v.io/x/ref/lib/discovery/testutil"
 	"v.io/x/ref/lib/security/bcrypter"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
@@ -29,17 +30,17 @@ func TestBasic(t *testing.T) {
 	}
 	defer df.Shutdown()
 
-	services := []discovery.Service{
+	ads := []discovery.Advertisement{
 		{
-			InstanceId:    "123",
-			InterfaceName: "v.io/v23/a",
-			Attrs:         discovery.Attributes{"a1": "v1"},
-			Addrs:         []string{"/h1:123/x", "/h2:123/y"},
+			Id:            discovery.AdId{1, 2, 3},
+			InterfaceName: "v.io/a",
+			Addresses:     []string{"/h1:123/x", "/h2:123/y"},
+			Attributes:    discovery.Attributes{"a1": "v1"},
 		},
 		{
-			InterfaceName: "v.io/v23/b",
-			Attrs:         discovery.Attributes{"b1": "v1"},
-			Addrs:         []string{"/h1:123/x", "/h2:123/z"},
+			InterfaceName: "v.io/b",
+			Addresses:     []string{"/h1:123/x", "/h2:123/z"},
+			Attributes:    discovery.Attributes{"b1": "v1"},
 		},
 	}
 
@@ -49,8 +50,8 @@ func TestBasic(t *testing.T) {
 	}
 
 	var stops []func()
-	for i, _ := range services {
-		stop, err := advertise(ctx, d1, nil, &services[i])
+	for i, _ := range ads {
+		stop, err := testutil.Advertise(ctx, d1, nil, &ads[i])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -58,7 +59,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	// Make sure none of advertisements are discoverable by the same discovery instance.
-	if err := scanAndMatch(ctx, d1, ""); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d1, ``); err != nil {
 		t.Error(err)
 	}
 
@@ -68,46 +69,46 @@ func TestBasic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := scanAndMatch(ctx, d2, "v.io/v23/a", services[0]); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, `v.InterfaceName="v.io/a"`, ads[0]); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, d2, "v.io/v23/b", services[1]); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, `v.InterfaceName="v.io/b"`, ads[1]); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, d2, "", services...); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, ``, ads...); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, d2, "v.io/v23/c"); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, `v.InterfaceName="v.io/c"`); err != nil {
 		t.Error(err)
 	}
 
 	// Open a new scan channel and consume expected advertisements first.
-	scan, scanStop, err := startScan(ctx, d2, "v.io/v23/a")
+	scanCh, scanStop, err := testutil.Scan(ctx, d2, `v.InterfaceName="v.io/a"`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer scanStop()
-	update := <-scan
-	if !matchFound([]discovery.Update{update}, services[0]) {
+	update := <-scanCh
+	if !testutil.MatchFound(ctx, []discovery.Update{update}, ads[0]) {
 		t.Errorf("unexpected scan: %v", update)
 	}
 
 	// Make sure scan returns the lost advertisement when advertising is stopped.
 	stops[0]()
 
-	update = <-scan
-	if !matchLost([]discovery.Update{update}, services[0]) {
+	update = <-scanCh
+	if !testutil.MatchLost(ctx, []discovery.Update{update}, ads[0]) {
 		t.Errorf("unexpected scan: %v", update)
 	}
 
 	// Also it shouldn't affect the other.
-	if err := scanAndMatch(ctx, d2, "v.io/v23/b", services[1]); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, `v.InterfaceName="v.io/b"`, ads[1]); err != nil {
 		t.Error(err)
 	}
 
 	// Stop advertising the remaining one; Shouldn't discover any service.
 	stops[1]()
-	if err := scanAndMatch(ctx, d2, ""); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, ``); err != nil {
 		t.Error(err)
 	}
 }
@@ -117,25 +118,24 @@ func TestBasic(t *testing.T) {
 func TestVisibility(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
+
+	df, _ := idiscovery.NewFactory(ctx, mock.New())
+	defer df.Shutdown()
+
 	master, err := ibe.SetupBB2()
 	if err != nil {
 		ctx.Fatalf("ibe.SetupBB2 failed: %v", err)
 	}
-
 	root := bcrypter.NewRoot("v.io", master)
 	crypter := bcrypter.NewCrypter()
 	if err := crypter.AddParams(ctx, root.Params()); err != nil {
-		ctx.Fatalf("AddParams failed: %v", err)
+		ctx.Fatalf("bcrypter.AddParams failed: %v", err)
 	}
-	sctx := bcrypter.WithCrypter(ctx, crypter)
 
-	df, _ := idiscovery.NewFactory(sctx, mock.New())
-	defer df.Shutdown()
-
-	service := discovery.Service{
+	ad := discovery.Advertisement{
 		InterfaceName: "v.io/v23/a",
-		Attrs:         discovery.Attributes{"a1": "v1", "a2": "v2"},
-		Addrs:         []string{"/h1:123/x", "/h2:123/y"},
+		Addresses:     []string{"/h1:123/x", "/h2:123/y"},
+		Attributes:    map[string]string{"a1": "v1", "a2": "v2"},
 	}
 	visibility := []security.BlessingPattern{
 		security.BlessingPattern("v.io:bob"),
@@ -143,7 +143,9 @@ func TestVisibility(t *testing.T) {
 	}
 
 	d1, _ := df.New()
-	stop, err := advertise(sctx, d1, visibility, &service)
+
+	sctx := bcrypter.WithCrypter(ctx, crypter)
+	stop, err := testutil.Advertise(sctx, d1, visibility, &ad)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,33 +154,28 @@ func TestVisibility(t *testing.T) {
 	d2, _ := df.New()
 
 	// Bob and his friend should discover the advertisement.
-	if ctx, err := withDerivedCrypter(ctx, root, "v.io:bob"); err != nil {
-		t.Error(err)
-	} else if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
+	bobctx, _ := testutil.WithPrivateKey(ctx, root, "v.io:bob")
+	if err := testutil.ScanAndMatch(bobctx, d2, ``, ad); err != nil {
 		t.Error(err)
 	}
-	if ctx, err = withDerivedCrypter(ctx, root, "v.io:bob:friend"); err != nil {
-		t.Error(err)
-	} else if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
+	bobfriendctx, _ := testutil.WithPrivateKey(ctx, root, "v.io:bob:friend")
+	if err := testutil.ScanAndMatch(bobfriendctx, d2, ``, ad); err != nil {
 		t.Error(err)
 	}
 
 	// Alice should discover the advertisement, but her friend shouldn't.
-	if ctx, err = withDerivedCrypter(ctx, root, "v.io:alice"); err != nil {
-		t.Error(err)
-	} else if err := scanAndMatch(ctx, d2, "v.io/v23/a", service); err != nil {
+	alicectx, _ := testutil.WithPrivateKey(ctx, root, "v.io:alice")
+	if err := testutil.ScanAndMatch(alicectx, d2, ``, ad); err != nil {
 		t.Error(err)
 	}
-	if ctx, err = withDerivedCrypter(ctx, root, "v.io:alice:friend"); err != nil {
-		t.Error(err)
-	} else if err := scanAndMatch(ctx, d2, "v.io/v23/a"); err != nil {
+	alicefriendctx, _ := testutil.WithPrivateKey(ctx, root, "v.io:alice:friend")
+	if err := testutil.ScanAndMatch(alicefriendctx, d2, ``); err != nil {
 		t.Error(err)
 	}
 
 	// Other people shouldn't discover the advertisement.
-	if ctx, err = withDerivedCrypter(ctx, root, "v.io:carol"); err != nil {
-		t.Error(err)
-	} else if err := scanAndMatch(ctx, d2, "v.io/v23/a"); err != nil {
+	carolctx, _ := testutil.WithPrivateKey(ctx, root, "v.io:carol")
+	if err := testutil.ScanAndMatch(carolctx, d2, ``); err != nil {
 		t.Error(err)
 	}
 }
@@ -190,17 +187,16 @@ func TestDuplicates(t *testing.T) {
 	df, _ := idiscovery.NewFactory(ctx, mock.New())
 	defer df.Shutdown()
 
-	service := discovery.Service{
-		InstanceId:    "123",
+	ad := discovery.Advertisement{
 		InterfaceName: "v.io/v23/a",
-		Addrs:         []string{"/h1:123/x"},
+		Addresses:     []string{"/h1:123/x"},
 	}
 
 	d, _ := df.New()
-	if _, err := advertise(ctx, d, nil, &service); err != nil {
+	if _, err := testutil.Advertise(ctx, d, nil, &ad); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := advertise(ctx, d, nil, &service); err == nil {
+	if _, err := testutil.Advertise(ctx, d, nil, &ad); err == nil {
 		t.Error("expect an error; but got none")
 	}
 }
@@ -213,56 +209,56 @@ func TestMerge(t *testing.T) {
 	df, _ := idiscovery.NewFactory(ctx, p1, p2)
 	defer df.Shutdown()
 
-	ad := idiscovery.Advertisement{
-		Service: discovery.Service{
-			InstanceId:    "123",
+	adinfo := idiscovery.AdInfo{
+		Ad: discovery.Advertisement{
+			Id:            discovery.AdId{1, 2, 3},
 			InterfaceName: "v.io/v23/a",
-			Addrs:         []string{"/h1:123/x"},
+			Addresses:     []string{"/h1:123/x"},
 		},
-		Hash: []byte{1, 2, 3},
+		Hash: idiscovery.AdHash{1, 2, 3},
 	}
 
 	d, _ := df.New()
-	scan, scanStop, err := startScan(ctx, d, "v.io/v23/a")
+	scanCh, scanStop, err := testutil.Scan(ctx, d, ``)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer scanStop()
 
 	// A plugin returns an advertisement and we should see it.
-	p1.RegisterAdvertisement(ad)
-	update := <-scan
-	if !matchFound([]discovery.Update{update}, ad.Service) {
+	p1.RegisterAd(&adinfo)
+	update := <-scanCh
+	if !testutil.MatchFound(ctx, []discovery.Update{update}, adinfo.Ad) {
 		t.Errorf("unexpected scan: %v", update)
 	}
 
 	// The other plugin returns the same advertisement, but we should not see it.
-	p2.RegisterAdvertisement(ad)
+	p2.RegisterAd(&adinfo)
 	select {
-	case update = <-scan:
+	case update = <-scanCh:
 		t.Errorf("unexpected scan: %v", update)
 	case <-time.After(5 * time.Millisecond):
 	}
 
 	// Two plugins update the service, but we should see the update only once.
-	newAd := ad
-	newAd.Service.Addrs = []string{"/h1:456/x"}
-	newAd.Hash = []byte{4, 5, 6}
+	newAdinfo := adinfo
+	newAdinfo.Ad.Addresses = []string{"/h1:456/x"}
+	newAdinfo.Hash = idiscovery.AdHash{4, 5, 6}
 
-	go func() { p1.RegisterAdvertisement(newAd) }()
-	go func() { p2.RegisterAdvertisement(newAd) }()
+	go func() { p1.RegisterAd(&newAdinfo) }()
+	go func() { p2.RegisterAd(&newAdinfo) }()
 
 	// Should see 'Lost' first.
-	update = <-scan
-	if !matchLost([]discovery.Update{update}, ad.Service) {
+	update = <-scanCh
+	if !testutil.MatchLost(ctx, []discovery.Update{update}, adinfo.Ad) {
 		t.Errorf("unexpected scan: %v", update)
 	}
-	update = <-scan
-	if !matchFound([]discovery.Update{update}, newAd.Service) {
+	update = <-scanCh
+	if !testutil.MatchFound(ctx, []discovery.Update{update}, newAdinfo.Ad) {
 		t.Errorf("unexpected scan: %v", update)
 	}
 	select {
-	case update = <-scan:
+	case update = <-scanCh:
 		t.Errorf("unexpected scan: %v", update)
 	case <-time.After(5 * time.Millisecond):
 	}
@@ -274,17 +270,17 @@ func TestShutdown(t *testing.T) {
 
 	df, _ := idiscovery.NewFactory(ctx, mock.New())
 
-	service := discovery.Service{
+	ad := discovery.Advertisement{
 		InterfaceName: "v.io/v23/a",
-		Addrs:         []string{"/h1:123/x"},
+		Addresses:     []string{"/h1:123/x"},
 	}
 
 	d1, _ := df.New()
-	if _, err := advertise(ctx, d1, nil, &service); err != nil {
+	if _, err := testutil.Advertise(ctx, d1, nil, &ad); err != nil {
 		t.Error(err)
 	}
 	d2, _ := df.New()
-	if err := scanAndMatch(ctx, d2, "", service); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, ``, ad); err != nil {
 		t.Error(err)
 	}
 
@@ -293,11 +289,11 @@ func TestShutdown(t *testing.T) {
 	df.Shutdown()
 
 	// Make sure advertise and scan do not work after closed.
-	service.InstanceId = "" // To avoid dup error.
-	if _, err := advertise(ctx, d1, nil, &service); err == nil {
+	ad.Id = discovery.AdId{} // To avoid dup error.
+	if _, err := testutil.Advertise(ctx, d1, nil, &ad); err == nil {
 		t.Error("expect an error; but got none")
 	}
-	if err := scanAndMatch(ctx, d2, "", service); err == nil {
+	if err := testutil.ScanAndMatch(ctx, d2, ``, ad); err == nil {
 		t.Error("expect an error; but got none")
 	}
 }

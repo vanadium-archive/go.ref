@@ -29,7 +29,7 @@ func init() {
 	vdl.Register((*UuidTestData)(nil))
 }
 
-var InterfaceNameTest = []UuidTestData{
+var ServiceUuidTest = []UuidTestData{
 	{
 		In:   "v.io",
 		Want: "2101363c-688d-548a-a600-34d506e1aad0",
@@ -41,5 +41,20 @@ var InterfaceNameTest = []UuidTestData{
 	{
 		In:   "v.io/v23/abc/xyz",
 		Want: "be8a57d7-931d-5ee4-9243-0bebde0029a5",
+	},
+}
+
+var AttributeUuidTest = []UuidTestData{
+	{
+		In:   "name",
+		Want: "217a496d-3aae-5748-baf0-a77555f8f4f4",
+	},
+	{
+		In:   "_attr",
+		Want: "6c020e4b-9a59-5c7f-92e7-45954a16a402",
+	},
+	{
+		In:   "xyz",
+		Want: "c10b25a2-2d4d-5a19-bb7c-1ee1c4972b4c",
 	},
 }

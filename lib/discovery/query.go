@@ -5,27 +5,39 @@
 package discovery
 
 import (
+	"errors"
+
 	"v.io/v23/context"
+	"v.io/v23/discovery"
 	"v.io/v23/query/engine"
 	"v.io/v23/query/engine/datasource"
 	"v.io/v23/query/engine/public"
-	"v.io/v23/query/syncql"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 )
 
-// matcher is the interface for a matcher to match advertisements against a query.
-type matcher interface {
-	// match returns true if the matcher matches the advertisement.
-	match(ad *Advertisement) bool
+// Matcher is the interface for matching advertisements against a query.
+type Matcher interface {
+	// Match returns true if the matcher matches the advertisement.
+	Match(ad *discovery.Advertisement) (bool, error)
+
+	// TargetKey returns the key if a single key is being queried; otherwise
+	// an empty string is returned.
+	TargetKey() string
+
+	// TargetInterfaceName returns the interface name if a single interface name
+	// is being queried; otherwise an empty string is returned.
+	TargetInterfaceName() string
 }
 
 // trueMatcher matches any advertisement.
 type trueMatcher struct{}
 
-func (m trueMatcher) match(*Advertisement) bool { return true }
+func (m trueMatcher) Match(*discovery.Advertisement) (bool, error) { return true, nil }
+func (m trueMatcher) TargetKey() string                            { return "" }
+func (m trueMatcher) TargetInterfaceName() string                  { return "" }
 
-// dDS implements a datasource for syncQL, which represents one advertisement.
+// dDS implements a datasource for syncQL.
 type dDS struct {
 	ctx  *context.T
 	k    string
@@ -33,23 +45,13 @@ type dDS struct {
 	done bool
 }
 
-// Implements datasource.Database.
-func (ds *dDS) GetContext() *context.T { return ds.ctx }
-func (ds *dDS) GetTable(name string, writeAccessReq bool) (datasource.Table, error) {
-	if writeAccessReq {
-		return nil, syncql.NewErrNotWritable(ds.ctx, name)
-	}
-	return ds, nil
-}
+func (ds *dDS) GetContext() *context.T                          { return ds.ctx }
+func (ds *dDS) GetTable(string, bool) (datasource.Table, error) { return ds, nil }
 
-// Implements datasource.Table.
 func (ds *dDS) GetIndexFields() []datasource.Index                                { return nil }
 func (ds *dDS) Scan(...datasource.IndexRanges) (datasource.KeyValueStream, error) { return ds, nil }
-func (ds *dDS) Delete(string) (bool, error) {
-	return false, syncql.NewErrOperationNotSupported(ds.ctx, "delete")
-}
+func (ds *dDS) Delete(string) (bool, error)                                       { return false, nil }
 
-// Implements datasource.KeyValueStream.
 func (ds *dDS) Advance() bool {
 	if ds.done {
 		return false
@@ -57,7 +59,6 @@ func (ds *dDS) Advance() bool {
 	ds.done = true
 	return true
 }
-
 func (ds *dDS) KeyValue() (string, *vom.RawBytes) { return ds.k, ds.v }
 func (ds *dDS) Err() error                        { return nil }
 func (ds *dDS) Cancel()                           { ds.done = true }
@@ -67,93 +68,109 @@ func (ds *dDS) addKeyValue(k string, v *vom.RawBytes) {
 	ds.done = false
 }
 
-// qeDS implements a datasource, which is used to extract the target 'InterfaceName' from the query.
-type qeDS struct {
-	ctx                 *context.T
-	targetInterfaceName string
+// dummyDS implements a datasource for extracting the target columns from the query.
+type dummyDS struct {
+	ctx                  *context.T
+	targetKey            string
+	targetInterfaceName  string
+	hasTargetAttachments bool
 }
 
-func (ds *qeDS) GetContext() *context.T { return ds.ctx }
-func (ds *qeDS) GetTable(name string, writeAccessReq bool) (datasource.Table, error) {
-	if writeAccessReq {
-		return nil, syncql.NewErrNotWritable(ds.ctx, name)
+func (ds *dummyDS) GetContext() *context.T                          { return ds.ctx }
+func (ds *dummyDS) GetTable(string, bool) (datasource.Table, error) { return ds, nil }
+
+func (ds *dummyDS) GetIndexFields() []datasource.Index {
+	// Mimic having indices on InterfaceName and Attachments so that we can
+	// get the target ranges on these columns from the query.
+	return []datasource.Index{
+		datasource.Index{FieldName: "v.InterfaceName", Kind: vdl.String},
+		// Pretend to be a string type index since no other type is supported.
+		// It's OK to see if attachments are being queried.
+		datasource.Index{FieldName: "v.Attachments", Kind: vdl.String},
 	}
-	return ds, nil
 }
 
-func (ds *qeDS) GetIndexFields() []datasource.Index {
-	return []datasource.Index{datasource.Index{FieldName: "v.InterfaceName", Kind: vdl.String}}
+func (ds *dummyDS) Scan(indices ...datasource.IndexRanges) (datasource.KeyValueStream, error) {
+	ds.targetKey = getTargetValue(indices[0])           // 0 is for key.
+	ds.targetInterfaceName = getTargetValue(indices[1]) // 1 is for v.InterfaceName.
+	ds.hasTargetAttachments = !indices[2].NilAllowed    // 2 is for v.Attachments
+	return nil, nil
 }
 
-func (ds *qeDS) Scan(indices ...datasource.IndexRanges) (datasource.KeyValueStream, error) {
-	index := indices[1] // 0 is for the key.
+func getTargetValue(index datasource.IndexRanges) string {
 	if !index.NilAllowed && len(*index.StringRanges) == 1 {
 		// If limit is equal to start plus a zero byte, a single interface name is being queried.
 		strRange := (*index.StringRanges)[0]
 		if len(strRange.Start) > 0 && strRange.Limit == strRange.Start+"\000" {
-			ds.targetInterfaceName = strRange.Start
+			return strRange.Start
 		}
 	}
-	return nil, nil
+	return ""
 }
 
-func (ds *qeDS) Delete(string) (bool, error) {
-	return false, syncql.NewErrOperationNotSupported(ds.ctx, "delete")
-}
+func (ds *dummyDS) Delete(string) (bool, error) { return false, nil }
 
 // queryMatcher matches advertisements against the given query.
 type queryMatcher struct {
-	ds    *dDS
-	pstmt public.PreparedStatement
+	ds                  *dDS
+	pstmt               public.PreparedStatement
+	targetKey           string
+	targetInterfaceName string
 }
 
-func (m *queryMatcher) match(ad *Advertisement) bool {
-	v, err := vom.RawBytesFromValue(ad.Service)
+func (m *queryMatcher) Match(ad *discovery.Advertisement) (bool, error) {
+	v, err := vom.RawBytesFromValue(ad)
 	if err != nil {
-		m.ds.ctx.Error(err)
-		return false
+		return false, err
 	}
 
-	m.ds.addKeyValue(ad.Service.InstanceId, v)
+	m.ds.addKeyValue(ad.Id.String(), v)
 	_, r, err := m.pstmt.Exec()
 	if err != nil {
-		m.ds.ctx.Error(err)
-		return false
+		return false, err
 	}
 
 	// Note that the datasource has only one row and so we can know whether it is
 	// matched or not just with Advance() call.
 	if r.Advance() {
 		r.Cancel()
-		return true
+		return true, nil
 	}
-	if err = r.Err(); err != nil {
-		m.ds.ctx.Error(err)
-	}
-	return false
+	return false, r.Err()
 }
 
-func newMatcher(ctx *context.T, query string) (matcher, string, error) {
+func (m *queryMatcher) TargetKey() string           { return m.targetKey }
+func (m *queryMatcher) TargetInterfaceName() string { return m.targetInterfaceName }
+
+func NewMatcher(ctx *context.T, query string) (Matcher, error) {
 	if len(query) == 0 {
-		return trueMatcher{}, "", nil
+		return trueMatcher{}, nil
 	}
 
 	query = "SELECT v FROM d WHERE " + query
 
-	// Extract the target InterfaceName and check any semantic error in the query.
-	qe := &qeDS{ctx: ctx}
-	_, _, err := engine.Create(qe).Exec(query)
+	// Extract the target columns and check any semantic error in the query.
+	dummy := &dummyDS{ctx: ctx}
+	_, _, err := engine.Create(dummy).Exec(query)
 	if err != nil {
-		return nil, "", err
+		return nil, err
+	}
+	if dummy.hasTargetAttachments {
+		return nil, NewErrBadQuery(ctx, errors.New("v.Attachments cannot be queried"))
 	}
 
 	// Prepare the query engine.
 	ds := &dDS{ctx: ctx}
 	pstmt, err := engine.Create(ds).PrepareStatement(query)
 	if err != nil {
-		// Should not happen; just for safey.
-		return nil, "", err
+		// Should not happen; just for safety.
+		return nil, err
 	}
-
-	return &queryMatcher{ds: ds, pstmt: pstmt}, qe.targetInterfaceName, nil
+	matcher := &queryMatcher{
+		ds:                  ds,
+		pstmt:               pstmt,
+		targetKey:           dummy.targetKey,
+		targetInterfaceName: dummy.targetInterfaceName,
+	}
+	return matcher, nil
 }

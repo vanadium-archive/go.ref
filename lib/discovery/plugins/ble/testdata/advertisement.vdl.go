@@ -16,38 +16,55 @@ import (
 	discovery_2 "v.io/x/ref/lib/discovery"
 )
 
-// AdvertisementConversionTestCase represents a test case for converting between the Vanadium Advertisement format
-// and the Ble Advertisement format.
-type AdvertisementConversionTestCase struct {
-	Advertisement discovery_2.Advertisement
-	// BleAdvertisement is a map from human readable uuid strings to the byte data.
-	BleAdvertisement map[string][]byte
+// AdConversionTestCase represents a test case for converting between
+// the advertisement and the Gatt characteristics.
+type AdConversionTestCase struct {
+	AdInfo discovery_2.AdInfo
+	// GattAttrs is a map from uuid to the byte data.
+	GattAttrs map[string][]byte
 }
 
-func (AdvertisementConversionTestCase) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/lib/discovery/plugins/ble/testdata.AdvertisementConversionTestCase"`
+func (AdConversionTestCase) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/lib/discovery/plugins/ble/testdata.AdConversionTestCase"`
 }) {
 }
 
 func init() {
-	vdl.Register((*AdvertisementConversionTestCase)(nil))
+	vdl.Register((*AdConversionTestCase)(nil))
 }
 
-// ConversionTestData contains test cases for conversions between the ble format and the v23 advertising format.
-var ConversionTestData = []AdvertisementConversionTestCase{
+// ConversionTestData contains test cases for conversions between
+// the advertisement and the Gatt characteristics
+var ConversionTestData = []AdConversionTestCase{
 	{
-		Advertisement: discovery_2.Advertisement{
-			Service: discovery.Service{
-				InstanceId:    "instance",
-				InstanceName:  "service",
-				InterfaceName: "v.io/x/ref",
-				Attrs: discovery.Attributes{
-					"key1": "value1",
-					"key2": "value2",
+		AdInfo: discovery_2.AdInfo{
+			Ad: discovery.Advertisement{
+				Id: discovery.AdId{
+					1,
+					2,
+					3,
+					4,
+					5,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
 				},
-				Addrs: []string{
+				InterfaceName: "v.io/x/ref",
+				Addresses: []string{
 					"localhost:1000",
 					"example.com:540",
+				},
+				Attributes: discovery.Attributes{
+					"key1": "value1",
+					"key2": "value2",
 				},
 				Attachments: discovery.Attachments{
 					"key1": []byte("\x00\x01\x02\x03\x04"),
@@ -58,36 +75,57 @@ var ConversionTestData = []AdvertisementConversionTestCase{
 			EncryptionKeys: []discovery_2.EncryptionKey{
 				discovery_2.EncryptionKey("k"),
 			},
-			Hash: []byte("\x01\x03\x05\a\t"),
+			Hash: discovery_2.AdHash{
+				1,
+				3,
+				5,
+				7,
+				9,
+				0,
+				0,
+				0,
+			},
 			DirAddrs: []string{
 				"localhost:1001",
 				"example.com:541",
 			},
 		},
-		BleAdvertisement: map[string][]byte{
-			"02ce37dd-7449-5a0a-b1a0-d1bc91ff16cb": []byte("instance"),
+		GattAttrs: map[string][]byte{
 			"402cce84-58f4-535b-8289-940365f62c96": []byte("__key1=\x00\x01\x02\x03\x04"),
 			"4ce68e8b-173b-597e-9f93-ca453e7bb790": []byte("key1=value1"),
 			"6286d80a-adaa-519a-8a06-281a4645a607": []byte("\x01\x01k"),
 			"777f349c-d01f-5543-aa31-528e48bb53bd": []byte("key2=value2"),
 			"7d8b5c56-0d05-5a7a-a21e-6c0c3c31245e": []byte("\x0elocalhost:1001\x0fexample.com:541"),
-			"9c6286f5-aab0-5009-b81b-704d57ed6035": []byte("\x01\x03\x05\a\t"),
-			"ad2566b7-59d8-50ae-8885-222f43f65fdc": []byte("\x0elocalhost:1000\x0fexample.com:540"),
+			"9c6286f5-aab0-5009-b81b-704d57ed6035": []byte("\x01\x03\x05\a\t\x00\x00\x00"),
 			"b2cadfd4-d003-576c-acad-58b8e3a9cbc8": []byte("v.io/x/ref"),
+			"bf0a3657-37cb-5aad-8c13-00c1d69a141c": []byte("\x01\x02\x03\x04\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"),
 			"f3834b25-501c-566e-8343-d01fc632c922": []byte("__key3=\x05\x06\a\b\t"),
-			"ffbdcff3-e56f-58f0-8c1a-e416c39aac0d": []byte("service"),
+			"fe3fa941-1eda-5265-806f-d5127794a9a9": []byte("\x0elocalhost:1000\x0fexample.com:540"),
 		},
 	},
 	{
-		Advertisement: discovery_2.Advertisement{
-			Service: discovery.Service{
-				InstanceId:    "large",
-				InterfaceName: "v.io/x/large",
-				Attrs: discovery.Attributes{
-					"key1": "01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890012345678901234567890012345678901234567890",
-					"key2": "9876543210",
+		AdInfo: discovery_2.AdInfo{
+			Ad: discovery.Advertisement{
+				Id: discovery.AdId{
+					9,
+					8,
+					7,
+					6,
+					5,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
+					0,
 				},
-				Addrs: []string{
+				InterfaceName: "v.io/x/large",
+				Addresses: []string{
 					"192.168.100.100:8000",
 					"192.168.100.100:8001",
 					"192.168.100.100:8002",
@@ -102,6 +140,10 @@ var ConversionTestData = []AdvertisementConversionTestCase{
 					"192.168.100.100:8011",
 					"192.168.100.100:8012",
 				},
+				Attributes: discovery.Attributes{
+					"key1": "01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890012345678901234567890012345678901234567890",
+					"key2": "9876543210",
+				},
 				Attachments: discovery.Attachments{
 					"key1": []byte("\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00"),
 					"key3": []byte("\x00\x01\x02\x03\x04\x05\x06\a\b\t"),
@@ -111,7 +153,16 @@ var ConversionTestData = []AdvertisementConversionTestCase{
 			EncryptionKeys: []discovery_2.EncryptionKey{
 				discovery_2.EncryptionKey("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"),
 			},
-			Hash: []byte("\x02\x04\x06\b\x00"),
+			Hash: discovery_2.AdHash{
+				2,
+				4,
+				6,
+				8,
+				0,
+				0,
+				0,
+				0,
+			},
 			DirAddrs: []string{
 				"192.168.100.100:9000",
 				"192.168.100.100:9001",
@@ -128,17 +179,17 @@ var ConversionTestData = []AdvertisementConversionTestCase{
 				"192.168.100.100:9012",
 			},
 		},
-		BleAdvertisement: map[string][]byte{
-			"02ce37dd-7449-5a0a-b1a0-d1bc91ff16cb": []byte("large"),
+		GattAttrs: map[string][]byte{
 			"402cce84-58f4-535b-8289-940365f62c96": []byte("__key1=\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00\t\b\a\x06\x05\x04\x03\x02\x01\x00"),
 			"4ce68e8b-173b-597e-9f93-ca453e7bb790": []byte("key1=01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890012345678901234567890012345678901234567890"),
 			"6286d80a-adaa-519a-8a06-281a4645a607": []byte("\x01\x87\x02kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"),
 			"777f349c-d01f-5543-aa31-528e48bb53bd": []byte("key2=9876543210"),
 			"7d8b5c56-0d05-5a7a-a21e-6c0c3c31245e": []byte("\x14192.168.100.100:9000\x14192.168.100.100:9001\x14192.168.100.100:9002\x14192.168.100.100:9003\x14192.168.100.100:9004\x14192.168.100.100:9005\x14192.168.100.100:9006\x14192.168.100.100:9007\x14192.168.100.100:9008\x14192.168.100.100:9009\x14192.168.100.100:9010\x14192.168.100.100:9011\x14192.168.100.100:9012"),
-			"9c6286f5-aab0-5009-b81b-704d57ed6035": []byte("\x02\x04\x06\b\x00"),
-			"ad2566b7-59d8-50ae-8885-222f43f65fdc": []byte("\x14192.168.100.100:8000\x14192.168.100.100:8001\x14192.168.100.100:8002\x14192.168.100.100:8003\x14192.168.100.100:8004\x14192.168.100.100:8005\x14192.168.100.100:8006\x14192.168.100.100:8007\x14192.168.100.100:8008\x14192.168.100.100:8009\x14192.168.100.100:8010\x14192.168.100.100:8011\x14192.168.100.100:8012"),
+			"9c6286f5-aab0-5009-b81b-704d57ed6035": []byte("\x02\x04\x06\b\x00\x00\x00\x00"),
 			"b2cadfd4-d003-576c-acad-58b8e3a9cbc8": []byte("v.io/x/large"),
+			"bf0a3657-37cb-5aad-8c13-00c1d69a141c": []byte("\t\b\a\x06\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"),
 			"f3834b25-501c-566e-8343-d01fc632c922": []byte("__key3=\x00\x01\x02\x03\x04\x05\x06\a\b\t"),
+			"fe3fa941-1eda-5265-806f-d5127794a9a9": []byte("\x14192.168.100.100:8000\x14192.168.100.100:8001\x14192.168.100.100:8002\x14192.168.100.100:8003\x14192.168.100.100:8004\x14192.168.100.100:8005\x14192.168.100.100:8006\x14192.168.100.100:8007\x14192.168.100.100:8008\x14192.168.100.100:8009\x14192.168.100.100:8010\x14192.168.100.100:8011\x14192.168.100.100:8012"),
 		},
 	},
 }

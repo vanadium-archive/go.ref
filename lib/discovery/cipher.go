@@ -14,7 +14,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/v23/vom"
 
 	"v.io/x/ref/lib/security/bcrypter"
 )
@@ -25,12 +24,12 @@ var (
 	errNoPermission = errors.New("no permission")
 )
 
-// encrypt encrypts the service so that only users who possess blessings
+// encrypt encrypts the advertisement so that only users who possess blessings
 // matching one of the given blessing patterns can decrypt it. Nil patterns
 // means no encryption.
-func encrypt(ctx *context.T, ad *Advertisement, patterns []security.BlessingPattern) error {
+func encrypt(ctx *context.T, adinfo *AdInfo, patterns []security.BlessingPattern) error {
 	if len(patterns) == 0 {
-		ad.EncryptionAlgorithm = NoEncryption
+		adinfo.EncryptionAlgorithm = NoEncryption
 		return nil
 	}
 
@@ -39,11 +38,11 @@ func encrypt(ctx *context.T, ad *Advertisement, patterns []security.BlessingPatt
 		return err
 	}
 
-	ad.EncryptionAlgorithm = IbeEncryption
-	ad.EncryptionKeys = make([]EncryptionKey, len(patterns))
+	adinfo.EncryptionAlgorithm = IbeEncryption
+	adinfo.EncryptionKeys = make([]EncryptionKey, len(patterns))
 	var err error
 	for i, pattern := range patterns {
-		if ad.EncryptionKeys[i], err = wrapSharedKey(ctx, sharedKey, pattern); err != nil {
+		if adinfo.EncryptionKeys[i], err = wrapSharedKey(ctx, sharedKey, pattern); err != nil {
 			return err
 		}
 	}
@@ -51,17 +50,17 @@ func encrypt(ctx *context.T, ad *Advertisement, patterns []security.BlessingPatt
 	// We only encrypt addresses for now.
 	//
 	// TODO(jhahn): Revisit the scope of encryption.
-	encrypted := make([]string, len(ad.Service.Addrs))
-	for i, addr := range ad.Service.Addrs {
+	encrypted := make([]string, len(adinfo.Ad.Addresses))
+	for i, addr := range adinfo.Ad.Addresses {
 		var n [24]byte
 		binary.LittleEndian.PutUint64(n[:], uint64(i))
 		encrypted[i] = string(secretbox.Seal(nil, []byte(addr), &n, &sharedKey))
 	}
-	ad.Service.Addrs = encrypted
+	adinfo.Ad.Addresses = encrypted
 	return nil
 }
 
-// decrypt decrypts the service using a blessings-based crypter
+// decrypt decrypts the advertisements using a blessings-based crypter
 // from the provided context.
 //
 // TODO(ataly, ashankar, jhahn): Currently we are using the go
@@ -71,21 +70,19 @@ func encrypt(ctx *context.T, ad *Advertisement, patterns []security.BlessingPatt
 // of at least 200ms to ensure that the advertisement is decrypted.
 // Once we switch to the C implementation of the library, the
 // decryption cost, and therefore this timeout, will come down.
-func decrypt(ctx *context.T, ad *Advertisement) error {
-	if ad.EncryptionAlgorithm == NoEncryption {
+func decrypt(ctx *context.T, adinfo *AdInfo) error {
+	if adinfo.EncryptionAlgorithm == NoEncryption {
 		// Not encrypted.
 		return nil
 	}
 
-	if ad.EncryptionAlgorithm != IbeEncryption {
-		return fmt.Errorf("unsupported encryption algorithm: %v", ad.EncryptionAlgorithm)
+	if adinfo.EncryptionAlgorithm != IbeEncryption {
+		return fmt.Errorf("unsupported encryption algorithm: %v", adinfo.EncryptionAlgorithm)
 	}
 
-	var (
-		sharedKey *[32]byte
-		err       error
-	)
-	for _, key := range ad.EncryptionKeys {
+	var sharedKey *[32]byte
+	var err error
+	for _, key := range adinfo.EncryptionKeys {
 		if sharedKey, err = unwrapSharedKey(ctx, key); err == nil {
 			break
 		}
@@ -97,10 +94,10 @@ func decrypt(ctx *context.T, ad *Advertisement) error {
 	// We only encrypt addresses for now.
 	//
 	// Note that we should not modify the slice element directly here since the
-	// underlying plugins may cache services and the next plugin.Scan() may return
-	// the already decrypted addresses.
-	decrypted := make([]string, len(ad.Service.Addrs))
-	for i, encrypted := range ad.Service.Addrs {
+	// underlying plugins may cache advertisements and the next plugin.Scan()
+	// may return the already decrypted addresses.
+	decrypted := make([]string, len(adinfo.Ad.Addresses))
+	for i, encrypted := range adinfo.Ad.Addresses {
 		var n [24]byte
 		binary.LittleEndian.PutUint64(n[:], uint64(i))
 		addr, ok := secretbox.Open(nil, []byte(encrypted), &n, sharedKey)
@@ -109,57 +106,37 @@ func decrypt(ctx *context.T, ad *Advertisement) error {
 		}
 		decrypted[i] = string(addr)
 	}
-	ad.Service.Addrs = decrypted
+	adinfo.Ad.Addresses = decrypted
 	return nil
 }
 
 func wrapSharedKey(ctx *context.T, sharedKey [32]byte, pattern security.BlessingPattern) (EncryptionKey, error) {
 	crypter := bcrypter.GetCrypter(ctx)
-	ctxt, err := crypter.Encrypt(ctx, pattern, sharedKey[:])
+	ctext, err := crypter.Encrypt(ctx, pattern, sharedKey[:])
 	if err != nil {
 		return nil, err
 	}
-	return encodeEncryptionKey(ctxt)
+	var wctext bcrypter.WireCiphertext
+	ctext.ToWire(&wctext)
+	return EncodeWireCiphertext(&wctext), nil
 }
 
 func unwrapSharedKey(ctx *context.T, key EncryptionKey) (*[32]byte, error) {
+	wctext, err := DecodeWireCiphertext(key)
+	if err != nil {
+		return nil, err
+	}
+	var ctext bcrypter.Ciphertext
+	ctext.FromWire(*wctext)
 	crypter := bcrypter.GetCrypter(ctx)
-	ctxt, err := decodeEncryptionKey(key)
+	decrypted, err := crypter.Decrypt(ctx, &ctext)
 	if err != nil {
 		return nil, err
 	}
-	decrypted, err := crypter.Decrypt(ctx, ctxt)
-	if err != nil {
-		return nil, err
-	}
-	if decryptedLen := len(decrypted); decryptedLen != 32 {
-		return nil, fmt.Errorf("decrypted shared key has length %v, want %v", decryptedLen, 32)
+	if len(decrypted) != 32 {
+		return nil, errors.New("shared key decryption error")
 	}
 	var sharedKey [32]byte
 	copy(sharedKey[:], decrypted)
 	return &sharedKey, nil
-}
-
-func encodeEncryptionKey(ctxt *bcrypter.Ciphertext) (EncryptionKey, error) {
-	var wctxt bcrypter.WireCiphertext
-	ctxt.ToWire(&wctxt)
-	// TODO(ataly, jhahn): Use a more efficient encoding than
-	// VOM, if possible.
-	b, err := vom.Encode(wctxt)
-	if err != nil {
-		return nil, err
-	}
-	return EncryptionKey(b), nil
-}
-
-func decodeEncryptionKey(key EncryptionKey) (*bcrypter.Ciphertext, error) {
-	var (
-		wctxt bcrypter.WireCiphertext
-		ctxt  bcrypter.Ciphertext
-	)
-	if err := vom.Decode([]byte(key), &wctxt); err != nil {
-		return nil, err
-	}
-	ctxt.FromWire(wctxt)
-	return &ctxt, nil
 }

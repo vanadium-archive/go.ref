@@ -8,50 +8,44 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 	"v.io/v23/security"
-	"v.io/v23/verror"
 )
 
-var (
-	errAlreadyBeingAdvertised = verror.Register(pkgPath+".errAlreadyBeingAdvertised", verror.NoRetry, "{1:}{2:} already being advertised")
-	errInvalidService         = verror.Register(pkgPath+"errInvalidService", verror.NoRetry, "{1:}{2:} service not valid{:_}")
-)
-
-func (d *idiscovery) advertise(ctx *context.T, session sessionId, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
-	if len(service.InstanceId) == 0 {
+func (d *idiscovery) advertise(ctx *context.T, session sessionId, ad *discovery.Advertisement, visibility []security.BlessingPattern) (<-chan struct{}, error) {
+	if !ad.Id.IsValid() {
 		var err error
-		if service.InstanceId, err = newInstanceId(); err != nil {
+		if ad.Id, err = discovery.NewAdId(); err != nil {
 			return nil, err
 		}
 	}
-	if err := validateService(service); err != nil {
-		return nil, verror.New(errInvalidService, ctx, err)
+	if err := validateAd(ad); err != nil {
+		return nil, NewErrBadAdvertisement(ctx, err)
 	}
 
-	ad := Advertisement{Service: copyService(service)}
-	if err := encrypt(ctx, &ad, visibility); err != nil {
+	adinfo := &AdInfo{Ad: *ad}
+	if err := encrypt(ctx, adinfo, visibility); err != nil {
 		return nil, err
 	}
-	hashAdvertisement(&ad)
+	HashAd(adinfo)
 
 	ctx, cancel, err := d.addTask(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if !d.addAd(session, ad.Service.InstanceId) {
+	if !d.addAd(session, adinfo) {
 		cancel()
 		d.removeTask(ctx)
-		return nil, verror.New(errAlreadyBeingAdvertised, ctx)
+		return nil, NewErrAlreadyBeingAdvertised(ctx, adinfo.Ad.Id)
 	}
 
 	done := make(chan struct{})
 	barrier := NewBarrier(func() {
-		d.removeAd(ad.Service.InstanceId)
+		d.removeAd(adinfo)
 		d.removeTask(ctx)
 		close(done)
 	})
 	for _, plugin := range d.plugins {
-		if err := plugin.Advertise(ctx, ad, barrier.Add()); err != nil {
+		if err := plugin.Advertise(ctx, adinfo, barrier.Add()); err != nil {
 			cancel()
 			return nil, err
 		}
@@ -59,19 +53,19 @@ func (d *idiscovery) advertise(ctx *context.T, session sessionId, service *disco
 	return done, nil
 }
 
-func (d *idiscovery) addAd(session sessionId, id string) bool {
+func (d *idiscovery) addAd(session sessionId, adinfo *AdInfo) bool {
 	d.mu.Lock()
-	if _, exist := d.ads[id]; exist {
+	if _, exist := d.ads[adinfo.Ad.Id]; exist {
 		d.mu.Unlock()
 		return false
 	}
-	d.ads[id] = session
+	d.ads[adinfo.Ad.Id] = session
 	d.mu.Unlock()
 	return true
 }
 
-func (d *idiscovery) removeAd(id string) {
+func (d *idiscovery) removeAd(adinfo *AdInfo) {
 	d.mu.Lock()
-	delete(d.ads, id)
+	delete(d.ads, adinfo.Ad.Id)
 	d.mu.Unlock()
 }

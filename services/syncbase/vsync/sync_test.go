@@ -23,7 +23,7 @@ func TestPeerDiscovery(t *testing.T) {
 	defer destroyService(t, svc)
 	s := svc.sync
 
-	checkPeers := func(peers map[string]uint32, want map[string]*discovery.Service) {
+	checkPeers := func(peers map[string]uint32, want map[string]*discovery.Advertisement) {
 		got := s.filterDiscoveryPeers(peers)
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("filterDiscoveryPeers: wrong data: got %v, want %v", got, want)
@@ -35,30 +35,30 @@ func TestPeerDiscovery(t *testing.T) {
 	checkPeers(peers, nil)
 
 	// Add peer neighbors.
-	svcA := &discovery.Service{
-		Attrs: discovery.Attributes{discoveryAttrPeer: "a"},
-		Addrs: []string{"aa", "aaa"},
+	svcA := &discovery.Advertisement{
+		Attributes: discovery.Attributes{discoveryAttrPeer: "a"},
+		Addresses:  []string{"aa", "aaa"},
 	}
-	svcB := &discovery.Service{
-		Attrs: discovery.Attributes{discoveryAttrPeer: "b"},
-		Addrs: []string{"bb", "bbb"},
+	svcB := &discovery.Advertisement{
+		Attributes: discovery.Attributes{discoveryAttrPeer: "b"},
+		Addresses:  []string{"bb", "bbb"},
 	}
 
 	s.updateDiscoveryInfo("a", svcA)
 	s.updateDiscoveryInfo("b", svcB)
 
-	checkPeers(peers, map[string]*discovery.Service{"a": svcA, "b": svcB})
-	checkPeers(map[string]uint32{"x": 0, "y": 1, "z": 2}, map[string]*discovery.Service{})
+	checkPeers(peers, map[string]*discovery.Advertisement{"a": svcA, "b": svcB})
+	checkPeers(map[string]uint32{"x": 0, "y": 1, "z": 2}, map[string]*discovery.Advertisement{})
 
 	// Remove a neighbor.
 	s.updateDiscoveryInfo("a", nil)
 
-	checkPeers(peers, map[string]*discovery.Service{"b": svcB})
+	checkPeers(peers, map[string]*discovery.Advertisement{"b": svcB})
 
 	// Remove the other neighbor.
 	s.updateDiscoveryInfo("b", nil)
 
-	checkPeers(peers, map[string]*discovery.Service{})
+	checkPeers(peers, map[string]*discovery.Advertisement{})
 }
 
 func TestSyncgroupDiscovery(t *testing.T) {
@@ -71,14 +71,14 @@ func TestSyncgroupDiscovery(t *testing.T) {
 	defer destroyService(t, svc)
 	s := svc.sync
 
-	checkSyncgroupAdmins := func(sgName string, want []*discovery.Service) {
+	checkSyncgroupAdmins := func(sgName string, want []*discovery.Advertisement) {
 		got := s.filterSyncgroupAdmins(sgName)
 
-		g := make(map[*discovery.Service]bool)
+		g := make(map[*discovery.Advertisement]bool)
 		for _, e := range got {
 			g[e] = true
 		}
-		w := make(map[*discovery.Service]bool)
+		w := make(map[*discovery.Advertisement]bool)
 		for _, e := range want {
 			w[e] = true
 		}
@@ -90,38 +90,38 @@ func TestSyncgroupDiscovery(t *testing.T) {
 	checkSyncgroupAdmins("foo", nil)
 
 	// Add syncgroup admin neighbors.
-	svcA := &discovery.Service{
-		Attrs: discovery.Attributes{discoveryAttrSyncgroup: "foo"},
-		Addrs: []string{"aa", "aaa"},
+	svcA := &discovery.Advertisement{
+		Attributes: discovery.Attributes{discoveryAttrSyncgroup: "foo"},
+		Addresses:  []string{"aa", "aaa"},
 	}
-	svcB := &discovery.Service{
-		Attrs: discovery.Attributes{discoveryAttrSyncgroup: "foo"},
-		Addrs: []string{"bb", "bbb"},
+	svcB := &discovery.Advertisement{
+		Attributes: discovery.Attributes{discoveryAttrSyncgroup: "foo"},
+		Addresses:  []string{"bb", "bbb"},
 	}
-	svcC := &discovery.Service{
-		Attrs: discovery.Attributes{discoveryAttrSyncgroup: "bar"},
-		Addrs: []string{"cc", "ccc"},
+	svcC := &discovery.Advertisement{
+		Attributes: discovery.Attributes{discoveryAttrSyncgroup: "bar"},
+		Addresses:  []string{"cc", "ccc"},
 	}
 
 	s.updateDiscoveryInfo("foo_a", svcA)
 	s.updateDiscoveryInfo("foo_b", svcB)
 	s.updateDiscoveryInfo("bar_c", svcC)
 
-	checkSyncgroupAdmins("foo", []*discovery.Service{svcA, svcB})
-	checkSyncgroupAdmins("bar", []*discovery.Service{svcC})
+	checkSyncgroupAdmins("foo", []*discovery.Advertisement{svcA, svcB})
+	checkSyncgroupAdmins("bar", []*discovery.Advertisement{svcC})
 	checkSyncgroupAdmins("haha", nil)
 
 	// Remove an admin from the "foo" syncgroup.
 	s.updateDiscoveryInfo("foo_a", nil)
 
-	checkSyncgroupAdmins("foo", []*discovery.Service{svcB})
-	checkSyncgroupAdmins("bar", []*discovery.Service{svcC})
+	checkSyncgroupAdmins("foo", []*discovery.Advertisement{svcB})
+	checkSyncgroupAdmins("bar", []*discovery.Advertisement{svcC})
 
 	// Remove the other "foo" admin.
 	s.updateDiscoveryInfo("foo_b", nil)
 
 	checkSyncgroupAdmins("foo", nil)
-	checkSyncgroupAdmins("bar", []*discovery.Service{svcC})
+	checkSyncgroupAdmins("bar", []*discovery.Advertisement{svcC})
 
 	// Remove the other "bar" admin.
 	s.updateDiscoveryInfo("bar_c", nil)

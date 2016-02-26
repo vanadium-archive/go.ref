@@ -5,8 +5,6 @@
 package discovery
 
 import (
-	"bytes"
-
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 )
@@ -14,7 +12,7 @@ import (
 func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-chan discovery.Update, error) {
 	// TODO(jhahn): Consider to use multiple target services so that the plugins
 	// can filter advertisements more efficiently if possible.
-	matcher, targetInterfaceName, err := newMatcher(ctx, query)
+	matcher, err := NewMatcher(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -25,13 +23,13 @@ func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-ch
 	}
 
 	// TODO(jhahn): Revisit the buffer size.
-	scanCh := make(chan Advertisement, 10)
+	scanCh := make(chan *AdInfo, 10)
 	barrier := NewBarrier(func() {
 		close(scanCh)
 		d.removeTask(ctx)
 	})
 	for _, plugin := range d.plugins {
-		if err := plugin.Scan(ctx, targetInterfaceName, scanCh, barrier.Add()); err != nil {
+		if err := plugin.Scan(ctx, matcher.TargetInterfaceName(), scanCh, barrier.Add()); err != nil {
 			cancel()
 			return nil, err
 		}
@@ -42,14 +40,21 @@ func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-ch
 	return updateCh, nil
 }
 
-func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher matcher, scanCh <-chan Advertisement, updateCh chan<- discovery.Update) {
+func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher Matcher, scanCh <-chan *AdInfo, updateCh chan<- discovery.Update) {
 	defer close(updateCh)
 
-	found := make(map[string]*Advertisement)
+	// Some plugins may not return a full advertisement information when it is lost.
+	// So we keep the advertisements that we've seen so that we can provide the
+	// full advertisement information when it is lost. Note that plugins will not
+	// include attachments unless they're tiny enough.
+	seen := make(map[discovery.AdId]*AdInfo)
 	for {
 		select {
-		case ad := <-scanCh:
-			if err := decrypt(ctx, &ad); err != nil {
+		case adinfo, ok := <-scanCh:
+			if !ok {
+				return
+			}
+			if err := decrypt(ctx, adinfo); err != nil {
 				// Couldn't decrypt it. Ignore it.
 				if err != errNoPermission {
 					ctx.Error(err)
@@ -57,18 +62,23 @@ func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher matcher, 
 				continue
 			}
 			// Filter out advertisements from the same session.
-			if d.getAdSession(ad.Service.InstanceId) == session {
+			if d.getAdSession(adinfo) == session {
 				continue
 			}
 			// Note that 'Lost' advertisement may not have full service information.
-			// Thus we do not match the query against it. mergeAdvertisement() will
-			// ignore it if it has not been scanned.
-			if !ad.Lost {
-				if !matcher.match(&ad) {
+			// Thus we do not match the query against it. newUpdates() will ignore it
+			// if it has not been scanned.
+			if !adinfo.Lost {
+				matched, err := matcher.Match(&adinfo.Ad)
+				if err != nil {
+					ctx.Error(err)
+					continue
+				}
+				if !matched {
 					continue
 				}
 			}
-			for _, update := range mergeAdvertisement(found, &ad) {
+			for _, update := range newUpdates(seen, adinfo) {
 				select {
 				case updateCh <- update:
 				case <-ctx.Done():
@@ -81,38 +91,38 @@ func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher matcher, 
 	}
 }
 
-func (d *idiscovery) getAdSession(id string) sessionId {
+func (d *idiscovery) getAdSession(adinfo *AdInfo) sessionId {
 	d.mu.Lock()
-	session := d.ads[id]
+	session := d.ads[adinfo.Ad.Id]
 	d.mu.Unlock()
 	return session
 }
 
-func mergeAdvertisement(found map[string]*Advertisement, ad *Advertisement) (updates []discovery.Update) {
+func newUpdates(seen map[discovery.AdId]*AdInfo, adinfo *AdInfo) []discovery.Update {
+	var updates []discovery.Update
 	// The multiple plugins may return the same advertisements. We ignores the update
 	// if it has been already sent through the update channel.
-	prev := found[ad.Service.InstanceId]
-	if ad.Lost {
+	prev := seen[adinfo.Ad.Id]
+	if adinfo.Lost {
 		// TODO(jhahn): If some plugins return 'Lost' events for an advertisement update, we may
 		// generates multiple 'Lost' and 'Found' events for the same update. In order to minimize
 		// this flakiness, we may need to delay the handling of 'Lost'.
 		if prev != nil {
-			delete(found, ad.Service.InstanceId)
-			updates = []discovery.Update{discovery.UpdateLost{discovery.Lost{Service: prev.Service}}}
+			delete(seen, prev.Ad.Id)
+			prev.Lost = true
+			updates = []discovery.Update{NewUpdate(prev)}
 		}
 	} else {
 		// TODO(jhahn): Need to compare the proximity as well.
-		service := copyService(&ad.Service)
 		switch {
 		case prev == nil:
-			updates = []discovery.Update{discovery.UpdateFound{discovery.Found{Service: service}}}
-		case !bytes.Equal(prev.Hash, ad.Hash):
-			updates = []discovery.Update{
-				discovery.UpdateLost{discovery.Lost{Service: prev.Service}},
-				discovery.UpdateFound{discovery.Found{Service: service}},
-			}
+			updates = []discovery.Update{NewUpdate(adinfo)}
+			seen[adinfo.Ad.Id] = adinfo
+		case prev.Hash != adinfo.Hash:
+			prev.Lost = true
+			updates = []discovery.Update{NewUpdate(prev), NewUpdate(adinfo)}
+			seen[adinfo.Ad.Id] = adinfo
 		}
-		found[ad.Service.InstanceId] = ad
 	}
-	return
+	return updates
 }

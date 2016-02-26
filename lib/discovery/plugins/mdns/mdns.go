@@ -22,13 +22,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pborman/uuid"
+	mdns "github.com/presotto/go-mdns-sd"
+
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 
 	idiscovery "v.io/x/ref/lib/discovery"
-
-	"github.com/pborman/uuid"
-	mdns "github.com/presotto/go-mdns-sd"
 )
 
 const (
@@ -36,9 +36,8 @@ const (
 	serviceNameSuffix = "._sub._" + v23ServiceName
 
 	// Use short attribute names due to the txt record size limit.
-	attrName       = "_n"
 	attrInterface  = "_i"
-	attrAddrs      = "_a"
+	attrAddresses  = "_a"
 	attrEncryption = "_e"
 	attrHash       = "_h"
 	attrDirAddrs   = "_d"
@@ -81,12 +80,12 @@ func interfaceNameToServiceName(interfaceName string) string {
 	return uuid.UUID(serviceUuid).String() + serviceNameSuffix
 }
 
-func (p *plugin) Advertise(ctx *context.T, ad idiscovery.Advertisement, done func()) (err error) {
-	serviceName := interfaceNameToServiceName(ad.Service.InterfaceName)
+func (p *plugin) Advertise(ctx *context.T, adinfo *idiscovery.AdInfo, done func()) (err error) {
+	serviceName := interfaceNameToServiceName(adinfo.Ad.InterfaceName)
 	// We use the instance uuid as the host name so that we can get the instance uuid
 	// from the lost service instance, which has no txt records at all.
-	hostName := encodeInstanceId(ad.Service.InstanceId)
-	txt, err := createTxtRecords(&ad)
+	hostName := encodeAdId(&adinfo.Ad.Id)
+	txt, err := newTxtRecords(adinfo)
 	if err != nil {
 		done()
 		return err
@@ -115,7 +114,7 @@ func (p *plugin) Advertise(ctx *context.T, ad idiscovery.Advertisement, done fun
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- idiscovery.Advertisement, done func()) error {
+func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscovery.AdInfo, done func()) error {
 	var serviceName string
 	if len(interfaceName) == 0 {
 		serviceName = v23ServiceName
@@ -143,13 +142,13 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- idiscovery
 			case <-ctx.Done():
 				return
 			}
-			ad, err := createAdvertisement(service)
+			adinfo, err := newAdInfo(service)
 			if err != nil {
 				ctx.Error(err)
 				continue
 			}
 			select {
-			case ch <- ad:
+			case ch <- adinfo:
 			case <-ctx.Done():
 				return
 			}
@@ -198,29 +197,23 @@ func (p *plugin) refreshSubscription(serviceName string) {
 	p.subscriptionMu.Unlock()
 }
 
-func createTxtRecords(ad *idiscovery.Advertisement) ([]string, error) {
-	// Prepare a txt record with attributes and addresses to announce.
-	txt := appendTxtRecord(nil, attrInterface, ad.Service.InterfaceName)
-	if len(ad.Service.InstanceName) > 0 {
-		txt = appendTxtRecord(txt, attrName, ad.Service.InstanceName)
-	}
-	if len(ad.Service.Addrs) > 0 {
-		addrs := idiscovery.PackAddresses(ad.Service.Addrs)
-		txt = appendTxtRecord(txt, attrAddrs, addrs)
-	}
-	if ad.EncryptionAlgorithm != idiscovery.NoEncryption {
-		enc := idiscovery.PackEncryptionKeys(ad.EncryptionAlgorithm, ad.EncryptionKeys)
-		txt = appendTxtRecord(txt, attrEncryption, enc)
-	}
-	for k, v := range ad.Service.Attrs {
+func newTxtRecords(adinfo *idiscovery.AdInfo) ([]string, error) {
+	// Prepare a txt record for the advertisement to announce.
+	txt := appendTxtRecord(nil, attrInterface, adinfo.Ad.InterfaceName)
+	txt = appendTxtRecord(txt, attrAddresses, idiscovery.PackAddresses(adinfo.Ad.Addresses))
+	for k, v := range adinfo.Ad.Attributes {
 		txt = appendTxtRecord(txt, k, v)
 	}
-	for k, v := range ad.Service.Attachments {
+	for k, v := range adinfo.Ad.Attachments {
 		txt = appendTxtRecord(txt, attrAttachmentPrefix+k, v)
 	}
-	txt = appendTxtRecord(txt, attrHash, ad.Hash)
-	if len(ad.DirAddrs) > 0 {
-		addrs := idiscovery.PackAddresses(ad.DirAddrs)
+	if adinfo.EncryptionAlgorithm != idiscovery.NoEncryption {
+		enc := idiscovery.PackEncryptionKeys(adinfo.EncryptionAlgorithm, adinfo.EncryptionKeys)
+		txt = appendTxtRecord(txt, attrEncryption, enc)
+	}
+	txt = appendTxtRecord(txt, attrHash, adinfo.Hash[:])
+	if len(adinfo.DirAddrs) > 0 {
+		addrs := idiscovery.PackAddresses(adinfo.DirAddrs)
 		txt = appendTxtRecord(txt, attrDirAddrs, addrs)
 	}
 	txt, err := maybeSplitLargeTXT(txt)
@@ -251,65 +244,63 @@ func appendTxtRecord(txt []string, k string, v interface{}) []string {
 	return txt
 }
 
-func createAdvertisement(service mdns.ServiceInstance) (idiscovery.Advertisement, error) {
+func newAdInfo(service mdns.ServiceInstance) (*idiscovery.AdInfo, error) {
 	// Note that service.Name starts with a host name, which is the instance uuid.
 	p := strings.SplitN(service.Name, ".", 2)
 	if len(p) < 1 {
-		return idiscovery.Advertisement{}, fmt.Errorf("invalid service name: %s", service.Name)
-	}
-	instanceId, err := decodeInstanceId(p[0])
-	if err != nil {
-		return idiscovery.Advertisement{}, fmt.Errorf("invalid host name: %v", err)
+		return nil, fmt.Errorf("invalid service name: %s", service.Name)
 	}
 
-	ad := idiscovery.Advertisement{Service: discovery.Service{InstanceId: instanceId}}
+	adinfo := &idiscovery.AdInfo{}
+	if err := decodeAdId(p[0], &adinfo.Ad.Id); err != nil {
+		return nil, fmt.Errorf("invalid host name: %v", err)
+	}
+
 	if len(service.SrvRRs) == 0 && len(service.TxtRRs) == 0 {
-		ad.Lost = true
-		return ad, nil
+		adinfo.Lost = true
+		return adinfo, nil
 	}
 
-	ad.Service.Attrs = make(discovery.Attributes)
-	ad.Service.Attachments = make(discovery.Attachments)
+	adinfo.Ad.Attributes = make(discovery.Attributes)
+	adinfo.Ad.Attachments = make(discovery.Attachments)
 	for _, rr := range service.TxtRRs {
 		txt, err := maybeJoinLargeTXT(rr.Txt)
 		if err != nil {
-			return idiscovery.Advertisement{}, err
+			return nil, err
 		}
 
 		for _, kv := range txt {
 			p := strings.SplitN(kv, "=", 2)
 			if len(p) != 2 {
-				return idiscovery.Advertisement{}, fmt.Errorf("invalid txt record: %s", txt)
+				return nil, fmt.Errorf("invalid txt record: %s", txt)
 			}
 			switch k, v := p[0], p[1]; k {
-			case attrName:
-				ad.Service.InstanceName = v
 			case attrInterface:
-				ad.Service.InterfaceName = v
-			case attrAddrs:
-				if ad.Service.Addrs, err = idiscovery.UnpackAddresses([]byte(v)); err != nil {
-					return idiscovery.Advertisement{}, err
+				adinfo.Ad.InterfaceName = v
+			case attrAddresses:
+				if adinfo.Ad.Addresses, err = idiscovery.UnpackAddresses([]byte(v)); err != nil {
+					return nil, err
 				}
 			case attrEncryption:
-				if ad.EncryptionAlgorithm, ad.EncryptionKeys, err = idiscovery.UnpackEncryptionKeys([]byte(v)); err != nil {
-					return idiscovery.Advertisement{}, err
+				if adinfo.EncryptionAlgorithm, adinfo.EncryptionKeys, err = idiscovery.UnpackEncryptionKeys([]byte(v)); err != nil {
+					return nil, err
 				}
 			case attrHash:
-				ad.Hash = []byte(v)
+				copy(adinfo.Hash[:], []byte(v))
 			case attrDirAddrs:
-				if ad.DirAddrs, err = idiscovery.UnpackAddresses([]byte(v)); err != nil {
-					return idiscovery.Advertisement{}, err
+				if adinfo.DirAddrs, err = idiscovery.UnpackAddresses([]byte(v)); err != nil {
+					return nil, err
 				}
 			default:
 				if strings.HasPrefix(k, attrAttachmentPrefix) {
-					ad.Service.Attachments[k[len(attrAttachmentPrefix):]] = []byte(v)
+					adinfo.Ad.Attachments[k[len(attrAttachmentPrefix):]] = []byte(v)
 				} else {
-					ad.Service.Attrs[k] = v
+					adinfo.Ad.Attributes[k] = v
 				}
 			}
 		}
 	}
-	return ad, nil
+	return adinfo, nil
 }
 
 func New(host string) (idiscovery.Plugin, error) {

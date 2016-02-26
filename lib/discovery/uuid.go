@@ -22,7 +22,7 @@ func NewServiceUUID(interfaceName string) Uuid {
 	return Uuid(uuid.NewSHA1(v23UUID, []byte(interfaceName)))
 }
 
-// NewAttributeUUID returns a version 5 UUID for the given key.
-func NewAttributeUUID(key string) Uuid {
-	return Uuid(uuid.NewSHA1(v23AttrUUID, []byte(key)))
+// NewAttributeUUID returns a version 5 UUID for the given name.
+func NewAttributeUUID(name string) Uuid {
+	return Uuid(uuid.NewSHA1(v23AttrUUID, []byte(name)))
 }

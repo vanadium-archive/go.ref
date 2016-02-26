@@ -5,137 +5,92 @@
 package discovery
 
 import (
-	"bytes"
 	"math/rand"
 	"reflect"
 	"testing"
 	"testing/quick"
-	"unicode/utf8"
 
 	"v.io/v23/discovery"
 )
 
-func TestCopyService(t *testing.T) {
-	rand := rand.New(rand.NewSource(0))
-	for i := 0; i < 10; i++ {
-		v, ok := quick.Value(reflect.TypeOf(discovery.Service{}), rand)
-		if !ok {
-			t.Fatal("failed to populate service")
-		}
-		org := v.Interface().(discovery.Service)
-		copied := copyService(&org)
-		if !reflect.DeepEqual(org, copied) {
-			t.Errorf("copied service is different from the original: %v, %v", org, copied)
-		}
-	}
-}
-
-func TestInstanceId(t *testing.T) {
-	instanceIds := make(map[string]struct{})
-	for x := 0; x < 100; x++ {
-		id, err := newInstanceId()
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		if !utf8.ValidString(id) {
-			t.Errorf("newInstanceId returned invalid utf-8 string %x", id)
-		}
-
-		if _, ok := instanceIds[id]; ok {
-			t.Errorf("newInstanceId returned duplicated id %x", id)
-		}
-		instanceIds[id] = struct{}{}
-	}
-}
-
-func TestHashAdvertisement(t *testing.T) {
-	a1 := Advertisement{
-		Service: discovery.Service{
-			InstanceId:    "123",
+func TestHashAd(t *testing.T) {
+	a1 := AdInfo{
+		Ad: discovery.Advertisement{
+			Id:            discovery.AdId{1, 2, 3},
 			InterfaceName: "v.io/x",
-			Attrs: map[string]string{
+			Addresses: []string{
+				"/@6@wsh@foo.com:1234@@/x",
+			},
+			Attributes: discovery.Attributes{
 				"k1": "v1",
 				"k2": "v2",
-			},
-			Addrs: []string{
-				"/@6@wsh@foo.com:1234@@/x",
 			},
 		}}
 
 	// Shouldn't be changed by hashing.
 	a2 := a1
-	hashAdvertisement(&a2)
-	a2.Hash = nil
+	HashAd(&a2)
+	a2.Hash = AdHash{}
 	if !reflect.DeepEqual(a1, a2) {
 		t.Errorf("shouldn't be changed by hash: %v, %v", a1, a2)
 	}
 
 	// Should have the same hash for the same advertisements.
-	hashAdvertisement(&a1)
-	hashAdvertisement(&a2)
-	if !bytes.Equal(a1.Hash, a2.Hash) {
+	HashAd(&a1)
+	HashAd(&a2)
+	if a1.Hash != a2.Hash {
 		t.Errorf("expected same hash, but got different: %v, %v", a1.Hash, a2.Hash)
 	}
 
 	// Should be idempotent.
-	hashAdvertisement(&a2)
-	if !bytes.Equal(a1.Hash, a2.Hash) {
+	HashAd(&a2)
+	if a1.Hash != a2.Hash {
 		t.Errorf("expected same hash, but got different: %v, %v", a1.Hash, a2.Hash)
 	}
 
-	a2.Service.InstanceId = "456"
-	hashAdvertisement(&a2)
-	if bytes.Equal(a1.Hash, a2.Hash) {
+	a2.Ad.Id = discovery.AdId{4, 5, 6}
+	HashAd(&a2)
+	if a1.Hash == a2.Hash {
 		t.Errorf("expected different hashes, but got same: %v, %v", a1.Hash, a2.Hash)
 	}
 
 	// Should distinguish between {"", "x"} and {"x", ""}.
 	a2 = a1
-	a2.Service.InstanceName = a1.Service.InterfaceName
-	a2.Service.InterfaceName = ""
-	hashAdvertisement(&a2)
-	if bytes.Equal(a1.Hash, a2.Hash) {
-		t.Errorf("expected different hashes, but got same: %v, %v", a1.Hash, a2.Hash)
+	a2.Ad.Attributes = nil
+	a2.Ad.Attachments = make(discovery.Attachments)
+	for k, v := range a1.Ad.Attributes {
+		a2.Ad.Attachments[k] = []byte(v)
 	}
-
-	a2 = a1
-	a2.Service.Attrs = nil
-	a2.Service.Attachments = make(discovery.Attachments)
-	for k, v := range a1.Service.Attrs {
-		a2.Service.Attachments[k] = []byte(v)
-	}
-	hashAdvertisement(&a2)
-	if bytes.Equal(a1.Hash, a2.Hash) {
+	HashAd(&a2)
+	if a1.Hash == a2.Hash {
 		t.Errorf("expected different hashes, but got same: %v, %v", a1.Hash, a2.Hash)
 	}
 
 	// Shouldn't distinguish map order.
 	a2 = a1
-	a2.Service.Attrs = make(map[string]string)
+	a2.Ad.Attributes = make(discovery.Attributes)
 	var keys []string
-	for k, _ := range a1.Service.Attrs {
+	for k, _ := range a1.Ad.Attributes {
 		keys = append(keys, k)
 	}
 	for i := len(keys) - 1; i >= 0; i-- {
-		a2.Service.Attrs[keys[i]] = a1.Service.Attrs[keys[i]]
+		a2.Ad.Attributes[keys[i]] = a1.Ad.Attributes[keys[i]]
 	}
-	hashAdvertisement(&a2)
-	if !bytes.Equal(a1.Hash, a2.Hash) {
+	HashAd(&a2)
+	if a1.Hash != a2.Hash {
 		t.Errorf("expected same hash, but got different: %v, %v", a1.Hash, a2.Hash)
 	}
 
 	// Shouldn't distinguish between nil and empty.
 	a2 = a1
-	a2.Service.Attachments = make(discovery.Attachments)
-	hashAdvertisement(&a2)
-	if !bytes.Equal(a1.Hash, a2.Hash) {
+	a2.Ad.Attachments = make(discovery.Attachments)
+	HashAd(&a2)
+	if a1.Hash != a2.Hash {
 		t.Errorf("expected same hash, but got different: %v, %v", a1.Hash, a2.Hash)
 	}
 }
 
-func TestHashAdvertisementCoverage(t *testing.T) {
+func TestHashAdCoverage(t *testing.T) {
 	rand := rand.New(rand.NewSource(0))
 	gen := func(v reflect.Value) {
 		for {
@@ -158,35 +113,37 @@ func TestHashAdvertisementCoverage(t *testing.T) {
 	}
 
 	// Ensure that every single field of advertisement is hashed.
-	ad := Advertisement{}
-	hashAdvertisement(&ad)
+	ad := AdInfo{}
+	HashAd(&ad)
 
-	for ty, i := reflect.TypeOf(ad.Service), 0; i < ty.NumField(); i++ {
+	for ty, i := reflect.TypeOf(ad.Ad), 0; i < ty.NumField(); i++ {
 		oldAd := ad
 
-		field := reflect.ValueOf(&ad.Service).Elem().Field(i)
-		gen(field)
-		hashAdvertisement(&ad)
+		fieldName := reflect.TypeOf(ad.Ad).Field(i).Name
 
-		if bytes.Equal(oldAd.Hash, ad.Hash) {
-			t.Errorf("Service.%s: expected different hashes, but got same: %v, %v", field.Type().Name(), oldAd.Hash, ad.Hash)
+		gen(reflect.ValueOf(&ad.Ad).Elem().FieldByName(fieldName))
+		HashAd(&ad)
+
+		if oldAd.Hash == ad.Hash {
+			t.Errorf("Ad.%s: expected different hashes, but got same: %v, %v", fieldName, oldAd.Hash, ad.Hash)
 		}
 	}
 
 	for ty, i := reflect.TypeOf(ad), 0; i < ty.NumField(); i++ {
 		oldAd := ad
 
-		field := reflect.ValueOf(&ad.Service).Elem().Field(i)
-		switch field.Type().Name() {
-		case "Service", "Hash":
+		fieldName := reflect.TypeOf(ad).Field(i).Name
+
+		switch fieldName {
+		case "Ad", "Hash", "Lost":
 			continue
 		}
 
-		gen(field)
-		hashAdvertisement(&ad)
+		gen(reflect.ValueOf(&ad).Elem().FieldByName(fieldName))
+		HashAd(&ad)
 
-		if bytes.Equal(oldAd.Hash, ad.Hash) {
-			t.Errorf("Advertisement.%s: expected different hashes, but got same: %v, %v", field.Type().Name(), oldAd.Hash, ad.Hash)
+		if oldAd.Hash == ad.Hash {
+			t.Errorf("AdInfo.%s: expected different hashes, but got same: %v, %v", fieldName, oldAd.Hash, ad.Hash)
 		}
 	}
 }
