@@ -131,13 +131,13 @@ func NewShell(tb testing.TB, ctx *context.T) *Shell {
 
 	if err := sh.initPrincipalManager(); err != nil {
 		if _, ok := err.(errAlreadyHandled); !ok {
-			sh.HandleError(err)
+			sh.handleError(err)
 		}
 		return sh
 	}
 	if err := sh.initCtx(ctx); err != nil {
 		if _, ok := err.(errAlreadyHandled); !ok {
-			sh.HandleError(err)
+			sh.handleError(err)
 		}
 		return sh
 	}
@@ -157,11 +157,11 @@ func (sh *Shell) ForkCredentials(extensions ...string) *Credentials {
 	sh.Ok()
 	creds, err := newCredentials(sh.pm)
 	if err != nil {
-		sh.HandleError(err)
+		sh.handleError(err)
 		return nil
 	}
 	if err := addDefaultBlessings(v23.GetPrincipal(sh.Ctx), creds.Principal, extensions...); err != nil {
-		sh.HandleError(err)
+		sh.handleError(err)
 		return nil
 	}
 	return creds
@@ -175,7 +175,7 @@ func (sh *Shell) ForkContext(extensions ...string) *context.T {
 		return nil
 	}
 	ctx, err := v23.WithPrincipal(sh.Ctx, c.Principal)
-	sh.HandleError(err)
+	sh.handleError(err)
 	return ctx
 }
 
@@ -198,7 +198,7 @@ func BuildGoPkg(sh *Shell, pkg string, flags ...string) string {
 	sh.Ok()
 	binDir := os.Getenv(envBinDir)
 	if binDir == "" {
-		sh.HandleError(errors.New("v23test: missing V23_BIN_DIR"))
+		sh.handleError(errors.New("v23test: missing V23_BIN_DIR"))
 		return ""
 	}
 	return gosh.BuildGoPkg(sh.Shell, binDir, pkg, flags...)
@@ -366,6 +366,11 @@ func (sh *Shell) DebugSystemShell() {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Internals
+
+// handleError is intended for use by public Shell method implementations.
+func (sh *Shell) handleError(err error) {
+	sh.HandleErrorWithSkip(err, 3)
+}
 
 func callerName() (string, error) {
 	pc, _, _, ok := runtime.Caller(2)
