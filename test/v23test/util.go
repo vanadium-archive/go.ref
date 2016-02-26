@@ -44,12 +44,12 @@ func (sh *Shell) StartRootMountTable(args ...string) func(sig os.Signal) {
 	cmd.Start()
 	name := cmd.S.ExpectVar("NAME")
 	if name == "" {
-		sh.HandleError(errors.New("mounttabled failed to start"))
+		sh.handleError(errors.New("v23test: mounttabled failed to start"))
 		return nil
 	}
 	sh.Vars[ref.EnvNamespacePrefix] = name
 	if err := v23.GetNamespace(sh.Ctx).SetRoots(name); err != nil {
-		sh.HandleError(err)
+		sh.handleError(err)
 		return nil
 	}
 	sh.Ctx.Infof("Started root mount table: %s", name)
@@ -77,7 +77,7 @@ func (sh *Shell) StartSyncbase(c *Credentials, name, rootDir, permsLiteral strin
 	if *syncbaseDebugArgs != "" {
 		syncbaseLogDir, err := ioutil.TempDir("", name+"-")
 		if err != nil {
-			sh.HandleError(err)
+			sh.handleError(err)
 			return nil
 		}
 		sh.Ctx.Infof("syncbased -log_dir for %s: %s", name, syncbaseLogDir)
@@ -96,7 +96,7 @@ func (sh *Shell) StartSyncbase(c *Credentials, name, rootDir, permsLiteral strin
 	cmd.Start()
 	endpoint := cmd.S.ExpectVar("ENDPOINT")
 	if endpoint == "" {
-		sh.HandleError(errors.New("syncbased failed to start"))
+		sh.handleError(errors.New("v23test: syncbased failed to start"))
 		return nil
 	}
 	sh.Ctx.Infof("Started syncbase: %s", endpoint)
