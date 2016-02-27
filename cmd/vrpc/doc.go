@@ -91,6 +91,8 @@ The vrpc signature flags are:
  -insecure=false
    If true, skip server authentication. This means that the client will reveal
    its blessings to servers that it may not recognize.
+ -s=false
+   if true, perform a shallow resolve
  -show-reserved=false
    if true, also show the signatures of reserved methods
 
