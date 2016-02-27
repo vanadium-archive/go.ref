@@ -4,6 +4,6 @@
 
 // +build race
 
-package daemonreap_test
+package testutil
 
-const raceEnabled = true
+const RaceEnabled = true
