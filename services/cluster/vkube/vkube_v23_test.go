@@ -22,9 +22,10 @@ import (
 )
 
 var (
-	flagProject = flag.String("project", "", "The name of the GCE project to use.")
-	flagZone    = flag.String("zone", "", "The name of the GCE zone to use.")
-	flagCluster = flag.String("cluster", "", "The name of the kubernetes cluster to use.")
+	flagProject        = flag.String("project", "", "The name of the GCE project to use.")
+	flagZone           = flag.String("zone", "", "The name of the GCE zone to use.")
+	flagCluster        = flag.String("cluster", "", "The name of the kubernetes cluster to use.")
+	flagGetCredentials = flag.Bool("get-credentials", true, "This flag is passed to vkube.")
 )
 
 // TestV23Vkube is an end-to-end test for the vkube command. It operates on a
@@ -32,7 +33,7 @@ var (
 // This test can easily exceed the default test timeout of 10m. It is
 // recommended to use -test.timeout=20m.
 func TestV23Vkube(t *testing.T) {
-	if *flagProject == "" || *flagZone == "" || *flagCluster == "" {
+	if *flagProject == "" || (*flagGetCredentials && (*flagZone == "" || *flagCluster == "")) {
 		t.Skip("--project, --zone, or --cluster not specified")
 	}
 	if testing.Short() {
@@ -80,10 +81,11 @@ func TestV23Vkube(t *testing.T) {
 		gsutil      = cmd("gsutil", true)
 		gcloud      = cmd("gcloud", true, "--project="+*flagProject)
 		docker      = cmd("docker", true)
-		vkubeOK     = cmd(vkubeBin, true, "--config="+vkubeCfgPath)
-		vkubeFail   = cmd(vkubeBin, false, "--config="+vkubeCfgPath)
-		kubectlOK   = cmd(vkubeBin, true, "--config="+vkubeCfgPath, "kubectl", "--", "--namespace="+id)
-		kubectlFail = cmd(vkubeBin, false, "--config="+vkubeCfgPath, "kubectl", "--", "--namespace="+id)
+		getCreds    = fmt.Sprintf("--get-credentials=%v", *flagGetCredentials)
+		vkubeOK     = cmd(vkubeBin, true, "--config="+vkubeCfgPath, getCreds)
+		vkubeFail   = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds)
+		kubectlOK   = cmd(vkubeBin, true, "--config="+vkubeCfgPath, getCreds, "kubectl", "--", "--namespace="+id)
+		kubectlFail = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds, "kubectl", "--", "--namespace="+id)
 		vshOK       = cmd(vshBin, true)
 	)
 

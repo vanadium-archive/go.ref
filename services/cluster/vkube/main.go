@@ -25,13 +25,14 @@ import (
 )
 
 var (
-	flagConfigFile   string
-	flagKubectlBin   string
-	flagGcloudBin    string
-	flagResourceFile string
-	flagVerbose      bool
-	flagTag          string
-	flagWait         bool
+	flagConfigFile     string
+	flagKubectlBin     string
+	flagGcloudBin      string
+	flagGetCredentials bool
+	flagResourceFile   string
+	flagVerbose        bool
+	flagTag            string
+	flagWait           bool
 )
 
 func main() {
@@ -55,6 +56,7 @@ func main() {
 	cmd.Flags.StringVar(&flagConfigFile, "config", "vkube.cfg", "The 'vkube.cfg' file to use.")
 	cmd.Flags.StringVar(&flagKubectlBin, "kubectl", "kubectl", "The 'kubectl' binary to use.")
 	cmd.Flags.StringVar(&flagGcloudBin, "gcloud", "gcloud", "The 'gcloud' binary to use.")
+	cmd.Flags.BoolVar(&flagGetCredentials, "get-credentials", true, "When true, use gcloud to get the cluster credentials. Otherwise, assume kubectl already has the correct credentials, and 'vkube kubectl' is equivalent to 'kubectl'.")
 
 	cmdStart.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to create the kubernetes resource.")
 	cmdStart.Flags.BoolVar(&flagWait, "wait", false, "Wait for at least one replica to be ready.")
@@ -78,17 +80,19 @@ func kubeCmdRunner(kcmd func(ctx *context.T, env *cmdline.Env, args []string, co
 		if err != nil {
 			return err
 		}
-		f, err := ioutil.TempFile("", "kubeconfig-")
-		if err != nil {
-			return err
-		}
-		os.Setenv("KUBECONFIG", f.Name())
-		defer os.Remove(f.Name())
-		f.Close()
+		if flagGetCredentials {
+			fmt.Fprintf(env.Stderr, "Project: %s Zone: %s Cluster: %s\n\n", config.Project, config.Zone, config.Cluster)
+			f, err := ioutil.TempFile("", "kubeconfig-")
+			if err != nil {
+				return err
+			}
+			os.Setenv("KUBECONFIG", f.Name())
+			defer os.Remove(f.Name())
+			f.Close()
 
-		fmt.Fprintf(env.Stderr, "Project: %s Zone: %s Cluster: %s\n\n", config.Project, config.Zone, config.Cluster)
-		if out, err := exec.Command(flagGcloudBin, "container", "clusters", "get-credentials", config.Cluster, "--project", config.Project, "--zone", config.Zone).CombinedOutput(); err != nil {
-			return fmt.Errorf("failed to get credentials for %q: %v: %s", config.Cluster, err, out)
+			if out, err := exec.Command(flagGcloudBin, "container", "clusters", "get-credentials", config.Cluster, "--project", config.Project, "--zone", config.Zone).CombinedOutput(); err != nil {
+				return fmt.Errorf("failed to get credentials for %q: %v: %s", config.Cluster, err, out)
+			}
 		}
 		return kcmd(ctx, env, args, config)
 	})

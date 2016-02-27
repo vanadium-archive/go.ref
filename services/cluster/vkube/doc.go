@@ -27,6 +27,10 @@ The vkube flags are:
    The 'vkube.cfg' file to use.
  -gcloud=gcloud
    The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
 
@@ -101,6 +105,10 @@ The vkube start flags are:
    The 'vkube.cfg' file to use.
  -gcloud=gcloud
    The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
 
@@ -122,6 +130,10 @@ The vkube update flags are:
    The 'vkube.cfg' file to use.
  -gcloud=gcloud
    The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
 
@@ -140,6 +152,10 @@ The vkube stop flags are:
    The 'vkube.cfg' file to use.
  -gcloud=gcloud
    The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
 
@@ -158,6 +174,10 @@ The vkube start-cluster-agent flags are:
    The 'vkube.cfg' file to use.
  -gcloud=gcloud
    The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
 
@@ -173,6 +193,10 @@ The vkube stop-cluster-agent flags are:
    The 'vkube.cfg' file to use.
  -gcloud=gcloud
    The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
 
@@ -188,6 +212,10 @@ The vkube claim-cluster-agent flags are:
    The 'vkube.cfg' file to use.
  -gcloud=gcloud
    The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
 
@@ -208,6 +236,10 @@ The vkube build-docker-images flags are:
    The 'vkube.cfg' file to use.
  -gcloud=gcloud
    The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
 
@@ -225,6 +257,10 @@ The vkube kubectl flags are:
    The 'vkube.cfg' file to use.
  -gcloud=gcloud
    The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
 
