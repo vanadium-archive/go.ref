@@ -33,9 +33,10 @@ import (
 )
 
 var (
-	flagInsecure     bool
-	flagShowReserved bool
-	insecureOpts     = []rpc.CallOpt{
+	flagInsecure       bool
+	flagShowReserved   bool
+	flagShallowResolve bool
+	insecureOpts       = []rpc.CallOpt{
 		options.ServerAuthorizer{security.AllowEveryone()},
 		options.NameResolutionAuthorizer{security.AllowEveryone()},
 	}
@@ -56,6 +57,7 @@ func init() {
 	cmdIdentify.Flags.BoolVar(&flagInsecure, insecureName, insecureVal, insecureDesc)
 
 	cmdSignature.Flags.BoolVar(&flagShowReserved, "show-reserved", false, "if true, also show the signatures of reserved methods")
+	cmdSignature.Flags.BoolVar(&flagShallowResolve, "s", false, "if true, perform a shallow resolve")
 }
 
 var cmdVRPC = &cmdline.Command{
