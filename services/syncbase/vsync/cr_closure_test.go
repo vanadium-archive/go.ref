@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	wire "v.io/v23/services/syncbase/nosql"
-	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 //	Test setup:
@@ -101,7 +101,7 @@ func TestGroupFor(t *testing.T) {
 	defer destroyService(t, service)
 
 	updObjects = createUpdObjectsMap()
-	iSt := &initiationState{updObjects: updObjects, tx: service.St().NewTransaction()}
+	iSt := &initiationState{updObjects: updObjects, tx: createDatabase(t, service).St().NewWatchableTransaction()}
 	createAndSaveNodeAndBatchData(iSt)
 
 	// Group1 is a closure of batches xzb, xy, bc containing oids x, y, z, b, c.
@@ -148,7 +148,7 @@ func TestGroupConflicts(t *testing.T) {
 	defer destroyService(t, service)
 
 	updObjects = createUpdObjectsMap()
-	iSt := &initiationState{updObjects: updObjects, tx: service.St().NewTransaction()}
+	iSt := &initiationState{updObjects: updObjects, tx: createDatabase(t, service).St().NewWatchableTransaction()}
 	createAndSaveNodeAndBatchData(iSt)
 
 	// Assuming that all objects in updObjects are to be resolved by app.

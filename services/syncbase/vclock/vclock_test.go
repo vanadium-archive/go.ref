@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/store"
 )
 
 func TestVClockBasic(t *testing.T) {
@@ -36,7 +36,7 @@ func checkSkew(t *testing.T, skew time.Duration) {
 	elapsedTime := 100 * time.Nanosecond
 	bootTime := sysTs.Add(-elapsedTime)
 
-	if err := util.Put(nil, c.st, vclockDataKey, newVClockData(bootTime, skew, elapsedTime, ntpTs, 1, 1)); err != nil {
+	if err := store.Put(nil, c.st, vclockDataKey, newVClockData(bootTime, skew, elapsedTime, ntpTs, 1, 1)); err != nil {
 		t.Errorf("Writing VClockData failed: %v", err)
 	}
 

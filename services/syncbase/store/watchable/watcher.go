@@ -13,7 +13,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -136,7 +136,7 @@ func (w *watcher) watchUpdates() (update <-chan struct{}, cancel func()) {
 // channel.
 func WatchUpdates(st store.Store) (update <-chan struct{}, cancel func()) {
 	// TODO(rogulenko): Remove dynamic type assertion here and in other places.
-	watcher := st.(*wstore).watcher
+	watcher := st.(*Store).watcher
 	return watcher.watchUpdates()
 }
 
@@ -155,7 +155,7 @@ func MakeResumeMarker(seq uint64) watch.ResumeMarker {
 func logEntryKey(seq uint64) string {
 	// Note: MaxUint64 is 0xffffffffffffffff.
 	// TODO(sadovsky): Use a more space-efficient lexicographic number encoding.
-	return join(util.LogPrefix, fmt.Sprintf("%016x", seq))
+	return join(common.LogPrefix, fmt.Sprintf("%016x", seq))
 }
 
 // ReadBatchFromLog returns a batch of watch log records (a transaction) from
@@ -165,7 +165,7 @@ func ReadBatchFromLog(st store.Store, resumeMarker watch.ResumeMarker) ([]*LogEn
 	if err != nil {
 		return nil, resumeMarker, err
 	}
-	_, scanLimit := util.ScanPrefixArgs(util.LogPrefix, "")
+	_, scanLimit := common.ScanPrefixArgs(common.LogPrefix, "")
 	scanStart := resumeMarker
 	endOfBatch := false
 
@@ -204,7 +204,7 @@ func ReadBatchFromLog(st store.Store, resumeMarker watch.ResumeMarker) ([]*LogEn
 
 func parseResumeMarker(resumeMarker string) (uint64, error) {
 	// See logEntryKey() for the structure of a resume marker key.
-	parts := util.SplitNKeyParts(resumeMarker, 2)
+	parts := common.SplitNKeyParts(resumeMarker, 2)
 	if len(parts) != 2 {
 		return 0, verror.New(watch.ErrUnknownResumeMarker, nil, resumeMarker)
 	}
@@ -233,7 +233,7 @@ func getNextLogSeq(st store.StoreReader) (uint64, error) {
 	// TODO(sadovsky): Consider using a bigger seq.
 
 	// Find the beginning of the log.
-	it := st.Scan(util.ScanPrefixArgs(util.LogPrefix, ""))
+	it := st.Scan(common.ScanPrefixArgs(common.LogPrefix, ""))
 	if !it.Advance() {
 		return 0, nil
 	}

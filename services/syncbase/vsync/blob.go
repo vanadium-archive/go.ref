@@ -16,9 +16,9 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 	blob "v.io/x/ref/services/syncbase/localblobstore"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
 )
 
 const (
@@ -366,7 +366,7 @@ func (sd *syncDatabase) locateBlob(ctx *context.T, br wire.BlobRef) (string, int
 		}
 
 		for mt := range mtTables {
-			absName := naming.Join(mt, p, util.SyncbaseSuffix)
+			absName := naming.Join(mt, p, common.SyncbaseSuffix)
 			c := interfaces.SyncClient(absName)
 			size, err := c.HaveBlob(ctx, br)
 			if err == nil {
@@ -444,7 +444,7 @@ func (s *syncService) processBlobRefs(ctx *context.T, peer string, sgPrefixes ma
 	// The key (objid) starts with one of the store's reserved prefixes for
 	// managed namespaces.  Remove that prefix to be able to compare it with
 	// the syncgroup prefixes which are defined by the application.
-	appKey := util.StripFirstKeyPartOrDie(objid)
+	appKey := common.StripFirstKeyPartOrDie(objid)
 
 	// Determine the set of syncgroups that cover this application key.
 	sgIds := make(sgSet)

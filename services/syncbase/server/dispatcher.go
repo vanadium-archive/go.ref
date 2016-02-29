@@ -13,9 +13,9 @@ import (
 	wire "v.io/v23/services/syncbase"
 	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/nosql"
-	"v.io/x/ref/services/syncbase/server/util"
 )
 
 type dispatcher struct {
@@ -40,7 +40,7 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 
 	// If the first slash-separated component of suffix is SyncbaseSuffix,
 	// dispatch to the sync module.
-	if parts[0] == util.SyncbaseSuffix {
+	if parts[0] == common.SyncbaseSuffix {
 		return interfaces.SyncServer(disp.s.sync), auth, nil
 	}
 

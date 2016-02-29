@@ -21,9 +21,9 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 const (
@@ -296,7 +296,7 @@ func replayLocalCommands(t *testing.T, s *mockService, syncfile string) {
 		t.Fatalf("parseSyncCommands failed with err %v", err)
 	}
 
-	tx := s.St().NewTransaction()
+	tx := createDatabase(t, s).St().NewWatchableTransaction()
 	var pos uint64
 	for _, cmd := range cmds {
 		switch cmd.cmd {
@@ -378,7 +378,7 @@ func createMetadata(t *testing.T, ty byte, cmd syncCommand) interfaces.LogRecMet
 		Id:         id,
 		Gen:        gen,
 		RecType:    ty,
-		ObjId:      util.JoinKeyParts(util.RowPrefix, cmd.oid),
+		ObjId:      common.JoinKeyParts(common.RowPrefix, cmd.oid),
 		CurVers:    cmd.version,
 		Parents:    cmd.parents,
 		UpdTime:    constTime,
@@ -392,12 +392,12 @@ func createMetadata(t *testing.T, ty byte, cmd syncCommand) interfaces.LogRecMet
 // splitLogRecKey is the inverse of logRecKey and returns the prefix, device id
 // and generation number.
 func splitLogRecKey(ctx *context.T, key string) (string, uint64, uint64, error) {
-	parts := util.SplitKeyParts(key)
+	parts := common.SplitKeyParts(key)
 	verr := verror.New(verror.ErrInternal, ctx, "invalid logreckey", key)
 	if len(parts) != 5 && len(parts) != 7 {
 		return "", 0, 0, verr
 	}
-	if util.JoinKeyParts(parts[:2]...) != logPrefix {
+	if common.JoinKeyParts(parts[:2]...) != logPrefix {
 		return "", 0, 0, verr
 	}
 
@@ -411,7 +411,7 @@ func splitLogRecKey(ctx *context.T, key string) (string, uint64, uint64, error) 
 		if _, err := strconv.ParseUint(parts[4], 10, 64); err != nil { // GroupId
 			return "", 0, 0, verr
 		}
-		prefix, idStr, genStr = util.JoinKeyParts(parts[2:5]...), parts[5], parts[6]
+		prefix, idStr, genStr = common.JoinKeyParts(parts[2:5]...), parts[5], parts[6]
 	}
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {

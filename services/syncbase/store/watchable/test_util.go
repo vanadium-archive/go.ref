@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO(razvanm): Switch to package_test. This is a little involved because
+// createStore is used by the other _test.go files in this directory and
+// TestLogEntryTimestamps is poking inside the watchable store to read the
+// sequence number.
 package watchable
 
 import (
@@ -11,8 +15,8 @@ import (
 	"time"
 
 	"v.io/v23/vom"
-	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/util"
 	"v.io/x/ref/services/syncbase/vclock"
 )
 
@@ -40,11 +44,6 @@ func getPath() string {
 
 ////////////////////////////////////////////////////////////
 // Functions related to watchable store
-
-func getSeq(st Store) uint64 {
-	wst := st.(*wstore)
-	return wst.seq
-}
 
 // logEntryReader provides a stream-like interface to scan over the log entries
 // of a single batch, starting for a given sequence number.  It opens a stream
@@ -91,19 +90,19 @@ func (ler *logEntryReader) GetEntry() (string, LogEntry) {
 // VClock related utility code
 
 type mockSystemClock struct {
-	ncalls int64         // number of times Now() has been called
-	time   time.Time     // initial time for Now()
-	inc    time.Duration // amount by which to increment 'time' on each call to Now()
+	Ncalls int64         // number of times Now() has been called
+	Time   time.Time     // initial time for Now()
+	Inc    time.Duration // amount by which to increment 'time' on each call to Now()
 }
 
 var _ vclock.SystemClock = (*mockSystemClock)(nil)
 
 func (sc *mockSystemClock) Now() time.Time {
-	now := sc.time.Add(time.Duration(sc.ncalls * int64(sc.inc)))
-	sc.ncalls++
+	now := sc.Time.Add(time.Duration(sc.Ncalls * int64(sc.Inc)))
+	sc.Ncalls++
 	return now
 }
 
 func (sc *mockSystemClock) ElapsedTime() (time.Duration, error) {
-	return time.Duration(sc.ncalls * int64(sc.inc)), nil
+	return time.Duration(sc.Ncalls * int64(sc.Inc)), nil
 }

@@ -15,10 +15,10 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // GetDeltas implements the responder side of the GetDeltas RPC.
@@ -46,7 +46,7 @@ type responderState struct {
 	call      interfaces.SyncGetDeltasServerCall // Stream handle for the GetDeltas RPC.
 	initiator string
 	sync      *syncService
-	st        store.Store // Store handle to the Database.
+	st        *watchable.Store // Database's watchable.Store.
 
 	diff    genRangeVector
 	outVecs interfaces.Knowledge
@@ -534,7 +534,7 @@ func filterLogRec(rec *LocalLogRec, initVecs interfaces.Knowledge, initPfxs []st
 	// managed namespaces (e.g. "$row", "$perms"). Remove that prefix before
 	// comparing it with the syncgroup prefixes which are defined by the
 	// application.
-	key := util.StripFirstKeyPartOrDie(rec.Metadata.ObjId)
+	key := common.StripFirstKeyPartOrDie(rec.Metadata.ObjId)
 
 	filter := true
 	var maxGen uint64
@@ -566,7 +566,7 @@ func (rSt *responderState) sendValue(ctx *context.T, rec *LocalLogRec) bool {
 	key := rec.Metadata.ObjId
 
 	// All permissions objects are always readable by everyone.
-	if util.FirstKeyPart(key) == util.PermsPrefix {
+	if common.FirstKeyPart(key) == common.PermsPrefix {
 		return true
 	}
 

@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
 // TestWatchLogBatch tests fetching a batch of log records.
 func TestWatchLogBatch(t *testing.T) {
-	runTest(t, []string{util.RowPrefix, util.PermsPrefix}, runWatchLogBatchTest)
+	runTest(t, []string{common.RowPrefix, common.PermsPrefix}, runWatchLogBatchTest)
 }
 
 // runWatchLogBatchTest tests fetching a batch of log records.
@@ -25,7 +25,7 @@ func runWatchLogBatchTest(t *testing.T, st store.Store) {
 	numTx, numPut := 3, 4
 
 	makeKeyVal := func(batchNum, recNum int) ([]byte, []byte) {
-		key := util.JoinKeyParts(util.RowPrefix, fmt.Sprintf("foo-%d-%d", batchNum, recNum))
+		key := common.JoinKeyParts(common.RowPrefix, fmt.Sprintf("foo-%d-%d", batchNum, recNum))
 		val := fmt.Sprintf("val-%d-%d", batchNum, recNum)
 		return []byte(key), []byte(val)
 	}
@@ -64,16 +64,19 @@ func runWatchLogBatchTest(t *testing.T, st store.Store) {
 			}
 
 			for j, log := range logs {
-				op := log.Op.(OpPut)
+				var op PutOp
+				if err := log.Op.ToValue(&op); err != nil {
+					t.Fatalf("ToValue failed: %v", err)
+				}
 				expKey, expVal := makeKeyVal(i, j)
-				key := op.Value.Key
+				key := op.Key
 				if !bytes.Equal(key, expKey) {
 					t.Errorf("log fetch (i=%d, j=%d) bad key: %s instead of %s",
 						i, j, key, expKey)
 				}
 				tx := st.NewTransaction()
 				var val []byte
-				val, err := GetAtVersion(nil, tx, key, val, op.Value.Version)
+				val, err := GetAtVersion(nil, tx, key, val, op.Version)
 				if err != nil {
 					t.Errorf("log fetch (i=%d, j=%d) cannot GetAtVersion(): %v", i, j, err)
 				}

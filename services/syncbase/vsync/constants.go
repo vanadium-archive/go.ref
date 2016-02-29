@@ -4,18 +4,18 @@
 
 package vsync
 
-import "v.io/x/ref/services/syncbase/server/util"
+import "v.io/x/ref/services/syncbase/common"
 
 // Key prefixes for sync-related metadata.
 var (
-	dagNodePrefix  = util.JoinKeyParts(util.SyncPrefix, "a")
-	dagHeadPrefix  = util.JoinKeyParts(util.SyncPrefix, "b")
-	dagBatchPrefix = util.JoinKeyParts(util.SyncPrefix, "c")
-	dbssKey        = util.JoinKeyParts(util.SyncPrefix, "d") // database sync state
-	sgIdPrefix     = util.JoinKeyParts(util.SyncPrefix, "i") // syncgroup ID --> syncgroup local state
-	logPrefix      = util.JoinKeyParts(util.SyncPrefix, "l") // log state
-	sgNamePrefix   = util.JoinKeyParts(util.SyncPrefix, "n") // syncgroup name --> syncgroup ID
-	sgDataPrefix   = util.JoinKeyParts(util.SyncPrefix, "s") // syncgroup (ID, version) --> syncgroup synced state
+	dagNodePrefix  = common.JoinKeyParts(common.SyncPrefix, "a")
+	dagHeadPrefix  = common.JoinKeyParts(common.SyncPrefix, "b")
+	dagBatchPrefix = common.JoinKeyParts(common.SyncPrefix, "c")
+	dbssKey        = common.JoinKeyParts(common.SyncPrefix, "d") // database sync state
+	sgIdPrefix     = common.JoinKeyParts(common.SyncPrefix, "i") // syncgroup ID --> syncgroup local state
+	logPrefix      = common.JoinKeyParts(common.SyncPrefix, "l") // log state
+	sgNamePrefix   = common.JoinKeyParts(common.SyncPrefix, "n") // syncgroup name --> syncgroup ID
+	sgDataPrefix   = common.JoinKeyParts(common.SyncPrefix, "s") // syncgroup (ID, version) --> syncgroup synced state
 )
 
 const (

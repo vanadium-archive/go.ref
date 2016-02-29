@@ -12,12 +12,9 @@ import (
 
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
-
-var _ interfaces.VClock = (*VClock)(nil)
 
 // VClock holds everything needed to provide UTC time estimates.
 // VClock is thread-safe.
@@ -67,17 +64,17 @@ func (c *VClock) ApplySkew(sysTime time.Time, data *VClockData) time.Time {
 ////////////////////////////////////////////////////////////////////////////////
 // Methods for initializing, reading, and updating VClockData in the store
 
-const vclockDataKey = util.VClockPrefix
+const vclockDataKey = common.VClockPrefix
 
 // GetVClockData fills 'data' with VClockData read from the store.
 func (c *VClock) GetVClockData(data *VClockData) error {
-	return util.Get(nil, c.st, vclockDataKey, data)
+	return store.Get(nil, c.st, vclockDataKey, data)
 }
 
 // InitVClockData initializes VClockData in the store (if needed).
 func (c *VClock) InitVClockData() error {
 	return store.RunInTransaction(c.st, func(tx store.Transaction) error {
-		if err := util.Get(nil, tx, vclockDataKey, &VClockData{}); err == nil {
+		if err := store.Get(nil, tx, vclockDataKey, &VClockData{}); err == nil {
 			return nil
 		} else if verror.ErrorID(err) != verror.ErrNoExist.ID {
 			return err
@@ -87,7 +84,7 @@ func (c *VClock) InitVClockData() error {
 		if err != nil {
 			return err
 		}
-		return util.Put(nil, tx, vclockDataKey, &VClockData{
+		return store.Put(nil, tx, vclockDataKey, &VClockData{
 			SystemTimeAtBoot:     now.Add(-elapsedTime),
 			ElapsedTimeSinceBoot: elapsedTime,
 		})
@@ -101,13 +98,13 @@ func (c *VClock) InitVClockData() error {
 func (c *VClock) UpdateVClockData(fn func(*VClockData) (*VClockData, error)) error {
 	return store.RunInTransactionWithOpts(c.st, &store.TransactionOptions{NumAttempts: 1}, func(tx store.Transaction) error {
 		data := &VClockData{}
-		if err := util.Get(nil, tx, vclockDataKey, data); err != nil {
+		if err := store.Get(nil, tx, vclockDataKey, data); err != nil {
 			return err
 		}
 		if newVClockData, err := fn(data); err != nil {
 			return err
 		} else {
-			return util.Put(nil, tx, vclockDataKey, newVClockData)
+			return store.Put(nil, tx, vclockDataKey, newVClockData)
 		}
 	})
 }

@@ -51,7 +51,7 @@ func TestPeerManager(t *testing.T) {
 		},
 	}
 
-	tx := svc.St().NewTransaction()
+	tx := createDatabase(t, svc).St().NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg); err != nil {
 		t.Fatalf("cannot add syncgroup ID %d, err %v", sg.Id, err)
 	}

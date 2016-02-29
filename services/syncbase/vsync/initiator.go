@@ -24,10 +24,10 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // getDeltasFromPeer performs an initiation round once per database to the specified
@@ -318,7 +318,7 @@ type initiationConfig struct {
 	appName string
 	dbName  string
 	db      interfaces.Database // handle to the Database.
-	st      store.Store         // Store handle to the Database.
+	st      *watchable.Store    // Store handle to the Database.
 
 	// Authorizer created during the filtering of syncgroups phase. This is
 	// to be used during getDeltas to authorize the peer being synced with.
@@ -411,7 +411,7 @@ type initiationState struct {
 
 	// Transaction handle for the sync round. Used during the update
 	// of objects in the Database.
-	tx store.Transaction
+	tx *watchable.Transaction
 }
 
 // objConflictState contains the conflict state for an object that is updated
@@ -605,7 +605,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 	// TODO(hpucha): See if we can avoid committing the entire delta stream
 	// as one batch. Currently the dependency is between the log records and
 	// the batch info.
-	tx := iSt.config.st.NewTransaction()
+	tx := iSt.config.st.NewWatchableTransaction()
 	committed := false
 
 	defer func() {
@@ -738,7 +738,7 @@ func (iSt *initiationState) insertSgRecInDb(ctx *context.T, rec *LocalLogRec, va
 }
 
 // insertRecInDb inserts the versioned value in the Database.
-func (iSt *initiationState) insertRecInDb(ctx *context.T, rec *LocalLogRec, valbuf []byte, tx store.Transaction) error {
+func (iSt *initiationState) insertRecInDb(ctx *context.T, rec *LocalLogRec, valbuf []byte, tx *watchable.Transaction) error {
 	m := rec.Metadata
 	// TODO(hpucha): Hack right now. Need to change Database's handling of
 	// deleted objects. Currently, the initiator needs to treat deletions
@@ -805,7 +805,7 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 	for {
 		vlog.VI(4).Infof("sync: processUpdatedObjects: begin: %d objects updated", len(iSt.updObjects))
 
-		iSt.tx = iSt.config.st.NewTransaction()
+		iSt.tx = iSt.config.st.NewWatchableTransaction()
 		watchable.SetTransactionFromSync(iSt.tx) // for echo-suppression
 
 		if count, err := iSt.detectConflicts(ctx); err != nil {
@@ -990,8 +990,8 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 		}
 
 		// If this is a perms key, update the local store index.
-		if util.IsPermsKey(objid) {
-			table, row := util.ParseTableAndRowOrDie(objid)
+		if common.IsPermsKey(objid) {
+			table, row := common.ParseTableAndRowOrDie(objid)
 			tb := iSt.config.db.Table(ctx, table)
 			var err error
 			if !newVersDeleted {
@@ -1299,7 +1299,7 @@ func runAtPeer(ctx *context.T, peer connInfo, op remoteOp) (connInfo, interface{
 	updPeer := peer
 	if peer.addrs != nil {
 		for i, addr := range peer.addrs {
-			absName := naming.Join(addr, util.SyncbaseSuffix)
+			absName := naming.Join(addr, common.SyncbaseSuffix)
 			if resp, err := runRemoteOp(ctx, absName, op); verror.ErrorID(err) != interfaces.ErrConnFail.ID {
 				updPeer.addrs = updPeer.addrs[i:]
 				return updPeer, resp, err
@@ -1308,7 +1308,7 @@ func runAtPeer(ctx *context.T, peer connInfo, op remoteOp) (connInfo, interface{
 		updPeer.addrs = nil
 	} else {
 		for i, mt := range peer.mtTbls {
-			absName := naming.Join(mt, peer.relName, util.SyncbaseSuffix)
+			absName := naming.Join(mt, peer.relName, common.SyncbaseSuffix)
 			if resp, err := runRemoteOp(ctx, absName, op); verror.ErrorID(err) != interfaces.ErrConnFail.ID {
 				updPeer.mtTbls = updPeer.mtTbls[i:]
 				return updPeer, resp, err

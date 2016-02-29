@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package util_test
+package common_test
 
 import (
 	"reflect"
 	"testing"
 
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 )
 
 var keyPartTests = []struct {
@@ -22,7 +22,7 @@ var keyPartTests = []struct {
 
 func TestJoinKeyParts(t *testing.T) {
 	for _, test := range keyPartTests {
-		got, want := util.JoinKeyParts(test.parts...), test.key
+		got, want := common.JoinKeyParts(test.parts...), test.key
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("%v: got %q, want %q", test.parts, got, want)
 		}
@@ -31,7 +31,7 @@ func TestJoinKeyParts(t *testing.T) {
 
 func TestSplitKeyParts(t *testing.T) {
 	for _, test := range keyPartTests {
-		got, want := util.SplitKeyParts(test.key), test.parts
+		got, want := common.SplitKeyParts(test.key), test.parts
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("%q: got %v, want %v", test.key, got, want)
 		}
@@ -40,14 +40,14 @@ func TestSplitKeyParts(t *testing.T) {
 
 func TestSplitNKeyParts(t *testing.T) {
 	for _, test := range keyPartTests {
-		got, want := util.SplitNKeyParts(test.key, 1), []string{test.key}
+		got, want := common.SplitNKeyParts(test.key, 1), []string{test.key}
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("%q: got %v, want %v", test.key, got, want)
 		}
 	}
 	for _, test := range keyPartTests {
 		// Note, all test cases in keyPartTests have <= 3 parts.
-		got, want := util.SplitNKeyParts(test.key, 3), test.parts
+		got, want := common.SplitNKeyParts(test.key, 3), test.parts
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("%q: got %v, want %v", test.key, got, want)
 		}
@@ -66,7 +66,7 @@ func TestStripFirstKeyPartOrDie(t *testing.T) {
 		{"a\xfeb\xfec", "b\xfec"},
 	}
 	for _, test := range tests {
-		got, want := util.StripFirstKeyPartOrDie(test.in), test.out
+		got, want := common.StripFirstKeyPartOrDie(test.in), test.out
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("%q: got %v, want %v", test.in, got, want)
 		}
@@ -86,7 +86,7 @@ func TestFirstKeyPart(t *testing.T) {
 		{"\xfeb", ""},
 	}
 	for _, test := range tests {
-		got, want := util.FirstKeyPart(test.in), test.out
+		got, want := common.FirstKeyPart(test.in), test.out
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("%q: got %v, want %v", test.in, got, want)
 		}
@@ -102,15 +102,15 @@ func TestIsRowKey(t *testing.T) {
 		{"a", false},
 		{"a\xfe", false},
 		{"a\xfeb", false},
-		{util.RowPrefix, true},
-		{util.RowPrefix + "\xfe", true},
-		{util.RowPrefix + "\xfeb", true},
-		{util.PermsPrefix, false},
-		{util.PermsPrefix + "\xfe", false},
-		{util.PermsPrefix + "\xfeb", false},
+		{common.RowPrefix, true},
+		{common.RowPrefix + "\xfe", true},
+		{common.RowPrefix + "\xfeb", true},
+		{common.PermsPrefix, false},
+		{common.PermsPrefix + "\xfe", false},
+		{common.PermsPrefix + "\xfeb", false},
 	}
 	for _, test := range tests {
-		got, want := util.IsRowKey(test.in), test.out
+		got, want := common.IsRowKey(test.in), test.out
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("%q: got %v, want %v", test.in, got, want)
 		}
@@ -126,15 +126,15 @@ func TestIsPermsKey(t *testing.T) {
 		{"a", false},
 		{"a\xfe", false},
 		{"a\xfeb", false},
-		{util.RowPrefix, false},
-		{util.RowPrefix + "\xfe", false},
-		{util.RowPrefix + "\xfeb", false},
-		{util.PermsPrefix, true},
-		{util.PermsPrefix + "\xfe", true},
-		{util.PermsPrefix + "\xfeb", true},
+		{common.RowPrefix, false},
+		{common.RowPrefix + "\xfe", false},
+		{common.RowPrefix + "\xfeb", false},
+		{common.PermsPrefix, true},
+		{common.PermsPrefix + "\xfe", true},
+		{common.PermsPrefix + "\xfeb", true},
 	}
 	for _, test := range tests {
-		got, want := util.IsPermsKey(test.in), test.out
+		got, want := common.IsPermsKey(test.in), test.out
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("%q: got %v, want %v", test.in, got, want)
 		}
@@ -148,14 +148,14 @@ func TestParseTableAndRow(t *testing.T) {
 		row   string
 		err   bool
 	}{
-		{util.RowPrefix + "\xfetb\xferow", "tb", "row", false},
-		{util.RowPrefix + "\xfetb\xfe", "tb", "", false},
-		{util.RowPrefix + "\xfe\xferow", "", "row", false},
-		{util.RowPrefix + "\xfe\xfe", "", "", false},
-		{util.PermsPrefix + "\xfetb\xferow", "tb", "row", false},
-		{util.PermsPrefix + "\xfetb\xfe", "tb", "", false},
-		{util.PermsPrefix + "\xfe\xferow", "", "row", false},
-		{util.PermsPrefix + "\xfe\xfe", "", "", false},
+		{common.RowPrefix + "\xfetb\xferow", "tb", "row", false},
+		{common.RowPrefix + "\xfetb\xfe", "tb", "", false},
+		{common.RowPrefix + "\xfe\xferow", "", "row", false},
+		{common.RowPrefix + "\xfe\xfe", "", "", false},
+		{common.PermsPrefix + "\xfetb\xferow", "tb", "row", false},
+		{common.PermsPrefix + "\xfetb\xfe", "tb", "", false},
+		{common.PermsPrefix + "\xfe\xferow", "", "row", false},
+		{common.PermsPrefix + "\xfe\xfe", "", "", false},
 		{"pfx\xfetb\xferow", "", "", true},
 		{"pfx\xfetb\xfe", "", "", true},
 		{"pfx\xfe\xferow", "", "", true},
@@ -164,12 +164,12 @@ func TestParseTableAndRow(t *testing.T) {
 		{"\xfetb\xfe", "", "", true},
 		{"\xfe\xferow", "", "", true},
 		{"\xfe\xfe", "", "", true},
-		{util.RowPrefix, "", "", true},
-		{util.RowPrefix + "\xfetb", "", "", true},
-		{util.RowPrefix + "\xfe", "", "", true},
+		{common.RowPrefix, "", "", true},
+		{common.RowPrefix + "\xfetb", "", "", true},
+		{common.RowPrefix + "\xfe", "", "", true},
 	}
 	for _, test := range tests {
-		table, row, err := util.ParseTableAndRow(test.key)
+		table, row, err := common.ParseTableAndRow(test.key)
 		if !reflect.DeepEqual(table, test.table) {
 			t.Errorf("%q: got %v, want %v", test.key, table, test.table)
 		}
@@ -191,7 +191,7 @@ func TestScanPrefixArgs(t *testing.T) {
 		{"x", "a\xfe", "x\xfea\xfe", "x\xfea\xff"},
 	}
 	for _, test := range tests {
-		start, limit := util.ScanPrefixArgs(test.stKeyPrefix, test.prefix)
+		start, limit := common.ScanPrefixArgs(test.stKeyPrefix, test.prefix)
 		gotStart, gotLimit := string(start), string(limit)
 		if gotStart != test.wantStart {
 			t.Errorf("{%q, %q} start: got %q, want %q", test.stKeyPrefix, test.prefix, gotStart, test.wantStart)
@@ -213,7 +213,7 @@ func TestScanRangeArgs(t *testing.T) {
 		{"x", "b", "a", "x\xfeb", "x\xfea"}, // empty range
 	}
 	for _, test := range tests {
-		start, limit := util.ScanRangeArgs(test.stKeyPrefix, test.start, test.limit)
+		start, limit := common.ScanRangeArgs(test.stKeyPrefix, test.start, test.limit)
 		gotStart, gotLimit := string(start), string(limit)
 		if gotStart != test.wantStart {
 			t.Errorf("{%q, %q, %q} start: got %q, want %q", test.stKeyPrefix, test.start, test.limit, gotStart, test.wantStart)

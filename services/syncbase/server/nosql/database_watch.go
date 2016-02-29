@@ -16,8 +16,8 @@ import (
 	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
+	"v.io/x/ref/services/syncbase/common"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // GetResumeMarker implements the wire.DatabaseWatcher interface.
@@ -82,7 +82,7 @@ func (t *tableReq) scanInitialState(ctx *context.T, call watch.GlobWatcherWatchG
 		return nil, err
 	}
 	// Scan initial state, sending accessible rows as single batch.
-	it := sntx.Scan(util.ScanPrefixArgs(util.JoinKeyParts(util.RowPrefix, t.name), prefix))
+	it := sntx.Scan(common.ScanPrefixArgs(common.JoinKeyParts(common.RowPrefix, t.name), prefix))
 	sender := &watchBatchSender{
 		send: call.SendStream().Send,
 	}
@@ -91,7 +91,7 @@ func (t *tableReq) scanInitialState(ctx *context.T, call watch.GlobWatcherWatchG
 		key, value = it.Key(key), it.Value(value)
 		// Check perms.
 		// See comment in util/constants.go for why we use SplitNKeyParts.
-		parts := util.SplitNKeyParts(string(key), 3)
+		parts := common.SplitNKeyParts(string(key), 3)
 		externalKey := parts[2]
 		if _, err := t.checkAccess(ctx, call, sntx, externalKey); err != nil {
 			// TODO(ivanpi): Inaccessible rows are skipped. Figure out how to signal
@@ -178,20 +178,24 @@ func (t *tableReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGl
 	defer sn.Abort()
 	for _, logEntry := range logs {
 		var opKey string
-		switch op := logEntry.Op.(type) {
-		case watchable.OpPut:
-			opKey = string(op.Value.Key)
-		case watchable.OpDelete:
-			opKey = string(op.Value.Key)
+		var op interface{}
+		if err := logEntry.Op.ToValue(&op); err != nil {
+			return err
+		}
+		switch op := op.(type) {
+		case *watchable.PutOp:
+			opKey = string(op.Key)
+		case *watchable.DeleteOp:
+			opKey = string(op.Key)
 		default:
 			continue
 		}
 		// TODO(rogulenko): Currently we only process rows, i.e. keys of the form
 		// <RowPrefix>:xxx:yyy. Consider processing other keys.
-		if !util.IsRowKey(opKey) {
+		if !common.IsRowKey(opKey) {
 			continue
 		}
-		table, row := util.ParseTableAndRowOrDie(opKey)
+		table, row := common.ParseTableAndRowOrDie(opKey)
 		// Filter out unnecessary rows and rows that we can't access.
 		if table != t.name || !strings.HasPrefix(row, prefix) {
 			continue
@@ -202,9 +206,9 @@ func (t *tableReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGl
 			}
 			continue
 		}
-		switch op := logEntry.Op.(type) {
-		case watchable.OpPut:
-			rowValue, err := watchable.GetAtVersion(ctx, sn, op.Value.Key, nil, op.Value.Version)
+		switch op := op.(type) {
+		case *watchable.PutOp:
+			rowValue, err := watchable.GetAtVersion(ctx, sn, op.Key, nil, op.Version)
 			if err != nil {
 				return err
 			}
@@ -216,7 +220,7 @@ func (t *tableReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGl
 				})); err != nil {
 				return err
 			}
-		case watchable.OpDelete:
+		case *watchable.DeleteOp:
 			if err := sender.addChange(naming.Join(table, row),
 				watch.DoesNotExist,
 				vom.RawBytesOf(wire.StoreChange{

@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/store"
+	// TODO(razvanm): remove the dependency on syncbase/vclock package.
 	"v.io/x/ref/services/syncbase/vclock"
 )
 
@@ -73,12 +73,12 @@ func TestLogEntryTimestamps(t *testing.T) {
 	inc := time.Second
 	// Note: NewVClockForTests calls cl.SysClock.Now() once to write the initial
 	// VClockData to the store.
-	cl := vclock.NewVClockForTests(&mockSystemClock{time: t1, inc: inc})
+	cl := vclock.NewVClockForTests(&mockSystemClock{Time: t1, Inc: inc})
 	wst1, err := Wrap(ist, cl, &Options{ManagedPrefixes: nil})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}
-	seqForCreate := getSeq(wst1)
+	seqForCreate := wst1.seq
 
 	// Write data1 and data2 to store.
 	if err := store.RunInTransaction(wst1, func(tx store.Transaction) error {
@@ -103,7 +103,7 @@ func TestLogEntryTimestamps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}
-	seqForUpdate := getSeq(wst2)
+	seqForUpdate := wst2.seq
 	// We expect the sequence number to have moved by +2 for the two puts.
 	if seqForUpdate != (seqForCreate + 2) {
 		t.Errorf("unexpected sequence number for update. seq for create: %d, seq for update: %d", seqForCreate, seqForUpdate)
@@ -141,13 +141,13 @@ func TestOpLogConsistency(t *testing.T) {
 	inc := time.Second
 	// Note: NewVClockForTests calls cl.SysClock.Now() once to write the initial
 	// VClockData to the store.
-	cl := vclock.NewVClockForTests(&mockSystemClock{time: t1, inc: inc})
+	cl := vclock.NewVClockForTests(&mockSystemClock{Time: t1, Inc: inc})
 	wst, err := Wrap(ist, cl, &Options{ManagedPrefixes: nil})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}
 
-	if err := store.RunInTransaction(wst, func(tx store.Transaction) error {
+	if err := RunInTransaction(wst, func(tx *Transaction) error {
 		putKey, putVal := []byte("foo"), []byte("bar")
 		if err := tx.Put(putKey, putVal); err != nil {
 			return err
@@ -164,23 +164,13 @@ func TestOpLogConsistency(t *testing.T) {
 		if err := tx.Delete(delKey); err != nil {
 			return err
 		}
-		sgPrefixes := []string{"sga", "sgb"}
-		gid := interfaces.GroupId(1234)
-		if err := AddSyncgroupOp(nil, tx, gid, sgPrefixes, false); err != nil {
-			return err
-		}
-		snKey, snVersion := []byte("aa"), []byte("123")
-		if err := AddSyncSnapshotOp(nil, tx, snKey, snVersion); err != nil {
-			return err
-		}
 		pvKey, pvVersion := []byte("pv"), []byte("456")
 		if err := PutVersion(nil, tx, pvKey, pvVersion); err != nil {
 			return err
 		}
-		for _, buf := range [][]byte{putKey, putVal, getKey, start, limit, delKey, snKey, snVersion, pvKey, pvVersion} {
+		for _, buf := range [][]byte{putKey, putVal, getKey, start, limit, delKey, pvKey, pvVersion} {
 			buf[0] = '#'
 		}
-		sgPrefixes[0] = "zebra"
 		return nil
 	}); err != nil {
 		t.Fatalf("failed to commit txn: %v", err)
@@ -188,33 +178,31 @@ func TestOpLogConsistency(t *testing.T) {
 
 	// Read first (and only) batch.
 	ler := newLogEntryReader(ist, 0)
-	numEntries, wantNumEntries := 0, 7
+	numEntries, wantNumEntries := 0, 5
 	sawPut := false
 	for ler.Advance() {
 		_, entry := ler.GetEntry()
 		numEntries++
-		switch op := entry.Op.(type) {
-		case OpGet:
-			eq(t, string(op.Value.Key), "foo")
-		case OpScan:
-			eq(t, string(op.Value.Start), "aaa")
-			eq(t, string(op.Value.Limit), "bbb")
-		case OpPut:
+		var op interface{}
+		if err := entry.Op.ToValue(&op); err != nil {
+			t.Fatalf("ToValue failed: %v", err)
+		}
+		switch op := op.(type) {
+		case *GetOp:
+			eq(t, string(op.Key), "foo")
+		case *ScanOp:
+			eq(t, string(op.Start), "aaa")
+			eq(t, string(op.Limit), "bbb")
+		case *PutOp:
 			if !sawPut {
-				eq(t, string(op.Value.Key), "foo")
+				eq(t, string(op.Key), "foo")
 				sawPut = true
 			} else {
-				eq(t, string(op.Value.Key), "pv")
-				eq(t, string(op.Value.Version), "456")
+				eq(t, string(op.Key), "pv")
+				eq(t, string(op.Version), "456")
 			}
-		case OpDelete:
-			eq(t, string(op.Value.Key), "foo")
-		case OpSyncgroup:
-			eq(t, op.Value.SgId, interfaces.GroupId(1234))
-			eq(t, op.Value.Prefixes, []string{"sga", "sgb"})
-		case OpSyncSnapshot:
-			eq(t, string(op.Value.Key), "aa")
-			eq(t, string(op.Value.Version), "123")
+		case *DeleteOp:
+			eq(t, string(op.Key), "foo")
 		default:
 			t.Fatalf("Unexpected op type in entry: %v", entry)
 		}

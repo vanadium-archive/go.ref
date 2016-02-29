@@ -7,6 +7,7 @@ package interfaces
 import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -18,8 +19,8 @@ type Service interface {
 	// Sync returns the sync instance for this service.
 	Sync() SyncServerMethods
 
-	// VClock returns the vclock instance for this service.
-	VClock() VClock
+	// Clock returns the clock instance for this service.
+	Clock() common.Clock
 
 	// App returns the App with the specified name.
 	App(ctx *context.T, call rpc.ServerCall, appName string) (App, error)

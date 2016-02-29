@@ -9,9 +9,10 @@ import (
 	"v.io/v23/rpc"
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // rowReq is a per-request object that handles Row RPCs.
@@ -49,7 +50,7 @@ func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (
 }
 
 func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, schemaVersion int32, value []byte) error {
-	impl := func(tx store.Transaction) error {
+	impl := func(tx *watchable.Transaction) error {
 		if err := r.t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
@@ -62,12 +63,12 @@ func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, schemaVersion int32, v
 			return impl(tx)
 		}
 	} else {
-		return store.RunInTransaction(r.t.d.st, impl)
+		return watchable.RunInTransaction(r.t.d.st, impl)
 	}
 }
 
 func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
-	impl := func(tx store.Transaction) error {
+	impl := func(tx *watchable.Transaction) error {
 		if err := r.t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
@@ -80,7 +81,7 @@ func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, schemaVersion int32
 			return impl(tx)
 		}
 	} else {
-		return store.RunInTransaction(r.t.d.st, impl)
+		return watchable.RunInTransaction(r.t.d.st, impl)
 	}
 }
 
@@ -88,11 +89,11 @@ func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, schemaVersion int32
 // Internal helpers
 
 func (r *rowReq) stKey() string {
-	return util.JoinKeyParts(util.RowPrefix, r.stKeyPart())
+	return common.JoinKeyParts(common.RowPrefix, r.stKeyPart())
 }
 
 func (r *rowReq) stKeyPart() string {
-	return util.JoinKeyParts(r.t.stKeyPart(), r.key)
+	return common.JoinKeyParts(r.t.stKeyPart(), r.key)
 }
 
 // checkAccess checks that this row's table exists in the database, and performs
@@ -121,7 +122,7 @@ func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrT
 
 // put writes data to the storage engine.
 // Performs authorization check.
-func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx store.Transaction, value []byte) error {
+func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx *watchable.Transaction, value []byte) error {
 	permsPrefix, err := r.checkAccess(ctx, call, tx)
 	if err != nil {
 		return err
@@ -137,7 +138,7 @@ func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx store.Transaction, 
 
 // delete deletes data from the storage engine.
 // Performs authorization check.
-func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, tx store.Transaction) error {
+func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, tx *watchable.Transaction) error {
 	permsPrefix, err := r.checkAccess(ctx, call, tx)
 	if err != nil {
 		return err

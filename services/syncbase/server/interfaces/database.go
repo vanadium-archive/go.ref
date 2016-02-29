@@ -10,12 +10,13 @@ import (
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // Database is an internal interface to the database layer.
 type Database interface {
 	// St returns the storage engine instance for this database.
-	St() store.Store
+	St() *watchable.Store
 
 	// App returns the app handle for this database.
 	App() App

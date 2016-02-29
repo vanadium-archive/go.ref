@@ -12,10 +12,10 @@ import (
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // crSendStream is a named interface replicating the interface returned by
@@ -315,7 +315,7 @@ func createBatchConflictInfo(batchId uint64, source wire.BatchSource) *wire.Conf
 
 func createRowConflictInfo(ctx *context.T, iSt *initiationState, oid string, batches []uint64, contd bool) *wire.ConflictInfo {
 	op := wire.RowOp{}
-	op.Key = util.StripFirstKeyPartOrDie(oid)
+	op.Key = common.StripFirstKeyPartOrDie(oid)
 	objSt := iSt.updObjects[oid]
 
 	op.AncestorValue = createValueObj(ctx, iSt, oid, objSt.ancestor, true)

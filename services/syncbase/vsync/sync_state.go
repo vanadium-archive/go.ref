@@ -57,9 +57,10 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // localGenInfoInMem represents the state corresponding to local generations.
@@ -138,7 +139,7 @@ func (s *syncService) initSync(ctx *context.T) error {
 	s.syncState = make(map[string]*dbSyncStateInMem)
 	newMembers := make(map[string]*memberInfo)
 
-	s.forEachDatabaseStore(ctx, func(appName, dbName string, st store.Store) bool {
+	s.forEachDatabaseStore(ctx, func(appName, dbName string, st *watchable.Store) bool {
 		// Fetch the sync state for data and syncgroups.
 		ds, err := getDbSyncState(ctx, st)
 		if err != nil && verror.ErrorID(err) != verror.ErrNoExist.ID {
@@ -253,7 +254,7 @@ func (s *syncService) computeCurGenAndPos(ctx *context.T, st store.Store, pfx st
 	found := false
 
 	// Scan the local log records to determine latest gen and its pos.
-	stream := st.Scan(util.ScanPrefixArgs(logRecsPerDeviceScanPrefix(pfx, s.id), ""))
+	stream := st.Scan(common.ScanPrefixArgs(logRecsPerDeviceScanPrefix(pfx, s.id), ""))
 	defer stream.Cancel()
 
 	// Get the last value.
@@ -539,13 +540,13 @@ func (s *syncService) getOrCreateSyncStateInternal(appName, dbName string) *dbSy
 // a Database.  This relies on the fact that the app name is globally unique and
 // the db name is unique within the scope of the app.
 func appDbName(appName, dbName string) string {
-	return util.JoinKeyParts(appName, dbName)
+	return common.JoinKeyParts(appName, dbName)
 }
 
 // splitAppDbName is the inverse of appDbName and returns app and db name from a
 // globally unique name for a Database.
 func splitAppDbName(ctx *context.T, name string) (string, string, error) {
-	parts := util.SplitNKeyParts(name, 2)
+	parts := common.SplitNKeyParts(name, 2)
 	if len(parts) != 2 {
 		return "", "", verror.New(verror.ErrInternal, ctx, "invalid appDbName", name)
 	}
@@ -557,13 +558,13 @@ func splitAppDbName(ctx *context.T, name string) (string, string, error) {
 
 // putDbSyncState persists the sync state object for a given Database.
 func putDbSyncState(ctx *context.T, tx store.Transaction, ds *DbSyncState) error {
-	return util.Put(ctx, tx, dbssKey, ds)
+	return store.Put(ctx, tx, dbssKey, ds)
 }
 
 // getDbSyncState retrieves the sync state object for a given Database.
 func getDbSyncState(ctx *context.T, st store.StoreReader) (*DbSyncState, error) {
 	var ds DbSyncState
-	if err := util.Get(ctx, st, dbssKey, &ds); err != nil {
+	if err := store.Get(ctx, st, dbssKey, &ds); err != nil {
 		return nil, err
 	}
 	return &ds, nil
@@ -574,22 +575,22 @@ func getDbSyncState(ctx *context.T, st store.StoreReader) (*DbSyncState, error) 
 
 // logRecsPerDeviceScanPrefix returns the prefix used to scan log records for a particular device.
 func logRecsPerDeviceScanPrefix(pfx string, id uint64) string {
-	return util.JoinKeyParts(logPrefix, pfx, fmt.Sprintf("%d", id))
+	return common.JoinKeyParts(logPrefix, pfx, fmt.Sprintf("%d", id))
 }
 
 // logRecKey returns the key used to access a specific log record.
 func logRecKey(pfx string, id, gen uint64) string {
-	return util.JoinKeyParts(logPrefix, pfx, fmt.Sprintf("%d", id), fmt.Sprintf("%016x", gen))
+	return common.JoinKeyParts(logPrefix, pfx, fmt.Sprintf("%d", id), fmt.Sprintf("%016x", gen))
 }
 
 // hasLogRec returns true if the log record for (devid, gen) exists.
 func hasLogRec(st store.StoreReader, pfx string, id, gen uint64) (bool, error) {
-	return util.Exists(nil, st, logRecKey(pfx, id, gen))
+	return store.Exists(nil, st, logRecKey(pfx, id, gen))
 }
 
 // putLogRec stores the log record.
 func putLogRec(ctx *context.T, tx store.Transaction, pfx string, rec *LocalLogRec) error {
-	return util.Put(ctx, tx, logRecKey(pfx, rec.Metadata.Id, rec.Metadata.Gen), rec)
+	return store.Put(ctx, tx, logRecKey(pfx, rec.Metadata.Id, rec.Metadata.Gen), rec)
 }
 
 // getLogRec retrieves the log record for a given (devid, gen).
@@ -600,7 +601,7 @@ func getLogRec(ctx *context.T, st store.StoreReader, pfx string, id, gen uint64)
 // getLogRecByKey retrieves the log record for a given log record key.
 func getLogRecByKey(ctx *context.T, st store.StoreReader, key string) (*LocalLogRec, error) {
 	var rec LocalLogRec
-	if err := util.Get(ctx, st, key, &rec); err != nil {
+	if err := store.Get(ctx, st, key, &rec); err != nil {
 		return nil, err
 	}
 	return &rec, nil
@@ -608,5 +609,5 @@ func getLogRecByKey(ctx *context.T, st store.StoreReader, key string) (*LocalLog
 
 // delLogRec deletes the log record for a given (devid, gen).
 func delLogRec(ctx *context.T, tx store.Transaction, pfx string, id, gen uint64) error {
-	return util.Delete(ctx, tx, logRecKey(pfx, id, gen))
+	return store.Delete(ctx, tx, logRecKey(pfx, id, gen))
 }

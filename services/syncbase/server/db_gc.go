@@ -15,26 +15,27 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
+	storeutil "v.io/x/ref/services/syncbase/store/util"
 )
 
 func dbGCKey(path string) string {
-	return util.JoinKeyParts(util.DbGCPrefix, path)
+	return common.JoinKeyParts(common.DbGCPrefix, path)
 }
 
 // putDbGCEntry puts a dbInfo into the garbage collection log. It should be
 // used before creating a new database and when marking a database for
 // destruction (deleting the dbInfo from active databases).
 func putDbGCEntry(ctx *context.T, stw store.StoreWriter, dbInfo *DbInfo) error {
-	return util.Put(ctx, stw, dbGCKey(dbInfo.RootDir), dbInfo)
+	return store.Put(ctx, stw, dbGCKey(dbInfo.RootDir), dbInfo)
 }
 
 // delDbGCEntry removes a dbInfo from the garbage collection log. It should
 // be used after successfully destroying the database and when finalizing
 // database creation (putting the dbInfo into active databases).
 func delDbGCEntry(ctx *context.T, stw store.StoreWriter, dbInfo *DbInfo) error {
-	return util.Delete(ctx, stw, dbGCKey(dbInfo.RootDir))
+	return store.Delete(ctx, stw, dbGCKey(dbInfo.RootDir))
 }
 
 // deleteDatabaseEntry marks a database for destruction by moving its dbInfo
@@ -67,7 +68,7 @@ func finalizeDatabaseDestroy(ctx *context.T, stw store.StoreWriter, dbInfo *DbIn
 			return wrapGCError(dbInfo, err)
 		}
 	}
-	if err := util.DestroyStore(dbInfo.Engine, dbInfo.RootDir); err != nil {
+	if err := storeutil.DestroyStore(dbInfo.Engine, dbInfo.RootDir); err != nil {
 		return wrapGCError(dbInfo, err)
 	}
 	if err := delDbGCEntry(ctx, stw, dbInfo); err != nil {
@@ -87,7 +88,7 @@ func runGCInactiveDatabases(ctx *context.T, st store.Store) error {
 	vlog.VI(2).Infof("server: app: starting garbage collection of inactive databases")
 	total := 0
 	deleted := 0
-	gcIt := st.Scan(util.ScanPrefixArgs(util.DbGCPrefix, ""))
+	gcIt := st.Scan(common.ScanPrefixArgs(common.DbGCPrefix, ""))
 	var diBytes []byte
 	for gcIt.Advance() {
 		diBytes = gcIt.Value(diBytes)

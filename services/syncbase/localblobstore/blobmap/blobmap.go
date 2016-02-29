@@ -13,10 +13,10 @@ package blobmap
 import "encoding/binary"
 import "sync"
 
-import "v.io/x/ref/services/syncbase/server/util"
-import "v.io/x/ref/services/syncbase/store"
 import "v.io/v23/context"
 import "v.io/v23/verror"
+import "v.io/x/ref/services/syncbase/store/util"
+import "v.io/x/ref/services/syncbase/store"
 
 const pkgPath = "v.io/syncbase/x/ref/services/syncbase/localblobstore/blobmap"
 

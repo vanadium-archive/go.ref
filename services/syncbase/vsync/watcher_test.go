@@ -15,10 +15,10 @@ import (
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
-	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
+	sbwatchable "v.io/x/ref/services/syncbase/watchable"
 )
 
 // TestSetResmark tests setting and getting a resume marker.
@@ -122,9 +122,7 @@ func TestWatchPrefixes(t *testing.T) {
 
 	for _, test := range checkSyncableTests {
 		log := &watchable.LogEntry{
-			Op: watchable.OpPut{
-				Value: watchable.PutOp{Key: []byte(makeRowKey(test.key))},
-			},
+			Op: vom.RawBytesOf(&watchable.PutOp{Key: []byte(makeRowKey(test.key))}),
 		}
 		res := syncable(appDbName(test.appName, test.dbName), log)
 		if res != test.result {
@@ -139,9 +137,9 @@ func newLog(key, version string, delete bool) *watchable.LogEntry {
 	k, v := []byte(key), []byte(version)
 	log := &watchable.LogEntry{}
 	if delete {
-		log.Op = watchable.OpDelete{watchable.DeleteOp{Key: k}}
+		log.Op = vom.RawBytesOf(&watchable.DeleteOp{Key: k})
 	} else {
-		log.Op = watchable.OpPut{watchable.PutOp{Key: k, Version: v}}
+		log.Op = vom.RawBytesOf(&watchable.PutOp{Key: k, Version: v})
 	}
 	return log
 }
@@ -149,14 +147,16 @@ func newLog(key, version string, delete bool) *watchable.LogEntry {
 // newSGLog creates a syncgroup watch log entry.
 func newSGLog(gid interfaces.GroupId, prefixes []string, remove bool) *watchable.LogEntry {
 	return &watchable.LogEntry{
-		Op: watchable.OpSyncgroup{
-			Value: watchable.SyncgroupOp{SgId: gid, Prefixes: prefixes, Remove: remove},
-		},
+		// Note that the type information will be written in each log entry. This
+		// is inefficient. Ideally we'd split the type information from the log
+		// entries themselves (we only have 6 types of them). The issue tracking
+		// this is http://v.io/i/1242.
+		Op: vom.RawBytesOf(&sbwatchable.SyncgroupOp{SgId: gid, Prefixes: prefixes, Remove: remove}),
 	}
 }
 
 // putBlobRefData inserts data containing blob refs for a key at a version.
-func putBlobRefData(t *testing.T, tx store.Transaction, key, version string) {
+func putBlobRefData(t *testing.T, tx *watchable.Transaction, key, version string) {
 	data := struct {
 		Msg  string
 		Blob wire.BlobRef
@@ -178,7 +178,7 @@ func putBlobRefData(t *testing.T, tx store.Transaction, key, version string) {
 func TestProcessWatchLogBatch(t *testing.T) {
 	svc := createService(t)
 	defer destroyService(t, svc)
-	st := svc.St()
+	st := createDatabase(t, svc).St()
 	s := svc.sync
 
 	app, db := "mockapp", "mockdb"
@@ -211,7 +211,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	// Partially syncable logs.
 	gid := interfaces.GroupId(1234)
 	state := &SgLocalState{}
-	tx := st.NewTransaction()
+	tx := st.NewWatchableTransaction()
 	if err := setSGIdEntry(nil, tx, gid, state); err != nil {
 		t.Fatalf("setSGIdEntry() failed for gid %v", gid)
 	}
@@ -255,7 +255,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 		t.Error("hasNode() found DAG entry for non-syncable log on bar")
 	}
 
-	tx = st.NewTransaction()
+	tx = st.NewWatchableTransaction()
 	putBlobRefData(t, tx, fooKey, "1")
 	if err := tx.Commit(); err != nil {
 		t.Fatalf("cannot commit putting more blob refs, err %v", err)
@@ -355,7 +355,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	// batch is an application batch with 3 keys of which 2 are syncable.
 	// The 3rd batch is also a syncgroup snapshot.
 	count := 0
-	start, limit := util.ScanPrefixArgs(dagBatchPrefix, "")
+	start, limit := common.ScanPrefixArgs(dagBatchPrefix, "")
 	stream := st.Scan(start, limit)
 	for stream.Advance() {
 		count++

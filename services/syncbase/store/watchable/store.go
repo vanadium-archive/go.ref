@@ -22,56 +22,52 @@ import (
 	"sync"
 
 	pubutil "v.io/v23/syncbase/util"
-	"v.io/x/ref/services/syncbase/server/interfaces"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
-// Store is a store.Store that provides versioned storage and a watchable oplog.
-// TODO(sadovsky): Extend interface.
-type Store interface {
-	store.Store
-}
-
-// Options configures a watchable.Store.
+// Options configures a Store.
 type Options struct {
 	// Key prefixes to version and log. If nil, all keys are managed.
 	ManagedPrefixes []string
 }
 
-// Wrap returns a watchable.Store that wraps the given store.Store.
-func Wrap(st store.Store, vclock interfaces.VClock, opts *Options) (Store, error) {
+// Wrap returns a *Store that wraps the given store.Store.
+func Wrap(st store.Store, clock common.Clock, opts *Options) (*Store, error) {
 	seq, err := getNextLogSeq(st)
 	if err != nil {
 		return nil, err
 	}
-	return &wstore{
+	return &Store{
 		ist:     st,
 		watcher: newWatcher(),
 		opts:    opts,
 		seq:     seq,
-		vclock:  vclock,
+		Clock:   clock,
 	}, nil
 }
 
-type wstore struct {
+type Store struct {
 	ist     store.Store
 	watcher *watcher
 	opts    *Options
-	mu      sync.Mutex        // held during transaction commits; protects seq
-	seq     uint64            // the next sequence number to be used for a new commit
-	vclock  interfaces.VClock // used to provide write timestamps
+	mu      sync.Mutex // held during transaction commits; protects seq
+	seq     uint64     // the next sequence number to be used for a new commit
+	// TODO(razvanm): make the clock private. The clock is used only by the
+	// addSyncgroupLogRec function from the vsync package.
+	Clock common.Clock // used to provide write timestamps
 }
 
-var _ Store = (*wstore)(nil)
+var _ store.Store = (*Store)(nil)
 
 // Close implements the store.Store interface.
-func (st *wstore) Close() error {
+func (st *Store) Close() error {
 	st.watcher.close()
 	return st.ist.Close()
 }
 
 // Get implements the store.StoreReader interface.
-func (st *wstore) Get(key, valbuf []byte) ([]byte, error) {
+func (st *Store) Get(key, valbuf []byte) ([]byte, error) {
 	if !st.managesKey(key) {
 		return st.ist.Get(key, valbuf)
 	}
@@ -81,7 +77,7 @@ func (st *wstore) Get(key, valbuf []byte) ([]byte, error) {
 }
 
 // Scan implements the store.StoreReader interface.
-func (st *wstore) Scan(start, limit []byte) store.Stream {
+func (st *Store) Scan(start, limit []byte) store.Stream {
 	if !st.managesRange(start, limit) {
 		return st.ist.Scan(start, limit)
 	}
@@ -90,7 +86,7 @@ func (st *wstore) Scan(start, limit []byte) store.Stream {
 }
 
 // Put implements the store.StoreWriter interface.
-func (st *wstore) Put(key, value []byte) error {
+func (st *Store) Put(key, value []byte) error {
 	// Use watchable.Store transaction so this op gets logged.
 	return store.RunInTransaction(st, func(tx store.Transaction) error {
 		return tx.Put(key, value)
@@ -98,7 +94,7 @@ func (st *wstore) Put(key, value []byte) error {
 }
 
 // Delete implements the store.StoreWriter interface.
-func (st *wstore) Delete(key []byte) error {
+func (st *Store) Delete(key []byte) error {
 	// Use watchable.Store transaction so this op gets logged.
 	return store.RunInTransaction(st, func(tx store.Transaction) error {
 		return tx.Delete(key)
@@ -106,12 +102,17 @@ func (st *wstore) Delete(key []byte) error {
 }
 
 // NewTransaction implements the store.Store interface.
-func (st *wstore) NewTransaction() store.Transaction {
+func (st *Store) NewTransaction() store.Transaction {
+	return newTransaction(st)
+}
+
+// NewWatchableTransaction implements the Store interface.
+func (st *Store) NewWatchableTransaction() *Transaction {
 	return newTransaction(st)
 }
 
 // NewSnapshot implements the store.Store interface.
-func (st *wstore) NewSnapshot() store.Snapshot {
+func (st *Store) NewSnapshot() store.Snapshot {
 	return newSnapshot(st)
 }
 
@@ -119,14 +120,14 @@ func (st *wstore) NewSnapshot() store.Snapshot {
 // TODO(rdaoud): expose watchable store through an interface and change this
 // function to be a method on the store.
 func GetOptions(st store.Store) (*Options, error) {
-	wst := st.(*wstore)
+	wst := st.(*Store)
 	return wst.opts, nil
 }
 
 ////////////////////////////////////////
 // Internal helpers
 
-func (st *wstore) managesKey(key []byte) bool {
+func (st *Store) managesKey(key []byte) bool {
 	if st.opts.ManagedPrefixes == nil {
 		return true
 	}
@@ -140,7 +141,7 @@ func (st *wstore) managesKey(key []byte) bool {
 	return false
 }
 
-func (st *wstore) managesRange(start, limit []byte) bool {
+func (st *Store) managesRange(start, limit []byte) bool {
 	if st.opts.ManagedPrefixes == nil {
 		return true
 	}

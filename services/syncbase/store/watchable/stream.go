@@ -7,7 +7,7 @@ package watchable
 import (
 	"sync"
 
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -45,7 +45,7 @@ func (s *stream) Advance() bool {
 		return false
 	}
 	versionKey, version := s.iit.Key(nil), s.iit.Value(nil)
-	s.key = []byte(util.StripFirstKeyPartOrDie(string(versionKey))) // drop "$version" prefix
+	s.key = []byte(common.StripFirstKeyPartOrDie(string(versionKey))) // drop "$version" prefix
 	s.value, s.err = s.sntx.Get(makeAtVersionKey(s.key, version), nil)
 	if s.err != nil {
 		return false

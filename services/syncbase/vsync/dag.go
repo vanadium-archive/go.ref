@@ -101,7 +101,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -755,7 +755,7 @@ func getLogRecKey(ctx *context.T, st store.StoreReader, oid, version string) (st
 
 // nodeKey returns the key used to access a DAG node (oid, version).
 func nodeKey(oid, version string) string {
-	return util.JoinKeyParts(dagNodePrefix, oid, version)
+	return common.JoinKeyParts(dagNodePrefix, oid, version)
 }
 
 // setNode stores the DAG node entry.
@@ -764,7 +764,7 @@ func setNode(ctx *context.T, tx store.Transaction, oid, version string, node *Da
 		vlog.Fatalf("sync: setNode: invalid version: %s for oid: %s", version, oid)
 	}
 
-	return util.Put(ctx, tx, nodeKey(oid, version), node)
+	return store.Put(ctx, tx, nodeKey(oid, version), node)
 }
 
 // getNode retrieves the DAG node entry for the given (oid, version).
@@ -775,7 +775,7 @@ func getNode(ctx *context.T, st store.StoreReader, oid, version string) (*DagNod
 
 	var node DagNode
 	key := nodeKey(oid, version)
-	if err := util.Get(ctx, st, key, &node); err != nil {
+	if err := store.Get(ctx, st, key, &node); err != nil {
 		return nil, err
 	}
 	return &node, nil
@@ -787,7 +787,7 @@ func delNode(ctx *context.T, tx store.Transaction, oid, version string) error {
 		vlog.Fatalf("sync: delNode: invalid version: %s", version)
 	}
 
-	return util.Delete(ctx, tx, nodeKey(oid, version))
+	return store.Delete(ctx, tx, nodeKey(oid, version))
 }
 
 // hasNode returns true if the node (oid, version) exists in the DAG.
@@ -796,12 +796,12 @@ func hasNode(ctx *context.T, st store.StoreReader, oid, version string) (bool, e
 		vlog.Fatalf("sync: hasNode: invalid version: %s", version)
 	}
 
-	return util.Exists(ctx, st, nodeKey(oid, version))
+	return store.Exists(ctx, st, nodeKey(oid, version))
 }
 
 // headKey returns the key used to access the DAG object head.
 func headKey(oid string) string {
-	return util.JoinKeyParts(dagHeadPrefix, oid)
+	return common.JoinKeyParts(dagHeadPrefix, oid)
 }
 
 // setHead stores version as the DAG object head.
@@ -810,14 +810,14 @@ func setHead(ctx *context.T, tx store.Transaction, oid, version string) error {
 		vlog.Fatalf("sync: setHead: invalid version: %s", version)
 	}
 
-	return util.Put(ctx, tx, headKey(oid), version)
+	return store.Put(ctx, tx, headKey(oid), version)
 }
 
 // getHead retrieves the DAG object head.
 func getHead(ctx *context.T, st store.StoreReader, oid string) (string, error) {
 	var version string
 	key := headKey(oid)
-	if err := util.Get(ctx, st, key, &version); err != nil {
+	if err := store.Get(ctx, st, key, &version); err != nil {
 		return NoVersion, err
 	}
 	return version, nil
@@ -825,12 +825,12 @@ func getHead(ctx *context.T, st store.StoreReader, oid string) (string, error) {
 
 // delHead deletes the DAG object head.
 func delHead(ctx *context.T, tx store.Transaction, oid string) error {
-	return util.Delete(ctx, tx, headKey(oid))
+	return store.Delete(ctx, tx, headKey(oid))
 }
 
 // batchKey returns the key used to access the DAG batch info.
 func batchKey(btid uint64) string {
-	return util.JoinKeyParts(dagBatchPrefix, fmt.Sprintf("%d", btid))
+	return common.JoinKeyParts(dagBatchPrefix, fmt.Sprintf("%d", btid))
 }
 
 // setBatch stores the DAG batch entry.
@@ -839,7 +839,7 @@ func setBatch(ctx *context.T, tx store.Transaction, btid uint64, info *BatchInfo
 		return verror.New(verror.ErrInternal, ctx, "invalid batch id", btid)
 	}
 
-	return util.Put(ctx, tx, batchKey(btid), info)
+	return store.Put(ctx, tx, batchKey(btid), info)
 }
 
 // getBatch retrieves the DAG batch entry.
@@ -850,7 +850,7 @@ func getBatch(ctx *context.T, st store.StoreReader, btid uint64) (*BatchInfo, er
 
 	var info BatchInfo
 	key := batchKey(btid)
-	if err := util.Get(ctx, st, key, &info); err != nil {
+	if err := store.Get(ctx, st, key, &info); err != nil {
 		return nil, err
 	}
 	return &info, nil
@@ -862,7 +862,7 @@ func delBatch(ctx *context.T, tx store.Transaction, btid uint64) error {
 		return verror.New(verror.ErrInternal, ctx, "invalid batch id", btid)
 	}
 
-	return util.Delete(ctx, tx, batchKey(btid))
+	return store.Delete(ctx, tx, batchKey(btid))
 }
 
 // getParentMap is a testing and debug helper function that returns for an

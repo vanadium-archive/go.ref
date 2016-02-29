@@ -47,7 +47,7 @@ func TestLastWinsResolveViaTimestamp(t *testing.T) {
 	service := createService(t)
 	defer destroyService(t, service)
 
-	iSt := &initiationState{updObjects: updObjectsLastWins, tx: service.St().NewTransaction()}
+	iSt := &initiationState{updObjects: updObjectsLastWins, tx: createDatabase(t, service).St().NewWatchableTransaction()}
 	createAndSaveNodeAndLogRecData(iSt)
 
 	if err := iSt.resolveViaTimestamp(nil, updObjectsLastWins); err != nil {

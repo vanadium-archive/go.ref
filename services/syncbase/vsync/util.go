@@ -13,9 +13,9 @@ import (
 	"v.io/v23/rpc"
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 // service and invokes the callback function on each database. The callback
 // returns a "done" flag to make forEachDatabaseStore() stop the iteration
 // earlier; otherwise the function loops across all databases of all apps.
-func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(string, string, store.Store) bool) {
+func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(string, string, *watchable.Store) bool) {
 	// Get the apps and iterate over them.
 	// TODO(rdaoud): use a "privileged call" parameter instead of nil (here and
 	// elsewhere).
@@ -74,7 +74,7 @@ func (s *syncService) getDb(ctx *context.T, call rpc.ServerCall, appName, dbName
 }
 
 // getDbStore gets the store handle to the database.
-func (s *syncService) getDbStore(ctx *context.T, call rpc.ServerCall, appName, dbName string) (store.Store, error) {
+func (s *syncService) getDbStore(ctx *context.T, call rpc.ServerCall, appName, dbName string) (*watchable.Store, error) {
 	db, err := s.getDb(ctx, call, appName, dbName)
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func unixNanoToTime(timestamp int64) time.Time {
 // pair) to a string of the form used for storing perms and row data in the
 // underlying storage engine.
 func toTableRowPrefixStr(p wire.TableRow) string {
-	return util.JoinKeyParts(p.TableName, p.Row)
+	return common.JoinKeyParts(p.TableName, p.Row)
 }
 
 // toRowKey prepends RowPrefix to what is presumably a "<table>:<row>" string,
@@ -102,5 +102,5 @@ func toTableRowPrefixStr(p wire.TableRow) string {
 // TODO(sadovsky): Only used by CR code. Should go away once CR stores table
 // name and row key as separate fields in a "TableRow" struct.
 func toRowKey(tableRow string) string {
-	return util.JoinKeyParts(util.RowPrefix, tableRow)
+	return common.JoinKeyParts(common.RowPrefix, tableRow)
 }

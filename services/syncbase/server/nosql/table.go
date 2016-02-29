@@ -14,10 +14,11 @@ import (
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // tableReq is a per-request object that handles Table RPCs.
@@ -47,7 +48,7 @@ func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersion int
 			return err
 		}
 		// Check for "table already exists".
-		if err := util.Get(ctx, tx, t.stKey(), &TableData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		if err := store.Get(ctx, tx, t.stKey(), &TableData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
@@ -61,14 +62,14 @@ func (t *tableReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersion int
 			Name:  t.name,
 			Perms: perms,
 		}
-		if err := util.Put(ctx, tx, t.stKey(), data); err != nil {
+		if err := store.Put(ctx, tx, t.stKey(), data); err != nil {
 			return err
 		}
 		// Write empty prefix permissions.
 		if err := t.updatePermsIndexForKey(ctx, tx, "", ""); err != nil {
 			return err
 		}
-		return util.Put(ctx, tx, t.prefixPermsKey(""), perms)
+		return store.Put(ctx, tx, t.prefixPermsKey(""), perms)
 	})
 }
 
@@ -99,7 +100,7 @@ func (t *tableReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion in
 
 		// Delete all data rows without further ACL checks (note, this is different
 		// from DeleteRange, which does check prefix ACLs).
-		it := tx.Scan(util.ScanPrefixArgs(util.JoinKeyParts(util.RowPrefix, t.name), ""))
+		it := tx.Scan(common.ScanPrefixArgs(common.JoinKeyParts(common.RowPrefix, t.name), ""))
 		var key []byte
 		for it.Advance() {
 			key = it.Key(key)
@@ -112,11 +113,11 @@ func (t *tableReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion in
 		}
 
 		// Delete all prefix permissions without further ACL checks.
-		it = tx.Scan(util.ScanPrefixArgs(util.JoinKeyParts(util.PermsPrefix, t.name), ""))
+		it = tx.Scan(common.ScanPrefixArgs(common.JoinKeyParts(common.PermsPrefix, t.name), ""))
 		for it.Advance() {
 			key = it.Key(key)
 			// See comment in util/constants.go for why we use SplitNKeyParts.
-			parts := util.SplitNKeyParts(string(key), 3)
+			parts := common.SplitNKeyParts(string(key), 3)
 			externalKey := parts[2]
 			// TODO(ivanpi): Optimize by deleting whole prefix perms index range
 			// instead of one entry at a time.
@@ -132,7 +133,7 @@ func (t *tableReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion in
 		}
 
 		// Delete TableData.
-		return util.Delete(ctx, tx, t.stKey())
+		return store.Delete(ctx, tx, t.stKey())
 	})
 }
 
@@ -186,7 +187,7 @@ func (t *tableReq) SetPermissions(ctx *context.T, call rpc.ServerCall, schemaVer
 }
 
 func (t *tableReq) DeleteRange(ctx *context.T, call rpc.ServerCall, schemaVersion int32, start, limit []byte) error {
-	impl := func(tx store.Transaction) error {
+	impl := func(tx *watchable.Transaction) error {
 		// Check for table-level access before doing a scan.
 		if _, err := t.checkAccess(ctx, call, tx, ""); err != nil {
 			return err
@@ -196,13 +197,13 @@ func (t *tableReq) DeleteRange(ctx *context.T, call rpc.ServerCall, schemaVersio
 		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
-		it := tx.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), string(start), string(limit)))
+		it := tx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, t.name), string(start), string(limit)))
 		key := []byte{}
 		for it.Advance() {
 			key = it.Key(key)
 			// Check perms.
 			// See comment in util/constants.go for why we use SplitNKeyParts.
-			parts := util.SplitNKeyParts(string(key), 3)
+			parts := common.SplitNKeyParts(string(key), 3)
 			externalKey := parts[2]
 			permsPrefix, err := t.checkAccess(ctx, call, tx, externalKey)
 			if err != nil {
@@ -228,7 +229,7 @@ func (t *tableReq) DeleteRange(ctx *context.T, call rpc.ServerCall, schemaVersio
 			return impl(tx)
 		}
 	} else {
-		return store.RunInTransaction(t.d.st, impl)
+		return watchable.RunInTransaction(t.d.st, impl)
 	}
 }
 
@@ -241,14 +242,14 @@ func (t *tableReq) Scan(ctx *context.T, call wire.TableScanServerCall, schemaVer
 		if err := t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
-		it := sntx.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.name), string(start), string(limit)))
+		it := sntx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, t.name), string(start), string(limit)))
 		sender := call.SendStream()
 		key, value := []byte{}, []byte{}
 		for it.Advance() {
 			key, value = it.Key(key), it.Value(value)
 			// Check perms.
 			// See comment in util/constants.go for why we use SplitNKeyParts.
-			parts := util.SplitNKeyParts(string(key), 3)
+			parts := common.SplitNKeyParts(string(key), 3)
 			externalKey := parts[2]
 			if _, err := t.checkAccess(ctx, call, sntx, externalKey); err != nil {
 				it.Cancel()
@@ -311,7 +312,7 @@ func (t *tableReq) GetPrefixPermissions(ctx *context.T, call rpc.ServerCall, sch
 }
 
 func (t *tableReq) SetPrefixPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, prefix string, perms access.Permissions) error {
-	impl := func(tx store.Transaction) error {
+	impl := func(tx *watchable.Transaction) error {
 		parent, err := t.checkAccess(ctx, call, tx, prefix)
 		if err != nil {
 			return err
@@ -328,7 +329,7 @@ func (t *tableReq) SetPrefixPermissions(ctx *context.T, call rpc.ServerCall, sch
 			return impl(tx)
 		}
 	} else {
-		return store.RunInTransaction(t.d.st, impl)
+		return watchable.RunInTransaction(t.d.st, impl)
 	}
 }
 
@@ -337,7 +338,7 @@ func (t *tableReq) DeletePrefixPermissions(ctx *context.T, call rpc.ServerCall, 
 		// TODO(rogulenko): Write a better return msg in this case.
 		return verror.New(verror.ErrBadArg, ctx, prefix)
 	}
-	impl := func(tx store.Transaction) error {
+	impl := func(tx *watchable.Transaction) error {
 		parent, err := t.checkAccess(ctx, call, tx, prefix)
 		if err != nil {
 			return err
@@ -359,7 +360,7 @@ func (t *tableReq) DeletePrefixPermissions(ctx *context.T, call rpc.ServerCall, 
 			return impl(tx)
 		}
 	} else {
-		return store.RunInTransaction(t.d.st, impl)
+		return watchable.RunInTransaction(t.d.st, impl)
 	}
 }
 
@@ -369,7 +370,7 @@ func (t *tableReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCal
 		if _, err := t.checkAccess(ctx, call, sntx, ""); err != nil {
 			return err
 		}
-		return util.GlobChildren(ctx, call, matcher, sntx, util.JoinKeyParts(util.RowPrefix, t.name))
+		return util.GlobChildren(ctx, call, matcher, sntx, common.JoinKeyParts(common.RowPrefix, t.name))
 	}
 	if t.d.batchId != nil {
 		return impl(t.d.batchReader())
@@ -446,14 +447,14 @@ func (t *tableReq) UpdatePrefixPermsIndexForDelete(ctx *context.T, tx store.Tran
 ////////////////////////////////////////
 // Internal helpers
 
-func (t *tableReq) setPrefixPerms(ctx *context.T, tx store.Transaction, key, parent string, perms access.Permissions) error {
+func (t *tableReq) setPrefixPerms(ctx *context.T, tx *watchable.Transaction, key, parent string, perms access.Permissions) error {
 	if err := t.UpdatePrefixPermsIndexForSet(ctx, tx, key); err != nil {
 		return err
 	}
 	return watchable.PutVomWithPerms(ctx, tx, t.prefixPermsKey(key), perms, t.prefixPermsKey(parent))
 }
 
-func (t *tableReq) deletePrefixPerms(ctx *context.T, tx store.Transaction, key string) error {
+func (t *tableReq) deletePrefixPerms(ctx *context.T, tx *watchable.Transaction, key string) error {
 	if err := t.UpdatePrefixPermsIndexForDelete(ctx, tx, key); err != nil {
 		return err
 	}
@@ -461,7 +462,7 @@ func (t *tableReq) deletePrefixPerms(ctx *context.T, tx store.Transaction, key s
 }
 
 func (t *tableReq) stKey() string {
-	return util.JoinKeyParts(util.TablePrefix, t.stKeyPart())
+	return common.JoinKeyParts(common.TablePrefix, t.stKeyPart())
 }
 
 func (t *tableReq) stKeyPart() string {
@@ -471,10 +472,10 @@ func (t *tableReq) stKeyPart() string {
 // updatePermsIndexForKey updates the parent prefix of the given key to
 // newParent in the permissions index.
 func (t *tableReq) updatePermsIndexForKey(ctx *context.T, tx store.Transaction, key, newParent string) error {
-	if err := util.Put(ctx, tx, t.permsIndexStart(key), newParent); err != nil {
+	if err := store.Put(ctx, tx, t.permsIndexStart(key), newParent); err != nil {
 		return err
 	}
-	return util.Put(ctx, tx, t.permsIndexLimit(key), newParent)
+	return store.Put(ctx, tx, t.permsIndexLimit(key), newParent)
 }
 
 // updateParentRefs updates the parent for all children of the given
@@ -487,10 +488,10 @@ func (t *tableReq) updateParentRefs(ctx *context.T, tx store.Transaction, prefix
 	for it.Advance() {
 		key = it.Key(key)
 		it.Cancel()
-		if err := util.Put(ctx, tx, string(key), newParent); err != nil {
+		if err := store.Put(ctx, tx, string(key), newParent); err != nil {
 			return err
 		}
-		it = tx.Scan([]byte(string(key)+util.PrefixRangeLimitSuffix), stPrefixLimit)
+		it = tx.Scan([]byte(string(key)+common.PrefixRangeLimitSuffix), stPrefixLimit)
 	}
 	if err := it.Err(); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
@@ -512,10 +513,10 @@ func (t *tableReq) updateParentRefs(ctx *context.T, tx store.Transaction, prefix
 // transaction when the permissions object for that prefix is updated.
 func (t *tableReq) lock(ctx *context.T, tx store.Transaction) error {
 	var data TableData
-	if err := util.Get(ctx, tx, t.stKey(), &data); err != nil {
+	if err := store.Get(ctx, tx, t.stKey(), &data); err != nil {
 		return err
 	}
-	return util.Put(ctx, tx, t.stKey(), data)
+	return store.Put(ctx, tx, t.stKey(), data)
 }
 
 // checkAccess checks that this table exists in the database, and performs
@@ -572,9 +573,9 @@ func (t *tableReq) permsPrefixForKey(ctx *context.T, sntx store.SnapshotOrTransa
 	}
 	defer it.Cancel()
 	// See comment in util/constants.go for why we use SplitNKeyParts.
-	parts := util.SplitNKeyParts(string(it.Key(nil)), 3)
+	parts := common.SplitNKeyParts(string(it.Key(nil)), 3)
 	externalKey := parts[2]
-	prefix = strings.TrimSuffix(externalKey, util.PrefixRangeLimitSuffix)
+	prefix = strings.TrimSuffix(externalKey, common.PrefixRangeLimitSuffix)
 	value := it.Value(nil)
 	if err = vom.Decode(value, &parent); err != nil {
 		return "", "", verror.New(verror.ErrInternal, ctx, err)
@@ -590,7 +591,7 @@ func (t *tableReq) permsPrefixForKey(ctx *context.T, sntx store.SnapshotOrTransa
 // parentForPrefix returns the parent prefix of the provided permissions prefix.
 func (t *tableReq) parentForPrefix(ctx *context.T, sntx store.SnapshotOrTransaction, prefix string) (string, error) {
 	var parent string
-	if err := util.Get(ctx, sntx, t.permsIndexStart(prefix), &parent); err != nil {
+	if err := store.Get(ctx, sntx, t.permsIndexStart(prefix), &parent); err != nil {
 		return "", verror.New(verror.ErrInternal, ctx, err)
 	}
 	return parent, nil
@@ -600,7 +601,7 @@ func (t *tableReq) parentForPrefix(ctx *context.T, sntx store.SnapshotOrTransact
 // provided prefix.
 func (t *tableReq) permsForPrefix(ctx *context.T, sntx store.SnapshotOrTransaction, prefix string) (access.Permissions, error) {
 	var perms access.Permissions
-	if err := util.Get(ctx, sntx, t.prefixPermsKey(prefix), &perms); err != nil {
+	if err := store.Get(ctx, sntx, t.prefixPermsKey(prefix), &perms); err != nil {
 		return nil, verror.New(verror.ErrInternal, ctx, err)
 	}
 	return perms, nil
@@ -618,17 +619,17 @@ func (t *tableReq) prefixPermsForKey(ctx *context.T, sntx store.SnapshotOrTransa
 // prefixPermsKey returns the key used for storing permissions for the given
 // prefix in the table.
 func (t *tableReq) prefixPermsKey(prefix string) string {
-	return util.JoinKeyParts(util.PermsPrefix, t.name, prefix)
+	return common.JoinKeyParts(common.PermsPrefix, t.name, prefix)
 }
 
 // permsIndexStart returns the key used for storing start of the prefix range
 // in the prefix permissions index.
 func (t *tableReq) permsIndexStart(prefix string) string {
-	return util.JoinKeyParts(util.PermsIndexPrefix, t.name, prefix)
+	return common.JoinKeyParts(common.PermsIndexPrefix, t.name, prefix)
 }
 
 // permsIndexLimit returns the key used for storing limit of the prefix range
 // in the prefix permissions index.
 func (t *tableReq) permsIndexLimit(prefix string) string {
-	return util.JoinKeyParts(util.PermsIndexPrefix, t.name, prefix) + util.PrefixRangeLimitSuffix
+	return common.JoinKeyParts(common.PermsIndexPrefix, t.name, prefix) + common.PrefixRangeLimitSuffix
 }

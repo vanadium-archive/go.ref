@@ -16,7 +16,7 @@ import (
 	"v.io/v23/security"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/watchable"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // TestDiffGenVectors tests diffing gen vectors.
@@ -367,8 +367,7 @@ func TestSendDataDeltas(t *testing.T) {
 		// Insert some log records to bootstrap testing below.
 		tRng := rand.New(rand.NewSource(int64(i)))
 		var wantRecs []*LocalLogRec
-		st := svc.St()
-		tx := st.NewTransaction()
+		tx := createDatabase(t, svc).St().NewWatchableTransaction()
 		objKeyPfxs := test.keyPfxs
 		j := 0
 		for id, r := range wantDiff {

@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"v.io/v23/verror"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -42,7 +42,7 @@ func NewVersion() []byte {
 }
 
 func makeVersionKey(key []byte) []byte {
-	return []byte(join(util.VersionPrefix, string(key)))
+	return []byte(join(common.VersionPrefix, string(key)))
 }
 
 func makeAtVersionKey(key, version []byte) []byte {
@@ -81,9 +81,47 @@ func deleteVersioned(tx store.Transaction, key []byte) error {
 }
 
 func join(parts ...string) string {
-	return util.JoinKeyParts(parts...)
+	return common.JoinKeyParts(parts...)
 }
 
 func convertError(err error) error {
 	return verror.Convert(verror.IDAction{}, nil, err)
+}
+
+// TODO(razvanm): This is copied from store/util.go.
+// TODO(sadovsky): Move this to model.go and make it an argument to
+// Store.NewTransaction.
+type TransactionOptions struct {
+	NumAttempts int // number of attempts; only used by RunInTransaction
+}
+
+// RunInTransaction runs the given fn in a transaction, managing retries and
+// commit/abort.
+func RunInTransaction(st *Store, fn func(tx *Transaction) error) error {
+	// TODO(rogulenko): Change the default number of attempts to 3. Currently,
+	// some storage engine tests fail when the number of attempts is that low.
+	return runInTransactionWithOpts(st, &TransactionOptions{NumAttempts: 100}, fn)
+}
+
+// RunInTransactionWithOpts runs the given fn in a transaction, managing retries
+// and commit/abort.
+func runInTransactionWithOpts(st *Store, opts *TransactionOptions, fn func(tx *Transaction) error) error {
+	var err error
+	for i := 0; i < opts.NumAttempts; i++ {
+		// TODO(sadovsky): Should NewTransaction return an error? If not, how will
+		// we deal with RPC errors when talking to remote storage engines? (Note,
+		// client-side BeginBatch returns an error.)
+		tx := st.NewWatchableTransaction()
+		if err = fn(tx); err != nil {
+			tx.Abort()
+			return err
+		}
+		// TODO(sadovsky): Commit() can fail for a number of reasons, e.g. RPC
+		// failure or ErrConcurrentTransaction. Depending on the cause of failure,
+		// it may be desirable to retry the Commit() and/or to call Abort().
+		if err = tx.Commit(); verror.ErrorID(err) != store.ErrConcurrentTransaction.ID {
+			return err
+		}
+	}
+	return err
 }

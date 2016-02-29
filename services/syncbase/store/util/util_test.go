@@ -14,7 +14,7 @@ import (
 
 	"v.io/v23/services/syncbase"
 	"v.io/v23/verror"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/store/util"
 )
 
 func makeRootDir(t *testing.T) string {

@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/vclock"
 )
 
@@ -18,7 +19,7 @@ func TestGetTime(t *testing.T) {
 	defer destroyService(t, service)
 
 	wantSkew := 3 * time.Second
-	if err := util.Put(nil, service.St(), util.VClockPrefix, &vclock.VClockData{
+	if err := store.Put(nil, service.St(), common.VClockPrefix, &vclock.VClockData{
 		SystemTimeAtBoot:     time.Time{},
 		Skew:                 wantSkew,
 		ElapsedTimeSinceBoot: 0,

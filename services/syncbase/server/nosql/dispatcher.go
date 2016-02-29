@@ -14,8 +14,8 @@ import (
 	nosqlWire "v.io/v23/services/syncbase/nosql"
 	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
 )
 
 type dispatcher struct {
@@ -54,7 +54,7 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 
 	// Note, the slice returned by strings.SplitN is guaranteed to contain at
 	// least one element.
-	dbParts := strings.SplitN(parts[0], util.BatchSep, 2)
+	dbParts := strings.SplitN(parts[0], common.BatchSep, 2)
 	escDbName := dbParts[0]
 
 	// Validate all name components up front, so that we can avoid doing so in all
@@ -142,7 +142,7 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 func setBatchFields(ctx *context.T, d *databaseReq, batchInfo string) error {
 	// TODO(sadovsky): Maybe share a common keyspace between sns and txs so that
 	// we can avoid including the batch type in the batchInfo string.
-	batchType, batchId, err := util.SplitBatchInfo(batchInfo)
+	batchType, batchId, err := common.SplitBatchInfo(batchInfo)
 	if err != nil {
 		return err
 	}
@@ -151,9 +151,9 @@ func setBatchFields(ctx *context.T, d *databaseReq, batchInfo string) error {
 	defer d.mu.Unlock()
 	var ok bool
 	switch batchType {
-	case util.BatchTypeSn:
+	case common.BatchTypeSn:
 		d.sn, ok = d.sns[batchId]
-	case util.BatchTypeTx:
+	case common.BatchTypeTx:
 		d.tx, ok = d.txs[batchId]
 	}
 	if !ok {

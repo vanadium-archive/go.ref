@@ -28,10 +28,10 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	idiscovery "v.io/x/ref/lib/discovery"
+	"v.io/x/ref/services/syncbase/common"
 	blob "v.io/x/ref/services/syncbase/localblobstore"
 	fsblob "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/vclock"
 )
@@ -181,14 +181,14 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 
 	data := &SyncData{}
 	if err := store.RunInTransaction(sv.St(), func(tx store.Transaction) error {
-		if err := util.Get(ctx, sv.St(), s.stKey(), data); err != nil {
+		if err := store.Get(ctx, sv.St(), s.stKey(), data); err != nil {
 			if verror.ErrorID(err) != verror.ErrNoExist.ID {
 				return err
 			}
 			// First invocation of vsync.New().
 			// TODO(sadovsky): Maybe move guid generation and storage to serviceData.
 			data.Id = rand64()
-			return util.Put(ctx, tx, s.stKey(), data)
+			return store.Put(ctx, tx, s.stKey(), data)
 		}
 		return nil
 	}); err != nil {
@@ -585,5 +585,5 @@ func syncbaseIdToName(id uint64) string {
 }
 
 func (s *syncService) stKey() string {
-	return util.SyncPrefix
+	return common.SyncPrefix
 }

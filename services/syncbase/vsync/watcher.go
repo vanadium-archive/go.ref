@@ -22,10 +22,11 @@ import (
 	"v.io/v23/services/watch"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
+	sbwatchable "v.io/x/ref/services/syncbase/watchable"
 )
 
 var (
@@ -80,7 +81,7 @@ func (s *syncService) watchStore(ctx *context.T) {
 func (s *syncService) processStoreUpdates(ctx *context.T) {
 	for {
 		total, active := 0, 0
-		s.forEachDatabaseStore(ctx, func(appName, dbName string, st store.Store) bool {
+		s.forEachDatabaseStore(ctx, func(appName, dbName string, st *watchable.Store) bool {
 			if s.processDatabase(ctx, appName, dbName, st) {
 				active++
 			}
@@ -372,7 +373,7 @@ func rmWatchPrefixSyncgroup(appName, dbName, prefix string, gid interfaces.Group
 }
 
 // setSyncgroupWatchable sets the local watchable state of the syncgroup.
-func setSyncgroupWatchable(ctx *context.T, tx store.Transaction, sgop *watchable.SyncgroupOp) error {
+func setSyncgroupWatchable(ctx *context.T, tx store.Transaction, sgop *sbwatchable.SyncgroupOp) error {
 	state, err := getSGIdEntry(ctx, tx, sgop.SgId)
 	if err != nil {
 		return err
@@ -394,30 +395,34 @@ func convertLogRecord(ctx *context.T, tx store.Transaction, logEnt *watchable.Lo
 	var rec *LocalLogRec
 	timestamp := logEnt.CommitTimestamp
 
-	switch op := logEnt.Op.(type) {
-	case watchable.OpGet:
+	var op interface{}
+	if err := logEnt.Op.ToValue(&op); err != nil {
+		return nil, err
+	}
+	switch op := op.(type) {
+	case *watchable.GetOp:
 		// TODO(rdaoud): save read-set in sync.
 
-	case watchable.OpScan:
+	case *watchable.ScanOp:
 		// TODO(rdaoud): save scan-set in sync.
 
-	case watchable.OpPut:
-		rec = newLocalLogRec(ctx, tx, op.Value.Key, op.Value.Version, false, timestamp)
+	case *watchable.PutOp:
+		rec = newLocalLogRec(ctx, tx, op.Key, op.Version, false, timestamp)
 
-	case watchable.OpSyncSnapshot:
+	case *sbwatchable.SyncSnapshotOp:
 		// Create records for object versions not already in the DAG.
 		// Duplicates can appear here in cases of nested syncgroups or
 		// peer syncgroups.
-		if ok, err := hasNode(ctx, tx, string(op.Value.Key), string(op.Value.Version)); err != nil {
+		if ok, err := hasNode(ctx, tx, string(op.Key), string(op.Version)); err != nil {
 			return nil, err
 		} else if !ok {
-			rec = newLocalLogRec(ctx, tx, op.Value.Key, op.Value.Version, false, timestamp)
+			rec = newLocalLogRec(ctx, tx, op.Key, op.Version, false, timestamp)
 		}
 
-	case watchable.OpDelete:
-		rec = newLocalLogRec(ctx, tx, op.Value.Key, watchable.NewVersion(), true, timestamp)
+	case *watchable.DeleteOp:
+		rec = newLocalLogRec(ctx, tx, op.Key, watchable.NewVersion(), true, timestamp)
 
-	case watchable.OpSyncgroup:
+	case *sbwatchable.SyncgroupOp:
 		vlog.Errorf("sync: convertLogRecord: watch LogEntry for syncgroup should not be converted: %v", logEnt)
 		return nil, verror.New(verror.ErrInternal, ctx, "cannot convert a watch log OpSyncgroup entry")
 
@@ -451,18 +456,23 @@ func newLocalLogRec(ctx *context.T, tx store.Transaction, key, version []byte, d
 // processDbStateChangeLogRecord checks if the log entry is a
 // DbStateChangeRequest and if so, it executes the state change request
 // appropriately.
+// TODO(razvanm): change the return type to error.
 func processDbStateChangeLogRecord(ctx *context.T, s *syncService, st store.Store, appName, dbName string, logEnt *watchable.LogEntry, resMark watch.ResumeMarker) bool {
-	switch op := logEnt.Op.(type) {
-	case watchable.OpDbStateChangeRequest:
-		dbStateChangeRequest := op.Value
+	var op interface{}
+	if err := logEnt.Op.ToValue(&op); err != nil {
+		vlog.Fatalf("sync: processDbStateChangeLogRecord: %s, %s: bad VOM: %v", appName, dbName, err)
+	}
+	switch op := op.(type) {
+	case *sbwatchable.DbStateChangeRequestOp:
+		dbStateChangeRequest := op
 		vlog.VI(1).Infof("sync: processDbStateChangeLogRecord: found a dbState change log record with state %#v", dbStateChangeRequest)
 		isPaused := false
 		if err := store.RunInTransaction(st, func(tx store.Transaction) error {
 			switch dbStateChangeRequest.RequestType {
-			case watchable.StateChangePauseSync:
+			case sbwatchable.StateChangePauseSync:
 				vlog.VI(1).Infof("sync: processDbStateChangeLogRecord: PauseSync request found. Pausing sync.")
 				isPaused = true
-			case watchable.StateChangeResumeSync:
+			case sbwatchable.StateChangeResumeSync:
 				vlog.VI(1).Infof("sync: processDbStateChangeLogRecord: ResumeSync request found. Resuming sync.")
 				isPaused = false
 			default:
@@ -489,11 +499,16 @@ func processDbStateChangeLogRecord(ctx *context.T, s *syncService, st store.Stor
 // processSyncgroupLogRecord checks if the log entry is a syncgroup update and,
 // if it is, updates the watch prefixes for the app database and returns a
 // syncgroup operation.  Otherwise it returns nil with no other changes.
-func processSyncgroupLogRecord(appName, dbName string, logEnt *watchable.LogEntry) *watchable.SyncgroupOp {
-	switch op := logEnt.Op.(type) {
-	case watchable.OpSyncgroup:
-		gid, remove := op.Value.SgId, op.Value.Remove
-		for _, prefix := range op.Value.Prefixes {
+// TODO(razvanm): change the return to also include an error.
+func processSyncgroupLogRecord(appName, dbName string, logEnt *watchable.LogEntry) *sbwatchable.SyncgroupOp {
+	var op interface{}
+	if err := logEnt.Op.ToValue(&op); err != nil {
+		vlog.Fatalf("sync: processSyncgroupLogRecord: %s, %s: bad VOM: %v", appName, dbName, err)
+	}
+	switch op := op.(type) {
+	case *sbwatchable.SyncgroupOp:
+		gid, remove := op.SgId, op.Remove
+		for _, prefix := range op.Prefixes {
 			if remove {
 				rmWatchPrefixSyncgroup(appName, dbName, prefix, gid)
 			} else {
@@ -501,8 +516,8 @@ func processSyncgroupLogRecord(appName, dbName string, logEnt *watchable.LogEntr
 			}
 		}
 		vlog.VI(3).Infof("sync: processSyncgroupLogRecord: %s, %s: gid %d, remove %t, prefixes: %q",
-			appName, dbName, gid, remove, op.Value.Prefixes)
-		return &op.Value
+			appName, dbName, gid, remove, op.Prefixes)
+		return op
 
 	default:
 		return nil
@@ -512,15 +527,20 @@ func processSyncgroupLogRecord(appName, dbName string, logEnt *watchable.LogEntr
 // syncable returns true if the given log entry falls within the scope of a
 // syncgroup prefix for the given app database, and thus should be synced.
 // It is used to pre-filter the batch of log entries before sync processing.
+// TODO(razvanm): change the return type to error.
 func syncable(appdb string, logEnt *watchable.LogEntry) bool {
 	var key string
-	switch op := logEnt.Op.(type) {
-	case watchable.OpPut:
-		key = string(op.Value.Key)
-	case watchable.OpDelete:
-		key = string(op.Value.Key)
-	case watchable.OpSyncSnapshot:
-		key = string(op.Value.Key)
+	var op interface{}
+	if err := logEnt.Op.ToValue(&op); err != nil {
+		vlog.Fatalf("sync: syncable: %s: bad VOM: %v", appdb, err)
+	}
+	switch op := op.(type) {
+	case *watchable.PutOp:
+		key = string(op.Key)
+	case *watchable.DeleteOp:
+		key = string(op.Key)
+	case *sbwatchable.SyncSnapshotOp:
+		key = string(op.Key)
 	default:
 		return false
 	}
@@ -528,7 +548,7 @@ func syncable(appdb string, logEnt *watchable.LogEntry) bool {
 	// The key starts with one of the store's reserved prefixes for managed
 	// namespaces (e.g. "$row", "$perms"). Remove that prefix before comparing it
 	// with the syncgroup prefixes which are defined by the application.
-	key = util.StripFirstKeyPartOrDie(key)
+	key = common.StripFirstKeyPartOrDie(key)
 
 	for prefix := range watchPrefixes[appdb] {
 		if strings.HasPrefix(key, prefix) {
@@ -540,19 +560,19 @@ func syncable(appdb string, logEnt *watchable.LogEntry) bool {
 
 // resMarkKey returns the key used to access the watcher resume marker.
 func resMarkKey() string {
-	return util.JoinKeyParts(util.SyncPrefix, "w", "rm")
+	return common.JoinKeyParts(common.SyncPrefix, "w", "rm")
 }
 
 // setResMark stores the watcher resume marker for a database.
 func setResMark(ctx *context.T, tx store.Transaction, resMark watch.ResumeMarker) error {
-	return util.Put(ctx, tx, resMarkKey(), resMark)
+	return store.Put(ctx, tx, resMarkKey(), resMark)
 }
 
 // getResMark retrieves the watcher resume marker for a database.
 func getResMark(ctx *context.T, st store.StoreReader) (watch.ResumeMarker, error) {
 	var resMark watch.ResumeMarker
 	key := resMarkKey()
-	if err := util.Get(ctx, st, key, &resMark); err != nil {
+	if err := store.Get(ctx, st, key, &resMark); err != nil {
 		return nil, err
 	}
 	return resMark, nil

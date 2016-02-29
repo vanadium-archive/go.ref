@@ -15,18 +15,18 @@ package server
 
 import (
 	"v.io/v23/context"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
 func dbInfoStKey(a *app, dbName string) string {
-	return util.JoinKeyParts(util.DbInfoPrefix, a.stKeyPart(), dbName)
+	return common.JoinKeyParts(common.DbInfoPrefix, a.stKeyPart(), dbName)
 }
 
 // getDbInfo reads data from the storage engine.
 func (a *app) getDbInfo(ctx *context.T, sntx store.SnapshotOrTransaction, dbName string) (*DbInfo, error) {
 	info := &DbInfo{}
-	if err := util.Get(ctx, sntx, dbInfoStKey(a, dbName), info); err != nil {
+	if err := store.Get(ctx, sntx, dbInfoStKey(a, dbName), info); err != nil {
 		return nil, err
 	}
 	return info, nil
@@ -34,10 +34,10 @@ func (a *app) getDbInfo(ctx *context.T, sntx store.SnapshotOrTransaction, dbName
 
 // putDbInfo writes data to the storage engine.
 func (a *app) putDbInfo(ctx *context.T, tx store.Transaction, dbName string, info *DbInfo) error {
-	return util.Put(ctx, tx, dbInfoStKey(a, dbName), info)
+	return store.Put(ctx, tx, dbInfoStKey(a, dbName), info)
 }
 
 // delDbInfo deletes data from the storage engine.
 func (a *app) delDbInfo(ctx *context.T, stw store.StoreWriter, dbName string) error {
-	return util.Delete(ctx, stw, dbInfoStKey(a, dbName))
+	return store.Delete(ctx, stw, dbInfoStKey(a, dbName))
 }

@@ -13,10 +13,10 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	_ "v.io/x/ref/runtime/factories/generic"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/memstore"
+	"v.io/x/ref/services/syncbase/store/watchable"
 	"v.io/x/ref/services/syncbase/vclock"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -33,14 +33,14 @@ func (c *mockCall) Security() security.Call              { return c }
 func (c *mockCall) LocalBlessings() security.Blessings   { return c.b }
 func (c *mockCall) RemoteBlessings() security.Blessings  { return c.b }
 
-func putOp(st store.Store, key, permKey string, permVersion []byte) watchable.OpPut {
+func putOp(st store.Store, key, permKey string, permVersion []byte) *watchable.PutOp {
 	version, _ := watchable.GetVersion(nil, st, []byte(key))
-	return watchable.OpPut{watchable.PutOp{
+	return &watchable.PutOp{
 		Key:         []byte(key),
 		Version:     version,
 		PermKey:     []byte(permKey),
 		PermVersion: permVersion,
-	}}
+	}
 }
 
 // TestWatchLogPerms checks that the recorded prefix permissions object
@@ -53,7 +53,7 @@ func TestWatchLogPerms(t *testing.T) {
 	// Mock the service, store, db, table.
 	c := vclock.NewVClockForTests(nil)
 	st, _ := watchable.Wrap(memstore.New(), c, &watchable.Options{
-		ManagedPrefixes: []string{util.RowPrefix, util.PermsPrefix},
+		ManagedPrefixes: []string{common.RowPrefix, common.PermsPrefix},
 	})
 	db := &databaseReq{database: &database{name: "d", st: st}}
 	tb := &tableReq{name: "tb", d: db}
@@ -62,16 +62,16 @@ func TestWatchLogPerms(t *testing.T) {
 	for _, tag := range access.AllTypicalTags() {
 		perms.Add(security.BlessingPattern("root"), string(tag))
 	}
-	util.Put(ctx, st, tb.stKey(), &TableData{
+	store.Put(ctx, st, tb.stKey(), &TableData{
 		Name:  tb.name,
 		Perms: perms,
 	})
-	util.Put(ctx, st, tb.prefixPermsKey(""), perms)
-	util.Put(ctx, st, tb.permsIndexStart(""), "")
-	util.Put(ctx, st, tb.permsIndexLimit(""), "")
+	store.Put(ctx, st, tb.prefixPermsKey(""), perms)
+	store.Put(ctx, st, tb.permsIndexStart(""), "")
+	store.Put(ctx, st, tb.permsIndexLimit(""), "")
 	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	call := &mockCall{b: blessings}
-	var expected []watchable.Op
+	var expected []interface{}
 	resumeMarker, _ := watchable.GetResumeMarker(st)
 	// Generate Put/Delete events.
 	for i := 0; i < 5; i++ {
@@ -90,11 +90,11 @@ func TestWatchLogPerms(t *testing.T) {
 		if err := row.Delete(ctx, call, 0); err != nil {
 			t.Fatalf("row.Delete failed: %v", err)
 		}
-		deleteOp := watchable.OpDelete{watchable.DeleteOp{
+		deleteOp := &watchable.DeleteOp{
 			Key:         []byte(row.stKey()),
 			PermKey:     []byte(tb.prefixPermsKey("foo")),
 			PermVersion: permVersion,
-		}}
+		}
 		expected = append(expected, deleteOp)
 		// DeleteRange.
 		if err := row.Put(ctx, call, 0, []byte("value")); err != nil {
@@ -120,11 +120,11 @@ func TestWatchLogPerms(t *testing.T) {
 		if err := tb.DeletePrefixPermissions(ctx, call, 0, "foobaz"); err != nil {
 			t.Fatalf("tb.DeletePrefixPermissions failed: %v", err)
 		}
-		expected = append(expected, watchable.OpDelete{watchable.DeleteOp{
+		expected = append(expected, &watchable.DeleteOp{
 			Key:         []byte(tb.prefixPermsKey("foobaz")),
 			PermKey:     []byte(tb.prefixPermsKey("foobaz")),
 			PermVersion: permVersion,
-		}})
+		})
 	}
 	expectedIndex := 0
 	for {
@@ -133,7 +133,11 @@ func TestWatchLogPerms(t *testing.T) {
 			break
 		}
 		for _, logRecord := range logs {
-			if expectedIndex < len(expected) && reflect.DeepEqual(logRecord.Op, expected[expectedIndex]) {
+			var op interface{}
+			if err := logRecord.Op.ToValue(&op); err != nil {
+				t.Fatalf("RawBytes.ToValue failed: %v", err)
+			}
+			if expectedIndex < len(expected) && reflect.DeepEqual(op, expected[expectedIndex]) {
 				expectedIndex++
 			}
 		}

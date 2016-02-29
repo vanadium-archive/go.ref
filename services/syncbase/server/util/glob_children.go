@@ -11,6 +11,7 @@ import (
 	"v.io/v23/rpc"
 	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -24,11 +25,11 @@ func GlobChildren(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob
 	if !ok {
 		return verror.New(verror.ErrBadArg, ctx, prefix)
 	}
-	it := sntx.Scan(ScanPrefixArgs(stKeyPrefix, unescPrefix))
+	it := sntx.Scan(common.ScanPrefixArgs(stKeyPrefix, unescPrefix))
 	key := []byte{}
 	for it.Advance() {
 		key = it.Key(key)
-		parts := SplitKeyParts(string(key))
+		parts := common.SplitKeyParts(string(key))
 		// For explanation of Escape(), see comment in server/nosql/dispatcher.go.
 		name := pubutil.Escape(parts[len(parts)-1])
 		if matcher.Match(name) {

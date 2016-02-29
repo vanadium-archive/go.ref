@@ -22,10 +22,13 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
+	storeutil "v.io/x/ref/services/syncbase/store/util"
+	"v.io/x/ref/services/syncbase/store/watchable"
+	sbwatchable "v.io/x/ref/services/syncbase/watchable"
 )
 
 // database is a per-database singleton (i.e. not per-request). It does not
@@ -40,13 +43,13 @@ type database struct {
 	exists bool
 	// TODO(sadovsky): Make st point to a store.Store wrapper that handles paging,
 	// and do not actually open the store in NewDatabase.
-	st store.Store // stores all data for a single database
+	st *watchable.Store // stores all data for a single database
 
 	// Active snapshots and transactions corresponding to client batches.
 	// TODO(sadovsky): Add timeouts and GC.
 	mu  sync.Mutex // protects the fields below
 	sns map[uint64]store.Snapshot
-	txs map[uint64]store.Transaction
+	txs map[uint64]*watchable.Transaction
 
 	// Active ConflictResolver connection from the app to this database.
 	// NOTE: For now, we assume there's only one open conflict resolution stream
@@ -63,7 +66,7 @@ type databaseReq struct {
 	// If non-nil, sn or tx will be non-nil.
 	batchId *uint64
 	sn      store.Snapshot
-	tx      store.Transaction
+	tx      *watchable.Transaction
 }
 
 var (
@@ -83,13 +86,13 @@ type DatabaseOptions struct {
 
 // OpenDatabase opens a database and returns a *database for it. Designed for
 // use from within NewDatabase and server.NewService.
-func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOptions, openOpts util.OpenOptions) (*database, error) {
-	st, err := util.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine), openOpts)
+func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOptions, openOpts storeutil.OpenOptions) (*database, error) {
+	st, err := storeutil.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine), openOpts)
 	if err != nil {
 		return nil, err
 	}
-	st, err = watchable.Wrap(st, a.Service().VClock(), &watchable.Options{
-		ManagedPrefixes: []string{util.RowPrefix, util.PermsPrefix},
+	wst, err := watchable.Wrap(st, a.Service().Clock(), &watchable.Options{
+		ManagedPrefixes: []string{common.RowPrefix, common.PermsPrefix},
 	})
 	if err != nil {
 		return nil, err
@@ -98,9 +101,9 @@ func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOp
 		name:   name,
 		a:      a,
 		exists: true,
-		st:     st,
+		st:     wst,
 		sns:    make(map[uint64]store.Snapshot),
-		txs:    make(map[uint64]store.Transaction),
+		txs:    make(map[uint64]*watchable.Transaction),
 	}, nil
 }
 
@@ -110,7 +113,7 @@ func NewDatabase(ctx *context.T, a interfaces.App, name string, metadata *wire.S
 	if opts.Perms == nil {
 		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
 	}
-	d, err := OpenDatabase(ctx, a, name, opts, util.OpenOptions{CreateIfMissing: true, ErrorIfExists: true})
+	d, err := OpenDatabase(ctx, a, name, opts, storeutil.OpenOptions{CreateIfMissing: true, ErrorIfExists: true})
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +122,7 @@ func NewDatabase(ctx *context.T, a interfaces.App, name string, metadata *wire.S
 		Perms:          opts.Perms,
 		SchemaMetadata: metadata,
 	}
-	if err := util.Put(ctx, d.st, d.stKey(), data); err != nil {
+	if err := store.Put(ctx, d.st, d.stKey(), data); err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -177,24 +180,24 @@ func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, schemaVers
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	var id uint64
-	var batchType util.BatchType
+	var batchType common.BatchType
 	for {
 		id = uint64(rng.Int63())
 		if bo.ReadOnly {
 			if _, ok := d.sns[id]; !ok {
 				d.sns[id] = d.st.NewSnapshot()
-				batchType = util.BatchTypeSn
+				batchType = common.BatchTypeSn
 				break
 			}
 		} else {
 			if _, ok := d.txs[id]; !ok {
-				d.txs[id] = d.st.NewTransaction()
-				batchType = util.BatchTypeTx
+				d.txs[id] = d.st.NewWatchableTransaction()
+				batchType = common.BatchTypeTx
 				break
 			}
 		}
 	}
-	return util.BatchSep + util.JoinBatchInfo(batchType, id), nil
+	return common.BatchSep + common.JoinBatchInfo(batchType, id), nil
 }
 
 func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
@@ -364,7 +367,7 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServer
 		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
 			return err
 		}
-		return util.GlobChildren(ctx, call, matcher, sntx, util.TablePrefix)
+		return util.GlobChildren(ctx, call, matcher, sntx, common.TablePrefix)
 	}
 	if d.batchId != nil {
 		return impl(d.batchReader())
@@ -386,12 +389,12 @@ func (d *databaseReq) ListTables(ctx *context.T, call rpc.ServerCall) ([]string,
 		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
 			return nil, err
 		}
-		it := sntx.Scan(util.ScanPrefixArgs(util.TablePrefix, ""))
+		it := sntx.Scan(common.ScanPrefixArgs(common.TablePrefix, ""))
 		keyBytes := []byte{}
 		res := []string{}
 		for it.Advance() {
 			keyBytes = it.Key(keyBytes)
-			parts := util.SplitNKeyParts(string(keyBytes), 2)
+			parts := common.SplitNKeyParts(string(keyBytes), 2)
 			// For explanation of Escape(), see comment in server/nosql/dispatcher.go.
 			res = append(res, pubutil.Escape(parts[1]))
 		}
@@ -413,8 +416,8 @@ func (d *databaseReq) PauseSync(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.name)
 	}
-	return store.RunInTransaction(d.St(), func(tx store.Transaction) error {
-		return watchable.AddDbStateChangeRequestOp(ctx, tx, watchable.StateChangePauseSync)
+	return watchable.RunInTransaction(d.St(), func(tx *watchable.Transaction) error {
+		return sbwatchable.AddDbStateChangeRequestOp(ctx, tx, sbwatchable.StateChangePauseSync)
 	})
 }
 
@@ -422,15 +425,15 @@ func (d *databaseReq) ResumeSync(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.name)
 	}
-	return store.RunInTransaction(d.St(), func(tx store.Transaction) error {
-		return watchable.AddDbStateChangeRequestOp(ctx, tx, watchable.StateChangeResumeSync)
+	return watchable.RunInTransaction(d.St(), func(tx *watchable.Transaction) error {
+		return sbwatchable.AddDbStateChangeRequestOp(ctx, tx, sbwatchable.StateChangeResumeSync)
 	})
 }
 
 ////////////////////////////////////////
 // interfaces.Database methods
 
-func (d *database) St() store.Store {
+func (d *database) St() *watchable.Store {
 	if !d.exists {
 		vlog.Fatalf("database %q does not exist", d.name)
 	}
@@ -499,7 +502,7 @@ type queryDb struct {
 	call rpc.ServerCall
 	req  *databaseReq
 	sntx store.SnapshotOrTransaction
-	tx   store.Transaction // If transaction, this will be same as sntx (else nil)
+	tx   *watchable.Transaction // If transaction, this will be same as sntx (else nil)
 }
 
 func (db *queryDb) GetContext() *context.T {
@@ -541,7 +544,7 @@ func (db *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error) 
 		if !writeAccessReq {
 			tDb.qdb.sntx = tDb.qdb.req.st.NewSnapshot()
 		} else { // writeAccessReq
-			tDb.qdb.tx = tDb.qdb.req.st.NewTransaction()
+			tDb.qdb.tx = tDb.qdb.req.st.NewWatchableTransaction()
 			tDb.qdb.sntx = tDb.qdb.tx
 		}
 	}
@@ -585,7 +588,7 @@ func (t *tableDb) Scan(indexRanges ...ds.IndexRanges) (ds.KeyValueStream, error)
 		// TODO(jkline): For now, acquire all of the streams at once to minimize the
 		// race condition. Need a way to Scan multiple ranges at the same state of
 		// uncommitted changes.
-		streams = append(streams, t.qdb.sntx.Scan(util.ScanRangeArgs(util.JoinKeyParts(util.RowPrefix, t.req.name), keyRange.Start, keyRange.Limit)))
+		streams = append(streams, t.qdb.sntx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, t.req.name), keyRange.Start, keyRange.Limit)))
 	}
 	return &kvs{
 		t:        t,
@@ -615,7 +618,7 @@ func (s *kvs) Advance() bool {
 		if s.it[s.curr].Advance() {
 			// key
 			keyBytes := s.it[s.curr].Key(nil)
-			parts := util.SplitNKeyParts(string(keyBytes), 3)
+			parts := common.SplitNKeyParts(string(keyBytes), 3)
 			// TODO(rogulenko): Check access for the key.
 			s.currKey = parts[2]
 			// value
@@ -673,7 +676,7 @@ func (s *kvs) Cancel() {
 // Internal helpers
 
 func (d *database) stKey() string {
-	return util.DatabasePrefix
+	return common.DatabasePrefix
 }
 
 func (d *databaseReq) batchReader() store.SnapshotOrTransaction {
@@ -686,7 +689,7 @@ func (d *databaseReq) batchReader() store.SnapshotOrTransaction {
 	}
 }
 
-func (d *databaseReq) batchTransaction() (store.Transaction, error) {
+func (d *databaseReq) batchTransaction() (*watchable.Transaction, error) {
 	if d.batchId == nil {
 		return nil, nil
 	} else if d.tx != nil {

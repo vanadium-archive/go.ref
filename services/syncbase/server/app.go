@@ -19,6 +19,7 @@ import (
 	nosqlwire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/nosql"
 	"v.io/x/ref/services/syncbase/server/util"
@@ -96,7 +97,7 @@ func (a *app) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, ma
 	if err := util.GetWithAuth(ctx, call, sn, a.stKey(), &AppData{}); err != nil {
 		return err
 	}
-	return util.GlobChildren(ctx, call, matcher, sn, util.JoinKeyParts(util.DbInfoPrefix, a.name))
+	return util.GlobChildren(ctx, call, matcher, sn, common.JoinKeyParts(common.DbInfoPrefix, a.name))
 }
 
 ////////////////////////////////////////
@@ -305,7 +306,7 @@ func (a *app) Name() string {
 // Internal helpers
 
 func (a *app) stKey() string {
-	return util.JoinKeyParts(util.AppPrefix, a.stKeyPart())
+	return common.JoinKeyParts(common.AppPrefix, a.stKeyPart())
 }
 
 func (a *app) stKeyPart() string {
@@ -341,5 +342,5 @@ func (a *app) rootDirForDb(dbName string) (string, error) {
 	if len(appHex) > 255 || len(dbHexWithSuffix) > 255 {
 		vlog.Fatalf("appHex %s or dbHexWithSuffix %s is too long", appHex, dbHexWithSuffix)
 	}
-	return path.Join(a.s.opts.RootDir, util.AppDir, appHex, util.DbDir, dbHexWithSuffix), nil
+	return path.Join(a.s.opts.RootDir, common.AppDir, appHex, common.DbDir, dbHexWithSuffix), nil
 }

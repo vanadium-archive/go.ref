@@ -18,10 +18,11 @@ import (
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
 	"v.io/x/ref/services/syncbase/store"
+	storeutil "v.io/x/ref/services/syncbase/store/util"
+	"v.io/x/ref/services/syncbase/store/watchable"
 	"v.io/x/ref/services/syncbase/vclock"
 	"v.io/x/ref/test"
 )
@@ -49,12 +50,12 @@ func (s *mockService) Sync() interfaces.SyncServerMethods {
 	return s.sync
 }
 
-func (s *mockService) VClock() interfaces.VClock {
+func (s *mockService) Clock() common.Clock {
 	return s.vclock
 }
 
 func (s *mockService) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {
-	return &mockApp{st: s.st}, nil
+	return &mockApp{s: s}, nil
 }
 
 func (s *mockService) AppNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
@@ -63,11 +64,14 @@ func (s *mockService) AppNames(ctx *context.T, call rpc.ServerCall) ([]string, e
 
 // mockApp emulates a Syncbase App.  It is used to access a mock database.
 type mockApp struct {
-	st store.Store
+	s *mockService
 }
 
 func (a *mockApp) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
-	return &mockDatabase{st: a.st}, nil
+	wst, err := watchable.Wrap(a.s.st, a.s.vclock, &watchable.Options{
+		ManagedPrefixes: []string{common.RowPrefix, common.PermsPrefix},
+	})
+	return &mockDatabase{st: wst}, err
 }
 
 func (a *mockApp) NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
@@ -97,10 +101,10 @@ func (a *mockApp) Name() string {
 // mockDatabase emulates a Syncbase Database. It is used to test sync
 // functionality.
 type mockDatabase struct {
-	st store.Store
+	st *watchable.Store
 }
 
-func (d *mockDatabase) St() store.Store {
+func (d *mockDatabase) St() *watchable.Store {
 	return d.st
 }
 
@@ -141,10 +145,10 @@ func (d *mockDatabase) ResetCrConnectionStream() {
 func createService(t *testing.T) *mockService {
 	ctx, shutdown := test.V23Init()
 	engine := store.EngineForTest
-	opts := util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false}
+	opts := storeutil.OpenOptions{CreateIfMissing: true, ErrorIfExists: false}
 	dir := fmt.Sprintf("%s/vsync_test_%d_%d", os.TempDir(), os.Getpid(), time.Now().UnixNano())
 
-	st, err := util.OpenStore(engine, path.Join(dir, engine), opts)
+	st, err := storeutil.OpenStore(engine, path.Join(dir, engine), opts)
 	if err != nil {
 		t.Fatalf("cannot create store %s (%s): %v", engine, dir, err)
 	}
@@ -154,10 +158,6 @@ func createService(t *testing.T) *mockService {
 		t.Fatalf("InitVClockData failed: %v", err)
 	}
 
-	st, err = watchable.Wrap(st, cl, &watchable.Options{
-		ManagedPrefixes: []string{util.RowPrefix, util.PermsPrefix},
-	})
-
 	s := &mockService{
 		engine:   engine,
 		dir:      dir,
@@ -166,10 +166,24 @@ func createService(t *testing.T) *mockService {
 		shutdown: shutdown,
 	}
 	if s.sync, err = New(ctx, s, engine, dir, cl, true); err != nil {
-		util.DestroyStore(engine, dir)
+		storeutil.DestroyStore(engine, dir)
 		t.Fatalf("cannot create sync service: %v", err)
 	}
 	return s
+}
+
+// createDatabase creates a mock database.
+func createDatabase(t *testing.T, s *mockService) *mockDatabase {
+	app, err := s.App(nil, nil, "mockapp")
+	if err != nil {
+		t.Errorf("Error while creating App: %v", err)
+	}
+	db, err := app.NoSQLDatabase(nil, nil, "mockdb")
+	if err != nil {
+		t.Errorf("Error while creating Database: %v", err)
+	}
+	// TODO(razvanm): Get rid of the type assertion from below.
+	return db.(*mockDatabase)
 }
 
 func setMockCRStream(crs *conflictResolverStream) {
@@ -180,22 +194,22 @@ func setMockCRStream(crs *conflictResolverStream) {
 func destroyService(t *testing.T, s *mockService) {
 	defer s.shutdown()
 	defer Close(s.sync)
-	if err := util.DestroyStore(s.engine, s.dir); err != nil {
+	if err := storeutil.DestroyStore(s.engine, s.dir); err != nil {
 		t.Fatalf("cannot destroy store %s (%s): %v", s.engine, s.dir, err)
 	}
 }
 
 // makeRowKey returns the database row key for a given application key.
 func makeRowKey(key string) string {
-	return util.JoinKeyParts(util.RowPrefix, key)
+	return common.JoinKeyParts(common.RowPrefix, key)
 }
 
 func makeRowKeyFromParts(table, row string) string {
-	return util.JoinKeyParts(util.RowPrefix, table, row)
+	return common.JoinKeyParts(common.RowPrefix, table, row)
 }
 
 func makePermsKeyFromParts(table, row string) string {
-	return util.JoinKeyParts(util.PermsPrefix, table, row)
+	return common.JoinKeyParts(common.PermsPrefix, table, row)
 }
 
 // conflictResolverStream mock for testing.

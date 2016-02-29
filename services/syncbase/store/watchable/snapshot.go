@@ -11,12 +11,12 @@ import (
 type snapshot struct {
 	store.SnapshotSpecImpl
 	isn store.Snapshot
-	st  *wstore
+	st  *Store
 }
 
 var _ store.Snapshot = (*snapshot)(nil)
 
-func newSnapshot(st *wstore) *snapshot {
+func newSnapshot(st *Store) *snapshot {
 	return &snapshot{
 		isn: st.ist.NewSnapshot(),
 		st:  st,

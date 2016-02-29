@@ -10,7 +10,7 @@ import (
 	"v.io/v23/context"
 	wire "v.io/v23/services/syncbase/nosql"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 )
 
 // getDbSchema returns the SchemaMetadata for the db.
@@ -45,7 +45,7 @@ func (iSt *initiationState) groupConflictsByType(schema *wire.SchemaMetadata) ma
 //  2. Else, if only one match specifies a type, take that one.
 //  3. Else, the two matches are identical; take the last one in the Rules array.
 func getResolutionType(oid string, schema *wire.SchemaMetadata) wire.ResolverType {
-	if !util.IsRowKey(oid) {
+	if !common.IsRowKey(oid) {
 		// This is a perms object key. Handle perms using LastWins policy till a
 		// better policy is available.
 		return wire.ResolverTypeLastWins
@@ -70,7 +70,7 @@ func getResolutionType(oid string, schema *wire.SchemaMetadata) wire.ResolverTyp
 // applies to the given oid.
 // TODO(jlodhia): Implement Type based matching.
 func isRuleApplicable(oid string, rule *wire.CrRule) bool {
-	tableName, rowKey := util.ParseTableAndRowOrDie(oid)
+	tableName, rowKey := common.ParseTableAndRowOrDie(oid)
 	if rule.TableName != "" && tableName != rule.TableName {
 		return false
 	}

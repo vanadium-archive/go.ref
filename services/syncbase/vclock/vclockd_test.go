@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -18,7 +17,7 @@ const (
 )
 
 func putVClockData(t *testing.T, st store.Store, data *VClockData) {
-	if err := util.Put(nil, st, vclockDataKey, data); err != nil {
+	if err := store.Put(nil, st, vclockDataKey, data); err != nil {
 		t.Fatalf("Writing VClockData failed: %v", err)
 	}
 }

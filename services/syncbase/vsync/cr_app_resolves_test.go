@@ -9,10 +9,8 @@ import (
 	"testing"
 
 	wire "v.io/v23/services/syncbase/nosql"
-	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
-	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/common"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 /*
@@ -391,12 +389,14 @@ func TestResolveViaApp(t *testing.T) {
 	service := createService(t)
 	defer destroyService(t, service)
 
+	db := createDatabase(t, service)
+
 	iSt := &initiationState{
 		updObjects: updObjectsAppResolves,
-		tx:         service.St().NewTransaction(),
+		tx:         db.St().NewWatchableTransaction(),
 		config: &initiationConfig{
 			sync: service.sync,
-			db:   newDb(t, service.sync),
+			db:   db,
 		},
 	}
 	createAndSaveNodeAndLogRecDataAppResolves(iSt)
@@ -663,7 +663,7 @@ func addResInfo(crs *conflictResolverStream, oid string, sel wire.ValueSelection
 		}
 	}
 	rInfo := wire.ResolutionInfo{
-		Key:       util.StripFirstKeyPartOrDie(oid),
+		Key:       common.StripFirstKeyPartOrDie(oid),
 		Selection: sel,
 		Result:    valRes,
 		Continued: cntd,
@@ -671,7 +671,7 @@ func addResInfo(crs *conflictResolverStream, oid string, sel wire.ValueSelection
 	crs.recvQ = append(crs.recvQ, rInfo)
 }
 
-func saveValue(t *testing.T, tx store.Transaction, oid, version string) {
+func saveValue(t *testing.T, tx *watchable.Transaction, oid, version string) {
 	if err := watchable.PutAtVersion(nil, tx, []byte(oid), makeValue(oid, version), []byte(version)); err != nil {
 		t.Errorf("Failed to write versioned value for oid,ver: %s,%s", oid, version)
 		t.FailNow()
@@ -696,16 +696,4 @@ func newGroup() *crGroup {
 		batchSource:  map[uint64]wire.BatchSource{},
 		batchesByOid: map[string][]uint64{},
 	}
-}
-
-func newDb(t *testing.T, s *syncService) interfaces.Database {
-	app, err := s.sv.App(nil, nil, "mockApp")
-	if err != nil {
-		t.Errorf("Error while creating App: %v", err)
-	}
-	db, err := app.NoSQLDatabase(nil, nil, "mockDB")
-	if err != nil {
-		t.Errorf("Error while creating Database: %v", err)
-	}
-	return db
 }

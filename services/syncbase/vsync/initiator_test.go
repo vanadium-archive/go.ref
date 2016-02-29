@@ -23,9 +23,9 @@ import (
 	"v.io/v23/vom"
 	"v.io/x/lib/set"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
-	"v.io/x/ref/services/syncbase/server/watchable"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // TestLogStreamRemoteOnly tests processing of a remote log stream. Commands are
@@ -35,7 +35,7 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 	defer cleanup()
 
 	// Check all log records.
-	objid := util.JoinKeyParts(util.RowPrefix, "tb", "foo1")
+	objid := common.JoinKeyParts(common.RowPrefix, "tb", "foo1")
 	var gen uint64
 	var parents []string
 	for gen = 1; gen < 4; gen++ {
@@ -66,7 +66,7 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 			t.Fatalf("getNode can not find object %s vers %s in DAG, err %v", objid, vers, err)
 		}
 		// Verify Database state.
-		tx := svc.St().NewTransaction()
+		tx := createDatabase(t, svc).St().NewWatchableTransaction()
 		if _, err := watchable.GetAtVersion(nil, tx, []byte(objid), nil, []byte(vers)); err != nil {
 			t.Fatalf("GetAtVersion can not find object %s vers %s in Database, err %v", objid, vers, err)
 		}
@@ -101,15 +101,16 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 	}
 
 	// Verify Database state.
-	valbuf, err := svc.St().Get([]byte(objid), nil)
+	db := createDatabase(t, svc)
+	valbuf, err := db.St().Get([]byte(objid), nil)
 	var val string
 	if err := vom.Decode(valbuf, &val); err != nil {
-		t.Fatalf("Value decode failed, err %v", err)
+		t.Fatalf("Value decode failed, err %v: %+v %+v", err, valbuf, objid)
 	}
 	if err != nil || val != "abc" {
 		t.Fatalf("Invalid object %s in Database %v, err %v", objid, val, err)
 	}
-	tx := svc.St().NewTransaction()
+	tx := db.St().NewWatchableTransaction()
 	version, err := watchable.GetVersion(nil, tx, []byte(objid))
 	if err != nil || string(version) != "3" {
 		t.Fatalf("Invalid object %s head in Database %v, err %v", objid, string(version), err)
@@ -124,7 +125,7 @@ func TestLogStreamNoConflict(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-noconf-00.log.sync", false)
 	defer cleanup()
 
-	objid := util.JoinKeyParts(util.RowPrefix, "tb\xfefoo1")
+	objid := common.JoinKeyParts(common.RowPrefix, "tb\xfefoo1")
 
 	// Check all log records.
 	var version uint64 = 1
@@ -161,7 +162,7 @@ func TestLogStreamNoConflict(t *testing.T) {
 				t.Fatalf("getNode can not find object %s vers %s in DAG, err %v", objid, vers, err)
 			}
 			// Verify Database state.
-			tx := svc.St().NewTransaction()
+			tx := createDatabase(t, svc).St().NewWatchableTransaction()
 			if _, err := watchable.GetAtVersion(nil, tx, []byte(objid), nil, []byte(vers)); err != nil {
 				t.Fatalf("GetAtVersion can not find object %s vers %s in Database, err %v", objid, vers, err)
 			}
@@ -198,7 +199,8 @@ func TestLogStreamNoConflict(t *testing.T) {
 	}
 
 	// Verify Database state.
-	valbuf, err := svc.St().Get([]byte(objid), nil)
+	db := createDatabase(t, svc)
+	valbuf, err := db.St().Get([]byte(objid), nil)
 	var val string
 	if err := vom.Decode(valbuf, &val); err != nil {
 		t.Fatalf("Value decode failed, err %v", err)
@@ -206,7 +208,7 @@ func TestLogStreamNoConflict(t *testing.T) {
 	if err != nil || val != "abc" {
 		t.Fatalf("Invalid object %s in Database %v, err %v", objid, val, err)
 	}
-	tx := svc.St().NewTransaction()
+	tx := db.St().NewTransaction()
 	versbuf, err := watchable.GetVersion(nil, tx, []byte(objid))
 	if err != nil || string(versbuf) != "6" {
 		t.Fatalf("Invalid object %s head in Database %v, err %v", objid, string(versbuf), err)
@@ -221,7 +223,7 @@ func TestLogStreamConflict(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-conf-00.log.sync", false)
 	defer cleanup()
 
-	objid := util.JoinKeyParts(util.RowPrefix, "tb\xfefoo1")
+	objid := common.JoinKeyParts(common.RowPrefix, "tb\xfefoo1")
 
 	// Verify conflict state.
 	if len(iSt.updObjects) != 1 {
@@ -244,7 +246,8 @@ func TestLogStreamConflict(t *testing.T) {
 	}
 
 	// Verify Database state.
-	valbuf, err := svc.St().Get([]byte(objid), nil)
+	db := createDatabase(t, svc)
+	valbuf, err := db.St().Get([]byte(objid), nil)
 	var val string
 	if err := vom.Decode(valbuf, &val); err != nil {
 		t.Fatalf("Value decode failed, err %v", err)
@@ -252,7 +255,7 @@ func TestLogStreamConflict(t *testing.T) {
 	if err != nil || val != "abc" {
 		t.Fatalf("Invalid object %s in Database %v, err %v", objid, string(valbuf), err)
 	}
-	tx := svc.St().NewTransaction()
+	tx := db.St().NewTransaction()
 	versbuf, err := watchable.GetVersion(nil, tx, []byte(objid))
 	if err != nil || string(versbuf) != "6" {
 		t.Fatalf("Invalid object %s head in Database %v, err %v", objid, string(versbuf), err)
@@ -268,7 +271,7 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-conf-03.log.sync", false)
 	defer cleanup()
 
-	objid := util.JoinKeyParts(util.RowPrefix, "tb\xfefoo1")
+	objid := common.JoinKeyParts(common.RowPrefix, "tb\xfefoo1")
 
 	// Verify conflict state.
 	if len(iSt.updObjects) != 1 {
@@ -291,7 +294,8 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 	}
 
 	// Verify Database state.
-	valbuf, err := svc.St().Get([]byte(objid), nil)
+	db := createDatabase(t, svc)
+	valbuf, err := db.St().Get([]byte(objid), nil)
 	var val string
 	if err := vom.Decode(valbuf, &val); err != nil {
 		t.Fatalf("Value decode failed, err %v", err)
@@ -299,7 +303,7 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 	if err != nil || val != "abc" {
 		t.Fatalf("Invalid object %s in Database %v, err %v", objid, string(valbuf), err)
 	}
-	tx := svc.St().NewTransaction()
+	tx := db.St().NewTransaction()
 	versbuf, err := watchable.GetVersion(nil, tx, []byte(objid))
 	if err != nil || string(versbuf) != "6" {
 		t.Fatalf("Invalid object %s head in Database %v, err %v", objid, string(versbuf), err)
@@ -363,7 +367,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		},
 	}
 
-	tx := svc.St().NewTransaction()
+	tx := createDatabase(t, svc).St().NewWatchableTransaction()
 	if err = s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg1); err != nil {
 		t.Fatalf("cannot add syncgroup ID %d, err %v", sg1.Id, err)
 	}

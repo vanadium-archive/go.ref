@@ -28,10 +28,12 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/nosql"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
+	storeutil "v.io/x/ref/services/syncbase/store/util"
 	"v.io/x/ref/services/syncbase/vclock"
 	"v.io/x/ref/services/syncbase/vsync"
 )
@@ -109,14 +111,14 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		vlog.Infof("Created new root dir: %s", opts.RootDir)
 	}
 
-	st, err := util.OpenStore(opts.Engine, filepath.Join(opts.RootDir, opts.Engine), util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
+	st, err := storeutil.OpenStore(opts.Engine, filepath.Join(opts.RootDir, opts.Engine), storeutil.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	if err != nil {
 		// If the top-level store is corrupt, we lose the meaning of all of the
 		// app-level databases. util.OpenStore moved the top-level store aside, but
 		// it didn't do anything about the app-level stores.
 		if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
 			vlog.Errorf("top-level store is corrupt, moving all apps aside")
-			appDir := filepath.Join(opts.RootDir, util.AppDir)
+			appDir := filepath.Join(opts.RootDir, common.AppDir)
 			newPath := appDir + ".corrupt." + time.Now().Format(time.RFC3339)
 			if err := os.Rename(appDir, newPath); err != nil {
 				return nil, verror.New(verror.ErrInternal, ctx, "could not move apps aside: "+err.Error())
@@ -139,7 +141,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 	}
 
 	var sd ServiceData
-	if err := util.Get(ctx, st, s.stKey(), &sd); verror.ErrorID(err) != verror.ErrNoExist.ID {
+	if err := store.Get(ctx, st, s.stKey(), &sd); verror.ErrorID(err) != verror.ErrNoExist.ID {
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +161,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		}
 		// Initialize in-memory data structures.
 		// Read all apps, populate apps map.
-		aIt := st.Scan(util.ScanPrefixArgs(util.AppPrefix, ""))
+		aIt := st.Scan(common.ScanPrefixArgs(common.AppPrefix, ""))
 		aBytes := []byte{}
 		for aIt.Advance() {
 			aBytes = aIt.Value(aBytes)
@@ -192,7 +194,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		data := &ServiceData{
 			Perms: perms,
 		}
-		if err := util.Put(ctx, st, s.stKey(), data); err != nil {
+		if err := store.Put(ctx, st, s.stKey(), data); err != nil {
 			return nil, err
 		}
 	}
@@ -209,7 +211,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 	// way.
 	ntpHost := ""
 	if !s.opts.DevMode {
-		ntpHost = util.NtpDefaultHost
+		ntpHost = common.NtpDefaultHost
 	}
 	s.vclockD = vclock.NewVClockD(s.vclock, ntpHost)
 	s.vclockD.Start()
@@ -218,7 +220,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 
 func openDatabases(ctx *context.T, st store.Store, a *app) error {
 	// Read all dbs for this app, populate dbs map.
-	dIt := st.Scan(util.ScanPrefixArgs(util.JoinKeyParts(util.DbInfoPrefix, a.name), ""))
+	dIt := st.Scan(common.ScanPrefixArgs(common.JoinKeyParts(common.DbInfoPrefix, a.name), ""))
 	dBytes := []byte{}
 	for dIt.Advance() {
 		dBytes = dIt.Value(dBytes)
@@ -229,7 +231,7 @@ func openDatabases(ctx *context.T, st store.Store, a *app) error {
 		d, err := nosql.OpenDatabase(ctx, a, info.Name, nosql.DatabaseOptions{
 			RootDir: info.RootDir,
 			Engine:  info.Engine,
-		}, util.OpenOptions{
+		}, storeutil.OpenOptions{
 			CreateIfMissing: false,
 			ErrorIfExists:   false,
 		})
@@ -362,7 +364,7 @@ func (s *service) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall
 	if err := util.GetWithAuth(ctx, call, sn, s.stKey(), &ServiceData{}); err != nil {
 		return err
 	}
-	return util.GlobChildren(ctx, call, matcher, sn, util.AppPrefix)
+	return util.GlobChildren(ctx, call, matcher, sn, common.AppPrefix)
 }
 
 ////////////////////////////////////////
@@ -376,7 +378,7 @@ func (s *service) Sync() interfaces.SyncServerMethods {
 	return s.sync
 }
 
-func (s *service) VClock() interfaces.VClock {
+func (s *service) Clock() common.Clock {
 	return s.vclock
 }
 
@@ -428,7 +430,7 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 			return err
 		}
 		// Check for "app already exists".
-		if err := util.Get(ctx, tx, a.stKey(), &AppData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		if err := store.Get(ctx, tx, a.stKey(), &AppData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
@@ -442,7 +444,7 @@ func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string,
 			Name:  appName,
 			Perms: perms,
 		}
-		return util.Put(ctx, tx, a.stKey(), data)
+		return store.Put(ctx, tx, a.stKey(), data)
 	}); err != nil {
 		return err
 	}
@@ -488,7 +490,7 @@ func (s *service) destroyApp(ctx *context.T, call rpc.ServerCall, appName string
 			})
 		}
 		// Delete appData.
-		return util.Delete(ctx, tx, a.stKey())
+		return store.Delete(ctx, tx, a.stKey())
 	}); err != nil {
 		return err
 	}
@@ -531,5 +533,5 @@ func (s *service) setAppPerms(ctx *context.T, call rpc.ServerCall, appName strin
 // Other internal helpers
 
 func (s *service) stKey() string {
-	return util.ServicePrefix
+	return common.ServicePrefix
 }

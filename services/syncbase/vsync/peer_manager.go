@@ -14,9 +14,9 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/set"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/ping"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/util"
 )
 
 // Policies to pick a peer to sync with.
@@ -435,7 +435,7 @@ func (pm *peerManagerImpl) pingPeers(ctx *context.T, peers []*connInfo) []*connI
 	names := make([]string, 0, len(peers))
 	for _, p := range peers {
 		for i, a := range p.addrs {
-			n := naming.Join(a, util.SyncbaseSuffix)
+			n := naming.Join(a, common.SyncbaseSuffix)
 			names = append(names, n)
 			nm[n] = &nameInfo{
 				ci:    p,
@@ -444,7 +444,7 @@ func (pm *peerManagerImpl) pingPeers(ctx *context.T, peers []*connInfo) []*connI
 			}
 		}
 		for i, mt := range p.mtTbls {
-			n := naming.Join(mt, p.relName, util.SyncbaseSuffix)
+			n := naming.Join(mt, p.relName, common.SyncbaseSuffix)
 			names = append(names, n)
 			nm[n] = &nameInfo{
 				ci:    p,

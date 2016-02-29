@@ -56,7 +56,7 @@ func (d *database) GetSchemaMetadataInternal(ctx *context.T) (*wire.SchemaMetada
 		return nil, verror.New(verror.ErrNoExist, ctx, d.Name())
 	}
 	dbData := DatabaseData{}
-	if err := util.Get(ctx, d.st, d.stKey(), &dbData); err != nil {
+	if err := store.Get(ctx, d.st, d.stKey(), &dbData); err != nil {
 		return nil, err
 	}
 	if dbData.SchemaMetadata == nil {

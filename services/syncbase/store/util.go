@@ -5,13 +5,16 @@
 package store
 
 import (
+	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 )
 
 type SnapshotSpecImpl struct{}
 
 func (s *SnapshotSpecImpl) __snapshotSpec() {}
 
+// TODO(razvanm): Another copy of this is inside in store/watchable/.
 // TODO(sadovsky): Move this to model.go and make it an argument to
 // Store.NewTransaction.
 type TransactionOptions struct {
@@ -69,4 +72,54 @@ func CopyBytes(dst, src []byte) []byte {
 // ConvertError returns a copy of the verror, appending the current stack to it.
 func ConvertError(err error) error {
 	return verror.Convert(verror.IDAction{}, nil, err)
+}
+
+// Get does st.Get(k, v) and wraps the returned error.
+func Get(ctx *context.T, st StoreReader, k string, v interface{}) error {
+	bytes, err := st.Get([]byte(k), nil)
+	if err != nil {
+		if verror.ErrorID(err) == ErrUnknownKey.ID {
+			return verror.New(verror.ErrNoExist, ctx, k)
+		}
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	if err = vom.Decode(bytes, v); err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	return nil
+}
+
+// Put does st.Put(k, v) and wraps the returned error.
+func Put(ctx *context.T, st StoreWriter, k string, v interface{}) error {
+	bytes, err := vom.Encode(v)
+	if err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	if err = st.Put([]byte(k), bytes); err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	return nil
+}
+
+// Delete does st.Delete(k) and wraps the returned error.
+func Delete(ctx *context.T, st StoreWriter, k string) error {
+	if err := st.Delete([]byte(k)); err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	return nil
+}
+
+// Exists returns true if the key exists in the store.
+// TODO(rdaoud): for now it only bypasses the Get's VOM decode step.  It should
+// be optimized further by adding a st.Exists(k) API and let each implementation
+// do its best to reduce data fetching in its key lookup.
+func Exists(ctx *context.T, st StoreReader, k string) (bool, error) {
+	_, err := st.Get([]byte(k), nil)
+	if err != nil {
+		if verror.ErrorID(err) == ErrUnknownKey.ID {
+			return false, nil
+		}
+		return false, verror.New(verror.ErrInternal, ctx, err)
+	}
+	return true, nil
 }

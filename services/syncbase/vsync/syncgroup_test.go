@@ -15,7 +15,7 @@ import (
 	wire "v.io/v23/services/syncbase/nosql"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/store"
+	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // checkSGStats verifies syncgroup stats.
@@ -50,7 +50,7 @@ func TestAddSyncgroup(t *testing.T) {
 	peerSyncInterval = 1 * time.Hour
 	svc := createService(t)
 	defer destroyService(t, svc)
-	st := svc.St()
+	st := createDatabase(t, svc).St()
 	s := svc.sync
 
 	checkSGStats(t, svc, "add-1", 0, 0)
@@ -78,7 +78,7 @@ func TestAddSyncgroup(t *testing.T) {
 		},
 	}
 
-	tx := st.NewTransaction()
+	tx := st.NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, version, true, "", nil, s.id, 1, 1, sg); err != nil {
 		t.Errorf("cannot add syncgroup ID %d: %v", sg.Id, err)
 	}
@@ -150,7 +150,7 @@ func TestAddSyncgroup(t *testing.T) {
 
 	sg.Name = "another-name"
 
-	tx = st.NewTransaction()
+	tx = st.NewWatchableTransaction()
 	if err = s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 2, 2, sg); err == nil {
 		t.Errorf("re-adding syncgroup %d did not fail", sgId)
 	}
@@ -159,7 +159,7 @@ func TestAddSyncgroup(t *testing.T) {
 	sg.Name = sgName
 	sg.Id = interfaces.GroupId(5555)
 
-	tx = st.NewTransaction()
+	tx = st.NewWatchableTransaction()
 	if err = s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 3, 3, sg); err == nil {
 		t.Errorf("adding syncgroup %s with a different ID did not fail", sgName)
 	}
@@ -188,11 +188,11 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 	peerSyncInterval = 1 * time.Hour
 	svc := createService(t)
 	defer destroyService(t, svc)
-	st := svc.St()
+	st := createDatabase(t, svc).St()
 	s := svc.sync
 
-	checkBadAddSyncgroup := func(t *testing.T, st store.Store, sg *interfaces.Syncgroup, msg string) {
-		tx := st.NewTransaction()
+	checkBadAddSyncgroup := func(t *testing.T, st *watchable.Store, sg *interfaces.Syncgroup, msg string) {
+		tx := st.NewWatchableTransaction()
 		if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg); err == nil {
 			t.Errorf("checkBadAddSyncgroup: adding bad syncgroup (%s) did not fail", msg)
 		}
@@ -271,7 +271,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 	peerSyncInterval = 1 * time.Hour
 	svc := createService(t)
 	defer destroyService(t, svc)
-	st := svc.St()
+	st := createDatabase(t, svc).St()
 	s := svc.sync
 
 	sgName := "foobar"
@@ -279,7 +279,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 
 	// Delete non-existing syncgroups.
 
-	tx := st.NewTransaction()
+	tx := st.NewWatchableTransaction()
 	if err := delSyncgroupById(nil, tx, sgId); err == nil {
 		t.Errorf("deleting a non-existing syncgroup ID did not fail")
 	}
@@ -309,7 +309,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 		},
 	}
 
-	tx = st.NewTransaction()
+	tx = st.NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg); err != nil {
 		t.Errorf("creating syncgroup ID %d failed: %v", sgId, err)
 	}
@@ -321,7 +321,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 
 	// Delete it by ID.
 
-	tx = st.NewTransaction()
+	tx = st.NewWatchableTransaction()
 	if err := delSyncgroupById(nil, tx, sgId); err != nil {
 		t.Errorf("deleting syncgroup ID %d failed: %v", sgId, err)
 	}
@@ -333,7 +333,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 
 	// Create it again, update it, then delete it by name.
 
-	tx = st.NewTransaction()
+	tx = st.NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 2, 2, sg); err != nil {
 		t.Errorf("creating syncgroup ID %d after delete failed: %v", sgId, err)
 	}
@@ -341,7 +341,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 		t.Errorf("cannot commit adding syncgroup ID %d after delete: %v", sgId, err)
 	}
 
-	tx = st.NewTransaction()
+	tx = st.NewWatchableTransaction()
 	if err := s.updateSyncgroupVersioning(nil, tx, NoVersion, true, s.id, 3, 3, sg); err != nil {
 		t.Errorf("updating syncgroup ID %d version: %v", sgId, err)
 	}
@@ -351,7 +351,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 
 	checkSGStats(t, svc, "del-4", 1, 3)
 
-	tx = st.NewTransaction()
+	tx = st.NewWatchableTransaction()
 	if err := delSyncgroupByName(nil, tx, sgName); err != nil {
 		t.Errorf("deleting syncgroup name %s failed: %v", sgName, err)
 	}
@@ -368,7 +368,7 @@ func TestMultiSyncgroups(t *testing.T) {
 	peerSyncInterval = 1 * time.Hour
 	svc := createService(t)
 	defer destroyService(t, svc)
-	st := svc.St()
+	st := createDatabase(t, svc).St()
 	s := svc.sync
 
 	sgName1, sgName2 := "foo", "bar"
@@ -411,7 +411,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		},
 	}
 
-	tx := st.NewTransaction()
+	tx := st.NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg1); err != nil {
 		t.Errorf("creating syncgroup ID %d failed: %v", sgId1, err)
 	}
@@ -421,7 +421,7 @@ func TestMultiSyncgroups(t *testing.T) {
 
 	checkSGStats(t, svc, "multi-1", 1, 3)
 
-	tx = st.NewTransaction()
+	tx = st.NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 2, 2, sg2); err != nil {
 		t.Errorf("creating syncgroup ID %d failed: %v", sgId2, err)
 	}
@@ -507,7 +507,7 @@ func TestMultiSyncgroups(t *testing.T) {
 
 	// Delete the 1st syncgroup.
 
-	tx = st.NewTransaction()
+	tx = st.NewWatchableTransaction()
 	if err := delSyncgroupById(nil, tx, sgId1); err != nil {
 		t.Errorf("deleting syncgroup ID %d failed: %v", sgId1, err)
 	}

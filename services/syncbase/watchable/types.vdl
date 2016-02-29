@@ -8,38 +8,6 @@ import (
 	"v.io/x/ref/services/syncbase/server/interfaces"
 )
 
-// GetOp represents a store get operation.
-type GetOp struct {
-	Key []byte
-}
-
-// ScanOp represents a store scan operation.
-type ScanOp struct {
-	Start []byte
-	Limit []byte
-}
-
-// PutOp represents a store put operation.  The new version is written instead
-// of the value to avoid duplicating the user data in the store.  The version
-// is used to access the user data of that specific mutation.  The key and the
-// version of the permissions entry that was checked to allow this put operation
-// are also tracked to secure the access to this history.
-type PutOp struct {
-	Key         []byte
-	Version     []byte
-	PermKey     []byte
-	PermVersion []byte
-}
-
-// DeleteOp represents a store delete operation.  The key and the version of the
-// permissions entry that was checked to allow this delete operation are also
-// tracked to secure the access to this history.
-type DeleteOp struct {
-	Key         []byte
-	PermKey     []byte
-	PermVersion []byte
-}
-
 // SyncgroupOp represents a change in the set of prefixes that should be tracked
 // by sync, i.e. the union of prefix sets across all syncgroups. Note that an
 // individual syncgroup's prefixes cannot be changed; this record type is used
@@ -81,35 +49,4 @@ type StateChange enum {
 // Client watcher will ignore this op.
 type DbStateChangeRequestOp struct {
 	RequestType StateChange
-}
-
-// Op represents a store operation.
-type Op union {
-	Get                  GetOp
-	Scan                 ScanOp
-	Put                  PutOp
-	Delete               DeleteOp
-	Syncgroup            SyncgroupOp
-	SyncSnapshot         SyncSnapshotOp
-	DbStateChangeRequest DbStateChangeRequestOp
-}
-
-// LogEntry represents a single store operation. This operation may have been
-// part of a transaction, as signified by the Continued boolean. Read-only
-// operations (and read-only transactions) are not logged.
-type LogEntry struct {
-	// The store operation that was performed.
-	Op Op
-
-	// Time when the operation was committed in nanoseconds since the epoch.
-	// Note: We don't use time.Time here because VDL's time.Time consists of
-	// {Seconds int64, Nanos int32}, which is more expensive than a single int64.
-	CommitTimestamp int64
-
-	// Operation came from sync (used for echo suppression).
-	FromSync bool
-
-	// If true, this entry is followed by more entries that belong to the same
-	// commit as this entry.
-	Continued bool
 }
