@@ -12,13 +12,9 @@ import (
 
 	"v.io/v23/services/device"
 	"v.io/x/ref/services/device/deviced/internal/impl/utiltest"
-	"v.io/x/ref/test/testutil"
 )
 
 func TestDaemonRestart(t *testing.T) {
-	if testutil.RaceEnabled {
-		t.Skip("Test is flaky when run with -race.  Disabling until v.io/i/573 is fixed.")
-	}
 	cleanup, ctx, sh, envelope, root, helperPath, _ := utiltest.StartupHelper(t)
 	defer cleanup()
 
