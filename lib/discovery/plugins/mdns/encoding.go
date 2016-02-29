@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"v.io/v23/discovery"
 )
 
 const (
@@ -21,24 +23,30 @@ var (
 	// The key of encoded large txt records is "_x<i><j>", where 'i' and 'j' will
 	// be one digit numbers since we limit the large txt record to 1300 bytes.
 	reLargeTxtRecord = regexp.MustCompile("^" + attrLargeTxtPrefix + "[0-9][0-9]=")
-
-	errInvalidLargeTxtRecord = errors.New("invalid large txt record")
 )
 
-// encodeInstanceId encodes the given instance id to a valid host name by using
+// encodeAdId encodes the given advertisement id to a valid host name by using
 // "Extended Hex Alphabet" defined in RFC 4648. This removes any padding characters.
-func encodeInstanceId(instanceId string) string {
-	return strings.TrimRight(base32.HexEncoding.EncodeToString([]byte(instanceId)), "=")
+func encodeAdId(id *discovery.AdId) string {
+	return strings.TrimRight(base32.HexEncoding.EncodeToString(id[:]), "=")
 }
 
-// decodeInstanceId decodes the given host name to an instance id.
-func decodeInstanceId(hostname string) (string, error) {
+// decodeAdId decodes the given host name to the advertisement id.
+func decodeAdId(hostname string, id *discovery.AdId) error {
 	// Add padding characters if needed.
 	if p := len(hostname) % 8; p > 0 {
 		hostname += strings.Repeat("=", 8-p)
 	}
-	instanceId, err := base32.HexEncoding.DecodeString(hostname)
-	return string(instanceId), err
+
+	decoded, err := base32.HexEncoding.DecodeString(hostname)
+	if err != nil {
+		return err
+	}
+	if len(decoded) != len(id) {
+		return errors.New("invalid hostname")
+	}
+	copy(id[:], decoded)
+	return nil
 }
 
 // maybeSplitLargeTXT slices txt records larger than 255 bytes into multiple txt records.
@@ -75,7 +83,7 @@ func maybeJoinLargeTXT(txt []string) ([]string, error) {
 		switch {
 		case strings.HasPrefix(v, attrLargeTxtPrefix):
 			if !reLargeTxtRecord.MatchString(v) {
-				return nil, errInvalidLargeTxtRecord
+				return nil, errors.New("invalid large txt record")
 			}
 			splitted = append(splitted, v)
 		default:

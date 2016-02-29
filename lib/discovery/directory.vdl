@@ -5,11 +5,12 @@
 package discovery
 
 import (
+	"v.io/v23/discovery"
 	"v.io/v23/security/access"
 )
 
 // Directory is the interface for advertisement directory service.
 type Directory interface {
 	// Lookup returns the advertisement of the given service instance.
-	Lookup(InstanceId string) (Advertisement | error) {access.Read}
+	Lookup(id discovery.AdId) (AdInfo | error) {access.Read}
 }

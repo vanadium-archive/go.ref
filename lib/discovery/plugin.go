@@ -8,19 +8,31 @@ import (
 	"v.io/v23/context"
 )
 
-// Plugin is the basic interface for a plugin to discovery service.
+// Plugin is the basic interface for discovery plugins.
+//
 // All implementation should be goroutine-safe.
 type Plugin interface {
-	// Advertise advertises the advertisement. Advertising will continue until
-	// the context is canceled or exceeds its deadline. done should be called
-	// once when advertising is done or canceled.
-	Advertise(ctx *context.T, ad Advertisement, done func()) error
-
-	// Scan scans services that match the interface name and returns scanned
-	// advertisements to the channel. An empty interface name means any service.
-	// Scanning will continue until the context is canceled or exceeds its
-	// deadline. done should be called once when scanning is done or canceled.
+	// Advertise advertises the advertisement.
 	//
-	// TODO(jhahn): Pass a filter on service attributes.
-	Scan(ctx *context.T, interfaceName string, ch chan<- Advertisement, done func()) error
+	// The advertisement will not be changed while it is being advertised.
+	//
+	// If the advertisement is too large, the plugin may drop any information
+	// except Id, InterfaceName, Hash, and DirAddrs.
+	//
+	// Advertising should continue until the context is canceled or exceeds
+	// its deadline. done should be called once when advertising is done or
+	// canceled.
+	Advertise(ctx *context.T, adinfo *AdInfo, done func()) error
+
+	// Scan scans advertisements that match the interface name and returns scanned
+	// advertisements to the channel.
+	//
+	// An empty interface name means any advertisements.
+	//
+	// Advertisements that are returned through the channel can be changed. The plugin
+	// should not reuse the returned advertisement.
+	//
+	// Scanning should continue until the context is canceled or exceeds its
+	// deadline. done should be called once when scanning is done or canceled.
+	Scan(ctx *context.T, interfaceName string, ch chan<- *AdInfo, done func()) error
 }

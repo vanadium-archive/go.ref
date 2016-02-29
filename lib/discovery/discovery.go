@@ -8,15 +8,10 @@ import (
 	"sync"
 
 	"v.io/v23/context"
-	"v.io/v23/verror"
+	"v.io/v23/discovery"
 )
 
-const pkgPath = "v.io/x/ref/lib/discovery"
-
-var (
-	errNoDiscoveryPlugin = verror.Register(pkgPath+".errNoDiscoveryPlugin", verror.NoRetry, "{1:}{2:} no discovery plugin")
-	errDiscoveryClosed   = verror.Register(pkgPath+".errDiscoveryClosed", verror.NoRetry, "{1:}{2:} discovery closed")
-)
+type sessionId uint64
 
 type idiscovery struct {
 	plugins []Plugin
@@ -26,7 +21,7 @@ type idiscovery struct {
 	tasks  map[*context.T]func() // GUARDED_BY(mu)
 	wg     sync.WaitGroup
 
-	ads map[string]sessionId // GUARDED_BY(mu)
+	ads map[discovery.AdId]sessionId // GUARDED_BY(mu)
 }
 
 func (d *idiscovery) shutdown() {
@@ -47,7 +42,7 @@ func (d *idiscovery) addTask(ctx *context.T) (*context.T, func(), error) {
 	d.mu.Lock()
 	if d.closed {
 		d.mu.Unlock()
-		return nil, nil, verror.New(errDiscoveryClosed, ctx)
+		return nil, nil, NewErrDiscoveryClosed(ctx)
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	d.tasks[ctx] = cancel
@@ -67,12 +62,12 @@ func (d *idiscovery) removeTask(ctx *context.T) {
 
 func newDiscovery(ctx *context.T, plugins []Plugin) (*idiscovery, error) {
 	if len(plugins) == 0 {
-		return nil, verror.New(errNoDiscoveryPlugin, ctx)
+		return nil, NewErrNoDiscoveryPlugin(ctx)
 	}
 	d := &idiscovery{
 		plugins: make([]Plugin, len(plugins)),
 		tasks:   make(map[*context.T]func()),
-		ads:     make(map[string]sessionId),
+		ads:     make(map[discovery.AdId]sessionId),
 	}
 	copy(d.plugins, plugins)
 	return d, nil

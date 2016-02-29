@@ -1198,7 +1198,7 @@ func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCa
 	// have connectivity.
 	neighbors := ss.filterSyncgroupAdmins(sgName)
 	for _, svc := range neighbors {
-		for _, addr := range svc.Addrs {
+		for _, addr := range svc.Addresses {
 			ctx, cancel := context.WithTimeout(ctxIn, peerConnectionTimeout)
 			c := interfaces.SyncClient(naming.Join(addr, util.SyncbaseSuffix))
 			sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, sgName, name, myInfo)

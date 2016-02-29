@@ -9,46 +9,41 @@ import (
 
 	"github.com/pborman/uuid"
 
-	vdiscovery "v.io/v23/discovery"
-
-	"v.io/x/ref/lib/discovery"
+	idiscovery "v.io/x/ref/lib/discovery"
 )
 
 type scanner struct {
 	mu   sync.Mutex
 	uuid uuid.UUID
-	ch   chan *discovery.Advertisement
+	ch   chan *idiscovery.AdInfo
 	done bool
 }
 
-func (s *scanner) handleLost(id uuid.UUID, oldAdv *bleAdv) error {
+func (s *scanner) handleLost(id uuid.UUID, oldAd *bleAd) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.done {
 		return nil
 	}
 
-	s.ch <- &discovery.Advertisement{
-		Service: vdiscovery.Service{
-			InstanceId: string(oldAdv.attrs[InstanceIdUuid]),
-		},
-		Lost: true,
-	}
+	adinfo := &idiscovery.AdInfo{Lost: true}
+	copy(adinfo.Ad.Id[:], oldAd.attrs[IdUuid])
+	s.ch <- adinfo
 	return nil
 }
 
-func (s *scanner) handleUpdate(id uuid.UUID, oldAdv *bleAdv, newAdv *bleAdv) error {
+func (s *scanner) handleUpdate(id uuid.UUID, oldAd *bleAd, newAd *bleAd) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.done {
 		return nil
 	}
 
-	a, err := newAdv.toDiscoveryAdvertisement()
+	adinfo, err := newAd.toAdInfo()
 	if err != nil {
 		return err
 	}
-	s.ch <- a
+	s.ch <- adinfo
 	return nil
 }
 

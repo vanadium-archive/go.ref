@@ -16,6 +16,7 @@ import (
 	idiscovery "v.io/x/ref/lib/discovery"
 	fdiscovery "v.io/x/ref/lib/discovery/factory"
 	"v.io/x/ref/lib/discovery/plugins/mock"
+	"v.io/x/ref/lib/discovery/testutil"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
@@ -62,11 +63,13 @@ func newEndpoints(addrs ...string) []naming.Endpoint {
 	return eps
 }
 
-func setServiceAddrs(service *discovery.Service, eps []naming.Endpoint, suffix string) {
-	service.Addrs = make([]string, len(eps))
+func withNewAddresses(ad *discovery.Advertisement, eps []naming.Endpoint, suffix string) discovery.Advertisement {
+	newAd := *ad
+	newAd.Addresses = make([]string, len(eps))
 	for i, ep := range eps {
-		service.Addrs[i] = naming.JoinAddressName(ep.Name(), suffix)
+		newAd.Addresses[i] = naming.JoinAddressName(ep.Name(), suffix)
 	}
+	return newAd
 }
 
 func TestAdvertiseServer(t *testing.T) {
@@ -81,19 +84,20 @@ func TestAdvertiseServer(t *testing.T) {
 	eps := newEndpoints("addr1:123")
 	mock := newMockServer(eps)
 
-	service := discovery.Service{
+	ad := discovery.Advertisement{
 		InterfaceName: "v.io/v23/a",
-		Attrs:         discovery.Attributes{"a1": "v1"},
+		Attributes:    map[string]string{"a1": "v1"},
 	}
 
-	_, err := idiscovery.AdvertiseServer(ctx, nil, mock, suffix, &service, nil)
+	_, err := idiscovery.AdvertiseServer(ctx, nil, mock, suffix, &ad, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	d, _ := v23.NewDiscovery(ctx)
-	setServiceAddrs(&service, eps, suffix)
-	if err := scanAndMatch(ctx, d, "", service); err != nil {
+
+	newAd := withNewAddresses(&ad, eps, suffix)
+	if err := testutil.ScanAndMatch(ctx, d, "", newAd); err != nil {
 		t.Error(err)
 	}
 
@@ -105,8 +109,8 @@ func TestAdvertiseServer(t *testing.T) {
 	for _, eps := range tests {
 		mock.updateNetwork(eps)
 
-		setServiceAddrs(&service, eps, suffix)
-		if err := scanAndMatch(ctx, d, "", service); err != nil {
+		newAd = withNewAddresses(&ad, eps, suffix)
+		if err := testutil.ScanAndMatch(ctx, d, "", newAd); err != nil {
 			t.Error(err)
 		}
 	}

@@ -9,32 +9,35 @@ import (
 	"sync"
 
 	"v.io/v23/context"
+	"v.io/v23/discovery"
 
-	"v.io/x/ref/lib/discovery"
+	idiscovery "v.io/x/ref/lib/discovery"
 )
 
 type plugin struct {
-	mu       sync.Mutex
-	services map[string][]discovery.Advertisement // GUARDED_BY(mu)
+	mu sync.Mutex
 
 	updated   *sync.Cond
 	updateSeq int // GUARDED_BY(mu)
+
+	adinfoMap map[string]map[discovery.AdId]*idiscovery.AdInfo // GUARDED_BY(mu)
 }
 
-func (p *plugin) Advertise(ctx *context.T, ad discovery.Advertisement, done func()) error {
-	p.RegisterAdvertisement(ad)
-
+func (p *plugin) Advertise(ctx *context.T, adinfo *idiscovery.AdInfo, done func()) error {
+	p.RegisterAd(adinfo)
 	go func() {
-		defer done()
 		<-ctx.Done()
-		p.UnregisterAdvertisement(ad)
+		p.UnregisterAd(adinfo)
+		done()
 	}()
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- discovery.Advertisement, done func()) error {
+func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscovery.AdInfo, done func()) error {
 	rescan := make(chan struct{})
 	go func() {
+		defer close(rescan)
+
 		var updateSeqSeen int
 		for {
 			p.mu.Lock()
@@ -54,44 +57,44 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- discovery.
 	go func() {
 		defer done()
 
-		scanned := make(map[string]discovery.Advertisement)
+		seen := make(map[discovery.AdId]idiscovery.AdInfo)
 		for {
-			current := make(map[string]discovery.Advertisement)
+			current := make(map[discovery.AdId]idiscovery.AdInfo)
 			p.mu.Lock()
-			for key, ads := range p.services {
+			for key, adinfos := range p.adinfoMap {
 				if len(interfaceName) > 0 && key != interfaceName {
 					continue
 				}
-				for _, ad := range ads {
-					current[ad.Service.InstanceId] = ad
+				for id, adinfo := range adinfos {
+					current[id] = *adinfo
 				}
 			}
 			p.mu.Unlock()
 
-			changed := make([]discovery.Advertisement, 0, len(current))
-			for key, ad := range current {
-				old, ok := scanned[key]
-				if !ok || !reflect.DeepEqual(old, ad) {
-					changed = append(changed, ad)
+			changed := make([]idiscovery.AdInfo, 0, len(current))
+			for id, adinfo := range current {
+				old, ok := seen[id]
+				if !ok || !reflect.DeepEqual(old, adinfo) {
+					changed = append(changed, adinfo)
 				}
 			}
-			for key, ad := range scanned {
-				if _, ok := current[key]; !ok {
-					ad.Lost = true
-					changed = append(changed, ad)
+			for id, adinfo := range seen {
+				if _, ok := current[id]; !ok {
+					adinfo.Lost = true
+					changed = append(changed, adinfo)
 				}
 			}
 
 			// Push new changes.
-			for _, ad := range changed {
+			for i := range changed {
 				select {
-				case ch <- ad:
+				case ch <- &changed[i]:
 				case <-ctx.Done():
 					return
 				}
 			}
 
-			scanned = current
+			seen = current
 
 			// Wait the next update.
 			select {
@@ -104,53 +107,36 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- discovery.
 	return nil
 }
 
-// RegisterService registers an advertisement service to the plugin. If there is
-// an advertisement with the same instance uuid, it will be updated with the
-// given advertisement.
-func (p *plugin) RegisterAdvertisement(ad discovery.Advertisement) {
+// RegisterAd registers an advertisement to the plugin. If there is already an
+// advertisement with the same id, it will be updated with the given advertisement.
+func (p *plugin) RegisterAd(adinfo *idiscovery.AdInfo) {
 	p.mu.Lock()
-	key := ad.Service.InterfaceName
-	ads := p.services[key]
-	if i := findAd(ads, ad.Service.InstanceId); i >= 0 {
-		ads[i] = ad
-	} else {
-		ads = append(ads, ad)
+	adinfos := p.adinfoMap[adinfo.Ad.InterfaceName]
+	if adinfos == nil {
+		adinfos = make(map[discovery.AdId]*idiscovery.AdInfo)
+		p.adinfoMap[adinfo.Ad.InterfaceName] = adinfos
 	}
-	p.services[key] = ads
+	adinfos[adinfo.Ad.Id] = adinfo
 	p.updateSeq++
 	p.mu.Unlock()
 	p.updated.Broadcast()
 }
 
-// UnregisterAdvertisement unregisters a registered service from the plugin.
-func (p *plugin) UnregisterAdvertisement(ad discovery.Advertisement) {
+// UnregisterAd unregisters a registered advertisement from the plugin.
+func (p *plugin) UnregisterAd(adinfo *idiscovery.AdInfo) {
 	p.mu.Lock()
-	key := ad.Service.InterfaceName
-	ads := p.services[key]
-	if i := findAd(ads, ad.Service.InstanceId); i >= 0 {
-		ads = append(ads[:i], ads[i+1:]...)
-		if len(ads) > 0 {
-			p.services[key] = ads
-		} else {
-			delete(p.services, key)
-		}
-		p.updateSeq++
+	adinfos := p.adinfoMap[adinfo.Ad.InterfaceName]
+	delete(adinfos, adinfo.Ad.Id)
+	if len(adinfos) == 0 {
+		p.adinfoMap[adinfo.Ad.InterfaceName] = nil
 	}
+	p.updateSeq++
 	p.mu.Unlock()
 	p.updated.Broadcast()
 }
 
-func findAd(ads []discovery.Advertisement, instanceId string) int {
-	for i, ad := range ads {
-		if ad.Service.InstanceId == instanceId {
-			return i
-		}
-	}
-	return -1
-}
-
 func New() *plugin {
-	p := &plugin{services: make(map[string][]discovery.Advertisement)}
+	p := &plugin{adinfoMap: make(map[string]map[discovery.AdId]*idiscovery.AdInfo)}
 	p.updated = sync.NewCond(&p.mu)
 	return p
 }

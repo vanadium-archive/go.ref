@@ -20,7 +20,8 @@ import (
 
 	"github.com/paypal/gatt"
 	"github.com/pborman/uuid"
-	"v.io/x/ref/lib/discovery"
+
+	idiscovery "v.io/x/ref/lib/discovery"
 )
 
 const (
@@ -38,7 +39,7 @@ var (
 
 type bleCacheEntry struct {
 	id             string
-	advertisements map[string]*bleAdv
+	advertisements map[string]*bleAd
 	stamp          string
 	lastSeen       time.Time
 }
@@ -53,7 +54,7 @@ type bleNeighborhood struct {
 	neighborsStampCache map[string]*bleCacheEntry
 	// key is the hex encoded ID of the device.
 	knownNeighbors map[string]*bleCacheEntry
-	// key is the instance id.
+	// key is the advertisement id.
 	services map[string]*gatt.Service
 	// Scanners out standing calls to Scan that need be serviced.  Each time a
 	// new device appears or disappears, the scanner is notified of the event.
@@ -131,15 +132,16 @@ func (b *bleNeighborhood) checkTTL() {
 	}
 }
 
-func (b *bleNeighborhood) addAdvertisement(adv bleAdv) {
-	gattService := gatt.NewService(gatt.MustParseUUID(adv.serviceUuid.String()))
-	for k, v := range adv.attrs {
+func (b *bleNeighborhood) addAdvertisement(adinfo *idiscovery.AdInfo) {
+	bleAd := newBleAd(adinfo)
+	gattService := gatt.NewService(gatt.MustParseUUID(bleAd.serviceUuid.String()))
+	for k, v := range bleAd.attrs {
 		gattService.AddCharacteristic(gatt.MustParseUUID(k)).SetValue(v)
 	}
 	stamp := genStamp()
 	b.mu.Lock()
 	b.currentStamp = stamp
-	b.services[string(adv.attrs[InstanceIdUuid])] = gattService
+	b.services[adinfo.Ad.Id.String()] = gattService
 	v := make([]*gatt.Service, len(b.services))
 	i := 0
 	for _, s := range b.services {
@@ -150,11 +152,11 @@ func (b *bleNeighborhood) addAdvertisement(adv bleAdv) {
 	b.device.SetServices(v)
 }
 
-func (b *bleNeighborhood) removeService(id string) {
+func (b *bleNeighborhood) removeAdvertisement(adinfo *idiscovery.AdInfo) {
 	stamp := genStamp()
 	b.mu.Lock()
 	b.currentStamp = stamp
-	delete(b.services, id)
+	delete(b.services, adinfo.Ad.Id.String())
 	v := make([]*gatt.Service, 0, len(b.services))
 	for _, s := range b.services {
 		v = append(v, s)
@@ -163,8 +165,8 @@ func (b *bleNeighborhood) removeService(id string) {
 	b.device.SetServices(v)
 }
 
-func (b *bleNeighborhood) addScanner(uuid uuid.UUID) (chan *discovery.Advertisement, int64) {
-	ch := make(chan *discovery.Advertisement)
+func (b *bleNeighborhood) addScanner(uuid uuid.UUID) (chan *idiscovery.AdInfo, int64) {
+	ch := make(chan *idiscovery.AdInfo)
 	s := &scanner{
 		uuid: uuid,
 		ch:   ch,
@@ -316,7 +318,7 @@ func (b *bleNeighborhood) getAllServices(p gatt.Peripheral) {
 		return
 	}
 
-	services := map[string]*bleAdv{}
+	services := map[string]*bleAd{}
 	for _, s := range ss {
 		if s.UUID().Equal(attrGapUuid) {
 			continue
@@ -351,7 +353,7 @@ func (b *bleNeighborhood) getAllServices(p gatt.Peripheral) {
 			}
 			attrs[u.String()] = v
 		}
-		services[serviceUuid.String()] = &bleAdv{serviceUuid: serviceUuid, attrs: attrs}
+		services[serviceUuid.String()] = &bleAd{serviceUuid: serviceUuid, attrs: attrs}
 	}
 
 	b.saveDevice(h, p.ID(), services)
@@ -429,7 +431,7 @@ func (b *bleNeighborhood) startBLEService() error {
 	return nil
 }
 
-func (b *bleNeighborhood) saveDevice(stamp string, id string, services map[string]*bleAdv) {
+func (b *bleNeighborhood) saveDevice(stamp string, id string, services map[string]*bleAd) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if _, found := b.neighborsStampCache[stamp]; found {
@@ -437,9 +439,9 @@ func (b *bleNeighborhood) saveDevice(stamp string, id string, services map[strin
 		return
 	}
 
-	var oldAdvs map[string]*bleAdv
+	var oldAds map[string]*bleAd
 	if oldEntry, ok := b.knownNeighbors[id]; ok {
-		oldAdvs = oldEntry.advertisements
+		oldAds = oldEntry.advertisements
 	}
 	newEntry := &bleCacheEntry{
 		id:             id,
@@ -450,20 +452,20 @@ func (b *bleNeighborhood) saveDevice(stamp string, id string, services map[strin
 	b.neighborsStampCache[stamp] = newEntry
 	b.knownNeighbors[id] = newEntry
 
-	for id, newAdv := range services {
-		oldAdv := oldAdvs[id]
-		if !reflect.DeepEqual(oldAdv, newAdv) {
+	for id, newAd := range services {
+		oldAd := oldAds[id]
+		if !reflect.DeepEqual(oldAd, newAd) {
 			uid := uuid.Parse(id)
 			for _, s := range b.scannersByService[id] {
-				s.handleUpdate(uid, oldAdv, newAdv)
+				s.handleUpdate(uid, oldAd, newAd)
 			}
 		}
 	}
-	for id, oldAdv := range oldAdvs {
+	for id, oldAd := range oldAds {
 		if _, exist := services[id]; !exist {
 			uid := uuid.Parse(id)
 			for _, s := range b.scannersByService[id] {
-				s.handleLost(uid, oldAdv)
+				s.handleLost(uid, oldAd)
 			}
 		}
 	}
@@ -473,9 +475,9 @@ func (b *bleNeighborhood) computeAdvertisement() *gatt.AdvPacket {
 	b.mu.Lock()
 	stamp := b.currentStamp
 	b.mu.Unlock()
-	adv := &gatt.AdvPacket{}
-	adv.AppendFlags(0x06)
-	adv.AppendManufacturerData(manufacturerId, stamp)
-	adv.AppendName(b.name)
-	return adv
+	packet := &gatt.AdvPacket{}
+	packet.AppendFlags(0x06)
+	packet.AppendManufacturerData(manufacturerId, stamp)
+	packet.AppendName(b.name)
+	return packet
 }

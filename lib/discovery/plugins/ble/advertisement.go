@@ -11,92 +11,95 @@ import (
 
 	"github.com/pborman/uuid"
 
-	vdiscovery "v.io/v23/discovery"
+	"v.io/v23/discovery"
 
-	"v.io/x/ref/lib/discovery"
+	idiscovery "v.io/x/ref/lib/discovery"
 )
 
-type bleAdv struct {
+type bleAd struct {
 	serviceUuid uuid.UUID
 	attrs       map[string][]byte
 }
 
-func newBleAdvertisment(serviceUuid uuid.UUID, adv discovery.Advertisement) bleAdv {
+func newBleAd(adinfo *idiscovery.AdInfo) bleAd {
 	attrs := map[string][]byte{
-		InstanceIdUuid:    []byte(adv.Service.InstanceId),
-		InterfaceNameUuid: []byte(adv.Service.InterfaceName),
-		HashUuid:          adv.Hash,
+		IdUuid:            adinfo.Ad.Id[:],
+		InterfaceNameUuid: []byte(adinfo.Ad.InterfaceName),
+		AddressesUuid:     idiscovery.PackAddresses(adinfo.Ad.Addresses),
+		HashUuid:          adinfo.Hash[:],
 	}
-	if len(adv.Service.InstanceName) > 0 {
-		attrs[InstanceNameUuid] = []byte(adv.Service.InstanceName)
-	}
-	if len(adv.Service.Addrs) > 0 {
-		attrs[AddrsUuid] = discovery.PackAddresses(adv.Service.Addrs)
-	}
-	for k, v := range adv.Service.Attrs {
-		uuid := uuid.UUID(discovery.NewAttributeUUID(k)).String()
+	for k, v := range adinfo.Ad.Attributes {
+		uuid := uuid.UUID(idiscovery.NewAttributeUUID(k)).String()
 		attrs[uuid] = []byte(k + "=" + v)
 	}
-	for k, v := range adv.Service.Attachments {
+	for k, v := range adinfo.Ad.Attachments {
 		k = AttachmentNamePrefix + k
-		uuid := uuid.UUID(discovery.NewAttributeUUID(k)).String()
-		attrs[uuid] = append([]byte(k+"="), v...)
+		uuid := uuid.UUID(idiscovery.NewAttributeUUID(k)).String()
+		var buf bytes.Buffer
+		buf.WriteString(k)
+		buf.WriteString("=")
+		buf.Write(v)
+		attrs[uuid] = buf.Bytes()
 	}
-	if adv.EncryptionAlgorithm != discovery.NoEncryption {
-		attrs[EncryptionUuid] = discovery.PackEncryptionKeys(adv.EncryptionAlgorithm, adv.EncryptionKeys)
+	if adinfo.EncryptionAlgorithm != idiscovery.NoEncryption {
+		attrs[EncryptionUuid] = idiscovery.PackEncryptionKeys(adinfo.EncryptionAlgorithm, adinfo.EncryptionKeys)
 	}
-	if len(adv.DirAddrs) > 0 {
-		attrs[DirAddrsUuid] = discovery.PackAddresses(adv.DirAddrs)
+	if len(adinfo.DirAddrs) > 0 {
+		attrs[DirAddrsUuid] = idiscovery.PackAddresses(adinfo.DirAddrs)
 	}
-	return bleAdv{
-		serviceUuid: serviceUuid,
+	return bleAd{
+		serviceUuid: uuid.UUID(idiscovery.NewServiceUUID(adinfo.Ad.InterfaceName)),
 		attrs:       attrs,
 	}
 }
 
-func (a *bleAdv) toDiscoveryAdvertisement() (*discovery.Advertisement, error) {
-	adv := &discovery.Advertisement{
-		Service: vdiscovery.Service{
-			Attrs:       make(vdiscovery.Attributes),
-			Attachments: make(vdiscovery.Attachments),
+func (ad *bleAd) toAdInfo() (*idiscovery.AdInfo, error) {
+	adinfo := &idiscovery.AdInfo{
+		Ad: discovery.Advertisement{
+			Attributes:  make(discovery.Attributes),
+			Attachments: make(discovery.Attachments),
 		},
 	}
 
 	var err error
-	for k, v := range a.attrs {
+	for k, v := range ad.attrs {
 		switch k {
-		case InstanceIdUuid:
-			adv.Service.InstanceId = string(v)
-		case InstanceNameUuid:
-			adv.Service.InstanceName = string(v)
+		case IdUuid:
+			if len(v) != len(adinfo.Ad.Id) {
+				return nil, fmt.Errorf("invalid id: %v", v)
+			}
+			copy(adinfo.Ad.Id[:], v)
 		case InterfaceNameUuid:
-			adv.Service.InterfaceName = string(v)
-		case AddrsUuid:
-			if adv.Service.Addrs, err = discovery.UnpackAddresses(v); err != nil {
+			adinfo.Ad.InterfaceName = string(v)
+		case AddressesUuid:
+			if adinfo.Ad.Addresses, err = idiscovery.UnpackAddresses(v); err != nil {
 				return nil, err
 			}
 		case EncryptionUuid:
-			if adv.EncryptionAlgorithm, adv.EncryptionKeys, err = discovery.UnpackEncryptionKeys(v); err != nil {
+			if adinfo.EncryptionAlgorithm, adinfo.EncryptionKeys, err = idiscovery.UnpackEncryptionKeys(v); err != nil {
 				return nil, err
 			}
 		case HashUuid:
-			adv.Hash = v
+			if len(v) != len(adinfo.Hash) {
+				return nil, fmt.Errorf("invalid hash: %v", v)
+			}
+			copy(adinfo.Hash[:], v)
 		case DirAddrsUuid:
-			if adv.DirAddrs, err = discovery.UnpackAddresses(v); err != nil {
+			if adinfo.DirAddrs, err = idiscovery.UnpackAddresses(v); err != nil {
 				return nil, err
 			}
 		default:
 			p := bytes.SplitN(v, []byte{'='}, 2)
 			if len(p) != 2 {
-				return nil, fmt.Errorf("incorrectly formatted value, %v", v)
+				return nil, fmt.Errorf("invalid attributes: %v", v)
 			}
 			name := string(p[0])
 			if strings.HasPrefix(name, AttachmentNamePrefix) {
-				adv.Service.Attachments[name[len(AttachmentNamePrefix):]] = p[1]
+				adinfo.Ad.Attachments[name[len(AttachmentNamePrefix):]] = p[1]
 			} else {
-				adv.Service.Attrs[name] = string(p[1])
+				adinfo.Ad.Attributes[name] = string(p[1])
 			}
 		}
 	}
-	return adv, nil
+	return adinfo, nil
 }

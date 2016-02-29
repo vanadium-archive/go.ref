@@ -13,9 +13,17 @@ import (
 )
 
 func TestServiceUUID(t *testing.T) {
-	for _, test := range testdata.InterfaceNameTest {
+	for _, test := range testdata.ServiceUuidTest {
 		if got := uuid.UUID(discovery.NewServiceUUID(test.In)).String(); got != test.Want {
 			t.Errorf("ServiceUUID for %q mismatch; got %q, want %q", test.In, got, test.Want)
+		}
+	}
+}
+
+func TestAttributeUUID(t *testing.T) {
+	for _, test := range testdata.AttributeUuidTest {
+		if got := uuid.UUID(discovery.NewAttributeUUID(test.In)).String(); got != test.Want {
+			t.Errorf("AttributeUUID for %q mismatch; got %q, want %q", test.In, got, test.Want)
 		}
 	}
 }

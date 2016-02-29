@@ -5,6 +5,7 @@
 package global
 
 import (
+	"fmt"
 	"testing"
 
 	"v.io/v23"
@@ -12,6 +13,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security"
 
+	"v.io/x/ref/lib/discovery/testutil"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
@@ -24,13 +26,13 @@ func TestBasic(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	services := []discovery.Service{
+	ads := []discovery.Advertisement{
 		{
-			InstanceId: "123",
-			Addrs:      []string{"/h1:123/x", "/h2:123/y"},
+			Id:        discovery.AdId{1, 2, 3},
+			Addresses: []string{"/h1:123/x", "/h2:123/y"},
 		},
 		{
-			Addrs: []string{"/h1:123/x", "/h2:123/z"},
+			Addresses: []string{"/h1:123/x", "/h2:123/z"},
 		},
 	}
 
@@ -40,8 +42,8 @@ func TestBasic(t *testing.T) {
 	}
 
 	var stops []func()
-	for i, _ := range services {
-		stop, err := advertise(ctx, d1, nil, &services[i])
+	for i, _ := range ads {
+		stop, err := testutil.Advertise(ctx, d1, nil, &ads[i])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -49,7 +51,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	// Make sure none of advertisements are discoverable by the same discovery instance.
-	if err := scanAndMatch(ctx, d1, ""); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d1, ``); err != nil {
 		t.Error(err)
 	}
 
@@ -60,27 +62,28 @@ func TestBasic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := scanAndMatch(ctx, d2, "123", services[0]); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, `k="01020300000000000000000000000000"`, ads[0]); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, d2, services[1].InstanceId, services[1]); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, fmt.Sprintf(`k="%s"`, ads[1].Id), ads[1]); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, d2, "", services...); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, ``, ads...); err != nil {
 		t.Error(err)
 	}
-	if err := scanAndMatch(ctx, d2, "_not_exist_"); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, `k="not_exist"`); err != nil {
 		t.Error(err)
 	}
 
 	// Open a new scan channel and consume expected advertisements first.
-	scan, scanStop, err := startScan(ctx, d2, "123")
+	scanCh, scanStop, err := testutil.Scan(ctx, d2, fmt.Sprintf(`k="%s"`, ads[0].Id))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer scanStop()
-	update := <-scan
-	if !matchFound([]discovery.Update{update}, services[0]) {
+
+	update := <-scanCh
+	if !testutil.MatchFound(ctx, []discovery.Update{update}, ads[0]) {
 		t.Errorf("unexpected scan: %v", update)
 	}
 
@@ -88,19 +91,19 @@ func TestBasic(t *testing.T) {
 	stops[0]()
 
 	clock.AdvanceTime(scanInterval * 2)
-	update = <-scan
-	if !matchLost([]discovery.Update{update}, services[0]) {
+	update = <-scanCh
+	if !testutil.MatchLost(ctx, []discovery.Update{update}, ads[0]) {
 		t.Errorf("unexpected scan: %v", update)
 	}
 
 	// Also it shouldn't affect the other.
-	if err := scanAndMatch(ctx, d2, services[1].InstanceId, services[1]); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, fmt.Sprintf(`k="%s"`, ads[1].Id), ads[1]); err != nil {
 		t.Error(err)
 	}
 
 	// Stop advertising the remaining one; Shouldn't discover any service.
 	stops[1]()
-	if err := scanAndMatch(ctx, d2, ""); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, ``); err != nil {
 		t.Error(err)
 	}
 }
@@ -109,9 +112,8 @@ func TestVisibility(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	service := discovery.Service{
-		InstanceId: "123",
-		Addrs:      []string{"/h1:123/x", "/h2:123/y"},
+	ad := discovery.Advertisement{
+		Addresses: []string{"/h1:123/x"},
 	}
 	visibility := []security.BlessingPattern{
 		security.BlessingPattern("test-blessing:bob"),
@@ -120,35 +122,35 @@ func TestVisibility(t *testing.T) {
 
 	d1, _ := New(ctx, testPath)
 
-	mectx, _ := withPrincipal(ctx, "me")
-	stop, _ := advertise(mectx, d1, visibility, &service)
+	mectx, _ := testutil.WithPrincipal(ctx, "me")
+	stop, _ := testutil.Advertise(mectx, d1, visibility, &ad)
 	defer stop()
 
 	d2, _ := New(ctx, testPath)
 
 	// Bob and his friend should discover the advertisement.
-	bobctx, _ := withPrincipal(ctx, "bob")
-	if err := scanAndMatch(bobctx, d2, "123", service); err != nil {
+	bobctx, _ := testutil.WithPrincipal(ctx, "bob")
+	if err := testutil.ScanAndMatch(bobctx, d2, ``, ad); err != nil {
 		t.Error(err)
 	}
-	bobfriendctx, _ := withPrincipal(ctx, "bob:friend")
-	if err := scanAndMatch(bobfriendctx, d2, "123", service); err != nil {
+	bobfriendctx, _ := testutil.WithPrincipal(ctx, "bob:friend")
+	if err := testutil.ScanAndMatch(bobfriendctx, d2, ``, ad); err != nil {
 		t.Error(err)
 	}
 
 	// Alice should discover the advertisement, but her friend shouldn't.
-	alicectx, _ := withPrincipal(ctx, "alice")
-	if err := scanAndMatch(alicectx, d2, "123", service); err != nil {
+	alicectx, _ := testutil.WithPrincipal(ctx, "alice")
+	if err := testutil.ScanAndMatch(alicectx, d2, ``, ad); err != nil {
 		t.Error(err)
 	}
-	alicefriendctx, _ := withPrincipal(ctx, "alice:friend")
-	if err := scanAndMatch(alicefriendctx, d2, "123"); err != nil {
+	alicefriendctx, _ := testutil.WithPrincipal(ctx, "alice:friend")
+	if err := testutil.ScanAndMatch(alicefriendctx, d2, ``); err != nil {
 		t.Error(err)
 	}
 
 	// Other people shouldn't discover the advertisement.
-	carolctx, _ := withPrincipal(ctx, "carol")
-	if err := scanAndMatch(carolctx, d2, "123"); err != nil {
+	carolctx, _ := testutil.WithPrincipal(ctx, "carol")
+	if err := testutil.ScanAndMatch(carolctx, d2, ``); err != nil {
 		t.Error(err)
 	}
 }
@@ -157,17 +159,16 @@ func TestDuplicates(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	service := discovery.Service{
-		InstanceId: "123",
-		Addrs:      []string{"/h1:123/x"},
+	ad := discovery.Advertisement{
+		Addresses: []string{"/h1:123/x"},
 	}
 
 	d, _ := New(ctx, testPath)
 
-	stop, _ := advertise(ctx, d, nil, &service)
+	stop, _ := testutil.Advertise(ctx, d, nil, &ad)
 	defer stop()
 
-	if _, err := advertise(ctx, d, nil, &service); err == nil {
+	if _, err := testutil.Advertise(ctx, d, nil, &ad); err == nil {
 		t.Error("expect an error; but got none")
 	}
 }
@@ -188,18 +189,17 @@ func TestRefresh(t *testing.T) {
 	ns := v23.GetNamespace(ctx)
 	ns.SetRoots(mtserver.Status().Endpoints[0].Name())
 
-	service := discovery.Service{
-		InstanceId: "123",
-		Addrs:      []string{"/h1:123/x"},
+	ad := discovery.Advertisement{
+		Addresses: []string{"/h1:123/x"},
 	}
 
 	d1, _ := newWithClock(ctx, testPath, clock)
 
-	stop, _ := advertise(ctx, d1, nil, &service)
+	stop, _ := testutil.Advertise(ctx, d1, nil, &ad)
 	defer stop()
 
 	d2, _ := New(ctx, testPath)
-	if err := scanAndMatch(ctx, d2, "", service); err != nil {
+	if err := testutil.ScanAndMatch(ctx, d2, ``, ad); err != nil {
 		t.Error(err)
 	}
 
@@ -208,7 +208,7 @@ func TestRefresh(t *testing.T) {
 		clock.AdvanceTime(mountTTL * 2)
 		<-clock.Requests()
 
-		if err := scanAndMatch(ctx, d2, "", service); err != nil {
+		if err := testutil.ScanAndMatch(ctx, d2, ``, ad); err != nil {
 			t.Error(err)
 		}
 	}

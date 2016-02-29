@@ -13,16 +13,14 @@ import (
 	"v.io/v23/security"
 )
 
-type sessionId uint64
-
 // sdiscovery is an implementation of discovery.T.
 type sdiscovery struct {
 	d       *idiscovery
 	session sessionId
 }
 
-func (sd *sdiscovery) Advertise(ctx *context.T, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
-	return sd.d.advertise(ctx, sd.session, service, visibility)
+func (sd *sdiscovery) Advertise(ctx *context.T, ad *discovery.Advertisement, visibility []security.BlessingPattern) (<-chan struct{}, error) {
+	return sd.d.advertise(ctx, sd.session, ad, visibility)
 }
 
 func (sd *sdiscovery) Scan(ctx *context.T, query string) (<-chan discovery.Update, error) {

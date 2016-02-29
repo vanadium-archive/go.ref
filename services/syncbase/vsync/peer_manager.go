@@ -313,7 +313,7 @@ func (pm *peerManagerImpl) pickPeersToPingRandom(ctx *context.T) ([]*connInfo, b
 	for nbr, svc := range neighbors {
 		if _, ok := pm.healthyPeerCache[nbr]; !ok {
 			if randIntn(n) < k {
-				p := &connInfo{relName: nbr, addrs: svc.Addrs}
+				p := &connInfo{relName: nbr, addrs: svc.Addresses}
 				peers = append(peers, p)
 
 				k--

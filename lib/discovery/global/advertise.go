@@ -14,7 +14,8 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-	"v.io/v23/verror"
+
+	idiscovery "v.io/x/ref/lib/discovery"
 )
 
 const (
@@ -22,17 +23,15 @@ const (
 	mountTTLSlack = 20 * time.Second
 )
 
-var (
-	errAlreadyBeingAdvertised = verror.Register(pkgPath+".errAlreadyBeingAdvertised", verror.NoRetry, "{1:}{2:} already being advertised")
-	errInvalidService         = verror.Register(pkgPath+"errInvalidService", verror.NoRetry, "{1:}{2:} service not valid{:_}")
-)
-
-func (d *gdiscovery) Advertise(ctx *context.T, service *discovery.Service, visibility []security.BlessingPattern) (<-chan struct{}, error) {
-	if len(service.InstanceId) == 0 {
-		service.InstanceId = newInstanceId()
+func (d *gdiscovery) Advertise(ctx *context.T, ad *discovery.Advertisement, visibility []security.BlessingPattern) (<-chan struct{}, error) {
+	if !ad.Id.IsValid() {
+		var err error
+		if ad.Id, err = discovery.NewAdId(); err != nil {
+			return nil, err
+		}
 	}
-	if err := validateService(service); err != nil {
-		return nil, verror.New(errInvalidService, ctx, err)
+	if err := validateAd(ad); err != nil {
+		return nil, idiscovery.NewErrBadAdvertisement(ctx, err)
 	}
 	if len(visibility) == 0 {
 		visibility = []security.BlessingPattern{security.AllPrincipals}
@@ -45,34 +44,33 @@ func (d *gdiscovery) Advertise(ctx *context.T, service *discovery.Service, visib
 		string(access.Read):  access.AccessList{In: visibility},
 	}
 
-	name := service.InstanceId
-	if !d.addAd(name) {
-		return nil, verror.New(errAlreadyBeingAdvertised, ctx)
+	if !d.addAd(ad) {
+		return nil, idiscovery.NewErrAlreadyBeingAdvertised(ctx, ad.Id)
 	}
 
 	// TODO(jhahn): There is no atomic way to check and reserve the name under mounttable.
 	// For example, the name can be overwritten by other applications of the same owner.
 	// But this would be OK for now.
+	name := ad.Id.String()
 	if err := d.ns.SetPermissions(ctx, name, perms, "", naming.IsLeaf(true)); err != nil {
-		d.removeAd(name)
+		d.removeAd(ad)
 		return nil, err
 	}
 
 	// TODO(jhahn): We're using one goroutine per advertisement, but we can do
 	// better like have one goroutine that takes care of all advertisements.
 	// But this is OK for now as an experiment.
-	addrs := service.Addrs
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		defer d.removeAd(name)
+		defer d.removeAd(ad)
 		// We need a context that is detached from the deadlines and cancellation
 		// of ctx since we have to unmount after ctx is canceled.
 		rctx, _ := context.WithRootCancel(ctx)
 		defer unmount(rctx, d.ns, name)
 
 		for {
-			mount(ctx, d.ns, name, addrs)
+			mount(ctx, d.ns, name, ad.Addresses)
 
 			select {
 			case <-d.clock.After(mountTTL):
@@ -84,20 +82,20 @@ func (d *gdiscovery) Advertise(ctx *context.T, service *discovery.Service, visib
 	return done, nil
 }
 
-func (d *gdiscovery) addAd(id string) bool {
+func (d *gdiscovery) addAd(ad *discovery.Advertisement) bool {
 	d.mu.Lock()
-	if _, exist := d.ads[id]; exist {
+	if _, exist := d.ads[ad.Id]; exist {
 		d.mu.Unlock()
 		return false
 	}
-	d.ads[id] = struct{}{}
+	d.ads[ad.Id] = struct{}{}
 	d.mu.Unlock()
 	return true
 }
 
-func (d *gdiscovery) removeAd(id string) {
+func (d *gdiscovery) removeAd(ad *discovery.Advertisement) {
 	d.mu.Lock()
-	delete(d.ads, id)
+	delete(d.ads, ad.Id)
 	d.mu.Unlock()
 }
 

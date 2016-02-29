@@ -17,22 +17,15 @@ import (
 	"v.io/v23/discovery"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
-	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/timekeeper"
-)
-
-const pkgPath = "v.io/x/ref/lib/discovery/global"
-
-var (
-	errNoNamespace = verror.Register(pkgPath+".errNoNamespace", verror.NoRetry, "{1:}{2:} namespace not found")
 )
 
 type gdiscovery struct {
 	ns namespace.T
 
 	mu  sync.Mutex
-	ads map[string]struct{} // GUARDED_BY(mu)
+	ads map[discovery.AdId]struct{} // GUARDED_BY(mu)
 
 	clock timekeeper.TimeKeeper
 }
@@ -46,7 +39,7 @@ func New(ctx *context.T, path string) (discovery.T, error) {
 func newWithClock(ctx *context.T, path string, clock timekeeper.TimeKeeper) (discovery.T, error) {
 	ns := v23.GetNamespace(ctx)
 	if ns == nil {
-		return nil, verror.New(errNoNamespace, ctx)
+		return nil, NewErrNoNamespace(ctx)
 	}
 
 	var roots []string
@@ -65,7 +58,7 @@ func newWithClock(ctx *context.T, path string, clock timekeeper.TimeKeeper) (dis
 
 	d := &gdiscovery{
 		ns:    ns,
-		ads:   make(map[string]struct{}),
+		ads:   make(map[discovery.AdId]struct{}),
 		clock: clock,
 	}
 	return d, nil

@@ -90,9 +90,9 @@ type syncService struct {
 	// map is a secondary index to access the info using the syncgroup names
 	// as keys of the outer-map, and instance IDs as keys of the inner-map.
 	discovery           discovery.T
-	discoveryIds        map[string]*discovery.Service
-	discoveryPeers      map[string]*discovery.Service
-	discoverySyncgroups map[string]map[string]*discovery.Service
+	discoveryIds        map[string]*discovery.Advertisement
+	discoveryPeers      map[string]*discovery.Advertisement
+	discoverySyncgroups map[string]map[string]*discovery.Advertisement
 	discoveryLock       sync.RWMutex
 
 	nameLock sync.Mutex // lock needed to serialize adding and removing of Syncbase names.
@@ -276,14 +276,11 @@ func (s *syncService) discoverNeighborhood(ctx *context.T) {
 				break
 			}
 
-			switch u := update.(type) {
-			case discovery.UpdateFound:
-				svc := &u.Value.Service
-				s.updateDiscoveryInfo(svc.InstanceId, svc)
-			case discovery.UpdateLost:
-				s.updateDiscoveryInfo(u.Value.Service.InstanceId, nil)
-			default:
-				vlog.Errorf("sync: discoverNeighborhood: ignoring invalid update: %v", update)
+			if update.IsLost() {
+				s.updateDiscoveryInfo(update.Id().String(), nil)
+			} else {
+				ad := update.Advertisement()
+				s.updateDiscoveryInfo(update.Id().String(), &ad)
 			}
 
 		case <-s.closed:
@@ -298,27 +295,27 @@ func (s *syncService) discoverNeighborhood(ctx *context.T) {
 // syncgroup found in the neighborhood through the discovery service.  If the
 // service entry is nil the record is removed from its discovery map.  The peer
 // and syncgroup information is stored in the service attributes.
-func (s *syncService) updateDiscoveryInfo(id string, service *discovery.Service) {
+func (s *syncService) updateDiscoveryInfo(id string, ad *discovery.Advertisement) {
 	s.discoveryLock.Lock()
 	defer s.discoveryLock.Unlock()
 
-	vlog.VI(3).Infof("sync: updateDiscoveryInfo: %s: %v", id, service)
+	vlog.VI(3).Infof("sync: updateDiscoveryInfo: %s: %v", id, ad)
 
 	// The first time around initialize all discovery maps.
 	if s.discoveryIds == nil {
-		s.discoveryIds = make(map[string]*discovery.Service)
-		s.discoveryPeers = make(map[string]*discovery.Service)
-		s.discoverySyncgroups = make(map[string]map[string]*discovery.Service)
+		s.discoveryIds = make(map[string]*discovery.Advertisement)
+		s.discoveryPeers = make(map[string]*discovery.Advertisement)
+		s.discoverySyncgroups = make(map[string]map[string]*discovery.Advertisement)
 	}
 
 	// Determine the service entry type (sync peer or syncgroup) and its
 	// value either from the given service info or previously stored entry.
 	// Note: each entry only contains a single attribute.
 	var attrs discovery.Attributes
-	if service != nil {
-		attrs = service.Attrs
+	if ad != nil {
+		attrs = ad.Attributes
 	} else if serv := s.discoveryIds[id]; serv != nil {
-		attrs = serv.Attrs
+		attrs = serv.Attributes
 	}
 
 	if len(attrs) == 0 {
@@ -334,8 +331,8 @@ func (s *syncService) updateDiscoveryInfo(id string, service *discovery.Service)
 	switch attrKey {
 	case discoveryAttrPeer:
 		// The attribute value is the Syncbase peer name.
-		if service != nil {
-			s.discoveryPeers[attrValue] = service
+		if ad != nil {
+			s.discoveryPeers[attrValue] = ad
 		} else {
 			delete(s.discoveryPeers, attrValue)
 		}
@@ -343,12 +340,12 @@ func (s *syncService) updateDiscoveryInfo(id string, service *discovery.Service)
 	case discoveryAttrSyncgroup:
 		// The attribute value is the syncgroup name.
 		admins := s.discoverySyncgroups[attrValue]
-		if service != nil {
+		if ad != nil {
 			if admins == nil {
-				admins = make(map[string]*discovery.Service)
+				admins = make(map[string]*discovery.Advertisement)
 				s.discoverySyncgroups[attrValue] = admins
 			}
-			admins[id] = service
+			admins[id] = ad
 		} else if admins != nil {
 			delete(admins, id)
 			if len(admins) == 0 {
@@ -362,8 +359,8 @@ func (s *syncService) updateDiscoveryInfo(id string, service *discovery.Service)
 	}
 
 	// Add or remove the service entry from the main IDs map.
-	if service != nil {
-		s.discoveryIds[id] = service
+	if ad != nil {
+		s.discoveryIds[id] = ad
 	} else {
 		delete(s.discoveryIds, id)
 	}
@@ -371,7 +368,7 @@ func (s *syncService) updateDiscoveryInfo(id string, service *discovery.Service)
 
 // filterDiscoveryPeers returns only those peers discovered via neighborhood
 // that are also found in sgMembers (passed as input argument).
-func (s *syncService) filterDiscoveryPeers(sgMembers map[string]uint32) map[string]*discovery.Service {
+func (s *syncService) filterDiscoveryPeers(sgMembers map[string]uint32) map[string]*discovery.Advertisement {
 	s.discoveryLock.Lock()
 	defer s.discoveryLock.Unlock()
 
@@ -379,7 +376,7 @@ func (s *syncService) filterDiscoveryPeers(sgMembers map[string]uint32) map[stri
 		return nil
 	}
 
-	sgNeighbors := make(map[string]*discovery.Service)
+	sgNeighbors := make(map[string]*discovery.Advertisement)
 
 	for peer, svc := range s.discoveryPeers {
 		if _, ok := sgMembers[peer]; ok {
@@ -392,7 +389,7 @@ func (s *syncService) filterDiscoveryPeers(sgMembers map[string]uint32) map[stri
 
 // filterSyncgroupAdmins returns syncgroup admins for the specified syncgroup
 // found in the neighborhood via the discovery service.
-func (s *syncService) filterSyncgroupAdmins(sgName string) []*discovery.Service {
+func (s *syncService) filterSyncgroupAdmins(sgName string) []*discovery.Advertisement {
 	s.discoveryLock.Lock()
 	defer s.discoveryLock.Unlock()
 
@@ -405,7 +402,7 @@ func (s *syncService) filterSyncgroupAdmins(sgName string) []*discovery.Service 
 		return nil
 	}
 
-	admins := make([]*discovery.Service, 0, len(sgInfo))
+	admins := make([]*discovery.Advertisement, 0, len(sgInfo))
 	for _, svc := range sgInfo {
 		admins = append(admins, svc)
 	}
@@ -488,9 +485,9 @@ func (s *syncService) advertiseSyncbaseInNeighborhood() error {
 		return nil
 	}
 
-	sbService := discovery.Service{
+	sbService := discovery.Advertisement{
 		InterfaceName: ifName,
-		Attrs: discovery.Attributes{
+		Attributes: discovery.Attributes{
 			discoveryAttrPeer: s.name,
 		},
 	}
@@ -534,9 +531,9 @@ func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup)
 		return nil
 	}
 
-	sbService := discovery.Service{
+	sbService := discovery.Advertisement{
 		InterfaceName: ifName,
-		Attrs: discovery.Attributes{
+		Attributes: discovery.Attributes{
 			discoveryAttrSyncgroup: sg.Name,
 		},
 	}

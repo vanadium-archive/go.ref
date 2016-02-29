@@ -10,36 +10,29 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+
+	"v.io/v23/discovery"
 )
 
-func TestEncodeInstanceId(t *testing.T) {
-	tests := []string{
-		randInstanceId(1),
-		randInstanceId(10),
-		randInstanceId(16),
-		randInstanceId(32),
-	}
-
-	for i, test := range tests {
-		encoded := encodeInstanceId(test)
-		instanceId, err := decodeInstanceId(encoded)
+func TestEncodeAdId(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		var id discovery.AdId
+		_, err := rand.Read(id[:])
 		if err != nil {
-			t.Errorf("[%d]: decodeInstanceId failed: %v", i, err)
+			panic(err)
+		}
+
+		encoded := encodeAdId(&id)
+
+		var decoded discovery.AdId
+		if err := decodeAdId(encoded, &decoded); err != nil {
+			t.Errorf("decode id failed: %v", err)
 			continue
 		}
-		if !reflect.DeepEqual(instanceId, test) {
-			t.Errorf("[%d]: decoded to %v, but want %v", i, instanceId, test)
+		if id != decoded {
+			t.Errorf("decoded to %v, but want %v", decoded, id)
 		}
 	}
-}
-
-func randInstanceId(n int) string {
-	b := make([]byte, n)
-	_, err := rand.Read(b)
-	if err != nil {
-		panic(err)
-	}
-	return string(b)
 }
 
 func TestSplitLargeTxt(t *testing.T) {

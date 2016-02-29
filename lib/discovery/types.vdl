@@ -19,10 +19,9 @@ const (
 
 type Uuid []byte
 
-// Advertisement holds a set of service properties to advertise.
-type Advertisement struct {
-	// The service to advertise.
-	Service discovery.Service
+// AdInfo represents advertisement information for discovery.
+type AdInfo struct {
+	Ad discovery.Advertisement
 
 	// Type of encryption applied to the advertisement so that it can
 	// only be decoded by authorized principals.
@@ -32,7 +31,7 @@ type Advertisement struct {
 	EncryptionKeys []EncryptionKey
 
 	// Hash of the current advertisement.
-	Hash []byte
+	Hash AdHash
 
 	// The addresses (vanadium object names) that the advertisement directory service
 	// is served on. See directory.vdl.
@@ -42,3 +41,6 @@ type Advertisement struct {
 	// TODO(jhahn): Use proximity for Lost.
 	Lost bool
 }
+
+// An AdHash is a hash of an advertisement.
+type AdHash [8]byte
