@@ -18,23 +18,22 @@ import (
 // - it can block for new input when the end of the file is reached, and
 // - it aborts when the parent RPC is canceled.
 type followReader struct {
-	reader io.ReadSeeker
+	reader io.Reader
 	ctx    *context.T
 	offset int64
 	follow bool
-	err    error
 	buf    []byte
 }
 
 // newFollowReader is the factory for followReader.
-func newFollowReader(ctx *context.T, reader io.ReadSeeker, startpos int64, follow bool) *followReader {
-	_, err := reader.Seek(startpos, 0)
+//
+// It assumes that the reader has already been advanced to startpos.
+func newFollowReader(ctx *context.T, reader io.Reader, startpos int64, follow bool) *followReader {
 	return &followReader{
 		reader: reader,
 		ctx:    ctx,
 		offset: startpos,
 		follow: follow,
-		err:    err,
 	}
 }
 
@@ -44,9 +43,6 @@ func (f *followReader) tell() int64 {
 }
 
 func (f *followReader) read(b []byte) (int, error) {
-	if f.err != nil {
-		return 0, f.err
-	}
 	for {
 		if f.ctx != nil {
 			select {

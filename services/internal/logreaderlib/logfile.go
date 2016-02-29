@@ -92,6 +92,9 @@ func (i *logfileService) ReadLog(ctx *context.T, call logreader.LogFileReadLogSe
 		}
 		return 0, verror.New(errOperationFailed, ctx, fname)
 	}
+	if startpos, err = f.Seek(startpos, 0); err != nil {
+		return 0, verror.New(errOperationFailed, ctx, fname, err)
+	}
 	reader := newFollowReader(ctx, f, startpos, follow)
 	if numEntries == logreader.AllEntries {
 		numEntries = int32(math.MaxInt32)
