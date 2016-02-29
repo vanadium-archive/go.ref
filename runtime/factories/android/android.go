@@ -19,6 +19,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
+	"v.io/v23/namespace"
 	"v.io/v23/rpc"
 
 	"v.io/x/ref/internal/logger"
@@ -30,6 +31,7 @@ import (
 	"v.io/x/ref/runtime/internal/lib/appcycle"
 	"v.io/x/ref/runtime/internal/lib/roaming"
 	"v.io/x/ref/runtime/internal/lib/xwebsocket"
+	inamespace "v.io/x/ref/runtime/internal/naming/namespace"
 	"v.io/x/ref/runtime/internal/rt"
 	_ "v.io/x/ref/runtime/protocols/tcp"
 	_ "v.io/x/ref/runtime/protocols/ws"
@@ -37,16 +39,27 @@ import (
 	"v.io/x/ref/services/debug/debuglib"
 )
 
+var (
+	commonFlags      *flags.Flags
+	namespaceFactory inamespace.Factory
+)
+
 const (
 	connIdleExpiry = 15 * time.Second
 )
-
-var commonFlags *flags.Flags
 
 func init() {
 	v23.RegisterRuntimeFactory(Init)
 	flow.RegisterUnknownProtocol("wsh", xwebsocket.WSH{})
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
+}
+
+// Sets the namespace factory to be used for creating all namespaces.
+//
+// If never invoked, a default namespace factory will be used.  If invoked,
+// must be before Init() function below, i.e., before v23.Init().
+func SetNamespaceFactory(factory func(*context.T, namespace.T, ...string) (namespace.T, error)) {
+	namespaceFactory = inamespace.Factory(factory)
 }
 
 func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
@@ -76,7 +89,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 
 	publisher := pubsub.NewPublisher()
 
-	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discoveryFactory, nil, &listenSpec, publisher, commonFlags.RuntimeFlags(), reservedDispatcher, connIdleExpiry)
+	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discoveryFactory, namespaceFactory, nil, &listenSpec, publisher, commonFlags.RuntimeFlags(), reservedDispatcher, connIdleExpiry)
 	if err != nil {
 		ishutdown()
 		return nil, nil, nil, err

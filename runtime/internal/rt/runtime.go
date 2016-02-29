@@ -66,6 +66,7 @@ var setPrincipalCounter int32 = -1
 type initData struct {
 	appCycle          v23.AppCycle
 	discoveryFactory  idiscovery.Factory
+	namespaceFactory  inamespace.Factory
 	protocols         []string
 	settingsPublisher *pubsub.Publisher
 	connIdleExpiry    time.Duration
@@ -85,6 +86,7 @@ func Init(
 	ctx *context.T,
 	appCycle v23.AppCycle,
 	discoveryFactory idiscovery.Factory,
+	namespaceFactory inamespace.Factory,
 	protocols []string,
 	listenSpec *rpc.ListenSpec,
 	settingsPublisher *pubsub.Publisher,
@@ -96,6 +98,7 @@ func Init(
 	ctx = context.WithValue(ctx, initKey, &initData{
 		appCycle:          appCycle,
 		discoveryFactory:  discoveryFactory,
+		namespaceFactory:  namespaceFactory,
 		protocols:         protocols,
 		settingsPublisher: settingsPublisher,
 		connIdleExpiry:    connIdleExpiry,
@@ -322,18 +325,21 @@ func (*Runtime) GetClient(ctx *context.T) rpc.Client {
 }
 
 func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, namespace.T, error) {
-	ns, err := inamespace.New(roots...)
-	if err != nil {
+	id, _ := ctx.Value(initKey).(*initData)
+	var ns namespace.T
+	var err error
+	if ns, err = inamespace.New(roots...); err != nil {
 		return nil, nil, err
 	}
-
+	if id.namespaceFactory != nil {
+		if ns, err = id.namespaceFactory(ctx, ns, roots...); err != nil {
+			return nil, nil, err
+		}
+	}
 	if oldNS := r.GetNamespace(ctx); oldNS != nil {
 		ns.CacheCtl(oldNS.CacheCtl()...)
 	}
-
-	if err == nil {
-		ctx = context.WithValue(ctx, namespaceKey, ns)
-	}
+	ctx = context.WithValue(ctx, namespaceKey, ns)
 	return ctx, ns, err
 }
 

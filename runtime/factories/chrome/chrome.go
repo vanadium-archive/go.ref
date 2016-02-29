@@ -37,7 +37,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 
 	protocols := []string{"wsh", "ws"}
 	listenSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "ws", Address: ""}}}
-	runtime, ctx, shutdown, err := grt.Init(ctx, nil, nil, protocols, &listenSpec, nil, commonFlags.RuntimeFlags(), nil, 0)
+	runtime, ctx, shutdown, err := grt.Init(ctx, nil, nil, nil, protocols, &listenSpec, nil, commonFlags.RuntimeFlags(), nil, 0)
 	if err != nil {
 		return nil, nil, nil, err
 	}

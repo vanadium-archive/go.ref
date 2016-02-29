@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	vnamespace "v.io/v23/namespace"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -29,7 +30,7 @@ var (
 	errNotRootedName = verror.Register(pkgPath+".errNotRootedName", verror.NoRetry, "{1:}{2:} At least one root is not a rooted name{:_}")
 )
 
-// namespace is an implementation of naming.Namespace.
+// namespace is an implementation of namespace.T.
 type namespace struct {
 	sync.RWMutex
 
@@ -43,6 +44,10 @@ type namespace struct {
 	// cache for name resolutions
 	resolutionCache cache
 }
+
+// Factory creates a new namespace given a default namespace and a set
+// of roots.
+type Factory func(*context.T, vnamespace.T, ...string) (vnamespace.T, error)
 
 func rooted(names []string) bool {
 	for _, n := range names {
@@ -71,7 +76,7 @@ func New(roots ...string) (*namespace, error) {
 	}, nil
 }
 
-// SetRoots implements naming.Namespace.SetRoots
+// SetRoots implements namespace.T.SetRoots
 func (ns *namespace) SetRoots(roots ...string) error {
 	defer apilog.LogCallf(nil, "roots...=%v", roots)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// Allow roots to be cleared with a call of SetRoots()
@@ -95,7 +100,7 @@ func (ns *namespace) SetDepthLimits(resolve, glob int) {
 	}
 }
 
-// Roots implements naming.Namespace.Roots
+// Roots implements namespace.T.Roots
 func (ns *namespace) Roots() []string {
 	//nologcall
 	ns.RLock()
@@ -182,7 +187,7 @@ func withTimeout(ctx *context.T) *context.T {
 	return ctx
 }
 
-// CacheCtl implements naming.Namespace.CacheCtl
+// CacheCtl implements namespace.T.CacheCtl
 func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 	defer apilog.LogCallf(nil, "ctls...=%v", ctls)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	for _, c := range ctls {

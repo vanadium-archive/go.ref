@@ -58,7 +58,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		discoveryFactory.Shutdown()
 	}
 
-	runtime, ctx, shutdown, err := grt.Init(ctx, ac, discoveryFactory, nil, &listenSpec, nil, commonFlags.RuntimeFlags(), nil, 0)
+	runtime, ctx, shutdown, err := grt.Init(ctx, ac, discoveryFactory, nil, nil, &listenSpec, nil, commonFlags.RuntimeFlags(), nil, 0)
 	if err != nil {
 		ishutdown()
 		return nil, nil, nil, err
