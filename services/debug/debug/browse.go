@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
@@ -126,6 +127,12 @@ func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) == 0 {
 		return env.UsageErrorf("must provide at least a single vanadium object name")
 	}
+	// For now, require that either both --key and --blessings be set, or
+	// neither be. This ensures that no persistent changes are made to the principal
+	// embedded in 'ctx' at this point.
+	if (len(flagBrowsePrivateKey) != 0) != (len(flagBrowseBlessings) != 0) {
+		return env.UsageErrorf("either both --key and --blessings should be set, or neither should be")
+	}
 	if len(flagBrowsePrivateKey) != 0 {
 		keybytes, err := base64.URLEncoding.DecodeString(flagBrowsePrivateKey)
 		if err != nil {
@@ -133,7 +140,15 @@ func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 		key, err := x509.ParseECPrivateKey(keybytes)
 		if err != nil {
-			return fmt.Errorf("bad value for --key: %v", err)
+			// Try with PKCS#8
+			tmp, err := x509.ParsePKCS8PrivateKey(keybytes)
+			if err != nil {
+				return fmt.Errorf("bad value for --key: %v", err)
+			}
+			var ok bool
+			if key, ok = tmp.(*ecdsa.PrivateKey); !ok {
+				return fmt.Errorf("expected an ECDSA private in in --key, got %T", tmp)
+			}
 		}
 		principal, err := seclib.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(key), nil)
 		if err != nil {
@@ -154,9 +169,12 @@ func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 		if _, err := v23.GetPrincipal(ctx).BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
 			if len(flagBrowsePrivateKey) == 0 {
-				return fmt.Errorf("cannot use --blessings, should --key have also been provided? (%v)", err)
+				return fmt.Errorf("cannot use --blessings, mismatch with --key? (%v)", err)
 			}
 			return fmt.Errorf("cannot use --blessings: %v", err)
+		}
+		if err := security.AddToRoots(v23.GetPrincipal(ctx), blessings); err != nil {
+			return fmt.Errorf("failed to add --blessings to the set of recognized roots: %v", err)
 		}
 	}
 	name, err := selectName(ctx, args)
@@ -280,8 +298,8 @@ func selectName(ctx *context.T, options []string) (string, error) {
 				errorch <- err
 				return
 			}
-			working <- idx
 			pc.Unpin()
+			working <- idx
 		}(i)
 	}
 	var errors []error
