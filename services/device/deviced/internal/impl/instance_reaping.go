@@ -5,37 +5,17 @@
 package impl
 
 import (
-	"os"
 	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
 
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/services/device"
-	libstats "v.io/v23/services/stats"
-	"v.io/v23/vdl"
 	"v.io/v23/verror"
 )
 
-const (
-	AppcycleReconciliation = "V23_APPCYCLE_RECONCILIATION"
-)
-
-var (
-	errPIDIsNotInteger = verror.Register(pkgPath+".errPIDIsNotInteger", verror.NoRetry, "{1:}{2:} __debug/stats/system/pid isn't an integer{:_}")
-
-	v23PIDMgmt = true
-)
-
-func init() {
-	// TODO(rjkroege): Environment variables do not survive device manager updates.
-	// Use an alternative mechanism.
-	if os.Getenv(AppcycleReconciliation) != "" {
-		v23PIDMgmt = false
-	}
-}
+var errPIDIsNotInteger = verror.Register(pkgPath+".errPIDIsNotInteger", verror.NoRetry, "{1:}{2:} __debug/stats/system/pid isn't an integer{:_}")
 
 type pidInstanceDirPair struct {
 	instanceDir string
@@ -43,14 +23,15 @@ type pidInstanceDirPair struct {
 }
 
 type reaper struct {
-	c   chan pidInstanceDirPair
-	ctx *context.T
+	c       chan pidInstanceDirPair
+	stopped chan struct{}
+	ctx     *context.T
 }
 
 var stashedPidMap map[string]int
 
 func newReaper(ctx *context.T, root string, appRunner *appRunner) (*reaper, error) {
-	pidMap, restartCandidates, err := findAllTheInstances(ctx, root)
+	pidMap, err := findAllTheInstances(ctx, root)
 
 	// Used only by the testing code that verifies that all processes
 	// have been shutdown.
@@ -60,15 +41,12 @@ func newReaper(ctx *context.T, root string, appRunner *appRunner) (*reaper, erro
 	}
 
 	r := &reaper{
-		c:   make(chan pidInstanceDirPair),
-		ctx: ctx,
+		c:       make(chan pidInstanceDirPair),
+		stopped: make(chan struct{}),
+		ctx:     ctx,
 	}
-	go r.processStatusPolling(ctx, pidMap, appRunner)
-
 	// Restart daemon jobs if they're not running (say because the machine crashed.)
-	for _, idir := range restartCandidates {
-		go appRunner.restartAppIfNecessary(ctx, idir)
-	}
+	go r.processStatusPolling(ctx, pidMap, appRunner)
 	return r, nil
 }
 
@@ -134,8 +112,7 @@ func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int
 				// and was replaced by an arbitrary non-Vanadium process
 				// within the polling interval.
 				// TODO(rjkroege): Probe the appcycle service of the app
-				// to confirm that its pid is valid iff v23PIDMgmt
-				// is false.
+				// to confirm that its pid is valid.
 
 				// TODO(rjkroege): if we can't connect to the app here via
 				// the appcycle manager, the app was probably started under
@@ -147,10 +124,10 @@ func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int
 
 	for {
 		select {
-		case p, ok := <-r.c:
+		case p := <-r.c:
 			switch {
-			case !ok:
-				return
+			case p.instanceDir == "":
+				return // Shutdown.
 			case p.pid == -1: // stop watching this instance
 				delete(trackedPids, p.instanceDir)
 				poll(ctx)
@@ -182,88 +159,40 @@ func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int
 	}
 }
 
+func (r *reaper) sendCmd(idir string, pid int) {
+	select {
+	case r.c <- pidInstanceDirPair{instanceDir: idir, pid: pid}:
+	case <-r.stopped:
+	}
+}
+
 // startWatching begins watching process pid's state. This routine
 // assumes that pid already exists. Since pid is delivered to the device
 // manager by RPC callback, this seems reasonable.
 func (r *reaper) startWatching(idir string, pid int) {
-	r.c <- pidInstanceDirPair{instanceDir: idir, pid: pid}
+	r.sendCmd(idir, pid)
 }
 
 // stopWatching stops watching process pid's state.
 func (r *reaper) stopWatching(idir string) {
-	r.c <- pidInstanceDirPair{instanceDir: idir, pid: -1}
+	r.sendCmd(idir, -1)
 }
 
-// forciblySuspend terminates the process pid
+// forciblySuspend terminates the process pid.
 func (r *reaper) forciblySuspend(idir string) {
-	r.c <- pidInstanceDirPair{instanceDir: idir, pid: -2}
+	r.sendCmd(idir, -2)
 }
 
+// shutdown stops the reaper.
 func (r *reaper) shutdown() {
-	close(r.c)
+	r.sendCmd("", 0)
+	close(r.stopped)
 }
 
 type pidErrorTuple struct {
-	ipath        string
-	pid          int
-	err          error
-	mightRestart bool
-}
-
-// In seconds.
-const appCycleTimeout = 5
-
-// processStatusViaAppCycleMgr updates the status based on getting the
-// pid from the AppCycleMgr because the data in the instance info might
-// be outdated: the app may have exited and an arbitrary non-Vanadium
-// process may have been executed with the same pid.
-func processStatusViaAppCycleMgr(ctx *context.T, c chan<- pidErrorTuple, instancePath string, info *instanceInfo, state device.InstanceState) {
-	nctx, _ := context.WithTimeout(ctx, appCycleTimeout*time.Second)
-
-	name := naming.Join(info.AppCycleMgrName, "__debug/stats/system/pid")
-	sclient := libstats.StatsClient(name)
-	v, err := sclient.Value(nctx)
-	if err != nil {
-		ctx.Infof("Instance: %v error: %v", instancePath, err)
-		// No process is actually running for this instance.
-		ctx.VI(2).Infof("perinstance stats fetching failed: %v", err)
-		if err := transitionInstance(instancePath, state, device.InstanceStateNotRunning); err != nil {
-			ctx.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
-		}
-		// We only want to restart apps that were Running or Launching.
-		if state == device.InstanceStateLaunching || state == device.InstanceStateRunning {
-			c <- pidErrorTuple{ipath: instancePath, err: err, mightRestart: true}
-		} else {
-			c <- pidErrorTuple{ipath: instancePath, err: err}
-		}
-		return
-	}
-	// Convert the stat value from *vdl.Value into an int pid.
-	var pid int
-	if err := vdl.Convert(&pid, v); err != nil {
-		err = verror.New(errPIDIsNotInteger, ctx, err)
-		ctx.Errorf(err.Error())
-		c <- pidErrorTuple{ipath: instancePath, err: err}
-		return
-	}
-
-	ptuple := pidErrorTuple{ipath: instancePath, pid: pid}
-
-	// Update the instance info.
-	if info.Pid != pid {
-		info.Pid = pid
-		ptuple.err = saveInstanceInfo(ctx, instancePath, info)
-	}
-
-	// The instance was found to be running, so update its state accordingly
-	// (in case the device restarted while the instance was in one of the
-	// transitional states like launching, dying, etc).
-	if err := transitionInstance(instancePath, state, device.InstanceStateRunning); err != nil {
-		ctx.Errorf("transitionInstance(%s,%v,%s) failed: %v", instancePath, state, device.InstanceStateRunning, err)
-	}
-
-	ctx.VI(0).Infof("perInstance go routine for %v ending", instancePath)
-	c <- ptuple
+	ipath string
+	pid   int
+	err   error
 }
 
 // processStatusViaKill updates the status based on sending a kill signal
@@ -282,9 +211,7 @@ func processStatusViaKill(ctx *context.T, c chan<- pidErrorTuple, instancePath s
 		}
 		// We only want to restart apps that were Running or Launching.
 		if state == device.InstanceStateLaunching || state == device.InstanceStateRunning {
-			c <- pidErrorTuple{ipath: instancePath, err: err, pid: pid, mightRestart: true}
-		} else {
-			c <- pidErrorTuple{ipath: instancePath, err: err, pid: pid}
+			c <- pidErrorTuple{ipath: instancePath, pid: pid, err: err}
 		}
 	case nil, syscall.EPERM:
 		// The instance was found to be running, so update its state.
@@ -303,7 +230,6 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	switch state {
 	// Ignore apps already in deleted and not running states.
 	case device.InstanceStateNotRunning:
-		c <- pidErrorTuple{ipath: instancePath}
 		return
 	case device.InstanceStateDeleted:
 		return
@@ -331,18 +257,14 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	// Remaining states: Launching, Running, Dying. Of these,
 	// daemon mode will restart Launching and Running if the process
 	// is not alive.
-	if !v23PIDMgmt {
-		processStatusViaAppCycleMgr(ctx, c, instancePath, info, state)
-		return
-	}
 	processStatusViaKill(ctx, c, instancePath, info, state)
 }
 
 // Digs through the directory hierarchy.
-func findAllTheInstances(ctx *context.T, root string) (map[string]int, []string, error) {
+func findAllTheInstances(ctx *context.T, root string) (map[string]int, error) {
 	paths, err := filepath.Glob(filepath.Join(root, "app*", "installation*", "instances", "instance*"))
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	pidmap := make(map[string]int)
@@ -356,7 +278,6 @@ func findAllTheInstances(ctx *context.T, root string) (map[string]int, []string,
 	wg.Wait()
 	close(pidchan)
 
-	restartCandidates := make([]string, 0, len(paths))
 	for p := range pidchan {
 		if p.err != nil {
 			ctx.Errorf("instance at %s had an error: %v", p.ipath, p.err)
@@ -364,11 +285,8 @@ func findAllTheInstances(ctx *context.T, root string) (map[string]int, []string,
 		if p.pid > 0 {
 			pidmap[p.ipath] = p.pid
 		}
-		if p.mightRestart {
-			restartCandidates = append(restartCandidates, p.ipath)
-		}
 	}
-	return pidmap, restartCandidates, nil
+	return pidmap, nil
 }
 
 // RunningChildrenProcesses uses the reaper to verify that a test has

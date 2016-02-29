@@ -17,9 +17,6 @@ import (
 )
 
 func TestReapRestartsDaemonMode(t *testing.T) {
-	// TODO(rjkroege): Enable this test once v.io/i/573 is fixed.
-	t.Skip("Test is flaky. Disabling until v.io/i/573 is fixed.")
-
 	cleanup, ctx, sh, envelope, root, helperPath, _ := utiltest.StartupHelper(t)
 	defer cleanup()
 
@@ -85,5 +82,5 @@ func TestReapRestartsDaemonMode(t *testing.T) {
 	// By now, we've reconciled the state of the tree with which processes
 	// are actually alive. instance1 was not alive but since it is configured as a
 	// daemon, it will have been restarted.
-	utiltest.VerifyState(t, ctx, device.InstanceStateRunning, appID, instance1)
+	utiltest.WaitForState(t, ctx, device.InstanceStateRunning, appID, instance1)
 }
