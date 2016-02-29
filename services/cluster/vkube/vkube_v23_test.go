@@ -62,6 +62,7 @@ func TestV23Vkube(t *testing.T) {
 		cmd = func(name string, expectSuccess bool, baseArgs ...string) func(args ...string) string {
 			return func(args ...string) string {
 				args = append(baseArgs, args...)
+				fmt.Printf("Running: %s %s\nExpect success: %v\n", name, strings.Join(args, " "), expectSuccess)
 				// Note, creds do not affect non-Vanadium commands.
 				c := sh.Cmd(name, args...).WithCredentials(creds)
 				c.ExitErrorIsOk = true
