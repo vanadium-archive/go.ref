@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -216,7 +217,7 @@ var runClient = gosh.RegisterFunc("client", func(command string, args ...string)
 	return nil
 })
 
-func startClient(t *testing.T, sh *v23test.Shell, name string, args ...interface{}) *expect.Session {
+func startClient(sh *v23test.Shell, name string, args ...interface{}) *expect.Session {
 	cmd := sh.FuncCmd(runClient, args...).WithCredentials(sh.ForkCredentials(name))
 	cmd.Start()
 	return cmd.S
@@ -253,18 +254,25 @@ func TestV23GroupServerAuthorization(t *testing.T) {
 	sh.FuncCmd(runServer).Start()
 
 	// Test that alice can write.
-	startClient(t, sh, "alice", "set", "foo", "bar").Expect(setOK)
+	startClient(sh, "alice", "set", "foo", "bar").Expect(setOK)
 	// Test that alice can read.
-	startClient(t, sh, "alice", "get", "foo").Expectf("%v %v", getOK, "bar")
+	startClient(sh, "alice", "get", "foo").Expectf("%v %v", getOK, "bar")
 	// Test that bob can read.
-	startClient(t, sh, "bob", "get", "foo").Expectf("%v %v", getOK, "bar")
+	startClient(sh, "bob", "get", "foo").Expectf("%v %v", getOK, "bar")
 	// Test that bob cannot write.
-	startClient(t, sh, "bob", "set", "foo", "bar").Expectf("%v %v", setFailed, verror.ErrNoAccess.ID)
+	startClient(sh, "bob", "set", "foo", "bar").Expectf("%v %v", setFailed, verror.ErrNoAccess.ID)
 
 	// Stop the groups server and check that as a consequence "alice"
 	// cannot read from the key value store server anymore.
 	server.Terminate(os.Interrupt)
-	startClient(t, sh, "alice", "get", "foo").Expectf("%v %v", getFailed, verror.ErrNoAccess.ID)
+	// Use gosh.Cmd directly instead of startClient().Expectf because
+	// startClient returns an expect.Session that has a default timeout
+	// that sometimes interferes with the RPC and resolution timeouts
+	// causing this test to be flaky.
+	output := sh.FuncCmd(runClient, "get", "foo").WithCredentials(sh.ForkCredentials("alice")).CombinedOutput()
+	if got, want := output, fmt.Sprint(getFailed, " ", verror.ErrNoAccess.ID); !strings.HasPrefix(got, want) {
+		t.Errorf("Got %q, wanted to start with %q", got, want)
+	}
 }
 
 func TestMain(m *testing.M) {
