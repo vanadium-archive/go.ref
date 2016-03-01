@@ -7,6 +7,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"runtime/pprof"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -23,11 +25,26 @@ var (
 	engine                = flag.String("engine", "leveldb", "Storage engine to use. Currently supported: memstore and leveldb.")
 	publishInNeighborhood = flag.Bool("publish-nh", true, "Whether to publish in the neighborhood.")
 	devMode               = flag.Bool("dev", false, "Whether to run in development mode; required for RPCs such as Service.DevModeUpdateVClock.")
+	cpuprofile            = flag.String("cpuprofile", "", "If specified, write the cpu profile to the given filename.")
 )
 
 // Note: We return rpc.Server and rpc.Dispatcher as a quick hack to support
 // Mojo.
 func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
+	// Note: Adding the "runtime/pprof" import does not significantly increase the
+	// binary size (~4500bytes), so it seems okay to expose the option to profile.
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			vlog.Fatal("Unable to create the cpuprofile file: ", err)
+		}
+		defer f.Close()
+		if err = pprof.StartCPUProfile(f); err != nil {
+			vlog.Fatal("Unable to start cpuprofile: ", err)
+		}
+		defer pprof.StopCPUProfile()
+	}
+
 	perms, err := securityflag.PermissionsFromFlag()
 	if err != nil {
 		vlog.Fatal("securityflag.PermissionsFromFlag() failed: ", err)

@@ -10,6 +10,7 @@ package v23test
 import (
 	"errors"
 	"flag"
+	"io"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -81,7 +82,21 @@ func (sh *Shell) StartSyncbase(c *Credentials, name, rootDir, permsLiteral strin
 			return nil
 		}
 		sh.Ctx.Infof("syncbased -log_dir for %s: %s", name, syncbaseLogDir)
-		debugArgs := append(strings.Fields(*syncbaseDebugArgs), "-log_dir="+syncbaseLogDir)
+
+		// Copy syncbased into syncbaseLogDir. This is used by the cpu profiler.
+		err = copyFile(path, syncbaseLogDir+"/syncbased")
+		if err != nil {
+			sh.handleError(err)
+			return nil
+		}
+		cpuProfile, err := ioutil.TempFile(syncbaseLogDir, "cpu-"+name+"-")
+		if err != nil {
+			sh.handleError(err)
+			return nil
+		}
+		sh.Ctx.Infof("syncbased -cpuprofile for %s: %s", name, cpuProfile.Name())
+
+		debugArgs := append(strings.Fields(*syncbaseDebugArgs), "-log_dir="+syncbaseLogDir, "-cpuprofile="+cpuProfile.Name())
 		args = append(args, debugArgs...)
 	}
 
@@ -101,4 +116,26 @@ func (sh *Shell) StartSyncbase(c *Credentials, name, rootDir, permsLiteral strin
 	}
 	sh.Ctx.Infof("Started syncbase: %s", endpoint)
 	return cmd.Terminate
+}
+
+func copyFile(from, to string) error {
+	fi, err := os.Stat(from)
+	if err != nil {
+		return err
+	}
+	in, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(to, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, fi.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(out, in)
+	cerr := out.Close()
+	if err != nil {
+		return err
+	}
+	return cerr
 }
