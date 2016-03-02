@@ -98,6 +98,11 @@ func (s *Session) SetVerbosity(v bool) {
 	s.verbose = v
 }
 
+// SetTimeout sets the timeout for subsequent operations on this session.
+func (s *Session) SetTimeout(timeout time.Duration) {
+	s.timeout = timeout
+}
+
 func (s *Session) log(err error, format string, args ...interface{}) {
 	s.logWithDepth(err, 2, format, args...)
 }
