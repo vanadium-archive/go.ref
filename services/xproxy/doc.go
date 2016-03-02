@@ -11,7 +11,7 @@
 // authenticate with the server nor will it be able to decipher the content of
 // the requests and responses between the two. A more detailed explanation
 // of this is available at
-// https://docs.google.com/document/d/1rfocoE98Fo9fTdxKtU_uaBmyhZNlvhDPvjzR5MelpDE/edit?usp=sharing
+// https://docs.google.com/document/d/1ONrnxGhOrA8pd0pK0aN5Ued2Q1Eju4zn7vlLt9nzIRA/edit?usp=sharing
 //
 // For processes to export services through a proxy, the ListenSpec needs
 // to include the object name of the proxy service. This can be done via

@@ -4,7 +4,7 @@
 
 // Package xproxy contains the implementation of the proxy service.
 //
-// Design document at https://docs.google.com/document/d/1rfocoE98Fo9fTdxKtU_uaBmyhZNlvhDPvjzR5MelpDE/edit?usp=sharing
+// Design document at https://docs.google.com/document/d/1ONrnxGhOrA8pd0pK0aN5Ued2Q1Eju4zn7vlLt9nzIRA/edit?usp=sharing
 package xproxy
 
 import (
