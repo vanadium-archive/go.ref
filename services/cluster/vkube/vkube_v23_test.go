@@ -147,7 +147,7 @@ func TestV23Vkube(t *testing.T) {
 	kubectlOK("get", "rc", "tunneld-2")
 
 	// Find the pod running tunneld, get the server's addr from its stdout.
-	podName := kubectlOK("get", "pod", "-l", "application=tunneld", "--template={{range .items}}{{.metadata.name}}{{end}}")
+	podName := kubectlOK("get", "pod", "-l", "application=tunneld,version=2", "--template={{range .items}}{{.metadata.name}}{{end}}")
 	var addr string
 	for _, log := range strings.Split(kubectlOK("logs", podName, "-c", "tunneld"), "\n") {
 		if strings.HasPrefix(log, "NAME=") {
