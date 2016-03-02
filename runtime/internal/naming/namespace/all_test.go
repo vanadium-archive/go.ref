@@ -31,9 +31,9 @@ import (
 func resolveWithRetry(ctx *context.T, name string, opts ...naming.NamespaceOpt) *naming.MountEntry {
 	ns := v23.GetNamespace(ctx)
 	for {
-		me, err := ns.ShallowResolve(ctx, name, opts...)
+		mp, err := ns.Resolve(ctx, name, opts...)
 		if err == nil {
-			return me
+			return mp
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -189,7 +189,7 @@ func testResolveToMountTable(t *testing.T, ctx *context.T, ns namespace.T, name 
 }
 
 func testResolve(t *testing.T, ctx *context.T, ns namespace.T, name string, want ...string) {
-	doResolveTest(t, "Resolve", ns.ShallowResolve, ctx, name, want)
+	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want)
 }
 
 type serverEntry struct {
@@ -219,9 +219,7 @@ func run(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint string, m
 	eps := s.Status().Endpoints
 	t.Logf("server %q -> %s", eps[0].Name(), mountPoint)
 	// Wait until the mount point appears in the mount table.
-	if len(mountPoint) > 0 {
-		resolveWithRetry(ctx, mountPoint)
-	}
+	resolveWithRetry(ctx, mountPoint)
 	return &serverEntry{mountPoint: mountPoint, stop: s.Stop, endpoint: eps[0], name: eps[0].Name()}
 }
 
@@ -674,15 +672,14 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 	// (which has different blessings)
 	hproot := fmt.Sprintf("(otherroot)@%v", rootmt.endpoint.Addr())
 	eproot := naming.FormatEndpoint(rootmt.endpoint.Addr().Network(), rootmt.endpoint.Addr().String(), rootmt.endpoint.RoutingID(), naming.BlessingOpt("otherroot"), naming.ServesMountTable(rootmt.endpoint.ServesMountTable()))
-	ns := v23.GetNamespace(ctx)
 	for _, root := range []string{hproot, eproot} {
 		name := naming.JoinAddressName(root, "mt")
-		// Rooted name resolutions should fail authorization because of the "otherroot"
-		if e, err := ns.ShallowResolve(clientCtx, name); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
+		// Rooted name resolutions should fail authorization because of the "otherrot"
+		if e, err := clientNs.Resolve(clientCtx, name); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 			t.Errorf("resolve(%q) returned (%v, errorid=%v %v), wanted errorid=%v", name, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID)
 		}
 		// But not fail if the server authorization is skipped.
-		if e, err := ns.ShallowResolve(clientCtx, name, options.NameResolutionAuthorizer{security.AllowEveryone()}); err != nil {
+		if e, err := clientNs.Resolve(clientCtx, name, options.NameResolutionAuthorizer{security.AllowEveryone()}); err != nil {
 			t.Errorf("resolve(%q): Got (%v, %v), expected resolution to succeed", name, e, err)
 		}
 

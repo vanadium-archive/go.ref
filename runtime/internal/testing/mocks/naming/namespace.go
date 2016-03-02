@@ -135,10 +135,6 @@ func (ns *namespaceMock) Resolve(ctx *context.T, name string, opts ...naming.Nam
 	return nil, verror.New(naming.ErrNoSuchName, ctx, fmt.Sprintf("Resolve name %q not found in %v", name, ns.mounts))
 }
 
-func (ns *namespaceMock) ShallowResolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
-	return ns.Resolve(ctx, name, opts...)
-}
-
 func (ns *namespaceMock) ResolveToMountTable(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer apilog.LogCallf(ctx, "name=%.10s...,opts...=%v", name, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	// TODO(mattr): Implement this method for tests that might need it.

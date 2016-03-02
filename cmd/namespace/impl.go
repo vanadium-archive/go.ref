@@ -40,13 +40,11 @@ var (
 	flagInsecureResolve     bool
 	flagInsecureResolveToMT bool
 	flagDeleteSubtree       bool
-	flagShallowResolve      bool
 )
 
 func init() {
 	cmdGlob.Flags.BoolVar(&flagLongGlob, "l", false, "Long listing format.")
 	cmdResolve.Flags.BoolVar(&flagInsecureResolve, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
-	cmdResolve.Flags.BoolVar(&flagShallowResolve, "s", false, "True to perform a shallow resolution")
 	cmdResolveToMT.Flags.BoolVar(&flagInsecureResolveToMT, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
 	cmdDelete.Flags.BoolVar(&flagDeleteSubtree, "r", false, "Delete all children of the name in addition to the name itself.")
 }
@@ -215,13 +213,7 @@ func runResolve(ctx *context.T, env *cmdline.Env, args []string) error {
 	if flagInsecureResolve {
 		opts = append(opts, options.NameResolutionAuthorizer{security.AllowEveryone()})
 	}
-	var err error
-	var me *naming.MountEntry
-	if flagShallowResolve {
-		me, err = ns.ShallowResolve(ctx, name, opts...)
-	} else {
-		me, err = ns.Resolve(ctx, name, opts...)
-	}
+	me, err := ns.Resolve(ctx, name, opts...)
 	if err != nil {
 		ctx.Infof("ns.Resolve(%q) failed: %v", name, err)
 		return err

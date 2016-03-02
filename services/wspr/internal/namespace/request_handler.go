@@ -62,14 +62,6 @@ func (s *Server) Resolve(ctx *context.T, _ rpc.ServerCall, name string) ([]strin
 	return me.Names(), nil
 }
 
-func (s *Server) ShallowResolve(ctx *context.T, _ rpc.ServerCall, name string) ([]string, error) {
-	me, err := s.ns.ShallowResolve(ctx, name)
-	if err != nil {
-		return nil, verror.Convert(verror.ErrInternal, ctx, err)
-	}
-	return me.Names(), nil
-}
-
 func (s *Server) ResolveToMountTable(ctx *context.T, _ rpc.ServerCall, name string) ([]string, error) {
 	me, err := s.ns.ResolveToMountTable(ctx, name)
 	if err != nil {

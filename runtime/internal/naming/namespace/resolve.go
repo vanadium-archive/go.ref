@@ -96,7 +96,6 @@ func terminal(e *naming.MountEntry) bool {
 // Resolve implements v.io/v23/naming.Namespace.
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer apilog.LogCallf(ctx, "name=%.10s...,opts...=%v", name, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-
 	// If caller supplied a mount entry, use it.
 	e, skipResolution := preresolved(opts)
 	if e != nil {
@@ -124,7 +123,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Namespa
 		if ctx.V(2) {
 			ctx.Infof("Resolve(%s) loop %v", name, *e)
 		}
-		if !e.ServesMountTable {
+		if !e.ServesMountTable || terminal(e) {
 			if ctx.V(1) {
 				ctx.Infof("Resolve(%s) -> %v", name, *e)
 			}
@@ -147,26 +146,6 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Namespa
 		}
 	}
 	return nil, verror.New(naming.ErrResolutionDepthExceeded, ctx)
-}
-
-// ShallowResolve implements v.io/v23/naming.Namespace.
-func (ns *namespace) ShallowResolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
-	defer apilog.LogCallf(ctx, "name=%.10s...,opts...=%v", name, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-
-	// Find the containing mount table.
-	me, err := ns.ResolveToMountTable(ctx, name, opts...)
-	if err != nil {
-		return nil, err
-	}
-	if terminal(me) {
-		return me, nil
-	}
-
-	// Resolve the entry directly.
-	client := v23.GetClient(ctx)
-	entry := new(naming.MountEntry)
-	err = client.Call(ctx, name, "ResolveStep", nil, []interface{}{entry}, append(getCallOpts(opts), options.Preresolved{me})...)
-	return entry, err
 }
 
 // ResolveToMountTable implements v.io/v23/naming.Namespace.
