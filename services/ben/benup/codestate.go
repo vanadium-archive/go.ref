@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"sort"
 
+	"v.io/jiri"
 	"v.io/jiri/gitutil"
-	"v.io/jiri/jiri"
 	"v.io/jiri/project"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/services/ben"
