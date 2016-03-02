@@ -283,7 +283,7 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 		if err := testutil.RetryFor(10*time.Second, func() error {
 			// Set ExitErrorIsOk to true since we expect "namespace resolve" to fail
 			// if the name doesn't exist.
-			c := withArgs(namespaceBin, "resolve", name)
+			c := withArgs(namespaceBin, "resolve", "-s", name)
 			c.ExitErrorIsOk = true
 			c.AddStderrWriter(os.Stderr)
 			if res = tr(c.Stdout()); len(res) > 0 {
@@ -475,7 +475,7 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 		if err := testutil.RetryFor(10*time.Second, func() error {
 			// Set ExitErrorIsOk to true since we expect "namespace resolve" to fail
 			// if the name doesn't exist.
-			c := withArgs(namespaceBin, "resolve", name)
+			c := withArgs(namespaceBin, "resolve", "-s", name)
 			c.ExitErrorIsOk = true
 			c.AddStderrWriter(os.Stderr)
 			switch res = tr(c.Stdout()); {
@@ -518,7 +518,7 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 	resolve(mtEP + "/global")
 
 	namespaceRoot := sh.Vars[ref.EnvNamespacePrefix]
-	output = withArgs(namespaceBin, "resolve", mtEP+"/global").Stdout()
+	output = withArgs(namespaceBin, "resolve", "-s", mtEP+"/global").Stdout()
 	if got, want := tr(output), namespaceRoot; got != want {
 		t.Fatalf("got %q, want %q", got, want)
 	}
@@ -537,7 +537,7 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 		if err := testutil.RetryFor(10*time.Second, func() error {
 			// Set ExitErrorIsOk to true since we expect "namespace resolve" to fail
 			// if the name doesn't exist.
-			c := withArgs(namespaceBin, "resolve", name)
+			c := withArgs(namespaceBin, "resolve", "-s", name)
 			c.ExitErrorIsOk = true
 			c.AddStderrWriter(os.Stderr)
 			if res = tr(c.Stdout()); len(res) == 0 {

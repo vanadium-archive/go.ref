@@ -144,12 +144,12 @@ func TestHostPortEndpoint(t *testing.T) {
 	}()
 	defaultVersion = 6
 	testcases := []endpointTest{
-		{"localhost:10", "@6@@localhost:10@@00000000000000000000000000000000@m@@@", nil},
-		{"localhost:", "@6@@localhost:@@00000000000000000000000000000000@m@@@", nil},
+		{"localhost:10", "@6@@localhost:10@@00000000000000000000000000000000@s@@@", nil},
+		{"localhost:", "@6@@localhost:@@00000000000000000000000000000000@s@@@", nil},
 		{"localhost", "", errInvalidEndpointString},
-		{"(dev.v.io:service:mounttabled)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io:service:mounttabled@@", nil},
-		{"(dev.v.io:users:foo@bar.com)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@dev.v.io:users:foo@bar.com@@", nil},
-		{"(@1@tcp)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@m@@1@tcp@@", nil},
+		{"(dev.v.io:service:mounttabled)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@s@dev.v.io:service:mounttabled@@", nil},
+		{"(dev.v.io:users:foo@bar.com)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@s@dev.v.io:users:foo@bar.com@@", nil},
+		{"(@1@tcp)@ns.dev.v.io:8101", "@6@@ns.dev.v.io:8101@@00000000000000000000000000000000@s@@1@tcp@@", nil},
 	}
 	runEndpointTests(t, testcases)
 }
