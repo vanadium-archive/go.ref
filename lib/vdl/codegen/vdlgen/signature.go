@@ -169,7 +169,7 @@ func printDoc(w io.Writer, doc string) {
 		return
 	}
 	// TODO(toddw): Normalize the doc strings so that it never has the // or /**/
-	// comment markers, and add them consistently here.  And use LineWriter to
+	// comment markers, and add them consistently here.  And use WrapWriter to
 	// pretty-print the doc.
 	if !strings.HasPrefix(doc, "//") {
 		fmt.Fprintln(w, "// "+doc)
