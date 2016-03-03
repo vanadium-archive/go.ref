@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
+	"time"
 
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
@@ -90,4 +91,129 @@ func runWatchLogBatchTest(t *testing.T, st store.Store) {
 		}
 		resmark = newResmark
 	}
+}
+
+// TestWatcher tests broadcasting updates to watch clients.
+func TestWatcher(t *testing.T) {
+	w := newWatcher()
+
+	// Update broadcast should never block. It should be safe to call with no
+	// clients registered.
+	w.broadcastUpdates()
+	w.broadcastUpdates()
+
+	// Never-receiving client should not block watcher.
+	_, cancel1 := w.watchUpdates()
+	defer cancel1()
+
+	// Cancelled client should not affect watcher.
+	chan2, cancel2 := w.watchUpdates()
+	cancel2()
+	// Cancel should be idempotent.
+	cancel2()
+
+	// Channel should be closed when client is cancelled.
+	select {
+	case _, ok := <-chan2:
+		if ok {
+			t.Fatalf("cancel2 was called, chan2 should be drained and closed")
+		}
+	default:
+		t.Fatalf("cancel2 was called, chan2 should be closed")
+	}
+
+	// Update broadcast should not block client registration or vice versa.
+	timer1 := time.After(10 * time.Second)
+	registerLoop1 := make(chan bool)
+	go func() {
+		for i := 0; i < 5000; i++ {
+			_, canceli := w.watchUpdates()
+			defer canceli()
+		}
+		registerLoop1 <- true
+	}()
+
+	chan3, cancel3 := w.watchUpdates()
+
+	for i := 0; i < 5000; i++ {
+		w.broadcastUpdates()
+	}
+
+	select {
+	case <-registerLoop1:
+		// ok
+	case <-timer1:
+		t.Fatalf("registerLoop1 didn't finish after 10s")
+	}
+
+	// Wait for broadcast to fully propagate out of watcherLoop.
+	time.Sleep(1 * time.Second)
+
+	// chan3 should have a single pending notification.
+	select {
+	case _, ok := <-chan3:
+		if !ok {
+			t.Fatalf("chan3 should not be closed")
+		}
+	default:
+		t.Fatalf("chan3 should have a notification")
+	}
+	select {
+	case <-chan3:
+		t.Fatalf("chan3 should not have another notification")
+	default:
+		// ok
+	}
+
+	// After notification was read, chan3 still receives updates.
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		w.broadcastUpdates()
+	}()
+
+	select {
+	case _, ok := <-chan3:
+		if !ok {
+			t.Fatalf("chan3 should not be closed")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatalf("chan3 didn't receive after 5s")
+	}
+
+	// Closing the watcher.
+	w.close()
+	// Close should be idempotent.
+	w.close()
+
+	// Client channels should be closed when watcher is closed.
+	select {
+	case _, ok := <-chan3:
+		if ok {
+			t.Fatalf("watcher was closed, chan3 should be drained and closed")
+		}
+	default:
+		t.Fatalf("watcher was closed, chan3 should be closed")
+	}
+
+	// Cancel is safe to call after the store is closed.
+	cancel3()
+
+	// watchUpdates is safe to call after the store is closed, returning closed
+	// channel.
+	chan4, cancel4 := w.watchUpdates()
+
+	select {
+	case _, ok := <-chan4:
+		if ok {
+			t.Fatalf("watcher was closed, chan4 should be drained and closed")
+		}
+	default:
+		t.Fatalf("watcher was closed, chan4 should be closed")
+	}
+
+	cancel4()
+
+	// broadcastUpdates is safe to call after the store is closed, although it
+	// logs an error message.
+	w.broadcastUpdates()
 }
