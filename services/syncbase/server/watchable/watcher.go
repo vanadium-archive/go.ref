@@ -17,70 +17,127 @@ import (
 	"v.io/x/ref/services/syncbase/store"
 )
 
-// watcher maintains a state and a condition variable. The watcher sends
-// a broadcast signal every time the state changes. The state is increased
-// by 1 every time the store has new data. Initially the state equals to 1.
-// If the state becomes 0, then the watcher is closed and the state will not
-// be changed later.
-// TODO(rogulenko): Broadcast a signal from time to time to unblock waiting
-// clients.
+// watcher maintains a set of watch clients receiving on update channels. When
+// watcher is notified of a change in the store, it sends a value to all client
+// channels that do not already have a value pending. This is done by a separate
+// goroutine (watcherLoop) to move it off the broadcastUpdates() critical path.
 type watcher struct {
-	mu    *sync.RWMutex
-	cond  *sync.Cond
-	state uint64
+	// Channel used by broadcastUpdates() to notify watcherLoop. When watcher is
+	// closed, updater is closed.
+	updater chan struct{}
+	// Protects the clients map.
+	mu sync.RWMutex
+	// Channels used by watcherLoop to notify currently registered clients. When
+	// watcher is closed, all client channels are closed and clients is set to nil.
+	clients map[chan struct{}]struct{}
 }
 
 func newWatcher() *watcher {
-	mu := &sync.RWMutex{}
-	return &watcher{
-		mu:    mu,
-		cond:  sync.NewCond(mu.RLocker()),
-		state: 1,
+	ret := &watcher{
+		updater: make(chan struct{}, 1),
+		clients: make(map[chan struct{}]struct{}),
 	}
+	go ret.watcherLoop()
+	return ret
 }
 
-// close closes the watcher.
+// close closes the watcher. Idempotent.
 func (w *watcher) close() {
 	w.mu.Lock()
-	w.state = 0
-	w.cond.Broadcast()
+	if w.clients != nil {
+		// Close all client channels.
+		for c := range w.clients {
+			closeAndDrain(c)
+		}
+		// Set clients to nil to mark watcher as closed.
+		w.clients = nil
+		// Close updater to notify watcherLoop to exit.
+		closeAndDrain(w.updater)
+	}
 	w.mu.Unlock()
 }
 
-// broadcastUpdates broadcast the update notification to watch clients.
+// broadcastUpdates notifies the watcher of an update. The watcher loop will
+// propagate the notification to watch clients.
 func (w *watcher) broadcastUpdates() {
-	w.mu.Lock()
-	if w.state != 0 {
-		w.state++
-		w.cond.Broadcast()
+	w.mu.RLock()
+	if w.clients != nil {
+		ping(w.updater)
 	} else {
 		vlog.Error("broadcastUpdates() called on a closed watcher")
 	}
-	w.mu.Unlock()
+	w.mu.RUnlock()
 }
 
-// WatchUpdates returns a function that can be used to watch for changes of
-// the database. The store maintains a state (initially 1) that is increased
-// by 1 every time the store has new data. The waitForChange function takes
-// the last returned state and blocks until the state changes, returning the new
-// state. State equal to 0 means the store is closed and no updates will come
-// later. If waitForChange function takes a state different from the current
-// state of the store or the store is closed, the waitForChange function returns
-// immediately. It might happen that the waitForChange function returns
-// a non-zero state equal to the state passed as the argument. This behavior
-// helps to unblock clients if the store doesn't have updates for a long period
-// of time.
-func WatchUpdates(st store.Store) (waitForChange func(state uint64) uint64) {
+// watcherLoop implements the goroutine that waits for updates and notifies any
+// waiting clients.
+func (w *watcher) watcherLoop() {
+	for {
+		// If updater has been closed, exit.
+		if _, ok := <-w.updater; !ok {
+			return
+		}
+		w.mu.RLock()
+		for c := range w.clients { // safe for w.clients == nil
+			ping(c)
+		}
+		w.mu.RUnlock()
+	}
+}
+
+// ping writes a signal to a buffered notification channel. If a notification
+// is already pending, it is a no-op.
+func ping(c chan<- struct{}) {
+	select {
+	case c <- struct{}{}: // sent notification
+	default: // already has notification pending
+	}
+}
+
+// closeAndDrain closes a buffered notification channel and drains the buffer
+// so that receivers see the closed state sooner.
+func closeAndDrain(c chan struct{}) {
+	close(c)
+	for _, ok := <-c; ok; _, ok = <-c {
+		// no-op
+	}
+}
+
+// watchUpdates - see WatchUpdates.
+func (w *watcher) watchUpdates() (update <-chan struct{}, cancel func()) {
+	updateRW := make(chan struct{}, 1)
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.clients == nil {
+		// watcher is closed, return a closed update channel and no-op cancel.
+		close(updateRW)
+		cancel = func() {}
+		return updateRW, cancel
+	}
+	// Register update channel.
+	w.clients[updateRW] = struct{}{}
+	// Cancel is idempotent. It unregisters and closes the update channel.
+	cancel = func() {
+		w.mu.Lock()
+		if _, ok := w.clients[updateRW]; ok { // safe for w.clients == nil
+			delete(w.clients, updateRW)
+			closeAndDrain(updateRW)
+		}
+		w.mu.Unlock()
+	}
+	return updateRW, cancel
+}
+
+// WatchUpdates returns a channel that can be used to wait for changes of the
+// database, as well as a cancel function which MUST be called to release the
+// watch resources. If the update channel is closed, the store is closed and
+// no more updates will happen. Otherwise, the channel will have a value
+// available whenever the store has changed since the last receive on the
+// channel.
+func WatchUpdates(st store.Store) (update <-chan struct{}, cancel func()) {
 	// TODO(rogulenko): Remove dynamic type assertion here and in other places.
 	watcher := st.(*wstore).watcher
-	return func(state uint64) uint64 {
-		watcher.cond.L.Lock()
-		defer watcher.cond.L.Unlock()
-		if watcher.state != 0 && watcher.state == state {
-			watcher.cond.Wait()
-		}
-		return watcher.state
-	}
+	return watcher.watchUpdates()
 }
 
 // GetResumeMarker returns the ResumeMarker that points to the current end

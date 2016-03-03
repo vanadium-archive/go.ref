@@ -129,48 +129,10 @@ func (t *tableReq) scanInitialState(ctx *context.T, call watch.GlobWatcherWatchG
 // This function does two steps in a for loop:
 // - scan through the watch log until the end, sending all updates to the client
 // - wait for one of two signals: new updates available or the call is canceled.
-// The 'new updates' signal is sent by a worker goroutine that translates a
-// condition variable signal to a Go channel. The worker goroutine waits on the
-// condition variable for changes. Whenever the state changes, the worker sends
-// a signal through the Go channel.
+// The 'new updates' signal is sent by the watcher via a Go channel.
 func (t *tableReq) watchUpdates(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string, resumeMarker watch.ResumeMarker) error {
-	// The Go channel to send notifications from the worker to the main
-	// goroutine.
-	hasUpdates := make(chan struct{})
-	// The Go channel to signal the worker to stop. The worker might block
-	// on the condition variable, but we don't want the main goroutine
-	// to wait for the worker to stop, so we create a buffered channel.
-	cancelWorker := make(chan struct{}, 1)
-	defer close(cancelWorker)
-	go func() {
-		waitForChange := watchable.WatchUpdates(t.d.st)
-		var state, newState uint64 = 1, 1
-		for {
-			// Wait until the state changes or the main function returns.
-			for newState == state {
-				select {
-				case <-cancelWorker:
-					return
-				default:
-				}
-				newState = waitForChange(state)
-			}
-			// Update the current state to the new value and sends a signal to
-			// the main goroutine.
-			state = newState
-			if state == 0 {
-				close(hasUpdates)
-				return
-			}
-			// cancelWorker is closed as soons as the main function returns.
-			select {
-			case hasUpdates <- struct{}{}:
-			case <-cancelWorker:
-				return
-			}
-		}
-	}()
-
+	hasUpdates, cancelWatch := watchable.WatchUpdates(t.d.st)
+	defer cancelWatch()
 	sender := &watchBatchSender{
 		send: call.SendStream().Send,
 	}
