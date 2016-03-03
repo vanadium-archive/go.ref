@@ -8,12 +8,13 @@
 package factory
 
 import (
-	"v.io/x/ref/lib/discovery"
 	"v.io/x/ref/lib/discovery/plugins/ble"
 	"v.io/x/ref/lib/discovery/plugins/mdns"
 )
 
-var pluginFactories = map[string]func(host string) (discovery.Plugin, error){
-	"mdns": mdns.New,
-	"ble":  ble.NewPlugin,
+func init() {
+	pluginFactories = pluginFactoryMap{
+		"mdns": mdns.New,
+		"ble":  ble.New,
+	}
 }

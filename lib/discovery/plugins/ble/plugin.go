@@ -56,7 +56,7 @@ func (b *blePlugin) Scan(ctx *context.T, interfaceName string, scan chan<- *idis
 	return nil
 }
 
-func NewPlugin(name string) (idiscovery.Plugin, error) {
+func New(_ *context.T, name string) (idiscovery.Plugin, error) {
 	b, err := newBleNeighborhood(name)
 	if err != nil {
 		return nil, err

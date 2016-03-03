@@ -303,11 +303,11 @@ func newAdInfo(service mdns.ServiceInstance) (*idiscovery.AdInfo, error) {
 	return adinfo, nil
 }
 
-func New(host string) (idiscovery.Plugin, error) {
-	return newWithLoopback(host, 0, false)
+func New(ctx *context.T, host string) (idiscovery.Plugin, error) {
+	return newWithLoopback(ctx, host, 0, false)
 }
 
-func newWithLoopback(host string, port int, loopback bool) (idiscovery.Plugin, error) {
+func newWithLoopback(_ *context.T, host string, port int, loopback bool) (idiscovery.Plugin, error) {
 	switch {
 	case len(host) == 0:
 		// go-mdns-sd doesn't answer when the host name is not set.
