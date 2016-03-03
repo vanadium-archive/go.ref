@@ -805,7 +805,6 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 			fh,
 		)
 		if err != nil {
-			proxyConn.Close(ctx, err)
 			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
 		}
 		if err := m.cache.InsertWithRoutingID(c, false); err != nil {
