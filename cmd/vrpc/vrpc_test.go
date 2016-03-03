@@ -131,7 +131,7 @@ func testSignature(t *testing.T, showReserved bool, wantSig string) {
 	defer shutdown()
 	var stdout, stderr bytes.Buffer
 	env := &cmdline.Env{Stdout: &stdout, Stderr: &stderr}
-	args := []string{"signature", "-s", fmt.Sprintf("-show-reserved=%v", showReserved), name}
+	args := []string{"signature", fmt.Sprintf("-show-reserved=%v", showReserved), name}
 	if err := v23cmd.ParseAndRunForTest(cmdVRPC, ctx, env, args); err != nil {
 		t.Fatalf("%s: %v", args, err)
 	}

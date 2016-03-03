@@ -128,8 +128,6 @@ The namespace resolve flags are:
  -insecure=false
    Insecure mode: May return results from untrusted servers and invoke Resolve
    on untrusted mounttables
- -s=false
-   True to perform a shallow resolution
 
 Namespace resolvetomt - Finds the address of the mounttable that holds an object name
 

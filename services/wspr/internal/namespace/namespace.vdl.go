@@ -39,12 +39,6 @@ type NamespaceClientMethods interface {
 	// ResolveToMountTable resolves a name to the address of the mounttable
 	// directly hosting it.
 	ResolveToMountTable(_ *context.T, name string, _ ...rpc.CallOpt) ([]string, error)
-	// ShallowResolve resolves the object name into its mounted servers.  It is the same
-	// as Resolve except when mounttables are stacked below the same mount point.  For example,
-	// if service D is mounted onto /MTA/a/b and /MTA/a/b is mounted onto /MTB/x/y then
-	// Resolve(/MTB/x/y) will return a pointer to D while ShallowResolve(/MTB/x/y) will
-	// return a pointer to /MTA/a/b.
-	ShallowResolve(_ *context.T, name string, _ ...rpc.CallOpt) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
 	FlushCacheEntry(_ *context.T, name string, _ ...rpc.CallOpt) (bool, error)
 	// DisableCache disables the naming cache.
@@ -102,11 +96,6 @@ func (c implNamespaceClientStub) Resolve(ctx *context.T, i0 string, opts ...rpc.
 
 func (c implNamespaceClientStub) ResolveToMountTable(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 []string, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "ResolveToMountTable", []interface{}{i0}, []interface{}{&o0}, opts...)
-	return
-}
-
-func (c implNamespaceClientStub) ShallowResolve(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 []string, err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "ShallowResolve", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -227,12 +216,6 @@ type NamespaceServerMethods interface {
 	// ResolveToMountTable resolves a name to the address of the mounttable
 	// directly hosting it.
 	ResolveToMountTable(_ *context.T, _ rpc.ServerCall, name string) ([]string, error)
-	// ShallowResolve resolves the object name into its mounted servers.  It is the same
-	// as Resolve except when mounttables are stacked below the same mount point.  For example,
-	// if service D is mounted onto /MTA/a/b and /MTA/a/b is mounted onto /MTB/x/y then
-	// Resolve(/MTB/x/y) will return a pointer to D while ShallowResolve(/MTB/x/y) will
-	// return a pointer to /MTA/a/b.
-	ShallowResolve(_ *context.T, _ rpc.ServerCall, name string) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
 	FlushCacheEntry(_ *context.T, _ rpc.ServerCall, name string) (bool, error)
 	// DisableCache disables the naming cache.
@@ -265,12 +248,6 @@ type NamespaceServerStubMethods interface {
 	// ResolveToMountTable resolves a name to the address of the mounttable
 	// directly hosting it.
 	ResolveToMountTable(_ *context.T, _ rpc.ServerCall, name string) ([]string, error)
-	// ShallowResolve resolves the object name into its mounted servers.  It is the same
-	// as Resolve except when mounttables are stacked below the same mount point.  For example,
-	// if service D is mounted onto /MTA/a/b and /MTA/a/b is mounted onto /MTB/x/y then
-	// Resolve(/MTB/x/y) will return a pointer to D while ShallowResolve(/MTB/x/y) will
-	// return a pointer to /MTA/a/b.
-	ShallowResolve(_ *context.T, _ rpc.ServerCall, name string) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
 	FlushCacheEntry(_ *context.T, _ rpc.ServerCall, name string) (bool, error)
 	// DisableCache disables the naming cache.
@@ -334,10 +311,6 @@ func (s implNamespaceServerStub) Resolve(ctx *context.T, call rpc.ServerCall, i0
 
 func (s implNamespaceServerStub) ResolveToMountTable(ctx *context.T, call rpc.ServerCall, i0 string) ([]string, error) {
 	return s.impl.ResolveToMountTable(ctx, call, i0)
-}
-
-func (s implNamespaceServerStub) ShallowResolve(ctx *context.T, call rpc.ServerCall, i0 string) ([]string, error) {
-	return s.impl.ShallowResolve(ctx, call, i0)
 }
 
 func (s implNamespaceServerStub) FlushCacheEntry(ctx *context.T, call rpc.ServerCall, i0 string) (bool, error) {
@@ -422,16 +395,6 @@ var descNamespace = rpc.InterfaceDesc{
 		{
 			Name: "ResolveToMountTable",
 			Doc:  "// ResolveToMountTable resolves a name to the address of the mounttable\n// directly hosting it.",
-			InArgs: []rpc.ArgDesc{
-				{"name", ``}, // string
-			},
-			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // []string
-			},
-		},
-		{
-			Name: "ShallowResolve",
-			Doc:  "// ShallowResolve resolves the object name into its mounted servers.  It is the same\n// as Resolve except when mounttables are stacked below the same mount point.  For example,\n// if service D is mounted onto /MTA/a/b and /MTA/a/b is mounted onto /MTB/x/y then\n// Resolve(/MTB/x/y) will return a pointer to D while ShallowResolve(/MTB/x/y) will\n// return a pointer to /MTA/a/b.",
 			InArgs: []rpc.ArgDesc{
 				{"name", ``}, // string
 			},
