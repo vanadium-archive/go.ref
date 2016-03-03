@@ -10,9 +10,12 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
+	"v.io/x/lib/ibe"
 	lsecurity "v.io/x/ref/lib/security"
-	"v.io/x/ref/lib/security/securityflag"
+	"v.io/x/ref/lib/security/bcrypter"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
 	"v.io/x/ref/services/xproxy/xproxy"
@@ -23,6 +26,7 @@ import (
 var (
 	serverAddr, tpcServerAddr, proxiedServerAddr string
 	ctx, tpcCtx                                  *context.T
+	serverCrypter, clientCrypter                 *bcrypter.Crypter
 )
 
 // Benchmarks for non-streaming RPC.
@@ -139,6 +143,58 @@ func Benchmark___1KB_mux___1K_chunks__100B(b *testing.B) { runMux(b, 1000, 1000,
 func Benchmark___1KB_mux___1K_chunks___1KB(b *testing.B) { runMux(b, 1000, 1000, 1000) }
 func Benchmark___1KB_mux___1K_chunks__10KB(b *testing.B) { runMux(b, 1000, 1000, 10000) }
 
+// Benchmark for measuring RPC connection time including authentication.
+//
+// rpc.Client doesn't export an interface for closing connection. So we
+// recreate a client on every iteration (avoiding re-use of underlying
+// network connections between iterations since the stream manager is
+// recreated with the client).
+func benchmarkConnectionEstablishment(b *testing.B, ctx *context.T, server string) {
+	for i := 0; i < b.N; i++ {
+		// The client and server are running with the same principal
+		// here (since they are both keyed off the same 'ctx').
+		cctx, cancel := context.WithCancel(ctx)
+		cctx, client, err := v23.WithNewClient(cctx)
+		if err != nil {
+			b.Fatalf("Iteration %d/%d: %v", i, b.N, err)
+		}
+		conn, err := client.PinConnection(cctx, server)
+		if err != nil {
+			b.Fatalf("Iteration %d/%d: %v", i, b.N, err)
+		}
+		conn.Unpin()
+		cancel()
+	}
+}
+
+func benchmarkPrivateConnectionEstablishment(b *testing.B, serverAuth ...security.BlessingPattern) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	_, server, err := v23.WithNewServer(
+		bcrypter.WithCrypter(ctx, serverCrypter),
+		"",
+		internal.NewService(),
+		security.DefaultAuthorizer(),
+		options.ServerPeers(serverAuth))
+	if err != nil {
+		b.Fatal(err)
+	}
+	cctx := bcrypter.WithCrypter(ctx, clientCrypter)
+	benchmarkConnectionEstablishment(b, cctx, server.Status().Endpoints[0].Name())
+}
+
+func BenchmarkConnectionEstablishment(b *testing.B) {
+	benchmarkConnectionEstablishment(b, ctx, serverAddr)
+}
+
+func BenchmarkPrivateConnectionEstablishment1(b *testing.B) {
+	benchmarkPrivateConnectionEstablishment(b, "root:client")
+}
+
+func BenchmarkPrivateConnectionEstablishment3(b *testing.B) {
+	benchmarkPrivateConnectionEstablishment(b, "root:client", "root:client2", "root:client3")
+}
+
 // A single empty test to avoid:
 // testing: warning: no tests to run
 // from showing up when running benchmarks in this package via "go test"
@@ -153,6 +209,7 @@ func TestMain(m *testing.M) {
 	setupServerClient(ctx)
 	setupThirdPartyCaveatServerClient(ctx)
 	setupProxiedServerClient(ctx)
+	setupPrivateMutualAuthentication(ctx)
 
 	r := benchmark.RunTestMain(m)
 	shutdown()
@@ -161,7 +218,7 @@ func TestMain(m *testing.M) {
 
 func setupServerClient(ctx *context.T) {
 	// Server with no ThirdPartyCaveat.
-	_, server, err := v23.WithNewServer(ctx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
+	_, server, err := v23.WithNewServer(ctx, "", internal.NewService(), security.DefaultAuthorizer())
 	if err != nil {
 		ctx.Fatalf("NewServer failed: %v", err)
 	}
@@ -190,7 +247,7 @@ func setupThirdPartyCaveatServerClient(ctx *context.T) {
 	}
 
 	// Create a server with the ThirdPartyCaveat principal.
-	_, tpcServer, err := v23.WithNewServer(tpcCtx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
+	_, tpcServer, err := v23.WithNewServer(tpcCtx, "", internal.NewService(), security.DefaultAuthorizer())
 	if err != nil {
 		ctx.Fatalf("NewServer failed: %v", err)
 	}
@@ -203,14 +260,14 @@ func setupThirdPartyCaveatServerClient(ctx *context.T) {
 
 func setupProxiedServerClient(ctx *context.T) {
 	// Create a proxy.
-	pxy, err := xproxy.New(ctx, "", securityflag.NewAuthorizerOrDie())
+	pxy, err := xproxy.New(ctx, "", security.DefaultAuthorizer())
 	if err != nil {
 		ctx.Fatal(err)
 	}
 	pname := pxy.ListeningEndpoints()[0].Name()
 	// Create a server that listens on the proxy.
 	pCtx := v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: pname})
-	_, proxiedServer, err := v23.WithNewServer(pCtx, "", internal.NewService(), securityflag.NewAuthorizerOrDie())
+	_, proxiedServer, err := v23.WithNewServer(pCtx, "", internal.NewService(), security.DefaultAuthorizer())
 	if err != nil {
 		ctx.Fatal(err)
 	}
@@ -224,4 +281,28 @@ func setupProxiedServerClient(ctx *context.T) {
 	}
 	// Create Conns to exclude the Conn setup time from the benchmark.
 	internal.CallEcho(&testing.B{}, ctx, proxiedServerAddr, 1, 0, benchmark.NewStats(1))
+}
+
+func setupPrivateMutualAuthentication(ctx *context.T) {
+	master, err := ibe.SetupBB2()
+	if err != nil {
+		ctx.Fatalf("ibe.SetupBB2: %v", err)
+	}
+	root := bcrypter.NewRoot("root", master)
+	clientKey, err := root.Extract(ctx, "root:client")
+	if err != nil {
+		ctx.Fatal(err)
+	}
+
+	// The client needs a key to be able to decrypt the server blessings.
+	clientCrypter = bcrypter.NewCrypter()
+	if err := clientCrypter.AddKey(ctx, clientKey); err != nil {
+		ctx.Fatal(err)
+	}
+
+	// The server needs the params object so that it can encrypt its blessings.
+	serverCrypter = bcrypter.NewCrypter()
+	if err := serverCrypter.AddParams(ctx, root.Params()); err != nil {
+		ctx.Fatal(err)
+	}
 }
