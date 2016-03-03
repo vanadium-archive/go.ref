@@ -340,6 +340,76 @@ func TestProxiedServerCachedConnection(t *testing.T) {
 	}
 }
 
+type blockingServer struct {
+	start chan struct{} // closed when the
+	wait  chan struct{}
+}
+
+func (s *blockingServer) BlockingCall(*context.T, rpc.ServerCall) error {
+	close(s.start)
+	<-s.wait
+	return nil
+}
+
+func newBlockingServer() *blockingServer {
+	return &blockingServer{make(chan struct{}), make(chan struct{})}
+}
+
+func TestConcurrentProxyConnections(t *testing.T) {
+	// Test that when a client makes a connection to two different proxied servers
+	// a call to one server doesn't cause a call to the other to fail.
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	// Start the proxy.
+	pname, stop := startProxy(t, ctx, "proxy", security.AllowEveryone(), "", address{"tcp", "127.0.0.1:0"})
+	defer stop()
+
+	// Start the server listening through the proxy.
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: pname})
+	sctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	service := newBlockingServer()
+	_, server, err := v23.WithNewServer(sctx, "", service, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	var ep naming.Endpoint
+	for {
+		status := server.Status()
+		if status.Endpoints[0].Addr().Network() != bidiProtocol {
+			ep = status.Endpoints[0]
+			break
+		}
+		<-status.Valid
+	}
+
+	// Create a nonexistent server.
+	badep, err := setEndpointRoutingID(ep, naming.FixedRoutingID(0x666))
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Start a call to the good server.
+	call, err := v23.GetClient(ctx).StartCall(ctx, ep.Name(), "BlockingCall", nil)
+	if err != nil {
+		t.Error(err)
+	}
+	// wait for the server to get the rpc.
+	<-service.start
+	// Make a call to the noexistent server.
+	if _, err := v23.GetClient(ctx).PinConnection(ctx, badep.Name(), options.NoRetry{}); err == nil {
+		t.Errorf("Call should not succeed.")
+	}
+	// Unblock the first rpc and ensure that it succeeds.
+	close(service.wait)
+	if err := call.Finish(); err != nil {
+		t.Error(err)
+	}
+}
+
 type rejectProxyAuthorizer struct{}
 
 func (rejectProxyAuthorizer) Authorize(ctx *context.T, call security.Call) error {
