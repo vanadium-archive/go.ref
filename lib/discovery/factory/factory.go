@@ -16,6 +16,15 @@ import (
 	idiscovery "v.io/x/ref/lib/discovery"
 )
 
+type (
+	pluginFactory    func(ctx *context.T, host string) (idiscovery.Plugin, error)
+	pluginFactoryMap map[string]pluginFactory
+)
+
+var (
+	pluginFactories pluginFactoryMap
+)
+
 type lazyFactory struct {
 	ctx       *context.T
 	host      string
@@ -74,7 +83,8 @@ func newFactory(ctx *context.T, host string, protocols []string) (idiscovery.Fac
 
 	plugins := make([]idiscovery.Plugin, 0, len(protocols))
 	for _, p := range protocols {
-		plugin, err := pluginFactories[p](host)
+		factory := pluginFactories[p]
+		plugin, err := factory(ctx, host)
 		if err != nil {
 			return nil, err
 		}

@@ -12,19 +12,23 @@ package factory
 import (
 	"fmt"
 
+	"v.io/v23/context"
+
 	"v.io/x/ref/lib/discovery"
 	"v.io/x/ref/lib/discovery/plugins/mdns"
 )
 
-var pluginFactories = map[string]func(host string) (discovery.Plugin, error){
-	"mdns": mdns.New,
-	"ble": func(string) (discovery.Plugin, error) {
-		return nil, fmt.Errorf("ble factory not initalized")
-	},
+func init() {
+	pluginFactories = pluginFactoryMap{
+		"mdns": mdns.New,
+		"ble": func(*context.T, string) (discovery.Plugin, error) {
+			return nil, fmt.Errorf("ble factory not initalized")
+		},
+	}
 }
 
-// SetBleFactory sets the plugin factory for ble.  This needs to be called before the first time
-// the discovery api is used.
-func SetBleFactory(creator func(string) (discovery.Plugin, error)) {
-	pluginFactories["ble"] = creator
+// SetBleFactory sets the plugin factory for ble. This needs to be called before
+// the first time the discovery api is used.
+func SetBlePluginFactory(factory pluginFactory) {
+	pluginFactories["ble"] = factory
 }

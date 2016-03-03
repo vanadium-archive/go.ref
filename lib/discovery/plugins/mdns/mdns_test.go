@@ -35,7 +35,7 @@ func init() {
 }
 
 func newMDNS(host string) (idiscovery.Plugin, error) {
-	return newWithLoopback(host, testPort, true)
+	return newWithLoopback(nil, host, testPort, true)
 }
 
 func encryptionKeys(key string) []idiscovery.EncryptionKey {
