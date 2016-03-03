@@ -139,6 +139,16 @@ considered valid by the principal running this tool) to standard output.
 	ArgsLong: serverDesc,
 }
 
+func getNamespaceOpts(opts []rpc.CallOpt) []naming.NamespaceOpt {
+	var out []naming.NamespaceOpt
+	for _, o := range opts {
+		if co, ok := o.(naming.NamespaceOpt); ok {
+			out = append(out, co)
+		}
+	}
+	return out
+}
+
 func runSignature(ctx *context.T, env *cmdline.Env, args []string) error {
 	// Error-check args.
 	var server, method string
@@ -158,6 +168,14 @@ func runSignature(ctx *context.T, env *cmdline.Env, args []string) error {
 	var opts []rpc.CallOpt
 	if flagInsecure {
 		opts = append(opts, insecureOpts...)
+	}
+	if flagShallowResolve {
+		// Find the containing mount table.
+		me, err := v23.GetNamespace(ctx).ShallowResolve(ctx, server, getNamespaceOpts(opts)...)
+		if err != nil {
+			return err
+		}
+		opts = append(opts, options.Preresolved{me})
 	}
 	if method != "" {
 		methodSig, err := reserved.MethodSignature(ctx, server, method, opts...)

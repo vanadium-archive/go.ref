@@ -47,9 +47,6 @@ type Endpoint struct {
 func NewEndpoint(input string) (*Endpoint, error) {
 	ep := new(Endpoint)
 
-	// We have to guess this is a mount table if we don't know.
-	ep.IsMountTable = true
-
 	// If the endpoint does not end in a @, it must be in [blessing@]host:port format.
 	if parts := hostportEP.FindStringSubmatch(input); len(parts) > 0 {
 		hostport := parts[len(parts)-1]
@@ -60,6 +57,7 @@ func NewEndpoint(input string) (*Endpoint, error) {
 		err := ep.parseHostPort(blessing, hostport)
 		return ep, err
 	}
+
 	// Trim the prefix and suffix and parse the rest.
 	input = strings.TrimPrefix(strings.TrimSuffix(input, suffix), separator)
 	parts := strings.Split(input, separator)
@@ -81,6 +79,11 @@ func (ep *Endpoint) parseHostPort(blessing, hostport string) error {
 	// Could be in host:port format.
 	if _, _, err := net.SplitHostPort(hostport); err != nil {
 		return errInvalidEndpointString
+	}
+	if strings.HasSuffix(hostport, "#") {
+		hostport = strings.TrimSuffix(hostport, "#")
+	} else {
+		ep.IsMountTable = true
 	}
 	ep.Protocol = naming.UnknownProtocol
 	ep.Address = hostport

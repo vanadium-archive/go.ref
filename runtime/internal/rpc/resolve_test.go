@@ -76,7 +76,7 @@ func TestV23ResolveToEndpoint(t *testing.T) {
 	ctx := sh.Ctx
 	ns := v23.GetNamespace(ctx)
 
-	proxyEp, _ := inaming.NewEndpoint("proxy.v.io:123")
+	proxyEp, _ := inaming.NewEndpoint("proxy.v.io:123#")
 	proxyEpStr := proxyEp.String()
 	proxyAddr := naming.JoinAddressName(proxyEpStr, "")
 	if err := ns.Mount(ctx, "proxy", proxyAddr, time.Hour); err != nil {
@@ -94,7 +94,7 @@ func TestV23ResolveToEndpoint(t *testing.T) {
 		result  string
 		err     error
 	}{
-		{"/proxy.v.io:123", proxyEpStr, nil},
+		{"/proxy.v.io:123#", proxyEpStr, nil},
 		{"proxy.v.io:123", "", notfound},
 		{"proxy", proxyEpStr, nil},
 		{naming.JoinAddressName(ns.Roots()[0], "proxy"), proxyEpStr, nil},
