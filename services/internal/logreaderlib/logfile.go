@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !android
+
 // Package logreaderlib implements the LogFile interface from
 // v.io/v23/services/logreader, which can be used to allow remote access to log
-// files, and the Globbable interface from v.io/v23/services/mounttable to find
+// files, and the ChildrenGlobber interface from v.io/v23/rpc to find
 // the files in a logs directory.
 package logreaderlib
 
@@ -21,12 +23,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/services/logreader"
 	"v.io/v23/verror"
-)
-
-const pkgPath = "v.io/x/ref/services/internal/logreaderlib"
-
-var (
-	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
 )
 
 // NewLogFileService returns a new log file server.
