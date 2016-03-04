@@ -35,7 +35,7 @@ type sdFactory struct {
 	lastSession sessionId // GUARDED_BY(mu)
 }
 
-func (f *sdFactory) New() (discovery.T, error) {
+func (f *sdFactory) New(*context.T) (discovery.T, error) {
 	session, err := f.newSession()
 	if err != nil {
 		return nil, err

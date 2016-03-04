@@ -408,7 +408,7 @@ func (*Runtime) NewDiscovery(ctx *context.T) (discovery.T, error) {
 	// nologcall
 	id, _ := ctx.Value(initKey).(*initData)
 	if id.discoveryFactory != nil {
-		return id.discoveryFactory.New()
+		return id.discoveryFactory.New(ctx)
 	}
 	return nil, verror.New(errDiscoveryNotInitialized, ctx)
 }

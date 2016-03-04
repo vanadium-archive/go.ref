@@ -8,6 +8,7 @@ import (
 	"errors"
 	"testing"
 
+	"v.io/v23/context"
 	"v.io/v23/discovery"
 
 	"v.io/x/ref/lib/discovery/factory"
@@ -18,7 +19,7 @@ type mock struct {
 	numNews, numShutdowns int
 }
 
-func (m *mock) New() (discovery.T, error) {
+func (m *mock) New(*context.T) (discovery.T, error) {
 	m.numNews++
 	return nil, m.newErr
 }
@@ -34,7 +35,7 @@ func TestFactoryBasic(t *testing.T) {
 	f, _ := factory.New(nil)
 
 	for i := 0; i < 3; i++ {
-		_, err := f.New()
+		_, err := f.New(nil)
 		if err != nil {
 			t.Error(err)
 		}
@@ -45,7 +46,7 @@ func TestFactoryBasic(t *testing.T) {
 	}
 
 	m.newErr = errors.New("new error")
-	if _, err := f.New(); err != m.newErr {
+	if _, err := f.New(nil); err != m.newErr {
 		t.Error("expected an error %v, but got %v", m.newErr, err)
 	}
 
@@ -62,7 +63,7 @@ func TestFactoryShutdownBeforeNew(t *testing.T) {
 	f, _ := factory.New(nil)
 
 	f.Shutdown()
-	if _, err := f.New(); err == nil {
+	if _, err := f.New(nil); err == nil {
 		t.Error("expected an error, but got none")
 	}
 	if m.numNews != 0 {

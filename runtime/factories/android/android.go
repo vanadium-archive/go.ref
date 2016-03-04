@@ -68,7 +68,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 
 	ac := appcycle.New()
-	discoveryFactory, err := dfactory.New(ctx, "mdns", "ble")
+	discoveryFactory, err := dfactory.New(ctx)
 	if err != nil {
 		ac.Shutdown()
 		return nil, nil, nil, err

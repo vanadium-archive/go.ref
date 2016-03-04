@@ -12,7 +12,7 @@ import (
 // Factory is the interface for creating a new discovery.T instance.
 type Factory interface {
 	// New creates a new Discovery.T instance.
-	New() (discovery.T, error)
+	New(*context.T) (discovery.T, error)
 
 	// Shutdown closes all Discovery.T instances and shutdowns the factory.
 	Shutdown()

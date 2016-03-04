@@ -25,28 +25,33 @@ var (
 	pluginFactories pluginFactoryMap
 )
 
+// SetPluginFactory sets the plugin factory with the given name.
+// This should be called before v23.NewDiscovery() is called.
+func SetPluginFactory(name string, factory pluginFactory) {
+	pluginFactories[name] = factory
+}
+
 type lazyFactory struct {
-	ctx       *context.T
 	host      string
 	protocols []string
 
 	once sync.Once
-	d    idiscovery.Factory
+	f    idiscovery.Factory
 	err  error
 }
 
-func (f *lazyFactory) New() (discovery.T, error) {
-	f.once.Do(func() { f.d, f.err = newFactory(f.ctx, f.host, f.protocols) })
-	if f.err != nil {
-		return nil, f.err
+func (l *lazyFactory) New(ctx *context.T) (discovery.T, error) {
+	l.once.Do(func() { l.f, l.err = newFactory(ctx, l.host, l.protocols) })
+	if l.err != nil {
+		return nil, l.err
 	}
-	return f.d.New()
+	return l.f.New(ctx)
 }
 
-func (f *lazyFactory) Shutdown() {
-	f.once.Do(func() { f.err = errors.New("factory closed") })
-	if f.d != nil {
-		f.d.Shutdown()
+func (l *lazyFactory) Shutdown() {
+	l.once.Do(func() { l.err = errors.New("factory closed") })
+	if l.f != nil {
+		l.f.Shutdown()
 	}
 }
 
@@ -54,7 +59,7 @@ func (f *lazyFactory) Shutdown() {
 //
 // We instantiate a factory lazily so that we do not turn it on until
 // it is actually used.
-func New(ctx *context.T, protocols ...string) (idiscovery.Factory, error) {
+func New(_ *context.T, protocols ...string) (idiscovery.Factory, error) {
 	host, _ := os.Hostname()
 	if len(host) == 0 {
 		// TODO(jhahn): Should we handle error here?
@@ -62,10 +67,11 @@ func New(ctx *context.T, protocols ...string) (idiscovery.Factory, error) {
 	}
 
 	if len(protocols) == 0 {
-		// TODO(jhahn): Enable all protocols that are supported by the runtime.
-		protocols = []string{"mdns"}
+		// Use all registered protocols.
+		for p, _ := range pluginFactories {
+			protocols = append(protocols, p)
+		}
 	}
-
 	// Verify protocols.
 	for _, p := range protocols {
 		if _, exists := pluginFactories[p]; !exists {
@@ -73,7 +79,7 @@ func New(ctx *context.T, protocols ...string) (idiscovery.Factory, error) {
 		}
 	}
 
-	return &lazyFactory{ctx: ctx, host: host, protocols: protocols}, nil
+	return &lazyFactory{host: host, protocols: protocols}, nil
 }
 
 func newFactory(ctx *context.T, host string, protocols []string) (idiscovery.Factory, error) {

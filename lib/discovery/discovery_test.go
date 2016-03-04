@@ -44,7 +44,7 @@ func TestBasic(t *testing.T) {
 		},
 	}
 
-	d1, err := df.New()
+	d1, err := df.New(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	// Create a new discovery instance. All advertisements should be discovered with that.
-	d2, err := df.New()
+	d2, err := df.New(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +142,7 @@ func TestVisibility(t *testing.T) {
 		security.BlessingPattern("v.io:alice").MakeNonExtendable(),
 	}
 
-	d1, _ := df.New()
+	d1, _ := df.New(ctx)
 
 	sctx := bcrypter.WithCrypter(ctx, crypter)
 	stop, err := testutil.Advertise(sctx, d1, visibility, &ad)
@@ -151,7 +151,7 @@ func TestVisibility(t *testing.T) {
 	}
 	defer stop()
 
-	d2, _ := df.New()
+	d2, _ := df.New(ctx)
 
 	// Bob and his friend should discover the advertisement.
 	bobctx, _ := testutil.WithPrivateKey(ctx, root, "v.io:bob")
@@ -192,7 +192,7 @@ func TestDuplicates(t *testing.T) {
 		Addresses:     []string{"/h1:123/x"},
 	}
 
-	d, _ := df.New()
+	d, _ := df.New(ctx)
 	if _, err := testutil.Advertise(ctx, d, nil, &ad); err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestMerge(t *testing.T) {
 		Hash: idiscovery.AdHash{1, 2, 3},
 	}
 
-	d, _ := df.New()
+	d, _ := df.New(ctx)
 	scanCh, scanStop, err := testutil.Scan(ctx, d, ``)
 	if err != nil {
 		t.Fatal(err)
@@ -275,11 +275,11 @@ func TestShutdown(t *testing.T) {
 		Addresses:     []string{"/h1:123/x"},
 	}
 
-	d1, _ := df.New()
+	d1, _ := df.New(ctx)
 	if _, err := testutil.Advertise(ctx, d1, nil, &ad); err != nil {
 		t.Error(err)
 	}
-	d2, _ := df.New()
+	d2, _ := df.New(ctx)
 	if err := testutil.ScanAndMatch(ctx, d2, ``, ad); err != nil {
 		t.Error(err)
 	}
