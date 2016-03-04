@@ -16,6 +16,9 @@ import (
 	"v.io/v23/uniqueid"
 )
 
+func __VDLEnsureNativeBuilt_caveat() {
+}
+
 // NotRevokedCaveat is used to implement revocation.
 // It validates iff the parameter is not included in a list of blacklisted
 // values.

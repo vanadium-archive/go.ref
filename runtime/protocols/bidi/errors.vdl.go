@@ -14,6 +14,9 @@ import (
 	"v.io/v23/verror"
 )
 
+func __VDLEnsureNativeBuilt_errors() {
+}
+
 var (
 	ErrCannotListenOnBidi     = verror.Register("v.io/x/ref/runtime/protocols/bidi.CannotListenOnBidi", verror.NoRetry, "{1:}{2:} cannot listen on bidi protocol")
 	ErrBidiRoutingIdNotCached = verror.Register("v.io/x/ref/runtime/protocols/bidi.BidiRoutingIdNotCached", verror.NoRetry, "{1:}{2:} bidi routing id not in cache")

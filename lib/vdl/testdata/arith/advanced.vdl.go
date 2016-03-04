@@ -17,6 +17,9 @@ import (
 	"v.io/x/ref/lib/vdl/testdata/arith/exp"
 )
 
+func __VDLEnsureNativeBuilt_advanced() {
+}
+
 // TrigonometryClientMethods is the client interface
 // containing Trigonometry methods.
 //

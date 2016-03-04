@@ -7,6 +7,9 @@
 
 package ble
 
+func __VDLEnsureNativeBuilt_const() {
+}
+
 // This uuids are v5 uuid generated out of band.  These constants need
 // to be accessible in all the languages that have a ble implementation
 const IdUuid = "bf0a3657-37cb-5aad-8c13-00c1d69a141c" // NewAttributeUUID("_id")

@@ -17,6 +17,9 @@ import (
 	"v.io/v23/security"
 )
 
+func __VDLEnsureNativeBuilt_errors() {
+}
+
 var (
 	ErrInternal           = verror.Register("v.io/x/ref/lib/security/bcrypter.Internal", verror.NoRetry, "{1:}{2:} internal error: {3}")
 	ErrNoParams           = verror.Register("v.io/x/ref/lib/security/bcrypter.NoParams", verror.NoRetry, "{1:}{2:} no public parameters available for encrypting for pattern: {3}")

@@ -9,3 +9,6 @@
 // the actual VDL file contents; we really only want to make sure that the
 // vdl.config file in this package is read in successfully.
 package testconfig
+
+func __VDLEnsureNativeBuilt_testconfig() {
+}

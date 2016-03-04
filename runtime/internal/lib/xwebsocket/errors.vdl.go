@@ -14,6 +14,9 @@ import (
 	"v.io/v23/verror"
 )
 
+func __VDLEnsureNativeBuilt_errors() {
+}
+
 var (
 	ErrListenerClosed     = verror.Register("v.io/x/ref/runtime/internal/lib/xwebsocket.ListenerClosed", verror.NoRetry, "{1:}{2:} listener is already closed.")
 	ErrListenCalledInNaCl = verror.Register("v.io/x/ref/runtime/internal/lib/xwebsocket.ListenCalledInNaCl", verror.NoRetry, "{1:}{2:} Listen cannot be called in NaCl code.")

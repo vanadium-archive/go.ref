@@ -33,8 +33,98 @@ func (BlessingRootResponse) __VDLReflect(struct {
 }) {
 }
 
+func (m *BlessingRootResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_identity_v_io_x_ref_services_identity_BlessingRootResponse == nil || __VDLTypeidentity0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var var2 bool
+	if len(m.Names) == 0 {
+		var2 = true
+	}
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Names")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget5, err := fieldTarget4.StartList(__VDLTypeidentity1, len(m.Names))
+			if err != nil {
+				return err
+			}
+			for i, elem7 := range m.Names {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget6.FromString(string(elem7), vdl.StringType); err != nil {
+					return err
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget4.FinishList(listTarget5); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.PublicKey == "")
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("PublicKey")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromString(string(m.PublicKey), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BlessingRootResponse) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *BlessingRootResponse) IsZero() bool {
+
+	var1 := true
+	var var2 bool
+	if len(m.Names) == 0 {
+		var2 = true
+	}
+	var1 = var1 && var2
+	var3 := (m.PublicKey == "")
+	var1 = var1 && var3
+	return var1
+}
+
 func init() {
 	vdl.Register((*BlessingRootResponse)(nil))
+}
+
+var __VDLTypeidentity0 *vdl.Type = vdl.TypeOf((*BlessingRootResponse)(nil))
+var __VDLTypeidentity1 *vdl.Type = vdl.TypeOf([]string(nil))
+var __VDLType_identity_v_io_x_ref_services_identity_BlessingRootResponse *vdl.Type = vdl.TypeOf(BlessingRootResponse{})
+
+func __VDLEnsureNativeBuilt_identity() {
 }
 
 // OAuthBlesserClientMethods is the client interface

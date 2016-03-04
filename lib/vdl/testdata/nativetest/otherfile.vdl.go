@@ -23,6 +23,28 @@ func (ignoreme) __VDLReflect(struct {
 }) {
 }
 
+func (m ignoreme) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromString(string(m), __VDLType_otherfile_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m ignoreme) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m ignoreme) IsZero() bool {
+
+	var1 := (m == ignoreme(""))
+	return var1
+}
+
 func init() {
 	vdl.Register((*ignoreme)(nil))
+}
+
+var __VDLType_otherfile_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme *vdl.Type = vdl.TypeOf(ignoreme(""))
+
+func __VDLEnsureNativeBuilt_otherfile() {
 }

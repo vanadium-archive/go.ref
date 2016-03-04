@@ -60,6 +60,28 @@ func (dataRep) __VDLReflect(struct {
 }) {
 }
 
+func (m dataRep) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromEnumLabel(m.String(), __VDLType_types_v_io_x_ref_cmd_vom_dataRep); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m dataRep) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m dataRep) IsZero() bool {
+
+	var1 := (m == dataRepHex)
+	return var1
+}
+
 func init() {
 	vdl.Register((*dataRep)(nil))
+}
+
+var __VDLType_types_v_io_x_ref_cmd_vom_dataRep *vdl.Type = vdl.TypeOf(dataRepHex)
+
+func __VDLEnsureNativeBuilt_types() {
 }

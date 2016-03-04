@@ -19,6 +19,9 @@ import (
 	"v.io/x/ref/services/wspr/internal/principal"
 )
 
+func __VDLEnsureNativeBuilt_controller() {
+}
+
 // ControllerClientMethods is the client interface
 // containing Controller methods.
 type ControllerClientMethods interface {

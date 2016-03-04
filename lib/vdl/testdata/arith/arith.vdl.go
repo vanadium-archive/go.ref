@@ -22,6 +22,9 @@ import (
 	"v.io/x/ref/lib/vdl/testdata/base"
 )
 
+func __VDLEnsureNativeBuilt_arith() {
+}
+
 // Yes shows that bools may be untyped.
 const Yes = true // yes trailing doc
 

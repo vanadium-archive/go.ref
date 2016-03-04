@@ -14,7 +14,7 @@ import (
 	// VDL user imports
 	"time"
 	"v.io/v23/vdl/testdata/nativetest"
-	_ "v.io/x/ref/lib/vdl/testdata/nativetest"
+	nativetest_2 "v.io/x/ref/lib/vdl/testdata/nativetest"
 )
 
 type All struct {
@@ -30,6 +30,316 @@ func (All) __VDLReflect(struct {
 }) {
 }
 
+func (m *All) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_nativedep()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var wireValue2 nativetest_2.WireString
+	if err := nativetest_2.WireStringFromNative(&wireValue2, m.A); err != nil {
+		return err
+	}
+
+	var3 := wireValue2.IsZero()
+	if !var3 {
+		keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("A")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue2.FillVDLTarget(fieldTarget5, __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue6 nativetest_2.WireMapStringInt
+	if err := nativetest_2.WireMapStringIntFromNative(&wireValue6, m.B); err != nil {
+		return err
+	}
+
+	var7 := wireValue6.IsZero()
+	if !var7 {
+		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("B")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue6.FillVDLTarget(fieldTarget9, __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue10 nativetest_2.WireTime
+	if err := nativetest_2.WireTimeFromNative(&wireValue10, m.C); err != nil {
+		return err
+	}
+
+	var11 := wireValue10.IsZero()
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("C")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue10.FillVDLTarget(fieldTarget13, __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue14 nativetest_2.WireSamePkg
+	if err := nativetest_2.WireSamePkgFromNative(&wireValue14, m.D); err != nil {
+		return err
+	}
+
+	var15 := wireValue14.IsZero()
+	if !var15 {
+		keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("D")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue14.FillVDLTarget(fieldTarget17, __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue18 nativetest_2.WireMultiImport
+	if err := nativetest_2.WireMultiImportFromNative(&wireValue18, m.E); err != nil {
+		return err
+	}
+
+	var19 := wireValue18.IsZero()
+	if !var19 {
+		keyTarget20, fieldTarget21, err := fieldsTarget1.StartField("E")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue18.FillVDLTarget(fieldTarget21, __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget20, fieldTarget21); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *All) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *All) IsZero() bool {
+
+	var1 := (*m == All{})
+	return var1
+}
+
 func init() {
 	vdl.Register((*All)(nil))
+}
+
+var __VDLTypenativedep0 *vdl.Type
+
+func __VDLTypenativedep0_gen() *vdl.Type {
+	__VDLTypenativedep0Builder := vdl.TypeBuilder{}
+
+	__VDLTypenativedep01 := __VDLTypenativedep0Builder.Optional()
+	__VDLTypenativedep02 := __VDLTypenativedep0Builder.Struct()
+	__VDLTypenativedep03 := __VDLTypenativedep0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativedep.All").AssignBase(__VDLTypenativedep02)
+	__VDLTypenativedep04 := vdl.Int32Type
+	__VDLTypenativedep05 := __VDLTypenativedep0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireString").AssignBase(__VDLTypenativedep04)
+	__VDLTypenativedep02.AppendField("A", __VDLTypenativedep05)
+	__VDLTypenativedep06 := vdl.Int32Type
+	__VDLTypenativedep07 := __VDLTypenativedep0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMapStringInt").AssignBase(__VDLTypenativedep06)
+	__VDLTypenativedep02.AppendField("B", __VDLTypenativedep07)
+	__VDLTypenativedep08 := vdl.Int32Type
+	__VDLTypenativedep09 := __VDLTypenativedep0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireTime").AssignBase(__VDLTypenativedep08)
+	__VDLTypenativedep02.AppendField("C", __VDLTypenativedep09)
+	__VDLTypenativedep010 := vdl.Int32Type
+	__VDLTypenativedep011 := __VDLTypenativedep0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireSamePkg").AssignBase(__VDLTypenativedep010)
+	__VDLTypenativedep02.AppendField("D", __VDLTypenativedep011)
+	__VDLTypenativedep012 := vdl.Int32Type
+	__VDLTypenativedep013 := __VDLTypenativedep0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMultiImport").AssignBase(__VDLTypenativedep012)
+	__VDLTypenativedep02.AppendField("E", __VDLTypenativedep013)
+	__VDLTypenativedep01.AssignElem(__VDLTypenativedep03)
+	__VDLTypenativedep0Builder.Build()
+	__VDLTypenativedep0v, err := __VDLTypenativedep01.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypenativedep0v
+}
+func init() {
+	__VDLTypenativedep0 = __VDLTypenativedep0_gen()
+}
+
+var __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All *vdl.Type
+
+func __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All_gen() *vdl.Type {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_AllBuilder := vdl.TypeBuilder{}
+
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All1 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_AllBuilder.Struct()
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All2 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_AllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativedep.All").AssignBase(__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All1)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All3 := vdl.Int32Type
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All4 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_AllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireString").AssignBase(__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All3)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All1.AppendField("A", __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All4)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All5 := vdl.Int32Type
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All6 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_AllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMapStringInt").AssignBase(__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All5)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All1.AppendField("B", __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All6)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All7 := vdl.Int32Type
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All8 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_AllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireTime").AssignBase(__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All7)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All1.AppendField("C", __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All8)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All9 := vdl.Int32Type
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All10 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_AllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireSamePkg").AssignBase(__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All9)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All1.AppendField("D", __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All10)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All11 := vdl.Int32Type
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All12 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_AllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMultiImport").AssignBase(__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All11)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All1.AppendField("E", __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All12)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_AllBuilder.Build()
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_Allv, err := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_Allv
+}
+func init() {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All_gen()
+}
+
+var __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt *vdl.Type
+
+func __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt_gen() *vdl.Type {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringIntBuilder := vdl.TypeBuilder{}
+
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt1 := vdl.Int32Type
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt2 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringIntBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMapStringInt").AssignBase(__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt1)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringIntBuilder.Build()
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringIntv, err := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringIntv
+}
+func init() {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt_gen()
+}
+
+var __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport *vdl.Type
+
+func __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport_gen() *vdl.Type {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImportBuilder := vdl.TypeBuilder{}
+
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport1 := vdl.Int32Type
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport2 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImportBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMultiImport").AssignBase(__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport1)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImportBuilder.Build()
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImportv, err := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImportv
+}
+func init() {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport_gen()
+}
+
+var __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg *vdl.Type
+
+func __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg_gen() *vdl.Type {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkgBuilder := vdl.TypeBuilder{}
+
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg1 := vdl.Int32Type
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg2 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkgBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireSamePkg").AssignBase(__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg1)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkgBuilder.Build()
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkgv, err := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkgv
+}
+func init() {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg_gen()
+}
+
+var __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString *vdl.Type
+
+func __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString_gen() *vdl.Type {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireStringBuilder := vdl.TypeBuilder{}
+
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString1 := vdl.Int32Type
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString2 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireStringBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireString").AssignBase(__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString1)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireStringBuilder.Build()
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireStringv, err := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireStringv
+}
+func init() {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString_gen()
+}
+
+var __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime *vdl.Type
+
+func __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime_gen() *vdl.Type {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTimeBuilder := vdl.TypeBuilder{}
+
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime1 := vdl.Int32Type
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime2 := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTimeBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireTime").AssignBase(__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime1)
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTimeBuilder.Build()
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTimev, err := __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTimev
+}
+func init() {
+	__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime_gen()
+}
+func __VDLEnsureNativeBuilt_nativedep() {
+	if __VDLTypenativedep0 == nil {
+		__VDLTypenativedep0 = __VDLTypenativedep0_gen()
+	}
+	if __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All == nil {
+		__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All_gen()
+	}
+	if __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt == nil {
+		__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt_gen()
+	}
+	if __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport == nil {
+		__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport_gen()
+	}
+	if __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg == nil {
+		__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg_gen()
+	}
+	if __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString == nil {
+		__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireString_gen()
+	}
+	if __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime == nil {
+		__VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime = __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime_gen()
+	}
 }

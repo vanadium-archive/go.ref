@@ -26,6 +26,63 @@ func (BlobInfo) __VDLReflect(struct {
 }) {
 }
 
+func (m *BlobInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobInfo == nil || __VDLTypeblob_test_types0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Info == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Info")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Info), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := m.Br.IsZero()
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Br")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Br.FillVDLTarget(fieldTarget7, __VDLType_blob_test_types_v_io_v23_services_syncbase_nosql_BlobRef); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BlobInfo) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *BlobInfo) IsZero() bool {
+
+	var1 := (*m == BlobInfo{})
+	return var1
+}
+
 type (
 	// BlobUnion represents any single field of the BlobUnion union type.
 	BlobUnion interface {
@@ -37,6 +94,8 @@ type (
 		Name() string
 		// __VDLReflect describes the BlobUnion union type.
 		__VDLReflect(__BlobUnionReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// BlobUnionNum represents field Num of the BlobUnion union type.
 	BlobUnionNum struct{ Value int32 }
@@ -58,10 +117,77 @@ func (x BlobUnionNum) Interface() interface{}          { return x.Value }
 func (x BlobUnionNum) Name() string                    { return "Num" }
 func (x BlobUnionNum) __VDLReflect(__BlobUnionReflect) {}
 
+func (m BlobUnionNum) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobUnion)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Num")
+	if err != nil {
+		return err
+	}
+	if err := fieldTarget3.FromInt(int64(m.Value), vdl.Int32Type); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m BlobUnionNum) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m BlobUnionNum) IsZero() bool {
+
+	var2 := (m.Value == int32(0))
+	return var2
+}
+
 func (x BlobUnionBi) Index() int                      { return 1 }
 func (x BlobUnionBi) Interface() interface{}          { return x.Value }
 func (x BlobUnionBi) Name() string                    { return "Bi" }
 func (x BlobUnionBi) __VDLReflect(__BlobUnionReflect) {}
+
+func (m BlobUnionBi) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobUnion)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Bi")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobInfo); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m BlobUnionBi) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m BlobUnionBi) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 type BlobSet struct {
 	Info string
@@ -71,6 +197,90 @@ type BlobSet struct {
 func (BlobSet) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync/testdata.BlobSet"`
 }) {
+}
+
+func (m *BlobSet) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobSet == nil || __VDLTypeblob_test_types1 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Info == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Info")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Info), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.Bs) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Bs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			setTarget8, err := fieldTarget7.StartSet(__VDLTypeblob_test_types2, len(m.Bs))
+			if err != nil {
+				return err
+			}
+			for key10 := range m.Bs {
+				keyTarget9, err := setTarget8.StartKey()
+				if err != nil {
+					return err
+				}
+
+				if err := key10.FillVDLTarget(keyTarget9, __VDLType_blob_test_types_v_io_v23_services_syncbase_nosql_BlobRef); err != nil {
+					return err
+				}
+				if err := setTarget8.FinishKey(keyTarget9); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget7.FinishSet(setTarget8); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BlobSet) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *BlobSet) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Info == "")
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.Bs) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	return var1
 }
 
 type BlobAny struct {
@@ -83,6 +293,96 @@ func (BlobAny) __VDLReflect(struct {
 }) {
 }
 
+func (m *BlobAny) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobAny == nil || __VDLTypeblob_test_types3 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Info == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Info")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Info), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.Baa) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Baa")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget8, err := fieldTarget7.StartList(__VDLTypeblob_test_types4, len(m.Baa))
+			if err != nil {
+				return err
+			}
+			for i, elem10 := range m.Baa {
+				elemTarget9, err := listTarget8.StartElem(i)
+				if err != nil {
+					return err
+				}
+
+				if elem10 == nil {
+					if err := elemTarget9.FromNil(vdl.AnyType); err != nil {
+						return err
+					}
+				} else {
+					if err := elem10.FillVDLTarget(elemTarget9, vdl.AnyType); err != nil {
+						return err
+					}
+				}
+				if err := listTarget8.FinishElem(elemTarget9); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget7.FinishList(listTarget8); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BlobAny) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *BlobAny) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Info == "")
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.Baa) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	return var1
+}
+
 type NonBlobSet struct {
 	Info string
 	S    map[string]struct{}
@@ -91,6 +391,89 @@ type NonBlobSet struct {
 func (NonBlobSet) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync/testdata.NonBlobSet"`
 }) {
+}
+
+func (m *NonBlobSet) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_NonBlobSet == nil || __VDLTypeblob_test_types5 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Info == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Info")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Info), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.S) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("S")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			setTarget8, err := fieldTarget7.StartSet(__VDLTypeblob_test_types6, len(m.S))
+			if err != nil {
+				return err
+			}
+			for key10 := range m.S {
+				keyTarget9, err := setTarget8.StartKey()
+				if err != nil {
+					return err
+				}
+				if err := keyTarget9.FromString(string(key10), vdl.StringType); err != nil {
+					return err
+				}
+				if err := setTarget8.FinishKey(keyTarget9); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget7.FinishSet(setTarget8); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *NonBlobSet) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *NonBlobSet) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Info == "")
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.S) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	return var1
 }
 
 type BlobOpt struct {
@@ -103,6 +486,69 @@ func (BlobOpt) __VDLReflect(struct {
 }) {
 }
 
+func (m *BlobOpt) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobOpt == nil || __VDLTypeblob_test_types7 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Info == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Info")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Info), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Bo == (*BlobInfo)(nil))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Bo")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if m.Bo == nil {
+				if err := fieldTarget7.FromNil(__VDLTypeblob_test_types0); err != nil {
+					return err
+				}
+			} else {
+				if err := m.Bo.FillVDLTarget(fieldTarget7, __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobInfo); err != nil {
+					return err
+				}
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BlobOpt) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *BlobOpt) IsZero() bool {
+
+	var1 := (*m == BlobOpt{})
+	return var1
+}
+
 func init() {
 	vdl.Register((*BlobInfo)(nil))
 	vdl.Register((*BlobUnion)(nil))
@@ -110,4 +556,23 @@ func init() {
 	vdl.Register((*BlobAny)(nil))
 	vdl.Register((*NonBlobSet)(nil))
 	vdl.Register((*BlobOpt)(nil))
+}
+
+var __VDLTypeblob_test_types3 *vdl.Type = vdl.TypeOf((*BlobAny)(nil))
+var __VDLTypeblob_test_types0 *vdl.Type = vdl.TypeOf((*BlobInfo)(nil))
+var __VDLTypeblob_test_types7 *vdl.Type = vdl.TypeOf((*BlobOpt)(nil))
+var __VDLTypeblob_test_types1 *vdl.Type = vdl.TypeOf((*BlobSet)(nil))
+var __VDLTypeblob_test_types5 *vdl.Type = vdl.TypeOf((*NonBlobSet)(nil))
+var __VDLTypeblob_test_types4 *vdl.Type = vdl.TypeOf([]*vom.RawBytes(nil))
+var __VDLTypeblob_test_types6 *vdl.Type = vdl.TypeOf(map[string]struct{}(nil))
+var __VDLTypeblob_test_types2 *vdl.Type = vdl.TypeOf(map[nosql.BlobRef]struct{}(nil))
+var __VDLType_blob_test_types_v_io_v23_services_syncbase_nosql_BlobRef *vdl.Type = vdl.TypeOf(nosql.BlobRef(""))
+var __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobAny *vdl.Type = vdl.TypeOf(BlobAny{})
+var __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobInfo *vdl.Type = vdl.TypeOf(BlobInfo{})
+var __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobOpt *vdl.Type = vdl.TypeOf(BlobOpt{})
+var __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobSet *vdl.Type = vdl.TypeOf(BlobSet{})
+var __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_BlobUnion *vdl.Type = vdl.TypeOf(BlobUnion(BlobUnionNum{int32(0)}))
+var __VDLType_blob_test_types_v_io_x_ref_services_syncbase_vsync_testdata_NonBlobSet *vdl.Type = vdl.TypeOf(NonBlobSet{})
+
+func __VDLEnsureNativeBuilt_blob_test_types() {
 }

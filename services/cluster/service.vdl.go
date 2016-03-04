@@ -19,6 +19,9 @@ import (
 	"v.io/v23/security/access"
 )
 
+func __VDLEnsureNativeBuilt_service() {
+}
+
 // ClusterAgentClientMethods is the client interface
 // containing ClusterAgent methods.
 type ClusterAgentClientMethods interface {

@@ -34,7 +34,7 @@ import (
 	// VDL user imports
 	"time"
 	"v.io/v23/security/access"
-	_ "v.io/v23/vdlroot/time"
+	time_2 "v.io/v23/vdlroot/time"
 )
 
 // A GameId is used to uniquely identify a game within one Judge.
@@ -45,6 +45,47 @@ type GameId struct {
 func (GameId) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/examples/rps.GameId"`
 }) {
+}
+
+func (m *GameId) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_service_v_io_x_ref_examples_rps_GameId == nil || __VDLTypeservice0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Id == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Id")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Id), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *GameId) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *GameId) IsZero() bool {
+
+	var1 := (*m == GameId{})
+	return var1
 }
 
 // GameOptions specifies the parameters of a game.
@@ -58,11 +99,85 @@ func (GameOptions) __VDLReflect(struct {
 }) {
 }
 
+func (m *GameOptions) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_service_v_io_x_ref_examples_rps_GameOptions == nil || __VDLTypeservice1 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.NumRounds == int32(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("NumRounds")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromInt(int64(m.NumRounds), vdl.Int32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := m.GameType.IsZero()
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("GameType")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.GameType.FillVDLTarget(fieldTarget7, __VDLType_service_v_io_x_ref_examples_rps_GameTypeTag); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *GameOptions) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *GameOptions) IsZero() bool {
+
+	var1 := (*m == GameOptions{})
+	return var1
+}
+
 type GameTypeTag byte
 
 func (GameTypeTag) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/examples/rps.GameTypeTag"`
 }) {
+}
+
+func (m GameTypeTag) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64(m), __VDLType_service_v_io_x_ref_examples_rps_GameTypeTag); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m GameTypeTag) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m GameTypeTag) IsZero() bool {
+
+	var1 := (m == GameTypeTag(0))
+	return var1
 }
 
 type (
@@ -76,6 +191,8 @@ type (
 		Name() string
 		// __VDLReflect describes the PlayerAction union type.
 		__VDLReflect(__PlayerActionReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// PlayerActionMove represents field Move of the PlayerAction union type.
 	PlayerActionMove struct{ Value string } // The move that the player wants to make.
@@ -97,10 +214,77 @@ func (x PlayerActionMove) Interface() interface{}             { return x.Value }
 func (x PlayerActionMove) Name() string                       { return "Move" }
 func (x PlayerActionMove) __VDLReflect(__PlayerActionReflect) {}
 
+func (m PlayerActionMove) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_PlayerAction)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Move")
+	if err != nil {
+		return err
+	}
+	if err := fieldTarget3.FromString(string(m.Value), vdl.StringType); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m PlayerActionMove) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m PlayerActionMove) IsZero() bool {
+
+	var2 := (m.Value == "")
+	return var2
+}
+
 func (x PlayerActionQuit) Index() int                         { return 1 }
 func (x PlayerActionQuit) Interface() interface{}             { return x.Value }
 func (x PlayerActionQuit) Name() string                       { return "Quit" }
 func (x PlayerActionQuit) __VDLReflect(__PlayerActionReflect) {}
+
+func (m PlayerActionQuit) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_PlayerAction)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Quit")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_service_v_io_x_ref_examples_rps_unused); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m PlayerActionQuit) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m PlayerActionQuit) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 type unused struct {
 }
@@ -108,6 +292,32 @@ type unused struct {
 func (unused) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/examples/rps.unused"`
 }) {
+}
+
+func (m *unused) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_service_v_io_x_ref_examples_rps_unused == nil || __VDLTypeservice2 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *unused) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *unused) IsZero() bool {
+
+	var1 := (*m == unused{})
+	return var1
 }
 
 type (
@@ -121,6 +331,8 @@ type (
 		Name() string
 		// __VDLReflect describes the JudgeAction union type.
 		__VDLReflect(__JudgeActionReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// JudgeActionPlayerNum represents field PlayerNum of the JudgeAction union type.
 	JudgeActionPlayerNum struct{ Value int32 } // The player's number.
@@ -151,31 +363,249 @@ func (x JudgeActionPlayerNum) Interface() interface{}            { return x.Valu
 func (x JudgeActionPlayerNum) Name() string                      { return "PlayerNum" }
 func (x JudgeActionPlayerNum) __VDLReflect(__JudgeActionReflect) {}
 
+func (m JudgeActionPlayerNum) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("PlayerNum")
+	if err != nil {
+		return err
+	}
+	if err := fieldTarget3.FromInt(int64(m.Value), vdl.Int32Type); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m JudgeActionPlayerNum) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m JudgeActionPlayerNum) IsZero() bool {
+
+	var2 := (m.Value == int32(0))
+	return var2
+}
+
 func (x JudgeActionOpponentName) Index() int                        { return 1 }
 func (x JudgeActionOpponentName) Interface() interface{}            { return x.Value }
 func (x JudgeActionOpponentName) Name() string                      { return "OpponentName" }
 func (x JudgeActionOpponentName) __VDLReflect(__JudgeActionReflect) {}
+
+func (m JudgeActionOpponentName) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("OpponentName")
+	if err != nil {
+		return err
+	}
+	if err := fieldTarget3.FromString(string(m.Value), vdl.StringType); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m JudgeActionOpponentName) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m JudgeActionOpponentName) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 func (x JudgeActionMoveOptions) Index() int                        { return 2 }
 func (x JudgeActionMoveOptions) Interface() interface{}            { return x.Value }
 func (x JudgeActionMoveOptions) Name() string                      { return "MoveOptions" }
 func (x JudgeActionMoveOptions) __VDLReflect(__JudgeActionReflect) {}
 
+func (m JudgeActionMoveOptions) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("MoveOptions")
+	if err != nil {
+		return err
+	}
+
+	listTarget4, err := fieldTarget3.StartList(__VDLTypeservice3, len(m.Value))
+	if err != nil {
+		return err
+	}
+	for i, elem6 := range m.Value {
+		elemTarget5, err := listTarget4.StartElem(i)
+		if err != nil {
+			return err
+		}
+		if err := elemTarget5.FromString(string(elem6), vdl.StringType); err != nil {
+			return err
+		}
+		if err := listTarget4.FinishElem(elemTarget5); err != nil {
+			return err
+		}
+	}
+	if err := fieldTarget3.FinishList(listTarget4); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m JudgeActionMoveOptions) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m JudgeActionMoveOptions) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
+
 func (x JudgeActionRoundResult) Index() int                        { return 3 }
 func (x JudgeActionRoundResult) Interface() interface{}            { return x.Value }
 func (x JudgeActionRoundResult) Name() string                      { return "RoundResult" }
 func (x JudgeActionRoundResult) __VDLReflect(__JudgeActionReflect) {}
+
+func (m JudgeActionRoundResult) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("RoundResult")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_service_v_io_x_ref_examples_rps_Round); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m JudgeActionRoundResult) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m JudgeActionRoundResult) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 func (x JudgeActionScore) Index() int                        { return 4 }
 func (x JudgeActionScore) Interface() interface{}            { return x.Value }
 func (x JudgeActionScore) Name() string                      { return "Score" }
 func (x JudgeActionScore) __VDLReflect(__JudgeActionReflect) {}
 
+func (m JudgeActionScore) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Score")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_service_v_io_x_ref_examples_rps_ScoreCard); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m JudgeActionScore) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m JudgeActionScore) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
+
 type PlayersMoves [2]string
 
 func (PlayersMoves) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/examples/rps.PlayersMoves"`
 }) {
+}
+
+func (m PlayersMoves) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	listTarget1, err := t.StartList(__VDLType_service_v_io_x_ref_examples_rps_PlayersMoves, 2)
+	if err != nil {
+		return err
+	}
+	for i, elem3 := range m {
+		elemTarget2, err := listTarget1.StartElem(i)
+		if err != nil {
+			return err
+		}
+		if err := elemTarget2.FromString(string(elem3), vdl.StringType); err != nil {
+			return err
+		}
+		if err := listTarget1.FinishElem(elemTarget2); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishList(listTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m PlayersMoves) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m PlayersMoves) IsZero() bool {
+
+	var1 := (m == PlayersMoves{})
+	return var1
 }
 
 // Round represents the state of a round.
@@ -192,6 +622,119 @@ func (Round) __VDLReflect(struct {
 }) {
 }
 
+func (m *Round) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_service()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Moves.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Moves")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Moves.FillVDLTarget(fieldTarget4, __VDLType_service_v_io_x_ref_examples_rps_PlayersMoves); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Comment == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Comment")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.Comment), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := m.Winner.IsZero()
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Winner")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Winner.FillVDLTarget(fieldTarget10, __VDLType_service_v_io_x_ref_examples_rps_WinnerTag); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue11 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue11, m.StartTime); err != nil {
+		return err
+	}
+
+	var12 := wireValue11.IsZero()
+	if !var12 {
+		keyTarget13, fieldTarget14, err := fieldsTarget1.StartField("StartTime")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue11.FillVDLTarget(fieldTarget14, __VDLType_service_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget13, fieldTarget14); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue15 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue15, m.EndTime); err != nil {
+		return err
+	}
+
+	var16 := wireValue15.IsZero()
+	if !var16 {
+		keyTarget17, fieldTarget18, err := fieldsTarget1.StartField("EndTime")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue15.FillVDLTarget(fieldTarget18, __VDLType_service_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget17, fieldTarget18); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Round) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Round) IsZero() bool {
+
+	var1 := (*m == Round{})
+	return var1
+}
+
 // WinnerTag is a type used to indicate whether a round or a game was a draw,
 // was won by player 1 or was won by player 2.
 type WinnerTag byte
@@ -199,6 +742,23 @@ type WinnerTag byte
 func (WinnerTag) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/examples/rps.WinnerTag"`
 }) {
+}
+
+func (m WinnerTag) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64(m), __VDLType_service_v_io_x_ref_examples_rps_WinnerTag); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m WinnerTag) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m WinnerTag) IsZero() bool {
+
+	var1 := (m == WinnerTag(0))
+	return var1
 }
 
 // PlayResult is the value returned by the Play method. It indicates the outcome of the game.
@@ -209,6 +769,47 @@ type PlayResult struct {
 func (PlayResult) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/examples/rps.PlayResult"`
 }) {
+}
+
+func (m *PlayResult) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_service_v_io_x_ref_examples_rps_PlayResult == nil || __VDLTypeservice5 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.YouWon == false)
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("YouWon")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromBool(bool(m.YouWon), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *PlayResult) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *PlayResult) IsZero() bool {
+
+	var1 := (*m == PlayResult{})
+	return var1
 }
 
 type ScoreCard struct {
@@ -226,6 +827,220 @@ func (ScoreCard) __VDLReflect(struct {
 }) {
 }
 
+func (m *ScoreCard) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_service()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Opts.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Opts")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Opts.FillVDLTarget(fieldTarget4, __VDLType_service_v_io_x_ref_examples_rps_GameOptions); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Judge == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Judge")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.Judge), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.Players) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Players")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget11, err := fieldTarget10.StartList(__VDLTypeservice3, len(m.Players))
+			if err != nil {
+				return err
+			}
+			for i, elem13 := range m.Players {
+				elemTarget12, err := listTarget11.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget12.FromString(string(elem13), vdl.StringType); err != nil {
+					return err
+				}
+				if err := listTarget11.FinishElem(elemTarget12); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget10.FinishList(listTarget11); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var var14 bool
+	if len(m.Rounds) == 0 {
+		var14 = true
+	}
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("Rounds")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget17, err := fieldTarget16.StartList(__VDLTypeservice7, len(m.Rounds))
+			if err != nil {
+				return err
+			}
+			for i, elem19 := range m.Rounds {
+				elemTarget18, err := listTarget17.StartElem(i)
+				if err != nil {
+					return err
+				}
+
+				if err := elem19.FillVDLTarget(elemTarget18, __VDLType_service_v_io_x_ref_examples_rps_Round); err != nil {
+					return err
+				}
+				if err := listTarget17.FinishElem(elemTarget18); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget16.FinishList(listTarget17); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue20 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue20, m.StartTime); err != nil {
+		return err
+	}
+
+	var21 := wireValue20.IsZero()
+	if !var21 {
+		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("StartTime")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue20.FillVDLTarget(fieldTarget23, __VDLType_service_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue24 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue24, m.EndTime); err != nil {
+		return err
+	}
+
+	var25 := wireValue24.IsZero()
+	if !var25 {
+		keyTarget26, fieldTarget27, err := fieldsTarget1.StartField("EndTime")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue24.FillVDLTarget(fieldTarget27, __VDLType_service_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget26, fieldTarget27); err != nil {
+				return err
+			}
+		}
+	}
+	var28 := m.Winner.IsZero()
+	if !var28 {
+		keyTarget29, fieldTarget30, err := fieldsTarget1.StartField("Winner")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Winner.FillVDLTarget(fieldTarget30, __VDLType_service_v_io_x_ref_examples_rps_WinnerTag); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget29, fieldTarget30); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ScoreCard) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *ScoreCard) IsZero() bool {
+
+	var1 := true
+	var2 := m.Opts.IsZero()
+	var1 = var1 && var2
+	var3 := (m.Judge == "")
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.Players) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	var var5 bool
+	if len(m.Rounds) == 0 {
+		var5 = true
+	}
+	var1 = var1 && var5
+	var wireValue6 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue6, m.StartTime); err != nil {
+		return false // error will be caught on encode
+	}
+
+	var7 := wireValue6.IsZero()
+	var1 = var1 && var7
+	var wireValue8 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue8, m.EndTime); err != nil {
+		return false // error will be caught on encode
+	}
+
+	var9 := wireValue8.IsZero()
+	var1 = var1 && var9
+	var10 := m.Winner.IsZero()
+	var1 = var1 && var10
+	return var1
+}
+
 func init() {
 	vdl.Register((*GameId)(nil))
 	vdl.Register((*GameOptions)(nil))
@@ -238,6 +1053,352 @@ func init() {
 	vdl.Register((*WinnerTag)(nil))
 	vdl.Register((*PlayResult)(nil))
 	vdl.Register((*ScoreCard)(nil))
+}
+
+var __VDLTypeservice0 *vdl.Type = vdl.TypeOf((*GameId)(nil))
+var __VDLTypeservice1 *vdl.Type = vdl.TypeOf((*GameOptions)(nil))
+var __VDLTypeservice5 *vdl.Type = vdl.TypeOf((*PlayResult)(nil))
+var __VDLTypeservice4 *vdl.Type
+
+func __VDLTypeservice4_gen() *vdl.Type {
+	__VDLTypeservice4Builder := vdl.TypeBuilder{}
+
+	__VDLTypeservice41 := __VDLTypeservice4Builder.Optional()
+	__VDLTypeservice42 := __VDLTypeservice4Builder.Struct()
+	__VDLTypeservice43 := __VDLTypeservice4Builder.Named("v.io/x/ref/examples/rps.Round").AssignBase(__VDLTypeservice42)
+	__VDLTypeservice44 := __VDLTypeservice4Builder.Array()
+	__VDLTypeservice45 := __VDLTypeservice4Builder.Named("v.io/x/ref/examples/rps.PlayersMoves").AssignBase(__VDLTypeservice44)
+	__VDLTypeservice46 := vdl.StringType
+	__VDLTypeservice44.AssignElem(__VDLTypeservice46)
+	__VDLTypeservice44.AssignLen(2)
+	__VDLTypeservice42.AppendField("Moves", __VDLTypeservice45)
+	__VDLTypeservice42.AppendField("Comment", __VDLTypeservice46)
+	__VDLTypeservice47 := vdl.ByteType
+	__VDLTypeservice48 := __VDLTypeservice4Builder.Named("v.io/x/ref/examples/rps.WinnerTag").AssignBase(__VDLTypeservice47)
+	__VDLTypeservice42.AppendField("Winner", __VDLTypeservice48)
+	__VDLTypeservice49 := __VDLTypeservice4Builder.Struct()
+	__VDLTypeservice410 := __VDLTypeservice4Builder.Named("time.Time").AssignBase(__VDLTypeservice49)
+	__VDLTypeservice411 := vdl.Int64Type
+	__VDLTypeservice49.AppendField("Seconds", __VDLTypeservice411)
+	__VDLTypeservice412 := vdl.Int32Type
+	__VDLTypeservice49.AppendField("Nanos", __VDLTypeservice412)
+	__VDLTypeservice42.AppendField("StartTime", __VDLTypeservice410)
+	__VDLTypeservice42.AppendField("EndTime", __VDLTypeservice410)
+	__VDLTypeservice41.AssignElem(__VDLTypeservice43)
+	__VDLTypeservice4Builder.Build()
+	__VDLTypeservice4v, err := __VDLTypeservice41.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypeservice4v
+}
+func init() {
+	__VDLTypeservice4 = __VDLTypeservice4_gen()
+}
+
+var __VDLTypeservice6 *vdl.Type
+
+func __VDLTypeservice6_gen() *vdl.Type {
+	__VDLTypeservice6Builder := vdl.TypeBuilder{}
+
+	__VDLTypeservice61 := __VDLTypeservice6Builder.Optional()
+	__VDLTypeservice62 := __VDLTypeservice6Builder.Struct()
+	__VDLTypeservice63 := __VDLTypeservice6Builder.Named("v.io/x/ref/examples/rps.ScoreCard").AssignBase(__VDLTypeservice62)
+	__VDLTypeservice64 := __VDLTypeservice6Builder.Struct()
+	__VDLTypeservice65 := __VDLTypeservice6Builder.Named("v.io/x/ref/examples/rps.GameOptions").AssignBase(__VDLTypeservice64)
+	__VDLTypeservice66 := vdl.Int32Type
+	__VDLTypeservice64.AppendField("NumRounds", __VDLTypeservice66)
+	__VDLTypeservice67 := vdl.ByteType
+	__VDLTypeservice68 := __VDLTypeservice6Builder.Named("v.io/x/ref/examples/rps.GameTypeTag").AssignBase(__VDLTypeservice67)
+	__VDLTypeservice64.AppendField("GameType", __VDLTypeservice68)
+	__VDLTypeservice62.AppendField("Opts", __VDLTypeservice65)
+	__VDLTypeservice69 := vdl.StringType
+	__VDLTypeservice62.AppendField("Judge", __VDLTypeservice69)
+	__VDLTypeservice610 := __VDLTypeservice6Builder.List()
+	__VDLTypeservice610.AssignElem(__VDLTypeservice69)
+	__VDLTypeservice62.AppendField("Players", __VDLTypeservice610)
+	__VDLTypeservice611 := __VDLTypeservice6Builder.List()
+	__VDLTypeservice612 := __VDLTypeservice6Builder.Struct()
+	__VDLTypeservice613 := __VDLTypeservice6Builder.Named("v.io/x/ref/examples/rps.Round").AssignBase(__VDLTypeservice612)
+	__VDLTypeservice614 := __VDLTypeservice6Builder.Array()
+	__VDLTypeservice615 := __VDLTypeservice6Builder.Named("v.io/x/ref/examples/rps.PlayersMoves").AssignBase(__VDLTypeservice614)
+	__VDLTypeservice614.AssignElem(__VDLTypeservice69)
+	__VDLTypeservice614.AssignLen(2)
+	__VDLTypeservice612.AppendField("Moves", __VDLTypeservice615)
+	__VDLTypeservice612.AppendField("Comment", __VDLTypeservice69)
+	__VDLTypeservice616 := vdl.ByteType
+	__VDLTypeservice617 := __VDLTypeservice6Builder.Named("v.io/x/ref/examples/rps.WinnerTag").AssignBase(__VDLTypeservice616)
+	__VDLTypeservice612.AppendField("Winner", __VDLTypeservice617)
+	__VDLTypeservice618 := __VDLTypeservice6Builder.Struct()
+	__VDLTypeservice619 := __VDLTypeservice6Builder.Named("time.Time").AssignBase(__VDLTypeservice618)
+	__VDLTypeservice620 := vdl.Int64Type
+	__VDLTypeservice618.AppendField("Seconds", __VDLTypeservice620)
+	__VDLTypeservice618.AppendField("Nanos", __VDLTypeservice66)
+	__VDLTypeservice612.AppendField("StartTime", __VDLTypeservice619)
+	__VDLTypeservice612.AppendField("EndTime", __VDLTypeservice619)
+	__VDLTypeservice611.AssignElem(__VDLTypeservice613)
+	__VDLTypeservice62.AppendField("Rounds", __VDLTypeservice611)
+	__VDLTypeservice62.AppendField("StartTime", __VDLTypeservice619)
+	__VDLTypeservice62.AppendField("EndTime", __VDLTypeservice619)
+	__VDLTypeservice62.AppendField("Winner", __VDLTypeservice617)
+	__VDLTypeservice61.AssignElem(__VDLTypeservice63)
+	__VDLTypeservice6Builder.Build()
+	__VDLTypeservice6v, err := __VDLTypeservice61.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypeservice6v
+}
+func init() {
+	__VDLTypeservice6 = __VDLTypeservice6_gen()
+}
+
+var __VDLTypeservice2 *vdl.Type = vdl.TypeOf((*unused)(nil))
+var __VDLTypeservice3 *vdl.Type = vdl.TypeOf([]string(nil))
+var __VDLTypeservice7 *vdl.Type
+
+func __VDLTypeservice7_gen() *vdl.Type {
+	__VDLTypeservice7Builder := vdl.TypeBuilder{}
+
+	__VDLTypeservice71 := __VDLTypeservice7Builder.List()
+	__VDLTypeservice72 := __VDLTypeservice7Builder.Struct()
+	__VDLTypeservice73 := __VDLTypeservice7Builder.Named("v.io/x/ref/examples/rps.Round").AssignBase(__VDLTypeservice72)
+	__VDLTypeservice74 := __VDLTypeservice7Builder.Array()
+	__VDLTypeservice75 := __VDLTypeservice7Builder.Named("v.io/x/ref/examples/rps.PlayersMoves").AssignBase(__VDLTypeservice74)
+	__VDLTypeservice76 := vdl.StringType
+	__VDLTypeservice74.AssignElem(__VDLTypeservice76)
+	__VDLTypeservice74.AssignLen(2)
+	__VDLTypeservice72.AppendField("Moves", __VDLTypeservice75)
+	__VDLTypeservice72.AppendField("Comment", __VDLTypeservice76)
+	__VDLTypeservice77 := vdl.ByteType
+	__VDLTypeservice78 := __VDLTypeservice7Builder.Named("v.io/x/ref/examples/rps.WinnerTag").AssignBase(__VDLTypeservice77)
+	__VDLTypeservice72.AppendField("Winner", __VDLTypeservice78)
+	__VDLTypeservice79 := __VDLTypeservice7Builder.Struct()
+	__VDLTypeservice710 := __VDLTypeservice7Builder.Named("time.Time").AssignBase(__VDLTypeservice79)
+	__VDLTypeservice711 := vdl.Int64Type
+	__VDLTypeservice79.AppendField("Seconds", __VDLTypeservice711)
+	__VDLTypeservice712 := vdl.Int32Type
+	__VDLTypeservice79.AppendField("Nanos", __VDLTypeservice712)
+	__VDLTypeservice72.AppendField("StartTime", __VDLTypeservice710)
+	__VDLTypeservice72.AppendField("EndTime", __VDLTypeservice710)
+	__VDLTypeservice71.AssignElem(__VDLTypeservice73)
+	__VDLTypeservice7Builder.Build()
+	__VDLTypeservice7v, err := __VDLTypeservice71.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypeservice7v
+}
+func init() {
+	__VDLTypeservice7 = __VDLTypeservice7_gen()
+}
+
+var __VDLType_service_time_Time *vdl.Type
+
+func __VDLType_service_time_Time_gen() *vdl.Type {
+	__VDLType_service_time_TimeBuilder := vdl.TypeBuilder{}
+
+	__VDLType_service_time_Time1 := __VDLType_service_time_TimeBuilder.Struct()
+	__VDLType_service_time_Time2 := __VDLType_service_time_TimeBuilder.Named("time.Time").AssignBase(__VDLType_service_time_Time1)
+	__VDLType_service_time_Time3 := vdl.Int64Type
+	__VDLType_service_time_Time1.AppendField("Seconds", __VDLType_service_time_Time3)
+	__VDLType_service_time_Time4 := vdl.Int32Type
+	__VDLType_service_time_Time1.AppendField("Nanos", __VDLType_service_time_Time4)
+	__VDLType_service_time_TimeBuilder.Build()
+	__VDLType_service_time_Timev, err := __VDLType_service_time_Time2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_service_time_Timev
+}
+func init() {
+	__VDLType_service_time_Time = __VDLType_service_time_Time_gen()
+}
+
+var __VDLType_service_v_io_x_ref_examples_rps_GameId *vdl.Type = vdl.TypeOf(GameId{})
+var __VDLType_service_v_io_x_ref_examples_rps_GameOptions *vdl.Type = vdl.TypeOf(GameOptions{})
+var __VDLType_service_v_io_x_ref_examples_rps_GameTypeTag *vdl.Type = vdl.TypeOf(GameTypeTag(0))
+var __VDLType_service_v_io_x_ref_examples_rps_JudgeAction *vdl.Type
+
+func __VDLType_service_v_io_x_ref_examples_rps_JudgeAction_gen() *vdl.Type {
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder := vdl.TypeBuilder{}
+
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction1 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Union()
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction2 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Named("v.io/x/ref/examples/rps.JudgeAction").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction1)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction3 := vdl.Int32Type
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction1.AppendField("PlayerNum", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction3)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction4 := vdl.StringType
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction1.AppendField("OpponentName", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction4)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction5 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.List()
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction5.AssignElem(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction4)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction1.AppendField("MoveOptions", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction5)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction6 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Struct()
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction7 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Named("v.io/x/ref/examples/rps.Round").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction6)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction8 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Array()
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction9 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Named("v.io/x/ref/examples/rps.PlayersMoves").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction8)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction8.AssignElem(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction4)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction8.AssignLen(2)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction6.AppendField("Moves", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction9)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction6.AppendField("Comment", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction4)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction10 := vdl.ByteType
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction11 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Named("v.io/x/ref/examples/rps.WinnerTag").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction10)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction6.AppendField("Winner", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction11)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction12 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Struct()
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction13 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Named("time.Time").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction12)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction14 := vdl.Int64Type
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction12.AppendField("Seconds", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction14)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction12.AppendField("Nanos", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction3)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction6.AppendField("StartTime", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction13)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction6.AppendField("EndTime", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction13)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction1.AppendField("RoundResult", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction7)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction15 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Struct()
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction16 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Named("v.io/x/ref/examples/rps.ScoreCard").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction15)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction17 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Struct()
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction18 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Named("v.io/x/ref/examples/rps.GameOptions").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction17)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction17.AppendField("NumRounds", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction3)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction19 := vdl.ByteType
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction20 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Named("v.io/x/ref/examples/rps.GameTypeTag").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction19)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction17.AppendField("GameType", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction20)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction15.AppendField("Opts", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction18)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction15.AppendField("Judge", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction4)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction15.AppendField("Players", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction5)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction21 := __VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.List()
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction21.AssignElem(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction7)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction15.AppendField("Rounds", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction21)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction15.AppendField("StartTime", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction13)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction15.AppendField("EndTime", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction13)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction15.AppendField("Winner", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction11)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction1.AppendField("Score", __VDLType_service_v_io_x_ref_examples_rps_JudgeAction16)
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeActionBuilder.Build()
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeActionv, err := __VDLType_service_v_io_x_ref_examples_rps_JudgeAction2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_service_v_io_x_ref_examples_rps_JudgeActionv
+}
+func init() {
+	__VDLType_service_v_io_x_ref_examples_rps_JudgeAction = __VDLType_service_v_io_x_ref_examples_rps_JudgeAction_gen()
+}
+
+var __VDLType_service_v_io_x_ref_examples_rps_PlayResult *vdl.Type = vdl.TypeOf(PlayResult{})
+var __VDLType_service_v_io_x_ref_examples_rps_PlayerAction *vdl.Type = vdl.TypeOf(PlayerAction(PlayerActionMove{""}))
+var __VDLType_service_v_io_x_ref_examples_rps_PlayersMoves *vdl.Type = vdl.TypeOf(PlayersMoves{})
+var __VDLType_service_v_io_x_ref_examples_rps_Round *vdl.Type
+
+func __VDLType_service_v_io_x_ref_examples_rps_Round_gen() *vdl.Type {
+	__VDLType_service_v_io_x_ref_examples_rps_RoundBuilder := vdl.TypeBuilder{}
+
+	__VDLType_service_v_io_x_ref_examples_rps_Round1 := __VDLType_service_v_io_x_ref_examples_rps_RoundBuilder.Struct()
+	__VDLType_service_v_io_x_ref_examples_rps_Round2 := __VDLType_service_v_io_x_ref_examples_rps_RoundBuilder.Named("v.io/x/ref/examples/rps.Round").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_Round1)
+	__VDLType_service_v_io_x_ref_examples_rps_Round3 := __VDLType_service_v_io_x_ref_examples_rps_RoundBuilder.Array()
+	__VDLType_service_v_io_x_ref_examples_rps_Round4 := __VDLType_service_v_io_x_ref_examples_rps_RoundBuilder.Named("v.io/x/ref/examples/rps.PlayersMoves").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_Round3)
+	__VDLType_service_v_io_x_ref_examples_rps_Round5 := vdl.StringType
+	__VDLType_service_v_io_x_ref_examples_rps_Round3.AssignElem(__VDLType_service_v_io_x_ref_examples_rps_Round5)
+	__VDLType_service_v_io_x_ref_examples_rps_Round3.AssignLen(2)
+	__VDLType_service_v_io_x_ref_examples_rps_Round1.AppendField("Moves", __VDLType_service_v_io_x_ref_examples_rps_Round4)
+	__VDLType_service_v_io_x_ref_examples_rps_Round1.AppendField("Comment", __VDLType_service_v_io_x_ref_examples_rps_Round5)
+	__VDLType_service_v_io_x_ref_examples_rps_Round6 := vdl.ByteType
+	__VDLType_service_v_io_x_ref_examples_rps_Round7 := __VDLType_service_v_io_x_ref_examples_rps_RoundBuilder.Named("v.io/x/ref/examples/rps.WinnerTag").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_Round6)
+	__VDLType_service_v_io_x_ref_examples_rps_Round1.AppendField("Winner", __VDLType_service_v_io_x_ref_examples_rps_Round7)
+	__VDLType_service_v_io_x_ref_examples_rps_Round8 := __VDLType_service_v_io_x_ref_examples_rps_RoundBuilder.Struct()
+	__VDLType_service_v_io_x_ref_examples_rps_Round9 := __VDLType_service_v_io_x_ref_examples_rps_RoundBuilder.Named("time.Time").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_Round8)
+	__VDLType_service_v_io_x_ref_examples_rps_Round10 := vdl.Int64Type
+	__VDLType_service_v_io_x_ref_examples_rps_Round8.AppendField("Seconds", __VDLType_service_v_io_x_ref_examples_rps_Round10)
+	__VDLType_service_v_io_x_ref_examples_rps_Round11 := vdl.Int32Type
+	__VDLType_service_v_io_x_ref_examples_rps_Round8.AppendField("Nanos", __VDLType_service_v_io_x_ref_examples_rps_Round11)
+	__VDLType_service_v_io_x_ref_examples_rps_Round1.AppendField("StartTime", __VDLType_service_v_io_x_ref_examples_rps_Round9)
+	__VDLType_service_v_io_x_ref_examples_rps_Round1.AppendField("EndTime", __VDLType_service_v_io_x_ref_examples_rps_Round9)
+	__VDLType_service_v_io_x_ref_examples_rps_RoundBuilder.Build()
+	__VDLType_service_v_io_x_ref_examples_rps_Roundv, err := __VDLType_service_v_io_x_ref_examples_rps_Round2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_service_v_io_x_ref_examples_rps_Roundv
+}
+func init() {
+	__VDLType_service_v_io_x_ref_examples_rps_Round = __VDLType_service_v_io_x_ref_examples_rps_Round_gen()
+}
+
+var __VDLType_service_v_io_x_ref_examples_rps_ScoreCard *vdl.Type
+
+func __VDLType_service_v_io_x_ref_examples_rps_ScoreCard_gen() *vdl.Type {
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder := vdl.TypeBuilder{}
+
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard1 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Struct()
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard2 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Named("v.io/x/ref/examples/rps.ScoreCard").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_ScoreCard1)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard3 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Struct()
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard4 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Named("v.io/x/ref/examples/rps.GameOptions").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_ScoreCard3)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard5 := vdl.Int32Type
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard3.AppendField("NumRounds", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard5)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard6 := vdl.ByteType
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard7 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Named("v.io/x/ref/examples/rps.GameTypeTag").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_ScoreCard6)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard3.AppendField("GameType", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard7)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard1.AppendField("Opts", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard4)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard8 := vdl.StringType
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard1.AppendField("Judge", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard8)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard9 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.List()
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard9.AssignElem(__VDLType_service_v_io_x_ref_examples_rps_ScoreCard8)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard1.AppendField("Players", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard9)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard10 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.List()
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard11 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Struct()
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard12 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Named("v.io/x/ref/examples/rps.Round").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_ScoreCard11)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard13 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Array()
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard14 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Named("v.io/x/ref/examples/rps.PlayersMoves").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_ScoreCard13)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard13.AssignElem(__VDLType_service_v_io_x_ref_examples_rps_ScoreCard8)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard13.AssignLen(2)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard11.AppendField("Moves", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard14)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard11.AppendField("Comment", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard8)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard15 := vdl.ByteType
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard16 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Named("v.io/x/ref/examples/rps.WinnerTag").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_ScoreCard15)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard11.AppendField("Winner", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard16)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard17 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Struct()
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard18 := __VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Named("time.Time").AssignBase(__VDLType_service_v_io_x_ref_examples_rps_ScoreCard17)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard19 := vdl.Int64Type
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard17.AppendField("Seconds", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard19)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard17.AppendField("Nanos", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard5)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard11.AppendField("StartTime", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard18)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard11.AppendField("EndTime", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard18)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard10.AssignElem(__VDLType_service_v_io_x_ref_examples_rps_ScoreCard12)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard1.AppendField("Rounds", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard10)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard1.AppendField("StartTime", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard18)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard1.AppendField("EndTime", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard18)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard1.AppendField("Winner", __VDLType_service_v_io_x_ref_examples_rps_ScoreCard16)
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCardBuilder.Build()
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCardv, err := __VDLType_service_v_io_x_ref_examples_rps_ScoreCard2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_service_v_io_x_ref_examples_rps_ScoreCardv
+}
+func init() {
+	__VDLType_service_v_io_x_ref_examples_rps_ScoreCard = __VDLType_service_v_io_x_ref_examples_rps_ScoreCard_gen()
+}
+
+var __VDLType_service_v_io_x_ref_examples_rps_WinnerTag *vdl.Type = vdl.TypeOf(WinnerTag(0))
+var __VDLType_service_v_io_x_ref_examples_rps_unused *vdl.Type = vdl.TypeOf(unused{})
+
+func __VDLEnsureNativeBuilt_service() {
+	if __VDLTypeservice4 == nil {
+		__VDLTypeservice4 = __VDLTypeservice4_gen()
+	}
+	if __VDLTypeservice6 == nil {
+		__VDLTypeservice6 = __VDLTypeservice6_gen()
+	}
+	if __VDLTypeservice7 == nil {
+		__VDLTypeservice7 = __VDLTypeservice7_gen()
+	}
+	if __VDLType_service_time_Time == nil {
+		__VDLType_service_time_Time = __VDLType_service_time_Time_gen()
+	}
+	if __VDLType_service_v_io_x_ref_examples_rps_JudgeAction == nil {
+		__VDLType_service_v_io_x_ref_examples_rps_JudgeAction = __VDLType_service_v_io_x_ref_examples_rps_JudgeAction_gen()
+	}
+	if __VDLType_service_v_io_x_ref_examples_rps_Round == nil {
+		__VDLType_service_v_io_x_ref_examples_rps_Round = __VDLType_service_v_io_x_ref_examples_rps_Round_gen()
+	}
+	if __VDLType_service_v_io_x_ref_examples_rps_ScoreCard == nil {
+		__VDLType_service_v_io_x_ref_examples_rps_ScoreCard = __VDLType_service_v_io_x_ref_examples_rps_ScoreCard_gen()
+	}
 }
 
 const Classic = GameTypeTag(0) // Rock-Paper-Scissors

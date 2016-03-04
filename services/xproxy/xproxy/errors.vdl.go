@@ -14,6 +14,9 @@ import (
 	"v.io/v23/verror"
 )
 
+func __VDLEnsureNativeBuilt_errors() {
+}
+
 var (
 	ErrNotListening              = verror.Register("v.io/x/ref/services/xproxy/xproxy.NotListening", verror.NoRetry, "{1:}{2:} Proxy is not listening on any endpoints.")
 	ErrUnexpectedMessage         = verror.Register("v.io/x/ref/services/xproxy/xproxy.UnexpectedMessage", verror.NoRetry, "{1:}{2:} Unexpected message of type{:3}")

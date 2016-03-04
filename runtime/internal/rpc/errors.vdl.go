@@ -14,6 +14,9 @@ import (
 	"v.io/v23/verror"
 )
 
+func __VDLEnsureNativeBuilt_errors() {
+}
+
 var (
 	// Internal errors.
 	errBadRequest                    = verror.Register("v.io/x/ref/runtime/internal/rpc.badRequest", verror.NoRetry, "{1:}{2:} failed to decode request: {3}")

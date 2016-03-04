@@ -19,6 +19,9 @@ import (
 	"v.io/x/ref/lib/security/bcrypter"
 )
 
+func __VDLEnsureNativeBuilt_root() {
+}
+
 // RootClientMethods is the client interface
 // containing Root methods.
 //

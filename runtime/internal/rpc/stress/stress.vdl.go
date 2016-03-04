@@ -30,6 +30,90 @@ func (SumArg) __VDLReflect(struct {
 }) {
 }
 
+func (m *SumArg) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumArg == nil || __VDLTypestress0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.ABool == false)
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("ABool")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromBool(bool(m.ABool), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.AInt64 == int64(0))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("AInt64")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromInt(int64(m.AInt64), vdl.Int64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.AListOfBytes) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("AListOfBytes")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := fieldTarget10.FromBytes([]byte(m.AListOfBytes), __VDLTypestress1); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *SumArg) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *SumArg) IsZero() bool {
+
+	var1 := true
+	var2 := (m.ABool == false)
+	var1 = var1 && var2
+	var3 := (m.AInt64 == int64(0))
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.AListOfBytes) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	return var1
+}
+
 type SumStats struct {
 	SumCount       uint64
 	SumStreamCount uint64
@@ -42,9 +126,104 @@ func (SumStats) __VDLReflect(struct {
 }) {
 }
 
+func (m *SumStats) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumStats == nil || __VDLTypestress2 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.SumCount == uint64(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("SumCount")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromUint(uint64(m.SumCount), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.SumStreamCount == uint64(0))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("SumStreamCount")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromUint(uint64(m.SumStreamCount), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.BytesRecv == uint64(0))
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("BytesRecv")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromUint(uint64(m.BytesRecv), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := (m.BytesSent == uint64(0))
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("BytesSent")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget13.FromUint(uint64(m.BytesSent), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *SumStats) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *SumStats) IsZero() bool {
+
+	var1 := (*m == SumStats{})
+	return var1
+}
+
 func init() {
 	vdl.Register((*SumArg)(nil))
 	vdl.Register((*SumStats)(nil))
+}
+
+var __VDLTypestress0 *vdl.Type = vdl.TypeOf((*SumArg)(nil))
+var __VDLTypestress2 *vdl.Type = vdl.TypeOf((*SumStats)(nil))
+var __VDLTypestress1 *vdl.Type = vdl.TypeOf([]byte(nil))
+var __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumArg *vdl.Type = vdl.TypeOf(SumArg{})
+var __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumStats *vdl.Type = vdl.TypeOf(SumStats{})
+
+func __VDLEnsureNativeBuilt_stress() {
 }
 
 // StressClientMethods is the client interface

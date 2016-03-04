@@ -32,6 +32,97 @@ func (WireCiphertext) __VDLReflect(struct {
 }) {
 }
 
+func (m *WireCiphertext) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireCiphertext == nil || __VDLTypetypes0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.PatternId == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("PatternId")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.PatternId), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.Bytes) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Bytes")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			mapTarget8, err := fieldTarget7.StartMap(__VDLTypetypes1, len(m.Bytes))
+			if err != nil {
+				return err
+			}
+			for key10, value12 := range m.Bytes {
+				keyTarget9, err := mapTarget8.StartKey()
+				if err != nil {
+					return err
+				}
+				if err := keyTarget9.FromString(string(key10), vdl.StringType); err != nil {
+					return err
+				}
+				valueTarget11, err := mapTarget8.FinishKeyStartField(keyTarget9)
+				if err != nil {
+					return err
+				}
+
+				if err := valueTarget11.FromBytes([]byte(value12), __VDLTypetypes2); err != nil {
+					return err
+				}
+				if err := mapTarget8.FinishField(keyTarget9, valueTarget11); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget7.FinishMap(mapTarget8); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *WireCiphertext) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *WireCiphertext) IsZero() bool {
+
+	var1 := true
+	var2 := (m.PatternId == "")
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.Bytes) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	return var1
+}
+
 // WireParams represents the wire format of the public parameters
 // of an identity provider (aka Root).
 type WireParams struct {
@@ -47,6 +138,73 @@ type WireParams struct {
 func (WireParams) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/lib/security/bcrypter.WireParams"`
 }) {
+}
+
+func (m *WireParams) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireParams == nil || __VDLTypetypes3 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Blessing == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Blessing")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Blessing), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.Params) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Params")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := fieldTarget7.FromBytes([]byte(m.Params), __VDLTypetypes2); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *WireParams) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *WireParams) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Blessing == "")
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.Params) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	return var1
 }
 
 // WirePrivateKey represents the wire format of the private key corresponding
@@ -79,8 +237,123 @@ func (WirePrivateKey) __VDLReflect(struct {
 }) {
 }
 
+func (m *WirePrivateKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_lib_security_bcrypter_WirePrivateKey == nil || __VDLTypetypes4 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Blessing == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Blessing")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Blessing), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := m.Params.IsZero()
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Params")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Params.FillVDLTarget(fieldTarget7, __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireParams); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.Keys) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Keys")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget11, err := fieldTarget10.StartList(__VDLTypetypes5, len(m.Keys))
+			if err != nil {
+				return err
+			}
+			for i, elem13 := range m.Keys {
+				elemTarget12, err := listTarget11.StartElem(i)
+				if err != nil {
+					return err
+				}
+
+				if err := elemTarget12.FromBytes([]byte(elem13), __VDLTypetypes2); err != nil {
+					return err
+				}
+				if err := listTarget11.FinishElem(elemTarget12); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget10.FinishList(listTarget11); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *WirePrivateKey) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *WirePrivateKey) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Blessing == "")
+	var1 = var1 && var2
+	var3 := m.Params.IsZero()
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.Keys) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	return var1
+}
+
 func init() {
 	vdl.Register((*WireCiphertext)(nil))
 	vdl.Register((*WireParams)(nil))
 	vdl.Register((*WirePrivateKey)(nil))
+}
+
+var __VDLTypetypes0 *vdl.Type = vdl.TypeOf((*WireCiphertext)(nil))
+var __VDLTypetypes3 *vdl.Type = vdl.TypeOf((*WireParams)(nil))
+var __VDLTypetypes4 *vdl.Type = vdl.TypeOf((*WirePrivateKey)(nil))
+var __VDLTypetypes5 *vdl.Type = vdl.TypeOf([][]byte(nil))
+var __VDLTypetypes2 *vdl.Type = vdl.TypeOf([]byte(nil))
+var __VDLTypetypes1 *vdl.Type = vdl.TypeOf(map[string][]byte(nil))
+var __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireCiphertext *vdl.Type = vdl.TypeOf(WireCiphertext{})
+var __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireParams *vdl.Type = vdl.TypeOf(WireParams{})
+var __VDLType_types_v_io_x_ref_lib_security_bcrypter_WirePrivateKey *vdl.Type = vdl.TypeOf(WirePrivateKey{})
+
+func __VDLEnsureNativeBuilt_types() {
 }

@@ -17,6 +17,9 @@ import (
 	"v.io/v23/security"
 )
 
+func __VDLEnsureNativeBuilt_errors() {
+}
+
 var (
 	ErrMissingSetupOption       = verror.Register("v.io/x/ref/runtime/internal/flow/conn.MissingSetupOption", verror.NoRetry, "{1:}{2:} missing required setup option{:3}.")
 	ErrUnexpectedMsg            = verror.Register("v.io/x/ref/runtime/internal/flow/conn.UnexpectedMsg", verror.NoRetry, "{1:}{2:} unexpected message type{:3}.")

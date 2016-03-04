@@ -17,6 +17,9 @@ import (
 	"v.io/v23/security"
 )
 
+func __VDLEnsureNativeBuilt_errors() {
+}
+
 var (
 	ErrUnrecognizedRemoteBlessings = verror.Register("v.io/x/ref/services/iberoot/rootd/internal.UnrecognizedRemoteBlessings", verror.NoRetry, "{1:}{2:} blessing provided by the remote end: {3} [rejected: {4}] are not recognized by this identity provider: {5}")
 	ErrInternal                    = verror.Register("v.io/x/ref/services/iberoot/rootd/internal.Internal", verror.NoRetry, "{1:}{2:} internal error: {3}")

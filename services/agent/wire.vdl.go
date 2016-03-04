@@ -42,6 +42,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
+	"v.io/v23/verror"
 
 	// VDL user imports
 	"v.io/v23/security"
@@ -57,6 +58,62 @@ func (ConnInfo) __VDLReflect(struct {
 }) {
 }
 
+func (m *ConnInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_wire_v_io_x_ref_services_agent_ConnInfo == nil || __VDLTypewire0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.MinVersion == int32(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("MinVersion")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromInt(int64(m.MinVersion), vdl.Int32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.MaxVersion == int32(0))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("MaxVersion")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromInt(int64(m.MaxVersion), vdl.Int32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ConnInfo) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *ConnInfo) IsZero() bool {
+
+	var1 := (*m == ConnInfo{})
+	return var1
+}
+
 type RpcRequest struct {
 	Id      uint64
 	Method  string
@@ -66,6 +123,77 @@ type RpcRequest struct {
 func (RpcRequest) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/agent.RpcRequest"`
 }) {
+}
+
+func (m *RpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_wire_v_io_x_ref_services_agent_RpcRequest == nil || __VDLTypewire1 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Id == uint64(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Id")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromUint(uint64(m.Id), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Method == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Method")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.Method), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.NumArgs == uint32(0))
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("NumArgs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromUint(uint64(m.NumArgs), vdl.Uint32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *RpcRequest) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *RpcRequest) IsZero() bool {
+
+	var1 := (*m == RpcRequest{})
+	return var1
 }
 
 type RpcResponse struct {
@@ -79,6 +207,95 @@ func (RpcResponse) __VDLReflect(struct {
 }) {
 }
 
+func (m *RpcResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_wire_v_io_x_ref_services_agent_RpcResponse == nil || __VDLTypewire2 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Id == uint64(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Id")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromUint(uint64(m.Id), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Err == (error)(nil))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Err")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if m.Err == nil {
+				if err := fieldTarget7.FromNil(vdl.ErrorType); err != nil {
+					return err
+				}
+			} else {
+				var wireError8 vdl.WireError
+				if err := verror.WireFromNative(&wireError8, m.Err); err != nil {
+					return err
+				}
+				if err := wireError8.FillVDLTarget(fieldTarget7, vdl.ErrorType); err != nil {
+					return err
+				}
+
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var9 := (m.NumArgs == uint32(0))
+	if !var9 {
+		keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("NumArgs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget11.FromUint(uint64(m.NumArgs), vdl.Uint32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *RpcResponse) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *RpcResponse) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Id == uint64(0))
+	var1 = var1 && var2
+	var3 := (m.Err == (error)(nil))
+	var1 = var1 && var3
+	var4 := (m.NumArgs == uint32(0))
+	var1 = var1 && var4
+	return var1
+}
+
 type (
 	// RpcMessage represents any single field of the RpcMessage union type.
 	RpcMessage interface {
@@ -90,6 +307,8 @@ type (
 		Name() string
 		// __VDLReflect describes the RpcMessage union type.
 		__VDLReflect(__RpcMessageReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// RpcMessageReq represents field Req of the RpcMessage union type.
 	RpcMessageReq struct{ Value RpcRequest }
@@ -111,16 +330,95 @@ func (x RpcMessageReq) Interface() interface{}           { return x.Value }
 func (x RpcMessageReq) Name() string                     { return "Req" }
 func (x RpcMessageReq) __VDLReflect(__RpcMessageReflect) {}
 
+func (m RpcMessageReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_wire_v_io_x_ref_services_agent_RpcMessage)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Req")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_wire_v_io_x_ref_services_agent_RpcRequest); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m RpcMessageReq) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m RpcMessageReq) IsZero() bool {
+
+	var2 := m.Value.IsZero()
+	return var2
+}
+
 func (x RpcMessageResp) Index() int                       { return 1 }
 func (x RpcMessageResp) Interface() interface{}           { return x.Value }
 func (x RpcMessageResp) Name() string                     { return "Resp" }
 func (x RpcMessageResp) __VDLReflect(__RpcMessageReflect) {}
+
+func (m RpcMessageResp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_wire_v_io_x_ref_services_agent_RpcMessage)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Resp")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_wire_v_io_x_ref_services_agent_RpcResponse); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m RpcMessageResp) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m RpcMessageResp) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 func init() {
 	vdl.Register((*ConnInfo)(nil))
 	vdl.Register((*RpcRequest)(nil))
 	vdl.Register((*RpcResponse)(nil))
 	vdl.Register((*RpcMessage)(nil))
+}
+
+var __VDLTypewire0 *vdl.Type = vdl.TypeOf((*ConnInfo)(nil))
+var __VDLTypewire1 *vdl.Type = vdl.TypeOf((*RpcRequest)(nil))
+var __VDLTypewire2 *vdl.Type = vdl.TypeOf((*RpcResponse)(nil))
+var __VDLType_wire_v_io_x_ref_services_agent_ConnInfo *vdl.Type = vdl.TypeOf(ConnInfo{})
+var __VDLType_wire_v_io_x_ref_services_agent_RpcMessage *vdl.Type = vdl.TypeOf(RpcMessage(RpcMessageReq{RpcRequest{}}))
+var __VDLType_wire_v_io_x_ref_services_agent_RpcRequest *vdl.Type = vdl.TypeOf(RpcRequest{})
+var __VDLType_wire_v_io_x_ref_services_agent_RpcResponse *vdl.Type = vdl.TypeOf(RpcResponse{})
+
+func __VDLEnsureNativeBuilt_wire() {
 }
 
 // AgentClientMethods is the client interface

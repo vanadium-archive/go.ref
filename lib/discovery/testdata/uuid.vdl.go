@@ -25,8 +25,70 @@ func (UuidTestData) __VDLReflect(struct {
 }) {
 }
 
+func (m *UuidTestData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_uuid_v_io_x_ref_lib_discovery_testdata_UuidTestData == nil || __VDLTypeuuid0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.In == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("In")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.In), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Want == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Want")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.Want), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *UuidTestData) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *UuidTestData) IsZero() bool {
+
+	var1 := (*m == UuidTestData{})
+	return var1
+}
+
 func init() {
 	vdl.Register((*UuidTestData)(nil))
+}
+
+var __VDLTypeuuid0 *vdl.Type = vdl.TypeOf((*UuidTestData)(nil))
+var __VDLType_uuid_v_io_x_ref_lib_discovery_testdata_UuidTestData *vdl.Type = vdl.TypeOf(UuidTestData{})
+
+func __VDLEnsureNativeBuilt_uuid() {
 }
 
 var ServiceUuidTest = []UuidTestData{

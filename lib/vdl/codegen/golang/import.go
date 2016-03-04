@@ -138,6 +138,7 @@ func lookupLocal(pkgPath string, imports []goImport) string {
 type deps struct {
 	any              bool
 	typeObject       bool
+	error            bool
 	enumTypeDef      bool
 	streamingMethods bool
 	methodTags       bool
@@ -147,7 +148,7 @@ func computeDeps(file *compile.File, env *compile.Env) (deps, importMap) {
 	deps, user := &deps{}, make(importMap)
 	// TypeDef.Type is always defined in our package; add deps on the base type.
 	for _, def := range file.TypeDefs {
-		addTypeDeps(def.BaseType, env, deps, user)
+		addTypeDeps(file, def.BaseType, env, deps, user, true)
 		if def.Type.Kind() == vdl.Enum {
 			deps.enumTypeDef = true
 		}
@@ -164,17 +165,17 @@ func computeDeps(file *compile.File, env *compile.Env) (deps, importMap) {
 		}
 		for _, method := range iface.Methods {
 			for _, arg := range method.InArgs {
-				addTypeDeps(arg.Type, env, deps, user)
+				addTypeDeps(file, arg.Type, env, deps, user, false)
 			}
 			for _, arg := range method.OutArgs {
-				addTypeDeps(arg.Type, env, deps, user)
+				addTypeDeps(file, arg.Type, env, deps, user, false)
 			}
 			if stream := method.InStream; stream != nil {
-				addTypeDeps(stream, env, deps, user)
+				addTypeDeps(file, stream, env, deps, user, false)
 				deps.streamingMethods = true
 			}
 			if stream := method.OutStream; stream != nil {
-				addTypeDeps(stream, env, deps, user)
+				addTypeDeps(file, stream, env, deps, user, false)
 				deps.streamingMethods = true
 			}
 			for _, tag := range method.Tags {
@@ -186,7 +187,7 @@ func computeDeps(file *compile.File, env *compile.Env) (deps, importMap) {
 	// Errors contribute their param types.
 	for _, def := range file.ErrorDefs {
 		for _, param := range def.Params {
-			addTypeDeps(param.Type, env, deps, user)
+			addTypeDeps(file, param.Type, env, deps, user, false)
 		}
 	}
 	// Native types contribute their imports, for the auto-generated native
@@ -204,12 +205,15 @@ func computeDeps(file *compile.File, env *compile.Env) (deps, importMap) {
 }
 
 // Add package deps iff t is a defined (named) type.
-func addTypeDepIfDefined(t *vdl.Type, env *compile.Env, deps *deps, user importMap) bool {
+func addTypeDepIfDefined(t *vdl.Type, env *compile.Env, deps *deps, user importMap, wiretypeNeeded bool) bool {
 	if t == vdl.AnyType {
 		deps.any = true
 	}
 	if t == vdl.TypeObjectType {
 		deps.typeObject = true
+	}
+	if t == vdl.ErrorType && wiretypeNeeded {
+		deps.error = true
 	}
 	if def := env.FindTypeDef(t); def != nil {
 		pkg := def.File.Package
@@ -219,9 +223,15 @@ func addTypeDepIfDefined(t *vdl.Type, env *compile.Env, deps *deps, user importM
 			for _, imp := range native.Imports {
 				user[imp.Path] = imp.Name
 			}
-			// Also add a "forced" import on the regular VDL package, to ensure the
-			// wire type is registered, to establish the wire<->native mapping.
-			user.AddForcedPackage(pkg)
+			if wiretypeNeeded {
+				// The wiretype is referenced by the encoder/decoder. Need to treat
+				// it as a regular import (rather than a _ import).
+				user.AddPackage(pkg)
+			} else {
+				// Also add a "forced" import on the regular VDL package, to ensure the
+				// wire type is registered, to establish the wire<->native mapping.
+				user.AddForcedPackage(pkg)
+			}
 		} else {
 			// There's no native type configured for this defined type.  Add the
 			// imports corresponding to the VDL package.
@@ -233,29 +243,35 @@ func addTypeDepIfDefined(t *vdl.Type, env *compile.Env, deps *deps, user importM
 }
 
 // Add immediate package deps for t and subtypes of t.
-func addTypeDeps(t *vdl.Type, env *compile.Env, deps *deps, user importMap) {
-	if addTypeDepIfDefined(t, env, deps, user) {
+func addTypeDeps(file *compile.File, t *vdl.Type, env *compile.Env, deps *deps, user importMap, wiretypeNeeded bool) {
+	if addTypeDepIfDefined(t, env, deps, user, wiretypeNeeded) {
 		// We don't track transitive dependencies, only immediate dependencies.
 		return
 	}
 	// Not all types have TypeDefs; e.g. unnamed lists have no corresponding
 	// TypeDef, so we need to traverse those recursively.
-	addSubTypeDeps(t, env, deps, user)
+	addSubTypeDeps(file, t, env, deps, user, wiretypeNeeded)
 }
 
 // Add immediate package deps for subtypes of t.
-func addSubTypeDeps(t *vdl.Type, env *compile.Env, deps *deps, user importMap) {
+func addSubTypeDeps(file *compile.File, t *vdl.Type, env *compile.Env, deps *deps, user importMap, wiretypeNeeded bool) {
+	pkgPath, name := vdl.SplitIdent(t.Name())
+	if name != "" && pkgPath != file.Package.Path {
+		// The encoder/decoders for this type will be generated in a different package, so
+		// we don't need to force the wiretype.
+		wiretypeNeeded = false
+	}
 	switch t.Kind() {
 	case vdl.Array, vdl.List, vdl.Optional:
-		addTypeDeps(t.Elem(), env, deps, user)
+		addTypeDeps(file, t.Elem(), env, deps, user, wiretypeNeeded)
 	case vdl.Set:
-		addTypeDeps(t.Key(), env, deps, user)
+		addTypeDeps(file, t.Key(), env, deps, user, wiretypeNeeded)
 	case vdl.Map:
-		addTypeDeps(t.Key(), env, deps, user)
-		addTypeDeps(t.Elem(), env, deps, user)
+		addTypeDeps(file, t.Key(), env, deps, user, wiretypeNeeded)
+		addTypeDeps(file, t.Elem(), env, deps, user, wiretypeNeeded)
 	case vdl.Struct, vdl.Union:
 		for ix := 0; ix < t.NumField(); ix++ {
-			addTypeDeps(t.Field(ix).Type, env, deps, user)
+			addTypeDeps(file, t.Field(ix).Type, env, deps, user, wiretypeNeeded)
 		}
 	}
 }
@@ -268,7 +284,7 @@ func addSubTypeDeps(t *vdl.Type, env *compile.Env, deps *deps, user importMap) {
 // for const or tag values.
 func addValueTypeDeps(v *vdl.Value, env *compile.Env, deps *deps, user importMap) {
 	t := v.Type()
-	addTypeDepIfDefined(t, env, deps, user)
+	addTypeDepIfDefined(t, env, deps, user, false)
 	// Track transitive dependencies, by traversing subvalues recursively.
 	switch t.Kind() {
 	case vdl.Array, vdl.List:
@@ -357,6 +373,11 @@ func systemImports(deps deps, file *compile.File) importMap {
 		// in the "v.io/v23/verror" package itself, to specify common
 		// errors.  Special-case this scenario to avoid self-cyclic package
 		// dependencies.
+		if file.Package.Path != "v.io/v23/verror" {
+			system["v.io/v23/verror"] = "verror"
+		}
+	}
+	if deps.error {
 		if file.Package.Path != "v.io/v23/verror" {
 			system["v.io/v23/verror"] = "verror"
 		}

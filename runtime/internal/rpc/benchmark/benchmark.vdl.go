@@ -21,6 +21,9 @@ import (
 	"v.io/v23/security/access"
 )
 
+func __VDLEnsureNativeBuilt_benchmark() {
+}
+
 // BenchmarkClientMethods is the client interface
 // containing Benchmark methods.
 type BenchmarkClientMethods interface {

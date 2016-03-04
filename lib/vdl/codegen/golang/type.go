@@ -168,7 +168,19 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			"\n}) {"+
 			"\n}",
 			def.Name, commaEnumLabels("", t), qualifiedIdent(def.File, def.Name))
-		return s
+		s += fmt.Sprintf("\n"+
+			"\nfunc (m %[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			"\n\t" + genEncDef(data, def.Type, "") +
+			"\n\treturn nil" +
+			"\n}"
+		s += fmt.Sprintf("\n"+
+			"\nfunc (m %[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			"\n\treturn nil" +
+			"\n}"
+		s += fmt.Sprintf("\n"+
+			"\nfunc (m %[1]s) IsZero() bool {", def.Name) +
+			"\n\t" + genIsZeroDef(data, def.Type, "") +
+			"\n}"
 	case vdl.Struct:
 		s += "struct {"
 		for ix := 0; ix < t.NumField(); ix++ {
@@ -183,7 +195,19 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			"\n}) {"+
 			"\n}",
 			def.Name, qualifiedIdent(def.File, def.Name))
-		return s
+		s += fmt.Sprintf("\n"+
+			"\nfunc (m *%[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			"\n\t" + genEncDef(data, def.Type, "") +
+			"\n\treturn nil" +
+			"\n}"
+		s += fmt.Sprintf("\n"+
+			"\nfunc (m *%[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			"\n\treturn nil" +
+			"\n}"
+		s += fmt.Sprintf("\n"+
+			"\nfunc (m *%[1]s) IsZero() bool {", def.Name) +
+			"\n\t" + genIsZeroDef(data, def.Type, "") +
+			"\n}"
 	case vdl.Union:
 		s = fmt.Sprintf("type ("+
 			"\n\t// %[1]s represents any single field of the %[1]s union type."+
@@ -196,7 +220,9 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			"\n\t\tName() string"+
 			"\n\t\t// __VDLReflect describes the %[1]s union type."+
 			"\n\t\t__VDLReflect(__%[1]sReflect)"+
-			"\n\t}%[3]s", def.Name, docBreak(def.Doc), def.DocSuffix)
+			"\n\t\tFillVDLTarget(%[4]sTarget, *%[4]sType) error"+
+			"\n\t\tIsZero() bool"+
+			"\n\t}%[3]s", def.Name, docBreak(def.Doc), def.DocSuffix, data.Pkg("v.io/v23/vdl"))
 		for ix := 0; ix < t.NumField(); ix++ {
 			f := t.Field(ix)
 			s += fmt.Sprintf("\n\t// %[1]s%[2]s represents field %[2]s of the %[1]s union type."+
@@ -214,13 +240,27 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 		}
 		s += fmt.Sprintf("\n\t\t}\n\t}\n)")
 		for ix := 0; ix < t.NumField(); ix++ {
+			f := t.Field(ix)
 			s += fmt.Sprintf("\n\nfunc (x %[1]s%[2]s) Index() int { return %[3]d }"+
 				"\nfunc (x %[1]s%[2]s) Interface() interface{} { return x.Value }"+
 				"\nfunc (x %[1]s%[2]s) Name() string { return \"%[2]s\" }"+
 				"\nfunc (x %[1]s%[2]s) __VDLReflect(__%[1]sReflect) {}",
-				def.Name, t.Field(ix).Name, ix)
+				def.Name, f.Name, ix)
+			s += fmt.Sprintf("\n"+
+				"\nfunc (m %[1]s%[2]s) FillVDLTarget(t %[3]sTarget, tt *%[3]sType) error {",
+				def.Name, f.Name, data.Pkg("v.io/v23/vdl")) +
+				"\n\t" + genEncDef(data, t, f.Name) +
+				"\n\treturn nil" +
+				"\n}"
+			s += fmt.Sprintf("\n"+
+				"\nfunc (m %s%s) MakeVDLTarget() %sTarget {", def.Name, f.Name, data.Pkg("v.io/v23/vdl")) +
+				"\n\treturn nil" +
+				"\n}"
+			s += fmt.Sprintf("\n"+
+				"\nfunc (m %s%s) IsZero() bool {", def.Name, f.Name) +
+				"\n\t" + genIsZeroDef(data, def.Type, f.Name) +
+				"\n}"
 		}
-		return s
 	default:
 		s += typeGo(data, def.BaseType) + def.DocSuffix
 		s += fmt.Sprintf("\n"+
@@ -229,8 +269,21 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			"\n}) {"+
 			"\n}",
 			def.Name, qualifiedIdent(def.File, def.Name))
-		return s
+		s += fmt.Sprintf("\n"+
+			"\nfunc (m %[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			"\n\t" + genEncDef(data, def.Type, "") +
+			"\n\treturn nil" +
+			"\n}"
+		s += fmt.Sprintf("\n"+
+			"\nfunc (m %[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			"\n\treturn nil" +
+			"\n}"
+		s += fmt.Sprintf("\n"+
+			"\nfunc (m %[1]s) IsZero() bool {", def.Name) +
+			"\n\t" + genIsZeroDef(data, def.Type, "") +
+			"\n}"
 	}
+	return s
 }
 
 func commaEnumLabels(prefix string, t *vdl.Type) (s string) {

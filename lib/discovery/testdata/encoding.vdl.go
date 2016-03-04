@@ -28,6 +28,96 @@ func (PackAddressTest) __VDLReflect(struct {
 }) {
 }
 
+func (m *PackAddressTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackAddressTest == nil || __VDLTypeencoding0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var var2 bool
+	if len(m.In) == 0 {
+		var2 = true
+	}
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("In")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget5, err := fieldTarget4.StartList(__VDLTypeencoding1, len(m.In))
+			if err != nil {
+				return err
+			}
+			for i, elem7 := range m.In {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget6.FromString(string(elem7), vdl.StringType); err != nil {
+					return err
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget4.FinishList(listTarget5); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.Packed) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Packed")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := fieldTarget10.FromBytes([]byte(m.Packed), __VDLTypeencoding2); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *PackAddressTest) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *PackAddressTest) IsZero() bool {
+
+	var1 := true
+	var var2 bool
+	if len(m.In) == 0 {
+		var2 = true
+	}
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.Packed) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	return var1
+}
+
 // PackEncryptionKeysTest represents a test case for PackEncryptionKeys
 type PackEncryptionKeysTest struct {
 	// Algo is the algorithm that's in use.
@@ -45,9 +135,131 @@ func (PackEncryptionKeysTest) __VDLReflect(struct {
 }) {
 }
 
+func (m *PackEncryptionKeysTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest == nil || __VDLTypeencoding3 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Algo.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Algo")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Algo.FillVDLTarget(fieldTarget4, __VDLType_encoding_v_io_x_ref_lib_discovery_EncryptionAlgorithm); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.Keys) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Keys")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget8, err := fieldTarget7.StartList(__VDLTypeencoding4, len(m.Keys))
+			if err != nil {
+				return err
+			}
+			for i, elem10 := range m.Keys {
+				elemTarget9, err := listTarget8.StartElem(i)
+				if err != nil {
+					return err
+				}
+
+				if err := elem10.FillVDLTarget(elemTarget9, __VDLType_encoding_v_io_x_ref_lib_discovery_EncryptionKey); err != nil {
+					return err
+				}
+				if err := listTarget8.FinishElem(elemTarget9); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget7.FinishList(listTarget8); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var11 bool
+	if len(m.Packed) == 0 {
+		var11 = true
+	}
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("Packed")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := fieldTarget13.FromBytes([]byte(m.Packed), __VDLTypeencoding2); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *PackEncryptionKeysTest) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *PackEncryptionKeysTest) IsZero() bool {
+
+	var1 := true
+	var2 := m.Algo.IsZero()
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.Keys) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.Packed) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	return var1
+}
+
 func init() {
 	vdl.Register((*PackAddressTest)(nil))
 	vdl.Register((*PackEncryptionKeysTest)(nil))
+}
+
+var __VDLTypeencoding0 *vdl.Type = vdl.TypeOf((*PackAddressTest)(nil))
+var __VDLTypeencoding3 *vdl.Type = vdl.TypeOf((*PackEncryptionKeysTest)(nil))
+var __VDLTypeencoding2 *vdl.Type = vdl.TypeOf([]byte(nil))
+var __VDLTypeencoding1 *vdl.Type = vdl.TypeOf([]string(nil))
+var __VDLTypeencoding4 *vdl.Type = vdl.TypeOf([]discovery.EncryptionKey(nil))
+var __VDLType_encoding_v_io_x_ref_lib_discovery_EncryptionAlgorithm *vdl.Type = vdl.TypeOf(discovery.EncryptionAlgorithm(0))
+var __VDLType_encoding_v_io_x_ref_lib_discovery_EncryptionKey *vdl.Type = vdl.TypeOf(discovery.EncryptionKey(nil))
+var __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackAddressTest *vdl.Type = vdl.TypeOf(PackAddressTest{})
+var __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest *vdl.Type = vdl.TypeOf(PackEncryptionKeysTest{})
+
+func __VDLEnsureNativeBuilt_encoding() {
 }
 
 var PackAddressTestData = []PackAddressTest{

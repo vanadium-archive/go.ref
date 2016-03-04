@@ -25,6 +25,9 @@ import (
 	_ "v.io/v23/vdlroot/time"
 )
 
+func __VDLEnsureNativeBuilt_namespace() {
+}
+
 // NamespaceClientMethods is the client interface
 // containing Namespace methods.
 type NamespaceClientMethods interface {

@@ -14,6 +14,9 @@ import (
 	"v.io/v23/verror"
 )
 
+func __VDLEnsureNativeBuilt_errors() {
+}
+
 var (
 	ErrLargerThan3ByteUInt = verror.Register("v.io/x/ref/runtime/protocols/lib/framer.LargerThan3ByteUInt", verror.NoRetry, "{1:}{2:} integer too large to represent in 3 bytes")
 )

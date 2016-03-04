@@ -18,6 +18,9 @@ import (
 	"v.io/x/ref/services/ben"
 )
 
+func __VDLEnsureNativeBuilt_archive() {
+}
+
 // BenchmarkArchiverClientMethods is the client interface
 // containing BenchmarkArchiver methods.
 //

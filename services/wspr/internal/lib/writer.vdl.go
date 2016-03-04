@@ -11,6 +11,7 @@ import (
 	// VDL system imports
 	"fmt"
 	"v.io/v23/vdl"
+	"v.io/v23/verror"
 	"v.io/v23/vom"
 
 	// VDL user imports
@@ -27,6 +28,124 @@ type ServerRpcReply struct {
 func (ServerRpcReply) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/wspr/internal/lib.ServerRpcReply"`
 }) {
+}
+
+func (m *ServerRpcReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_writer()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var var2 bool
+	if len(m.Results) == 0 {
+		var2 = true
+	}
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Results")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget5, err := fieldTarget4.StartList(__VDLTypewriter1, len(m.Results))
+			if err != nil {
+				return err
+			}
+			for i, elem7 := range m.Results {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
+
+				if elem7 == nil {
+					if err := elemTarget6.FromNil(vdl.AnyType); err != nil {
+						return err
+					}
+				} else {
+					if err := elem7.FillVDLTarget(elemTarget6, vdl.AnyType); err != nil {
+						return err
+					}
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget4.FinishList(listTarget5); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.Err == (error)(nil))
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Err")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if m.Err == nil {
+				if err := fieldTarget10.FromNil(vdl.ErrorType); err != nil {
+					return err
+				}
+			} else {
+				var wireError11 vdl.WireError
+				if err := verror.WireFromNative(&wireError11, m.Err); err != nil {
+					return err
+				}
+				if err := wireError11.FillVDLTarget(fieldTarget10, vdl.ErrorType); err != nil {
+					return err
+				}
+
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var12 := m.TraceResponse.IsZero()
+	if !var12 {
+		keyTarget13, fieldTarget14, err := fieldsTarget1.StartField("TraceResponse")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.TraceResponse.FillVDLTarget(fieldTarget14, __VDLType_writer_v_io_v23_vtrace_Response); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget13, fieldTarget14); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ServerRpcReply) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *ServerRpcReply) IsZero() bool {
+
+	var1 := true
+	var var2 bool
+	if len(m.Results) == 0 {
+		var2 = true
+	}
+	var1 = var1 && var2
+	var3 := (m.Err == (error)(nil))
+	var1 = var1 && var3
+	var4 := m.TraceResponse.IsZero()
+	var1 = var1 && var4
+	return var1
 }
 
 type LogLevel int
@@ -76,6 +195,23 @@ func (LogLevel) __VDLReflect(struct {
 }) {
 }
 
+func (m LogLevel) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromEnumLabel(m.String(), __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogLevel); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m LogLevel) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m LogLevel) IsZero() bool {
+
+	var1 := (m == LogLevelInfo)
+	return var1
+}
+
 type LogMessage struct {
 	Level   LogLevel
 	Message string
@@ -86,8 +222,286 @@ func (LogMessage) __VDLReflect(struct {
 }) {
 }
 
+func (m *LogMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogMessage == nil || __VDLTypewriter2 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Level.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Level")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Level.FillVDLTarget(fieldTarget4, __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogLevel); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Message == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Message")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.Message), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *LogMessage) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *LogMessage) IsZero() bool {
+
+	var1 := (*m == LogMessage{})
+	return var1
+}
+
 func init() {
 	vdl.Register((*ServerRpcReply)(nil))
 	vdl.Register((*LogLevel)(nil))
 	vdl.Register((*LogMessage)(nil))
+}
+
+var __VDLTypewriter2 *vdl.Type = vdl.TypeOf((*LogMessage)(nil))
+var __VDLTypewriter0 *vdl.Type
+
+func __VDLTypewriter0_gen() *vdl.Type {
+	__VDLTypewriter0Builder := vdl.TypeBuilder{}
+
+	__VDLTypewriter01 := __VDLTypewriter0Builder.Optional()
+	__VDLTypewriter02 := __VDLTypewriter0Builder.Struct()
+	__VDLTypewriter03 := __VDLTypewriter0Builder.Named("v.io/x/ref/services/wspr/internal/lib.ServerRpcReply").AssignBase(__VDLTypewriter02)
+	__VDLTypewriter04 := __VDLTypewriter0Builder.List()
+	__VDLTypewriter05 := vdl.AnyType
+	__VDLTypewriter04.AssignElem(__VDLTypewriter05)
+	__VDLTypewriter02.AppendField("Results", __VDLTypewriter04)
+	__VDLTypewriter06 := __VDLTypewriter0Builder.Optional()
+	__VDLTypewriter07 := __VDLTypewriter0Builder.Struct()
+	__VDLTypewriter08 := __VDLTypewriter0Builder.Named("error").AssignBase(__VDLTypewriter07)
+	__VDLTypewriter09 := vdl.StringType
+	__VDLTypewriter07.AppendField("Id", __VDLTypewriter09)
+	__VDLTypewriter010 := __VDLTypewriter0Builder.Enum()
+	__VDLTypewriter010.AppendLabel("NoRetry")
+	__VDLTypewriter010.AppendLabel("RetryConnection")
+	__VDLTypewriter010.AppendLabel("RetryRefetch")
+	__VDLTypewriter010.AppendLabel("RetryBackoff")
+	__VDLTypewriter07.AppendField("RetryCode", __VDLTypewriter010)
+	__VDLTypewriter07.AppendField("Msg", __VDLTypewriter09)
+	__VDLTypewriter07.AppendField("ParamList", __VDLTypewriter04)
+	__VDLTypewriter06.AssignElem(__VDLTypewriter08)
+	__VDLTypewriter02.AppendField("Err", __VDLTypewriter06)
+	__VDLTypewriter011 := __VDLTypewriter0Builder.Struct()
+	__VDLTypewriter012 := __VDLTypewriter0Builder.Named("v.io/v23/vtrace.Response").AssignBase(__VDLTypewriter011)
+	__VDLTypewriter013 := vdl.Int32Type
+	__VDLTypewriter014 := __VDLTypewriter0Builder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLTypewriter013)
+	__VDLTypewriter011.AppendField("Flags", __VDLTypewriter014)
+	__VDLTypewriter015 := __VDLTypewriter0Builder.Struct()
+	__VDLTypewriter016 := __VDLTypewriter0Builder.Named("v.io/v23/vtrace.TraceRecord").AssignBase(__VDLTypewriter015)
+	__VDLTypewriter017 := __VDLTypewriter0Builder.Array()
+	__VDLTypewriter018 := __VDLTypewriter0Builder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLTypewriter017)
+	__VDLTypewriter019 := vdl.ByteType
+	__VDLTypewriter017.AssignElem(__VDLTypewriter019)
+	__VDLTypewriter017.AssignLen(16)
+	__VDLTypewriter015.AppendField("Id", __VDLTypewriter018)
+	__VDLTypewriter020 := __VDLTypewriter0Builder.List()
+	__VDLTypewriter021 := __VDLTypewriter0Builder.Struct()
+	__VDLTypewriter022 := __VDLTypewriter0Builder.Named("v.io/v23/vtrace.SpanRecord").AssignBase(__VDLTypewriter021)
+	__VDLTypewriter021.AppendField("Id", __VDLTypewriter018)
+	__VDLTypewriter021.AppendField("Parent", __VDLTypewriter018)
+	__VDLTypewriter021.AppendField("Name", __VDLTypewriter09)
+	__VDLTypewriter023 := __VDLTypewriter0Builder.Struct()
+	__VDLTypewriter024 := __VDLTypewriter0Builder.Named("time.Time").AssignBase(__VDLTypewriter023)
+	__VDLTypewriter025 := vdl.Int64Type
+	__VDLTypewriter023.AppendField("Seconds", __VDLTypewriter025)
+	__VDLTypewriter026 := vdl.Int32Type
+	__VDLTypewriter023.AppendField("Nanos", __VDLTypewriter026)
+	__VDLTypewriter021.AppendField("Start", __VDLTypewriter024)
+	__VDLTypewriter021.AppendField("End", __VDLTypewriter024)
+	__VDLTypewriter027 := __VDLTypewriter0Builder.List()
+	__VDLTypewriter028 := __VDLTypewriter0Builder.Struct()
+	__VDLTypewriter029 := __VDLTypewriter0Builder.Named("v.io/v23/vtrace.Annotation").AssignBase(__VDLTypewriter028)
+	__VDLTypewriter028.AppendField("When", __VDLTypewriter024)
+	__VDLTypewriter028.AppendField("Message", __VDLTypewriter09)
+	__VDLTypewriter027.AssignElem(__VDLTypewriter029)
+	__VDLTypewriter021.AppendField("Annotations", __VDLTypewriter027)
+	__VDLTypewriter020.AssignElem(__VDLTypewriter022)
+	__VDLTypewriter015.AppendField("Spans", __VDLTypewriter020)
+	__VDLTypewriter011.AppendField("Trace", __VDLTypewriter016)
+	__VDLTypewriter02.AppendField("TraceResponse", __VDLTypewriter012)
+	__VDLTypewriter01.AssignElem(__VDLTypewriter03)
+	__VDLTypewriter0Builder.Build()
+	__VDLTypewriter0v, err := __VDLTypewriter01.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypewriter0v
+}
+func init() {
+	__VDLTypewriter0 = __VDLTypewriter0_gen()
+}
+
+var __VDLTypewriter1 *vdl.Type = vdl.TypeOf([]*vom.RawBytes(nil))
+var __VDLType_writer_v_io_v23_vtrace_Response *vdl.Type
+
+func __VDLType_writer_v_io_v23_vtrace_Response_gen() *vdl.Type {
+	__VDLType_writer_v_io_v23_vtrace_ResponseBuilder := vdl.TypeBuilder{}
+
+	__VDLType_writer_v_io_v23_vtrace_Response1 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Struct()
+	__VDLType_writer_v_io_v23_vtrace_Response2 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/vtrace.Response").AssignBase(__VDLType_writer_v_io_v23_vtrace_Response1)
+	__VDLType_writer_v_io_v23_vtrace_Response3 := vdl.Int32Type
+	__VDLType_writer_v_io_v23_vtrace_Response4 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLType_writer_v_io_v23_vtrace_Response3)
+	__VDLType_writer_v_io_v23_vtrace_Response1.AppendField("Flags", __VDLType_writer_v_io_v23_vtrace_Response4)
+	__VDLType_writer_v_io_v23_vtrace_Response5 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Struct()
+	__VDLType_writer_v_io_v23_vtrace_Response6 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/vtrace.TraceRecord").AssignBase(__VDLType_writer_v_io_v23_vtrace_Response5)
+	__VDLType_writer_v_io_v23_vtrace_Response7 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Array()
+	__VDLType_writer_v_io_v23_vtrace_Response8 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_writer_v_io_v23_vtrace_Response7)
+	__VDLType_writer_v_io_v23_vtrace_Response9 := vdl.ByteType
+	__VDLType_writer_v_io_v23_vtrace_Response7.AssignElem(__VDLType_writer_v_io_v23_vtrace_Response9)
+	__VDLType_writer_v_io_v23_vtrace_Response7.AssignLen(16)
+	__VDLType_writer_v_io_v23_vtrace_Response5.AppendField("Id", __VDLType_writer_v_io_v23_vtrace_Response8)
+	__VDLType_writer_v_io_v23_vtrace_Response10 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.List()
+	__VDLType_writer_v_io_v23_vtrace_Response11 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Struct()
+	__VDLType_writer_v_io_v23_vtrace_Response12 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/vtrace.SpanRecord").AssignBase(__VDLType_writer_v_io_v23_vtrace_Response11)
+	__VDLType_writer_v_io_v23_vtrace_Response11.AppendField("Id", __VDLType_writer_v_io_v23_vtrace_Response8)
+	__VDLType_writer_v_io_v23_vtrace_Response11.AppendField("Parent", __VDLType_writer_v_io_v23_vtrace_Response8)
+	__VDLType_writer_v_io_v23_vtrace_Response13 := vdl.StringType
+	__VDLType_writer_v_io_v23_vtrace_Response11.AppendField("Name", __VDLType_writer_v_io_v23_vtrace_Response13)
+	__VDLType_writer_v_io_v23_vtrace_Response14 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Struct()
+	__VDLType_writer_v_io_v23_vtrace_Response15 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Named("time.Time").AssignBase(__VDLType_writer_v_io_v23_vtrace_Response14)
+	__VDLType_writer_v_io_v23_vtrace_Response16 := vdl.Int64Type
+	__VDLType_writer_v_io_v23_vtrace_Response14.AppendField("Seconds", __VDLType_writer_v_io_v23_vtrace_Response16)
+	__VDLType_writer_v_io_v23_vtrace_Response17 := vdl.Int32Type
+	__VDLType_writer_v_io_v23_vtrace_Response14.AppendField("Nanos", __VDLType_writer_v_io_v23_vtrace_Response17)
+	__VDLType_writer_v_io_v23_vtrace_Response11.AppendField("Start", __VDLType_writer_v_io_v23_vtrace_Response15)
+	__VDLType_writer_v_io_v23_vtrace_Response11.AppendField("End", __VDLType_writer_v_io_v23_vtrace_Response15)
+	__VDLType_writer_v_io_v23_vtrace_Response18 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.List()
+	__VDLType_writer_v_io_v23_vtrace_Response19 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Struct()
+	__VDLType_writer_v_io_v23_vtrace_Response20 := __VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/vtrace.Annotation").AssignBase(__VDLType_writer_v_io_v23_vtrace_Response19)
+	__VDLType_writer_v_io_v23_vtrace_Response19.AppendField("When", __VDLType_writer_v_io_v23_vtrace_Response15)
+	__VDLType_writer_v_io_v23_vtrace_Response19.AppendField("Message", __VDLType_writer_v_io_v23_vtrace_Response13)
+	__VDLType_writer_v_io_v23_vtrace_Response18.AssignElem(__VDLType_writer_v_io_v23_vtrace_Response20)
+	__VDLType_writer_v_io_v23_vtrace_Response11.AppendField("Annotations", __VDLType_writer_v_io_v23_vtrace_Response18)
+	__VDLType_writer_v_io_v23_vtrace_Response10.AssignElem(__VDLType_writer_v_io_v23_vtrace_Response12)
+	__VDLType_writer_v_io_v23_vtrace_Response5.AppendField("Spans", __VDLType_writer_v_io_v23_vtrace_Response10)
+	__VDLType_writer_v_io_v23_vtrace_Response1.AppendField("Trace", __VDLType_writer_v_io_v23_vtrace_Response6)
+	__VDLType_writer_v_io_v23_vtrace_ResponseBuilder.Build()
+	__VDLType_writer_v_io_v23_vtrace_Responsev, err := __VDLType_writer_v_io_v23_vtrace_Response2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_writer_v_io_v23_vtrace_Responsev
+}
+func init() {
+	__VDLType_writer_v_io_v23_vtrace_Response = __VDLType_writer_v_io_v23_vtrace_Response_gen()
+}
+
+var __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogLevel *vdl.Type = vdl.TypeOf(LogLevelInfo)
+var __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogMessage *vdl.Type = vdl.TypeOf(LogMessage{})
+var __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply *vdl.Type
+
+func __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply_gen() *vdl.Type {
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder := vdl.TypeBuilder{}
+
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply1 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Struct()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply2 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Named("v.io/x/ref/services/wspr/internal/lib.ServerRpcReply").AssignBase(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply1)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply3 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.List()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply4 := vdl.AnyType
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply3.AssignElem(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply4)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply1.AppendField("Results", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply3)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply5 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Optional()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply6 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Struct()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply7 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Named("error").AssignBase(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply6)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply8 := vdl.StringType
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply6.AppendField("Id", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply8)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply9 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Enum()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply9.AppendLabel("NoRetry")
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply9.AppendLabel("RetryConnection")
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply9.AppendLabel("RetryRefetch")
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply9.AppendLabel("RetryBackoff")
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply6.AppendField("RetryCode", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply9)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply6.AppendField("Msg", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply8)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply6.AppendField("ParamList", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply3)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply5.AssignElem(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply7)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply1.AppendField("Err", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply5)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply10 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Struct()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply11 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Named("v.io/v23/vtrace.Response").AssignBase(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply10)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply12 := vdl.Int32Type
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply13 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply12)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply10.AppendField("Flags", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply13)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply14 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Struct()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply15 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Named("v.io/v23/vtrace.TraceRecord").AssignBase(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply14)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply16 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Array()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply17 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply16)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply18 := vdl.ByteType
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply16.AssignElem(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply18)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply16.AssignLen(16)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply14.AppendField("Id", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply17)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply19 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.List()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply20 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Struct()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply21 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Named("v.io/v23/vtrace.SpanRecord").AssignBase(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply20)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply20.AppendField("Id", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply17)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply20.AppendField("Parent", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply17)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply20.AppendField("Name", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply8)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply22 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Struct()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply23 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Named("time.Time").AssignBase(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply22)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply24 := vdl.Int64Type
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply22.AppendField("Seconds", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply24)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply25 := vdl.Int32Type
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply22.AppendField("Nanos", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply25)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply20.AppendField("Start", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply23)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply20.AppendField("End", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply23)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply26 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.List()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply27 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Struct()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply28 := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Named("v.io/v23/vtrace.Annotation").AssignBase(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply27)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply27.AppendField("When", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply23)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply27.AppendField("Message", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply8)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply26.AssignElem(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply28)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply20.AppendField("Annotations", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply26)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply19.AssignElem(__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply21)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply14.AppendField("Spans", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply19)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply10.AppendField("Trace", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply15)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply1.AppendField("TraceResponse", __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply11)
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyBuilder.Build()
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyv, err := __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReplyv
+}
+func init() {
+	__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply = __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply_gen()
+}
+func __VDLEnsureNativeBuilt_writer() {
+	if __VDLTypewriter0 == nil {
+		__VDLTypewriter0 = __VDLTypewriter0_gen()
+	}
+	if __VDLType_writer_v_io_v23_vtrace_Response == nil {
+		__VDLType_writer_v_io_v23_vtrace_Response = __VDLType_writer_v_io_v23_vtrace_Response_gen()
+	}
+	if __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply == nil {
+		__VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply = __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply_gen()
+	}
 }

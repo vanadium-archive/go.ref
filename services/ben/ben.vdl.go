@@ -28,6 +28,77 @@ func (Cpu) __VDLReflect(struct {
 }) {
 }
 
+func (m *Cpu) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_ben_v_io_x_ref_services_ben_Cpu == nil || __VDLTypeben0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Architecture == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Architecture")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Architecture), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Description == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Description")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.Description), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.ClockSpeedMhz == uint32(0))
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("ClockSpeedMhz")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromUint(uint64(m.ClockSpeedMhz), vdl.Uint32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Cpu) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Cpu) IsZero() bool {
+
+	var1 := (*m == Cpu{})
+	return var1
+}
+
 // Os describes the Operating System on which the microbenchmarks were run.
 type Os struct {
 	Name    string // Short name of the operating system: linux, darwin, android etc.
@@ -37,6 +108,62 @@ type Os struct {
 func (Os) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/ben.Os"`
 }) {
+}
+
+func (m *Os) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_ben_v_io_x_ref_services_ben_Os == nil || __VDLTypeben1 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Name == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Name")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Name), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Version == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Version")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.Version), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Os) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Os) IsZero() bool {
+
+	var1 := (*m == Os{})
+	return var1
 }
 
 // Scenario encapsulates the conditions on the machine on which the microbenchmarks were run.
@@ -51,6 +178,79 @@ func (Scenario) __VDLReflect(struct {
 }) {
 }
 
+func (m *Scenario) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_ben_v_io_x_ref_services_ben_Scenario == nil || __VDLTypeben2 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Cpu.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Cpu")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Cpu.FillVDLTarget(fieldTarget4, __VDLType_ben_v_io_x_ref_services_ben_Cpu); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := m.Os.IsZero()
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Os")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Os.FillVDLTarget(fieldTarget7, __VDLType_ben_v_io_x_ref_services_ben_Os); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.Label == "")
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Label")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromString(string(m.Label), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Scenario) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Scenario) IsZero() bool {
+
+	var1 := (*m == Scenario{})
+	return var1
+}
+
 // SourceCode represents the state of the source code used to build the
 // microbenchmarks.
 //
@@ -62,6 +262,23 @@ type SourceCode string
 func (SourceCode) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/ben.SourceCode"`
 }) {
+}
+
+func (m SourceCode) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromString(string(m), __VDLType_ben_v_io_x_ref_services_ben_SourceCode); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m SourceCode) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m SourceCode) IsZero() bool {
+
+	var1 := (m == SourceCode(""))
+	return var1
 }
 
 // Run encapsulates the results of a single microbenchmark run.
@@ -80,10 +297,154 @@ func (Run) __VDLReflect(struct {
 }) {
 }
 
+func (m *Run) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_ben_v_io_x_ref_services_ben_Run == nil || __VDLTypeben3 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Name == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Name")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Name), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Iterations == uint64(0))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Iterations")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromUint(uint64(m.Iterations), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.NanoSecsPerOp == float64(0))
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("NanoSecsPerOp")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromFloat(float64(m.NanoSecsPerOp), vdl.Float64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := (m.AllocsPerOp == uint64(0))
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("AllocsPerOp")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget13.FromUint(uint64(m.AllocsPerOp), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var14 := (m.AllocedBytesPerOp == uint64(0))
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("AllocedBytesPerOp")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget16.FromUint(uint64(m.AllocedBytesPerOp), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	var17 := (m.MegaBytesPerSec == float64(0))
+	if !var17 {
+		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("MegaBytesPerSec")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget19.FromFloat(float64(m.MegaBytesPerSec), vdl.Float64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
+				return err
+			}
+		}
+	}
+	var20 := (m.Parallelism == uint32(0))
+	if !var20 {
+		keyTarget21, fieldTarget22, err := fieldsTarget1.StartField("Parallelism")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget22.FromUint(uint64(m.Parallelism), vdl.Uint32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget21, fieldTarget22); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Run) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Run) IsZero() bool {
+
+	var1 := (*m == Run{})
+	return var1
+}
+
 func init() {
 	vdl.Register((*Cpu)(nil))
 	vdl.Register((*Os)(nil))
 	vdl.Register((*Scenario)(nil))
 	vdl.Register((*SourceCode)(nil))
 	vdl.Register((*Run)(nil))
+}
+
+var __VDLTypeben0 *vdl.Type = vdl.TypeOf((*Cpu)(nil))
+var __VDLTypeben1 *vdl.Type = vdl.TypeOf((*Os)(nil))
+var __VDLTypeben3 *vdl.Type = vdl.TypeOf((*Run)(nil))
+var __VDLTypeben2 *vdl.Type = vdl.TypeOf((*Scenario)(nil))
+var __VDLType_ben_v_io_x_ref_services_ben_Cpu *vdl.Type = vdl.TypeOf(Cpu{})
+var __VDLType_ben_v_io_x_ref_services_ben_Os *vdl.Type = vdl.TypeOf(Os{})
+var __VDLType_ben_v_io_x_ref_services_ben_Run *vdl.Type = vdl.TypeOf(Run{})
+var __VDLType_ben_v_io_x_ref_services_ben_Scenario *vdl.Type = vdl.TypeOf(Scenario{})
+var __VDLType_ben_v_io_x_ref_services_ben_SourceCode *vdl.Type = vdl.TypeOf(SourceCode(""))
+
+func __VDLEnsureNativeBuilt_ben() {
 }

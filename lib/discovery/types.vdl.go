@@ -22,6 +22,23 @@ func (EncryptionAlgorithm) __VDLReflect(struct {
 }) {
 }
 
+func (m EncryptionAlgorithm) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64(m), __VDLType_types_v_io_x_ref_lib_discovery_EncryptionAlgorithm); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m EncryptionAlgorithm) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m EncryptionAlgorithm) IsZero() bool {
+
+	var1 := (m == EncryptionAlgorithm(0))
+	return var1
+}
+
 type EncryptionKey []byte
 
 func (EncryptionKey) __VDLReflect(struct {
@@ -29,11 +46,53 @@ func (EncryptionKey) __VDLReflect(struct {
 }) {
 }
 
+func (m EncryptionKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if err := t.FromBytes([]byte(m), __VDLType_types_v_io_x_ref_lib_discovery_EncryptionKey); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m EncryptionKey) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m EncryptionKey) IsZero() bool {
+
+	var var1 bool
+	if len(m) == 0 {
+		var1 = true
+	}
+	return var1
+}
+
 type Uuid []byte
 
 func (Uuid) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/lib/discovery.Uuid"`
 }) {
+}
+
+func (m Uuid) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if err := t.FromBytes([]byte(m), __VDLType_types_v_io_x_ref_lib_discovery_Uuid); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m Uuid) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m Uuid) IsZero() bool {
+
+	var var1 bool
+	if len(m) == 0 {
+		var1 = true
+	}
+	return var1
 }
 
 // AdInfo represents advertisement information for discovery.
@@ -60,6 +119,184 @@ func (AdInfo) __VDLReflect(struct {
 }) {
 }
 
+func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_lib_discovery_AdInfo == nil || __VDLTypetypes0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Ad.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Ad")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Ad.FillVDLTarget(fieldTarget4, __VDLType_types_v_io_v23_discovery_Advertisement); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := m.EncryptionAlgorithm.IsZero()
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("EncryptionAlgorithm")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.EncryptionAlgorithm.FillVDLTarget(fieldTarget7, __VDLType_types_v_io_x_ref_lib_discovery_EncryptionAlgorithm); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.EncryptionKeys) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("EncryptionKeys")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget11, err := fieldTarget10.StartList(__VDLTypetypes1, len(m.EncryptionKeys))
+			if err != nil {
+				return err
+			}
+			for i, elem13 := range m.EncryptionKeys {
+				elemTarget12, err := listTarget11.StartElem(i)
+				if err != nil {
+					return err
+				}
+
+				if err := elem13.FillVDLTarget(elemTarget12, __VDLType_types_v_io_x_ref_lib_discovery_EncryptionKey); err != nil {
+					return err
+				}
+				if err := listTarget11.FinishElem(elemTarget12); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget10.FinishList(listTarget11); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var14 := m.Hash.IsZero()
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("Hash")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Hash.FillVDLTarget(fieldTarget16, __VDLType_types_v_io_x_ref_lib_discovery_AdHash); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	var var17 bool
+	if len(m.DirAddrs) == 0 {
+		var17 = true
+	}
+	if !var17 {
+		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("DirAddrs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget20, err := fieldTarget19.StartList(__VDLTypetypes2, len(m.DirAddrs))
+			if err != nil {
+				return err
+			}
+			for i, elem22 := range m.DirAddrs {
+				elemTarget21, err := listTarget20.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget21.FromString(string(elem22), vdl.StringType); err != nil {
+					return err
+				}
+				if err := listTarget20.FinishElem(elemTarget21); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget19.FinishList(listTarget20); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
+				return err
+			}
+		}
+	}
+	var23 := (m.Lost == false)
+	if !var23 {
+		keyTarget24, fieldTarget25, err := fieldsTarget1.StartField("Lost")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget25.FromBool(bool(m.Lost), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget24, fieldTarget25); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *AdInfo) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *AdInfo) IsZero() bool {
+
+	var1 := true
+	var2 := m.Ad.IsZero()
+	var1 = var1 && var2
+	var3 := m.EncryptionAlgorithm.IsZero()
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.EncryptionKeys) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	var5 := m.Hash.IsZero()
+	var1 = var1 && var5
+	var var6 bool
+	if len(m.DirAddrs) == 0 {
+		var6 = true
+	}
+	var1 = var1 && var6
+	var7 := (m.Lost == false)
+	var1 = var1 && var7
+	return var1
+}
+
 // An AdHash is a hash of an advertisement.
 type AdHash [8]byte
 
@@ -68,12 +305,43 @@ func (AdHash) __VDLReflect(struct {
 }) {
 }
 
+func (m AdHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if err := t.FromBytes([]byte(m[:]), __VDLType_types_v_io_x_ref_lib_discovery_AdHash); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m AdHash) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m AdHash) IsZero() bool {
+
+	var1 := (m == AdHash{})
+	return var1
+}
+
 func init() {
 	vdl.Register((*EncryptionAlgorithm)(nil))
 	vdl.Register((*EncryptionKey)(nil))
 	vdl.Register((*Uuid)(nil))
 	vdl.Register((*AdInfo)(nil))
 	vdl.Register((*AdHash)(nil))
+}
+
+var __VDLTypetypes0 *vdl.Type = vdl.TypeOf((*AdInfo)(nil))
+var __VDLTypetypes2 *vdl.Type = vdl.TypeOf([]string(nil))
+var __VDLTypetypes1 *vdl.Type = vdl.TypeOf([]EncryptionKey(nil))
+var __VDLType_types_v_io_v23_discovery_Advertisement *vdl.Type = vdl.TypeOf(discovery.Advertisement{})
+var __VDLType_types_v_io_x_ref_lib_discovery_AdHash *vdl.Type = vdl.TypeOf(AdHash{})
+var __VDLType_types_v_io_x_ref_lib_discovery_AdInfo *vdl.Type = vdl.TypeOf(AdInfo{})
+var __VDLType_types_v_io_x_ref_lib_discovery_EncryptionAlgorithm *vdl.Type = vdl.TypeOf(EncryptionAlgorithm(0))
+var __VDLType_types_v_io_x_ref_lib_discovery_EncryptionKey *vdl.Type = vdl.TypeOf(EncryptionKey(nil))
+var __VDLType_types_v_io_x_ref_lib_discovery_Uuid *vdl.Type = vdl.TypeOf(Uuid(nil))
+
+func __VDLEnsureNativeBuilt_types() {
 }
 
 const NoEncryption = EncryptionAlgorithm(0)

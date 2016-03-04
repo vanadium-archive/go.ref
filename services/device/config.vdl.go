@@ -14,6 +14,9 @@ import (
 	"v.io/v23/rpc"
 )
 
+func __VDLEnsureNativeBuilt_config() {
+}
+
 // ConfigClientMethods is the client interface
 // containing Config methods.
 //

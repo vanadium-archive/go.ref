@@ -25,6 +25,47 @@ func (SyncData) __VDLReflect(struct {
 }) {
 }
 
+func (m *SyncData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_services_syncbase_vsync_SyncData == nil || __VDLTypetypes0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Id == uint64(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Id")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromUint(uint64(m.Id), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *SyncData) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *SyncData) IsZero() bool {
+
+	var1 := (*m == SyncData{})
+	return var1
+}
+
 // DbSyncState represents the persistent sync state of a Database.
 type DbSyncState struct {
 	GenVecs   interfaces.Knowledge // knowledge capturing the locally-known generations of remote peers for data in Database.
@@ -35,6 +76,97 @@ type DbSyncState struct {
 func (DbSyncState) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.DbSyncState"`
 }) {
+}
+
+func (m *DbSyncState) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_services_syncbase_vsync_DbSyncState == nil || __VDLTypetypes1 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var var2 bool
+	if len(m.GenVecs) == 0 {
+		var2 = true
+	}
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("GenVecs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.GenVecs.FillVDLTarget(fieldTarget4, __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_Knowledge); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.SgGenVecs) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("SgGenVecs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.SgGenVecs.FillVDLTarget(fieldTarget7, __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_Knowledge); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.IsPaused == false)
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("IsPaused")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromBool(bool(m.IsPaused), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *DbSyncState) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *DbSyncState) IsZero() bool {
+
+	var1 := true
+	var var2 bool
+	if len(m.GenVecs) == 0 {
+		var2 = true
+	}
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.SgGenVecs) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	var4 := (m.IsPaused == false)
+	var1 = var1 && var4
+	return var1
 }
 
 // LocalLogRec represents the persistent local state of a log record. Metadata
@@ -48,6 +180,82 @@ type LocalLogRec struct {
 func (LocalLogRec) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.LocalLogRec"`
 }) {
+}
+
+func (m *LocalLogRec) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_types()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Metadata.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Metadata")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Metadata.FillVDLTarget(fieldTarget4, __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Pos == uint64(0))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Pos")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromUint(uint64(m.Pos), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.Shell == false)
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Shell")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromBool(bool(m.Shell), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *LocalLogRec) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *LocalLogRec) IsZero() bool {
+
+	var1 := true
+	var2 := m.Metadata.IsZero()
+	var1 = var1 && var2
+	var3 := (m.Pos == uint64(0))
+	var1 = var1 && var3
+	var4 := (m.Shell == false)
+	var1 = var1 && var4
+	return var1
 }
 
 // SgLocalState holds the syncgroup local state, only relevant to this member
@@ -93,6 +301,124 @@ func (SgLocalState) __VDLReflect(struct {
 }) {
 }
 
+func (m *SgLocalState) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_services_syncbase_vsync_SgLocalState == nil || __VDLTypetypes3 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.NumLocalJoiners == uint32(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("NumLocalJoiners")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromUint(uint64(m.NumLocalJoiners), vdl.Uint32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Watched == false)
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Watched")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromBool(bool(m.Watched), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.RemotePublisher == "")
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("RemotePublisher")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromString(string(m.RemotePublisher), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := (m.SyncPending == false)
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("SyncPending")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget13.FromBool(bool(m.SyncPending), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var var14 bool
+	if len(m.PendingGenVec) == 0 {
+		var14 = true
+	}
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("PendingGenVec")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.PendingGenVec.FillVDLTarget(fieldTarget16, __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_GenVector); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *SgLocalState) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *SgLocalState) IsZero() bool {
+
+	var1 := true
+	var2 := (m.NumLocalJoiners == uint32(0))
+	var1 = var1 && var2
+	var3 := (m.Watched == false)
+	var1 = var1 && var3
+	var4 := (m.RemotePublisher == "")
+	var1 = var1 && var4
+	var5 := (m.SyncPending == false)
+	var1 = var1 && var5
+	var var6 bool
+	if len(m.PendingGenVec) == 0 {
+		var6 = true
+	}
+	var1 = var1 && var6
+	return var1
+}
+
 // DagNode holds the information on an object mutation in the DAG.  The node
 // information is extracted from the log records exchanged between Syncbases.
 // They are also stored in the DAG node to improve DAG traversal for conflict
@@ -111,6 +437,191 @@ type DagNode struct {
 func (DagNode) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.DagNode"`
 }) {
+}
+
+func (m *DagNode) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_services_syncbase_vsync_DagNode == nil || __VDLTypetypes4 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Level == uint64(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Level")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromUint(uint64(m.Level), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.Parents) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Parents")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget8, err := fieldTarget7.StartList(__VDLTypetypes5, len(m.Parents))
+			if err != nil {
+				return err
+			}
+			for i, elem10 := range m.Parents {
+				elemTarget9, err := listTarget8.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget9.FromString(string(elem10), vdl.StringType); err != nil {
+					return err
+				}
+				if err := listTarget8.FinishElem(elemTarget9); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget7.FinishList(listTarget8); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := (m.Logrec == "")
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("Logrec")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget13.FromString(string(m.Logrec), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var14 := (m.BatchId == uint64(0))
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("BatchId")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget16.FromUint(uint64(m.BatchId), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	var17 := (m.Shell == false)
+	if !var17 {
+		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("Shell")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget19.FromBool(bool(m.Shell), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
+				return err
+			}
+		}
+	}
+	var20 := (m.Deleted == false)
+	if !var20 {
+		keyTarget21, fieldTarget22, err := fieldsTarget1.StartField("Deleted")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget22.FromBool(bool(m.Deleted), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget21, fieldTarget22); err != nil {
+				return err
+			}
+		}
+	}
+	var23 := (m.PermId == "")
+	if !var23 {
+		keyTarget24, fieldTarget25, err := fieldsTarget1.StartField("PermId")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget25.FromString(string(m.PermId), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget24, fieldTarget25); err != nil {
+				return err
+			}
+		}
+	}
+	var26 := (m.PermVers == "")
+	if !var26 {
+		keyTarget27, fieldTarget28, err := fieldsTarget1.StartField("PermVers")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget28.FromString(string(m.PermVers), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget27, fieldTarget28); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *DagNode) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *DagNode) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Level == uint64(0))
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.Parents) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	var4 := (m.Logrec == "")
+	var1 = var1 && var4
+	var5 := (m.BatchId == uint64(0))
+	var1 = var1 && var5
+	var6 := (m.Shell == false)
+	var1 = var1 && var6
+	var7 := (m.Deleted == false)
+	var1 = var1 && var7
+	var8 := (m.PermId == "")
+	var1 = var1 && var8
+	var9 := (m.PermVers == "")
+	var1 = var1 && var9
+	return var1
 }
 
 // BatchInfo holds the information on a write batch:
@@ -135,6 +646,143 @@ func (BatchInfo) __VDLReflect(struct {
 }) {
 }
 
+func (m *BatchInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_services_syncbase_vsync_BatchInfo == nil || __VDLTypetypes6 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var var2 bool
+	if len(m.Objects) == 0 {
+		var2 = true
+	}
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Objects")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			mapTarget5, err := fieldTarget4.StartMap(__VDLTypetypes7, len(m.Objects))
+			if err != nil {
+				return err
+			}
+			for key7, value9 := range m.Objects {
+				keyTarget6, err := mapTarget5.StartKey()
+				if err != nil {
+					return err
+				}
+				if err := keyTarget6.FromString(string(key7), vdl.StringType); err != nil {
+					return err
+				}
+				valueTarget8, err := mapTarget5.FinishKeyStartField(keyTarget6)
+				if err != nil {
+					return err
+				}
+				if err := valueTarget8.FromString(string(value9), vdl.StringType); err != nil {
+					return err
+				}
+				if err := mapTarget5.FinishField(keyTarget6, valueTarget8); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget4.FinishMap(mapTarget5); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var10 bool
+	if len(m.LinkedObjects) == 0 {
+		var10 = true
+	}
+	if !var10 {
+		keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("LinkedObjects")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			mapTarget13, err := fieldTarget12.StartMap(__VDLTypetypes7, len(m.LinkedObjects))
+			if err != nil {
+				return err
+			}
+			for key15, value17 := range m.LinkedObjects {
+				keyTarget14, err := mapTarget13.StartKey()
+				if err != nil {
+					return err
+				}
+				if err := keyTarget14.FromString(string(key15), vdl.StringType); err != nil {
+					return err
+				}
+				valueTarget16, err := mapTarget13.FinishKeyStartField(keyTarget14)
+				if err != nil {
+					return err
+				}
+				if err := valueTarget16.FromString(string(value17), vdl.StringType); err != nil {
+					return err
+				}
+				if err := mapTarget13.FinishField(keyTarget14, valueTarget16); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget12.FinishMap(mapTarget13); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
+				return err
+			}
+		}
+	}
+	var18 := (m.Count == uint64(0))
+	if !var18 {
+		keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("Count")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget20.FromUint(uint64(m.Count), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BatchInfo) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *BatchInfo) IsZero() bool {
+
+	var1 := true
+	var var2 bool
+	if len(m.Objects) == 0 {
+		var2 = true
+	}
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.LinkedObjects) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	var4 := (m.Count == uint64(0))
+	var1 = var1 && var4
+	return var1
+}
+
 func init() {
 	vdl.Register((*SyncData)(nil))
 	vdl.Register((*DbSyncState)(nil))
@@ -142,4 +790,169 @@ func init() {
 	vdl.Register((*SgLocalState)(nil))
 	vdl.Register((*DagNode)(nil))
 	vdl.Register((*BatchInfo)(nil))
+}
+
+var __VDLTypetypes6 *vdl.Type = vdl.TypeOf((*BatchInfo)(nil))
+var __VDLTypetypes4 *vdl.Type = vdl.TypeOf((*DagNode)(nil))
+var __VDLTypetypes1 *vdl.Type = vdl.TypeOf((*DbSyncState)(nil))
+var __VDLTypetypes2 *vdl.Type
+
+func __VDLTypetypes2_gen() *vdl.Type {
+	__VDLTypetypes2Builder := vdl.TypeBuilder{}
+
+	__VDLTypetypes21 := __VDLTypetypes2Builder.Optional()
+	__VDLTypetypes22 := __VDLTypetypes2Builder.Struct()
+	__VDLTypetypes23 := __VDLTypetypes2Builder.Named("v.io/x/ref/services/syncbase/vsync.LocalLogRec").AssignBase(__VDLTypetypes22)
+	__VDLTypetypes24 := __VDLTypetypes2Builder.Struct()
+	__VDLTypetypes25 := __VDLTypetypes2Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata").AssignBase(__VDLTypetypes24)
+	__VDLTypetypes26 := vdl.Uint64Type
+	__VDLTypetypes24.AppendField("Id", __VDLTypetypes26)
+	__VDLTypetypes24.AppendField("Gen", __VDLTypetypes26)
+	__VDLTypetypes27 := vdl.ByteType
+	__VDLTypetypes24.AppendField("RecType", __VDLTypetypes27)
+	__VDLTypetypes28 := vdl.StringType
+	__VDLTypetypes24.AppendField("ObjId", __VDLTypetypes28)
+	__VDLTypetypes24.AppendField("CurVers", __VDLTypetypes28)
+	__VDLTypetypes29 := __VDLTypetypes2Builder.List()
+	__VDLTypetypes29.AssignElem(__VDLTypetypes28)
+	__VDLTypetypes24.AppendField("Parents", __VDLTypetypes29)
+	__VDLTypetypes210 := __VDLTypetypes2Builder.Struct()
+	__VDLTypetypes211 := __VDLTypetypes2Builder.Named("time.Time").AssignBase(__VDLTypetypes210)
+	__VDLTypetypes212 := vdl.Int64Type
+	__VDLTypetypes210.AppendField("Seconds", __VDLTypetypes212)
+	__VDLTypetypes213 := vdl.Int32Type
+	__VDLTypetypes210.AppendField("Nanos", __VDLTypetypes213)
+	__VDLTypetypes24.AppendField("UpdTime", __VDLTypetypes211)
+	__VDLTypetypes24.AppendField("PermId", __VDLTypetypes28)
+	__VDLTypetypes24.AppendField("PermVers", __VDLTypetypes28)
+	__VDLTypetypes214 := vdl.BoolType
+	__VDLTypetypes24.AppendField("Delete", __VDLTypetypes214)
+	__VDLTypetypes24.AppendField("BatchId", __VDLTypetypes26)
+	__VDLTypetypes24.AppendField("BatchCount", __VDLTypetypes26)
+	__VDLTypetypes22.AppendField("Metadata", __VDLTypetypes25)
+	__VDLTypetypes22.AppendField("Pos", __VDLTypetypes26)
+	__VDLTypetypes22.AppendField("Shell", __VDLTypetypes214)
+	__VDLTypetypes21.AssignElem(__VDLTypetypes23)
+	__VDLTypetypes2Builder.Build()
+	__VDLTypetypes2v, err := __VDLTypetypes21.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypetypes2v
+}
+func init() {
+	__VDLTypetypes2 = __VDLTypetypes2_gen()
+}
+
+var __VDLTypetypes3 *vdl.Type = vdl.TypeOf((*SgLocalState)(nil))
+var __VDLTypetypes0 *vdl.Type = vdl.TypeOf((*SyncData)(nil))
+var __VDLTypetypes5 *vdl.Type = vdl.TypeOf([]string(nil))
+var __VDLTypetypes7 *vdl.Type = vdl.TypeOf(map[string]string(nil))
+var __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_GenVector *vdl.Type = vdl.TypeOf(interfaces.GenVector(nil))
+var __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_Knowledge *vdl.Type = vdl.TypeOf(interfaces.Knowledge(nil))
+var __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata *vdl.Type
+
+func __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata_gen() *vdl.Type {
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder := vdl.TypeBuilder{}
+
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1 := __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.Struct()
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata2 := __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata").AssignBase(__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata3 := vdl.Uint64Type
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("Id", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata3)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("Gen", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata3)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata4 := vdl.ByteType
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("RecType", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata4)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5 := vdl.StringType
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("ObjId", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("CurVers", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata6 := __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.List()
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata6.AssignElem(__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("Parents", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata6)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata7 := __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.Struct()
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata8 := __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.Named("time.Time").AssignBase(__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata7)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata9 := vdl.Int64Type
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata7.AppendField("Seconds", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata9)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata10 := vdl.Int32Type
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata7.AppendField("Nanos", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata10)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("UpdTime", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata8)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("PermId", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("PermVers", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata11 := vdl.BoolType
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("Delete", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata11)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("BatchId", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata3)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("BatchCount", __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata3)
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.Build()
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadatav, err := __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadatav
+}
+func init() {
+	__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata = __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata_gen()
+}
+
+var __VDLType_types_v_io_x_ref_services_syncbase_vsync_BatchInfo *vdl.Type = vdl.TypeOf(BatchInfo{})
+var __VDLType_types_v_io_x_ref_services_syncbase_vsync_DagNode *vdl.Type = vdl.TypeOf(DagNode{})
+var __VDLType_types_v_io_x_ref_services_syncbase_vsync_DbSyncState *vdl.Type = vdl.TypeOf(DbSyncState{})
+var __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec *vdl.Type
+
+func __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec_gen() *vdl.Type {
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRecBuilder := vdl.TypeBuilder{}
+
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec1 := __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRecBuilder.Struct()
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec2 := __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRecBuilder.Named("v.io/x/ref/services/syncbase/vsync.LocalLogRec").AssignBase(__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec1)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3 := __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRecBuilder.Struct()
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec4 := __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRecBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata").AssignBase(__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec5 := vdl.Uint64Type
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("Id", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec5)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("Gen", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec5)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec6 := vdl.ByteType
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("RecType", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec6)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec7 := vdl.StringType
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("ObjId", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec7)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("CurVers", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec7)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec8 := __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRecBuilder.List()
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec8.AssignElem(__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec7)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("Parents", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec8)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec9 := __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRecBuilder.Struct()
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec10 := __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRecBuilder.Named("time.Time").AssignBase(__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec9)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec11 := vdl.Int64Type
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec9.AppendField("Seconds", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec11)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec12 := vdl.Int32Type
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec9.AppendField("Nanos", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec12)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("UpdTime", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec10)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("PermId", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec7)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("PermVers", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec7)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec13 := vdl.BoolType
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("Delete", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec13)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("BatchId", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec5)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec3.AppendField("BatchCount", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec5)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec1.AppendField("Metadata", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec4)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec1.AppendField("Pos", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec5)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec1.AppendField("Shell", __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec13)
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRecBuilder.Build()
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRecv, err := __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRecv
+}
+func init() {
+	__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec = __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec_gen()
+}
+
+var __VDLType_types_v_io_x_ref_services_syncbase_vsync_SgLocalState *vdl.Type = vdl.TypeOf(SgLocalState{})
+var __VDLType_types_v_io_x_ref_services_syncbase_vsync_SyncData *vdl.Type = vdl.TypeOf(SyncData{})
+
+func __VDLEnsureNativeBuilt_types() {
+	if __VDLTypetypes2 == nil {
+		__VDLTypetypes2 = __VDLTypetypes2_gen()
+	}
+	if __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata == nil {
+		__VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata = __VDLType_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata_gen()
+	}
+	if __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec == nil {
+		__VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec = __VDLType_types_v_io_x_ref_services_syncbase_vsync_LocalLogRec_gen()
+	}
 }

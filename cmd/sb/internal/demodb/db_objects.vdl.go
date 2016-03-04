@@ -15,7 +15,7 @@ import (
 
 	// VDL user imports
 	"time"
-	_ "v.io/v23/vdlroot/time"
+	time_2 "v.io/v23/vdlroot/time"
 )
 
 type AddressInfo struct {
@@ -28,6 +28,92 @@ type AddressInfo struct {
 func (AddressInfo) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.AddressInfo"`
 }) {
+}
+
+func (m *AddressInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_AddressInfo == nil || __VDLTypedb_objects0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Street == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Street")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Street), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.City == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("City")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.City), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.State == "")
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("State")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromString(string(m.State), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := (m.Zip == "")
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("Zip")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget13.FromString(string(m.Zip), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *AddressInfo) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *AddressInfo) IsZero() bool {
+
+	var1 := (*m == AddressInfo{})
+	return var1
 }
 
 type CreditAgency int
@@ -83,6 +169,23 @@ func (CreditAgency) __VDLReflect(struct {
 }) {
 }
 
+func (m CreditAgency) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromEnumLabel(m.String(), __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_CreditAgency); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m CreditAgency) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m CreditAgency) IsZero() bool {
+
+	var1 := (m == CreditAgencyEquifax)
+	return var1
+}
+
 type ExperianRating int
 
 const (
@@ -130,6 +233,23 @@ func (ExperianRating) __VDLReflect(struct {
 }) {
 }
 
+func (m ExperianRating) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromEnumLabel(m.String(), __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_ExperianRating); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m ExperianRating) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m ExperianRating) IsZero() bool {
+
+	var1 := (m == ExperianRatingGood)
+	return var1
+}
+
 type EquifaxCreditReport struct {
 	Rating byte
 }
@@ -137,6 +257,47 @@ type EquifaxCreditReport struct {
 func (EquifaxCreditReport) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.EquifaxCreditReport"`
 }) {
+}
+
+func (m *EquifaxCreditReport) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_EquifaxCreditReport == nil || __VDLTypedb_objects1 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Rating == byte(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Rating")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromUint(uint64(m.Rating), vdl.ByteType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *EquifaxCreditReport) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *EquifaxCreditReport) IsZero() bool {
+
+	var1 := (*m == EquifaxCreditReport{})
+	return var1
 }
 
 type ExperianCreditReport struct {
@@ -148,6 +309,48 @@ func (ExperianCreditReport) __VDLReflect(struct {
 }) {
 }
 
+func (m *ExperianCreditReport) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_ExperianCreditReport == nil || __VDLTypedb_objects2 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Rating.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Rating")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Rating.FillVDLTarget(fieldTarget4, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_ExperianRating); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ExperianCreditReport) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *ExperianCreditReport) IsZero() bool {
+
+	var1 := (*m == ExperianCreditReport{})
+	return var1
+}
+
 type TransUnionCreditReport struct {
 	Rating int16
 }
@@ -155,6 +358,47 @@ type TransUnionCreditReport struct {
 func (TransUnionCreditReport) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.TransUnionCreditReport"`
 }) {
+}
+
+func (m *TransUnionCreditReport) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TransUnionCreditReport == nil || __VDLTypedb_objects3 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Rating == int16(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Rating")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromInt(int64(m.Rating), vdl.Int16Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *TransUnionCreditReport) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *TransUnionCreditReport) IsZero() bool {
+
+	var1 := (*m == TransUnionCreditReport{})
+	return var1
 }
 
 type (
@@ -168,6 +412,8 @@ type (
 		Name() string
 		// __VDLReflect describes the AgencyReport union type.
 		__VDLReflect(__AgencyReportReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// AgencyReportEquifaxReport represents field EquifaxReport of the AgencyReport union type.
 	AgencyReportEquifaxReport struct{ Value EquifaxCreditReport }
@@ -192,15 +438,117 @@ func (x AgencyReportEquifaxReport) Interface() interface{}             { return 
 func (x AgencyReportEquifaxReport) Name() string                       { return "EquifaxReport" }
 func (x AgencyReportEquifaxReport) __VDLReflect(__AgencyReportReflect) {}
 
+func (m AgencyReportEquifaxReport) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_AgencyReport)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("EquifaxReport")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_EquifaxCreditReport); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m AgencyReportEquifaxReport) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m AgencyReportEquifaxReport) IsZero() bool {
+
+	var2 := m.Value.IsZero()
+	return var2
+}
+
 func (x AgencyReportExperianReport) Index() int                         { return 1 }
 func (x AgencyReportExperianReport) Interface() interface{}             { return x.Value }
 func (x AgencyReportExperianReport) Name() string                       { return "ExperianReport" }
 func (x AgencyReportExperianReport) __VDLReflect(__AgencyReportReflect) {}
 
+func (m AgencyReportExperianReport) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_AgencyReport)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("ExperianReport")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_ExperianCreditReport); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m AgencyReportExperianReport) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m AgencyReportExperianReport) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
+
 func (x AgencyReportTransUnionReport) Index() int                         { return 2 }
 func (x AgencyReportTransUnionReport) Interface() interface{}             { return x.Value }
 func (x AgencyReportTransUnionReport) Name() string                       { return "TransUnionReport" }
 func (x AgencyReportTransUnionReport) __VDLReflect(__AgencyReportReflect) {}
+
+func (m AgencyReportTransUnionReport) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_AgencyReport)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("TransUnionReport")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TransUnionCreditReport); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m AgencyReportTransUnionReport) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m AgencyReportTransUnionReport) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 type CreditReport struct {
 	Agency CreditAgency
@@ -210,6 +558,70 @@ type CreditReport struct {
 func (CreditReport) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.CreditReport"`
 }) {
+}
+
+func (m *CreditReport) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_CreditReport == nil || __VDLTypedb_objects4 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Agency.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Agency")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Agency.FillVDLTarget(fieldTarget4, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_CreditAgency); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := m.Report.IsZero()
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Report")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			unionValue8 := m.Report
+			if unionValue8 == nil {
+				unionValue8 = AgencyReportEquifaxReport{}
+			}
+			if err := unionValue8.FillVDLTarget(fieldTarget7, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_AgencyReport); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *CreditReport) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *CreditReport) IsZero() bool {
+
+	var1 := (*m == CreditReport{
+		Report: AgencyReportEquifaxReport{EquifaxCreditReport{}},
+	})
+	return var1
 }
 
 type Customer struct {
@@ -225,6 +637,113 @@ func (Customer) __VDLReflect(struct {
 }) {
 }
 
+func (m *Customer) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Customer == nil || __VDLTypedb_objects5 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Name == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Name")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Name), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Id == int64(0))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Id")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromInt(int64(m.Id), vdl.Int64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.Active == false)
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Active")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromBool(bool(m.Active), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := m.Address.IsZero()
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("Address")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Address.FillVDLTarget(fieldTarget13, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_AddressInfo); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var14 := m.Credit.IsZero()
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("Credit")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Credit.FillVDLTarget(fieldTarget16, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_CreditReport); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Customer) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Customer) IsZero() bool {
+
+	var1 := (*m == Customer{
+		Credit: CreditReport{
+			Report: AgencyReportEquifaxReport{EquifaxCreditReport{}},
+		},
+	})
+	return var1
+}
+
 type Invoice struct {
 	CustId     int64
 	InvoiceNum int64
@@ -235,6 +754,93 @@ type Invoice struct {
 func (Invoice) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Invoice"`
 }) {
+}
+
+func (m *Invoice) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Invoice == nil || __VDLTypedb_objects6 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.CustId == int64(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("CustId")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromInt(int64(m.CustId), vdl.Int64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.InvoiceNum == int64(0))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("InvoiceNum")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromInt(int64(m.InvoiceNum), vdl.Int64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.Amount == int64(0))
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Amount")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromInt(int64(m.Amount), vdl.Int64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := m.ShipTo.IsZero()
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("ShipTo")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.ShipTo.FillVDLTarget(fieldTarget13, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_AddressInfo); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Invoice) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Invoice) IsZero() bool {
+
+	var1 := (*m == Invoice{})
+	return var1
 }
 
 type Numbers struct {
@@ -256,6 +862,197 @@ func (Numbers) __VDLReflect(struct {
 }) {
 }
 
+func (m *Numbers) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Numbers == nil || __VDLTypedb_objects7 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.B == byte(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("B")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromUint(uint64(m.B), vdl.ByteType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Ui16 == uint16(0))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Ui16")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromUint(uint64(m.Ui16), vdl.Uint16Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.Ui32 == uint32(0))
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Ui32")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromUint(uint64(m.Ui32), vdl.Uint32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := (m.Ui64 == uint64(0))
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("Ui64")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget13.FromUint(uint64(m.Ui64), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var14 := (m.I16 == int16(0))
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("I16")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget16.FromInt(int64(m.I16), vdl.Int16Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	var17 := (m.I32 == int32(0))
+	if !var17 {
+		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("I32")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget19.FromInt(int64(m.I32), vdl.Int32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
+				return err
+			}
+		}
+	}
+	var20 := (m.I64 == int64(0))
+	if !var20 {
+		keyTarget21, fieldTarget22, err := fieldsTarget1.StartField("I64")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget22.FromInt(int64(m.I64), vdl.Int64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget21, fieldTarget22); err != nil {
+				return err
+			}
+		}
+	}
+	var23 := (m.F32 == float32(0))
+	if !var23 {
+		keyTarget24, fieldTarget25, err := fieldsTarget1.StartField("F32")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget25.FromFloat(float64(m.F32), vdl.Float32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget24, fieldTarget25); err != nil {
+				return err
+			}
+		}
+	}
+	var26 := (m.F64 == float64(0))
+	if !var26 {
+		keyTarget27, fieldTarget28, err := fieldsTarget1.StartField("F64")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget28.FromFloat(float64(m.F64), vdl.Float64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget27, fieldTarget28); err != nil {
+				return err
+			}
+		}
+	}
+	var29 := (m.C64 == complex64(0))
+	if !var29 {
+		keyTarget30, fieldTarget31, err := fieldsTarget1.StartField("C64")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget31.FromComplex(complex128(m.C64), vdl.Complex64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget30, fieldTarget31); err != nil {
+				return err
+			}
+		}
+	}
+	var32 := (m.C128 == complex128(0))
+	if !var32 {
+		keyTarget33, fieldTarget34, err := fieldsTarget1.StartField("C128")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget34.FromComplex(complex128(m.C128), vdl.Complex128Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget33, fieldTarget34); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Numbers) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Numbers) IsZero() bool {
+
+	var1 := (*m == Numbers{})
+	return var1
+}
+
 type FooType struct {
 	Bar BarType
 }
@@ -265,6 +1062,54 @@ func (FooType) __VDLReflect(struct {
 }) {
 }
 
+func (m *FooType) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_FooType == nil || __VDLTypedb_objects8 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Bar.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Bar")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Bar.FillVDLTarget(fieldTarget4, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_BarType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *FooType) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *FooType) IsZero() bool {
+
+	var1 := (*m == FooType{
+		Bar: BarType{
+			Baz: BazType{
+				TitleOrValue: TitleOrValueTypeTitle{""},
+			},
+		},
+	})
+	return var1
+}
+
 type BarType struct {
 	Baz BazType
 }
@@ -272,6 +1117,52 @@ type BarType struct {
 func (BarType) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.BarType"`
 }) {
+}
+
+func (m *BarType) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_BarType == nil || __VDLTypedb_objects9 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Baz.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Baz")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Baz.FillVDLTarget(fieldTarget4, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_BazType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BarType) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *BarType) IsZero() bool {
+
+	var1 := (*m == BarType{
+		Baz: BazType{
+			TitleOrValue: TitleOrValueTypeTitle{""},
+		},
+	})
+	return var1
 }
 
 type (
@@ -285,6 +1176,8 @@ type (
 		Name() string
 		// __VDLReflect describes the TitleOrValueType union type.
 		__VDLReflect(__TitleOrValueTypeReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// TitleOrValueTypeTitle represents field Title of the TitleOrValueType union type.
 	TitleOrValueTypeTitle struct{ Value string }
@@ -306,10 +1199,76 @@ func (x TitleOrValueTypeTitle) Interface() interface{}                 { return 
 func (x TitleOrValueTypeTitle) Name() string                           { return "Title" }
 func (x TitleOrValueTypeTitle) __VDLReflect(__TitleOrValueTypeReflect) {}
 
+func (m TitleOrValueTypeTitle) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TitleOrValueType)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Title")
+	if err != nil {
+		return err
+	}
+	if err := fieldTarget3.FromString(string(m.Value), vdl.StringType); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m TitleOrValueTypeTitle) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m TitleOrValueTypeTitle) IsZero() bool {
+
+	var2 := (m.Value == "")
+	return var2
+}
+
 func (x TitleOrValueTypeValue) Index() int                             { return 1 }
 func (x TitleOrValueTypeValue) Interface() interface{}                 { return x.Value }
 func (x TitleOrValueTypeValue) Name() string                           { return "Value" }
 func (x TitleOrValueTypeValue) __VDLReflect(__TitleOrValueTypeReflect) {}
+
+func (m TitleOrValueTypeValue) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TitleOrValueType)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Value")
+	if err != nil {
+		return err
+	}
+	if err := fieldTarget3.FromInt(int64(m.Value), vdl.Int64Type); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m TitleOrValueTypeValue) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m TitleOrValueTypeValue) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 type BazType struct {
 	Name         string
@@ -321,11 +1280,108 @@ func (BazType) __VDLReflect(struct {
 }) {
 }
 
+func (m *BazType) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_BazType == nil || __VDLTypedb_objects10 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Name == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Name")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Name), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := m.TitleOrValue.IsZero()
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("TitleOrValue")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			unionValue8 := m.TitleOrValue
+			if unionValue8 == nil {
+				unionValue8 = TitleOrValueTypeTitle{}
+			}
+			if err := unionValue8.FillVDLTarget(fieldTarget7, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TitleOrValueType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *BazType) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *BazType) IsZero() bool {
+
+	var1 := (*m == BazType{
+		TitleOrValue: TitleOrValueTypeTitle{""},
+	})
+	return var1
+}
+
 type Array2String [2]string
 
 func (Array2String) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Array2String"`
 }) {
+}
+
+func (m Array2String) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	listTarget1, err := t.StartList(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Array2String, 2)
+	if err != nil {
+		return err
+	}
+	for i, elem3 := range m {
+		elemTarget2, err := listTarget1.StartElem(i)
+		if err != nil {
+			return err
+		}
+		if err := elemTarget2.FromString(string(elem3), vdl.StringType); err != nil {
+			return err
+		}
+		if err := listTarget1.FinishElem(elemTarget2); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishList(listTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m Array2String) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m Array2String) IsZero() bool {
+
+	var1 := (m == Array2String{})
+	return var1
 }
 
 type Composite struct {
@@ -340,6 +1396,177 @@ func (Composite) __VDLReflect(struct {
 }) {
 }
 
+func (m *Composite) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Composite == nil || __VDLTypedb_objects11 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Arr.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Arr")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Arr.FillVDLTarget(fieldTarget4, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Array2String); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.ListInt) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("ListInt")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget8, err := fieldTarget7.StartList(__VDLTypedb_objects12, len(m.ListInt))
+			if err != nil {
+				return err
+			}
+			for i, elem10 := range m.ListInt {
+				elemTarget9, err := listTarget8.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget9.FromInt(int64(elem10), vdl.Int32Type); err != nil {
+					return err
+				}
+				if err := listTarget8.FinishElem(elemTarget9); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget7.FinishList(listTarget8); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var11 bool
+	if len(m.MySet) == 0 {
+		var11 = true
+	}
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("MySet")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			setTarget14, err := fieldTarget13.StartSet(__VDLTypedb_objects13, len(m.MySet))
+			if err != nil {
+				return err
+			}
+			for key16 := range m.MySet {
+				keyTarget15, err := setTarget14.StartKey()
+				if err != nil {
+					return err
+				}
+				if err := keyTarget15.FromInt(int64(key16), vdl.Int32Type); err != nil {
+					return err
+				}
+				if err := setTarget14.FinishKey(keyTarget15); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget13.FinishSet(setTarget14); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var var17 bool
+	if len(m.Map) == 0 {
+		var17 = true
+	}
+	if !var17 {
+		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("Map")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			mapTarget20, err := fieldTarget19.StartMap(__VDLTypedb_objects14, len(m.Map))
+			if err != nil {
+				return err
+			}
+			for key22, value24 := range m.Map {
+				keyTarget21, err := mapTarget20.StartKey()
+				if err != nil {
+					return err
+				}
+				if err := keyTarget21.FromString(string(key22), vdl.StringType); err != nil {
+					return err
+				}
+				valueTarget23, err := mapTarget20.FinishKeyStartField(keyTarget21)
+				if err != nil {
+					return err
+				}
+				if err := valueTarget23.FromInt(int64(value24), vdl.Int32Type); err != nil {
+					return err
+				}
+				if err := mapTarget20.FinishField(keyTarget21, valueTarget23); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget19.FinishMap(mapTarget20); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Composite) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Composite) IsZero() bool {
+
+	var1 := true
+	var2 := m.Arr.IsZero()
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.ListInt) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.MySet) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	var var5 bool
+	if len(m.Map) == 0 {
+		var5 = true
+	}
+	var1 = var1 && var5
+	return var1
+}
+
 type Times struct {
 	Stamp    time.Time
 	Interval time.Duration
@@ -348,6 +1575,72 @@ type Times struct {
 func (Times) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Times"`
 }) {
+}
+
+func (m *Times) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_db_objects()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var wireValue2 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue2, m.Stamp); err != nil {
+		return err
+	}
+
+	var3 := wireValue2.IsZero()
+	if !var3 {
+		keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Stamp")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue2.FillVDLTarget(fieldTarget5, __VDLType_db_objects_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue6 time_2.Duration
+	if err := time_2.DurationFromNative(&wireValue6, m.Interval); err != nil {
+		return err
+	}
+
+	var7 := wireValue6.IsZero()
+	if !var7 {
+		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Interval")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue6.FillVDLTarget(fieldTarget9, __VDLType_db_objects_time_Duration); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Times) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Times) IsZero() bool {
+
+	var1 := (*m == Times{})
+	return var1
 }
 
 type Recursive struct {
@@ -361,6 +1654,127 @@ func (Recursive) __VDLReflect(struct {
 }) {
 }
 
+func (m *Recursive) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_db_objects()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Any == (*vom.RawBytes)(nil))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Any")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if m.Any == nil {
+				if err := fieldTarget4.FromNil(vdl.AnyType); err != nil {
+					return err
+				}
+			} else {
+				if err := m.Any.FillVDLTarget(fieldTarget4, vdl.AnyType); err != nil {
+					return err
+				}
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Maybe == (*Times)(nil))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Maybe")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if m.Maybe == nil {
+				if err := fieldTarget7.FromNil(__VDLTypedb_objects15); err != nil {
+					return err
+				}
+			} else {
+				if err := m.Maybe.FillVDLTarget(fieldTarget7, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times); err != nil {
+					return err
+				}
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.Rec) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Rec")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			mapTarget11, err := fieldTarget10.StartMap(__VDLTypedb_objects17, len(m.Rec))
+			if err != nil {
+				return err
+			}
+			for key13, value15 := range m.Rec {
+				keyTarget12, err := mapTarget11.StartKey()
+				if err != nil {
+					return err
+				}
+
+				if err := key13.FillVDLTarget(keyTarget12, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Array2String); err != nil {
+					return err
+				}
+				valueTarget14, err := mapTarget11.FinishKeyStartField(keyTarget12)
+				if err != nil {
+					return err
+				}
+
+				if err := value15.FillVDLTarget(valueTarget14, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive); err != nil {
+					return err
+				}
+				if err := mapTarget11.FinishField(keyTarget12, valueTarget14); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget10.FinishMap(mapTarget11); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Recursive) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Recursive) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Any == (*vom.RawBytes)(nil))
+	var1 = var1 && var2
+	var3 := (m.Maybe == (*Times)(nil))
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.Rec) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	return var1
+}
+
 type (
 	// ActOrSatScore represents any single field of the ActOrSatScore union type.
 	ActOrSatScore interface {
@@ -372,6 +1786,8 @@ type (
 		Name() string
 		// __VDLReflect describes the ActOrSatScore union type.
 		__VDLReflect(__ActOrSatScoreReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// ActOrSatScoreActScore represents field ActScore of the ActOrSatScore union type.
 	ActOrSatScoreActScore struct{ Value uint16 }
@@ -393,10 +1809,76 @@ func (x ActOrSatScoreActScore) Interface() interface{}              { return x.V
 func (x ActOrSatScoreActScore) Name() string                        { return "ActScore" }
 func (x ActOrSatScoreActScore) __VDLReflect(__ActOrSatScoreReflect) {}
 
+func (m ActOrSatScoreActScore) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_ActOrSatScore)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("ActScore")
+	if err != nil {
+		return err
+	}
+	if err := fieldTarget3.FromUint(uint64(m.Value), vdl.Uint16Type); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m ActOrSatScoreActScore) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m ActOrSatScoreActScore) IsZero() bool {
+
+	var2 := (m.Value == uint16(0))
+	return var2
+}
+
 func (x ActOrSatScoreSatScore) Index() int                          { return 1 }
 func (x ActOrSatScoreSatScore) Interface() interface{}              { return x.Value }
 func (x ActOrSatScoreSatScore) Name() string                        { return "SatScore" }
 func (x ActOrSatScoreSatScore) __VDLReflect(__ActOrSatScoreReflect) {}
+
+func (m ActOrSatScoreSatScore) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_ActOrSatScore)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("SatScore")
+	if err != nil {
+		return err
+	}
+	if err := fieldTarget3.FromUint(uint64(m.Value), vdl.Uint16Type); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m ActOrSatScoreSatScore) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m ActOrSatScoreSatScore) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 type Student struct {
 	Name     string
@@ -409,6 +1891,88 @@ func (Student) __VDLReflect(struct {
 }) {
 }
 
+func (m *Student) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_db_objects()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Name == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Name")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Name), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue5 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue5, m.TestTime); err != nil {
+		return err
+	}
+
+	var6 := wireValue5.IsZero()
+	if !var6 {
+		keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("TestTime")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue5.FillVDLTarget(fieldTarget8, __VDLType_db_objects_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+				return err
+			}
+		}
+	}
+	var9 := m.Score.IsZero()
+	if !var9 {
+		keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("Score")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			unionValue12 := m.Score
+			if unionValue12 == nil {
+				unionValue12 = ActOrSatScoreActScore{}
+			}
+			if err := unionValue12.FillVDLTarget(fieldTarget11, __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_ActOrSatScore); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Student) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Student) IsZero() bool {
+
+	var1 := (*m == Student{
+		Score: ActOrSatScoreActScore{uint16(0)},
+	})
+	return var1
+}
+
 type AnythingGoes struct {
 	NameOfType string
 	Anything   *vom.RawBytes
@@ -417,6 +1981,69 @@ type AnythingGoes struct {
 func (AnythingGoes) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.AnythingGoes"`
 }) {
+}
+
+func (m *AnythingGoes) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_AnythingGoes == nil || __VDLTypedb_objects19 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.NameOfType == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("NameOfType")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.NameOfType), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Anything == (*vom.RawBytes)(nil))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Anything")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if m.Anything == nil {
+				if err := fieldTarget7.FromNil(vdl.AnyType); err != nil {
+					return err
+				}
+			} else {
+				if err := m.Anything.FillVDLTarget(fieldTarget7, vdl.AnyType); err != nil {
+					return err
+				}
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *AnythingGoes) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *AnythingGoes) IsZero() bool {
+
+	var1 := (*m == AnythingGoes{})
+	return var1
 }
 
 func init() {
@@ -442,4 +2069,402 @@ func init() {
 	vdl.Register((*ActOrSatScore)(nil))
 	vdl.Register((*Student)(nil))
 	vdl.Register((*AnythingGoes)(nil))
+}
+
+var __VDLTypedb_objects0 *vdl.Type = vdl.TypeOf((*AddressInfo)(nil))
+var __VDLTypedb_objects19 *vdl.Type = vdl.TypeOf((*AnythingGoes)(nil))
+var __VDLTypedb_objects9 *vdl.Type = vdl.TypeOf((*BarType)(nil))
+var __VDLTypedb_objects10 *vdl.Type = vdl.TypeOf((*BazType)(nil))
+var __VDLTypedb_objects11 *vdl.Type = vdl.TypeOf((*Composite)(nil))
+var __VDLTypedb_objects4 *vdl.Type = vdl.TypeOf((*CreditReport)(nil))
+var __VDLTypedb_objects5 *vdl.Type = vdl.TypeOf((*Customer)(nil))
+var __VDLTypedb_objects1 *vdl.Type = vdl.TypeOf((*EquifaxCreditReport)(nil))
+var __VDLTypedb_objects2 *vdl.Type = vdl.TypeOf((*ExperianCreditReport)(nil))
+var __VDLTypedb_objects8 *vdl.Type = vdl.TypeOf((*FooType)(nil))
+var __VDLTypedb_objects6 *vdl.Type = vdl.TypeOf((*Invoice)(nil))
+var __VDLTypedb_objects7 *vdl.Type = vdl.TypeOf((*Numbers)(nil))
+var __VDLTypedb_objects16 *vdl.Type
+
+func __VDLTypedb_objects16_gen() *vdl.Type {
+	__VDLTypedb_objects16Builder := vdl.TypeBuilder{}
+
+	__VDLTypedb_objects161 := __VDLTypedb_objects16Builder.Optional()
+	__VDLTypedb_objects162 := __VDLTypedb_objects16Builder.Struct()
+	__VDLTypedb_objects163 := __VDLTypedb_objects16Builder.Named("v.io/x/ref/cmd/sb/internal/demodb.Recursive").AssignBase(__VDLTypedb_objects162)
+	__VDLTypedb_objects164 := vdl.AnyType
+	__VDLTypedb_objects162.AppendField("Any", __VDLTypedb_objects164)
+	__VDLTypedb_objects165 := __VDLTypedb_objects16Builder.Optional()
+	__VDLTypedb_objects166 := __VDLTypedb_objects16Builder.Struct()
+	__VDLTypedb_objects167 := __VDLTypedb_objects16Builder.Named("v.io/x/ref/cmd/sb/internal/demodb.Times").AssignBase(__VDLTypedb_objects166)
+	__VDLTypedb_objects168 := __VDLTypedb_objects16Builder.Struct()
+	__VDLTypedb_objects169 := __VDLTypedb_objects16Builder.Named("time.Time").AssignBase(__VDLTypedb_objects168)
+	__VDLTypedb_objects1610 := vdl.Int64Type
+	__VDLTypedb_objects168.AppendField("Seconds", __VDLTypedb_objects1610)
+	__VDLTypedb_objects1611 := vdl.Int32Type
+	__VDLTypedb_objects168.AppendField("Nanos", __VDLTypedb_objects1611)
+	__VDLTypedb_objects166.AppendField("Stamp", __VDLTypedb_objects169)
+	__VDLTypedb_objects1612 := __VDLTypedb_objects16Builder.Struct()
+	__VDLTypedb_objects1613 := __VDLTypedb_objects16Builder.Named("time.Duration").AssignBase(__VDLTypedb_objects1612)
+	__VDLTypedb_objects1612.AppendField("Seconds", __VDLTypedb_objects1610)
+	__VDLTypedb_objects1612.AppendField("Nanos", __VDLTypedb_objects1611)
+	__VDLTypedb_objects166.AppendField("Interval", __VDLTypedb_objects1613)
+	__VDLTypedb_objects165.AssignElem(__VDLTypedb_objects167)
+	__VDLTypedb_objects162.AppendField("Maybe", __VDLTypedb_objects165)
+	__VDLTypedb_objects1614 := __VDLTypedb_objects16Builder.Map()
+	__VDLTypedb_objects1615 := __VDLTypedb_objects16Builder.Array()
+	__VDLTypedb_objects1616 := __VDLTypedb_objects16Builder.Named("v.io/x/ref/cmd/sb/internal/demodb.Array2String").AssignBase(__VDLTypedb_objects1615)
+	__VDLTypedb_objects1617 := vdl.StringType
+	__VDLTypedb_objects1615.AssignElem(__VDLTypedb_objects1617)
+	__VDLTypedb_objects1615.AssignLen(2)
+	__VDLTypedb_objects1614.AssignKey(__VDLTypedb_objects1616)
+	__VDLTypedb_objects1614.AssignElem(__VDLTypedb_objects163)
+	__VDLTypedb_objects162.AppendField("Rec", __VDLTypedb_objects1614)
+	__VDLTypedb_objects161.AssignElem(__VDLTypedb_objects163)
+	__VDLTypedb_objects16Builder.Build()
+	__VDLTypedb_objects16v, err := __VDLTypedb_objects161.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypedb_objects16v
+}
+func init() {
+	__VDLTypedb_objects16 = __VDLTypedb_objects16_gen()
+}
+
+var __VDLTypedb_objects18 *vdl.Type
+
+func __VDLTypedb_objects18_gen() *vdl.Type {
+	__VDLTypedb_objects18Builder := vdl.TypeBuilder{}
+
+	__VDLTypedb_objects181 := __VDLTypedb_objects18Builder.Optional()
+	__VDLTypedb_objects182 := __VDLTypedb_objects18Builder.Struct()
+	__VDLTypedb_objects183 := __VDLTypedb_objects18Builder.Named("v.io/x/ref/cmd/sb/internal/demodb.Student").AssignBase(__VDLTypedb_objects182)
+	__VDLTypedb_objects184 := vdl.StringType
+	__VDLTypedb_objects182.AppendField("Name", __VDLTypedb_objects184)
+	__VDLTypedb_objects185 := __VDLTypedb_objects18Builder.Struct()
+	__VDLTypedb_objects186 := __VDLTypedb_objects18Builder.Named("time.Time").AssignBase(__VDLTypedb_objects185)
+	__VDLTypedb_objects187 := vdl.Int64Type
+	__VDLTypedb_objects185.AppendField("Seconds", __VDLTypedb_objects187)
+	__VDLTypedb_objects188 := vdl.Int32Type
+	__VDLTypedb_objects185.AppendField("Nanos", __VDLTypedb_objects188)
+	__VDLTypedb_objects182.AppendField("TestTime", __VDLTypedb_objects186)
+	__VDLTypedb_objects189 := __VDLTypedb_objects18Builder.Union()
+	__VDLTypedb_objects1810 := __VDLTypedb_objects18Builder.Named("v.io/x/ref/cmd/sb/internal/demodb.ActOrSatScore").AssignBase(__VDLTypedb_objects189)
+	__VDLTypedb_objects1811 := vdl.Uint16Type
+	__VDLTypedb_objects189.AppendField("ActScore", __VDLTypedb_objects1811)
+	__VDLTypedb_objects189.AppendField("SatScore", __VDLTypedb_objects1811)
+	__VDLTypedb_objects182.AppendField("Score", __VDLTypedb_objects1810)
+	__VDLTypedb_objects181.AssignElem(__VDLTypedb_objects183)
+	__VDLTypedb_objects18Builder.Build()
+	__VDLTypedb_objects18v, err := __VDLTypedb_objects181.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypedb_objects18v
+}
+func init() {
+	__VDLTypedb_objects18 = __VDLTypedb_objects18_gen()
+}
+
+var __VDLTypedb_objects15 *vdl.Type
+
+func __VDLTypedb_objects15_gen() *vdl.Type {
+	__VDLTypedb_objects15Builder := vdl.TypeBuilder{}
+
+	__VDLTypedb_objects151 := __VDLTypedb_objects15Builder.Optional()
+	__VDLTypedb_objects152 := __VDLTypedb_objects15Builder.Struct()
+	__VDLTypedb_objects153 := __VDLTypedb_objects15Builder.Named("v.io/x/ref/cmd/sb/internal/demodb.Times").AssignBase(__VDLTypedb_objects152)
+	__VDLTypedb_objects154 := __VDLTypedb_objects15Builder.Struct()
+	__VDLTypedb_objects155 := __VDLTypedb_objects15Builder.Named("time.Time").AssignBase(__VDLTypedb_objects154)
+	__VDLTypedb_objects156 := vdl.Int64Type
+	__VDLTypedb_objects154.AppendField("Seconds", __VDLTypedb_objects156)
+	__VDLTypedb_objects157 := vdl.Int32Type
+	__VDLTypedb_objects154.AppendField("Nanos", __VDLTypedb_objects157)
+	__VDLTypedb_objects152.AppendField("Stamp", __VDLTypedb_objects155)
+	__VDLTypedb_objects158 := __VDLTypedb_objects15Builder.Struct()
+	__VDLTypedb_objects159 := __VDLTypedb_objects15Builder.Named("time.Duration").AssignBase(__VDLTypedb_objects158)
+	__VDLTypedb_objects158.AppendField("Seconds", __VDLTypedb_objects156)
+	__VDLTypedb_objects158.AppendField("Nanos", __VDLTypedb_objects157)
+	__VDLTypedb_objects152.AppendField("Interval", __VDLTypedb_objects159)
+	__VDLTypedb_objects151.AssignElem(__VDLTypedb_objects153)
+	__VDLTypedb_objects15Builder.Build()
+	__VDLTypedb_objects15v, err := __VDLTypedb_objects151.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypedb_objects15v
+}
+func init() {
+	__VDLTypedb_objects15 = __VDLTypedb_objects15_gen()
+}
+
+var __VDLTypedb_objects3 *vdl.Type = vdl.TypeOf((*TransUnionCreditReport)(nil))
+var __VDLTypedb_objects12 *vdl.Type = vdl.TypeOf([]int32(nil))
+var __VDLTypedb_objects14 *vdl.Type = vdl.TypeOf(map[string]int32(nil))
+var __VDLTypedb_objects17 *vdl.Type
+
+func __VDLTypedb_objects17_gen() *vdl.Type {
+	__VDLTypedb_objects17Builder := vdl.TypeBuilder{}
+
+	__VDLTypedb_objects171 := __VDLTypedb_objects17Builder.Map()
+	__VDLTypedb_objects172 := __VDLTypedb_objects17Builder.Array()
+	__VDLTypedb_objects173 := __VDLTypedb_objects17Builder.Named("v.io/x/ref/cmd/sb/internal/demodb.Array2String").AssignBase(__VDLTypedb_objects172)
+	__VDLTypedb_objects174 := vdl.StringType
+	__VDLTypedb_objects172.AssignElem(__VDLTypedb_objects174)
+	__VDLTypedb_objects172.AssignLen(2)
+	__VDLTypedb_objects171.AssignKey(__VDLTypedb_objects173)
+	__VDLTypedb_objects175 := __VDLTypedb_objects17Builder.Struct()
+	__VDLTypedb_objects176 := __VDLTypedb_objects17Builder.Named("v.io/x/ref/cmd/sb/internal/demodb.Recursive").AssignBase(__VDLTypedb_objects175)
+	__VDLTypedb_objects177 := vdl.AnyType
+	__VDLTypedb_objects175.AppendField("Any", __VDLTypedb_objects177)
+	__VDLTypedb_objects178 := __VDLTypedb_objects17Builder.Optional()
+	__VDLTypedb_objects179 := __VDLTypedb_objects17Builder.Struct()
+	__VDLTypedb_objects1710 := __VDLTypedb_objects17Builder.Named("v.io/x/ref/cmd/sb/internal/demodb.Times").AssignBase(__VDLTypedb_objects179)
+	__VDLTypedb_objects1711 := __VDLTypedb_objects17Builder.Struct()
+	__VDLTypedb_objects1712 := __VDLTypedb_objects17Builder.Named("time.Time").AssignBase(__VDLTypedb_objects1711)
+	__VDLTypedb_objects1713 := vdl.Int64Type
+	__VDLTypedb_objects1711.AppendField("Seconds", __VDLTypedb_objects1713)
+	__VDLTypedb_objects1714 := vdl.Int32Type
+	__VDLTypedb_objects1711.AppendField("Nanos", __VDLTypedb_objects1714)
+	__VDLTypedb_objects179.AppendField("Stamp", __VDLTypedb_objects1712)
+	__VDLTypedb_objects1715 := __VDLTypedb_objects17Builder.Struct()
+	__VDLTypedb_objects1716 := __VDLTypedb_objects17Builder.Named("time.Duration").AssignBase(__VDLTypedb_objects1715)
+	__VDLTypedb_objects1715.AppendField("Seconds", __VDLTypedb_objects1713)
+	__VDLTypedb_objects1715.AppendField("Nanos", __VDLTypedb_objects1714)
+	__VDLTypedb_objects179.AppendField("Interval", __VDLTypedb_objects1716)
+	__VDLTypedb_objects178.AssignElem(__VDLTypedb_objects1710)
+	__VDLTypedb_objects175.AppendField("Maybe", __VDLTypedb_objects178)
+	__VDLTypedb_objects175.AppendField("Rec", __VDLTypedb_objects171)
+	__VDLTypedb_objects171.AssignElem(__VDLTypedb_objects176)
+	__VDLTypedb_objects17Builder.Build()
+	__VDLTypedb_objects17v, err := __VDLTypedb_objects171.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypedb_objects17v
+}
+func init() {
+	__VDLTypedb_objects17 = __VDLTypedb_objects17_gen()
+}
+
+var __VDLTypedb_objects13 *vdl.Type = vdl.TypeOf(map[int32]struct{}(nil))
+var __VDLType_db_objects_time_Duration *vdl.Type
+
+func __VDLType_db_objects_time_Duration_gen() *vdl.Type {
+	__VDLType_db_objects_time_DurationBuilder := vdl.TypeBuilder{}
+
+	__VDLType_db_objects_time_Duration1 := __VDLType_db_objects_time_DurationBuilder.Struct()
+	__VDLType_db_objects_time_Duration2 := __VDLType_db_objects_time_DurationBuilder.Named("time.Duration").AssignBase(__VDLType_db_objects_time_Duration1)
+	__VDLType_db_objects_time_Duration3 := vdl.Int64Type
+	__VDLType_db_objects_time_Duration1.AppendField("Seconds", __VDLType_db_objects_time_Duration3)
+	__VDLType_db_objects_time_Duration4 := vdl.Int32Type
+	__VDLType_db_objects_time_Duration1.AppendField("Nanos", __VDLType_db_objects_time_Duration4)
+	__VDLType_db_objects_time_DurationBuilder.Build()
+	__VDLType_db_objects_time_Durationv, err := __VDLType_db_objects_time_Duration2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_db_objects_time_Durationv
+}
+func init() {
+	__VDLType_db_objects_time_Duration = __VDLType_db_objects_time_Duration_gen()
+}
+
+var __VDLType_db_objects_time_Time *vdl.Type
+
+func __VDLType_db_objects_time_Time_gen() *vdl.Type {
+	__VDLType_db_objects_time_TimeBuilder := vdl.TypeBuilder{}
+
+	__VDLType_db_objects_time_Time1 := __VDLType_db_objects_time_TimeBuilder.Struct()
+	__VDLType_db_objects_time_Time2 := __VDLType_db_objects_time_TimeBuilder.Named("time.Time").AssignBase(__VDLType_db_objects_time_Time1)
+	__VDLType_db_objects_time_Time3 := vdl.Int64Type
+	__VDLType_db_objects_time_Time1.AppendField("Seconds", __VDLType_db_objects_time_Time3)
+	__VDLType_db_objects_time_Time4 := vdl.Int32Type
+	__VDLType_db_objects_time_Time1.AppendField("Nanos", __VDLType_db_objects_time_Time4)
+	__VDLType_db_objects_time_TimeBuilder.Build()
+	__VDLType_db_objects_time_Timev, err := __VDLType_db_objects_time_Time2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_db_objects_time_Timev
+}
+func init() {
+	__VDLType_db_objects_time_Time = __VDLType_db_objects_time_Time_gen()
+}
+
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_ActOrSatScore *vdl.Type = vdl.TypeOf(ActOrSatScore(ActOrSatScoreActScore{uint16(0)}))
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_AddressInfo *vdl.Type = vdl.TypeOf(AddressInfo{})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_AgencyReport *vdl.Type = vdl.TypeOf(AgencyReport(AgencyReportEquifaxReport{EquifaxCreditReport{}}))
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_AnythingGoes *vdl.Type = vdl.TypeOf(AnythingGoes{})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Array2String *vdl.Type = vdl.TypeOf(Array2String{})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_BarType *vdl.Type = vdl.TypeOf(BarType{
+	Baz: BazType{
+		TitleOrValue: TitleOrValueTypeTitle{""},
+	},
+})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_BazType *vdl.Type = vdl.TypeOf(BazType{
+	TitleOrValue: TitleOrValueTypeTitle{""},
+})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Composite *vdl.Type = vdl.TypeOf(Composite{})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_CreditAgency *vdl.Type = vdl.TypeOf(CreditAgencyEquifax)
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_CreditReport *vdl.Type = vdl.TypeOf(CreditReport{
+	Report: AgencyReportEquifaxReport{EquifaxCreditReport{}},
+})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Customer *vdl.Type = vdl.TypeOf(Customer{
+	Credit: CreditReport{
+		Report: AgencyReportEquifaxReport{EquifaxCreditReport{}},
+	},
+})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_EquifaxCreditReport *vdl.Type = vdl.TypeOf(EquifaxCreditReport{})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_ExperianCreditReport *vdl.Type = vdl.TypeOf(ExperianCreditReport{})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_ExperianRating *vdl.Type = vdl.TypeOf(ExperianRatingGood)
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_FooType *vdl.Type = vdl.TypeOf(FooType{
+	Bar: BarType{
+		Baz: BazType{
+			TitleOrValue: TitleOrValueTypeTitle{""},
+		},
+	},
+})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Invoice *vdl.Type = vdl.TypeOf(Invoice{})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Numbers *vdl.Type = vdl.TypeOf(Numbers{})
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive *vdl.Type
+
+func __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive_gen() *vdl.Type {
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder := vdl.TypeBuilder{}
+
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive1 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Struct()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive2 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Named("v.io/x/ref/cmd/sb/internal/demodb.Recursive").AssignBase(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive1)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive3 := vdl.AnyType
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive1.AppendField("Any", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive3)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive4 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Optional()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive5 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Struct()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive6 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Named("v.io/x/ref/cmd/sb/internal/demodb.Times").AssignBase(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive5)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive7 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Struct()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive8 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Named("time.Time").AssignBase(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive7)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive9 := vdl.Int64Type
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive7.AppendField("Seconds", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive9)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive10 := vdl.Int32Type
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive7.AppendField("Nanos", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive10)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive5.AppendField("Stamp", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive8)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive11 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Struct()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive12 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Named("time.Duration").AssignBase(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive11)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive11.AppendField("Seconds", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive9)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive11.AppendField("Nanos", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive10)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive5.AppendField("Interval", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive12)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive4.AssignElem(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive6)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive1.AppendField("Maybe", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive4)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive13 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Map()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive14 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Array()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive15 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Named("v.io/x/ref/cmd/sb/internal/demodb.Array2String").AssignBase(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive14)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive16 := vdl.StringType
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive14.AssignElem(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive16)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive14.AssignLen(2)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive13.AssignKey(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive15)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive13.AssignElem(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive2)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive1.AppendField("Rec", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive13)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_RecursiveBuilder.Build()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursivev, err := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursivev
+}
+func init() {
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive = __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive_gen()
+}
+
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student *vdl.Type
+
+func __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student_gen() *vdl.Type {
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_StudentBuilder := vdl.TypeBuilder{}
+
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student1 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_StudentBuilder.Struct()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student2 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_StudentBuilder.Named("v.io/x/ref/cmd/sb/internal/demodb.Student").AssignBase(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student1)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student3 := vdl.StringType
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student1.AppendField("Name", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student3)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student4 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_StudentBuilder.Struct()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student5 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_StudentBuilder.Named("time.Time").AssignBase(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student4)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student6 := vdl.Int64Type
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student4.AppendField("Seconds", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student6)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student7 := vdl.Int32Type
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student4.AppendField("Nanos", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student7)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student1.AppendField("TestTime", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student5)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student8 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_StudentBuilder.Union()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student9 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_StudentBuilder.Named("v.io/x/ref/cmd/sb/internal/demodb.ActOrSatScore").AssignBase(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student8)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student10 := vdl.Uint16Type
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student8.AppendField("ActScore", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student10)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student8.AppendField("SatScore", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student10)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student1.AppendField("Score", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student9)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_StudentBuilder.Build()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Studentv, err := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Studentv
+}
+func init() {
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student = __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student_gen()
+}
+
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times *vdl.Type
+
+func __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times_gen() *vdl.Type {
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TimesBuilder := vdl.TypeBuilder{}
+
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times1 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TimesBuilder.Struct()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times2 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TimesBuilder.Named("v.io/x/ref/cmd/sb/internal/demodb.Times").AssignBase(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times1)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times3 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TimesBuilder.Struct()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times4 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TimesBuilder.Named("time.Time").AssignBase(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times3)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times5 := vdl.Int64Type
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times3.AppendField("Seconds", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times5)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times6 := vdl.Int32Type
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times3.AppendField("Nanos", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times6)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times1.AppendField("Stamp", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times4)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times7 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TimesBuilder.Struct()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times8 := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TimesBuilder.Named("time.Duration").AssignBase(__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times7)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times7.AppendField("Seconds", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times5)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times7.AppendField("Nanos", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times6)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times1.AppendField("Interval", __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times8)
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TimesBuilder.Build()
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Timesv, err := __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Timesv
+}
+func init() {
+	__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times = __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times_gen()
+}
+
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TitleOrValueType *vdl.Type = vdl.TypeOf(TitleOrValueType(TitleOrValueTypeTitle{""}))
+var __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_TransUnionCreditReport *vdl.Type = vdl.TypeOf(TransUnionCreditReport{})
+
+func __VDLEnsureNativeBuilt_db_objects() {
+	if __VDLTypedb_objects16 == nil {
+		__VDLTypedb_objects16 = __VDLTypedb_objects16_gen()
+	}
+	if __VDLTypedb_objects18 == nil {
+		__VDLTypedb_objects18 = __VDLTypedb_objects18_gen()
+	}
+	if __VDLTypedb_objects15 == nil {
+		__VDLTypedb_objects15 = __VDLTypedb_objects15_gen()
+	}
+	if __VDLTypedb_objects17 == nil {
+		__VDLTypedb_objects17 = __VDLTypedb_objects17_gen()
+	}
+	if __VDLType_db_objects_time_Duration == nil {
+		__VDLType_db_objects_time_Duration = __VDLType_db_objects_time_Duration_gen()
+	}
+	if __VDLType_db_objects_time_Time == nil {
+		__VDLType_db_objects_time_Time = __VDLType_db_objects_time_Time_gen()
+	}
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive == nil {
+		__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive = __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Recursive_gen()
+	}
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student == nil {
+		__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student = __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Student_gen()
+	}
+	if __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times == nil {
+		__VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times = __VDLType_db_objects_v_io_x_ref_cmd_sb_internal_demodb_Times_gen()
+	}
 }

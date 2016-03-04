@@ -22,6 +22,9 @@ import (
 	"v.io/v23/services/syncbase/nosql"
 )
 
+func __VDLEnsureNativeBuilt_sync() {
+}
+
 var (
 	ErrDupSyncgroupPublish = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.DupSyncgroupPublish", verror.NoRetry, "{1:}{2:} duplicate publish on syncgroup: {3}")
 	ErrConnFail            = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.ConnFail", verror.NoRetry, "{1:}{2:} connection to peer failed{:_}")

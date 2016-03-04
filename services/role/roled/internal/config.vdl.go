@@ -48,6 +48,214 @@ func (Config) __VDLReflect(struct {
 }) {
 }
 
+func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_config_v_io_x_ref_services_role_roled_internal_Config == nil || __VDLTypeconfig0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var var2 bool
+	if len(m.ImportMembers) == 0 {
+		var2 = true
+	}
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("ImportMembers")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget5, err := fieldTarget4.StartList(__VDLTypeconfig1, len(m.ImportMembers))
+			if err != nil {
+				return err
+			}
+			for i, elem7 := range m.ImportMembers {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget6.FromString(string(elem7), vdl.StringType); err != nil {
+					return err
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget4.FinishList(listTarget5); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.Members) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Members")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget11, err := fieldTarget10.StartList(__VDLTypeconfig2, len(m.Members))
+			if err != nil {
+				return err
+			}
+			for i, elem13 := range m.Members {
+				elemTarget12, err := listTarget11.StartElem(i)
+				if err != nil {
+					return err
+				}
+
+				if err := elem13.FillVDLTarget(elemTarget12, __VDLType_config_v_io_v23_security_BlessingPattern); err != nil {
+					return err
+				}
+				if err := listTarget11.FinishElem(elemTarget12); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget10.FinishList(listTarget11); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var14 := (m.Extend == false)
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("Extend")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget16.FromBool(bool(m.Extend), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	var17 := (m.Audit == false)
+	if !var17 {
+		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("Audit")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget19.FromBool(bool(m.Audit), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
+				return err
+			}
+		}
+	}
+	var20 := (m.Expiry == "")
+	if !var20 {
+		keyTarget21, fieldTarget22, err := fieldsTarget1.StartField("Expiry")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget22.FromString(string(m.Expiry), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget21, fieldTarget22); err != nil {
+				return err
+			}
+		}
+	}
+	var var23 bool
+	if len(m.Peers) == 0 {
+		var23 = true
+	}
+	if !var23 {
+		keyTarget24, fieldTarget25, err := fieldsTarget1.StartField("Peers")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget26, err := fieldTarget25.StartList(__VDLTypeconfig2, len(m.Peers))
+			if err != nil {
+				return err
+			}
+			for i, elem28 := range m.Peers {
+				elemTarget27, err := listTarget26.StartElem(i)
+				if err != nil {
+					return err
+				}
+
+				if err := elem28.FillVDLTarget(elemTarget27, __VDLType_config_v_io_v23_security_BlessingPattern); err != nil {
+					return err
+				}
+				if err := listTarget26.FinishElem(elemTarget27); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget25.FinishList(listTarget26); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget24, fieldTarget25); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Config) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Config) IsZero() bool {
+
+	var1 := true
+	var var2 bool
+	if len(m.ImportMembers) == 0 {
+		var2 = true
+	}
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.Members) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	var4 := (m.Extend == false)
+	var1 = var1 && var4
+	var5 := (m.Audit == false)
+	var1 = var1 && var5
+	var6 := (m.Expiry == "")
+	var1 = var1 && var6
+	var var7 bool
+	if len(m.Peers) == 0 {
+		var7 = true
+	}
+	var1 = var1 && var7
+	return var1
+}
+
 func init() {
 	vdl.Register((*Config)(nil))
+}
+
+var __VDLTypeconfig0 *vdl.Type = vdl.TypeOf((*Config)(nil))
+var __VDLTypeconfig1 *vdl.Type = vdl.TypeOf([]string(nil))
+var __VDLTypeconfig2 *vdl.Type = vdl.TypeOf([]security.BlessingPattern(nil))
+var __VDLType_config_v_io_v23_security_BlessingPattern *vdl.Type = vdl.TypeOf(security.BlessingPattern(""))
+var __VDLType_config_v_io_x_ref_services_role_roled_internal_Config *vdl.Type = vdl.TypeOf(Config{})
+
+func __VDLEnsureNativeBuilt_config() {
 }

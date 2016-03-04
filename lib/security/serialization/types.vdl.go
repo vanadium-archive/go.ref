@@ -24,11 +24,70 @@ func (SignedHeader) __VDLReflect(struct {
 }) {
 }
 
+func (m *SignedHeader) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_lib_security_serialization_SignedHeader == nil || __VDLTypetypes0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.ChunkSizeBytes == int64(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("ChunkSizeBytes")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromInt(int64(m.ChunkSizeBytes), vdl.Int64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *SignedHeader) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *SignedHeader) IsZero() bool {
+
+	var1 := (*m == SignedHeader{})
+	return var1
+}
+
 type HashCode [32]byte
 
 func (HashCode) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/lib/security/serialization.HashCode"`
 }) {
+}
+
+func (m HashCode) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if err := t.FromBytes([]byte(m[:]), __VDLType_types_v_io_x_ref_lib_security_serialization_HashCode); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m HashCode) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m HashCode) IsZero() bool {
+
+	var1 := (m == HashCode{})
+	return var1
 }
 
 type (
@@ -44,6 +103,8 @@ type (
 		Name() string
 		// __VDLReflect describes the SignedData union type.
 		__VDLReflect(__SignedDataReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// SignedDataSignature represents field Signature of the SignedData union type.
 	SignedDataSignature struct{ Value security.Signature }
@@ -65,13 +126,90 @@ func (x SignedDataSignature) Interface() interface{}           { return x.Value 
 func (x SignedDataSignature) Name() string                     { return "Signature" }
 func (x SignedDataSignature) __VDLReflect(__SignedDataReflect) {}
 
+func (m SignedDataSignature) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_lib_security_serialization_SignedData)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Signature")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_types_v_io_v23_security_Signature); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m SignedDataSignature) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m SignedDataSignature) IsZero() bool {
+
+	var2 := m.Value.IsZero()
+	return var2
+}
+
 func (x SignedDataHash) Index() int                       { return 1 }
 func (x SignedDataHash) Interface() interface{}           { return x.Value }
 func (x SignedDataHash) Name() string                     { return "Hash" }
 func (x SignedDataHash) __VDLReflect(__SignedDataReflect) {}
 
+func (m SignedDataHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_lib_security_serialization_SignedData)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Hash")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_types_v_io_x_ref_lib_security_serialization_HashCode); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m SignedDataHash) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m SignedDataHash) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
+
 func init() {
 	vdl.Register((*SignedHeader)(nil))
 	vdl.Register((*HashCode)(nil))
 	vdl.Register((*SignedData)(nil))
+}
+
+var __VDLTypetypes0 *vdl.Type = vdl.TypeOf((*SignedHeader)(nil))
+var __VDLType_types_v_io_v23_security_Signature *vdl.Type = vdl.TypeOf(security.Signature{})
+var __VDLType_types_v_io_x_ref_lib_security_serialization_HashCode *vdl.Type = vdl.TypeOf(HashCode{})
+var __VDLType_types_v_io_x_ref_lib_security_serialization_SignedData *vdl.Type = vdl.TypeOf(SignedData(SignedDataSignature{security.Signature{}}))
+var __VDLType_types_v_io_x_ref_lib_security_serialization_SignedHeader *vdl.Type = vdl.TypeOf(SignedHeader{})
+
+func __VDLEnsureNativeBuilt_types() {
 }

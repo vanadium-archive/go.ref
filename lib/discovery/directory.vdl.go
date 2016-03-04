@@ -19,6 +19,9 @@ import (
 	"v.io/v23/security/access"
 )
 
+func __VDLEnsureNativeBuilt_directory() {
+}
+
 // DirectoryClientMethods is the client interface
 // containing Directory methods.
 //

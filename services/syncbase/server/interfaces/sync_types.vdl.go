@@ -15,7 +15,7 @@ import (
 	// VDL user imports
 	"time"
 	"v.io/v23/services/syncbase/nosql"
-	_ "v.io/v23/vdlroot/time"
+	time_2 "v.io/v23/vdlroot/time"
 )
 
 // GenVector is the generation vector for any syncable entity, which maps each
@@ -27,6 +27,50 @@ func (GenVector) __VDLReflect(struct {
 }) {
 }
 
+func (m GenVector) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	mapTarget1, err := t.StartMap(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_GenVector, len(m))
+	if err != nil {
+		return err
+	}
+	for key3, value5 := range m {
+		keyTarget2, err := mapTarget1.StartKey()
+		if err != nil {
+			return err
+		}
+		if err := keyTarget2.FromUint(uint64(key3), vdl.Uint64Type); err != nil {
+			return err
+		}
+		valueTarget4, err := mapTarget1.FinishKeyStartField(keyTarget2)
+		if err != nil {
+			return err
+		}
+		if err := valueTarget4.FromUint(uint64(value5), vdl.Uint64Type); err != nil {
+			return err
+		}
+		if err := mapTarget1.FinishField(keyTarget2, valueTarget4); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishMap(mapTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m GenVector) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m GenVector) IsZero() bool {
+
+	var var1 bool
+	if len(m) == 0 {
+		var1 = true
+	}
+	return var1
+}
+
 // Knowledge is a mapping of syncable entities to their generation
 // vectors. These syncable entities could be data prefixes relative to an
 // Application and Database name, or syncgroup oids.
@@ -35,6 +79,51 @@ type Knowledge map[string]GenVector
 func (Knowledge) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.Knowledge"`
 }) {
+}
+
+func (m Knowledge) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	mapTarget1, err := t.StartMap(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_Knowledge, len(m))
+	if err != nil {
+		return err
+	}
+	for key3, value5 := range m {
+		keyTarget2, err := mapTarget1.StartKey()
+		if err != nil {
+			return err
+		}
+		if err := keyTarget2.FromString(string(key3), vdl.StringType); err != nil {
+			return err
+		}
+		valueTarget4, err := mapTarget1.FinishKeyStartField(keyTarget2)
+		if err != nil {
+			return err
+		}
+
+		if err := value5.FillVDLTarget(valueTarget4, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_GenVector); err != nil {
+			return err
+		}
+		if err := mapTarget1.FinishField(keyTarget2, valueTarget4); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishMap(mapTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m Knowledge) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m Knowledge) IsZero() bool {
+
+	var var1 bool
+	if len(m) == 0 {
+		var1 = true
+	}
+	return var1
 }
 
 // LogRecMetadata represents the metadata of a single log record that is
@@ -67,6 +156,268 @@ func (LogRecMetadata) __VDLReflect(struct {
 }) {
 }
 
+func (m *LogRecMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_sync_types()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Id == uint64(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Id")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromUint(uint64(m.Id), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Gen == uint64(0))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Gen")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromUint(uint64(m.Gen), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.RecType == byte(0))
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("RecType")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromUint(uint64(m.RecType), vdl.ByteType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := (m.ObjId == "")
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("ObjId")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget13.FromString(string(m.ObjId), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var14 := (m.CurVers == "")
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("CurVers")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget16.FromString(string(m.CurVers), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	var var17 bool
+	if len(m.Parents) == 0 {
+		var17 = true
+	}
+	if !var17 {
+		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("Parents")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget20, err := fieldTarget19.StartList(__VDLTypesync_types1, len(m.Parents))
+			if err != nil {
+				return err
+			}
+			for i, elem22 := range m.Parents {
+				elemTarget21, err := listTarget20.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget21.FromString(string(elem22), vdl.StringType); err != nil {
+					return err
+				}
+				if err := listTarget20.FinishElem(elemTarget21); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget19.FinishList(listTarget20); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue23 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue23, m.UpdTime); err != nil {
+		return err
+	}
+
+	var24 := wireValue23.IsZero()
+	if !var24 {
+		keyTarget25, fieldTarget26, err := fieldsTarget1.StartField("UpdTime")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue23.FillVDLTarget(fieldTarget26, __VDLType_sync_types_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget25, fieldTarget26); err != nil {
+				return err
+			}
+		}
+	}
+	var27 := (m.PermId == "")
+	if !var27 {
+		keyTarget28, fieldTarget29, err := fieldsTarget1.StartField("PermId")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget29.FromString(string(m.PermId), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
+				return err
+			}
+		}
+	}
+	var30 := (m.PermVers == "")
+	if !var30 {
+		keyTarget31, fieldTarget32, err := fieldsTarget1.StartField("PermVers")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget32.FromString(string(m.PermVers), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget31, fieldTarget32); err != nil {
+				return err
+			}
+		}
+	}
+	var33 := (m.Delete == false)
+	if !var33 {
+		keyTarget34, fieldTarget35, err := fieldsTarget1.StartField("Delete")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget35.FromBool(bool(m.Delete), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget34, fieldTarget35); err != nil {
+				return err
+			}
+		}
+	}
+	var36 := (m.BatchId == uint64(0))
+	if !var36 {
+		keyTarget37, fieldTarget38, err := fieldsTarget1.StartField("BatchId")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget38.FromUint(uint64(m.BatchId), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget37, fieldTarget38); err != nil {
+				return err
+			}
+		}
+	}
+	var39 := (m.BatchCount == uint64(0))
+	if !var39 {
+		keyTarget40, fieldTarget41, err := fieldsTarget1.StartField("BatchCount")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget41.FromUint(uint64(m.BatchCount), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget40, fieldTarget41); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *LogRecMetadata) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *LogRecMetadata) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Id == uint64(0))
+	var1 = var1 && var2
+	var3 := (m.Gen == uint64(0))
+	var1 = var1 && var3
+	var4 := (m.RecType == byte(0))
+	var1 = var1 && var4
+	var5 := (m.ObjId == "")
+	var1 = var1 && var5
+	var6 := (m.CurVers == "")
+	var1 = var1 && var6
+	var var7 bool
+	if len(m.Parents) == 0 {
+		var7 = true
+	}
+	var1 = var1 && var7
+	var wireValue8 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue8, m.UpdTime); err != nil {
+		return false // error will be caught on encode
+	}
+
+	var9 := wireValue8.IsZero()
+	var1 = var1 && var9
+	var10 := (m.PermId == "")
+	var1 = var1 && var10
+	var11 := (m.PermVers == "")
+	var1 = var1 && var11
+	var12 := (m.Delete == false)
+	var1 = var1 && var12
+	var13 := (m.BatchId == uint64(0))
+	var1 = var1 && var13
+	var14 := (m.BatchCount == uint64(0))
+	var1 = var1 && var14
+	return var1
+}
+
 // LogRec represents the on-wire representation of an entire log record: its
 // metadata and data. Value is the actual value of a store object.
 type LogRec struct {
@@ -80,6 +431,89 @@ func (LogRec) __VDLReflect(struct {
 }) {
 }
 
+func (m *LogRec) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_sync_types()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Metadata.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Metadata")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Metadata.FillVDLTarget(fieldTarget4, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.Value) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Value")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := fieldTarget7.FromBytes([]byte(m.Value), __VDLTypesync_types3); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.Shell == false)
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Shell")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromBool(bool(m.Shell), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *LogRec) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *LogRec) IsZero() bool {
+
+	var1 := true
+	var2 := m.Metadata.IsZero()
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.Value) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	var4 := (m.Shell == false)
+	var1 = var1 && var4
+	return var1
+}
+
 // GroupId is a globally unique syncgroup ID.
 // TODO(hpucha): Make this a string since now the syncgroup id is an object id.
 type GroupId uint64
@@ -87,6 +521,23 @@ type GroupId uint64
 func (GroupId) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.GroupId"`
 }) {
+}
+
+func (m GroupId) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64(m), __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_GroupId); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m GroupId) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m GroupId) IsZero() bool {
+
+	var1 := (m == GroupId(0))
+	return var1
 }
 
 // Possible states for a syncgroup.
@@ -143,6 +594,23 @@ func (SyncgroupStatus) __VDLReflect(struct {
 }) {
 }
 
+func (m SyncgroupStatus) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromEnumLabel(m.String(), __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SyncgroupStatus); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m SyncgroupStatus) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m SyncgroupStatus) IsZero() bool {
+
+	var1 := (m == SyncgroupStatusPublishPending)
+	return var1
+}
+
 // Syncgroup contains the state of a syncgroup.
 type Syncgroup struct {
 	Id          GroupId                              // globally unique identifier generated by Syncbase
@@ -161,6 +629,219 @@ func (Syncgroup) __VDLReflect(struct {
 }) {
 }
 
+func (m *Syncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_Syncgroup == nil || __VDLTypesync_types4 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Id.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Id")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Id.FillVDLTarget(fieldTarget4, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_GroupId); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Name == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Name")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.Name), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.SpecVersion == "")
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("SpecVersion")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromString(string(m.SpecVersion), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := m.Spec.IsZero()
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("Spec")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Spec.FillVDLTarget(fieldTarget13, __VDLType_sync_types_v_io_v23_services_syncbase_nosql_SyncgroupSpec); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var14 := (m.Creator == "")
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("Creator")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget16.FromString(string(m.Creator), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	var17 := (m.AppName == "")
+	if !var17 {
+		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("AppName")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget19.FromString(string(m.AppName), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
+				return err
+			}
+		}
+	}
+	var20 := (m.DbName == "")
+	if !var20 {
+		keyTarget21, fieldTarget22, err := fieldsTarget1.StartField("DbName")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget22.FromString(string(m.DbName), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget21, fieldTarget22); err != nil {
+				return err
+			}
+		}
+	}
+	var23 := m.Status.IsZero()
+	if !var23 {
+		keyTarget24, fieldTarget25, err := fieldsTarget1.StartField("Status")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Status.FillVDLTarget(fieldTarget25, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SyncgroupStatus); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget24, fieldTarget25); err != nil {
+				return err
+			}
+		}
+	}
+	var var26 bool
+	if len(m.Joiners) == 0 {
+		var26 = true
+	}
+	if !var26 {
+		keyTarget27, fieldTarget28, err := fieldsTarget1.StartField("Joiners")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			mapTarget29, err := fieldTarget28.StartMap(__VDLTypesync_types5, len(m.Joiners))
+			if err != nil {
+				return err
+			}
+			for key31, value33 := range m.Joiners {
+				keyTarget30, err := mapTarget29.StartKey()
+				if err != nil {
+					return err
+				}
+				if err := keyTarget30.FromString(string(key31), vdl.StringType); err != nil {
+					return err
+				}
+				valueTarget32, err := mapTarget29.FinishKeyStartField(keyTarget30)
+				if err != nil {
+					return err
+				}
+
+				if err := value33.FillVDLTarget(valueTarget32, __VDLType_sync_types_v_io_v23_services_syncbase_nosql_SyncgroupMemberInfo); err != nil {
+					return err
+				}
+				if err := mapTarget29.FinishField(keyTarget30, valueTarget32); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget28.FinishMap(mapTarget29); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget27, fieldTarget28); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Syncgroup) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Syncgroup) IsZero() bool {
+
+	var1 := true
+	var2 := m.Id.IsZero()
+	var1 = var1 && var2
+	var3 := (m.Name == "")
+	var1 = var1 && var3
+	var4 := (m.SpecVersion == "")
+	var1 = var1 && var4
+	var5 := m.Spec.IsZero()
+	var1 = var1 && var5
+	var6 := (m.Creator == "")
+	var1 = var1 && var6
+	var7 := (m.AppName == "")
+	var1 = var1 && var7
+	var8 := (m.DbName == "")
+	var1 = var1 && var8
+	var9 := m.Status.IsZero()
+	var1 = var1 && var9
+	var var10 bool
+	if len(m.Joiners) == 0 {
+		var10 = true
+	}
+	var1 = var1 && var10
+	return var1
+}
+
 type (
 	// DeltaReq represents any single field of the DeltaReq union type.
 	//
@@ -175,6 +856,8 @@ type (
 		Name() string
 		// __VDLReflect describes the DeltaReq union type.
 		__VDLReflect(__DeltaReqReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// DeltaReqSgs represents field Sgs of the DeltaReq union type.
 	DeltaReqSgs struct{ Value SgDeltaReq }
@@ -196,10 +879,78 @@ func (x DeltaReqSgs) Interface() interface{}         { return x.Value }
 func (x DeltaReqSgs) Name() string                   { return "Sgs" }
 func (x DeltaReqSgs) __VDLReflect(__DeltaReqReflect) {}
 
+func (m DeltaReqSgs) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaReq)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Sgs")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgDeltaReq); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m DeltaReqSgs) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m DeltaReqSgs) IsZero() bool {
+
+	var2 := m.Value.IsZero()
+	return var2
+}
+
 func (x DeltaReqData) Index() int                     { return 1 }
 func (x DeltaReqData) Interface() interface{}         { return x.Value }
 func (x DeltaReqData) Name() string                   { return "Data" }
 func (x DeltaReqData) __VDLReflect(__DeltaReqReflect) {}
+
+func (m DeltaReqData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaReq)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Data")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DataDeltaReq); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m DeltaReqData) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m DeltaReqData) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 // DataDeltaReq contains the initiator's genvectors and the set of syncgroups it
 // is interested in within a Database (specified by the AppName/DbName) when
@@ -216,6 +967,131 @@ func (DataDeltaReq) __VDLReflect(struct {
 }) {
 }
 
+func (m *DataDeltaReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DataDeltaReq == nil || __VDLTypesync_types6 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.AppName == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("AppName")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.AppName), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.DbName == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("DbName")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.DbName), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.SgIds) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("SgIds")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			setTarget11, err := fieldTarget10.StartSet(__VDLTypesync_types7, len(m.SgIds))
+			if err != nil {
+				return err
+			}
+			for key13 := range m.SgIds {
+				keyTarget12, err := setTarget11.StartKey()
+				if err != nil {
+					return err
+				}
+
+				if err := key13.FillVDLTarget(keyTarget12, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_GroupId); err != nil {
+					return err
+				}
+				if err := setTarget11.FinishKey(keyTarget12); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget10.FinishSet(setTarget11); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var var14 bool
+	if len(m.Gvs) == 0 {
+		var14 = true
+	}
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("Gvs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Gvs.FillVDLTarget(fieldTarget16, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_Knowledge); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *DataDeltaReq) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *DataDeltaReq) IsZero() bool {
+
+	var1 := true
+	var2 := (m.AppName == "")
+	var1 = var1 && var2
+	var3 := (m.DbName == "")
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.SgIds) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	var var5 bool
+	if len(m.Gvs) == 0 {
+		var5 = true
+	}
+	var1 = var1 && var5
+	return var1
+}
+
 // SgDeltaReq contains the initiator's genvectors for the syncgroups it is
 // interested in within a Database (specified by the AppName/DbName) when
 // requesting deltas for those syncgroups.
@@ -228,6 +1104,90 @@ type SgDeltaReq struct {
 func (SgDeltaReq) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.SgDeltaReq"`
 }) {
+}
+
+func (m *SgDeltaReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgDeltaReq == nil || __VDLTypesync_types8 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.AppName == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("AppName")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.AppName), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.DbName == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("DbName")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.DbName), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.Gvs) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Gvs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Gvs.FillVDLTarget(fieldTarget10, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_Knowledge); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *SgDeltaReq) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *SgDeltaReq) IsZero() bool {
+
+	var1 := true
+	var2 := (m.AppName == "")
+	var1 = var1 && var2
+	var3 := (m.DbName == "")
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.Gvs) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	return var1
 }
 
 type (
@@ -244,6 +1204,8 @@ type (
 		Name() string
 		// __VDLReflect describes the DeltaResp union type.
 		__VDLReflect(__DeltaRespReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// DeltaRespRec represents field Rec of the DeltaResp union type.
 	DeltaRespRec struct{ Value LogRec }
@@ -265,10 +1227,78 @@ func (x DeltaRespRec) Interface() interface{}          { return x.Value }
 func (x DeltaRespRec) Name() string                    { return "Rec" }
 func (x DeltaRespRec) __VDLReflect(__DeltaRespReflect) {}
 
+func (m DeltaRespRec) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Rec")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m DeltaRespRec) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m DeltaRespRec) IsZero() bool {
+
+	var2 := m.Value.IsZero()
+	return var2
+}
+
 func (x DeltaRespGvs) Index() int                      { return 1 }
 func (x DeltaRespGvs) Interface() interface{}          { return x.Value }
 func (x DeltaRespGvs) Name() string                    { return "Gvs" }
 func (x DeltaRespGvs) __VDLReflect(__DeltaRespReflect) {}
+
+func (m DeltaRespGvs) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Gvs")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_Knowledge); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m DeltaRespGvs) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m DeltaRespGvs) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 // DeltaFinalResp contains the data returned at the end of a GetDeltas call.
 type DeltaFinalResp struct {
@@ -278,6 +1308,54 @@ type DeltaFinalResp struct {
 func (DeltaFinalResp) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.DeltaFinalResp"`
 }) {
+}
+
+func (m *DeltaFinalResp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_sync_types()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var var2 bool
+	if len(m.SgPriorities) == 0 {
+		var2 = true
+	}
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("SgPriorities")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.SgPriorities.FillVDLTarget(fieldTarget4, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *DeltaFinalResp) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *DeltaFinalResp) IsZero() bool {
+
+	var1 := true
+	var var2 bool
+	if len(m.SgPriorities) == 0 {
+		var2 = true
+	}
+	var1 = var1 && var2
+	return var1
 }
 
 // ChunkHash contains the hash of a chunk that is part of a blob's recipe.
@@ -290,6 +1368,56 @@ func (ChunkHash) __VDLReflect(struct {
 }) {
 }
 
+func (m *ChunkHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_ChunkHash == nil || __VDLTypesync_types10 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var var2 bool
+	if len(m.Hash) == 0 {
+		var2 = true
+	}
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Hash")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := fieldTarget4.FromBytes([]byte(m.Hash), __VDLTypesync_types3); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ChunkHash) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *ChunkHash) IsZero() bool {
+
+	var1 := true
+	var var2 bool
+	if len(m.Hash) == 0 {
+		var2 = true
+	}
+	var1 = var1 && var2
+	return var1
+}
+
 // ChunkData contains the data of a chunk.
 type ChunkData struct {
 	Data []byte
@@ -300,6 +1428,56 @@ func (ChunkData) __VDLReflect(struct {
 }) {
 }
 
+func (m *ChunkData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_ChunkData == nil || __VDLTypesync_types11 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var var2 bool
+	if len(m.Data) == 0 {
+		var2 = true
+	}
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Data")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := fieldTarget4.FromBytes([]byte(m.Data), __VDLTypesync_types3); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ChunkData) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *ChunkData) IsZero() bool {
+
+	var1 := true
+	var var2 bool
+	if len(m.Data) == 0 {
+		var2 = true
+	}
+	var1 = var1 && var2
+	return var1
+}
+
 // TimeReq contains the send timestamp from the requester.
 type TimeReq struct {
 	SendTs time.Time
@@ -308,6 +1486,51 @@ type TimeReq struct {
 func (TimeReq) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.TimeReq"`
 }) {
+}
+
+func (m *TimeReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_sync_types()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var wireValue2 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue2, m.SendTs); err != nil {
+		return err
+	}
+
+	var3 := wireValue2.IsZero()
+	if !var3 {
+		keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("SendTs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue2.FillVDLTarget(fieldTarget5, __VDLType_sync_types_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *TimeReq) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *TimeReq) IsZero() bool {
+
+	var1 := (*m == TimeReq{})
+	return var1
 }
 
 // TimeResp contains information needed by the requester to estimate the
@@ -332,6 +1555,144 @@ func (TimeResp) __VDLReflect(struct {
 }) {
 }
 
+func (m *TimeResp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_sync_types()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var wireValue2 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue2, m.OrigTs); err != nil {
+		return err
+	}
+
+	var3 := wireValue2.IsZero()
+	if !var3 {
+		keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("OrigTs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue2.FillVDLTarget(fieldTarget5, __VDLType_sync_types_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue6 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue6, m.RecvTs); err != nil {
+		return err
+	}
+
+	var7 := wireValue6.IsZero()
+	if !var7 {
+		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("RecvTs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue6.FillVDLTarget(fieldTarget9, __VDLType_sync_types_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue10 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue10, m.SendTs); err != nil {
+		return err
+	}
+
+	var11 := wireValue10.IsZero()
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("SendTs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue10.FillVDLTarget(fieldTarget13, __VDLType_sync_types_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue14 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue14, m.LastNtpTs); err != nil {
+		return err
+	}
+
+	var15 := wireValue14.IsZero()
+	if !var15 {
+		keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("LastNtpTs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue14.FillVDLTarget(fieldTarget17, __VDLType_sync_types_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
+				return err
+			}
+		}
+	}
+	var18 := (m.NumReboots == uint16(0))
+	if !var18 {
+		keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("NumReboots")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget20.FromUint(uint64(m.NumReboots), vdl.Uint16Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
+				return err
+			}
+		}
+	}
+	var21 := (m.NumHops == uint16(0))
+	if !var21 {
+		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("NumHops")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget23.FromUint(uint64(m.NumHops), vdl.Uint16Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *TimeResp) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *TimeResp) IsZero() bool {
+
+	var1 := (*m == TimeResp{})
+	return var1
+}
+
 // A SgPriority represents data used to decide whether to transfer blob ownership
 // between two devices.
 type SgPriority struct {
@@ -344,6 +1705,66 @@ func (SgPriority) __VDLReflect(struct {
 }) {
 }
 
+func (m *SgPriority) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_sync_types()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Distance == int32(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Distance")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromInt(int64(m.Distance), vdl.Int32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue5 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue5, m.ServerTime); err != nil {
+		return err
+	}
+
+	var6 := wireValue5.IsZero()
+	if !var6 {
+		keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("ServerTime")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue5.FillVDLTarget(fieldTarget8, __VDLType_sync_types_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *SgPriority) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *SgPriority) IsZero() bool {
+
+	var1 := (*m == SgPriority{})
+	return var1
+}
+
 // A SgPriorities maps syncgroup IDs to SgPriority structures.  It is sent and
 // received in GetDeltas calls to allow the participants to assess who has
 // higher priorities for keeping blobs.
@@ -354,6 +1775,52 @@ func (SgPriorities) __VDLReflect(struct {
 }) {
 }
 
+func (m SgPriorities) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	mapTarget1, err := t.StartMap(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities, len(m))
+	if err != nil {
+		return err
+	}
+	for key3, value5 := range m {
+		keyTarget2, err := mapTarget1.StartKey()
+		if err != nil {
+			return err
+		}
+
+		if err := key3.FillVDLTarget(keyTarget2, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_GroupId); err != nil {
+			return err
+		}
+		valueTarget4, err := mapTarget1.FinishKeyStartField(keyTarget2)
+		if err != nil {
+			return err
+		}
+
+		if err := value5.FillVDLTarget(valueTarget4, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority); err != nil {
+			return err
+		}
+		if err := mapTarget1.FinishField(keyTarget2, valueTarget4); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishMap(mapTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m SgPriorities) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m SgPriorities) IsZero() bool {
+
+	var var1 bool
+	if len(m) == 0 {
+		var1 = true
+	}
+	return var1
+}
+
 // A BlobSharesBySyncgroup maps syncgroup IDs to integer share numbers that a
 // syncbase instance may have for a blob.
 type BlobSharesBySyncgroup map[GroupId]int32
@@ -361,6 +1828,51 @@ type BlobSharesBySyncgroup map[GroupId]int32
 func (BlobSharesBySyncgroup) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.BlobSharesBySyncgroup"`
 }) {
+}
+
+func (m BlobSharesBySyncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	mapTarget1, err := t.StartMap(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_BlobSharesBySyncgroup, len(m))
+	if err != nil {
+		return err
+	}
+	for key3, value5 := range m {
+		keyTarget2, err := mapTarget1.StartKey()
+		if err != nil {
+			return err
+		}
+
+		if err := key3.FillVDLTarget(keyTarget2, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_GroupId); err != nil {
+			return err
+		}
+		valueTarget4, err := mapTarget1.FinishKeyStartField(keyTarget2)
+		if err != nil {
+			return err
+		}
+		if err := valueTarget4.FromInt(int64(value5), vdl.Int32Type); err != nil {
+			return err
+		}
+		if err := mapTarget1.FinishField(keyTarget2, valueTarget4); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishMap(mapTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m BlobSharesBySyncgroup) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m BlobSharesBySyncgroup) IsZero() bool {
+
+	var var1 bool
+	if len(m) == 0 {
+		var1 = true
+	}
+	return var1
 }
 
 // A Signpost is a hint to syncbase of the device on which a blob may be found.
@@ -375,6 +1887,107 @@ type Signpost struct {
 func (Signpost) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.Signpost"`
 }) {
+}
+
+func (m *Signpost) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_Signpost == nil || __VDLTypesync_types15 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Peer == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Peer")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Peer), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Source == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Source")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.Source), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.SgIds) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("SgIds")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			setTarget11, err := fieldTarget10.StartSet(__VDLTypesync_types7, len(m.SgIds))
+			if err != nil {
+				return err
+			}
+			for key13 := range m.SgIds {
+				keyTarget12, err := setTarget11.StartKey()
+				if err != nil {
+					return err
+				}
+
+				if err := key13.FillVDLTarget(keyTarget12, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_GroupId); err != nil {
+					return err
+				}
+				if err := setTarget11.FinishKey(keyTarget12); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget10.FinishSet(setTarget11); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Signpost) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Signpost) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Peer == "")
+	var1 = var1 && var2
+	var3 := (m.Source == "")
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.SgIds) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	return var1
 }
 
 func init() {
@@ -398,6 +2011,620 @@ func init() {
 	vdl.Register((*SgPriorities)(nil))
 	vdl.Register((*BlobSharesBySyncgroup)(nil))
 	vdl.Register((*Signpost)(nil))
+}
+
+var __VDLTypesync_types11 *vdl.Type = vdl.TypeOf((*ChunkData)(nil))
+var __VDLTypesync_types10 *vdl.Type = vdl.TypeOf((*ChunkHash)(nil))
+var __VDLTypesync_types6 *vdl.Type = vdl.TypeOf((*DataDeltaReq)(nil))
+var __VDLTypesync_types9 *vdl.Type
+
+func __VDLTypesync_types9_gen() *vdl.Type {
+	__VDLTypesync_types9Builder := vdl.TypeBuilder{}
+
+	__VDLTypesync_types91 := __VDLTypesync_types9Builder.Optional()
+	__VDLTypesync_types92 := __VDLTypesync_types9Builder.Struct()
+	__VDLTypesync_types93 := __VDLTypesync_types9Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.DeltaFinalResp").AssignBase(__VDLTypesync_types92)
+	__VDLTypesync_types94 := __VDLTypesync_types9Builder.Map()
+	__VDLTypesync_types95 := __VDLTypesync_types9Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.SgPriorities").AssignBase(__VDLTypesync_types94)
+	__VDLTypesync_types96 := vdl.Uint64Type
+	__VDLTypesync_types97 := __VDLTypesync_types9Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.GroupId").AssignBase(__VDLTypesync_types96)
+	__VDLTypesync_types94.AssignKey(__VDLTypesync_types97)
+	__VDLTypesync_types98 := __VDLTypesync_types9Builder.Struct()
+	__VDLTypesync_types99 := __VDLTypesync_types9Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.SgPriority").AssignBase(__VDLTypesync_types98)
+	__VDLTypesync_types910 := vdl.Int32Type
+	__VDLTypesync_types98.AppendField("Distance", __VDLTypesync_types910)
+	__VDLTypesync_types911 := __VDLTypesync_types9Builder.Struct()
+	__VDLTypesync_types912 := __VDLTypesync_types9Builder.Named("time.Time").AssignBase(__VDLTypesync_types911)
+	__VDLTypesync_types913 := vdl.Int64Type
+	__VDLTypesync_types911.AppendField("Seconds", __VDLTypesync_types913)
+	__VDLTypesync_types911.AppendField("Nanos", __VDLTypesync_types910)
+	__VDLTypesync_types98.AppendField("ServerTime", __VDLTypesync_types912)
+	__VDLTypesync_types94.AssignElem(__VDLTypesync_types99)
+	__VDLTypesync_types92.AppendField("SgPriorities", __VDLTypesync_types95)
+	__VDLTypesync_types91.AssignElem(__VDLTypesync_types93)
+	__VDLTypesync_types9Builder.Build()
+	__VDLTypesync_types9v, err := __VDLTypesync_types91.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypesync_types9v
+}
+func init() {
+	__VDLTypesync_types9 = __VDLTypesync_types9_gen()
+}
+
+var __VDLTypesync_types2 *vdl.Type
+
+func __VDLTypesync_types2_gen() *vdl.Type {
+	__VDLTypesync_types2Builder := vdl.TypeBuilder{}
+
+	__VDLTypesync_types21 := __VDLTypesync_types2Builder.Optional()
+	__VDLTypesync_types22 := __VDLTypesync_types2Builder.Struct()
+	__VDLTypesync_types23 := __VDLTypesync_types2Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.LogRec").AssignBase(__VDLTypesync_types22)
+	__VDLTypesync_types24 := __VDLTypesync_types2Builder.Struct()
+	__VDLTypesync_types25 := __VDLTypesync_types2Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata").AssignBase(__VDLTypesync_types24)
+	__VDLTypesync_types26 := vdl.Uint64Type
+	__VDLTypesync_types24.AppendField("Id", __VDLTypesync_types26)
+	__VDLTypesync_types24.AppendField("Gen", __VDLTypesync_types26)
+	__VDLTypesync_types27 := vdl.ByteType
+	__VDLTypesync_types24.AppendField("RecType", __VDLTypesync_types27)
+	__VDLTypesync_types28 := vdl.StringType
+	__VDLTypesync_types24.AppendField("ObjId", __VDLTypesync_types28)
+	__VDLTypesync_types24.AppendField("CurVers", __VDLTypesync_types28)
+	__VDLTypesync_types29 := __VDLTypesync_types2Builder.List()
+	__VDLTypesync_types29.AssignElem(__VDLTypesync_types28)
+	__VDLTypesync_types24.AppendField("Parents", __VDLTypesync_types29)
+	__VDLTypesync_types210 := __VDLTypesync_types2Builder.Struct()
+	__VDLTypesync_types211 := __VDLTypesync_types2Builder.Named("time.Time").AssignBase(__VDLTypesync_types210)
+	__VDLTypesync_types212 := vdl.Int64Type
+	__VDLTypesync_types210.AppendField("Seconds", __VDLTypesync_types212)
+	__VDLTypesync_types213 := vdl.Int32Type
+	__VDLTypesync_types210.AppendField("Nanos", __VDLTypesync_types213)
+	__VDLTypesync_types24.AppendField("UpdTime", __VDLTypesync_types211)
+	__VDLTypesync_types24.AppendField("PermId", __VDLTypesync_types28)
+	__VDLTypesync_types24.AppendField("PermVers", __VDLTypesync_types28)
+	__VDLTypesync_types214 := vdl.BoolType
+	__VDLTypesync_types24.AppendField("Delete", __VDLTypesync_types214)
+	__VDLTypesync_types24.AppendField("BatchId", __VDLTypesync_types26)
+	__VDLTypesync_types24.AppendField("BatchCount", __VDLTypesync_types26)
+	__VDLTypesync_types22.AppendField("Metadata", __VDLTypesync_types25)
+	__VDLTypesync_types215 := __VDLTypesync_types2Builder.List()
+	__VDLTypesync_types215.AssignElem(__VDLTypesync_types27)
+	__VDLTypesync_types22.AppendField("Value", __VDLTypesync_types215)
+	__VDLTypesync_types22.AppendField("Shell", __VDLTypesync_types214)
+	__VDLTypesync_types21.AssignElem(__VDLTypesync_types23)
+	__VDLTypesync_types2Builder.Build()
+	__VDLTypesync_types2v, err := __VDLTypesync_types21.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypesync_types2v
+}
+func init() {
+	__VDLTypesync_types2 = __VDLTypesync_types2_gen()
+}
+
+var __VDLTypesync_types0 *vdl.Type
+
+func __VDLTypesync_types0_gen() *vdl.Type {
+	__VDLTypesync_types0Builder := vdl.TypeBuilder{}
+
+	__VDLTypesync_types01 := __VDLTypesync_types0Builder.Optional()
+	__VDLTypesync_types02 := __VDLTypesync_types0Builder.Struct()
+	__VDLTypesync_types03 := __VDLTypesync_types0Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata").AssignBase(__VDLTypesync_types02)
+	__VDLTypesync_types04 := vdl.Uint64Type
+	__VDLTypesync_types02.AppendField("Id", __VDLTypesync_types04)
+	__VDLTypesync_types02.AppendField("Gen", __VDLTypesync_types04)
+	__VDLTypesync_types05 := vdl.ByteType
+	__VDLTypesync_types02.AppendField("RecType", __VDLTypesync_types05)
+	__VDLTypesync_types06 := vdl.StringType
+	__VDLTypesync_types02.AppendField("ObjId", __VDLTypesync_types06)
+	__VDLTypesync_types02.AppendField("CurVers", __VDLTypesync_types06)
+	__VDLTypesync_types07 := __VDLTypesync_types0Builder.List()
+	__VDLTypesync_types07.AssignElem(__VDLTypesync_types06)
+	__VDLTypesync_types02.AppendField("Parents", __VDLTypesync_types07)
+	__VDLTypesync_types08 := __VDLTypesync_types0Builder.Struct()
+	__VDLTypesync_types09 := __VDLTypesync_types0Builder.Named("time.Time").AssignBase(__VDLTypesync_types08)
+	__VDLTypesync_types010 := vdl.Int64Type
+	__VDLTypesync_types08.AppendField("Seconds", __VDLTypesync_types010)
+	__VDLTypesync_types011 := vdl.Int32Type
+	__VDLTypesync_types08.AppendField("Nanos", __VDLTypesync_types011)
+	__VDLTypesync_types02.AppendField("UpdTime", __VDLTypesync_types09)
+	__VDLTypesync_types02.AppendField("PermId", __VDLTypesync_types06)
+	__VDLTypesync_types02.AppendField("PermVers", __VDLTypesync_types06)
+	__VDLTypesync_types012 := vdl.BoolType
+	__VDLTypesync_types02.AppendField("Delete", __VDLTypesync_types012)
+	__VDLTypesync_types02.AppendField("BatchId", __VDLTypesync_types04)
+	__VDLTypesync_types02.AppendField("BatchCount", __VDLTypesync_types04)
+	__VDLTypesync_types01.AssignElem(__VDLTypesync_types03)
+	__VDLTypesync_types0Builder.Build()
+	__VDLTypesync_types0v, err := __VDLTypesync_types01.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypesync_types0v
+}
+func init() {
+	__VDLTypesync_types0 = __VDLTypesync_types0_gen()
+}
+
+var __VDLTypesync_types8 *vdl.Type = vdl.TypeOf((*SgDeltaReq)(nil))
+var __VDLTypesync_types14 *vdl.Type
+
+func __VDLTypesync_types14_gen() *vdl.Type {
+	__VDLTypesync_types14Builder := vdl.TypeBuilder{}
+
+	__VDLTypesync_types141 := __VDLTypesync_types14Builder.Optional()
+	__VDLTypesync_types142 := __VDLTypesync_types14Builder.Struct()
+	__VDLTypesync_types143 := __VDLTypesync_types14Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.SgPriority").AssignBase(__VDLTypesync_types142)
+	__VDLTypesync_types144 := vdl.Int32Type
+	__VDLTypesync_types142.AppendField("Distance", __VDLTypesync_types144)
+	__VDLTypesync_types145 := __VDLTypesync_types14Builder.Struct()
+	__VDLTypesync_types146 := __VDLTypesync_types14Builder.Named("time.Time").AssignBase(__VDLTypesync_types145)
+	__VDLTypesync_types147 := vdl.Int64Type
+	__VDLTypesync_types145.AppendField("Seconds", __VDLTypesync_types147)
+	__VDLTypesync_types145.AppendField("Nanos", __VDLTypesync_types144)
+	__VDLTypesync_types142.AppendField("ServerTime", __VDLTypesync_types146)
+	__VDLTypesync_types141.AssignElem(__VDLTypesync_types143)
+	__VDLTypesync_types14Builder.Build()
+	__VDLTypesync_types14v, err := __VDLTypesync_types141.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypesync_types14v
+}
+func init() {
+	__VDLTypesync_types14 = __VDLTypesync_types14_gen()
+}
+
+var __VDLTypesync_types15 *vdl.Type = vdl.TypeOf((*Signpost)(nil))
+var __VDLTypesync_types4 *vdl.Type = vdl.TypeOf((*Syncgroup)(nil))
+var __VDLTypesync_types12 *vdl.Type
+
+func __VDLTypesync_types12_gen() *vdl.Type {
+	__VDLTypesync_types12Builder := vdl.TypeBuilder{}
+
+	__VDLTypesync_types121 := __VDLTypesync_types12Builder.Optional()
+	__VDLTypesync_types122 := __VDLTypesync_types12Builder.Struct()
+	__VDLTypesync_types123 := __VDLTypesync_types12Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.TimeReq").AssignBase(__VDLTypesync_types122)
+	__VDLTypesync_types124 := __VDLTypesync_types12Builder.Struct()
+	__VDLTypesync_types125 := __VDLTypesync_types12Builder.Named("time.Time").AssignBase(__VDLTypesync_types124)
+	__VDLTypesync_types126 := vdl.Int64Type
+	__VDLTypesync_types124.AppendField("Seconds", __VDLTypesync_types126)
+	__VDLTypesync_types127 := vdl.Int32Type
+	__VDLTypesync_types124.AppendField("Nanos", __VDLTypesync_types127)
+	__VDLTypesync_types122.AppendField("SendTs", __VDLTypesync_types125)
+	__VDLTypesync_types121.AssignElem(__VDLTypesync_types123)
+	__VDLTypesync_types12Builder.Build()
+	__VDLTypesync_types12v, err := __VDLTypesync_types121.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypesync_types12v
+}
+func init() {
+	__VDLTypesync_types12 = __VDLTypesync_types12_gen()
+}
+
+var __VDLTypesync_types13 *vdl.Type
+
+func __VDLTypesync_types13_gen() *vdl.Type {
+	__VDLTypesync_types13Builder := vdl.TypeBuilder{}
+
+	__VDLTypesync_types131 := __VDLTypesync_types13Builder.Optional()
+	__VDLTypesync_types132 := __VDLTypesync_types13Builder.Struct()
+	__VDLTypesync_types133 := __VDLTypesync_types13Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.TimeResp").AssignBase(__VDLTypesync_types132)
+	__VDLTypesync_types134 := __VDLTypesync_types13Builder.Struct()
+	__VDLTypesync_types135 := __VDLTypesync_types13Builder.Named("time.Time").AssignBase(__VDLTypesync_types134)
+	__VDLTypesync_types136 := vdl.Int64Type
+	__VDLTypesync_types134.AppendField("Seconds", __VDLTypesync_types136)
+	__VDLTypesync_types137 := vdl.Int32Type
+	__VDLTypesync_types134.AppendField("Nanos", __VDLTypesync_types137)
+	__VDLTypesync_types132.AppendField("OrigTs", __VDLTypesync_types135)
+	__VDLTypesync_types132.AppendField("RecvTs", __VDLTypesync_types135)
+	__VDLTypesync_types132.AppendField("SendTs", __VDLTypesync_types135)
+	__VDLTypesync_types132.AppendField("LastNtpTs", __VDLTypesync_types135)
+	__VDLTypesync_types138 := vdl.Uint16Type
+	__VDLTypesync_types132.AppendField("NumReboots", __VDLTypesync_types138)
+	__VDLTypesync_types132.AppendField("NumHops", __VDLTypesync_types138)
+	__VDLTypesync_types131.AssignElem(__VDLTypesync_types133)
+	__VDLTypesync_types13Builder.Build()
+	__VDLTypesync_types13v, err := __VDLTypesync_types131.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypesync_types13v
+}
+func init() {
+	__VDLTypesync_types13 = __VDLTypesync_types13_gen()
+}
+
+var __VDLTypesync_types3 *vdl.Type = vdl.TypeOf([]byte(nil))
+var __VDLTypesync_types1 *vdl.Type = vdl.TypeOf([]string(nil))
+var __VDLTypesync_types5 *vdl.Type = vdl.TypeOf(map[string]nosql.SyncgroupMemberInfo(nil))
+var __VDLTypesync_types7 *vdl.Type = vdl.TypeOf(map[GroupId]struct{}(nil))
+var __VDLType_sync_types_time_Time *vdl.Type
+
+func __VDLType_sync_types_time_Time_gen() *vdl.Type {
+	__VDLType_sync_types_time_TimeBuilder := vdl.TypeBuilder{}
+
+	__VDLType_sync_types_time_Time1 := __VDLType_sync_types_time_TimeBuilder.Struct()
+	__VDLType_sync_types_time_Time2 := __VDLType_sync_types_time_TimeBuilder.Named("time.Time").AssignBase(__VDLType_sync_types_time_Time1)
+	__VDLType_sync_types_time_Time3 := vdl.Int64Type
+	__VDLType_sync_types_time_Time1.AppendField("Seconds", __VDLType_sync_types_time_Time3)
+	__VDLType_sync_types_time_Time4 := vdl.Int32Type
+	__VDLType_sync_types_time_Time1.AppendField("Nanos", __VDLType_sync_types_time_Time4)
+	__VDLType_sync_types_time_TimeBuilder.Build()
+	__VDLType_sync_types_time_Timev, err := __VDLType_sync_types_time_Time2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_sync_types_time_Timev
+}
+func init() {
+	__VDLType_sync_types_time_Time = __VDLType_sync_types_time_Time_gen()
+}
+
+var __VDLType_sync_types_v_io_v23_services_syncbase_nosql_SyncgroupMemberInfo *vdl.Type = vdl.TypeOf(nosql.SyncgroupMemberInfo{})
+var __VDLType_sync_types_v_io_v23_services_syncbase_nosql_SyncgroupSpec *vdl.Type = vdl.TypeOf(nosql.SyncgroupSpec{})
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_BlobSharesBySyncgroup *vdl.Type = vdl.TypeOf(BlobSharesBySyncgroup(nil))
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_ChunkData *vdl.Type = vdl.TypeOf(ChunkData{})
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_ChunkHash *vdl.Type = vdl.TypeOf(ChunkHash{})
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DataDeltaReq *vdl.Type = vdl.TypeOf(DataDeltaReq{})
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp *vdl.Type
+
+func __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp_gen() *vdl.Type {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespBuilder := vdl.TypeBuilder{}
+
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp1 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp2 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.DeltaFinalResp").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp1)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp3 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespBuilder.Map()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp4 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.SgPriorities").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp5 := vdl.Uint64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp6 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.GroupId").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp3.AssignKey(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp6)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp7 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp8 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.SgPriority").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp9 := vdl.Int32Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp7.AppendField("Distance", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp9)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp10 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp11 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespBuilder.Named("time.Time").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp10)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp12 := vdl.Int64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp10.AppendField("Seconds", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp12)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp10.AppendField("Nanos", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp9)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp7.AppendField("ServerTime", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp11)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp3.AssignElem(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp8)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp1.AppendField("SgPriorities", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp4)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespBuilder.Build()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespv, err := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalRespv
+}
+func init() {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp_gen()
+}
+
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaReq *vdl.Type = vdl.TypeOf(DeltaReq(DeltaReqSgs{SgDeltaReq{}}))
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp *vdl.Type
+
+func __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp_gen() *vdl.Type {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder := vdl.TypeBuilder{}
+
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp1 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Union()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp2 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.DeltaResp").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp1)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp3 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp4 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.LogRec").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp6 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp7 := vdl.Uint64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("Id", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("Gen", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp8 := vdl.ByteType
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("RecType", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp8)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp9 := vdl.StringType
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("ObjId", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp9)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("CurVers", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp9)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp10 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.List()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp10.AssignElem(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp9)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("Parents", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp10)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp11 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp12 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Named("time.Time").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp11)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp13 := vdl.Int64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp11.AppendField("Seconds", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp13)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp14 := vdl.Int32Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp11.AppendField("Nanos", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp14)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("UpdTime", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp12)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("PermId", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp9)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("PermVers", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp9)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp15 := vdl.BoolType
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("Delete", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp15)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("BatchId", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp5.AppendField("BatchCount", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp3.AppendField("Metadata", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp6)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp16 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.List()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp16.AssignElem(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp8)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp3.AppendField("Value", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp16)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp3.AppendField("Shell", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp15)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp1.AppendField("Rec", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp4)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp17 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Map()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp18 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.Knowledge").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp17)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp17.AssignKey(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp9)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp19 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Map()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp20 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.GenVector").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp19)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp19.AssignKey(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp19.AssignElem(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp17.AssignElem(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp20)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp1.AppendField("Gvs", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp18)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespBuilder.Build()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespv, err := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaRespv
+}
+func init() {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp_gen()
+}
+
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_GenVector *vdl.Type = vdl.TypeOf(GenVector(nil))
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_GroupId *vdl.Type = vdl.TypeOf(GroupId(0))
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_Knowledge *vdl.Type = vdl.TypeOf(Knowledge(nil))
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec *vdl.Type
+
+func __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec_gen() *vdl.Type {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecBuilder := vdl.TypeBuilder{}
+
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec1 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec2 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.LogRec").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec1)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec4 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec5 := vdl.Uint64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("Id", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("Gen", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec6 := vdl.ByteType
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("RecType", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec6)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec7 := vdl.StringType
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("ObjId", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("CurVers", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec8 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecBuilder.List()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec8.AssignElem(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("Parents", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec8)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec9 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec10 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecBuilder.Named("time.Time").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec9)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec11 := vdl.Int64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec9.AppendField("Seconds", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec11)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec12 := vdl.Int32Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec9.AppendField("Nanos", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec12)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("UpdTime", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec10)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("PermId", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("PermVers", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec13 := vdl.BoolType
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("Delete", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec13)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("BatchId", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec3.AppendField("BatchCount", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec1.AppendField("Metadata", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec4)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec14 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecBuilder.List()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec14.AssignElem(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec6)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec1.AppendField("Value", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec14)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec1.AppendField("Shell", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec13)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecBuilder.Build()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecv, err := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecv
+}
+func init() {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec_gen()
+}
+
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata *vdl.Type
+
+func __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata_gen() *vdl.Type {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder := vdl.TypeBuilder{}
+
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata2 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata3 := vdl.Uint64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("Id", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("Gen", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata4 := vdl.ByteType
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("RecType", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata4)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5 := vdl.StringType
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("ObjId", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("CurVers", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata6 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.List()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata6.AssignElem(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("Parents", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata6)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata7 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata8 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.Named("time.Time").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata9 := vdl.Int64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata7.AppendField("Seconds", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata9)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata10 := vdl.Int32Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata7.AppendField("Nanos", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata10)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("UpdTime", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata8)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("PermId", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("PermVers", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata11 := vdl.BoolType
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("Delete", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata11)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("BatchId", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata1.AppendField("BatchCount", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadataBuilder.Build()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadatav, err := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadatav
+}
+func init() {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata_gen()
+}
+
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgDeltaReq *vdl.Type = vdl.TypeOf(SgDeltaReq{})
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities *vdl.Type
+
+func __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities_gen() *vdl.Type {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPrioritiesBuilder := vdl.TypeBuilder{}
+
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities1 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPrioritiesBuilder.Map()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities2 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPrioritiesBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.SgPriorities").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities1)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities3 := vdl.Uint64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities4 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPrioritiesBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.GroupId").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities1.AssignKey(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities4)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities5 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPrioritiesBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities6 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPrioritiesBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.SgPriority").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities7 := vdl.Int32Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities5.AppendField("Distance", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities8 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPrioritiesBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities9 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPrioritiesBuilder.Named("time.Time").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities8)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities10 := vdl.Int64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities8.AppendField("Seconds", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities10)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities8.AppendField("Nanos", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities5.AppendField("ServerTime", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities9)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities1.AssignElem(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities6)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPrioritiesBuilder.Build()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPrioritiesv, err := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPrioritiesv
+}
+func init() {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities_gen()
+}
+
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority *vdl.Type
+
+func __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority_gen() *vdl.Type {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder := vdl.TypeBuilder{}
+
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority1 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority2 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.SgPriority").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority1)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority3 := vdl.Int32Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority1.AppendField("Distance", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority4 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority5 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder.Named("time.Time").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority4)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority6 := vdl.Int64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority4.AppendField("Seconds", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority6)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority4.AppendField("Nanos", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority1.AppendField("ServerTime", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder.Build()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityv, err := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityv
+}
+func init() {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority_gen()
+}
+
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_Signpost *vdl.Type = vdl.TypeOf(Signpost{})
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_Syncgroup *vdl.Type = vdl.TypeOf(Syncgroup{})
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SyncgroupStatus *vdl.Type = vdl.TypeOf(SyncgroupStatusPublishPending)
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq *vdl.Type
+
+func __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq_gen() *vdl.Type {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReqBuilder := vdl.TypeBuilder{}
+
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq1 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReqBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq2 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReqBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.TimeReq").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq1)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq3 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReqBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq4 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReqBuilder.Named("time.Time").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq5 := vdl.Int64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq3.AppendField("Seconds", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq6 := vdl.Int32Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq3.AppendField("Nanos", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq6)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq1.AppendField("SendTs", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq4)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReqBuilder.Build()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReqv, err := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReqv
+}
+func init() {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq_gen()
+}
+
+var __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp *vdl.Type
+
+func __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp_gen() *vdl.Type {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeRespBuilder := vdl.TypeBuilder{}
+
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp1 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeRespBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp2 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeRespBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.TimeResp").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp1)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp3 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeRespBuilder.Struct()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp4 := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeRespBuilder.Named("time.Time").AssignBase(__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp3)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp5 := vdl.Int64Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp3.AppendField("Seconds", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp5)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp6 := vdl.Int32Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp3.AppendField("Nanos", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp6)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp1.AppendField("OrigTs", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp4)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp1.AppendField("RecvTs", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp4)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp1.AppendField("SendTs", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp4)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp1.AppendField("LastNtpTs", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp4)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp7 := vdl.Uint16Type
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp1.AppendField("NumReboots", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp1.AppendField("NumHops", __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp7)
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeRespBuilder.Build()
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeRespv, err := __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeRespv
+}
+func init() {
+	__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp_gen()
+}
+func __VDLEnsureNativeBuilt_sync_types() {
+	if __VDLTypesync_types9 == nil {
+		__VDLTypesync_types9 = __VDLTypesync_types9_gen()
+	}
+	if __VDLTypesync_types2 == nil {
+		__VDLTypesync_types2 = __VDLTypesync_types2_gen()
+	}
+	if __VDLTypesync_types0 == nil {
+		__VDLTypesync_types0 = __VDLTypesync_types0_gen()
+	}
+	if __VDLTypesync_types14 == nil {
+		__VDLTypesync_types14 = __VDLTypesync_types14_gen()
+	}
+	if __VDLTypesync_types12 == nil {
+		__VDLTypesync_types12 = __VDLTypesync_types12_gen()
+	}
+	if __VDLTypesync_types13 == nil {
+		__VDLTypesync_types13 = __VDLTypesync_types13_gen()
+	}
+	if __VDLType_sync_types_time_Time == nil {
+		__VDLType_sync_types_time_Time = __VDLType_sync_types_time_Time_gen()
+	}
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp == nil {
+		__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp_gen()
+	}
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp == nil {
+		__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_DeltaResp_gen()
+	}
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec == nil {
+		__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRec_gen()
+	}
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata == nil {
+		__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata_gen()
+	}
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities == nil {
+		__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities_gen()
+	}
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority == nil {
+		__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority_gen()
+	}
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq == nil {
+		__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq_gen()
+	}
+	if __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp == nil {
+		__VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp = __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeResp_gen()
+	}
 }
 
 const NoGroupId = GroupId(0)

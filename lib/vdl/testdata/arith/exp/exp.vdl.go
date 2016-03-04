@@ -16,6 +16,9 @@ import (
 	"v.io/v23/rpc"
 )
 
+func __VDLEnsureNativeBuilt_exp() {
+}
+
 // ExpClientMethods is the client interface
 // containing Exp methods.
 type ExpClientMethods interface {

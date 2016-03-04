@@ -26,6 +26,62 @@ func (Struct) __VDLReflect(struct {
 }) {
 }
 
+func (m *Struct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_test_base_v_io_x_ref_cmd_vrpc_internal_Struct == nil || __VDLTypetest_base0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.X == int32(0))
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("X")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromInt(int64(m.X), vdl.Int32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Y == int32(0))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Y")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromInt(int64(m.Y), vdl.Int32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Struct) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *Struct) IsZero() bool {
+
+	var1 := (*m == Struct{})
+	return var1
+}
+
 type Array2Int [2]int32
 
 func (Array2Int) __VDLReflect(struct {
@@ -33,9 +89,50 @@ func (Array2Int) __VDLReflect(struct {
 }) {
 }
 
+func (m Array2Int) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	listTarget1, err := t.StartList(__VDLType_test_base_v_io_x_ref_cmd_vrpc_internal_Array2Int, 2)
+	if err != nil {
+		return err
+	}
+	for i, elem3 := range m {
+		elemTarget2, err := listTarget1.StartElem(i)
+		if err != nil {
+			return err
+		}
+		if err := elemTarget2.FromInt(int64(elem3), vdl.Int32Type); err != nil {
+			return err
+		}
+		if err := listTarget1.FinishElem(elemTarget2); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishList(listTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m Array2Int) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m Array2Int) IsZero() bool {
+
+	var1 := (m == Array2Int{})
+	return var1
+}
+
 func init() {
 	vdl.Register((*Struct)(nil))
 	vdl.Register((*Array2Int)(nil))
+}
+
+var __VDLTypetest_base0 *vdl.Type = vdl.TypeOf((*Struct)(nil))
+var __VDLType_test_base_v_io_x_ref_cmd_vrpc_internal_Array2Int *vdl.Type = vdl.TypeOf(Array2Int{})
+var __VDLType_test_base_v_io_x_ref_cmd_vrpc_internal_Struct *vdl.Type = vdl.TypeOf(Struct{})
+
+func __VDLEnsureNativeBuilt_test_base() {
 }
 
 // TypeTesterClientMethods is the client interface

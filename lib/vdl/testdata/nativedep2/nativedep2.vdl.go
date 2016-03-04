@@ -13,7 +13,7 @@ import (
 
 	// VDL user imports
 	"time"
-	_ "v.io/x/ref/lib/vdl/testdata/nativetest"
+	"v.io/x/ref/lib/vdl/testdata/nativetest"
 )
 
 type MyTime time.Time
@@ -23,6 +23,28 @@ func (MyTime) __VDLReflect(struct {
 }) {
 }
 
+func (m MyTime) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64(m), __VDLType_nativedep2_v_io_x_ref_lib_vdl_testdata_nativedep2_MyTime); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m MyTime) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m MyTime) IsZero() bool {
+
+	var1 := (m == MyTime(0))
+	return var1
+}
+
 func init() {
 	vdl.Register((*MyTime)(nil))
+}
+
+var __VDLType_nativedep2_v_io_x_ref_lib_vdl_testdata_nativedep2_MyTime *vdl.Type = vdl.TypeOf(MyTime(0))
+
+func __VDLEnsureNativeBuilt_nativedep2() {
 }

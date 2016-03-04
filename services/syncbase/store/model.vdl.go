@@ -14,6 +14,9 @@ import (
 	"v.io/v23/verror"
 )
 
+func __VDLEnsureNativeBuilt_model() {
+}
+
 var (
 	// ConcurrentTransaction means that the current transaction failed to commit
 	// because its read set was invalidated by some other transaction.

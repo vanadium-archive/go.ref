@@ -25,6 +25,23 @@ func (Term) __VDLReflect(struct {
 }) {
 }
 
+func (m Term) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64(m), __VDLType_raft_v_io_x_ref_lib_raft_Term); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m Term) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m Term) IsZero() bool {
+
+	var1 := (m == Term(0))
+	return var1
+}
+
 // Index is an index into the log.  The log entries are numbered sequentially.  At the moment
 // the entries RaftClient.Apply()ed should be sequential but that will change if we introduce
 // system entries. For example, we could have an entry type that is used to add members to the
@@ -34,6 +51,23 @@ type Index uint64
 func (Index) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/lib/raft.Index"`
 }) {
+}
+
+func (m Index) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64(m), __VDLType_raft_v_io_x_ref_lib_raft_Index); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m Index) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m Index) IsZero() bool {
+
+	var1 := (m == Index(0))
+	return var1
 }
 
 // The LogEntry is what the log consists of.  'error' starts nil and is never written to stable
@@ -51,10 +85,122 @@ func (LogEntry) __VDLReflect(struct {
 }) {
 }
 
+func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_raft_v_io_x_ref_lib_raft_LogEntry == nil || __VDLTyperaft0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.Term.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Term")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Term.FillVDLTarget(fieldTarget4, __VDLType_raft_v_io_x_ref_lib_raft_Term); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := m.Index.IsZero()
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Index")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Index.FillVDLTarget(fieldTarget7, __VDLType_raft_v_io_x_ref_lib_raft_Index); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.Cmd) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Cmd")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := fieldTarget10.FromBytes([]byte(m.Cmd), __VDLTyperaft1); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := (m.Type == byte(0))
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("Type")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget13.FromUint(uint64(m.Type), vdl.ByteType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *LogEntry) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *LogEntry) IsZero() bool {
+
+	var1 := true
+	var2 := m.Term.IsZero()
+	var1 = var1 && var2
+	var3 := m.Index.IsZero()
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.Cmd) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	var5 := (m.Type == byte(0))
+	var1 = var1 && var5
+	return var1
+}
+
 func init() {
 	vdl.Register((*Term)(nil))
 	vdl.Register((*Index)(nil))
 	vdl.Register((*LogEntry)(nil))
+}
+
+var __VDLTyperaft0 *vdl.Type = vdl.TypeOf((*LogEntry)(nil))
+var __VDLTyperaft1 *vdl.Type = vdl.TypeOf([]byte(nil))
+var __VDLType_raft_v_io_x_ref_lib_raft_Index *vdl.Type = vdl.TypeOf(Index(0))
+var __VDLType_raft_v_io_x_ref_lib_raft_LogEntry *vdl.Type = vdl.TypeOf(LogEntry{})
+var __VDLType_raft_v_io_x_ref_lib_raft_Term *vdl.Type = vdl.TypeOf(Term(0))
+
+func __VDLEnsureNativeBuilt_raft() {
 }
 
 const ClientEntry = byte(0)

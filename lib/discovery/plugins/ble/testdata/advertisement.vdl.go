@@ -29,8 +29,109 @@ func (AdConversionTestCase) __VDLReflect(struct {
 }) {
 }
 
+func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_advertisement_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase == nil || __VDLTypeadvertisement0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.AdInfo.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("AdInfo")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.AdInfo.FillVDLTarget(fieldTarget4, __VDLType_advertisement_v_io_x_ref_lib_discovery_AdInfo); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.GattAttrs) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("GattAttrs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			mapTarget8, err := fieldTarget7.StartMap(__VDLTypeadvertisement1, len(m.GattAttrs))
+			if err != nil {
+				return err
+			}
+			for key10, value12 := range m.GattAttrs {
+				keyTarget9, err := mapTarget8.StartKey()
+				if err != nil {
+					return err
+				}
+				if err := keyTarget9.FromString(string(key10), vdl.StringType); err != nil {
+					return err
+				}
+				valueTarget11, err := mapTarget8.FinishKeyStartField(keyTarget9)
+				if err != nil {
+					return err
+				}
+
+				if err := valueTarget11.FromBytes([]byte(value12), __VDLTypeadvertisement2); err != nil {
+					return err
+				}
+				if err := mapTarget8.FinishField(keyTarget9, valueTarget11); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget7.FinishMap(mapTarget8); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *AdConversionTestCase) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *AdConversionTestCase) IsZero() bool {
+
+	var1 := true
+	var2 := m.AdInfo.IsZero()
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.GattAttrs) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	return var1
+}
+
 func init() {
 	vdl.Register((*AdConversionTestCase)(nil))
+}
+
+var __VDLTypeadvertisement0 *vdl.Type = vdl.TypeOf((*AdConversionTestCase)(nil))
+var __VDLTypeadvertisement2 *vdl.Type = vdl.TypeOf([]byte(nil))
+var __VDLTypeadvertisement1 *vdl.Type = vdl.TypeOf(map[string][]byte(nil))
+var __VDLType_advertisement_v_io_x_ref_lib_discovery_AdInfo *vdl.Type = vdl.TypeOf(discovery_2.AdInfo{})
+var __VDLType_advertisement_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase *vdl.Type = vdl.TypeOf(AdConversionTestCase{})
+
+func __VDLEnsureNativeBuilt_advertisement() {
 }
 
 // ConversionTestData contains test cases for conversions between

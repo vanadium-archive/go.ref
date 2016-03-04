@@ -14,6 +14,9 @@ import (
 	"v.io/v23/rpc"
 )
 
+func __VDLEnsureNativeBuilt_collection_test_interface() {
+}
+
 // CollectionClientMethods is the client interface
 // containing Collection methods.
 type CollectionClientMethods interface {

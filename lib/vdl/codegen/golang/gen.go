@@ -21,9 +21,10 @@ import (
 )
 
 type goData struct {
-	File    *compile.File
-	Env     *compile.Env
-	Imports *goImports
+	File        *compile.File
+	Env         *compile.Env
+	Imports     *goImports
+	typeDepends *typeDependencyNames
 }
 
 // testingMode is only set to true in tests, to make testing simpler.
@@ -58,9 +59,10 @@ func (data goData) OptsVar(name string) string {
 func Generate(file *compile.File, env *compile.Env) []byte {
 	validateGoConfig(file, env)
 	data := goData{
-		File:    file,
-		Env:     env,
-		Imports: newImports(file, env),
+		File:        file,
+		Env:         env,
+		Imports:     newImports(file, env),
+		typeDepends: newTypeDependencyNames(),
 	}
 	// The implementation uses the template mechanism from text/template and
 	// executes the template against the goData instance.
@@ -157,6 +159,7 @@ func init() {
 		"nativeIdent":             nativeIdent,
 		"typeGo":                  typeGo,
 		"typeDefGo":               typeDefGo,
+		"genVdlTypesForEnc":       genVdlTypesForEnc,
 		"constDefGo":              constDefGo,
 		"tagValue":                tagValue,
 		"embedGo":                 embedGo,
@@ -443,17 +446,20 @@ import ( {{if $data.Imports.System}}
 {{range $tdef := $file.TypeDefs}}
 {{typeDefGo $data $tdef}}
 {{end}}
+
 {{$nativeConversions := nativeConversionsInFile $file}}
-func init() { {{range $wire, $native := $nativeConversions}}{{$lwire := firstRuneToLower $wire}}
-	{{$data.Pkg "v.io/v23/vdl"}}RegisterNative({{$lwire}}ToNative, {{$lwire}}FromNative){{end}}{{range $tdef := $file.TypeDefs}}
+func init() { {{range $wire, $native := $nativeConversions}}
+	{{$data.Pkg "v.io/v23/vdl"}}RegisterNative({{$wire}}ToNative, {{$wire}}FromNative){{end}}{{range $tdef := $file.TypeDefs}}
 	{{$data.Pkg "v.io/v23/vdl"}}Register((*{{$tdef.Name}})(nil)){{end}}
 }
-{{range $wire, $native := $nativeConversions}}{{$lwire := firstRuneToLower $wire}}{{$nat := nativeIdent $data $native}}
+{{range $wire, $native := $nativeConversions}}{{$nat := nativeIdent $data $native}}
 // Type-check {{$wire}} conversion functions.
-var _ func({{$wire}}, *{{$nat}}) error = {{$lwire}}ToNative
-var _ func(*{{$wire}}, {{$nat}}) error = {{$lwire}}FromNative
+var _ func({{$wire}}, *{{$nat}}) error = {{$wire}}ToNative
+var _ func(*{{$wire}}, {{$nat}}) error = {{$wire}}FromNative
 {{end}}
 {{end}}
+
+{{genVdlTypesForEnc $data}}
 
 {{range $cdef := $file.ConstDefs}}
 {{constDefGo $data $cdef}}

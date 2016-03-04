@@ -19,6 +19,9 @@ import (
 	"v.io/v23/security"
 )
 
+func __VDLEnsureNativeBuilt_role() {
+}
+
 // Role.SeekBlessings will return an error if the requestor does not present
 // blessings that end in this suffix.
 const RoleSuffix = "_role"

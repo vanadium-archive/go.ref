@@ -15,6 +15,9 @@ import (
 	"v.io/v23/rpc"
 )
 
+func __VDLEnsureNativeBuilt_fortune() {
+}
+
 // FortuneClientMethods is the client interface
 // containing Fortune methods.
 //

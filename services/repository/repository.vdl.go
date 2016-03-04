@@ -25,6 +25,9 @@ import (
 	"v.io/x/ref/services/profile"
 )
 
+func __VDLEnsureNativeBuilt_repository() {
+}
+
 // ApplicationClientMethods is the client interface
 // containing Application methods.
 //

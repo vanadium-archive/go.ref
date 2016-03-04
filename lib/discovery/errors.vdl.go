@@ -17,6 +17,9 @@ import (
 	"v.io/v23/discovery"
 )
 
+func __VDLEnsureNativeBuilt_errors() {
+}
+
 var (
 	ErrAlreadyBeingAdvertised = verror.Register("v.io/x/ref/lib/discovery.AlreadyBeingAdvertised", verror.NoRetry, "{1:}{2:} already being advertised: {3}")
 	ErrBadAdvertisement       = verror.Register("v.io/x/ref/lib/discovery.BadAdvertisement", verror.NoRetry, "{1:}{2:} invalid advertisement: {3}")

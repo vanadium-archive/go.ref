@@ -12,6 +12,7 @@ package app
 import (
 	// VDL system imports
 	"v.io/v23/vdl"
+	"v.io/v23/verror"
 	"v.io/v23/vom"
 
 	// VDL user imports
@@ -38,6 +39,224 @@ func (RpcRequest) __VDLReflect(struct {
 }) {
 }
 
+func (m *RpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_app()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Name == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Name")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Name), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Method == "")
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Method")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromString(string(m.Method), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := (m.NumInArgs == int32(0))
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("NumInArgs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget10.FromInt(int64(m.NumInArgs), vdl.Int32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := (m.NumOutArgs == int32(0))
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("NumOutArgs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget13.FromInt(int64(m.NumOutArgs), vdl.Int32Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var14 := (m.IsStreaming == false)
+	if !var14 {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("IsStreaming")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget16.FromBool(bool(m.IsStreaming), vdl.BoolType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue17 time.WireDeadline
+	if err := time.WireDeadlineFromNative(&wireValue17, m.Deadline); err != nil {
+		return err
+	}
+
+	var18 := wireValue17.IsZero()
+	if !var18 {
+		keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("Deadline")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue17.FillVDLTarget(fieldTarget20, __VDLType_app_time_WireDeadline); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
+				return err
+			}
+		}
+	}
+	var21 := m.TraceRequest.IsZero()
+	if !var21 {
+		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("TraceRequest")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.TraceRequest.FillVDLTarget(fieldTarget23, __VDLType_app_v_io_v23_vtrace_Request); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
+				return err
+			}
+		}
+	}
+	var24 := m.Context.IsZero()
+	if !var24 {
+		keyTarget25, fieldTarget26, err := fieldsTarget1.StartField("Context")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Context.FillVDLTarget(fieldTarget26, __VDLType_app_v_io_x_ref_services_wspr_internal_rpc_server_Context); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget25, fieldTarget26); err != nil {
+				return err
+			}
+		}
+	}
+	var var27 bool
+	if len(m.CallOptions) == 0 {
+		var27 = true
+	}
+	if !var27 {
+		keyTarget28, fieldTarget29, err := fieldsTarget1.StartField("CallOptions")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget30, err := fieldTarget29.StartList(__VDLTypeapp1, len(m.CallOptions))
+			if err != nil {
+				return err
+			}
+			for i, elem32 := range m.CallOptions {
+				elemTarget31, err := listTarget30.StartElem(i)
+				if err != nil {
+					return err
+				}
+
+				unionValue33 := elem32
+				if unionValue33 == nil {
+					unionValue33 = RpcCallOptionAllowedServersPolicy{}
+				}
+				if err := unionValue33.FillVDLTarget(elemTarget31, __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcCallOption); err != nil {
+					return err
+				}
+				if err := listTarget30.FinishElem(elemTarget31); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget29.FinishList(listTarget30); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *RpcRequest) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *RpcRequest) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Name == "")
+	var1 = var1 && var2
+	var3 := (m.Method == "")
+	var1 = var1 && var3
+	var4 := (m.NumInArgs == int32(0))
+	var1 = var1 && var4
+	var5 := (m.NumOutArgs == int32(0))
+	var1 = var1 && var5
+	var6 := (m.IsStreaming == false)
+	var1 = var1 && var6
+	var wireValue7 time.WireDeadline
+	if err := time.WireDeadlineFromNative(&wireValue7, m.Deadline); err != nil {
+		return false // error will be caught on encode
+	}
+
+	var8 := wireValue7.IsZero()
+	var1 = var1 && var8
+	var9 := m.TraceRequest.IsZero()
+	var1 = var1 && var9
+	var10 := m.Context.IsZero()
+	var1 = var1 && var10
+	var var11 bool
+	if len(m.CallOptions) == 0 {
+		var11 = true
+	}
+	var1 = var1 && var11
+	return var1
+}
+
 type (
 	// RpcCallOption represents any single field of the RpcCallOption union type.
 	RpcCallOption interface {
@@ -49,6 +268,8 @@ type (
 		Name() string
 		// __VDLReflect describes the RpcCallOption union type.
 		__VDLReflect(__RpcCallOptionReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// RpcCallOptionAllowedServersPolicy represents field AllowedServersPolicy of the RpcCallOption union type.
 	RpcCallOptionAllowedServersPolicy struct{ Value []security.BlessingPattern }
@@ -70,10 +291,98 @@ func (x RpcCallOptionAllowedServersPolicy) Interface() interface{}              
 func (x RpcCallOptionAllowedServersPolicy) Name() string                        { return "AllowedServersPolicy" }
 func (x RpcCallOptionAllowedServersPolicy) __VDLReflect(__RpcCallOptionReflect) {}
 
+func (m RpcCallOptionAllowedServersPolicy) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcCallOption)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("AllowedServersPolicy")
+	if err != nil {
+		return err
+	}
+
+	listTarget4, err := fieldTarget3.StartList(__VDLTypeapp2, len(m.Value))
+	if err != nil {
+		return err
+	}
+	for i, elem6 := range m.Value {
+		elemTarget5, err := listTarget4.StartElem(i)
+		if err != nil {
+			return err
+		}
+
+		if err := elem6.FillVDLTarget(elemTarget5, __VDLType_app_v_io_v23_security_BlessingPattern); err != nil {
+			return err
+		}
+		if err := listTarget4.FinishElem(elemTarget5); err != nil {
+			return err
+		}
+	}
+	if err := fieldTarget3.FinishList(listTarget4); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m RpcCallOptionAllowedServersPolicy) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m RpcCallOptionAllowedServersPolicy) IsZero() bool {
+
+	var var2 bool
+	if len(m.Value) == 0 {
+		var2 = true
+	}
+	return var2
+}
+
 func (x RpcCallOptionGranter) Index() int                          { return 1 }
 func (x RpcCallOptionGranter) Interface() interface{}              { return x.Value }
 func (x RpcCallOptionGranter) Name() string                        { return "Granter" }
 func (x RpcCallOptionGranter) __VDLReflect(__RpcCallOptionReflect) {}
+
+func (m RpcCallOptionGranter) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcCallOption)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Granter")
+	if err != nil {
+		return err
+	}
+
+	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterHandle); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m RpcCallOptionGranter) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m RpcCallOptionGranter) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 type (
 	// RpcServerOption represents any single field of the RpcServerOption union type.
@@ -86,6 +395,8 @@ type (
 		Name() string
 		// __VDLReflect describes the RpcServerOption union type.
 		__VDLReflect(__RpcServerOptionReflect)
+		FillVDLTarget(vdl.Target, *vdl.Type) error
+		IsZero() bool
 	}
 	// RpcServerOptionIsLeaf represents field IsLeaf of the RpcServerOption union type.
 	RpcServerOptionIsLeaf struct{ Value bool }
@@ -107,10 +418,76 @@ func (x RpcServerOptionIsLeaf) Interface() interface{}                { return x
 func (x RpcServerOptionIsLeaf) Name() string                          { return "IsLeaf" }
 func (x RpcServerOptionIsLeaf) __VDLReflect(__RpcServerOptionReflect) {}
 
+func (m RpcServerOptionIsLeaf) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcServerOption)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("IsLeaf")
+	if err != nil {
+		return err
+	}
+	if err := fieldTarget3.FromBool(bool(m.Value), vdl.BoolType); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m RpcServerOptionIsLeaf) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m RpcServerOptionIsLeaf) IsZero() bool {
+
+	var2 := (m.Value == false)
+	return var2
+}
+
 func (x RpcServerOptionServesMountTable) Index() int                            { return 1 }
 func (x RpcServerOptionServesMountTable) Interface() interface{}                { return x.Value }
 func (x RpcServerOptionServesMountTable) Name() string                          { return "ServesMountTable" }
 func (x RpcServerOptionServesMountTable) __VDLReflect(__RpcServerOptionReflect) {}
+
+func (m RpcServerOptionServesMountTable) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	fieldsTarget1, err := t.StartFields(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcServerOption)
+	if err != nil {
+		return err
+	}
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("ServesMountTable")
+	if err != nil {
+		return err
+	}
+	if err := fieldTarget3.FromBool(bool(m.Value), vdl.BoolType); err != nil {
+		return err
+	}
+	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		return err
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m RpcServerOptionServesMountTable) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m RpcServerOptionServesMountTable) IsZero() bool {
+
+	unionField2 := false
+	return unionField2
+}
 
 type RpcResponse struct {
 	OutArgs       []*vom.RawBytes
@@ -122,11 +499,117 @@ func (RpcResponse) __VDLReflect(struct {
 }) {
 }
 
+func (m *RpcResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_app()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var var2 bool
+	if len(m.OutArgs) == 0 {
+		var2 = true
+	}
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("OutArgs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			listTarget5, err := fieldTarget4.StartList(__VDLTypeapp4, len(m.OutArgs))
+			if err != nil {
+				return err
+			}
+			for i, elem7 := range m.OutArgs {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
+
+				if elem7 == nil {
+					if err := elemTarget6.FromNil(vdl.AnyType); err != nil {
+						return err
+					}
+				} else {
+					if err := elem7.FillVDLTarget(elemTarget6, vdl.AnyType); err != nil {
+						return err
+					}
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget4.FinishList(listTarget5); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var8 := m.TraceResponse.IsZero()
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("TraceResponse")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.TraceResponse.FillVDLTarget(fieldTarget10, __VDLType_app_v_io_v23_vtrace_Response); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *RpcResponse) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *RpcResponse) IsZero() bool {
+
+	var1 := true
+	var var2 bool
+	if len(m.OutArgs) == 0 {
+		var2 = true
+	}
+	var1 = var1 && var2
+	var3 := m.TraceResponse.IsZero()
+	var1 = var1 && var3
+	return var1
+}
+
 type GranterHandle int32
 
 func (GranterHandle) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/wspr/internal/app.GranterHandle"`
 }) {
+}
+
+func (m GranterHandle) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64(m), __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterHandle); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m GranterHandle) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m GranterHandle) IsZero() bool {
+
+	var1 := (m == GranterHandle(0))
+	return var1
 }
 
 type GranterRequest struct {
@@ -139,6 +622,68 @@ func (GranterRequest) __VDLReflect(struct {
 }) {
 }
 
+func (m *GranterRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterRequest == nil || __VDLTypeapp5 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := m.GranterHandle.IsZero()
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("GranterHandle")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.GranterHandle.FillVDLTarget(fieldTarget4, __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterHandle); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := m.Call.IsZero()
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Call")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Call.FillVDLTarget(fieldTarget7, __VDLType_app_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *GranterRequest) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *GranterRequest) IsZero() bool {
+
+	var1 := true
+	var2 := m.GranterHandle.IsZero()
+	var1 = var1 && var2
+	var3 := m.Call.IsZero()
+	var1 = var1 && var3
+	return var1
+}
+
 type GranterResponse struct {
 	Blessings security.Blessings
 	Err       error
@@ -149,6 +694,87 @@ func (GranterResponse) __VDLReflect(struct {
 }) {
 }
 
+func (m *GranterResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_app()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var wireValue2 security.WireBlessings
+	if err := security.WireBlessingsFromNative(&wireValue2, m.Blessings); err != nil {
+		return err
+	}
+
+	var3 := wireValue2.IsZero()
+	if !var3 {
+		keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Blessings")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue2.FillVDLTarget(fieldTarget5, __VDLType_app_v_io_v23_security_WireBlessings); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+				return err
+			}
+		}
+	}
+	var6 := (m.Err == (error)(nil))
+	if !var6 {
+		keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("Err")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if m.Err == nil {
+				if err := fieldTarget8.FromNil(vdl.ErrorType); err != nil {
+					return err
+				}
+			} else {
+				var wireError9 vdl.WireError
+				if err := verror.WireFromNative(&wireError9, m.Err); err != nil {
+					return err
+				}
+				if err := wireError9.FillVDLTarget(fieldTarget8, vdl.ErrorType); err != nil {
+					return err
+				}
+
+			}
+			if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *GranterResponse) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *GranterResponse) IsZero() bool {
+
+	var1 := true
+	var wireValue2 security.WireBlessings
+	if err := security.WireBlessingsFromNative(&wireValue2, m.Blessings); err != nil {
+		return false // error will be caught on encode
+	}
+
+	var3 := wireValue2.IsZero()
+	var1 = var1 && var3
+	var4 := (m.Err == (error)(nil))
+	var1 = var1 && var4
+	return var1
+}
+
 func init() {
 	vdl.Register((*RpcRequest)(nil))
 	vdl.Register((*RpcCallOption)(nil))
@@ -157,4 +783,583 @@ func init() {
 	vdl.Register((*GranterHandle)(nil))
 	vdl.Register((*GranterRequest)(nil))
 	vdl.Register((*GranterResponse)(nil))
+}
+
+var __VDLTypeapp5 *vdl.Type = vdl.TypeOf((*GranterRequest)(nil))
+var __VDLTypeapp6 *vdl.Type
+
+func __VDLTypeapp6_gen() *vdl.Type {
+	__VDLTypeapp6Builder := vdl.TypeBuilder{}
+
+	__VDLTypeapp61 := __VDLTypeapp6Builder.Optional()
+	__VDLTypeapp62 := __VDLTypeapp6Builder.Struct()
+	__VDLTypeapp63 := __VDLTypeapp6Builder.Named("v.io/x/ref/services/wspr/internal/app.GranterResponse").AssignBase(__VDLTypeapp62)
+	__VDLTypeapp64 := __VDLTypeapp6Builder.Struct()
+	__VDLTypeapp65 := __VDLTypeapp6Builder.Named("v.io/v23/security.WireBlessings").AssignBase(__VDLTypeapp64)
+	__VDLTypeapp66 := __VDLTypeapp6Builder.List()
+	__VDLTypeapp67 := __VDLTypeapp6Builder.List()
+	__VDLTypeapp68 := __VDLTypeapp6Builder.Struct()
+	__VDLTypeapp69 := __VDLTypeapp6Builder.Named("v.io/v23/security.Certificate").AssignBase(__VDLTypeapp68)
+	__VDLTypeapp610 := vdl.StringType
+	__VDLTypeapp68.AppendField("Extension", __VDLTypeapp610)
+	__VDLTypeapp611 := __VDLTypeapp6Builder.List()
+	__VDLTypeapp612 := vdl.ByteType
+	__VDLTypeapp611.AssignElem(__VDLTypeapp612)
+	__VDLTypeapp68.AppendField("PublicKey", __VDLTypeapp611)
+	__VDLTypeapp613 := __VDLTypeapp6Builder.List()
+	__VDLTypeapp614 := __VDLTypeapp6Builder.Struct()
+	__VDLTypeapp615 := __VDLTypeapp6Builder.Named("v.io/v23/security.Caveat").AssignBase(__VDLTypeapp614)
+	__VDLTypeapp616 := __VDLTypeapp6Builder.Array()
+	__VDLTypeapp617 := __VDLTypeapp6Builder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLTypeapp616)
+	__VDLTypeapp616.AssignElem(__VDLTypeapp612)
+	__VDLTypeapp616.AssignLen(16)
+	__VDLTypeapp614.AppendField("Id", __VDLTypeapp617)
+	__VDLTypeapp614.AppendField("ParamVom", __VDLTypeapp611)
+	__VDLTypeapp613.AssignElem(__VDLTypeapp615)
+	__VDLTypeapp68.AppendField("Caveats", __VDLTypeapp613)
+	__VDLTypeapp618 := __VDLTypeapp6Builder.Struct()
+	__VDLTypeapp619 := __VDLTypeapp6Builder.Named("v.io/v23/security.Signature").AssignBase(__VDLTypeapp618)
+	__VDLTypeapp618.AppendField("Purpose", __VDLTypeapp611)
+	__VDLTypeapp620 := vdl.StringType
+	__VDLTypeapp621 := __VDLTypeapp6Builder.Named("v.io/v23/security.Hash").AssignBase(__VDLTypeapp620)
+	__VDLTypeapp618.AppendField("Hash", __VDLTypeapp621)
+	__VDLTypeapp618.AppendField("R", __VDLTypeapp611)
+	__VDLTypeapp618.AppendField("S", __VDLTypeapp611)
+	__VDLTypeapp68.AppendField("Signature", __VDLTypeapp619)
+	__VDLTypeapp67.AssignElem(__VDLTypeapp69)
+	__VDLTypeapp66.AssignElem(__VDLTypeapp67)
+	__VDLTypeapp64.AppendField("CertificateChains", __VDLTypeapp66)
+	__VDLTypeapp62.AppendField("Blessings", __VDLTypeapp65)
+	__VDLTypeapp622 := __VDLTypeapp6Builder.Optional()
+	__VDLTypeapp623 := __VDLTypeapp6Builder.Struct()
+	__VDLTypeapp624 := __VDLTypeapp6Builder.Named("error").AssignBase(__VDLTypeapp623)
+	__VDLTypeapp623.AppendField("Id", __VDLTypeapp610)
+	__VDLTypeapp625 := __VDLTypeapp6Builder.Enum()
+	__VDLTypeapp625.AppendLabel("NoRetry")
+	__VDLTypeapp625.AppendLabel("RetryConnection")
+	__VDLTypeapp625.AppendLabel("RetryRefetch")
+	__VDLTypeapp625.AppendLabel("RetryBackoff")
+	__VDLTypeapp623.AppendField("RetryCode", __VDLTypeapp625)
+	__VDLTypeapp623.AppendField("Msg", __VDLTypeapp610)
+	__VDLTypeapp626 := __VDLTypeapp6Builder.List()
+	__VDLTypeapp627 := vdl.AnyType
+	__VDLTypeapp626.AssignElem(__VDLTypeapp627)
+	__VDLTypeapp623.AppendField("ParamList", __VDLTypeapp626)
+	__VDLTypeapp622.AssignElem(__VDLTypeapp624)
+	__VDLTypeapp62.AppendField("Err", __VDLTypeapp622)
+	__VDLTypeapp61.AssignElem(__VDLTypeapp63)
+	__VDLTypeapp6Builder.Build()
+	__VDLTypeapp6v, err := __VDLTypeapp61.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypeapp6v
+}
+func init() {
+	__VDLTypeapp6 = __VDLTypeapp6_gen()
+}
+
+var __VDLTypeapp0 *vdl.Type
+
+func __VDLTypeapp0_gen() *vdl.Type {
+	__VDLTypeapp0Builder := vdl.TypeBuilder{}
+
+	__VDLTypeapp01 := __VDLTypeapp0Builder.Optional()
+	__VDLTypeapp02 := __VDLTypeapp0Builder.Struct()
+	__VDLTypeapp03 := __VDLTypeapp0Builder.Named("v.io/x/ref/services/wspr/internal/app.RpcRequest").AssignBase(__VDLTypeapp02)
+	__VDLTypeapp04 := vdl.StringType
+	__VDLTypeapp02.AppendField("Name", __VDLTypeapp04)
+	__VDLTypeapp02.AppendField("Method", __VDLTypeapp04)
+	__VDLTypeapp05 := vdl.Int32Type
+	__VDLTypeapp02.AppendField("NumInArgs", __VDLTypeapp05)
+	__VDLTypeapp02.AppendField("NumOutArgs", __VDLTypeapp05)
+	__VDLTypeapp06 := vdl.BoolType
+	__VDLTypeapp02.AppendField("IsStreaming", __VDLTypeapp06)
+	__VDLTypeapp07 := __VDLTypeapp0Builder.Struct()
+	__VDLTypeapp08 := __VDLTypeapp0Builder.Named("time.WireDeadline").AssignBase(__VDLTypeapp07)
+	__VDLTypeapp09 := __VDLTypeapp0Builder.Struct()
+	__VDLTypeapp010 := __VDLTypeapp0Builder.Named("time.Duration").AssignBase(__VDLTypeapp09)
+	__VDLTypeapp011 := vdl.Int64Type
+	__VDLTypeapp09.AppendField("Seconds", __VDLTypeapp011)
+	__VDLTypeapp09.AppendField("Nanos", __VDLTypeapp05)
+	__VDLTypeapp07.AppendField("FromNow", __VDLTypeapp010)
+	__VDLTypeapp07.AppendField("NoDeadline", __VDLTypeapp06)
+	__VDLTypeapp02.AppendField("Deadline", __VDLTypeapp08)
+	__VDLTypeapp012 := __VDLTypeapp0Builder.Struct()
+	__VDLTypeapp013 := __VDLTypeapp0Builder.Named("v.io/v23/vtrace.Request").AssignBase(__VDLTypeapp012)
+	__VDLTypeapp014 := __VDLTypeapp0Builder.Array()
+	__VDLTypeapp015 := __VDLTypeapp0Builder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLTypeapp014)
+	__VDLTypeapp016 := vdl.ByteType
+	__VDLTypeapp014.AssignElem(__VDLTypeapp016)
+	__VDLTypeapp014.AssignLen(16)
+	__VDLTypeapp012.AppendField("SpanId", __VDLTypeapp015)
+	__VDLTypeapp012.AppendField("TraceId", __VDLTypeapp015)
+	__VDLTypeapp017 := vdl.Int32Type
+	__VDLTypeapp018 := __VDLTypeapp0Builder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLTypeapp017)
+	__VDLTypeapp012.AppendField("Flags", __VDLTypeapp018)
+	__VDLTypeapp012.AppendField("LogLevel", __VDLTypeapp05)
+	__VDLTypeapp02.AppendField("TraceRequest", __VDLTypeapp013)
+	__VDLTypeapp019 := __VDLTypeapp0Builder.Struct()
+	__VDLTypeapp020 := __VDLTypeapp0Builder.Named("v.io/x/ref/services/wspr/internal/rpc/server.Context").AssignBase(__VDLTypeapp019)
+	__VDLTypeapp019.AppendField("Language", __VDLTypeapp04)
+	__VDLTypeapp02.AppendField("Context", __VDLTypeapp020)
+	__VDLTypeapp021 := __VDLTypeapp0Builder.List()
+	__VDLTypeapp022 := __VDLTypeapp0Builder.Union()
+	__VDLTypeapp023 := __VDLTypeapp0Builder.Named("v.io/x/ref/services/wspr/internal/app.RpcCallOption").AssignBase(__VDLTypeapp022)
+	__VDLTypeapp024 := __VDLTypeapp0Builder.List()
+	__VDLTypeapp025 := vdl.StringType
+	__VDLTypeapp026 := __VDLTypeapp0Builder.Named("v.io/v23/security.BlessingPattern").AssignBase(__VDLTypeapp025)
+	__VDLTypeapp024.AssignElem(__VDLTypeapp026)
+	__VDLTypeapp022.AppendField("AllowedServersPolicy", __VDLTypeapp024)
+	__VDLTypeapp027 := vdl.Int32Type
+	__VDLTypeapp028 := __VDLTypeapp0Builder.Named("v.io/x/ref/services/wspr/internal/app.GranterHandle").AssignBase(__VDLTypeapp027)
+	__VDLTypeapp022.AppendField("Granter", __VDLTypeapp028)
+	__VDLTypeapp021.AssignElem(__VDLTypeapp023)
+	__VDLTypeapp02.AppendField("CallOptions", __VDLTypeapp021)
+	__VDLTypeapp01.AssignElem(__VDLTypeapp03)
+	__VDLTypeapp0Builder.Build()
+	__VDLTypeapp0v, err := __VDLTypeapp01.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypeapp0v
+}
+func init() {
+	__VDLTypeapp0 = __VDLTypeapp0_gen()
+}
+
+var __VDLTypeapp3 *vdl.Type
+
+func __VDLTypeapp3_gen() *vdl.Type {
+	__VDLTypeapp3Builder := vdl.TypeBuilder{}
+
+	__VDLTypeapp31 := __VDLTypeapp3Builder.Optional()
+	__VDLTypeapp32 := __VDLTypeapp3Builder.Struct()
+	__VDLTypeapp33 := __VDLTypeapp3Builder.Named("v.io/x/ref/services/wspr/internal/app.RpcResponse").AssignBase(__VDLTypeapp32)
+	__VDLTypeapp34 := __VDLTypeapp3Builder.List()
+	__VDLTypeapp35 := vdl.AnyType
+	__VDLTypeapp34.AssignElem(__VDLTypeapp35)
+	__VDLTypeapp32.AppendField("OutArgs", __VDLTypeapp34)
+	__VDLTypeapp36 := __VDLTypeapp3Builder.Struct()
+	__VDLTypeapp37 := __VDLTypeapp3Builder.Named("v.io/v23/vtrace.Response").AssignBase(__VDLTypeapp36)
+	__VDLTypeapp38 := vdl.Int32Type
+	__VDLTypeapp39 := __VDLTypeapp3Builder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLTypeapp38)
+	__VDLTypeapp36.AppendField("Flags", __VDLTypeapp39)
+	__VDLTypeapp310 := __VDLTypeapp3Builder.Struct()
+	__VDLTypeapp311 := __VDLTypeapp3Builder.Named("v.io/v23/vtrace.TraceRecord").AssignBase(__VDLTypeapp310)
+	__VDLTypeapp312 := __VDLTypeapp3Builder.Array()
+	__VDLTypeapp313 := __VDLTypeapp3Builder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLTypeapp312)
+	__VDLTypeapp314 := vdl.ByteType
+	__VDLTypeapp312.AssignElem(__VDLTypeapp314)
+	__VDLTypeapp312.AssignLen(16)
+	__VDLTypeapp310.AppendField("Id", __VDLTypeapp313)
+	__VDLTypeapp315 := __VDLTypeapp3Builder.List()
+	__VDLTypeapp316 := __VDLTypeapp3Builder.Struct()
+	__VDLTypeapp317 := __VDLTypeapp3Builder.Named("v.io/v23/vtrace.SpanRecord").AssignBase(__VDLTypeapp316)
+	__VDLTypeapp316.AppendField("Id", __VDLTypeapp313)
+	__VDLTypeapp316.AppendField("Parent", __VDLTypeapp313)
+	__VDLTypeapp318 := vdl.StringType
+	__VDLTypeapp316.AppendField("Name", __VDLTypeapp318)
+	__VDLTypeapp319 := __VDLTypeapp3Builder.Struct()
+	__VDLTypeapp320 := __VDLTypeapp3Builder.Named("time.Time").AssignBase(__VDLTypeapp319)
+	__VDLTypeapp321 := vdl.Int64Type
+	__VDLTypeapp319.AppendField("Seconds", __VDLTypeapp321)
+	__VDLTypeapp322 := vdl.Int32Type
+	__VDLTypeapp319.AppendField("Nanos", __VDLTypeapp322)
+	__VDLTypeapp316.AppendField("Start", __VDLTypeapp320)
+	__VDLTypeapp316.AppendField("End", __VDLTypeapp320)
+	__VDLTypeapp323 := __VDLTypeapp3Builder.List()
+	__VDLTypeapp324 := __VDLTypeapp3Builder.Struct()
+	__VDLTypeapp325 := __VDLTypeapp3Builder.Named("v.io/v23/vtrace.Annotation").AssignBase(__VDLTypeapp324)
+	__VDLTypeapp324.AppendField("When", __VDLTypeapp320)
+	__VDLTypeapp324.AppendField("Message", __VDLTypeapp318)
+	__VDLTypeapp323.AssignElem(__VDLTypeapp325)
+	__VDLTypeapp316.AppendField("Annotations", __VDLTypeapp323)
+	__VDLTypeapp315.AssignElem(__VDLTypeapp317)
+	__VDLTypeapp310.AppendField("Spans", __VDLTypeapp315)
+	__VDLTypeapp36.AppendField("Trace", __VDLTypeapp311)
+	__VDLTypeapp32.AppendField("TraceResponse", __VDLTypeapp37)
+	__VDLTypeapp31.AssignElem(__VDLTypeapp33)
+	__VDLTypeapp3Builder.Build()
+	__VDLTypeapp3v, err := __VDLTypeapp31.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypeapp3v
+}
+func init() {
+	__VDLTypeapp3 = __VDLTypeapp3_gen()
+}
+
+var __VDLTypeapp4 *vdl.Type = vdl.TypeOf([]*vom.RawBytes(nil))
+var __VDLTypeapp2 *vdl.Type = vdl.TypeOf([]security.BlessingPattern(nil))
+var __VDLTypeapp1 *vdl.Type = vdl.TypeOf([]RpcCallOption(nil))
+var __VDLType_app_time_WireDeadline *vdl.Type
+
+func __VDLType_app_time_WireDeadline_gen() *vdl.Type {
+	__VDLType_app_time_WireDeadlineBuilder := vdl.TypeBuilder{}
+
+	__VDLType_app_time_WireDeadline1 := __VDLType_app_time_WireDeadlineBuilder.Struct()
+	__VDLType_app_time_WireDeadline2 := __VDLType_app_time_WireDeadlineBuilder.Named("time.WireDeadline").AssignBase(__VDLType_app_time_WireDeadline1)
+	__VDLType_app_time_WireDeadline3 := __VDLType_app_time_WireDeadlineBuilder.Struct()
+	__VDLType_app_time_WireDeadline4 := __VDLType_app_time_WireDeadlineBuilder.Named("time.Duration").AssignBase(__VDLType_app_time_WireDeadline3)
+	__VDLType_app_time_WireDeadline5 := vdl.Int64Type
+	__VDLType_app_time_WireDeadline3.AppendField("Seconds", __VDLType_app_time_WireDeadline5)
+	__VDLType_app_time_WireDeadline6 := vdl.Int32Type
+	__VDLType_app_time_WireDeadline3.AppendField("Nanos", __VDLType_app_time_WireDeadline6)
+	__VDLType_app_time_WireDeadline1.AppendField("FromNow", __VDLType_app_time_WireDeadline4)
+	__VDLType_app_time_WireDeadline7 := vdl.BoolType
+	__VDLType_app_time_WireDeadline1.AppendField("NoDeadline", __VDLType_app_time_WireDeadline7)
+	__VDLType_app_time_WireDeadlineBuilder.Build()
+	__VDLType_app_time_WireDeadlinev, err := __VDLType_app_time_WireDeadline2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_app_time_WireDeadlinev
+}
+func init() {
+	__VDLType_app_time_WireDeadline = __VDLType_app_time_WireDeadline_gen()
+}
+
+var __VDLType_app_v_io_v23_security_BlessingPattern *vdl.Type = vdl.TypeOf(security.BlessingPattern(""))
+var __VDLType_app_v_io_v23_security_WireBlessings *vdl.Type
+
+func __VDLType_app_v_io_v23_security_WireBlessings_gen() *vdl.Type {
+	__VDLType_app_v_io_v23_security_WireBlessingsBuilder := vdl.TypeBuilder{}
+
+	__VDLType_app_v_io_v23_security_WireBlessings1 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.Struct()
+	__VDLType_app_v_io_v23_security_WireBlessings2 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/security.WireBlessings").AssignBase(__VDLType_app_v_io_v23_security_WireBlessings1)
+	__VDLType_app_v_io_v23_security_WireBlessings3 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.List()
+	__VDLType_app_v_io_v23_security_WireBlessings4 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.List()
+	__VDLType_app_v_io_v23_security_WireBlessings5 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.Struct()
+	__VDLType_app_v_io_v23_security_WireBlessings6 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/security.Certificate").AssignBase(__VDLType_app_v_io_v23_security_WireBlessings5)
+	__VDLType_app_v_io_v23_security_WireBlessings7 := vdl.StringType
+	__VDLType_app_v_io_v23_security_WireBlessings5.AppendField("Extension", __VDLType_app_v_io_v23_security_WireBlessings7)
+	__VDLType_app_v_io_v23_security_WireBlessings8 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.List()
+	__VDLType_app_v_io_v23_security_WireBlessings9 := vdl.ByteType
+	__VDLType_app_v_io_v23_security_WireBlessings8.AssignElem(__VDLType_app_v_io_v23_security_WireBlessings9)
+	__VDLType_app_v_io_v23_security_WireBlessings5.AppendField("PublicKey", __VDLType_app_v_io_v23_security_WireBlessings8)
+	__VDLType_app_v_io_v23_security_WireBlessings10 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.List()
+	__VDLType_app_v_io_v23_security_WireBlessings11 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.Struct()
+	__VDLType_app_v_io_v23_security_WireBlessings12 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/security.Caveat").AssignBase(__VDLType_app_v_io_v23_security_WireBlessings11)
+	__VDLType_app_v_io_v23_security_WireBlessings13 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.Array()
+	__VDLType_app_v_io_v23_security_WireBlessings14 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_app_v_io_v23_security_WireBlessings13)
+	__VDLType_app_v_io_v23_security_WireBlessings13.AssignElem(__VDLType_app_v_io_v23_security_WireBlessings9)
+	__VDLType_app_v_io_v23_security_WireBlessings13.AssignLen(16)
+	__VDLType_app_v_io_v23_security_WireBlessings11.AppendField("Id", __VDLType_app_v_io_v23_security_WireBlessings14)
+	__VDLType_app_v_io_v23_security_WireBlessings11.AppendField("ParamVom", __VDLType_app_v_io_v23_security_WireBlessings8)
+	__VDLType_app_v_io_v23_security_WireBlessings10.AssignElem(__VDLType_app_v_io_v23_security_WireBlessings12)
+	__VDLType_app_v_io_v23_security_WireBlessings5.AppendField("Caveats", __VDLType_app_v_io_v23_security_WireBlessings10)
+	__VDLType_app_v_io_v23_security_WireBlessings15 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.Struct()
+	__VDLType_app_v_io_v23_security_WireBlessings16 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/security.Signature").AssignBase(__VDLType_app_v_io_v23_security_WireBlessings15)
+	__VDLType_app_v_io_v23_security_WireBlessings15.AppendField("Purpose", __VDLType_app_v_io_v23_security_WireBlessings8)
+	__VDLType_app_v_io_v23_security_WireBlessings17 := vdl.StringType
+	__VDLType_app_v_io_v23_security_WireBlessings18 := __VDLType_app_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/security.Hash").AssignBase(__VDLType_app_v_io_v23_security_WireBlessings17)
+	__VDLType_app_v_io_v23_security_WireBlessings15.AppendField("Hash", __VDLType_app_v_io_v23_security_WireBlessings18)
+	__VDLType_app_v_io_v23_security_WireBlessings15.AppendField("R", __VDLType_app_v_io_v23_security_WireBlessings8)
+	__VDLType_app_v_io_v23_security_WireBlessings15.AppendField("S", __VDLType_app_v_io_v23_security_WireBlessings8)
+	__VDLType_app_v_io_v23_security_WireBlessings5.AppendField("Signature", __VDLType_app_v_io_v23_security_WireBlessings16)
+	__VDLType_app_v_io_v23_security_WireBlessings4.AssignElem(__VDLType_app_v_io_v23_security_WireBlessings6)
+	__VDLType_app_v_io_v23_security_WireBlessings3.AssignElem(__VDLType_app_v_io_v23_security_WireBlessings4)
+	__VDLType_app_v_io_v23_security_WireBlessings1.AppendField("CertificateChains", __VDLType_app_v_io_v23_security_WireBlessings3)
+	__VDLType_app_v_io_v23_security_WireBlessingsBuilder.Build()
+	__VDLType_app_v_io_v23_security_WireBlessingsv, err := __VDLType_app_v_io_v23_security_WireBlessings2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_app_v_io_v23_security_WireBlessingsv
+}
+func init() {
+	__VDLType_app_v_io_v23_security_WireBlessings = __VDLType_app_v_io_v23_security_WireBlessings_gen()
+}
+
+var __VDLType_app_v_io_v23_vtrace_Request *vdl.Type = vdl.TypeOf(vtrace.Request{})
+var __VDLType_app_v_io_v23_vtrace_Response *vdl.Type
+
+func __VDLType_app_v_io_v23_vtrace_Response_gen() *vdl.Type {
+	__VDLType_app_v_io_v23_vtrace_ResponseBuilder := vdl.TypeBuilder{}
+
+	__VDLType_app_v_io_v23_vtrace_Response1 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Struct()
+	__VDLType_app_v_io_v23_vtrace_Response2 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/vtrace.Response").AssignBase(__VDLType_app_v_io_v23_vtrace_Response1)
+	__VDLType_app_v_io_v23_vtrace_Response3 := vdl.Int32Type
+	__VDLType_app_v_io_v23_vtrace_Response4 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLType_app_v_io_v23_vtrace_Response3)
+	__VDLType_app_v_io_v23_vtrace_Response1.AppendField("Flags", __VDLType_app_v_io_v23_vtrace_Response4)
+	__VDLType_app_v_io_v23_vtrace_Response5 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Struct()
+	__VDLType_app_v_io_v23_vtrace_Response6 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/vtrace.TraceRecord").AssignBase(__VDLType_app_v_io_v23_vtrace_Response5)
+	__VDLType_app_v_io_v23_vtrace_Response7 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Array()
+	__VDLType_app_v_io_v23_vtrace_Response8 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_app_v_io_v23_vtrace_Response7)
+	__VDLType_app_v_io_v23_vtrace_Response9 := vdl.ByteType
+	__VDLType_app_v_io_v23_vtrace_Response7.AssignElem(__VDLType_app_v_io_v23_vtrace_Response9)
+	__VDLType_app_v_io_v23_vtrace_Response7.AssignLen(16)
+	__VDLType_app_v_io_v23_vtrace_Response5.AppendField("Id", __VDLType_app_v_io_v23_vtrace_Response8)
+	__VDLType_app_v_io_v23_vtrace_Response10 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.List()
+	__VDLType_app_v_io_v23_vtrace_Response11 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Struct()
+	__VDLType_app_v_io_v23_vtrace_Response12 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/vtrace.SpanRecord").AssignBase(__VDLType_app_v_io_v23_vtrace_Response11)
+	__VDLType_app_v_io_v23_vtrace_Response11.AppendField("Id", __VDLType_app_v_io_v23_vtrace_Response8)
+	__VDLType_app_v_io_v23_vtrace_Response11.AppendField("Parent", __VDLType_app_v_io_v23_vtrace_Response8)
+	__VDLType_app_v_io_v23_vtrace_Response13 := vdl.StringType
+	__VDLType_app_v_io_v23_vtrace_Response11.AppendField("Name", __VDLType_app_v_io_v23_vtrace_Response13)
+	__VDLType_app_v_io_v23_vtrace_Response14 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Struct()
+	__VDLType_app_v_io_v23_vtrace_Response15 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Named("time.Time").AssignBase(__VDLType_app_v_io_v23_vtrace_Response14)
+	__VDLType_app_v_io_v23_vtrace_Response16 := vdl.Int64Type
+	__VDLType_app_v_io_v23_vtrace_Response14.AppendField("Seconds", __VDLType_app_v_io_v23_vtrace_Response16)
+	__VDLType_app_v_io_v23_vtrace_Response17 := vdl.Int32Type
+	__VDLType_app_v_io_v23_vtrace_Response14.AppendField("Nanos", __VDLType_app_v_io_v23_vtrace_Response17)
+	__VDLType_app_v_io_v23_vtrace_Response11.AppendField("Start", __VDLType_app_v_io_v23_vtrace_Response15)
+	__VDLType_app_v_io_v23_vtrace_Response11.AppendField("End", __VDLType_app_v_io_v23_vtrace_Response15)
+	__VDLType_app_v_io_v23_vtrace_Response18 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.List()
+	__VDLType_app_v_io_v23_vtrace_Response19 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Struct()
+	__VDLType_app_v_io_v23_vtrace_Response20 := __VDLType_app_v_io_v23_vtrace_ResponseBuilder.Named("v.io/v23/vtrace.Annotation").AssignBase(__VDLType_app_v_io_v23_vtrace_Response19)
+	__VDLType_app_v_io_v23_vtrace_Response19.AppendField("When", __VDLType_app_v_io_v23_vtrace_Response15)
+	__VDLType_app_v_io_v23_vtrace_Response19.AppendField("Message", __VDLType_app_v_io_v23_vtrace_Response13)
+	__VDLType_app_v_io_v23_vtrace_Response18.AssignElem(__VDLType_app_v_io_v23_vtrace_Response20)
+	__VDLType_app_v_io_v23_vtrace_Response11.AppendField("Annotations", __VDLType_app_v_io_v23_vtrace_Response18)
+	__VDLType_app_v_io_v23_vtrace_Response10.AssignElem(__VDLType_app_v_io_v23_vtrace_Response12)
+	__VDLType_app_v_io_v23_vtrace_Response5.AppendField("Spans", __VDLType_app_v_io_v23_vtrace_Response10)
+	__VDLType_app_v_io_v23_vtrace_Response1.AppendField("Trace", __VDLType_app_v_io_v23_vtrace_Response6)
+	__VDLType_app_v_io_v23_vtrace_ResponseBuilder.Build()
+	__VDLType_app_v_io_v23_vtrace_Responsev, err := __VDLType_app_v_io_v23_vtrace_Response2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_app_v_io_v23_vtrace_Responsev
+}
+func init() {
+	__VDLType_app_v_io_v23_vtrace_Response = __VDLType_app_v_io_v23_vtrace_Response_gen()
+}
+
+var __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterHandle *vdl.Type = vdl.TypeOf(GranterHandle(0))
+var __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterRequest *vdl.Type = vdl.TypeOf(GranterRequest{})
+var __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse *vdl.Type
+
+func __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse_gen() *vdl.Type {
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder := vdl.TypeBuilder{}
+
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse1 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse2 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Named("v.io/x/ref/services/wspr/internal/app.GranterResponse").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse1)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse3 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse4 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Named("v.io/v23/security.WireBlessings").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse3)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse5 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.List()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse6 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.List()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse7 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse8 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Named("v.io/v23/security.Certificate").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse7)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse9 := vdl.StringType
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse7.AppendField("Extension", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse9)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse10 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.List()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse11 := vdl.ByteType
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse10.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse11)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse7.AppendField("PublicKey", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse10)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse12 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.List()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse13 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse14 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Named("v.io/v23/security.Caveat").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse13)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse15 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Array()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse16 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse15)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse15.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse11)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse15.AssignLen(16)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse13.AppendField("Id", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse16)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse13.AppendField("ParamVom", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse10)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse12.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse14)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse7.AppendField("Caveats", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse12)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse17 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse18 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Named("v.io/v23/security.Signature").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse17)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse17.AppendField("Purpose", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse10)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse19 := vdl.StringType
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse20 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Named("v.io/v23/security.Hash").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse19)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse17.AppendField("Hash", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse20)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse17.AppendField("R", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse10)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse17.AppendField("S", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse10)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse7.AppendField("Signature", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse18)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse6.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse8)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse5.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse6)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse3.AppendField("CertificateChains", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse5)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse1.AppendField("Blessings", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse4)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse21 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Optional()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse22 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse23 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Named("error").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse22)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse22.AppendField("Id", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse9)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse24 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Enum()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse24.AppendLabel("NoRetry")
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse24.AppendLabel("RetryConnection")
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse24.AppendLabel("RetryRefetch")
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse24.AppendLabel("RetryBackoff")
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse22.AppendField("RetryCode", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse24)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse22.AppendField("Msg", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse9)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse25 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.List()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse26 := vdl.AnyType
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse25.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse26)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse22.AppendField("ParamList", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse25)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse21.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse23)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse1.AppendField("Err", __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse21)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponseBuilder.Build()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponsev, err := __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponsev
+}
+func init() {
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse = __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse_gen()
+}
+
+var __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcCallOption *vdl.Type = vdl.TypeOf(RpcCallOption(RpcCallOptionAllowedServersPolicy{[]security.BlessingPattern(nil)}))
+var __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest *vdl.Type
+
+func __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest_gen() *vdl.Type {
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder := vdl.TypeBuilder{}
+
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest1 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest2 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Named("v.io/x/ref/services/wspr/internal/app.RpcRequest").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest1)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest3 := vdl.StringType
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest1.AppendField("Name", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest3)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest1.AppendField("Method", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest3)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest4 := vdl.Int32Type
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest1.AppendField("NumInArgs", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest4)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest1.AppendField("NumOutArgs", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest4)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest5 := vdl.BoolType
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest1.AppendField("IsStreaming", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest5)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest6 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest7 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Named("time.WireDeadline").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest6)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest8 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest9 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Named("time.Duration").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest8)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest10 := vdl.Int64Type
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest8.AppendField("Seconds", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest10)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest8.AppendField("Nanos", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest4)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest6.AppendField("FromNow", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest9)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest6.AppendField("NoDeadline", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest5)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest1.AppendField("Deadline", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest7)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest11 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest12 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Named("v.io/v23/vtrace.Request").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest11)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest13 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Array()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest14 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest13)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest15 := vdl.ByteType
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest13.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest15)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest13.AssignLen(16)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest11.AppendField("SpanId", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest14)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest11.AppendField("TraceId", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest14)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest16 := vdl.Int32Type
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest17 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest16)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest11.AppendField("Flags", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest17)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest11.AppendField("LogLevel", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest4)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest1.AppendField("TraceRequest", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest12)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest18 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest19 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Named("v.io/x/ref/services/wspr/internal/rpc/server.Context").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest18)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest18.AppendField("Language", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest3)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest1.AppendField("Context", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest19)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest20 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.List()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest21 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Union()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest22 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Named("v.io/x/ref/services/wspr/internal/app.RpcCallOption").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest21)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest23 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.List()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest24 := vdl.StringType
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest25 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Named("v.io/v23/security.BlessingPattern").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest24)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest23.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest25)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest21.AppendField("AllowedServersPolicy", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest23)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest26 := vdl.Int32Type
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest27 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Named("v.io/x/ref/services/wspr/internal/app.GranterHandle").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest26)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest21.AppendField("Granter", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest27)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest20.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest22)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest1.AppendField("CallOptions", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest20)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestBuilder.Build()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestv, err := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequestv
+}
+func init() {
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest = __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest_gen()
+}
+
+var __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse *vdl.Type
+
+func __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse_gen() *vdl.Type {
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder := vdl.TypeBuilder{}
+
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse1 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse2 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Named("v.io/x/ref/services/wspr/internal/app.RpcResponse").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse1)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse3 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.List()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse4 := vdl.AnyType
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse3.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse4)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse1.AppendField("OutArgs", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse3)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse5 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse6 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Named("v.io/v23/vtrace.Response").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse5)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse7 := vdl.Int32Type
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse8 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse7)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse5.AppendField("Flags", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse8)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse9 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse10 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Named("v.io/v23/vtrace.TraceRecord").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse9)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse11 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Array()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse12 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse11)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse13 := vdl.ByteType
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse11.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse13)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse11.AssignLen(16)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse9.AppendField("Id", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse12)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse14 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.List()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse15 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse16 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Named("v.io/v23/vtrace.SpanRecord").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse15)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse15.AppendField("Id", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse12)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse15.AppendField("Parent", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse12)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse17 := vdl.StringType
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse15.AppendField("Name", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse17)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse18 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse19 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Named("time.Time").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse18)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse20 := vdl.Int64Type
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse18.AppendField("Seconds", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse20)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse21 := vdl.Int32Type
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse18.AppendField("Nanos", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse21)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse15.AppendField("Start", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse19)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse15.AppendField("End", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse19)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse22 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.List()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse23 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Struct()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse24 := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Named("v.io/v23/vtrace.Annotation").AssignBase(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse23)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse23.AppendField("When", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse19)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse23.AppendField("Message", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse17)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse22.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse24)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse15.AppendField("Annotations", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse22)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse14.AssignElem(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse16)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse9.AppendField("Spans", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse14)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse5.AppendField("Trace", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse10)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse1.AppendField("TraceResponse", __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse6)
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponseBuilder.Build()
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponsev, err := __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponsev
+}
+func init() {
+	__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse = __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse_gen()
+}
+
+var __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcServerOption *vdl.Type = vdl.TypeOf(RpcServerOption(RpcServerOptionIsLeaf{false}))
+var __VDLType_app_v_io_x_ref_services_wspr_internal_rpc_server_Context *vdl.Type = vdl.TypeOf(server.Context{})
+var __VDLType_app_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall *vdl.Type = vdl.TypeOf(server.SecurityCall{})
+
+func __VDLEnsureNativeBuilt_app() {
+	if __VDLTypeapp6 == nil {
+		__VDLTypeapp6 = __VDLTypeapp6_gen()
+	}
+	if __VDLTypeapp0 == nil {
+		__VDLTypeapp0 = __VDLTypeapp0_gen()
+	}
+	if __VDLTypeapp3 == nil {
+		__VDLTypeapp3 = __VDLTypeapp3_gen()
+	}
+	if __VDLType_app_time_WireDeadline == nil {
+		__VDLType_app_time_WireDeadline = __VDLType_app_time_WireDeadline_gen()
+	}
+	if __VDLType_app_v_io_v23_security_WireBlessings == nil {
+		__VDLType_app_v_io_v23_security_WireBlessings = __VDLType_app_v_io_v23_security_WireBlessings_gen()
+	}
+	if __VDLType_app_v_io_v23_vtrace_Response == nil {
+		__VDLType_app_v_io_v23_vtrace_Response = __VDLType_app_v_io_v23_vtrace_Response_gen()
+	}
+	if __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse == nil {
+		__VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse = __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse_gen()
+	}
+	if __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest == nil {
+		__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest = __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest_gen()
+	}
+	if __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse == nil {
+		__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse = __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse_gen()
+	}
 }

@@ -16,6 +16,9 @@ import (
 	"v.io/v23/uniqueid"
 )
 
+func __VDLEnsureNativeBuilt_caveats() {
+}
+
 // LoggingCaveat is a caveat that will always validate but it logs the parameter on every attempt to validate it.
 var LoggingCaveat = security.CaveatDescriptor{
 	Id: uniqueid.Id{

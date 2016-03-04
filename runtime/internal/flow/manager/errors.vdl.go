@@ -17,6 +17,9 @@ import (
 	"v.io/v23/security"
 )
 
+func __VDLEnsureNativeBuilt_errors() {
+}
+
 var (
 	ErrUnknownProtocol           = verror.Register("v.io/x/ref/runtime/internal/flow/manager.UnknownProtocol", verror.NoRetry, "{1:}{2:} unknown protocol{:3}")
 	ErrManagerClosed             = verror.Register("v.io/x/ref/runtime/internal/flow/manager.ManagerClosed", verror.NoRetry, "{1:}{2:} manager is already closed")

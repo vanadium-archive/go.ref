@@ -14,6 +14,9 @@ import (
 	"v.io/v23/rpc"
 )
 
+func __VDLEnsureNativeBuilt_wire() {
+}
+
 // PingPongClientMethods is the client interface
 // containing PingPong methods.
 //

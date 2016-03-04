@@ -28,6 +28,106 @@ func (groupData) __VDLReflect(struct {
 }) {
 }
 
+func (m *groupData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_services_groups_internal_server_groupData == nil || __VDLTypetypes0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var var2 bool
+	if len(m.Perms) == 0 {
+		var2 = true
+	}
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Perms")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Perms.FillVDLTarget(fieldTarget4, __VDLType_types_v_io_v23_security_access_Permissions); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.Entries) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Entries")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			setTarget8, err := fieldTarget7.StartSet(__VDLTypetypes1, len(m.Entries))
+			if err != nil {
+				return err
+			}
+			for key10 := range m.Entries {
+				keyTarget9, err := setTarget8.StartKey()
+				if err != nil {
+					return err
+				}
+
+				if err := key10.FillVDLTarget(keyTarget9, __VDLType_types_v_io_v23_services_groups_BlessingPatternChunk); err != nil {
+					return err
+				}
+				if err := setTarget8.FinishKey(keyTarget9); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget7.FinishSet(setTarget8); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *groupData) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *groupData) IsZero() bool {
+
+	var1 := true
+	var var2 bool
+	if len(m.Perms) == 0 {
+		var2 = true
+	}
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.Entries) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	return var1
+}
+
 func init() {
 	vdl.Register((*groupData)(nil))
+}
+
+var __VDLTypetypes0 *vdl.Type = vdl.TypeOf((*groupData)(nil))
+var __VDLTypetypes1 *vdl.Type = vdl.TypeOf(map[groups.BlessingPatternChunk]struct{}(nil))
+var __VDLType_types_v_io_v23_security_access_Permissions *vdl.Type = vdl.TypeOf(access.Permissions(nil))
+var __VDLType_types_v_io_v23_services_groups_BlessingPatternChunk *vdl.Type = vdl.TypeOf(groups.BlessingPatternChunk(""))
+var __VDLType_types_v_io_x_ref_services_groups_internal_server_groupData *vdl.Type = vdl.TypeOf(groupData{})
+
+func __VDLEnsureNativeBuilt_types() {
 }

@@ -21,6 +21,9 @@ import (
 	"v.io/v23/security"
 )
 
+func __VDLEnsureNativeBuilt_discharger() {
+}
+
 var (
 	// Indicates that the Caveat does not require a discharge
 	ErrNotAThirdPartyCaveat = verror.Register("v.io/x/ref/services/discharger.NotAThirdPartyCaveat", verror.NoRetry, "{1:}{2:} discharges are not required for non-third-party caveats (id: {c.id})")

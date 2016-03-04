@@ -29,6 +29,114 @@ func (DatabaseData) __VDLReflect(struct {
 }) {
 }
 
+func (m *DatabaseData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_services_syncbase_server_nosql_DatabaseData == nil || __VDLTypetypes0 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Name == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Name")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Name), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var5 := (m.Version == uint64(0))
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Version")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget7.FromUint(uint64(m.Version), vdl.Uint64Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	var var8 bool
+	if len(m.Perms) == 0 {
+		var8 = true
+	}
+	if !var8 {
+		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Perms")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Perms.FillVDLTarget(fieldTarget10, __VDLType_types_v_io_v23_security_access_Permissions); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+				return err
+			}
+		}
+	}
+	var11 := (m.SchemaMetadata == (*nosql.SchemaMetadata)(nil))
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("SchemaMetadata")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if m.SchemaMetadata == nil {
+				if err := fieldTarget13.FromNil(__VDLTypetypes1); err != nil {
+					return err
+				}
+			} else {
+				if err := m.SchemaMetadata.FillVDLTarget(fieldTarget13, __VDLType_types_v_io_v23_services_syncbase_nosql_SchemaMetadata); err != nil {
+					return err
+				}
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *DatabaseData) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *DatabaseData) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Name == "")
+	var1 = var1 && var2
+	var3 := (m.Version == uint64(0))
+	var1 = var1 && var3
+	var var4 bool
+	if len(m.Perms) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	var5 := (m.SchemaMetadata == (*nosql.SchemaMetadata)(nil))
+	var1 = var1 && var5
+	return var1
+}
+
 // TableData represents the persistent state of a Table.
 type TableData struct {
 	Name  string
@@ -40,7 +148,85 @@ func (TableData) __VDLReflect(struct {
 }) {
 }
 
+func (m *TableData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	if __VDLType_types_v_io_x_ref_services_syncbase_server_nosql_TableData == nil || __VDLTypetypes2 == nil {
+		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
+	}
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var2 := (m.Name == "")
+	if !var2 {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Name")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget4.FromString(string(m.Name), vdl.StringType); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
+		}
+	}
+	var var5 bool
+	if len(m.Perms) == 0 {
+		var5 = true
+	}
+	if !var5 {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Perms")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := m.Perms.FillVDLTarget(fieldTarget7, __VDLType_types_v_io_v23_security_access_Permissions); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *TableData) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *TableData) IsZero() bool {
+
+	var1 := true
+	var2 := (m.Name == "")
+	var1 = var1 && var2
+	var var3 bool
+	if len(m.Perms) == 0 {
+		var3 = true
+	}
+	var1 = var1 && var3
+	return var1
+}
+
 func init() {
 	vdl.Register((*DatabaseData)(nil))
 	vdl.Register((*TableData)(nil))
+}
+
+var __VDLTypetypes1 *vdl.Type = vdl.TypeOf((*nosql.SchemaMetadata)(nil))
+var __VDLTypetypes0 *vdl.Type = vdl.TypeOf((*DatabaseData)(nil))
+var __VDLTypetypes2 *vdl.Type = vdl.TypeOf((*TableData)(nil))
+var __VDLType_types_v_io_v23_security_access_Permissions *vdl.Type = vdl.TypeOf(access.Permissions(nil))
+var __VDLType_types_v_io_v23_services_syncbase_nosql_SchemaMetadata *vdl.Type = vdl.TypeOf(nosql.SchemaMetadata{})
+var __VDLType_types_v_io_x_ref_services_syncbase_server_nosql_DatabaseData *vdl.Type = vdl.TypeOf(DatabaseData{})
+var __VDLType_types_v_io_x_ref_services_syncbase_server_nosql_TableData *vdl.Type = vdl.TypeOf(TableData{})
+
+func __VDLEnsureNativeBuilt_types() {
 }

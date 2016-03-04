@@ -14,6 +14,9 @@ import (
 	"v.io/v23/verror"
 )
 
+func __VDLEnsureNativeBuilt_model() {
+}
+
 var (
 	// KeyExists means the given key already exists in the store.
 	ErrKeyExists = verror.Register("v.io/x/ref/services/groups/internal/store.KeyExists", verror.NoRetry, "{1:}{2:} Key exists{:_}")

@@ -13,7 +13,7 @@ import (
 
 	// VDL user imports
 	"time"
-	_ "v.io/v23/vdlroot/time"
+	time_2 "v.io/v23/vdlroot/time"
 )
 
 // VClockData is the persistent state of the Syncbase virtual clock.
@@ -42,6 +42,274 @@ func (VClockData) __VDLReflect(struct {
 }) {
 }
 
+func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+
+	__VDLEnsureNativeBuilt_types()
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	var wireValue2 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue2, m.SystemTimeAtBoot); err != nil {
+		return err
+	}
+
+	var3 := wireValue2.IsZero()
+	if !var3 {
+		keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("SystemTimeAtBoot")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue2.FillVDLTarget(fieldTarget5, __VDLType_types_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue6 time_2.Duration
+	if err := time_2.DurationFromNative(&wireValue6, m.Skew); err != nil {
+		return err
+	}
+
+	var7 := wireValue6.IsZero()
+	if !var7 {
+		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Skew")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue6.FillVDLTarget(fieldTarget9, __VDLType_types_time_Duration); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue10 time_2.Duration
+	if err := time_2.DurationFromNative(&wireValue10, m.ElapsedTimeSinceBoot); err != nil {
+		return err
+	}
+
+	var11 := wireValue10.IsZero()
+	if !var11 {
+		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("ElapsedTimeSinceBoot")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue10.FillVDLTarget(fieldTarget13, __VDLType_types_time_Duration); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+				return err
+			}
+		}
+	}
+	var wireValue14 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue14, m.LastNtpTs); err != nil {
+		return err
+	}
+
+	var15 := wireValue14.IsZero()
+	if !var15 {
+		keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("LastNtpTs")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+
+			if err := wireValue14.FillVDLTarget(fieldTarget17, __VDLType_types_time_Time); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
+				return err
+			}
+		}
+	}
+	var18 := (m.NumReboots == uint16(0))
+	if !var18 {
+		keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("NumReboots")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget20.FromUint(uint64(m.NumReboots), vdl.Uint16Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
+				return err
+			}
+		}
+	}
+	var21 := (m.NumHops == uint16(0))
+	if !var21 {
+		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("NumHops")
+		if err != vdl.ErrFieldNoExist && err != nil {
+			return err
+		}
+		if err != vdl.ErrFieldNoExist {
+			if err := fieldTarget23.FromUint(uint64(m.NumHops), vdl.Uint16Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
+				return err
+			}
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *VClockData) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+func (m *VClockData) IsZero() bool {
+
+	var1 := (*m == VClockData{})
+	return var1
+}
+
 func init() {
 	vdl.Register((*VClockData)(nil))
+}
+
+var __VDLTypetypes0 *vdl.Type
+
+func __VDLTypetypes0_gen() *vdl.Type {
+	__VDLTypetypes0Builder := vdl.TypeBuilder{}
+
+	__VDLTypetypes01 := __VDLTypetypes0Builder.Optional()
+	__VDLTypetypes02 := __VDLTypetypes0Builder.Struct()
+	__VDLTypetypes03 := __VDLTypetypes0Builder.Named("v.io/x/ref/services/syncbase/vclock.VClockData").AssignBase(__VDLTypetypes02)
+	__VDLTypetypes04 := __VDLTypetypes0Builder.Struct()
+	__VDLTypetypes05 := __VDLTypetypes0Builder.Named("time.Time").AssignBase(__VDLTypetypes04)
+	__VDLTypetypes06 := vdl.Int64Type
+	__VDLTypetypes04.AppendField("Seconds", __VDLTypetypes06)
+	__VDLTypetypes07 := vdl.Int32Type
+	__VDLTypetypes04.AppendField("Nanos", __VDLTypetypes07)
+	__VDLTypetypes02.AppendField("SystemTimeAtBoot", __VDLTypetypes05)
+	__VDLTypetypes08 := __VDLTypetypes0Builder.Struct()
+	__VDLTypetypes09 := __VDLTypetypes0Builder.Named("time.Duration").AssignBase(__VDLTypetypes08)
+	__VDLTypetypes08.AppendField("Seconds", __VDLTypetypes06)
+	__VDLTypetypes08.AppendField("Nanos", __VDLTypetypes07)
+	__VDLTypetypes02.AppendField("Skew", __VDLTypetypes09)
+	__VDLTypetypes02.AppendField("ElapsedTimeSinceBoot", __VDLTypetypes09)
+	__VDLTypetypes02.AppendField("LastNtpTs", __VDLTypetypes05)
+	__VDLTypetypes010 := vdl.Uint16Type
+	__VDLTypetypes02.AppendField("NumReboots", __VDLTypetypes010)
+	__VDLTypetypes02.AppendField("NumHops", __VDLTypetypes010)
+	__VDLTypetypes01.AssignElem(__VDLTypetypes03)
+	__VDLTypetypes0Builder.Build()
+	__VDLTypetypes0v, err := __VDLTypetypes01.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLTypetypes0v
+}
+func init() {
+	__VDLTypetypes0 = __VDLTypetypes0_gen()
+}
+
+var __VDLType_types_time_Duration *vdl.Type
+
+func __VDLType_types_time_Duration_gen() *vdl.Type {
+	__VDLType_types_time_DurationBuilder := vdl.TypeBuilder{}
+
+	__VDLType_types_time_Duration1 := __VDLType_types_time_DurationBuilder.Struct()
+	__VDLType_types_time_Duration2 := __VDLType_types_time_DurationBuilder.Named("time.Duration").AssignBase(__VDLType_types_time_Duration1)
+	__VDLType_types_time_Duration3 := vdl.Int64Type
+	__VDLType_types_time_Duration1.AppendField("Seconds", __VDLType_types_time_Duration3)
+	__VDLType_types_time_Duration4 := vdl.Int32Type
+	__VDLType_types_time_Duration1.AppendField("Nanos", __VDLType_types_time_Duration4)
+	__VDLType_types_time_DurationBuilder.Build()
+	__VDLType_types_time_Durationv, err := __VDLType_types_time_Duration2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_types_time_Durationv
+}
+func init() {
+	__VDLType_types_time_Duration = __VDLType_types_time_Duration_gen()
+}
+
+var __VDLType_types_time_Time *vdl.Type
+
+func __VDLType_types_time_Time_gen() *vdl.Type {
+	__VDLType_types_time_TimeBuilder := vdl.TypeBuilder{}
+
+	__VDLType_types_time_Time1 := __VDLType_types_time_TimeBuilder.Struct()
+	__VDLType_types_time_Time2 := __VDLType_types_time_TimeBuilder.Named("time.Time").AssignBase(__VDLType_types_time_Time1)
+	__VDLType_types_time_Time3 := vdl.Int64Type
+	__VDLType_types_time_Time1.AppendField("Seconds", __VDLType_types_time_Time3)
+	__VDLType_types_time_Time4 := vdl.Int32Type
+	__VDLType_types_time_Time1.AppendField("Nanos", __VDLType_types_time_Time4)
+	__VDLType_types_time_TimeBuilder.Build()
+	__VDLType_types_time_Timev, err := __VDLType_types_time_Time2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_types_time_Timev
+}
+func init() {
+	__VDLType_types_time_Time = __VDLType_types_time_Time_gen()
+}
+
+var __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData *vdl.Type
+
+func __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData_gen() *vdl.Type {
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockDataBuilder := vdl.TypeBuilder{}
+
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData1 := __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockDataBuilder.Struct()
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData2 := __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockDataBuilder.Named("v.io/x/ref/services/syncbase/vclock.VClockData").AssignBase(__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData1)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData3 := __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockDataBuilder.Struct()
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData4 := __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockDataBuilder.Named("time.Time").AssignBase(__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData3)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData5 := vdl.Int64Type
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData3.AppendField("Seconds", __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData5)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData6 := vdl.Int32Type
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData3.AppendField("Nanos", __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData6)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData1.AppendField("SystemTimeAtBoot", __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData4)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData7 := __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockDataBuilder.Struct()
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData8 := __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockDataBuilder.Named("time.Duration").AssignBase(__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData7)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData7.AppendField("Seconds", __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData5)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData7.AppendField("Nanos", __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData6)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData1.AppendField("Skew", __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData8)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData1.AppendField("ElapsedTimeSinceBoot", __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData8)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData1.AppendField("LastNtpTs", __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData4)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData9 := vdl.Uint16Type
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData1.AppendField("NumReboots", __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData9)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData1.AppendField("NumHops", __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData9)
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockDataBuilder.Build()
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockDatav, err := __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData2.Built()
+	if err != nil {
+		panic(err)
+	}
+	return __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockDatav
+}
+func init() {
+	__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData = __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData_gen()
+}
+func __VDLEnsureNativeBuilt_types() {
+	if __VDLTypetypes0 == nil {
+		__VDLTypetypes0 = __VDLTypetypes0_gen()
+	}
+	if __VDLType_types_time_Duration == nil {
+		__VDLType_types_time_Duration = __VDLType_types_time_Duration_gen()
+	}
+	if __VDLType_types_time_Time == nil {
+		__VDLType_types_time_Time = __VDLType_types_time_Time_gen()
+	}
+	if __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData == nil {
+		__VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData = __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData_gen()
+	}
 }
