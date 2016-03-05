@@ -94,7 +94,7 @@ func TestBrowspr(t *testing.T) {
 found:
 	for {
 		status := mockServer.Status()
-		for _, v := range status.Mounts {
+		for _, v := range status.PublisherStatus {
 			if v.Name == mockServerName && v.Server == mockServerEndpoint.String() && !v.LastMount.IsZero() {
 				if v.LastMountErr != nil {
 					t.Fatalf("Failed to mount %s: %v", v.Name, v.LastMountErr)

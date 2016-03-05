@@ -31,7 +31,7 @@ const (
 
 type proxy struct {
 	m      flow.Manager
-	pub    publisher.Publisher
+	pub    *publisher.T
 	closed chan struct{}
 	auth   security.Authorizer
 	wg     sync.WaitGroup
@@ -84,8 +84,7 @@ func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) 
 		p.mu.Lock()
 		p.closing = true
 		p.mu.Unlock()
-		p.pub.Stop()
-		p.pub.WaitForStop()
+		<-p.pub.Closed()
 		p.wg.Wait()
 		<-p.m.Closed()
 		close(p.closed)

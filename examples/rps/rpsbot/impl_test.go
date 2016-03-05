@@ -19,6 +19,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/ref/examples/rps"
+	"v.io/x/ref/test/testutil"
 	"v.io/x/ref/test/v23test"
 )
 
@@ -32,6 +33,8 @@ func startRockPaperScissors(t *testing.T, ctx *context.T) (*RPS, func()) {
 	for _, n := range names[1:] {
 		server.AddName(n)
 	}
+	testutil.WaitForServerPublished(server)
+
 	return rpsService, func() {
 		if err := server.Stop(); err != nil {
 			t.Fatalf("Stop() failed: %v", err)

@@ -577,22 +577,22 @@ func (s *Server) readStatus() {
 	lastErrors := map[string]string{}
 	for {
 		status := s.server.Status()
-		for _, mountStatus := range status.Mounts {
+		for _, e := range status.PublisherStatus {
 			var errMsg string
-			if mountStatus.LastMountErr != nil {
-				errMsg = mountStatus.LastMountErr.Error()
+			if e.LastMountErr != nil {
+				errMsg = e.LastMountErr.Error()
 			}
-			mountName := mountStatus.Name
-			if lastMessage, ok := lastErrors[mountName]; !ok || errMsg != lastMessage {
+			name := e.Name
+			if lastMessage, ok := lastErrors[name]; !ok || errMsg != lastMessage {
 				if errMsg == "" {
 					s.helper.SendLogMessage(
-						lib.LogLevelInfo, "serve: "+mountName+" successfully mounted ")
+						lib.LogLevelInfo, "serve: "+name+" successfully mounted ")
 				} else {
 					s.helper.SendLogMessage(
-						lib.LogLevelError, "serve: "+mountName+" failed with: "+errMsg)
+						lib.LogLevelError, "serve: "+name+" failed with: "+errMsg)
 				}
 			}
-			lastErrors[mountName] = errMsg
+			lastErrors[name] = errMsg
 		}
 		select {
 		case <-time.After(10 * time.Second):

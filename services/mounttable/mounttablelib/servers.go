@@ -35,8 +35,17 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 		return "", nil, err
 	}
 	stopFuncs = append(stopFuncs, mtServer.Stop)
-	mtEndpoints := mtServer.Status().Endpoints
-	mtName := mtEndpoints[0].Name()
+	var mtName string
+	var mtEndpoints []naming.Endpoint
+	for {
+		status := mtServer.Status()
+		mtEndpoints = status.Endpoints
+		mtName = mtEndpoints[0].Name()
+		if mtEndpoints[0].Addr().Network() != "bidi" {
+			break
+		}
+		<-status.Valid
+	}
 	ctx.Infof("Mount table service at: %q endpoint: %s", mountName, mtName)
 
 	if len(nhName) > 0 {

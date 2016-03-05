@@ -29,6 +29,17 @@ func TestRoaming(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
+	waitForEndpoints := func(server rpc.Server, n int) rpc.ServerStatus {
+		for {
+			status := server.Status()
+			if got, want := len(status.Endpoints), n; got != want {
+				<-status.Valid
+			} else {
+				return status
+			}
+		}
+	}
+
 	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
 		return NewClient(ctx, opts...)
 	})
@@ -67,18 +78,10 @@ func TestRoaming(t *testing.T) {
 	n1 := netstate.NewNetAddr("ip", "1.1.1.1")
 	n2 := netstate.NewNetAddr("ip", "2.2.2.2")
 
-	change := status.Valid
-
 	ch <- roaming.NewUpdateAddrsSetting([]net.Addr{n1, n2})
-	// We should be notified of a network change.
-	<-change
-	status = server.Status()
-	eps := status.Endpoints
-	change = status.Valid
 	// We expect 4 new endpoints, 2 for each valid listen call.
-	if got, want := len(eps), len(prevEps)+4; got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
+	status = waitForEndpoints(server, len(prevEps)+4)
+	eps := status.Endpoints
 	// We expect the added networks to be in the new endpoints.
 	if got, want := len(filterEndpointsByHost(eps, "1.1.1.1")), 2; got != want {
 		t.Errorf("got %v, wanted %v endpoints with host 1.1.1.1")
@@ -90,14 +93,8 @@ func TestRoaming(t *testing.T) {
 
 	// Now remove a network.
 	ch <- roaming.NewRmAddrsSetting([]net.Addr{n1})
-	<-change
-	status = server.Status()
+	status = waitForEndpoints(server, len(prevEps)-2)
 	eps = status.Endpoints
-	change = status.Valid
-	// We expect 2 endpoints to be missing.
-	if got, want := len(eps), len(prevEps)-2; got != want {
-		t.Errorf("got %v, want %v", got, want)
-	}
 	// We expect the removed network to not be in the new endpoints.
 	if got, want := len(filterEndpointsByHost(eps, "1.1.1.1")), 0; got != want {
 		t.Errorf("got %v, wanted %v endpoints with host 1.1.1.1")
@@ -106,21 +103,18 @@ func TestRoaming(t *testing.T) {
 
 	// Now remove everything, essentially "disconnected from the network"
 	ch <- roaming.NewRmAddrsSetting(getIPAddrs(prevEps))
-	<-change
-	status = server.Status()
-	eps = status.Endpoints
-	change = status.Valid
 	// We expect there to be only the bidi endpoint.
+	status = waitForEndpoints(server, 1)
+	eps = status.Endpoints
 	if got, want := len(eps), 1; got != want && eps[0].Addr().Network() != "bidi" {
 		t.Errorf("got %v, want %v", got, want)
 	}
 
 	// Now if we reconnect to a network it should should up.
 	ch <- roaming.NewUpdateAddrsSetting([]net.Addr{n1})
-	<-change
-	status = server.Status()
-	eps = status.Endpoints
 	// We expect 2 endpoints to be added
+	status = waitForEndpoints(server, 2)
+	eps = status.Endpoints
 	if got, want := len(eps), 2; got != want {
 		t.Errorf("got %v, want %v", got, want)
 	}

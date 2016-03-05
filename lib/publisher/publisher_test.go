@@ -5,7 +5,6 @@
 package publisher_test
 
 import (
-	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/namespace"
+	"v.io/v23/rpc"
 
 	"v.io/x/ref/lib/publisher"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -51,7 +51,8 @@ func TestAddAndRemove(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	ns := v23.GetNamespace(ctx)
-	pub := publisher.New(ctx, ns, time.Second)
+	pubctx, cancel := context.WithCancel(ctx)
+	pub := publisher.New(pubctx, ns, time.Second)
 	pub.AddName("foo", false, false)
 	pub.AddServer("foo:8000")
 	if got, want := resolveWithRetry(t, ns, ctx, "foo", 1), []string{"/foo:8000"}; !reflect.DeepEqual(got, want) {
@@ -71,17 +72,19 @@ func TestAddAndRemove(t *testing.T) {
 	}
 	pub.RemoveName("foo")
 	verifyMissing(t, ns, ctx, "foo")
-	pub.Stop()
-	pub.WaitForStop()
+
+	cancel()
+	<-pub.Closed()
 }
 
 func TestStatus(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 	ns := v23.GetNamespace(ctx)
-	pub := publisher.New(ctx, ns, time.Second)
+	pubctx, cancel := context.WithCancel(ctx)
+	pub := publisher.New(pubctx, ns, time.Second)
 	pub.AddName("foo", false, false)
-	status := pub.Status()
+	status, _ := pub.Status()
 	if got, want := len(status), 0; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}
@@ -89,54 +92,94 @@ func TestStatus(t *testing.T) {
 
 	// Wait for the publisher to asynchronously publish the
 	// requisite number of servers.
-	ch := make(chan error, 1)
 	waitFor := func(n int) {
-		deadline := time.Now().Add(time.Minute)
 		for {
-			status = pub.Status()
+			status, dirty := pub.Status()
 			if got, want := len(status), n; got != want {
-				if time.Now().After(deadline) {
-					ch <- fmt.Errorf("got %d, want %d", got, want)
-					return
-				}
-				time.Sleep(100 * time.Millisecond)
+				<-dirty
 			} else {
-				ch <- nil
 				return
 			}
 		}
 	}
 
-	go waitFor(1)
-	if err := <-ch; err != nil {
-		t.Fatalf("%s", err)
-	}
+	waitFor(1)
 
 	pub.AddServer("bar:8000")
 	pub.AddName("baz", false, false)
 
-	go waitFor(4)
-	if err := <-ch; err != nil {
-		t.Fatalf("%s", err)
-	}
+	waitFor(4)
 
-	status = pub.Status()
-	names := status.Names()
-	if got, want := names, []string{"baz", "foo"}; !reflect.DeepEqual(got, want) {
+	status, _ = pub.Status()
+	names, servers := publisherNamesAndServers(status)
+	// There will be two of each name and two of each server in the mount entries.
+	if got, want := names, []string{"baz", "baz", "foo", "foo"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	servers := status.Servers()
-	if got, want := servers, []string{"bar:8000", "foo:8000"}; !reflect.DeepEqual(got, want) {
+	if got, want := servers, []string{"bar:8000", "bar:8000", "foo:8000", "foo:8000"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	pub.RemoveName("foo")
+	waitFor(2)
 	verifyMissing(t, ns, ctx, "foo")
 
-	status = pub.Status()
-	go waitFor(2)
-	if err := <-ch; err != nil {
-		t.Fatalf("%s", err)
+	status, _ = pub.Status()
+	names, servers = publisherNamesAndServers(status)
+	if got, want := names, []string{"baz", "baz"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q, want %q", got, want)
 	}
-	pub.Stop()
-	pub.WaitForStop()
+	if got, want := servers, []string{"bar:8000", "foo:8000"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+
+	cancel()
+	<-pub.Closed()
+}
+
+func TestRemoveFailedAdd(t *testing.T) {
+	// Test that removing an already unmounted name (due to an error while mounting),
+	// results in a Status that has no entries.
+	// We use v23.Init instead of v23.InitWithMounTable to make all calls to the mounttable fail.
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+	ns := v23.GetNamespace(ctx)
+	pubctx, cancel := context.WithCancel(ctx)
+	pub := publisher.New(pubctx, ns, time.Second)
+	pub.AddServer("foo:8000")
+	// Adding a name should result in one entry in the publisher with state PublisherMounting, since
+	// it can never successfully mount.
+	pub.AddName("foo", false, false)
+	status, _ := pub.Status()
+	if got, want := len(status), 1; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	// We want to ensure that the LastState is either:
+	// PublisherUnmounted if the publisher hasn't tried to mount yet, or
+	// PublisherMounting if the publisher tried to mount but failed.
+	if got, want := status[0].LastState, rpc.PublisherMounting; got > want {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+	// Removing "foo" should result in an empty Status.
+	pub.RemoveName("foo")
+	for {
+		status, dirty := pub.Status()
+		if got, want := len(status), 0; got != want {
+			<-dirty
+		} else {
+			return
+		}
+	}
+
+	cancel()
+	<-pub.Closed()
+}
+
+func publisherNamesAndServers(entries []rpc.PublisherEntry) (names []string, servers []string) {
+	for _, e := range entries {
+		names = append(names, e.Name)
+		servers = append(servers, e.Server)
+	}
+	sort.Strings(names)
+	sort.Strings(servers)
+	return names, servers
 }

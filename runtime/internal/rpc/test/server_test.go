@@ -18,6 +18,7 @@ import (
 	"v.io/v23/security"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/test"
+	"v.io/x/ref/test/testutil"
 )
 
 type noMethodsType struct{ Field string }
@@ -137,7 +138,7 @@ func TestServerStatus(t *testing.T) {
 	waitForStatus(rpc.ServerStopped)
 }
 
-func TestMountStatus(t *testing.T) {
+func TestPublisherStatus(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
@@ -152,44 +153,26 @@ func TestMountStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	status := server.Status()
+	status := testutil.WaitForServerPublished(server)
+	if got, want := len(status.PublisherStatus), 2; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
 	eps := server.Status().Endpoints
 	if got, want := len(eps), 2; got != want {
 		t.Fatalf("got %d, want %d", got, want)
 	}
 	setLeafEndpoints(eps)
-	if got, want := len(status.Mounts), 2; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-	servers := status.Mounts.Servers()
-	if got, want := len(servers), 2; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-	if got, want := servers, endpointToStrings(eps); !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %v, want %v", got, want)
-	}
 
 	// Add a second name and we should now see 4 mounts, 2 for each name.
 	if err := server.AddName("bar"); err != nil {
 		t.Fatal(err)
 	}
-	status = server.Status()
-	if got, want := len(status.Mounts), 4; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-	servers = status.Mounts.Servers()
-	if got, want := len(servers), 2; got != want {
-		t.Fatalf("got %d, want %d", got, want)
-	}
-	if got, want := servers, endpointToStrings(eps); !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %v, want %v", got, want)
-	}
-	names := status.Mounts.Names()
-	if got, want := len(names), 2; got != want {
-		t.Fatalf("got %d, want %d", got, want)
+	status = testutil.WaitForServerPublished(server)
+	if got, want := len(status.PublisherStatus), 4; got != want {
+		t.Errorf("got %d, want %d", got, want)
 	}
 	serversPerName := map[string][]string{}
-	for _, ms := range status.Mounts {
+	for _, ms := range status.PublisherStatus {
 		serversPerName[ms.Name] = append(serversPerName[ms.Name], ms.Server)
 	}
 	if got, want := len(serversPerName), 2; got != want {
@@ -197,7 +180,11 @@ func TestMountStatus(t *testing.T) {
 	}
 	for _, name := range []string{"foo", "bar"} {
 		if got, want := len(serversPerName[name]), 2; got != want {
-			t.Fatalf("got %d, want %d", got, want)
+			t.Errorf("got %d, want %d", got, want)
+		}
+		sort.Strings(serversPerName[name])
+		if got, want := serversPerName[name], endpointToStrings(eps); !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
 		}
 	}
 }

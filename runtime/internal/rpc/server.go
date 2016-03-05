@@ -62,13 +62,13 @@ type server struct {
 	ctx               *context.T
 	cancel            context.CancelFunc // function to cancel the above context.
 	flowMgr           flow.Manager
-	publisher         publisher.Publisher // publisher to publish mounttable mounts.
-	settingsPublisher *pubsub.Publisher   // pubsub publisher for dhcp
+	settingsPublisher *pubsub.Publisher // pubsub publisher for dhcp
 	valid             chan struct{}
 	blessings         security.Blessings
 	typeCache         *typeCache
 	state             rpc.ServerState // the current state of the server.
 	stopProxy         context.CancelFunc
+	publisher         *publisher.T // publisher to publish mounttable mounts.
 
 	endpoints map[string]*inaming.Endpoint                 // endpoints that the server is listening on.
 	lnErrors  map[struct{ Protocol, Address string }]error // errors from listening
@@ -186,7 +186,10 @@ func WithNewDispatchingServer(ctx *context.T,
 		s.cancel()
 		return ctx, nil, err
 	}
-	s.publisher = publisher.New(s.ctx, v23.GetNamespace(s.ctx), publishPeriod)
+	pubctx, pubcancel := context.WithCancel(s.ctx)
+	s.publisher = publisher.New(pubctx, v23.GetNamespace(s.ctx), publishPeriod)
+	s.active.Add(1)
+	go s.monitorPubStatus(ctx)
 
 	// TODO(caprita): revist printing the blessings with string, and
 	// instead expose them as a list.
@@ -209,13 +212,13 @@ func WithNewDispatchingServer(ctx *context.T,
 		defer s.ctx.VI(1).Infof("Stop done: %s", serverDebug)
 
 		s.stats.stop()
-		s.publisher.Stop()
+		pubcancel()
 		s.stopProxy()
 
 		done := make(chan struct{})
 		go func() {
 			s.flowMgr.StopListening(ctx)
-			s.publisher.WaitForStop()
+			<-s.publisher.Closed()
 			// At this point no new flows should arrive.  Wait for existing calls
 			// to complete.
 			s.active.Wait()
@@ -233,9 +236,9 @@ func WithNewDispatchingServer(ctx *context.T,
 		// ongoing requests.  Hopefully this will bring all outstanding
 		// operations to a close.
 		s.cancel()
-		// Note that since the context has been canceled, publisher.WaitForStop and <-flowMgr.Closed()
+		// Note that since the context has been canceled, <-publisher.Closed() and <-flowMgr.Closed()
 		// should return right away.
-		s.publisher.WaitForStop()
+		<-s.publisher.Closed()
 		<-s.flowMgr.Closed()
 		s.Lock()
 		close(s.valid)
@@ -251,11 +254,39 @@ func WithNewDispatchingServer(ctx *context.T,
 	return s.ctx, s, nil
 }
 
+// monitorPubStatus guarantees that the ServerStatus.Valid channel is closed
+// when the publisher state becomes dirty. Since we also get the publisher.Status()
+// in the Status method, its possible that the Valid channel in the returned
+// ServerStatus will close spuriously by this goroutine.
+func (s *server) monitorPubStatus(ctx *context.T) {
+	defer s.active.Done()
+	var pubDirty <-chan struct{}
+	s.Lock()
+	_, pubDirty = s.publisher.Status()
+	s.Unlock()
+	for {
+		select {
+		case <-pubDirty:
+			s.Lock()
+			_, pubDirty = s.publisher.Status()
+			s.updateValidLocked()
+			s.Unlock()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 func (s *server) Status() rpc.ServerStatus {
 	status := rpc.ServerStatus{}
 	status.ServesMountTable = s.servesMountTable
-	status.Mounts = s.publisher.Status()
 	s.Lock()
+	// We call s.publisher.Status here instead of using a publisher status cached
+	// by s.monitorPubStatus, because we want to guarantee that s.AddName/AddServer
+	// calls have the added publisher entries in the returned s.Status() immediately.
+	// i.e. s.AddName("foo")
+	//      s.Status().PublisherStatus // Should have entry an for "foo".
+	status.PublisherStatus, _ = s.publisher.Status()
 	status.Valid = s.valid
 	status.State = s.state
 	for _, e := range s.endpoints {
