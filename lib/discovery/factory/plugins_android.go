@@ -7,22 +7,11 @@
 package factory
 
 import (
-	"fmt"
-
-	"v.io/v23/context"
-
-	idiscovery "v.io/x/ref/lib/discovery"
 	"v.io/x/ref/lib/discovery/plugins/mdns"
 )
 
 func init() {
 	pluginFactories = pluginFactoryMap{
 		"mdns": mdns.New,
-
-		// The actual plugin factory will be registered during Vanadium
-		// Android runtime initialization.
-		"ble": func(*context.T, string) (idiscovery.Plugin, error) {
-			return nil, fmt.Errorf("ble factory not initalized")
-		},
 	}
 }
