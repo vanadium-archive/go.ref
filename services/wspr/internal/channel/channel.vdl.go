@@ -34,56 +34,47 @@ func (m *Request) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	var2 := (m.Type == "")
-	if !var2 {
-		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Type")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Type")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget3.FromString(string(m.Type), vdl.StringType); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget4.FromString(string(m.Type), vdl.StringType); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
 		}
 	}
-	var5 := (m.Seq == uint32(0))
-	if !var5 {
-		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Seq")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Seq")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget5.FromUint(uint64(m.Seq), vdl.Uint32Type); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget7.FromUint(uint64(m.Seq), vdl.Uint32Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+			return err
 		}
 	}
-	var8 := (m.Body == (*vom.RawBytes)(nil))
-	if !var8 {
-		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Body")
-		if err != vdl.ErrFieldNoExist && err != nil {
-			return err
-		}
-		if err != vdl.ErrFieldNoExist {
+	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Body")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
 
-			if m.Body == nil {
-				if err := fieldTarget10.FromNil(vdl.AnyType); err != nil {
-					return err
-				}
-			} else {
-				if err := m.Body.FillVDLTarget(fieldTarget10, vdl.AnyType); err != nil {
-					return err
-				}
-			}
-			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+		if m.Body == nil {
+			if err := fieldTarget7.FromNil(vdl.AnyType); err != nil {
 				return err
 			}
+		} else {
+			if err := m.Body.FillVDLTarget(fieldTarget7, vdl.AnyType); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+			return err
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -94,12 +85,6 @@ func (m *Request) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m *Request) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m *Request) IsZero() bool {
-
-	var1 := (*m == Request{})
-	return var1
 }
 
 type Response struct {
@@ -123,56 +108,47 @@ func (m *Response) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	var2 := (m.ReqSeq == uint32(0))
-	if !var2 {
-		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("ReqSeq")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("ReqSeq")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget3.FromUint(uint64(m.ReqSeq), vdl.Uint32Type); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget4.FromUint(uint64(m.ReqSeq), vdl.Uint32Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
 		}
 	}
-	var5 := (m.Err == "")
-	if !var5 {
-		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Err")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Err")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget5.FromString(string(m.Err), vdl.StringType); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget7.FromString(string(m.Err), vdl.StringType); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+			return err
 		}
 	}
-	var8 := (m.Body == (*vom.RawBytes)(nil))
-	if !var8 {
-		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Body")
-		if err != vdl.ErrFieldNoExist && err != nil {
-			return err
-		}
-		if err != vdl.ErrFieldNoExist {
+	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Body")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
 
-			if m.Body == nil {
-				if err := fieldTarget10.FromNil(vdl.AnyType); err != nil {
-					return err
-				}
-			} else {
-				if err := m.Body.FillVDLTarget(fieldTarget10, vdl.AnyType); err != nil {
-					return err
-				}
-			}
-			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+		if m.Body == nil {
+			if err := fieldTarget7.FromNil(vdl.AnyType); err != nil {
 				return err
 			}
+		} else {
+			if err := m.Body.FillVDLTarget(fieldTarget7, vdl.AnyType); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+			return err
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -183,12 +159,6 @@ func (m *Response) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m *Response) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m *Response) IsZero() bool {
-
-	var1 := (*m == Response{})
-	return var1
 }
 
 type (
@@ -203,7 +173,6 @@ type (
 		// __VDLReflect describes the Message union type.
 		__VDLReflect(__MessageReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		IsZero() bool
 	}
 	// MessageRequest represents field Request of the Message union type.
 	MessageRequest struct{ Value Request }
@@ -253,12 +222,6 @@ func (m MessageRequest) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func (m MessageRequest) IsZero() bool {
-
-	var2 := m.Value.IsZero()
-	return var2
-}
-
 func (x MessageResponse) Index() int                    { return 1 }
 func (x MessageResponse) Interface() interface{}        { return x.Value }
 func (x MessageResponse) Name() string                  { return "Response" }
@@ -290,12 +253,6 @@ func (m MessageResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m MessageResponse) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m MessageResponse) IsZero() bool {
-
-	unionField2 := false
-	return unionField2
 }
 
 func init() {

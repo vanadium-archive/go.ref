@@ -34,12 +34,6 @@ func (m MyTime) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func (m MyTime) IsZero() bool {
-
-	var1 := (m == MyTime(0))
-	return var1
-}
-
 func init() {
 	vdl.Register((*MyTime)(nil))
 }

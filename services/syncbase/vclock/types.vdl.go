@@ -55,113 +55,95 @@ func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	var3 := wireValue2.IsZero()
-	if !var3 {
-		keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("SystemTimeAtBoot")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("SystemTimeAtBoot")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := wireValue2.FillVDLTarget(fieldTarget4, __VDLType_types_time_Time); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-
-			if err := wireValue2.FillVDLTarget(fieldTarget5, __VDLType_types_time_Time); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+			return err
 		}
 	}
-	var wireValue6 time_2.Duration
-	if err := time_2.DurationFromNative(&wireValue6, m.Skew); err != nil {
+	var wireValue5 time_2.Duration
+	if err := time_2.DurationFromNative(&wireValue5, m.Skew); err != nil {
 		return err
 	}
 
-	var7 := wireValue6.IsZero()
-	if !var7 {
-		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Skew")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Skew")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := wireValue5.FillVDLTarget(fieldTarget7, __VDLType_types_time_Duration); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-
-			if err := wireValue6.FillVDLTarget(fieldTarget9, __VDLType_types_time_Duration); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+			return err
 		}
 	}
-	var wireValue10 time_2.Duration
-	if err := time_2.DurationFromNative(&wireValue10, m.ElapsedTimeSinceBoot); err != nil {
+	var wireValue8 time_2.Duration
+	if err := time_2.DurationFromNative(&wireValue8, m.ElapsedTimeSinceBoot); err != nil {
 		return err
 	}
 
-	var11 := wireValue10.IsZero()
-	if !var11 {
-		keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("ElapsedTimeSinceBoot")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("ElapsedTimeSinceBoot")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := wireValue8.FillVDLTarget(fieldTarget10, __VDLType_types_time_Duration); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-
-			if err := wireValue10.FillVDLTarget(fieldTarget13, __VDLType_types_time_Duration); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+			return err
 		}
 	}
-	var wireValue14 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue14, m.LastNtpTs); err != nil {
+	var wireValue11 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue11, m.LastNtpTs); err != nil {
 		return err
 	}
 
-	var15 := wireValue14.IsZero()
-	if !var15 {
-		keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("LastNtpTs")
-		if err != vdl.ErrFieldNoExist && err != nil {
-			return err
-		}
-		if err != vdl.ErrFieldNoExist {
+	keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("LastNtpTs")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
 
-			if err := wireValue14.FillVDLTarget(fieldTarget17, __VDLType_types_time_Time); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
-				return err
-			}
-		}
-	}
-	var18 := (m.NumReboots == uint16(0))
-	if !var18 {
-		keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("NumReboots")
-		if err != vdl.ErrFieldNoExist && err != nil {
+		if err := wireValue11.FillVDLTarget(fieldTarget13, __VDLType_types_time_Time); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget20.FromUint(uint64(m.NumReboots), vdl.Uint16Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
-				return err
-			}
-		}
-	}
-	var21 := (m.NumHops == uint16(0))
-	if !var21 {
-		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("NumHops")
-		if err != vdl.ErrFieldNoExist && err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget23.FromUint(uint64(m.NumHops), vdl.Uint16Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
-				return err
-			}
+	}
+	keyTarget14, fieldTarget15, err := fieldsTarget1.StartField("NumReboots")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget15.FromUint(uint64(m.NumReboots), vdl.Uint16Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
+			return err
+		}
+	}
+	keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("NumHops")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget17.FromUint(uint64(m.NumHops), vdl.Uint16Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
+			return err
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -172,12 +154,6 @@ func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m *VClockData) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m *VClockData) IsZero() bool {
-
-	var1 := (*m == VClockData{})
-	return var1
 }
 
 func init() {

@@ -71,12 +71,6 @@ func (m dataRep) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func (m dataRep) IsZero() bool {
-
-	var1 := (m == dataRepHex)
-	return var1
-}
-
 func init() {
 	vdl.Register((*dataRep)(nil))
 }
