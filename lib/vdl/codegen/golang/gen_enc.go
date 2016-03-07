@@ -207,10 +207,7 @@ func genEncDefInternal(data goData, t *vdl.Type, instName, targetName, unionFiel
 			fieldInstName := fmt.Sprintf("%s.%s", instName, f.Name)
 			fieldInstName, nativeConvBody := encWiretypeInstName(data, f.Type, fieldInstName, varCount)
 			s += nativeConvBody
-			outName, isZeroRefBody := genIsZeroRefForWiretype(data, f.Type, fieldInstName, varCount)
-			s += isZeroRefBody
-			s += fmt.Sprintf("\nif !%s {", outName)
-			// TODO(bprosnitz) somehow test if zero
+			// TODO(toddw): Add native IsZero check here?
 			keyTargetName := createUniqueName("keyTarget", varCount)
 			fieldTargetName := createUniqueName("fieldTarget", varCount)
 			s += fmt.Sprintf(`
@@ -223,8 +220,7 @@ func genEncDefInternal(data goData, t *vdl.Type, instName, targetName, unionFiel
 			if err := %[7]s.FinishField(%[8]s, %[9]s); err != nil {
 				return err
 			}
-		}
-	}`, keyTargetName, fieldTargetName, fieldsTargetName, f.Name, data.Pkg("v.io/v23/vdl"),
+		}`, keyTargetName, fieldTargetName, fieldsTargetName, f.Name, data.Pkg("v.io/v23/vdl"),
 				genEncRefForWiretype(data, f.Type, fieldInstName, fieldTargetName, varCount),
 				fieldsTargetName, keyTargetName, fieldTargetName)
 		}
@@ -345,16 +341,6 @@ func genEncRefForWiretype(data goData, t *vdl.Type, wireInstName, targetName str
 // encWiretypeInstName ensures that inst name is a wiretype. It is a no-op for non-native types
 // but generates conversion code for native types.
 func encWiretypeInstName(data goData, t *vdl.Type, instName string, varCount *int) (wiretypeInstName, body string) {
-	return wiretypeInstNameInternal(data, t, instName, "return err", varCount)
-}
-
-// isZeroWiretypeInstName ensures that inst name is a wiretype. It is a no-op for non-native types
-// but generates conversion code for native types.
-func isZeroWiretypeInstName(data goData, t *vdl.Type, instName string, varCount *int) (wiretypeInstName, body string) {
-	return wiretypeInstNameInternal(data, t, instName, "return false // error will be caught on encode", varCount)
-}
-
-func wiretypeInstNameInternal(data goData, t *vdl.Type, instName, failureLine string, varCount *int) (wiretypeInstName, body string) {
 	// If this is a native type, convert it to wire type.
 	pkgPath, name := vdl.SplitIdent(t.Name())
 	_, ok := lookupNativeGoTypes(pkgPath, name, data.File.Package, make(map[*compile.Package]bool))
@@ -370,9 +356,9 @@ func wiretypeInstNameInternal(data goData, t *vdl.Type, instName, failureLine st
 		body = fmt.Sprintf(`
 	var %s %s
 	if err := %s%sFromNative(&%s, %s); err != nil {
-		%s
+		return err
 	}
-	`, wiretypeInstName, wireType, wirePkgName, name, wiretypeInstName, instName, failureLine)
+	`, wiretypeInstName, wireType, wirePkgName, name, wiretypeInstName, instName)
 		instName = wiretypeInstName
 		return
 	}

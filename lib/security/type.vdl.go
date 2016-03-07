@@ -77,15 +77,6 @@ func (m blessingRootsState) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func (m blessingRootsState) IsZero() bool {
-
-	var var1 bool
-	if len(m) == 0 {
-		var1 = true
-	}
-	return var1
-}
-
 type blessingStoreState struct {
 	// PeerBlessings maps BlessingPatterns to the Blessings object that is to
 	// be shared with peers which present blessings of their own that match the
@@ -119,186 +110,162 @@ func (m *blessingStoreState) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	var var2 bool
-	if len(m.PeerBlessings) == 0 {
-		var2 = true
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("PeerBlessings")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
 	}
-	if !var2 {
-		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("PeerBlessings")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	if err != vdl.ErrFieldNoExist {
+
+		mapTarget4, err := fieldTarget3.StartMap(__VDLTypetype2, len(m.PeerBlessings))
+		if err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-
-			mapTarget5, err := fieldTarget4.StartMap(__VDLTypetype2, len(m.PeerBlessings))
+		for key6, value8 := range m.PeerBlessings {
+			keyTarget5, err := mapTarget4.StartKey()
 			if err != nil {
 				return err
 			}
-			for key7, value9 := range m.PeerBlessings {
-				keyTarget6, err := mapTarget5.StartKey()
-				if err != nil {
-					return err
-				}
 
-				if err := key7.FillVDLTarget(keyTarget6, __VDLType_type_v_io_v23_security_BlessingPattern); err != nil {
-					return err
-				}
-				valueTarget8, err := mapTarget5.FinishKeyStartField(keyTarget6)
-				if err != nil {
-					return err
-				}
-
-				var wireValue10 security.WireBlessings
-				if err := security.WireBlessingsFromNative(&wireValue10, value9); err != nil {
-					return err
-				}
-
-				if err := wireValue10.FillVDLTarget(valueTarget8, __VDLType_type_v_io_v23_security_WireBlessings); err != nil {
-					return err
-				}
-				if err := mapTarget5.FinishField(keyTarget6, valueTarget8); err != nil {
-					return err
-				}
-			}
-			if err := fieldTarget4.FinishMap(mapTarget5); err != nil {
+			if err := key6.FillVDLTarget(keyTarget5, __VDLType_type_v_io_v23_security_BlessingPattern); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+			valueTarget7, err := mapTarget4.FinishKeyStartField(keyTarget5)
+			if err != nil {
+				return err
+			}
+
+			var wireValue9 security.WireBlessings
+			if err := security.WireBlessingsFromNative(&wireValue9, value8); err != nil {
+				return err
+			}
+
+			if err := wireValue9.FillVDLTarget(valueTarget7, __VDLType_type_v_io_v23_security_WireBlessings); err != nil {
+				return err
+			}
+			if err := mapTarget4.FinishField(keyTarget5, valueTarget7); err != nil {
 				return err
 			}
 		}
+		if err := fieldTarget3.FinishMap(mapTarget4); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
+		}
 	}
-	var wireValue11 security.WireBlessings
-	if err := security.WireBlessingsFromNative(&wireValue11, m.DefaultBlessings); err != nil {
+	var wireValue10 security.WireBlessings
+	if err := security.WireBlessingsFromNative(&wireValue10, m.DefaultBlessings); err != nil {
 		return err
 	}
 
-	var12 := wireValue11.IsZero()
-	if !var12 {
-		keyTarget13, fieldTarget14, err := fieldsTarget1.StartField("DefaultBlessings")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("DefaultBlessings")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := wireValue10.FillVDLTarget(fieldTarget12, __VDLType_type_v_io_v23_security_WireBlessings); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-
-			if err := wireValue11.FillVDLTarget(fieldTarget14, __VDLType_type_v_io_v23_security_WireBlessings); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget13, fieldTarget14); err != nil {
-				return err
-			}
-		}
-	}
-	var var15 bool
-	if len(m.DischargeCache) == 0 {
-		var15 = true
-	}
-	if !var15 {
-		keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("DischargeCache")
-		if err != vdl.ErrFieldNoExist && err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
+	}
+	keyTarget13, fieldTarget14, err := fieldsTarget1.StartField("DischargeCache")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
 
-			mapTarget18, err := fieldTarget17.StartMap(__VDLTypetype3, len(m.DischargeCache))
+		mapTarget15, err := fieldTarget14.StartMap(__VDLTypetype3, len(m.DischargeCache))
+		if err != nil {
+			return err
+		}
+		for key17, value19 := range m.DischargeCache {
+			keyTarget16, err := mapTarget15.StartKey()
 			if err != nil {
 				return err
 			}
-			for key20, value22 := range m.DischargeCache {
-				keyTarget19, err := mapTarget18.StartKey()
-				if err != nil {
-					return err
-				}
 
-				if err := key20.FillVDLTarget(keyTarget19, __VDLType_type_v_io_x_ref_lib_security_dischargeCacheKey); err != nil {
-					return err
-				}
-				valueTarget21, err := mapTarget18.FinishKeyStartField(keyTarget19)
-				if err != nil {
-					return err
-				}
-
-				var wireValue23 security.WireDischarge
-				if err := security.WireDischargeFromNative(&wireValue23, value22); err != nil {
-					return err
-				}
-
-				unionValue24 := wireValue23
-				if unionValue24 == nil {
-					unionValue24 = security.WireDischargePublicKey{}
-				}
-				if err := unionValue24.FillVDLTarget(valueTarget21, __VDLType_type_v_io_v23_security_WireDischarge); err != nil {
-					return err
-				}
-				if err := mapTarget18.FinishField(keyTarget19, valueTarget21); err != nil {
-					return err
-				}
-			}
-			if err := fieldTarget17.FinishMap(mapTarget18); err != nil {
+			if err := key17.FillVDLTarget(keyTarget16, __VDLType_type_v_io_x_ref_lib_security_dischargeCacheKey); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
-				return err
-			}
-		}
-	}
-	var var25 bool
-	if len(m.Discharges) == 0 {
-		var25 = true
-	}
-	if !var25 {
-		keyTarget26, fieldTarget27, err := fieldsTarget1.StartField("Discharges")
-		if err != vdl.ErrFieldNoExist && err != nil {
-			return err
-		}
-		if err != vdl.ErrFieldNoExist {
-
-			mapTarget28, err := fieldTarget27.StartMap(__VDLTypetype4, len(m.Discharges))
+			valueTarget18, err := mapTarget15.FinishKeyStartField(keyTarget16)
 			if err != nil {
 				return err
 			}
-			for key30, value32 := range m.Discharges {
-				keyTarget29, err := mapTarget28.StartKey()
-				if err != nil {
-					return err
-				}
 
-				if err := key30.FillVDLTarget(keyTarget29, __VDLType_type_v_io_x_ref_lib_security_dischargeCacheKey); err != nil {
-					return err
-				}
-				valueTarget31, err := mapTarget28.FinishKeyStartField(keyTarget29)
-				if err != nil {
-					return err
-				}
-
-				if err := value32.FillVDLTarget(valueTarget31, __VDLType_type_v_io_x_ref_lib_security_CachedDischarge); err != nil {
-					return err
-				}
-				if err := mapTarget28.FinishField(keyTarget29, valueTarget31); err != nil {
-					return err
-				}
-			}
-			if err := fieldTarget27.FinishMap(mapTarget28); err != nil {
+			var wireValue20 security.WireDischarge
+			if err := security.WireDischargeFromNative(&wireValue20, value19); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget26, fieldTarget27); err != nil {
+
+			unionValue21 := wireValue20
+			if unionValue21 == nil {
+				unionValue21 = security.WireDischargePublicKey{}
+			}
+			if err := unionValue21.FillVDLTarget(valueTarget18, __VDLType_type_v_io_v23_security_WireDischarge); err != nil {
+				return err
+			}
+			if err := mapTarget15.FinishField(keyTarget16, valueTarget18); err != nil {
 				return err
 			}
 		}
-	}
-	var33 := (m.CacheKeyFormat == uint32(0))
-	if !var33 {
-		keyTarget34, fieldTarget35, err := fieldsTarget1.StartField("CacheKeyFormat")
-		if err != vdl.ErrFieldNoExist && err != nil {
+		if err := fieldTarget14.FinishMap(mapTarget15); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget35.FromUint(uint64(m.CacheKeyFormat), vdl.Uint32Type); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget13, fieldTarget14); err != nil {
+			return err
+		}
+	}
+	keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("Discharges")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		mapTarget24, err := fieldTarget23.StartMap(__VDLTypetype4, len(m.Discharges))
+		if err != nil {
+			return err
+		}
+		for key26, value28 := range m.Discharges {
+			keyTarget25, err := mapTarget24.StartKey()
+			if err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget34, fieldTarget35); err != nil {
+
+			if err := key26.FillVDLTarget(keyTarget25, __VDLType_type_v_io_x_ref_lib_security_dischargeCacheKey); err != nil {
 				return err
 			}
+			valueTarget27, err := mapTarget24.FinishKeyStartField(keyTarget25)
+			if err != nil {
+				return err
+			}
+
+			if err := value28.FillVDLTarget(valueTarget27, __VDLType_type_v_io_x_ref_lib_security_CachedDischarge); err != nil {
+				return err
+			}
+			if err := mapTarget24.FinishField(keyTarget25, valueTarget27); err != nil {
+				return err
+			}
+		}
+		if err := fieldTarget23.FinishMap(mapTarget24); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
+			return err
+		}
+	}
+	keyTarget29, fieldTarget30, err := fieldsTarget1.StartField("CacheKeyFormat")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget30.FromUint(uint64(m.CacheKeyFormat), vdl.Uint32Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget29, fieldTarget30); err != nil {
+			return err
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -309,36 +276,6 @@ func (m *blessingStoreState) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m *blessingStoreState) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m *blessingStoreState) IsZero() bool {
-
-	var1 := true
-	var var2 bool
-	if len(m.PeerBlessings) == 0 {
-		var2 = true
-	}
-	var1 = var1 && var2
-	var wireValue3 security.WireBlessings
-	if err := security.WireBlessingsFromNative(&wireValue3, m.DefaultBlessings); err != nil {
-		return false // error will be caught on encode
-	}
-
-	var4 := wireValue3.IsZero()
-	var1 = var1 && var4
-	var var5 bool
-	if len(m.DischargeCache) == 0 {
-		var5 = true
-	}
-	var1 = var1 && var5
-	var var6 bool
-	if len(m.Discharges) == 0 {
-		var6 = true
-	}
-	var1 = var1 && var6
-	var7 := (m.CacheKeyFormat == uint32(0))
-	var1 = var1 && var7
-	return var1
 }
 
 type CachedDischarge struct {
@@ -365,45 +302,39 @@ func (m *CachedDischarge) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	var3 := wireValue2.IsZero()
-	if !var3 {
-		keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Discharge")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Discharge")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		unionValue5 := wireValue2
+		if unionValue5 == nil {
+			unionValue5 = security.WireDischargePublicKey{}
+		}
+		if err := unionValue5.FillVDLTarget(fieldTarget4, __VDLType_type_v_io_v23_security_WireDischarge); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-
-			unionValue6 := wireValue2
-			if unionValue6 == nil {
-				unionValue6 = security.WireDischargePublicKey{}
-			}
-			if err := unionValue6.FillVDLTarget(fieldTarget5, __VDLType_type_v_io_v23_security_WireDischarge); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+			return err
 		}
 	}
-	var wireValue7 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue7, m.CacheTime); err != nil {
+	var wireValue6 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue6, m.CacheTime); err != nil {
 		return err
 	}
 
-	var8 := wireValue7.IsZero()
-	if !var8 {
-		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("CacheTime")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("CacheTime")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := wireValue6.FillVDLTarget(fieldTarget8, __VDLType_type_time_Time); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-
-			if err := wireValue7.FillVDLTarget(fieldTarget10, __VDLType_type_time_Time); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+			return err
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -414,26 +345,6 @@ func (m *CachedDischarge) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m *CachedDischarge) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m *CachedDischarge) IsZero() bool {
-
-	var1 := true
-	var wireValue2 security.WireDischarge
-	if err := security.WireDischargeFromNative(&wireValue2, m.Discharge); err != nil {
-		return false // error will be caught on encode
-	}
-
-	var3 := wireValue2.IsZero()
-	var1 = var1 && var3
-	var wireValue4 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue4, m.CacheTime); err != nil {
-		return false // error will be caught on encode
-	}
-
-	var5 := wireValue4.IsZero()
-	var1 = var1 && var5
-	return var1
 }
 
 type dischargeCacheKey [32]byte
@@ -453,12 +364,6 @@ func (m dischargeCacheKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m dischargeCacheKey) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m dischargeCacheKey) IsZero() bool {
-
-	var1 := (m == dischargeCacheKey{})
-	return var1
 }
 
 func init() {

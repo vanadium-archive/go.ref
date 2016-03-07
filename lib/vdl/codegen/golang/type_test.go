@@ -13,8 +13,7 @@ import (
 	"v.io/x/ref/lib/vdl/compile"
 )
 
-// TODO(bprosnitz) Disabled because frustrating while making changes. Either re-enable and fix output or re-write this test.
-func disabledTestType(t *testing.T) {
+func TestType(t *testing.T) {
 	testingMode = true
 	tests := []struct {
 		T    *vdl.Type
@@ -120,13 +119,6 @@ func (m TestEnum) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m TestEnum) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m TestEnum) IsZero() bool {
-` + "\t" + `
-
-var1 := (m == TestEnumA)
-return var1
 }`},
 		{tUnion, `type (
 	// TestUnion represents any single field of the TestUnion union type.
@@ -140,7 +132,6 @@ return var1
 		// __VDLReflect describes the TestUnion union type.
 		__VDLReflect(__TestUnionReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		IsZero() bool
 	}
 	// TestUnionA represents field A of the TestUnion union type.
 	TestUnionA struct{ Value string }
@@ -189,13 +180,6 @@ func (m TestUnionA) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func (m TestUnionA) IsZero() bool {
-` + "\t" + `
-
-var1 := (m == TestUnion(TestUnionA{}))
-return var1
-}
-
 func (x TestUnionB) Index() int { return 1 }
 func (x TestUnionB) Interface() interface{} { return x.Value }
 func (x TestUnionB) Name() string { return "B" }
@@ -226,13 +210,6 @@ func (m TestUnionB) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m TestUnionB) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m TestUnionB) IsZero() bool {
-` + "\t" + `
-
-var1 := (m == TestUnion(TestUnionA{}))
-return var1
 }`},
 	}
 	data := goData{

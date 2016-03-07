@@ -34,12 +34,6 @@ func (m ignoreme) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func (m ignoreme) IsZero() bool {
-
-	var1 := (m == ignoreme(""))
-	return var1
-}
-
 func init() {
 	vdl.Register((*ignoreme)(nil))
 }

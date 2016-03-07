@@ -68,34 +68,28 @@ func (m *ConnInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	var2 := (m.MinVersion == int32(0))
-	if !var2 {
-		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("MinVersion")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("MinVersion")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget3.FromInt(int64(m.MinVersion), vdl.Int32Type); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget4.FromInt(int64(m.MinVersion), vdl.Int32Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
 		}
 	}
-	var5 := (m.MaxVersion == int32(0))
-	if !var5 {
-		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("MaxVersion")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("MaxVersion")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget5.FromInt(int64(m.MaxVersion), vdl.Int32Type); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget7.FromInt(int64(m.MaxVersion), vdl.Int32Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+			return err
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -106,12 +100,6 @@ func (m *ConnInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m *ConnInfo) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m *ConnInfo) IsZero() bool {
-
-	var1 := (*m == ConnInfo{})
-	return var1
 }
 
 type RpcRequest struct {
@@ -135,49 +123,40 @@ func (m *RpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	var2 := (m.Id == uint64(0))
-	if !var2 {
-		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Id")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Id")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget3.FromUint(uint64(m.Id), vdl.Uint64Type); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget4.FromUint(uint64(m.Id), vdl.Uint64Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
 		}
 	}
-	var5 := (m.Method == "")
-	if !var5 {
-		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Method")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Method")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget5.FromString(string(m.Method), vdl.StringType); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget7.FromString(string(m.Method), vdl.StringType); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+			return err
 		}
 	}
-	var8 := (m.NumArgs == uint32(0))
-	if !var8 {
-		keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("NumArgs")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("NumArgs")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget7.FromUint(uint64(m.NumArgs), vdl.Uint32Type); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget10.FromUint(uint64(m.NumArgs), vdl.Uint32Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+			return err
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -188,12 +167,6 @@ func (m *RpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m *RpcRequest) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m *RpcRequest) IsZero() bool {
-
-	var1 := (*m == RpcRequest{})
-	return var1
 }
 
 type RpcResponse struct {
@@ -217,61 +190,52 @@ func (m *RpcResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	var2 := (m.Id == uint64(0))
-	if !var2 {
-		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("Id")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Id")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget3.FromUint(uint64(m.Id), vdl.Uint64Type); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget4.FromUint(uint64(m.Id), vdl.Uint64Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
 		}
 	}
-	var5 := (m.Err == (error)(nil))
-	if !var5 {
-		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Err")
-		if err != vdl.ErrFieldNoExist && err != nil {
-			return err
-		}
-		if err != vdl.ErrFieldNoExist {
+	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Err")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
 
-			if m.Err == nil {
-				if err := fieldTarget7.FromNil(vdl.ErrorType); err != nil {
-					return err
-				}
-			} else {
-				var wireError8 vdl.WireError
-				if err := verror.WireFromNative(&wireError8, m.Err); err != nil {
-					return err
-				}
-				if err := wireError8.FillVDLTarget(fieldTarget7, vdl.ErrorType); err != nil {
-					return err
-				}
-
-			}
-			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+		if m.Err == nil {
+			if err := fieldTarget5.FromNil(vdl.ErrorType); err != nil {
 				return err
 			}
+		} else {
+			var wireError6 vdl.WireError
+			if err := verror.WireFromNative(&wireError6, m.Err); err != nil {
+				return err
+			}
+			if err := wireError6.FillVDLTarget(fieldTarget5, vdl.ErrorType); err != nil {
+				return err
+			}
+
+		}
+		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+			return err
 		}
 	}
-	var9 := (m.NumArgs == uint32(0))
-	if !var9 {
-		keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("NumArgs")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("NumArgs")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget8.FromUint(uint64(m.NumArgs), vdl.Uint32Type); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget11.FromUint(uint64(m.NumArgs), vdl.Uint32Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+			return err
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -282,18 +246,6 @@ func (m *RpcResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m *RpcResponse) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m *RpcResponse) IsZero() bool {
-
-	var1 := true
-	var2 := (m.Id == uint64(0))
-	var1 = var1 && var2
-	var3 := (m.Err == (error)(nil))
-	var1 = var1 && var3
-	var4 := (m.NumArgs == uint32(0))
-	var1 = var1 && var4
-	return var1
 }
 
 type (
@@ -308,7 +260,6 @@ type (
 		// __VDLReflect describes the RpcMessage union type.
 		__VDLReflect(__RpcMessageReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		IsZero() bool
 	}
 	// RpcMessageReq represents field Req of the RpcMessage union type.
 	RpcMessageReq struct{ Value RpcRequest }
@@ -358,12 +309,6 @@ func (m RpcMessageReq) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func (m RpcMessageReq) IsZero() bool {
-
-	var2 := m.Value.IsZero()
-	return var2
-}
-
 func (x RpcMessageResp) Index() int                       { return 1 }
 func (x RpcMessageResp) Interface() interface{}           { return x.Value }
 func (x RpcMessageResp) Name() string                     { return "Resp" }
@@ -395,12 +340,6 @@ func (m RpcMessageResp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m RpcMessageResp) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m RpcMessageResp) IsZero() bool {
-
-	unionField2 := false
-	return unionField2
 }
 
 func init() {

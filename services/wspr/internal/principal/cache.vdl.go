@@ -34,12 +34,6 @@ func (m BlessingsId) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func (m BlessingsId) IsZero() bool {
-
-	var1 := (m == BlessingsId(0))
-	return var1
-}
-
 type BlessingsCacheAddMessage struct {
 	CacheId   BlessingsId
 	Blessings security.Blessings
@@ -58,41 +52,35 @@ func (m *BlessingsCacheAddMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) err
 		return err
 	}
 
-	var2 := m.CacheId.IsZero()
-	if !var2 {
-		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("CacheId")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("CacheId")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := m.CacheId.FillVDLTarget(fieldTarget3, __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-
-			if err := m.CacheId.FillVDLTarget(fieldTarget4, __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
 		}
 	}
-	var wireValue5 security.WireBlessings
-	if err := security.WireBlessingsFromNative(&wireValue5, m.Blessings); err != nil {
+	var wireValue4 security.WireBlessings
+	if err := security.WireBlessingsFromNative(&wireValue4, m.Blessings); err != nil {
 		return err
 	}
 
-	var6 := wireValue5.IsZero()
-	if !var6 {
-		keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("Blessings")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Blessings")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := wireValue4.FillVDLTarget(fieldTarget6, __VDLType_cache_v_io_v23_security_WireBlessings); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-
-			if err := wireValue5.FillVDLTarget(fieldTarget8, __VDLType_cache_v_io_v23_security_WireBlessings); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+			return err
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -103,21 +91,6 @@ func (m *BlessingsCacheAddMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) err
 
 func (m *BlessingsCacheAddMessage) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m *BlessingsCacheAddMessage) IsZero() bool {
-
-	var1 := true
-	var2 := m.CacheId.IsZero()
-	var1 = var1 && var2
-	var wireValue3 security.WireBlessings
-	if err := security.WireBlessingsFromNative(&wireValue3, m.Blessings); err != nil {
-		return false // error will be caught on encode
-	}
-
-	var4 := wireValue3.IsZero()
-	var1 = var1 && var4
-	return var1
 }
 
 // Message from Blessings Cache GC to delete a cache entry in Javascript.
@@ -144,35 +117,29 @@ func (m *BlessingsCacheDeleteMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) 
 		return err
 	}
 
-	var2 := m.CacheId.IsZero()
-	if !var2 {
-		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("CacheId")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("CacheId")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := m.CacheId.FillVDLTarget(fieldTarget3, __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-
-			if err := m.CacheId.FillVDLTarget(fieldTarget4, __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
 		}
 	}
-	var5 := (m.DeleteAfter == uint32(0))
-	if !var5 {
-		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("DeleteAfter")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("DeleteAfter")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget5.FromUint(uint64(m.DeleteAfter), vdl.Uint32Type); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget7.FromUint(uint64(m.DeleteAfter), vdl.Uint32Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+			return err
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -183,12 +150,6 @@ func (m *BlessingsCacheDeleteMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) 
 
 func (m *BlessingsCacheDeleteMessage) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m *BlessingsCacheDeleteMessage) IsZero() bool {
-
-	var1 := (*m == BlessingsCacheDeleteMessage{})
-	return var1
 }
 
 type (
@@ -203,7 +164,6 @@ type (
 		// __VDLReflect describes the BlessingsCacheMessage union type.
 		__VDLReflect(__BlessingsCacheMessageReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		IsZero() bool
 	}
 	// BlessingsCacheMessageAdd represents field Add of the BlessingsCacheMessage union type.
 	BlessingsCacheMessageAdd struct{ Value BlessingsCacheAddMessage }
@@ -253,12 +213,6 @@ func (m BlessingsCacheMessageAdd) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func (m BlessingsCacheMessageAdd) IsZero() bool {
-
-	var2 := m.Value.IsZero()
-	return var2
-}
-
 func (x BlessingsCacheMessageDelete) Index() int                                  { return 1 }
 func (x BlessingsCacheMessageDelete) Interface() interface{}                      { return x.Value }
 func (x BlessingsCacheMessageDelete) Name() string                                { return "Delete" }
@@ -290,12 +244,6 @@ func (m BlessingsCacheMessageDelete) FillVDLTarget(t vdl.Target, tt *vdl.Type) e
 
 func (m BlessingsCacheMessageDelete) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m BlessingsCacheMessageDelete) IsZero() bool {
-
-	unionField2 := false
-	return unionField2
 }
 
 func init() {

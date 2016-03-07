@@ -177,10 +177,6 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			"\nfunc (m %[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
 			"\n\treturn nil" +
 			"\n}"
-		s += fmt.Sprintf("\n"+
-			"\nfunc (m %[1]s) IsZero() bool {", def.Name) +
-			"\n\t" + genIsZeroDef(data, def.Type, "") +
-			"\n}"
 	case vdl.Struct:
 		s += "struct {"
 		for ix := 0; ix < t.NumField(); ix++ {
@@ -204,10 +200,6 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			"\nfunc (m *%[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
 			"\n\treturn nil" +
 			"\n}"
-		s += fmt.Sprintf("\n"+
-			"\nfunc (m *%[1]s) IsZero() bool {", def.Name) +
-			"\n\t" + genIsZeroDef(data, def.Type, "") +
-			"\n}"
 	case vdl.Union:
 		s = fmt.Sprintf("type ("+
 			"\n\t// %[1]s represents any single field of the %[1]s union type."+
@@ -221,7 +213,6 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			"\n\t\t// __VDLReflect describes the %[1]s union type."+
 			"\n\t\t__VDLReflect(__%[1]sReflect)"+
 			"\n\t\tFillVDLTarget(%[4]sTarget, *%[4]sType) error"+
-			"\n\t\tIsZero() bool"+
 			"\n\t}%[3]s", def.Name, docBreak(def.Doc), def.DocSuffix, data.Pkg("v.io/v23/vdl"))
 		for ix := 0; ix < t.NumField(); ix++ {
 			f := t.Field(ix)
@@ -256,10 +247,6 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 				"\nfunc (m %s%s) MakeVDLTarget() %sTarget {", def.Name, f.Name, data.Pkg("v.io/v23/vdl")) +
 				"\n\treturn nil" +
 				"\n}"
-			s += fmt.Sprintf("\n"+
-				"\nfunc (m %s%s) IsZero() bool {", def.Name, f.Name) +
-				"\n\t" + genIsZeroDef(data, def.Type, f.Name) +
-				"\n}"
 		}
 	default:
 		s += typeGo(data, def.BaseType) + def.DocSuffix
@@ -277,10 +264,6 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 		s += fmt.Sprintf("\n"+
 			"\nfunc (m %[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
 			"\n\treturn nil" +
-			"\n}"
-		s += fmt.Sprintf("\n"+
-			"\nfunc (m %[1]s) IsZero() bool {", def.Name) +
-			"\n\t" + genIsZeroDef(data, def.Type, "") +
 			"\n}"
 	}
 	return s

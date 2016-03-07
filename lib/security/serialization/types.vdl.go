@@ -34,19 +34,16 @@ func (m *SignedHeader) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	var2 := (m.ChunkSizeBytes == int64(0))
-	if !var2 {
-		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("ChunkSizeBytes")
-		if err != vdl.ErrFieldNoExist && err != nil {
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("ChunkSizeBytes")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget3.FromInt(int64(m.ChunkSizeBytes), vdl.Int64Type); err != nil {
 			return err
 		}
-		if err != vdl.ErrFieldNoExist {
-			if err := fieldTarget4.FromInt(int64(m.ChunkSizeBytes), vdl.Int64Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
-				return err
-			}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -57,12 +54,6 @@ func (m *SignedHeader) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m *SignedHeader) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m *SignedHeader) IsZero() bool {
-
-	var1 := (*m == SignedHeader{})
-	return var1
 }
 
 type HashCode [32]byte
@@ -84,12 +75,6 @@ func (m HashCode) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func (m HashCode) IsZero() bool {
-
-	var1 := (m == HashCode{})
-	return var1
-}
-
 type (
 	// SignedData represents any single field of the SignedData union type.
 	//
@@ -104,7 +89,6 @@ type (
 		// __VDLReflect describes the SignedData union type.
 		__VDLReflect(__SignedDataReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		IsZero() bool
 	}
 	// SignedDataSignature represents field Signature of the SignedData union type.
 	SignedDataSignature struct{ Value security.Signature }
@@ -154,12 +138,6 @@ func (m SignedDataSignature) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func (m SignedDataSignature) IsZero() bool {
-
-	var2 := m.Value.IsZero()
-	return var2
-}
-
 func (x SignedDataHash) Index() int                       { return 1 }
 func (x SignedDataHash) Interface() interface{}           { return x.Value }
 func (x SignedDataHash) Name() string                     { return "Hash" }
@@ -191,12 +169,6 @@ func (m SignedDataHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m SignedDataHash) MakeVDLTarget() vdl.Target {
 	return nil
-}
-
-func (m SignedDataHash) IsZero() bool {
-
-	unionField2 := false
-	return unionField2
 }
 
 func init() {
