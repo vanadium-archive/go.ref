@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
@@ -79,6 +80,13 @@ func newServer(t *testing.T, servers ...interface{}) (ipc *IPC, path string, f f
 	return ipc, path, func() { ipc.Close(); os.RemoveAll(dir) }
 }
 
+func isEpipe(err error) bool {
+	for operr, ok := err.(*net.OpError); ok; operr, ok = err.(*net.OpError) {
+		err = operr.Err
+	}
+	return err == syscall.EPIPE
+}
+
 func TestDoubleServe(t *testing.T) {
 	ipc := NewIPC()
 	var a echo
@@ -124,7 +132,11 @@ func TestBadConnect(t *testing.T) {
 	}
 
 	if err = enc.Encode(agent.RpcMessageReq{Value: agent.RpcRequest{Id: 0, Method: "foo", NumArgs: 0}}); err != nil {
-		t.Fatal(err)
+		if !isEpipe(err) {
+			// The server will close the connection when it gets
+			// bad data. If that happens fast enough we get EPIPE.
+			t.Fatal(err)
+		}
 	}
 	var response agent.RpcMessage
 	if err = dec.Decode(&response); err != io.EOF {
