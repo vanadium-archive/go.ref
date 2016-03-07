@@ -303,19 +303,11 @@ func (s *server) Status() rpc.ServerStatus {
 
 // resolveToEndpoint resolves an object name or address to an endpoint.
 func (s *server) resolveToEndpoint(ctx *context.T, address string) ([]naming.Endpoint, error) {
-	var resolved *naming.MountEntry
-	var err error
-	// TODO(mattr): Why should ns be nil?
-	if ns := v23.GetNamespace(ctx); ns != nil {
-		ns.FlushCacheEntry(ctx, address)
-		if resolved, err = ns.Resolve(ctx, address); err != nil {
-			return nil, err
-		}
-	} else {
-		// Fake a namespace resolution
-		resolved = &naming.MountEntry{Servers: []naming.MountedServer{
-			{Server: address},
-		}}
+	ns := v23.GetNamespace(ctx)
+	ns.FlushCacheEntry(ctx, address)
+	resolved, err := ns.Resolve(ctx, address)
+	if err != nil {
+		return nil, err
 	}
 	// An empty set of protocols means all protocols...
 	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, s.preferredProtocols); err != nil {
