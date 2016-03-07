@@ -27,10 +27,7 @@ import (
 	"v.io/v23/security"
 )
 
-const (
-	leakWaitTime = 250 * time.Millisecond
-	bidiProtocol = "bidi"
-)
+const leakWaitTime = 250 * time.Millisecond
 
 var randData []byte
 
@@ -201,15 +198,8 @@ func TestProxyAuthorizesServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var proxyEP naming.Endpoint
-	for {
-		status := server.Status()
-		if status.Endpoints[0].Addr().Network() != bidiProtocol {
-			proxyEP = status.Endpoints[0]
-			break
-		}
-		<-status.Valid
-	}
+	status := testutil.WaitForProxyEndpoints(server, pname)
+	proxyEP := status.Endpoints[0]
 
 	// A proxy using the default authorizer should not authorize the server.
 	pname, stop = startProxy(t, pctx, "denyproxy", nil, "", address{"tcp", "127.0.0.1:0"})
@@ -258,15 +248,8 @@ func TestBigProxyRPC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var name string
-	for {
-		status := server.Status()
-		if status.Endpoints[0].Addr().Network() != bidiProtocol {
-			name = status.Endpoints[0].Name()
-			break
-		}
-		<-status.Valid
-	}
+	status := testutil.WaitForProxyEndpoints(server, pname)
+	name := status.Endpoints[0].Name()
 	var got string
 	if err := v23.GetClient(ctx).Call(ctx, name, "Echo", []interface{}{string(randData)}, []interface{}{&got}); err != nil {
 		t.Fatal(err)
@@ -375,16 +358,8 @@ func TestConcurrentProxyConnections(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	var ep naming.Endpoint
-	for {
-		status := server.Status()
-		if status.Endpoints[0].Addr().Network() != bidiProtocol {
-			ep = status.Endpoints[0]
-			break
-		}
-		<-status.Valid
-	}
+	status := testutil.WaitForProxyEndpoints(server, pname)
+	ep := status.Endpoints[0]
 
 	// Create a nonexistent server.
 	badep, err := setEndpointRoutingID(ep, naming.FixedRoutingID(0x666))
