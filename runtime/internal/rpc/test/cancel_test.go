@@ -14,7 +14,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
-	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -304,16 +303,6 @@ func registerDisProtocol(wrap string, conns chan disconnect) {
 	flow.RegisterProtocol("dis", &flowdis{base: protocol})
 }
 
-func findEndpoint(ctx *context.T, s rpc.Server) naming.Endpoint {
-	for {
-		status := s.Status()
-		if status.Endpoints[0].Addr().Network() != "bidi" {
-			return status.Endpoints[0]
-		}
-		<-status.Valid
-	}
-}
-
 func testChannelTimeout(t *testing.T, ctx *context.T) {
 	conns := make(chan disconnect, 1)
 	sctx := v23.WithListenSpec(ctx, rpc.ListenSpec{
@@ -328,7 +317,7 @@ func testChannelTimeout(t *testing.T, ctx *context.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep := findEndpoint(ctx, s)
+	ep := s.Status().Endpoints[0]
 	registerDisProtocol(ep.Addr().Network(), conns)
 
 	// Long calls don't cause the timeout, the control stream is still operating.
@@ -389,7 +378,7 @@ func testChannelTimeOut_Server(t *testing.T, ctx *context.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep := findEndpoint(ctx, s)
+	ep := s.Status().Endpoints[0]
 	registerDisProtocol(ep.Addr().Network(), conns)
 
 	// Long calls don't cause the timeout, the control stream is still operating.

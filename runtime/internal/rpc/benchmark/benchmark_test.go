@@ -21,6 +21,7 @@ import (
 	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/benchmark"
+	"v.io/x/ref/test/testutil"
 )
 
 var (
@@ -271,14 +272,8 @@ func setupProxiedServerClient(ctx *context.T) {
 	if err != nil {
 		ctx.Fatal(err)
 	}
-	for {
-		status := proxiedServer.Status()
-		if status.Endpoints[0].Addr().Network() != "bidi" {
-			proxiedServerAddr = status.Endpoints[0].Name()
-			break
-		}
-		<-status.Valid
-	}
+	status := testutil.WaitForProxyEndpoints(proxiedServer, pname)
+	proxiedServerAddr := status.Endpoints[0].Name()
 	// Create Conns to exclude the Conn setup time from the benchmark.
 	internal.CallEcho(&testing.B{}, ctx, proxiedServerAddr, 1, 0, benchmark.NewStats(1))
 }

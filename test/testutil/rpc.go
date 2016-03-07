@@ -20,6 +20,18 @@ func WaitForServerPublished(s rpc.Server) rpc.ServerStatus {
 	}
 }
 
+// WaitForProxyEndpoints blocks until the server's proxied endpoints appear in
+// status.Endpoints, and returns the resulting server status.
+func WaitForProxyEndpoints(s rpc.Server, proxyName string) rpc.ServerStatus {
+	for {
+		status := s.Status()
+		if err, ok := status.ProxyErrors[proxyName]; ok && err == nil {
+			return status
+		}
+		<-status.Valid
+	}
+}
+
 func checkAllPublished(status rpc.ServerStatus) bool {
 	for _, e := range status.PublisherStatus {
 		if e.LastState != e.DesiredState {
