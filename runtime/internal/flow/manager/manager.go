@@ -62,7 +62,7 @@ type listenState struct {
 	endpoints      []*endpointState
 	proxyEndpoints []naming.Endpoint
 	proxyErrors    map[string]error
-	notifyWatchers chan struct{}
+	netChange      chan struct{}
 	roaming        bool
 	stopRoaming    func()
 	proxyFlows     map[string]flow.Flow // keyed by ep.String()
@@ -90,12 +90,12 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 		m.serverAuthorizedPeers = serverAuthorizedPeers
 		m.serverNames = security.BlessingNames(v23.GetPrincipal(ctx), serverBlessings)
 		m.ls = &listenState{
-			q:              upcqueue.New(),
-			listeners:      []flow.Listener{},
-			notifyWatchers: make(chan struct{}),
-			dhcpPublisher:  dhcpPublisher,
-			proxyFlows:     make(map[string]flow.Flow),
-			proxyErrors:    make(map[string]error),
+			q:             upcqueue.New(),
+			listeners:     []flow.Listener{},
+			netChange:     make(chan struct{}),
+			dhcpPublisher: dhcpPublisher,
+			proxyFlows:    make(map[string]flow.Flow),
+			proxyErrors:   make(map[string]error),
 		}
 	}
 	// Pick a interval that is the minimum of the idleExpiry and the reapCacheInterval.
@@ -143,9 +143,9 @@ func (m *manager) stopListening() {
 	listeners := m.ls.listeners
 	m.ls.listeners = nil
 	m.ls.endpoints = nil
-	if m.ls.notifyWatchers != nil {
-		close(m.ls.notifyWatchers)
-		m.ls.notifyWatchers = nil
+	if m.ls.netChange != nil {
+		close(m.ls.netChange)
+		m.ls.netChange = nil
 	}
 	stopRoaming := m.ls.stopRoaming
 	m.ls.stopRoaming = nil
@@ -267,9 +267,9 @@ func (m *manager) addAddrs(addrs []net.Addr) {
 			}
 		}
 	}
-	if changed && m.ls.notifyWatchers != nil {
-		close(m.ls.notifyWatchers)
-		m.ls.notifyWatchers = make(chan struct{})
+	if changed && m.ls.netChange != nil {
+		close(m.ls.netChange)
+		m.ls.netChange = make(chan struct{})
 	}
 }
 
@@ -301,9 +301,9 @@ func (m *manager) rmAddrs(addrs []net.Addr) {
 			}
 		}
 	}
-	if changed && m.ls.notifyWatchers != nil {
-		close(m.ls.notifyWatchers)
-		m.ls.notifyWatchers = make(chan struct{})
+	if changed && m.ls.netChange != nil {
+		close(m.ls.netChange)
+		m.ls.netChange = make(chan struct{})
 	}
 }
 
@@ -398,9 +398,9 @@ func (m *manager) updateProxyEndpoints(eps []naming.Endpoint) {
 	m.ls.proxyEndpoints = eps
 	// The proxy endpoints have changed so we need to notify any watchers to
 	// requery Status.
-	if m.ls.notifyWatchers != nil {
-		close(m.ls.notifyWatchers)
-		m.ls.notifyWatchers = make(chan struct{})
+	if m.ls.netChange != nil {
+		close(m.ls.netChange)
+		m.ls.netChange = make(chan struct{})
 	}
 }
 
@@ -618,7 +618,7 @@ func (m *manager) Status() flow.ListenStatus {
 	for k, v := range m.ls.proxyErrors {
 		status.ProxyErrors[k] = v
 	}
-	status.Valid = m.ls.notifyWatchers
+	status.Dirty = m.ls.netChange
 	m.ls.mu.Unlock()
 	if len(status.Endpoints) == 0 {
 		status.Endpoints = append(status.Endpoints, &inaming.Endpoint{Protocol: bidi.Name, RID: m.rid})

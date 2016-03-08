@@ -44,7 +44,7 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 		if mtEndpoints[0].Addr().Network() != "bidi" {
 			break
 		}
-		<-status.Valid
+		<-status.Dirty
 	}
 	ctx.Infof("Mount table service at: %q endpoint: %s", mountName, mtName)
 

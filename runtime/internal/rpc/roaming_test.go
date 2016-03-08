@@ -33,7 +33,7 @@ func TestRoaming(t *testing.T) {
 		for {
 			status := server.Status()
 			if got, want := len(status.Endpoints), n; got != want {
-				<-status.Valid
+				<-status.Dirty
 			} else {
 				return status
 			}

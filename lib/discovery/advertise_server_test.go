@@ -24,7 +24,7 @@ import (
 type mockServer struct {
 	mu    sync.Mutex
 	eps   []naming.Endpoint
-	valid chan struct{}
+	dirty chan struct{}
 }
 
 func (s *mockServer) AddName(string) error    { return nil }
@@ -36,7 +36,7 @@ func (s *mockServer) Status() rpc.ServerStatus {
 	s.mu.Lock()
 	return rpc.ServerStatus{
 		Endpoints: s.eps,
-		Valid:     s.valid,
+		Dirty:     s.dirty,
 	}
 }
 
@@ -44,14 +44,14 @@ func (s *mockServer) updateNetwork(eps []naming.Endpoint) {
 	defer s.mu.Unlock()
 	s.mu.Lock()
 	s.eps = eps
-	close(s.valid)
-	s.valid = make(chan struct{})
+	close(s.dirty)
+	s.dirty = make(chan struct{})
 }
 
 func newMockServer(eps []naming.Endpoint) *mockServer {
 	return &mockServer{
 		eps:   eps,
-		valid: make(chan struct{}),
+		dirty: make(chan struct{}),
 	}
 }
 

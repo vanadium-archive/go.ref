@@ -16,7 +16,7 @@ func WaitForServerPublished(s rpc.Server) rpc.ServerStatus {
 		if checkAllPublished(status) {
 			return status
 		}
-		<-status.Valid
+		<-status.Dirty
 	}
 }
 
@@ -28,7 +28,7 @@ func WaitForProxyEndpoints(s rpc.Server, proxyName string) rpc.ServerStatus {
 		if err, ok := status.ProxyErrors[proxyName]; ok && err == nil {
 			return status
 		}
-		<-status.Valid
+		<-status.Dirty
 	}
 }
 

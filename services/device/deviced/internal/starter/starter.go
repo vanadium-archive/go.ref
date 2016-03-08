@@ -153,7 +153,7 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 				break
 			}
 			ctx.Infof("Waiting for proxy address to appear...")
-			<-status.Valid
+			<-status.Dirty
 		}
 	} else {
 		eps = server.Status().Endpoints

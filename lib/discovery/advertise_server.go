@@ -82,5 +82,5 @@ func advertiseServer(ctx *context.T, d discovery.T, ad *discovery.Advertisement,
 
 func getEndpoints(server rpc.Server) ([]naming.Endpoint, <-chan struct{}) {
 	status := server.Status()
-	return status.Endpoints, status.Valid
+	return status.Endpoints, status.Dirty
 }

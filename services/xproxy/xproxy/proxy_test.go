@@ -216,7 +216,7 @@ func TestProxyAuthorizesServer(t *testing.T) {
 			t.Errorf("proxy should not have authorized server")
 		}
 		break
-		<-status.Valid
+		<-status.Dirty
 	}
 
 	// Artificially constructing the proxied endpoint to the server should

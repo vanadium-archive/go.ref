@@ -74,7 +74,7 @@ func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) 
 		}
 	}
 	mgrStat := p.m.Status()
-	leps, changed := mgrStat.Endpoints, mgrStat.Valid
+	leps, changed := mgrStat.Endpoints, mgrStat.Dirty
 	p.updateListeningEndpoints(ctx, leps)
 	p.wg.Add(2)
 	go p.updateEndpointsLoop(ctx, changed)
@@ -101,7 +101,7 @@ func (p *proxy) updateEndpointsLoop(ctx *context.T, changed <-chan struct{}) {
 	for changed != nil {
 		<-changed
 		mgrStat := p.m.Status()
-		changed = mgrStat.Valid
+		changed = mgrStat.Dirty
 		p.updateListeningEndpoints(ctx, mgrStat.Endpoints)
 	}
 }

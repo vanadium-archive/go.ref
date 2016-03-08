@@ -63,7 +63,7 @@ type server struct {
 	cancel            context.CancelFunc // function to cancel the above context.
 	flowMgr           flow.Manager
 	settingsPublisher *pubsub.Publisher // pubsub publisher for dhcp
-	valid             chan struct{}
+	dirty             chan struct{}
 	blessings         security.Blessings
 	typeCache         *typeCache
 	state             rpc.ServerState // the current state of the server.
@@ -124,7 +124,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		blessings:         blessings,
 		stats:             newRPCStats(statsPrefix),
 		settingsPublisher: settingsPublisher,
-		valid:             make(chan struct{}),
+		dirty:             make(chan struct{}),
 		disp:              dispatcher,
 		typeCache:         newTypeCache(),
 		state:             rpc.ServerActive,
@@ -241,8 +241,8 @@ func WithNewDispatchingServer(ctx *context.T,
 		<-s.publisher.Closed()
 		<-s.flowMgr.Closed()
 		s.Lock()
-		close(s.valid)
-		s.valid = nil
+		close(s.dirty)
+		s.dirty = nil
 		s.Unlock()
 		// Now we really will wait forever.  If this doesn't exit, there's something
 		// wrong with the users code.
@@ -254,9 +254,9 @@ func WithNewDispatchingServer(ctx *context.T,
 	return s.ctx, s, nil
 }
 
-// monitorPubStatus guarantees that the ServerStatus.Valid channel is closed
+// monitorPubStatus guarantees that the ServerStatus.Dirty channel is closed
 // when the publisher state becomes dirty. Since we also get the publisher.Status()
-// in the Status method, its possible that the Valid channel in the returned
+// in the Status method, its possible that the Dirty channel in the returned
 // ServerStatus will close spuriously by this goroutine.
 func (s *server) monitorPubStatus(ctx *context.T) {
 	defer s.active.Done()
@@ -269,7 +269,7 @@ func (s *server) monitorPubStatus(ctx *context.T) {
 		case <-pubDirty:
 			s.Lock()
 			_, pubDirty = s.publisher.Status()
-			s.updateValidLocked()
+			s.updateDirtyLocked()
 			s.Unlock()
 		case <-ctx.Done():
 			return
@@ -287,7 +287,7 @@ func (s *server) Status() rpc.ServerStatus {
 	// i.e. s.AddName("foo")
 	//      s.Status().PublisherStatus // Should have entry an for "foo".
 	status.PublisherStatus, _ = s.publisher.Status()
-	status.Valid = s.valid
+	status.Dirty = s.dirty
 	status.State = s.state
 	for _, e := range s.endpoints {
 		status.Endpoints = append(status.Endpoints, e)
@@ -361,7 +361,7 @@ func (s *server) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 	mgrStat := s.flowMgr.Status()
 	s.updateEndpointsLocked(mgrStat.Endpoints)
 	s.active.Add(2)
-	go s.updateEndpointsLoop(mgrStat.Valid)
+	go s.updateEndpointsLoop(mgrStat.Dirty)
 	go s.acceptLoop(ctx)
 }
 
@@ -389,10 +389,10 @@ func (s *server) connectToProxy(ctx *context.T, name string) {
 	}
 }
 
-func (s *server) updateValidLocked() {
-	if s.valid != nil {
-		close(s.valid)
-		s.valid = make(chan struct{})
+func (s *server) updateDirtyLocked() {
+	if s.dirty != nil {
+		close(s.dirty)
+		s.dirty = make(chan struct{})
 	}
 }
 
@@ -420,7 +420,7 @@ func (s *server) updateEndpointsLoop(changed <-chan struct{}) {
 	for changed != nil {
 		<-changed
 		mgrStat := s.flowMgr.Status()
-		changed = mgrStat.Valid
+		changed = mgrStat.Dirty
 		s.Lock()
 		s.updateEndpointsLocked(mgrStat.Endpoints)
 		s.Unlock()
@@ -442,7 +442,7 @@ func (s *server) updateEndpointsLocked(leps []naming.Endpoint) {
 	for k, ep := range addEps {
 		s.endpoints[k] = ep
 	}
-	s.updateValidLocked()
+	s.updateDirtyLocked()
 
 	s.Unlock()
 	for k, ep := range rmEps {
