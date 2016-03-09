@@ -314,11 +314,12 @@ func startApp(installationName, extension string) string {
 }
 
 // check flags and produce the options used to build the backend VM
-func handleFlags() (vmOpts interface{}) {
+func handleFlags() (vmOpts interface{}, suppressCleanup bool) {
 	var keyDir string
 	flag.StringVar(&keyDir, "keydir", "/tmp", "where (on the local filesystem) to store ssh keys")
 	var debug bool
 	flag.BoolVar(&debug, "debug", false, "print debug messages")
+	flag.BoolVar(&suppressCleanup, "suppress-cleanup", false, "suppress cleanup on death to facilitate diagnosis")
 
 	// flags for ssh backend
 	var sshTarget, sshOptions string
@@ -384,7 +385,7 @@ func handleFlags() (vmOpts interface{}) {
 		}
 	}
 
-	return vmOpts
+	return
 }
 
 func main() {
@@ -393,20 +394,25 @@ func main() {
 		os.RemoveAll(workDir)
 	}
 	defer os.RemoveAll(workDir)
-	vmOpts := handleFlags()
+	vmOpts, suppressCleanup := handleFlags()
 	dmBinaries := buildV23Binaries(append([]string{deviceBin}, dmBins[:]...)...)
 	device, dmBinaries = dmBinaries[0], dmBinaries[1:]
 	archive := createArchive(append(dmBinaries, getPath(devicexRemote, devicex)))
 
 	vm, vmInstanceName, vmInstanceIP := setupInstance(vmOpts)
-	cleanupOnDeath = func() {
-		fmt.Fprintf(os.Stderr, "Attempting to stop agentd/deviced ...\n")
-		vm.RunCommand("sudo", "killall", "-9", "agentd", "deviced") // errors are ignored
-		fmt.Fprintf(os.Stderr, "Cleaning up VM instance ...\n")
-		err := vm.Delete()
-		fmt.Fprintf(os.Stderr, "Removing local tmp files ...\n")
-		os.RemoveAll(workDir)
-		dieIfErr(err, "Cleaning up VM instance failed")
+	if suppressCleanup {
+		cleanupOnDeath = nil
+	} else {
+		cleanupOnDeath = func() {
+			fmt.Fprintf(os.Stderr, "Attempting to stop agentd/deviced ...\n")
+			vm.RunCommand("sudo", "killall", "-9", "agentd", "deviced") // errors are ignored
+			fmt.Fprintf(os.Stderr, "Cleaning up VM instance ...\n")
+			err := vm.Delete()
+			fmt.Fprintf(os.Stderr, "Removing local tmp files ...\n")
+			os.RemoveAll(workDir)
+			dieIfErr(err, "Cleaning up VM instance failed")
+			fmt.Fprintf(os.Stderr, "To keep device manager alive for debugging, run again with --suppress-cleanup.\n")
+		}
 	}
 	installArchive(archive, vmInstanceName)
 	publicKey, pairingToken := installDevice(vmInstanceName)
