@@ -8,13 +8,10 @@
 package lib
 
 import (
-	// VDL system imports
 	"fmt"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
-
-	// VDL user imports
 	"v.io/v23/vtrace"
 )
 

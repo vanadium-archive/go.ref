@@ -36,16 +36,13 @@
 package agent
 
 import (
-	// VDL system imports
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
-
-	// VDL user imports
-	"v.io/v23/security"
 )
 
 type ConnInfo struct {

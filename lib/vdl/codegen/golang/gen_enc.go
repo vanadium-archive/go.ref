@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"v.io/v23/vdl"
-	"v.io/v23/vdlroot/vdltool"
 	"v.io/x/ref/lib/vdl/compile"
 	"v.io/x/ref/lib/vdl/vdlutil"
 )
@@ -342,11 +341,11 @@ func genEncRefForWiretype(data goData, t *vdl.Type, wireInstName, targetName str
 // but generates conversion code for native types.
 func encWiretypeInstName(data goData, t *vdl.Type, instName string, varCount *int) (wiretypeInstName, body string) {
 	// If this is a native type, convert it to wire type.
-	pkgPath, name := vdl.SplitIdent(t.Name())
-	_, ok := lookupNativeGoTypes(pkgPath, name, data.File.Package, make(map[*compile.Package]bool))
-	if ok {
+	if isNativeType(t, data.File.Package) {
+		pkgPath, name := vdl.SplitIdent(t.Name())
 		wirePkgPath := pkgPath
 		if !strings.ContainsRune(pkgPath, '/') {
+			// TODO(toddw) Fix this logic - it isn't correct
 			wirePkgPath = "v.io/v23/vdlroot/" + pkgPath
 		}
 		wirePkgName := data.Pkg(wirePkgPath)
@@ -505,9 +504,7 @@ func genVdlTypeBuilderInternal(data goData, t *vdl.Type, lookupName map[*vdl.Typ
 
 func containsNativeType(data goData, t *vdl.Type) bool {
 	isNative := !t.Walk(vdl.WalkAll, func(wt *vdl.Type) bool {
-		pkgPath, name := vdl.SplitIdent(wt.Name())
-		_, isNative := lookupNativeGoTypes(pkgPath, name, data.File.Package, map[*compile.Package]bool{})
-		return !isNative
+		return !isNativeType(wt, data.File.Package)
 	})
 	return isNative
 }
@@ -562,26 +559,31 @@ func nameEnsureNativeBuilt(data goData) string {
 	return fmt.Sprintf("__VDLEnsureNativeBuilt_%s", strings.TrimSuffix(data.File.BaseName, ".vdl"))
 }
 
-// lookupNativeGoTypes traverses the package structure to determine whether the provided type is native.
-func lookupNativeGoTypes(pkgPath, name string, pkg *compile.Package, seen map[*compile.Package]bool) (vdltool.GoType, bool) {
+// isNativeType traverses the package structure to determine whether the provided type is native.
+func isNativeType(t *vdl.Type, pkg *compile.Package) bool {
+	pkgPath, name := vdl.SplitIdent(t.Name())
+	return isNativeTypeInternal(pkgPath, name, pkg, map[*compile.Package]bool{})
+}
+
+func isNativeTypeInternal(pkgPath, name string, pkg *compile.Package, seen map[*compile.Package]bool) bool {
 	if seen[pkg] {
-		return vdltool.GoType{}, false
+		return false
 	}
 	seen[pkg] = true
 
 	if pkg.Path == pkgPath {
-		gt, ok := pkg.Config.Go.WireToNativeTypes[name]
-		return gt, ok
+		_, ok := pkg.Config.Go.WireToNativeTypes[name]
+		return ok
 	}
 
 	for _, f := range pkg.Files {
 		for _, dep := range f.PackageDeps {
-			if gt, ok := lookupNativeGoTypes(pkgPath, name, dep, seen); ok {
-				return gt, true
+			if isNativeTypeInternal(pkgPath, name, dep, seen) {
+				return true
 			}
 		}
 	}
-	return vdltool.GoType{}, false
+	return false
 }
 
 func createUniqueName(prefix string, varCount *int) string {

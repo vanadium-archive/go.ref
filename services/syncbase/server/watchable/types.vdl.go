@@ -8,11 +8,8 @@
 package watchable
 
 import (
-	// VDL system imports
 	"fmt"
 	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/x/ref/services/syncbase/server/interfaces"
 )
 

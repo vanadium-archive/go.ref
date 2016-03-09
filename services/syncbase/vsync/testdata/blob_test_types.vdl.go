@@ -8,12 +8,9 @@
 package blobtestsvdl
 
 import (
-	// VDL system imports
+	"v.io/v23/services/syncbase/nosql"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
-
-	// VDL user imports
-	"v.io/v23/services/syncbase/nosql"
 )
 
 type BlobInfo struct {

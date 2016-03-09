@@ -8,14 +8,11 @@
 package demodb
 
 import (
-	// VDL system imports
 	"fmt"
-	"v.io/v23/vdl"
-	"v.io/v23/vom"
-
-	// VDL user imports
 	"time"
+	"v.io/v23/vdl"
 	time_2 "v.io/v23/vdlroot/time"
+	"v.io/v23/vom"
 )
 
 type AddressInfo struct {

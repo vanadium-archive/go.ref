@@ -8,18 +8,15 @@
 package interfaces
 
 import (
-	// VDL system imports
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/rpc"
-	"v.io/v23/vdl"
-	"v.io/v23/verror"
-
-	// VDL user imports
 	"v.io/v23/security/access"
 	"v.io/v23/services/syncbase/nosql"
+	"v.io/v23/vdl"
+	"v.io/v23/verror"
 )
 
 func __VDLEnsureNativeBuilt_sync() {

@@ -8,13 +8,10 @@
 package interfaces
 
 import (
-	// VDL system imports
 	"fmt"
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"time"
 	"v.io/v23/services/syncbase/nosql"
+	"v.io/v23/vdl"
 	time_2 "v.io/v23/vdlroot/time"
 )
 

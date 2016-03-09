@@ -8,10 +8,7 @@
 package vsync
 
 import (
-	// VDL system imports
 	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/x/ref/services/syncbase/server/interfaces"
 )
 

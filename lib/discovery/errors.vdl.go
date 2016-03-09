@@ -8,13 +8,10 @@
 package discovery
 
 import (
-	// VDL system imports
 	"v.io/v23/context"
+	"v.io/v23/discovery"
 	"v.io/v23/i18n"
 	"v.io/v23/verror"
-
-	// VDL user imports
-	"v.io/v23/discovery"
 )
 
 func __VDLEnsureNativeBuilt_errors() {

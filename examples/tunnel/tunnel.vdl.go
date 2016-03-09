@@ -10,15 +10,12 @@
 package tunnel
 
 import (
-	// VDL system imports
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/v23/security/access"
+	"v.io/v23/vdl"
 )
 
 type ShellOpts struct {

@@ -73,6 +73,17 @@ func (e *Env) ResolvePackage(path string) *Package {
 	return e.pkgs[path]
 }
 
+// ResolvePackageGenPath resolves a package gen path to its previous compiled
+// results.
+func (e *Env) ResolvePackageGenPath(genPath string) *Package {
+	for _, pkg := range e.pkgs {
+		if pkg.GenPath == genPath {
+			return pkg
+		}
+	}
+	return nil
+}
+
 // Resolves a name against the current package and imported package namespace.
 func (e *Env) resolve(name string, file *File) (val interface{}, matched string) {
 	// First handle package-path qualified identifiers, which look like this:

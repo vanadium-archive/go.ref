@@ -8,11 +8,8 @@
 package internal
 
 import (
-	// VDL system imports
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/v23/security"
+	"v.io/v23/vdl"
 )
 
 // Config contains the attributes of the role, and the list of members who have

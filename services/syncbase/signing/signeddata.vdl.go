@@ -8,11 +8,8 @@
 package signing
 
 import (
-	// VDL system imports
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/v23/security"
+	"v.io/v23/vdl"
 )
 
 // A DataWithSignature represents a signed, and possibily validated, collection

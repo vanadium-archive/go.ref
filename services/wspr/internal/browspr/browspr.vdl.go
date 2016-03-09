@@ -8,10 +8,7 @@
 package browspr
 
 import (
-	// VDL system imports
 	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/x/ref/services/identity"
 	"v.io/x/ref/services/wspr/internal/account"
 )

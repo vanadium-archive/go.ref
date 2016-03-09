@@ -8,12 +8,9 @@
 package nativedep2
 
 import (
-	// VDL system imports
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"time"
-	"v.io/x/ref/lib/vdl/testdata/nativetest"
+	"v.io/v23/vdl"
+	_ "v.io/x/ref/lib/vdl/testdata/nativetest"
 )
 
 type MyTime time.Time

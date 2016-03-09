@@ -9,11 +9,8 @@
 package profile
 
 import (
-	// VDL system imports
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/v23/services/build"
+	"v.io/v23/vdl"
 )
 
 // Library describes a shared library that applications may use.

@@ -8,12 +8,9 @@
 package internal
 
 import (
-	// VDL system imports
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/v23/security"
 	"v.io/v23/uniqueid"
+	"v.io/v23/vdl"
 )
 
 func __VDLEnsureNativeBuilt_caveats() {

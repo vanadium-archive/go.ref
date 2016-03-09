@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 
-	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/compile"
 )
 
@@ -33,23 +32,8 @@ type goImport struct {
 	Local string
 }
 
-// goImports holds all imports for a generated Go file, splitting into two
-// groups "system" and "user".  The splitting is just for slightly nicer output,
-// and to ensure we prefer system over user imports when dealing with package
-// name collisions.
-type goImports struct {
-	System, User []goImport
-}
-
-func newImports(file *compile.File, env *compile.Env) *goImports {
-	deps, user := computeDeps(file, env)
-	system := systemImports(deps, file)
-	seen := make(map[string]bool)
-	return &goImports{
-		System: system.Sort(seen),
-		User:   user.Sort(seen),
-	}
-}
+// goImports holds all imports for a generated Go file.
+type goImports []goImport
 
 // importMap maps from package path to package name.  It's used to collect
 // package import information.
@@ -57,15 +41,15 @@ type importMap map[string]string
 
 // AddPackage adds a regular dependency on pkg; some block of generated code
 // will reference the pkg.
-func (im importMap) AddPackage(pkg *compile.Package) {
-	im[pkg.GenPath] = pkg.Name
+func (im importMap) AddPackage(genPath, pkgName string) {
+	im[genPath] = pkgName
 }
 
-// AddForcedPackage adds a "forced" dependency on pkg.  This means that we need
+// AddForcedPackage adds a "forced" dependency on a pkg.  This means that we need
 // to import pkg even if no other block of generated code references the pkg.
-func (im importMap) AddForcedPackage(pkg *compile.Package) {
-	if im[pkg.GenPath] == "" {
-		im[pkg.GenPath] = "_"
+func (im importMap) AddForcedPackage(genPath string) {
+	if im[genPath] == "" {
+		im[genPath] = "_"
 	}
 }
 
@@ -73,12 +57,13 @@ func (im importMap) DeletePackage(pkg *compile.Package) {
 	delete(im, pkg.GenPath)
 }
 
-func (im importMap) Sort(seen map[string]bool) []goImport {
+func (im importMap) Sort() []goImport {
 	var sortedPaths []string
 	for path := range im {
 		sortedPaths = append(sortedPaths, path)
 	}
 	sort.Strings(sortedPaths)
+	seen := make(map[string]bool)
 	var ret []goImport
 	for _, path := range sortedPaths {
 		ret = append(ret, uniqueImport(im[path], path, seen))
@@ -117,14 +102,7 @@ func uniqueImport(pkgName, pkgPath string, seen map[string]bool) goImport {
 
 // LookupLocal returns the local identifier within the generated go file that
 // identifies the given pkgPath.
-func (x *goImports) LookupLocal(pkgPath string) string {
-	if local := lookupLocal(pkgPath, x.System); local != "" {
-		return local
-	}
-	return lookupLocal(pkgPath, x.User)
-}
-
-func lookupLocal(pkgPath string, imports []goImport) string {
+func (imports goImports) LookupLocal(pkgPath string) string {
 	ix := sort.Search(
 		len(imports),
 		func(i int) bool { return imports[i].Path >= pkgPath },
@@ -133,256 +111,4 @@ func lookupLocal(pkgPath string, imports []goImport) string {
 		return imports[ix].Local
 	}
 	return ""
-}
-
-type deps struct {
-	any              bool
-	typeObject       bool
-	error            bool
-	enumTypeDef      bool
-	streamingMethods bool
-	methodTags       bool
-}
-
-func computeDeps(file *compile.File, env *compile.Env) (deps, importMap) {
-	deps, user := &deps{}, make(importMap)
-	// TypeDef.Type is always defined in our package; add deps on the base type.
-	for _, def := range file.TypeDefs {
-		addTypeDeps(file, def.BaseType, env, deps, user, true)
-		if def.Type.Kind() == vdl.Enum {
-			deps.enumTypeDef = true
-		}
-	}
-	// Consts contribute their value types.
-	for _, def := range file.ConstDefs {
-		addValueTypeDeps(def.Value, env, deps, user)
-	}
-	// Interfaces contribute their arg types and tag values, as well as embedded
-	// interfaces.
-	for _, iface := range file.Interfaces {
-		for _, embed := range iface.TransitiveEmbeds() {
-			user.AddPackage(embed.File.Package)
-		}
-		for _, method := range iface.Methods {
-			for _, arg := range method.InArgs {
-				addTypeDeps(file, arg.Type, env, deps, user, false)
-			}
-			for _, arg := range method.OutArgs {
-				addTypeDeps(file, arg.Type, env, deps, user, false)
-			}
-			if stream := method.InStream; stream != nil {
-				addTypeDeps(file, stream, env, deps, user, false)
-				deps.streamingMethods = true
-			}
-			if stream := method.OutStream; stream != nil {
-				addTypeDeps(file, stream, env, deps, user, false)
-				deps.streamingMethods = true
-			}
-			for _, tag := range method.Tags {
-				addValueTypeDeps(tag, env, deps, user)
-				deps.methodTags = true
-			}
-		}
-	}
-	// Errors contribute their param types.
-	for _, def := range file.ErrorDefs {
-		for _, param := range def.Params {
-			addTypeDeps(file, param.Type, env, deps, user, false)
-		}
-	}
-	// Native types contribute their imports, for the auto-generated native
-	// conversion function type assertion.
-	for _, native := range file.Package.Config.Go.WireToNativeTypes {
-		for _, imp := range native.Imports {
-			user[imp.Path] = imp.Name
-		}
-	}
-	// Now remove self and built-in package dependencies.  Every package can use
-	// itself and the built-in package, so we don't need to record this.
-	user.DeletePackage(file.Package)
-	user.DeletePackage(compile.BuiltInPackage)
-	return *deps, user
-}
-
-// Add package deps iff t is a defined (named) type.
-func addTypeDepIfDefined(t *vdl.Type, env *compile.Env, deps *deps, user importMap, wiretypeNeeded bool) bool {
-	if t == vdl.AnyType {
-		deps.any = true
-	}
-	if t == vdl.TypeObjectType {
-		deps.typeObject = true
-	}
-	if t == vdl.ErrorType && wiretypeNeeded {
-		deps.error = true
-	}
-	if def := env.FindTypeDef(t); def != nil {
-		pkg := def.File.Package
-		if native, ok := pkg.Config.Go.WireToNativeTypes[def.Name]; ok {
-			// There is a native type configured for this defined type.  Add the
-			// imports corresponding to the native type.
-			for _, imp := range native.Imports {
-				user[imp.Path] = imp.Name
-			}
-			if wiretypeNeeded {
-				// The wiretype is referenced by the encoder/decoder. Need to treat
-				// it as a regular import (rather than a _ import).
-				user.AddPackage(pkg)
-			} else {
-				// Also add a "forced" import on the regular VDL package, to ensure the
-				// wire type is registered, to establish the wire<->native mapping.
-				user.AddForcedPackage(pkg)
-			}
-		} else {
-			// There's no native type configured for this defined type.  Add the
-			// imports corresponding to the VDL package.
-			user.AddPackage(pkg)
-		}
-		return true
-	}
-	return false
-}
-
-// Add immediate package deps for t and subtypes of t.
-func addTypeDeps(file *compile.File, t *vdl.Type, env *compile.Env, deps *deps, user importMap, wiretypeNeeded bool) {
-	if addTypeDepIfDefined(t, env, deps, user, wiretypeNeeded) {
-		// We don't track transitive dependencies, only immediate dependencies.
-		return
-	}
-	// Not all types have TypeDefs; e.g. unnamed lists have no corresponding
-	// TypeDef, so we need to traverse those recursively.
-	addSubTypeDeps(file, t, env, deps, user, wiretypeNeeded)
-}
-
-// Add immediate package deps for subtypes of t.
-func addSubTypeDeps(file *compile.File, t *vdl.Type, env *compile.Env, deps *deps, user importMap, wiretypeNeeded bool) {
-	pkgPath, name := vdl.SplitIdent(t.Name())
-	if name != "" && pkgPath != file.Package.Path {
-		// The encoder/decoders for this type will be generated in a different package, so
-		// we don't need to force the wiretype.
-		wiretypeNeeded = false
-	}
-	switch t.Kind() {
-	case vdl.Array, vdl.List, vdl.Optional:
-		addTypeDeps(file, t.Elem(), env, deps, user, wiretypeNeeded)
-	case vdl.Set:
-		addTypeDeps(file, t.Key(), env, deps, user, wiretypeNeeded)
-	case vdl.Map:
-		addTypeDeps(file, t.Key(), env, deps, user, wiretypeNeeded)
-		addTypeDeps(file, t.Elem(), env, deps, user, wiretypeNeeded)
-	case vdl.Struct, vdl.Union:
-		for ix := 0; ix < t.NumField(); ix++ {
-			addTypeDeps(file, t.Field(ix).Type, env, deps, user, wiretypeNeeded)
-		}
-	}
-}
-
-// Add immediate package deps for v.Type(), and subvalues.  We must traverse the
-// value to know which types are actually used; e.g. an empty struct doesn't
-// have a dependency on its field types.
-//
-// The purpose of this method is to identify the package and type dependencies
-// for const or tag values.
-func addValueTypeDeps(v *vdl.Value, env *compile.Env, deps *deps, user importMap) {
-	t := v.Type()
-	addTypeDepIfDefined(t, env, deps, user, false)
-	// Track transitive dependencies, by traversing subvalues recursively.
-	switch t.Kind() {
-	case vdl.Array, vdl.List:
-		for ix := 0; ix < v.Len(); ix++ {
-			addValueTypeDeps(v.Index(ix), env, deps, user)
-		}
-	case vdl.Set:
-		for _, key := range v.Keys() {
-			addValueTypeDeps(key, env, deps, user)
-		}
-	case vdl.Map:
-		for _, key := range v.Keys() {
-			addValueTypeDeps(key, env, deps, user)
-			addValueTypeDeps(v.MapIndex(key), env, deps, user)
-		}
-	case vdl.Struct:
-		if v.IsZero() {
-			// We print zero-valued structs as {}, so we stop the traversal here.
-			return
-		}
-		for ix := 0; ix < t.NumField(); ix++ {
-			addValueTypeDeps(v.StructField(ix), env, deps, user)
-		}
-	case vdl.Union:
-		_, field := v.UnionField()
-		addValueTypeDeps(field, env, deps, user)
-	case vdl.Any, vdl.Optional:
-		if elem := v.Elem(); elem != nil {
-			addValueTypeDeps(elem, env, deps, user)
-		}
-	case vdl.TypeObject:
-		// TypeObject has dependencies on everything its zero value depends on.
-		addValueTypeDeps(vdl.ZeroValue(v.TypeObject()), env, deps, user)
-	}
-}
-
-// systemImports returns the vdl system imports for the given file and deps.
-// You might think we could simply capture the imports during code generation,
-// and then dump out all imports afterwards.  Unfortunately that strategy
-// doesn't work, because of potential package name collisions in the imports.
-//
-// When generating code we need to know the local identifier used to reference a
-// given imported package.  But the local identifier changes if there are
-// collisions with other imported packages.  An example:
-//
-//   package pkg
-//
-//   import       "a/foo"
-//   import foo_2 "b/foo"
-//
-//   type X foo.T
-//   type Y foo_2.T
-//
-// Note that in order to generate code for X and Y, we need to know what local
-// identifier to use.  But we only know what local identifier to use after we've
-// collected all imports and resolved collisions.
-func systemImports(deps deps, file *compile.File) importMap {
-	system := make(importMap)
-	if deps.typeObject || deps.methodTags || len(file.TypeDefs) > 0 {
-		// System import for vdl.Value, vdl.Type and vdl.Register.
-		system["v.io/v23/vdl"] = "vdl"
-	}
-	if deps.any {
-		if shouldUseVdlValueForAny(file.Package) {
-			system["v.io/v23/vdl"] = "vdl"
-		} else {
-			system["v.io/v23/vom"] = "vom"
-		}
-	}
-	if deps.enumTypeDef {
-		system["fmt"] = "fmt"
-	}
-	if len(file.Interfaces) > 0 {
-		system["v.io/v23"] = "v23"
-		system["v.io/v23/context"] = "context"
-		system["v.io/v23/rpc"] = "rpc"
-	}
-	if deps.streamingMethods {
-		system["io"] = "io"
-	}
-	if len(file.ErrorDefs) > 0 {
-		system["v.io/v23/context"] = "context"
-		system["v.io/v23/i18n"] = "i18n"
-		// If the user has specified any errors, typically we need to import the
-		// "v.io/v23/verror" package.  However we allow vdl code-generation
-		// in the "v.io/v23/verror" package itself, to specify common
-		// errors.  Special-case this scenario to avoid self-cyclic package
-		// dependencies.
-		if file.Package.Path != "v.io/v23/verror" {
-			system["v.io/v23/verror"] = "verror"
-		}
-	}
-	if deps.error {
-		if file.Package.Path != "v.io/v23/verror" {
-			system["v.io/v23/verror"] = "verror"
-		}
-	}
-	// Now remove self package dependencies.
-	system.DeletePackage(file.Package)
-	return system
 }

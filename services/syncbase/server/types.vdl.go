@@ -8,11 +8,8 @@
 package server
 
 import (
-	// VDL system imports
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/v23/security/access"
+	"v.io/v23/vdl"
 )
 
 // ServiceData represents the persistent state of a Service.

@@ -10,12 +10,9 @@
 package iberoot
 
 import (
-	// VDL system imports
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-
-	// VDL user imports
 	"v.io/x/ref/lib/security/bcrypter"
 )
 
