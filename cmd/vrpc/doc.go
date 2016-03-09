@@ -18,6 +18,10 @@ The vrpc commands are:
    identify    Reveal blessings presented by a Vanadium server
    help        Display help for commands or topics
 
+The vrpc flags are:
+ -s=false
+   if true, perform a shallow resolve
+
 The global flags are:
  -v23.namespace.root=[/(dev.v.io:role:vprod:service:mounttabled)@ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
@@ -91,10 +95,11 @@ The vrpc signature flags are:
  -insecure=false
    If true, skip server authentication. This means that the client will reveal
    its blessings to servers that it may not recognize.
- -s=false
-   if true, perform a shallow resolve
  -show-reserved=false
    if true, also show the signatures of reserved methods
+
+ -s=false
+   if true, perform a shallow resolve
 
 Vrpc call - Call a method of a Vanadium server
 
@@ -126,6 +131,10 @@ the server, or an object name that will be resolved to an end-point.
 
 [args...] are the positional input arguments, specified as VDL expressions.
 
+The vrpc call flags are:
+ -s=false
+   if true, perform a shallow resolve
+
 Vrpc identify - Reveal blessings presented by a Vanadium server
 
 Identify connects to the Vanadium server identified by <server> and dumps out
@@ -142,6 +151,9 @@ The vrpc identify flags are:
  -insecure=false
    If true, skip server authentication. This means that the client will reveal
    its blessings to servers that it may not recognize.
+
+ -s=false
+   if true, perform a shallow resolve
 
 Vrpc help - Display help for commands or topics
 

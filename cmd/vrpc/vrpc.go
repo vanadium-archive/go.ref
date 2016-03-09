@@ -57,7 +57,7 @@ func init() {
 	cmdIdentify.Flags.BoolVar(&flagInsecure, insecureName, insecureVal, insecureDesc)
 
 	cmdSignature.Flags.BoolVar(&flagShowReserved, "show-reserved", false, "if true, also show the signatures of reserved methods")
-	cmdSignature.Flags.BoolVar(&flagShallowResolve, "s", false, "if true, perform a shallow resolve")
+	cmdVRPC.Flags.BoolVar(&flagShallowResolve, "s", false, "if true, perform a shallow resolve")
 }
 
 var cmdVRPC = &cmdline.Command{
@@ -149,6 +149,24 @@ func getNamespaceOpts(opts []rpc.CallOpt) []naming.NamespaceOpt {
 	return out
 }
 
+func rpcOpts(ctx *context.T, server string) ([]rpc.CallOpt, error) {
+	var opts []rpc.CallOpt
+	if flagInsecure {
+		// Note that this flag is only settable on signature and
+		// identify, as per ashankar@.
+		opts = append(opts, insecureOpts...)
+	}
+	if flagShallowResolve {
+		// Find the containing mount table.
+		me, err := v23.GetNamespace(ctx).ShallowResolve(ctx, server, getNamespaceOpts(opts)...)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, options.Preresolved{me})
+	}
+	return opts, nil
+}
+
 func runSignature(ctx *context.T, env *cmdline.Env, args []string) error {
 	// Error-check args.
 	var server, method string
@@ -165,17 +183,9 @@ func runSignature(ctx *context.T, env *cmdline.Env, args []string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	var types vdlgen.NamedTypes
-	var opts []rpc.CallOpt
-	if flagInsecure {
-		opts = append(opts, insecureOpts...)
-	}
-	if flagShallowResolve {
-		// Find the containing mount table.
-		me, err := v23.GetNamespace(ctx).ShallowResolve(ctx, server, getNamespaceOpts(opts)...)
-		if err != nil {
-			return err
-		}
-		opts = append(opts, options.Preresolved{me})
+	opts, err := rpcOpts(ctx, server)
+	if err != nil {
+		return err
 	}
 	if method != "" {
 		methodSig, err := reserved.MethodSignature(ctx, server, method, opts...)
@@ -223,10 +233,14 @@ func runCall(ctx *context.T, env *cmdline.Env, args []string) error {
 			argsdata += "," + arg
 		}
 	}
+	opts, err := rpcOpts(ctx, server)
+	if err != nil {
+		return err
+	}
 	// Get the method signature and parse args.
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	methodSig, err := reserved.MethodSignature(ctx, server, method)
+	methodSig, err := reserved.MethodSignature(ctx, server, method, opts...)
 	if err != nil {
 		return fmt.Errorf("MethodSignature failed: %v", err)
 	}
@@ -236,7 +250,7 @@ func runCall(ctx *context.T, env *cmdline.Env, args []string) error {
 		return err
 	}
 	// Start the method call.
-	call, err := v23.GetClient(ctx).StartCall(ctx, server, method, inargs)
+	call, err := v23.GetClient(ctx).StartCall(ctx, server, method, inargs, opts...)
 	if err != nil {
 		return fmt.Errorf("StartCall failed: %v", err)
 	}
@@ -304,9 +318,9 @@ func runIdentify(ctx *context.T, env *cmdline.Env, args []string) error {
 	server := args[0]
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	var opts []rpc.CallOpt
-	if flagInsecure {
-		opts = append(opts, insecureOpts...)
+	opts, err := rpcOpts(ctx, server)
+	if err != nil {
+		return err
 	}
 	// The method name does not matter - only interested in authentication,
 	// not in actually making an RPC.
