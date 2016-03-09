@@ -58,8 +58,8 @@ func main() {
 
 	cmdVbecome.Flags.DurationVar(&durationFlag, "duration", 1*time.Hour, "Duration for the blessing.")
 	cmdVbecome.Flags.DurationVar(&timeoutFlag, "timeout", 2*time.Minute, "Timeout for the RPCs.")
-	cmdVbecome.Flags.StringVar(&nameFlag, "name", "", "Name to use for the blessing.")
-	cmdVbecome.Flags.StringVar(&roleFlag, "role", "", "Role object from which to request the blessing. If set, the blessings from this role server are used and --name is ignored. If not set, the default blessings of the calling principal are extended with --name.")
+	cmdVbecome.Flags.StringVar(&nameFlag, "name", "", "If set, the derived principal will be given an extension of the caller's blessings with this name.  A union blessing will be created if used in conjunction with --role")
+	cmdVbecome.Flags.StringVar(&roleFlag, "role", "", "If set, the derived principal will be given a blessing obtained from this role object.  A union blessing will be created if used in conjunction with --name")
 
 	cmdline.Main(cmdVbecome)
 }
@@ -82,33 +82,33 @@ func vbecome(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
+	if len(roleFlag) == 0 && len(nameFlag) == 0 {
+		return fmt.Errorf("at least one of --name or --role must be specified")
+	}
 
-	if len(roleFlag) == 0 {
-		if len(nameFlag) == 0 {
-			nameFlag = filepath.Base(args[0])
-		}
-		if err := bless(ctx, principal, nameFlag); err != nil {
+	var nameB, roleB security.Blessings
+	if len(nameFlag) > 0 {
+		if nameB, err = bless(ctx, principal, nameFlag); err != nil {
 			return err
 		}
-		ctx, err = v23.WithPrincipal(ctx, principal)
-		if err != nil {
+	}
+	if len(roleFlag) > 0 {
+		if roleB, err = setupRole(ctx, principal, roleFlag); err != nil {
 			return err
 		}
-	} else {
-		// The role server expects the client's blessing name to end
-		// with RoleSuffix. This is to avoid accidentally granting role
-		// access to anything else that might have been blessed by the
-		// same principal.
-		if err := bless(ctx, principal, role.RoleSuffix); err != nil {
-			return err
-		}
-		ctx, err = v23.WithPrincipal(ctx, principal)
-		if err != nil {
-			return err
-		}
-		if err = setupRoleBlessings(ctx, roleFlag); err != nil {
-			return err
-		}
+	}
+	union, err := security.UnionOfBlessings(roleB, nameB)
+	if err != nil {
+		return err
+	}
+	if err := principal.BlessingStore().SetDefault(union); err != nil {
+		return err
+	}
+	if _, err := principal.BlessingStore().Set(union, security.AllPrincipals); err != nil {
+		return err
+	}
+	if err := security.AddToRoots(principal, union); err != nil {
+		return err
 	}
 
 	// Clear out the environment variable before starting the child.
@@ -138,34 +138,15 @@ func vbecome(ctx *context.T, env *cmdline.Env, args []string) error {
 	return doExec(args)
 }
 
-func bless(ctx *context.T, p security.Principal, name string) error {
+func bless(ctx *context.T, p security.Principal, name string) (security.Blessings, error) {
 	caveat, err := security.NewExpiryCaveat(time.Now().Add(durationFlag))
 	if err != nil {
 		ctx.Errorf("Couldn't create caveat")
-		return err
+		return security.Blessings{}, err
 	}
-
 	rp := v23.GetPrincipal(ctx)
 	rblessing, _ := rp.BlessingStore().Default()
-	blessing, err := rp.Bless(p.PublicKey(), rblessing, name, caveat)
-	if err != nil {
-		ctx.Errorf("Couldn't bless")
-		return err
-	}
-
-	if err = p.BlessingStore().SetDefault(blessing); err != nil {
-		ctx.Errorf("Couldn't set default blessing")
-		return err
-	}
-	if _, err = p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
-		ctx.Errorf("Couldn't set default client blessing")
-		return err
-	}
-	if err = security.AddToRoots(p, blessing); err != nil {
-		ctx.Errorf("Couldn't set trusted roots")
-		return err
-	}
-	return nil
+	return rp.Bless(p.PublicKey(), rblessing, name, caveat)
 }
 
 func doExec(args []string) error {
@@ -176,23 +157,25 @@ func doExec(args []string) error {
 	return cmd.Run()
 }
 
-func setupRoleBlessings(ctx *context.T, roleStr string) error {
+func setupRole(ctx *context.T, principal security.Principal, roleStr string) (security.Blessings, error) {
+	// The role server expects the client's blessing name to end with
+	// RoleSuffix. This is to avoid accidentally granting role access to
+	// anything else that might have been blessed by the same principal.
+	roleSeekerB, err := bless(ctx, principal, role.RoleSuffix)
+	if err != nil {
+		return security.Blessings{}, err
+	}
+	pseeker, err := vsecurity.ForkPrincipal(
+		principal,
+		vsecurity.FixedBlessingsStore(roleSeekerB, principal.BlessingStore()),
+		vsecurity.ImmutableBlessingRoots(v23.GetPrincipal(ctx).Roots()))
+	if err != nil {
+		return security.Blessings{}, err
+	}
+	if ctx, err = v23.WithPrincipal(ctx, pseeker); err != nil {
+		return security.Blessings{}, err
+	}
 	ctx, cancel := context.WithTimeout(ctx, timeoutFlag)
 	defer cancel()
-
-	b, err := role.RoleClient(roleStr).SeekBlessings(ctx)
-	if err != nil {
-		return err
-	}
-	p := v23.GetPrincipal(ctx)
-	// TODO(rthellend,ashankar): Revisit this configuration.
-	// SetDefault: Should we expect users to want to act as a server on behalf of the role (by default?)
-	// AllPrincipals: Do we not want to be discriminating about which services we use the role blessing at.
-	if err := p.BlessingStore().SetDefault(b); err != nil {
-		return err
-	}
-	if _, err := p.BlessingStore().Set(b, security.AllPrincipals); err != nil {
-		return err
-	}
-	return nil
+	return role.RoleClient(roleStr).SeekBlessings(ctx)
 }
