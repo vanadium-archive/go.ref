@@ -15,11 +15,13 @@ The vbecome flags are:
  -duration=1h0m0s
    Duration for the blessing.
  -name=
-   Name to use for the blessing.
+   If set, the derived principal will be given an extension of the caller's
+   blessings with this name.  A union blessing will be created if used in
+   conjunction with --role
  -role=
-   Role object from which to request the blessing. If set, the blessings from
-   this role server are used and --name is ignored. If not set, the default
-   blessings of the calling principal are extended with --name.
+   If set, the derived principal will be given a blessing obtained from this
+   role object.  A union blessing will be created if used in conjunction with
+   --name
  -timeout=2m0s
    Timeout for the RPCs.
 
