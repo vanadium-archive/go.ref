@@ -8,11 +8,8 @@
 package nativedep
 
 import (
-	// VDL system imports
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"time"
+	"v.io/v23/vdl"
 	"v.io/v23/vdl/testdata/nativetest"
 	nativetest_2 "v.io/x/ref/lib/vdl/testdata/nativetest"
 )

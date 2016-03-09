@@ -8,11 +8,8 @@
 package discovery
 
 import (
-	// VDL system imports
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/v23/discovery"
+	"v.io/v23/vdl"
 )
 
 type EncryptionAlgorithm int32

@@ -21,7 +21,7 @@ func localIdent(data goData, file *compile.File, ident string) string {
 	return data.Pkg(file.Package.GenPath) + ident
 }
 
-func nativeIdent(data goData, native vdltool.GoType) string {
+func nativeIdent(data goData, native vdltool.GoType, wirePkg *compile.Package) string {
 	ident := native.Type
 	for _, imp := range native.Imports {
 		// Translate the packages specified in the native type into local package
@@ -31,6 +31,7 @@ func nativeIdent(data goData, native vdltool.GoType) string {
 		pkg := data.Pkg(imp.Path)
 		ident = strings.Replace(ident, imp.Name+".", pkg, -1)
 	}
+	data.AddForcedPkg(wirePkg.GenPath)
 	return ident
 }
 
@@ -74,7 +75,7 @@ func typeGo(data goData, t *vdl.Type) string {
 		pkg := def.File.Package
 		if native, ok := pkg.Config.Go.WireToNativeTypes[def.Name]; ok {
 			// There is a Go native type configured for this defined type.
-			return nativeIdent(data, native)
+			return nativeIdent(data, native, pkg)
 		}
 		return localIdent(data, def.File, def.Name)
 	}

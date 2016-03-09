@@ -9,15 +9,12 @@
 package arith
 
 import (
-	// VDL system imports
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
-
-	// VDL user imports
 	"v.io/x/ref/lib/vdl/testdata/arith/exp"
 	"v.io/x/ref/lib/vdl/testdata/base"
 )

@@ -8,11 +8,8 @@
 package testdata
 
 import (
-	// VDL system imports
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/v23/discovery"
+	"v.io/v23/vdl"
 	discovery_2 "v.io/x/ref/lib/discovery"
 )
 

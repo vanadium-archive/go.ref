@@ -8,17 +8,14 @@
 package server
 
 import (
-	// VDL system imports
 	"v.io/v23/context"
 	"v.io/v23/i18n"
-	"v.io/v23/vdl"
-	"v.io/v23/verror"
-	"v.io/v23/vom"
-
-	// VDL user imports
 	"v.io/v23/security"
+	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/vdlroot/time"
+	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/ref/services/wspr/internal/principal"
 )

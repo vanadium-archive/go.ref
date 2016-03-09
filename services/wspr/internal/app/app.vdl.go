@@ -10,14 +10,11 @@
 package app
 
 import (
-	// VDL system imports
+	"v.io/v23/security"
 	"v.io/v23/vdl"
+	"v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
-
-	// VDL user imports
-	"v.io/v23/security"
-	"v.io/v23/vdlroot/time"
 	"v.io/v23/vtrace"
 	"v.io/x/ref/services/wspr/internal/rpc/server"
 )

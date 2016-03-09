@@ -8,11 +8,8 @@
 package serialization
 
 import (
-	// VDL system imports
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/v23/security"
+	"v.io/v23/vdl"
 )
 
 type SignedHeader struct {

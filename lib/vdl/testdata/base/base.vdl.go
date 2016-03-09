@@ -9,7 +9,6 @@
 package base
 
 import (
-	// VDL system imports
 	"fmt"
 	"io"
 	"v.io/v23"

@@ -8,12 +8,9 @@
 package server
 
 import (
-	// VDL system imports
-	"v.io/v23/vdl"
-
-	// VDL user imports
 	"v.io/v23/security/access"
 	"v.io/v23/services/groups"
+	"v.io/v23/vdl"
 )
 
 // groupData represents the persistent state of a group. (The group name is

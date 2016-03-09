@@ -10,15 +10,12 @@
 package discharger
 
 import (
-	// VDL system imports
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/rpc"
-	"v.io/v23/verror"
-
-	// VDL user imports
 	"v.io/v23/security"
+	"v.io/v23/verror"
 )
 
 func __VDLEnsureNativeBuilt_discharger() {

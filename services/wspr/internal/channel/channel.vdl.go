@@ -8,7 +8,6 @@
 package channel
 
 import (
-	// VDL system imports
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 )

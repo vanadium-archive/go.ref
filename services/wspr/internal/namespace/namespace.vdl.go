@@ -12,15 +12,12 @@
 package namespace
 
 import (
-	// VDL system imports
 	"io"
+	"time"
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/rpc"
-
-	// VDL user imports
-	"time"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	_ "v.io/v23/vdlroot/time"
 )

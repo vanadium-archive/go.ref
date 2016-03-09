@@ -23,34 +23,66 @@ import (
 type goData struct {
 	File        *compile.File
 	Env         *compile.Env
-	Imports     *goImports
+	Imports     goImports
 	typeDepends *typeDependencyNames
+
+	collectImports bool // is this the import collecting pass instead of normal generation
+	importMap      importMap
 }
 
 // testingMode is only set to true in tests, to make testing simpler.
 var testingMode = false
 
-func (data goData) Pkg(pkgPath string) string {
+// Reference a package in the generator.
+// If goData's collectImports mode is set, empty imports will be generated and the set of
+// imported  packages will be collected. If collectImports is unset, the list of imported
+// packages will be used to return a valid import.
+func (data *goData) Pkg(genPkgPath string) string {
 	if testingMode {
-		return path.Base(pkgPath) + "."
+		return path.Base(genPkgPath) + "."
 	}
-	// Special-case to avoid adding package qualifiers if we're generating code
-	// for that package.
-	if data.File.Package.GenPath == pkgPath {
+
+	if data.collectImports {
+		data.importMap.AddPackage(genPkgPath, data.pkgName(genPkgPath))
 		return ""
 	}
-	if local := data.Imports.LookupLocal(pkgPath); local != "" {
+
+	// Special-case to avoid adding package qualifiers if we're generating code
+	// for that package.
+	if data.File.Package.GenPath == genPkgPath {
+		return ""
+	}
+	if local := data.Imports.LookupLocal(genPkgPath); local != "" {
 		return local + "."
 	}
-	data.Env.Errorf(data.File, parse.Pos{}, "missing package %q", pkgPath)
+	data.Env.Errorf(data.File, parse.Pos{}, "missing package %q", genPkgPath)
 	return ""
 }
 
-func (data goData) CtxVar(name string) string {
+// Reference a package as forced "_" in the generator.
+// During the import pass mode, this is used to collect dependencies on wiretypes
+// that must have their native conversions registered.
+func (data *goData) AddForcedPkg(genPkgPath string) {
+	if data.collectImports {
+		data.importMap.AddForcedPackage(genPkgPath)
+	}
+}
+
+func (data *goData) pkgName(genPkgPath string) string {
+	// For user imports, ResolvePackageGenPath should resolve to a
+	// valid package.
+	if pkg := data.Env.ResolvePackageGenPath(genPkgPath); pkg != nil {
+		return pkg.Name
+	}
+	// For system imports, e.g., v.io/v23/vdl just use the basename.
+	return path.Base(genPkgPath)
+}
+
+func (data *goData) CtxVar(name string) string {
 	return name + " *" + data.Pkg("v.io/v23/context") + "T"
 }
 
-func (data goData) OptsVar(name string) string {
+func (data *goData) OptsVar(name string) string {
 	return name + " ..." + data.Pkg("v.io/v23/rpc") + "CallOpt"
 }
 
@@ -58,15 +90,34 @@ func (data goData) OptsVar(name string) string {
 // the generated Go source code.
 func Generate(file *compile.File, env *compile.Env) []byte {
 	validateGoConfig(file, env)
-	data := goData{
-		File:        file,
-		Env:         env,
-		Imports:     newImports(file, env),
-		typeDepends: newTypeDependencyNames(),
+	data := &goData{
+		File:           file,
+		Env:            env,
+		typeDepends:    newTypeDependencyNames(),
+		collectImports: true,
+		importMap:      importMap{},
 	}
 	// The implementation uses the template mechanism from text/template and
 	// executes the template against the goData instance.
+	// First pass: run the templates to generate imports.
 	var buf bytes.Buffer
+	if err := goTemplate.Execute(&buf, data); err != nil {
+		// We shouldn't see an error; it means our template is buggy.
+		panic(fmt.Errorf("vdl: couldn't execute template: %v", err))
+	}
+
+	// Now remove self and built-in package dependencies.  Every package can use
+	// itself and the built-in package, so we don't need to record this.
+	data.importMap.DeletePackage(file.Package)
+	data.importMap.DeletePackage(compile.BuiltInPackage)
+
+	// Sort the imports.
+	data.Imports = goImports(data.importMap.Sort())
+
+	// Now re-run the templates with the final imports to generate the output
+	// file.
+	data.collectImports = false
+	buf.Reset()
 	if err := goTemplate.Execute(&buf, data); err != nil {
 		// We shouldn't see an error; it means our template is buggy.
 		panic(fmt.Errorf("vdl: couldn't execute template: %v", err))
@@ -433,13 +484,10 @@ const genGo = `
 
 {{$file.PackageDef.Doc}}package {{$file.PackageDef.Name}}{{$file.PackageDef.DocSuffix}}
 
-{{if or $data.Imports.System $data.Imports.User}}
-import ( {{if $data.Imports.System}}
-	// VDL system imports{{range $imp := $data.Imports.System}}
-	{{if $imp.Name}}{{$imp.Name}} {{end}}"{{$imp.Path}}"{{end}}{{end}}
-{{if $data.Imports.User}}
-	// VDL user imports{{range $imp := $data.Imports.User}}
-	{{if $imp.Name}}{{$imp.Name}} {{end}}"{{$imp.Path}}"{{end}}{{end}}
+{{if $data.Imports}}
+import (
+	{{range $imp := $data.Imports}}
+	{{if $imp.Name}}{{$imp.Name}} {{end}}"{{$imp.Path}}"{{end}}
 ){{end}}
 
 {{if $file.TypeDefs}}
@@ -452,7 +500,7 @@ func init() { {{range $wire, $native := $nativeConversions}}
 	{{$data.Pkg "v.io/v23/vdl"}}RegisterNative({{$wire}}ToNative, {{$wire}}FromNative){{end}}{{range $tdef := $file.TypeDefs}}
 	{{$data.Pkg "v.io/v23/vdl"}}Register((*{{$tdef.Name}})(nil)){{end}}
 }
-{{range $wire, $native := $nativeConversions}}{{$nat := nativeIdent $data $native}}
+{{range $wire, $native := $nativeConversions}}{{$nat := nativeIdent $data $native $file.Package}}
 // Type-check {{$wire}} conversion functions.
 var _ func({{$wire}}, *{{$nat}}) error = {{$wire}}ToNative
 var _ func(*{{$wire}}, {{$nat}}) error = {{$wire}}FromNative

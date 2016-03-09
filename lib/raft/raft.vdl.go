@@ -8,7 +8,6 @@
 package raft
 
 import (
-	// VDL system imports
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"

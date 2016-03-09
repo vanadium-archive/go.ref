@@ -8,12 +8,9 @@
 package app
 
 import (
-	// VDL system imports
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-
-	// VDL user imports
 	"v.io/v23/security"
 	"v.io/v23/vdlroot/signature"
 	"v.io/x/ref/services/wspr/internal/principal"
