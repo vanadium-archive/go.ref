@@ -231,7 +231,7 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	// v.io/x/ref/services/debug/debug/impl.go) instead.
 	output += fmt.Sprintf("exec %q --log_dir=%q ", agent, logs)
 	if singleUser {
-		output += "--no-passphrase "
+		output += "--with-passphrase=false "
 	}
 	if !sessionMode {
 		output += fmt.Sprintf("--restart-exit-code=!0 ")

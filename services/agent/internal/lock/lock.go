@@ -44,9 +44,17 @@ import (
 	"v.io/x/ref/services/agent/internal/lockutil"
 )
 
-// Locker differs from sync.Locker in that it also has TryLock, and all methods
-// return an error.
-type Locker interface {
+// TryLocker is a sync.Locker augmented with TryLock.
+type TryLocker interface {
+	sync.Locker
+	// TryLock attempts to grab the lock, but does not hang if the lock is
+	// actively held by another process.  Instead, it returns false.
+	TryLock() bool
+}
+
+// TryLockerSafe is like TryLocker, but the methods can return an error and
+// never panic.
+type TryLockerSafe interface {
 	// TryLock attempts to grab the lock, but does not hang if the lock is
 	// actively held by another process.  Instead, it returns false.
 	TryLock() (bool, error)
@@ -55,6 +63,9 @@ type Locker interface {
 	// Unlock releases the lock.  Should only be called when the lock is
 	// held.
 	Unlock() error
+	// Must returns a TryLocker whose Lock, TryLock and Unlock methods
+	// panic rather than return errors.
+	Must() TryLocker
 }
 
 const (
@@ -66,9 +77,9 @@ const (
 	sleepJitter  = 20 * time.Millisecond // Should be < sleepTime.
 )
 
-// NewDirLock creates a new Locker that can be used to manipulate a file lock
-// for a directory.
-func NewDirLock(dir string) Locker {
+// NewDirLock creates a new TryLockerSafe that can be used to manipulate a file
+// lock for a directory.
+func NewDirLock(dir string) TryLockerSafe {
 	return newDirLock(dir, timekeeper.RealTime())
 }
 
@@ -189,7 +200,7 @@ func (l *dirLock) sleep() {
 	l.timeKeeper.Sleep(sleepDuration)
 }
 
-// TryLock implements Locker.TryLock.
+// TryLock implements TryLockerSafe.TryLock.
 func (l *dirLock) TryLock() (bool, error) {
 retry:
 	for tries := 0; tries < maxTries; tries++ {
@@ -269,7 +280,7 @@ retry:
 	return false, fmt.Errorf("max number of tries exceeded: %d", maxTries)
 }
 
-// Lock implements Locker.Lock.
+// Lock implements TryLockerSafe.Lock.
 func (l *dirLock) Lock() error {
 	for {
 		if locked, err := l.TryLock(); err != nil {
@@ -283,7 +294,39 @@ func (l *dirLock) Lock() error {
 	}
 }
 
-// Unlock implements Locker.Unlock.
+// Unlock implements TryLockerSafe.Unlock.
 func (l *dirLock) Unlock() error {
 	return l.unlock(0)
+}
+
+type mustLock struct {
+	l TryLockerSafe
+}
+
+// Lock implements sync.Locker.Lock.
+func (m *mustLock) Lock() {
+	if err := m.l.Lock(); err != nil {
+		panic(err)
+	}
+}
+
+// TryLock implements TryLocker.TryLock.
+func (m *mustLock) TryLock() bool {
+	got, err := m.l.TryLock()
+	if err != nil {
+		panic(err)
+	}
+	return got
+}
+
+// Unlock implements sync.Locker.Unlock.
+func (m *mustLock) Unlock() {
+	if err := m.l.Unlock(); err != nil {
+		panic(err)
+	}
+}
+
+// Must implements TryLockerSafe.Must.
+func (l *dirLock) Must() TryLocker {
+	return &mustLock{l}
 }

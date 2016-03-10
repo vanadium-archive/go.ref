@@ -109,6 +109,9 @@ by default.
 The principal create flags are:
  -overwrite=false
    If true, any existing principal data in the directory will be overwritten
+ -with-passphrase=false
+   If true, the user is prompted for a passphrase to encrypt the principal.
+   Otherwise, the principal is stored unencrypted.
 
 Principal fork - Fork a new principal from the principal that this tool is running as and persist it into a directory
 
@@ -144,6 +147,9 @@ The principal fork flags are:
    blesser
  -with=
    Path to file containing blessing to extend
+ -with-passphrase=false
+   If true, the user is prompted for a passphrase to encrypt the principal.
+   Otherwise, principal is stored unencrypted.
 
 Principal seekblessings - Seek blessings from a web-based Vanadium blessing service
 

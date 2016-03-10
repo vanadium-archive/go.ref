@@ -11,6 +11,7 @@ import (
 	"net"
 	"reflect"
 	"sync"
+	"time"
 
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
@@ -18,6 +19,8 @@ import (
 )
 
 const currentVersion = 1
+
+var zeroTime time.Time
 
 type decoderFunc func(n uint32, dec *vom.Decoder) ([]reflect.Value, error)
 
@@ -36,10 +39,11 @@ type rpcHandler struct {
 // One process must act as the "server" by listening for connections.
 // However once connected rpcs can flow in either direction.
 type IPC struct {
-	handlers map[string]rpcHandler
-	mu       sync.Mutex
-	listener *net.UnixListener
-	conns    []*IPCConn
+	handlers      map[string]rpcHandler
+	mu            sync.Mutex
+	listener      *net.UnixListener
+	conns         []*IPCConn
+	idleStartTime time.Time
 }
 
 // IPCConn represents a connection to a process.
@@ -82,8 +86,10 @@ func (c *IPCConn) Call(method string, args []interface{}, results ...interface{}
 // After calling new you can register handlers with Serve().
 // Then call Listen() or Connect().
 func NewIPC() *IPC {
-	ipc := new(IPC)
-	ipc.handlers = make(map[string]rpcHandler)
+	ipc := &IPC{
+		handlers:      make(map[string]rpcHandler),
+		idleStartTime: time.Now(),
+	}
 	return ipc
 }
 
@@ -130,7 +136,16 @@ func (ipc *IPC) newConnLocked(conn net.Conn) *IPCConn {
 	// Don't allow any rpcs to be sent until negotiateVersion unlocks this.
 	result.mu.Lock()
 	ipc.conns = append(ipc.conns, result)
+	ipc.idleStartTime = zeroTime
 	return result
+}
+
+// IdleStartTime returns the time when this IPC became idle (no connections).
+// If there are connections currently, returns the zero time instant.
+func (ipc *IPC) IdleStartTime() time.Time {
+	ipc.mu.Lock()
+	defer ipc.mu.Unlock()
+	return ipc.idleStartTime
 }
 
 func (ipc *IPC) closeConn(c *IPCConn) {
@@ -139,6 +154,9 @@ func (ipc *IPC) closeConn(c *IPCConn) {
 		if ipc.conns[i] == c {
 			last := len(ipc.conns) - 1
 			ipc.conns[i], ipc.conns[last], ipc.conns = ipc.conns[last], nil, ipc.conns[:last]
+			if len(ipc.conns) == 0 {
+				ipc.idleStartTime = time.Now()
+			}
 			break
 		}
 	}

@@ -188,8 +188,8 @@ func TestLevelLockStale(t *testing.T) {
 	}
 }
 
-// TestLock tests the exported Locker methods.  This is a black-box test (if we
-// ignore the timeKeeper manipulation).
+// TestLock tests the exported TryLocker and TryLockerSafe methods.  This is a
+// black-box test (if we ignore the timeKeeper manipulation).
 func TestLock(t *testing.T) {
 	d, l := setup(t)
 	defer os.RemoveAll(d)
@@ -203,6 +203,13 @@ func TestLock(t *testing.T) {
 	if err := l.Unlock(); err != nil {
 		t.Fatalf("Unlock failed: %v", err)
 	}
+	if grabbed := l.Must().TryLock(); !grabbed {
+		t.Fatalf("Expected lock was grabbed, got %t instead", grabbed)
+	}
+	if grabbed := l.Must().TryLock(); grabbed {
+		t.Fatalf("Expected lock was not grabbed, got %t instead", grabbed)
+	}
+	l.Must().Unlock()
 	if grabbed, err := l.TryLock(); err != nil || !grabbed {
 		t.Fatalf("Expected lock was grabbed, got (%t, %v) instead", grabbed, err)
 	}
@@ -231,10 +238,15 @@ func TestLock(t *testing.T) {
 	if err := <-lockDone; err != nil {
 		t.Fatalf("Lock failed: %v", err)
 	}
+	l.Must().Unlock()
+	l.Must().Lock()
+	if grabbed := l.Must().TryLock(); grabbed {
+		t.Fatalf("Expected lock was not grabbed, got %t instead", grabbed)
+	}
 }
 
-// TestLockStale tests the exported Locker methods in the face of stale locks
-// created by external processes.  This is a black-box test.
+// TestLockStale tests the exported TryLockerSafe methods in the face of stale
+// locks created by external processes.  This is a black-box test.
 func TestLockStale(t *testing.T) {
 	d, l := setup(t)
 	defer os.RemoveAll(d)

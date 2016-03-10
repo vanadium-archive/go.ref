@@ -165,11 +165,11 @@ func Init(
 	}
 
 	// Create and set the principal
-	principal, deps, shutdown, err := r.initPrincipal(ctx, flags.Credentials)
+	principal, shutdown, err := r.initPrincipal(ctx, flags.Credentials)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ctx, err = r.setPrincipal(ctx, principal, shutdown, deps...)
+	ctx, err = r.setPrincipal(ctx, principal, shutdown)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -239,7 +239,7 @@ func (*Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
 	return inaming.NewEndpoint(ep)
 }
 
-func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, shutdown func(), deps ...interface{}) (*context.T, error) {
+func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, shutdown func()) (*context.T, error) {
 	stop := shutdown
 	if principal != nil {
 		// Uniquely identify blessingstore and blessingroots with
@@ -262,7 +262,7 @@ func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, shu
 		}
 	}
 	ctx = context.WithValue(ctx, principalKey, principal)
-	return ctx, r.addChild(ctx, principal, stop, deps...)
+	return ctx, r.addChild(ctx, principal, stop)
 }
 
 func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {

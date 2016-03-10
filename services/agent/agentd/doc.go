@@ -15,8 +15,9 @@ starts a command with access to these credentials via agent protocol.
 Other processes can access the agent credentials when V23_AGENT_PATH is set to
 <credential dir>/agent.sock.
 
-Example: $ agentd --v23.credentials=$HOME/.credentials $
-V23_AGENT_PATH=$HOME/.credentials/agent.sock principal dump
+Example:
+ $ agentd --v23.credentials=$HOME/.credentials
+ $ V23_AGENT_PATH=$HOME/.credentials/agent.sock principal dump
 
 Usage:
    agentd [flags] command [command_args...]
@@ -30,8 +31,6 @@ The agentd flags are:
  -new-principal-blessing-name=
    If creating a new principal (--v23.credentials does not exist), then have it
    blessed with this name.
- -no-passphrase=false
-   If true, user will not be prompted for principal encryption passphrase.
  -restart-exit-code=
    If non-empty, will restart the command when it exits, provided that the
    command's exit code matches the value of this flag.  The value must be an
@@ -40,6 +39,8 @@ The agentd flags are:
  -v23.credentials=
    The directory containing the (possibly encrypted) credentials to serve.  Must
    be specified.
+ -with-passphrase=true
+   If true, user will be prompted for principal encryption passphrase.
 
 The global flags are:
  -alsologtostderr=true

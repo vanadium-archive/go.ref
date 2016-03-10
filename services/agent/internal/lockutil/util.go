@@ -16,7 +16,7 @@ import (
 )
 
 func makePsCommand(pid int) *exec.Cmd {
-	return exec.Command("ps", "-o", "pid,ppid,lstart,user,comm", "-p", strconv.Itoa(pid))
+	return exec.Command("ps", "-o", "pid,lstart,user,comm", "-p", strconv.Itoa(pid))
 }
 
 // CreatePIDFile writes information about the current process (like its PID) to

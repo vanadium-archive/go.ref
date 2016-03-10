@@ -251,7 +251,7 @@ func TestV23KeyManager(t *testing.T) {
 		script             = filepath.Join(sh.MakeTempDir(), "test.sh")
 
 		startAgent = func() (*v23test.Cmd, io.WriteCloser) {
-			agent := sh.Cmd(agentd, "--additional-principals="+otherDir, "--no-passphrase", script)
+			agent := sh.Cmd(agentd, "--additional-principals="+otherDir, "--with-passphrase=false", script)
 			agent.Vars[ref.EnvCredentials] = agentDir
 			wc := agent.StdinPipe()
 			start(agent)

@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package agentlib implements a client for communicating with an agentd process
-// holding the private key for an identity.
+// Package agentlib provides ways to create Principals that are backed by the
+// security agent.  It implements a client for communicating with an agent
+// process holding the private key for a Principal.  It also provides a way to
+// start an agent for a Principal serialized to disk.
 package agentlib
 
 import (
@@ -97,6 +99,8 @@ func newUncachedPrincipalX(path string) (*client, error) {
 // NewAgentPrincipal returns a security.Pricipal using the PrivateKey held in a remote agent process.
 // 'path' is the path to the agent socket, typically obtained from
 // os.GetEnv(envvar.AgentAddress).
+// The caller should call Close on the returned Principal once it's no longer
+// used, in order to free up resources.
 func NewAgentPrincipalX(path string) (agent.Principal, error) {
 	p, err := newUncachedPrincipalX(path)
 	if err != nil {

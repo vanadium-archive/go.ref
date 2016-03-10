@@ -12,9 +12,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
+	"time"
+
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/agent"
@@ -116,13 +119,17 @@ func TestListen(t *testing.T) {
 }
 
 func TestBadConnect(t *testing.T) {
-	_, path, cleanup := newServer(t)
+	timeA := time.Now()
+	ipc, path, cleanup := newServer(t)
+	timeB := time.Now()
+	if got := ipc.IdleStartTime(); got.Before(timeA) || got.After(timeB) {
+		t.Fatalf("Wanted time between %v and %v, got %v instead", timeA, timeB, got)
+	}
 	defer cleanup()
 	conn, err := net.Dial("unix", path)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	enc := vom.NewEncoder(conn)
 	dec := vom.NewDecoder(conn)
 
@@ -130,7 +137,11 @@ func TestBadConnect(t *testing.T) {
 	if err = dec.Decode(&theirInfo); err != nil {
 		t.Fatal(err)
 	}
+	if got := ipc.IdleStartTime(); !got.IsZero() {
+		t.Fatalf("Wanted zero time, got %v instead", got)
+	}
 
+	timeA = time.Now()
 	if err = enc.Encode(agent.RpcMessageReq{Value: agent.RpcRequest{Id: 0, Method: "foo", NumArgs: 0}}); err != nil {
 		if !isEpipe(err) {
 			// The server will close the connection when it gets
@@ -141,6 +152,15 @@ func TestBadConnect(t *testing.T) {
 	var response agent.RpcMessage
 	if err = dec.Decode(&response); err != io.EOF {
 		t.Fatalf("Expected eof, got %v", err)
+	}
+	conn.Close()
+	// Give a chance for the ipc object to observe the connection closure.
+	for len(ipc.Connections()) > 0 {
+		runtime.Gosched()
+	}
+	timeB = time.Now()
+	if got := ipc.IdleStartTime(); got.Before(timeA) || got.After(timeB) {
+		t.Fatalf("Wanted time between %v and %v, got %v instead", timeA, timeB, got)
 	}
 }
 

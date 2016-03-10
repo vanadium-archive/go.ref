@@ -33,7 +33,11 @@ func newKey() security.PublicKey {
 	return security.NewECDSAPublicKey(&k.PublicKey)
 }
 
+var blessingName string
+
 func main() {
+	// A pristine agent has a single blessing "agent_principal" (from agentd/main.go).
+	cmdTestPrincipal.Flags.StringVar(&blessingName, "expect-blessing", "agent_principal", "The name of the blessing in the provided credentials")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdTestPrincipal)
 }
@@ -61,9 +65,8 @@ func runTestPrincipal(ctx *context.T, env *cmdline.Env, args []string) error {
 	if got := env.Vars[ref.EnvAgentPath]; len(got) == 0 {
 		errorf("%v environment variable is not set", ref.EnvAgentPath)
 	}
-	// A pristine agent has a single blessing "agent_principal" (from agentd/main.go).
 	def, defCh := p.BlessingStore().Default()
-	if got, want := security.BlessingNames(p, def), []string{"agent_principal"}; !reflect.DeepEqual(got, want) {
+	if got, want := security.BlessingNames(p, def), []string{blessingName}; !reflect.DeepEqual(got, want) {
 		errorf("Got %v want %v", got, want)
 	}
 
