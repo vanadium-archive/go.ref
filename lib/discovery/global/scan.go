@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
-	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/discovery"
@@ -16,8 +15,6 @@ import (
 
 	idiscovery "v.io/x/ref/lib/discovery"
 )
-
-const scanInterval = 90 * time.Second
 
 func (d *gdiscovery) Scan(ctx *context.T, query string) (<-chan discovery.Update, error) {
 	matcher, err := idiscovery.NewMatcher(ctx, query)
@@ -44,7 +41,7 @@ func (d *gdiscovery) Scan(ctx *context.T, query string) (<-chan discovery.Update
 			}
 
 			select {
-			case <-d.clock.After(scanInterval):
+			case <-d.clock.After(d.scanInterval):
 			case <-ctx.Done():
 				return
 			}
@@ -73,6 +70,11 @@ func (d *gdiscovery) doScan(ctx *context.T, target string, matcher idiscovery.Ma
 			ad, err := convToAd(glob)
 			if err != nil {
 				ctx.Error(err)
+				continue
+			}
+			// Since mount operation is not atomic, we may not have addresses yet.
+			// Ignore it. It will be re-scanned in the next cycle.
+			if len(ad.Addresses) == 0 {
 				continue
 			}
 			// Filter out advertisements from the same discovery instance.

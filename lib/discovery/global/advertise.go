@@ -5,22 +5,14 @@
 package global
 
 import (
-	"time"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/discovery"
-	"v.io/v23/namespace"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 
 	idiscovery "v.io/x/ref/lib/discovery"
-)
-
-const (
-	mountTTL      = 120 * time.Second
-	mountTTLSlack = 20 * time.Second
 )
 
 func (d *gdiscovery) Advertise(ctx *context.T, ad *discovery.Advertisement, visibility []security.BlessingPattern) (<-chan struct{}, error) {
@@ -67,13 +59,13 @@ func (d *gdiscovery) Advertise(ctx *context.T, ad *discovery.Advertisement, visi
 		// We need a context that is detached from the deadlines and cancellation
 		// of ctx since we have to unmount after ctx is canceled.
 		rctx, _ := context.WithRootCancel(ctx)
-		defer unmount(rctx, d.ns, name)
+		defer d.unmount(rctx, name)
 
 		for {
-			mount(ctx, d.ns, name, ad.Addresses)
+			d.mount(ctx, name, ad.Addresses)
 
 			select {
-			case <-d.clock.After(mountTTL):
+			case <-d.clock.After(d.mountTTL):
 			case <-ctx.Done():
 				return
 			}
@@ -99,18 +91,16 @@ func (d *gdiscovery) removeAd(ad *discovery.Advertisement) {
 	d.mu.Unlock()
 }
 
-func mount(ctx *context.T, ns namespace.T, name string, addrs []string) {
-	const ttl = mountTTL + mountTTLSlack
-
+func (d *gdiscovery) mount(ctx *context.T, name string, addrs []string) {
 	for _, addr := range addrs {
-		if err := ns.Mount(ctx, name, addr, ttl); err != nil {
+		if err := d.ns.Mount(ctx, name, addr, d.mountTTLWithSlack); err != nil {
 			ctx.Errorf("mount(%q, %q) failed: %v", name, addr, err)
 		}
 	}
 }
 
-func unmount(ctx *context.T, ns namespace.T, name string) {
-	if err := ns.Delete(ctx, name, true); err != nil {
+func (d *gdiscovery) unmount(ctx *context.T, name string) {
+	if err := d.ns.Delete(ctx, name, true); err != nil {
 		ctx.Infof("unmount(%q) failed: %v", name, err)
 	}
 }
