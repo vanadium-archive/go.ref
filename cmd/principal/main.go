@@ -963,7 +963,7 @@ func main() {
 	cmdDump.Flags.BoolVar(&flagDumpShort, "s", false, "If true, show only the default blessing names")
 
 	cmdFork.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
-	cmdFork.Flags.BoolVar(&flagWithPassphrase, "with-passphrase", false, "If true, the user is prompted for a passphrase to encrypt the principal. Otherwise, principal is stored unencrypted.")
+	cmdFork.Flags.BoolVar(&flagWithPassphrase, "with-passphrase", true, "If true, the user is prompted for a passphrase to encrypt the principal. Otherwise, the principal is stored unencrypted.")
 	cmdFork.Flags.Var(&flagForkCaveats, "caveat", flagForkCaveats.usage())
 	cmdFork.Flags.DurationVar(&flagForkFor, "for", 0, "Duration of blessing validity (zero implies no expiration caveat)")
 	cmdFork.Flags.BoolVar(&flagForkRequireCaveats, "require-caveats", true, "If false, allow blessing without any caveats. This is typically not advised as the principal wielding the blessing will be almost as powerful as its blesser")
@@ -992,7 +992,7 @@ func main() {
 	cmdSetDefault.Flags.BoolVar(&flagAddToRoots, "add-to-roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 
 	cmdCreate.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
-	cmdCreate.Flags.BoolVar(&flagWithPassphrase, "with-passphrase", false, "If true, the user is prompted for a passphrase to encrypt the principal. Otherwise, the principal is stored unencrypted.")
+	cmdCreate.Flags.BoolVar(&flagWithPassphrase, "with-passphrase", true, "If true, the user is prompted for a passphrase to encrypt the principal. Otherwise, the principal is stored unencrypted.")
 
 	cmdRecvBlessings.Flags.BoolVar(&flagRecvBlessingsSetDefault, "set-default", true, "If true, the blessings received will be set as the default blessing in the store")
 	cmdRecvBlessings.Flags.StringVar(&flagRecvBlessingsForPeer, "for-peer", string(security.AllPrincipals), "If non-empty, the blessings received will be marked for peers matching this pattern in the store")
