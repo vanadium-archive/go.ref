@@ -188,6 +188,10 @@ func BenchmarkConnectionEstablishment(b *testing.B) {
 	benchmarkConnectionEstablishment(b, ctx, serverAddr)
 }
 
+func BenchmarkProxiedConnectionEstablishment(b *testing.B) {
+	benchmarkConnectionEstablishment(b, ctx, proxiedServerAddr)
+}
+
 func BenchmarkPrivateConnectionEstablishment1(b *testing.B) {
 	benchmarkPrivateConnectionEstablishment(b, "root:client")
 }
@@ -273,7 +277,7 @@ func setupProxiedServerClient(ctx *context.T) {
 		ctx.Fatal(err)
 	}
 	status := testutil.WaitForProxyEndpoints(proxiedServer, pname)
-	proxiedServerAddr := status.Endpoints[0].Name()
+	proxiedServerAddr = status.Endpoints[0].Name()
 	// Create Conns to exclude the Conn setup time from the benchmark.
 	internal.CallEcho(&testing.B{}, ctx, proxiedServerAddr, 1, 0, benchmark.NewStats(1))
 }

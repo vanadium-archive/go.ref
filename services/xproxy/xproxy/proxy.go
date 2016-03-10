@@ -216,7 +216,7 @@ func (p *proxy) listenLoop(ctx *context.T) {
 		case *message.Setup:
 			err = p.startRouting(ctx, f, m)
 			if err == nil {
-				ctx.Infof("Routing client flow from %v", f.RemoteEndpoint())
+				ctx.VI(1).Infof("Routing client flow from %v", f.RemoteEndpoint())
 			} else {
 				ctx.Errorf("failed to handle incoming client flow from %v: %v", f.RemoteEndpoint(), err)
 			}
