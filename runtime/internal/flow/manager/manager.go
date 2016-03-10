@@ -335,30 +335,19 @@ func (m *manager) ProxyListen(ctx *context.T, name string, ep naming.Endpoint) (
 	m.ls.mu.Lock()
 	m.ls.proxyFlows[k] = f
 	m.ls.mu.Unlock()
-	proxyDone := func(err error) {
-		m.updateProxyEndpoints(nil)
-		m.ls.mu.Lock()
-		delete(m.ls.proxyFlows, k)
-		m.ls.proxyErrors[name] = err
-		m.ls.mu.Unlock()
-	}
 	w, err := message.Append(ctx, &message.ProxyServerRequest{}, nil)
 	if err != nil {
-		proxyDone(err)
+		m.updateProxyEndpoints(nil, name, err, k)
 		return nil, err
 	}
 	if _, err = f.WriteMsg(w); err != nil {
-		proxyDone(err)
+		m.updateProxyEndpoints(nil, name, err, k)
 		return nil, err
 	}
 	// We connect to the proxy once before we loop.
-	if err := m.readAndUpdateProxyEndpoints(ctx, f); err != nil {
-		proxyDone(err)
+	if err := m.readAndUpdateProxyEndpoints(ctx, name, f, k); err != nil {
 		return nil, err
 	}
-	m.ls.mu.Lock()
-	m.ls.proxyErrors[name] = nil
-	m.ls.mu.Unlock()
 	// We do exponential backoff unless the proxy closes the flow cleanly, in which
 	// case we redial immediately.
 	done := make(chan struct{})
@@ -366,9 +355,8 @@ func (m *manager) ProxyListen(ctx *context.T, name string, ep naming.Endpoint) (
 		for {
 			// we keep reading updates until we encounter an error, usually because the
 			// flow has been closed.
-			if err := m.readAndUpdateProxyEndpoints(ctx, f); err != nil {
+			if err := m.readAndUpdateProxyEndpoints(ctx, name, f, k); err != nil {
 				ctx.VI(2).Info(err)
-				proxyDone(err)
 				close(done)
 				return
 			}
@@ -377,25 +365,35 @@ func (m *manager) ProxyListen(ctx *context.T, name string, ep naming.Endpoint) (
 	return done, nil
 }
 
-func (m *manager) readAndUpdateProxyEndpoints(ctx *context.T, f flow.Flow) error {
+func (m *manager) readAndUpdateProxyEndpoints(ctx *context.T, name string, f flow.Flow, flowKey string) error {
 	eps, err := m.readProxyResponse(ctx, f)
-	if err != nil {
-		return err
+	if err == nil {
+		for i := range eps {
+			eps[i].(*inaming.Endpoint).Blessings = m.serverNames
+		}
 	}
-	for i := range eps {
-		eps[i].(*inaming.Endpoint).Blessings = m.serverNames
-	}
-	m.updateProxyEndpoints(eps)
-	return nil
+	m.updateProxyEndpoints(eps, name, err, flowKey)
+	return err
 }
 
-func (m *manager) updateProxyEndpoints(eps []naming.Endpoint) {
+func (m *manager) updateProxyEndpoints(eps []naming.Endpoint, name string, err error, flowKey string) {
 	defer m.ls.mu.Unlock()
 	m.ls.mu.Lock()
-	if endpointsEqual(m.ls.proxyEndpoints, eps) {
+	if err != nil {
+		delete(m.ls.proxyFlows, flowKey)
+	}
+	origErrS, errS := "", ""
+	if err != nil {
+		errS = err.Error()
+	}
+	if origErr := m.ls.proxyErrors[name]; origErr != nil {
+		errS = origErr.Error()
+	}
+	if endpointsEqual(m.ls.proxyEndpoints, eps) && errS == origErrS {
 		return
 	}
 	m.ls.proxyEndpoints = eps
+	m.ls.proxyErrors[name] = err
 	// The proxy endpoints have changed so we need to notify any watchers to
 	// requery Status.
 	if m.ls.netChange != nil {

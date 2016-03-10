@@ -56,10 +56,14 @@ func TestProxyRPC(t *testing.T) {
 	// Start the server listening through the proxy.
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: pname})
 	sctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	if _, _, err := v23.WithNewServer(sctx, "server", &testService{}, nil); err != nil {
+	_, server, err := v23.WithNewServer(sctx, "server", &testService{}, nil)
+	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		cancel()
+		<-server.Closed()
+	}()
 	var got string
 	if err := v23.GetClient(ctx).Call(ctx, "server", "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
 		t.Fatal(err)
@@ -85,10 +89,14 @@ func TestMultipleProxyRPC(t *testing.T) {
 	// Start the server listening through the proxy.
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: p2name})
 	sctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	if _, _, err := v23.WithNewServer(sctx, "server", &testService{}, nil); err != nil {
+	_, server, err := v23.WithNewServer(sctx, "server", &testService{}, nil)
+	if err != nil {
 		t.Error(err)
 	}
+	defer func() {
+		cancel()
+		<-server.Closed()
+	}()
 
 	var got string
 	if err := v23.GetClient(ctx).Call(ctx, "server", "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
@@ -148,10 +156,14 @@ func TestProxyNotAuthorized(t *testing.T) {
 	// Start the server listening through the proxy.
 	sctx = v23.WithListenSpec(sctx, rpc.ListenSpec{Proxy: pname})
 	sctx, cancel := context.WithCancel(sctx)
-	defer cancel()
-	if _, _, err := v23.WithNewServer(sctx, "server", &testService{}, security.AllowEveryone()); err != nil {
+	_, server, err := v23.WithNewServer(sctx, "server", &testService{}, security.AllowEveryone())
+	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		cancel()
+		<-server.Closed()
+	}()
 	// The call should succeed which means that the client did not try to authorize
 	// the proxy's blessings.
 	var got string
@@ -214,8 +226,9 @@ func TestProxyAuthorizesServer(t *testing.T) {
 		status := server.Status()
 		if err, ok := status.ProxyErrors["denyproxy"]; ok && err == nil {
 			t.Errorf("proxy should not have authorized server")
+		} else if ok {
+			break
 		}
-		break
 		<-status.Dirty
 	}
 
@@ -299,11 +312,14 @@ func TestProxiedServerCachedConnection(t *testing.T) {
 	// Start the server listening through the proxy.
 	sctx = v23.WithListenSpec(sctx, rpc.ListenSpec{Proxy: pname})
 	sctx, cancel := context.WithCancel(sctx)
-	defer cancel()
-	ctx, _, err = v23.WithNewServer(sctx, "server", &testService{}, nil)
+	ctx, server, err := v23.WithNewServer(sctx, "server", &testService{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		cancel()
+		<-server.Closed()
+	}()
 	var got string
 	// Make the server call itself.
 	if err := v23.GetClient(ctx).Call(ctx, "server", "Echo", []interface{}{"hello"}, []interface{}{&got}); err != nil {
@@ -382,6 +398,68 @@ func TestConcurrentProxyConnections(t *testing.T) {
 	close(service.wait)
 	if err := call.Finish(); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestProxyBlessings(t *testing.T) {
+	// Test that the proxy presents the blessings tagged for the server, rather than
+	// its default blessings.
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	// Make principals for the proxy and server.
+	pctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("proxy"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sctx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Have the root bless the proxy and server.
+	root := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
+	if err := root.Bless(v23.GetPrincipal(pctx), "proxy"); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Bless(v23.GetPrincipal(sctx), "server"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Set the for peer blessings that the server will send to the proxy to be one
+	// that the proxy will reject. Additionally ensure that the default blessing is
+	// one that the proxy will accept. This ensures that the server is sending the
+	// blessings tagged for the proxy.
+	serverP := v23.GetPrincipal(sctx)
+	def, _ := serverP.BlessingStore().Default()
+	pblesser := testutil.IDProviderFromPrincipal(v23.GetPrincipal(pctx))
+	if err := pblesser.Bless(serverP, "server"); err != nil {
+		t.Fatal(err)
+	}
+	serverP.BlessingStore().Set(def, "...")
+
+	// Start the proxy.
+	pname, stop := startProxy(t, pctx, "proxy", nil, "", address{"tcp", "127.0.0.1:0"})
+	defer stop()
+
+	// Start the server listening through the proxy.
+	sctx = v23.WithListenSpec(sctx, rpc.ListenSpec{Proxy: pname})
+	sctx, cancel := context.WithCancel(sctx)
+	defer cancel()
+	_, server, err := v23.WithNewServer(sctx, "", &testService{}, nil)
+	if err != nil {
+		t.Error(err)
+	}
+
+	for {
+		status := server.Status()
+		if err, ok := status.ProxyErrors["proxy"]; ok && err == nil {
+			t.Errorf("proxy should not have authorized server")
+		} else if ok {
+			break
+		}
+		<-status.Dirty
 	}
 }
 
