@@ -208,7 +208,7 @@ func createReplicationController(ctx *context.T, config *vkubeConfig, rc object,
 }
 
 // updateReplicationController takes a ReplicationController object, adds a
-// pod-agent, and then performs a rolling update.
+// pod-agent (if needed), and then performs a rolling update.
 func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object, stdout, stderr io.Writer) error {
 	namespace := rc.getString("metadata.namespace")
 	oldNames, err := findReplicationControllerNamesForApp(rc.getString("spec.template.metadata.labels.application"), namespace)
@@ -218,11 +218,9 @@ func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object,
 	if len(oldNames) != 1 {
 		return fmt.Errorf("found %d replication controllers for this application: %q", len(oldNames), oldNames)
 	}
-	secretName, rootBlessings, err := findPodAttributes(oldNames[0], namespace)
-	if err != nil {
-		return err
-	}
-	if err := addPodAgent(ctx, config, rc, secretName, rootBlessings); err != nil {
+	if secretName, rootBlessings, err := findPodAttributes(oldNames[0], namespace); err != nil {
+		fmt.Fprintf(stderr, "WARNING: %v\n", err)
+	} else if err := addPodAgent(ctx, config, rc, secretName, rootBlessings); err != nil {
 		return err
 	}
 	json, err := rc.json()
