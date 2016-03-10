@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(caprita): Move to internal.
-
 // Package constants holds constants shared by client and server.
 package constants
 

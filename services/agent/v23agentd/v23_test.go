@@ -13,7 +13,7 @@ import (
 	"v.io/x/ref"
 	"v.io/x/ref/lib/security"
 	_ "v.io/x/ref/runtime/factories/generic"
-	"v.io/x/ref/services/agent/constants"
+	"v.io/x/ref/services/agent/internal/constants"
 	"v.io/x/ref/test/v23test"
 )
 

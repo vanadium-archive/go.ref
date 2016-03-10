@@ -18,7 +18,7 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/agentlib"
-	"v.io/x/ref/services/agent/constants"
+	"v.io/x/ref/services/agent/internal/constants"
 	"v.io/x/ref/test/v23test"
 )
 

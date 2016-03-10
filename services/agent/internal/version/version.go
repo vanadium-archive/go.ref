@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(caprita): Move to internal.
-
 // Package version provides versioning for the agent.  A client is expected to
 // be able to start and communicate with an agent that supports a compatible
 // version.
@@ -21,7 +19,7 @@ import (
 // v23/rpc/version/version.go.  Consider coming up with a common,
 // package-independent versioning mechanism that can be reused.
 
-const pkgPath = "v.io/x/ref/services/agent/version"
+const pkgPath = "v.io/x/ref/services/agent/internal/version"
 
 type T uint32
 

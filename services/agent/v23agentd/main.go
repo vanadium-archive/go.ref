@@ -19,10 +19,10 @@ import (
 	"v.io/x/lib/metadata"
 	"v.io/x/ref"
 	vsignals "v.io/x/ref/lib/signals"
-	"v.io/x/ref/services/agent/constants"
+	"v.io/x/ref/services/agent/internal/constants"
 	"v.io/x/ref/services/agent/internal/lock"
+	"v.io/x/ref/services/agent/internal/version"
 	"v.io/x/ref/services/agent/server"
-	"v.io/x/ref/services/agent/version"
 )
 
 const idleGrace = time.Minute

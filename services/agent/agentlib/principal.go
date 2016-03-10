@@ -17,8 +17,8 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/metadata"
 	"v.io/x/ref/services/agent"
-	"v.io/x/ref/services/agent/constants"
-	"v.io/x/ref/services/agent/version"
+	"v.io/x/ref/services/agent/internal/constants"
+	"v.io/x/ref/services/agent/internal/version"
 )
 
 var (
