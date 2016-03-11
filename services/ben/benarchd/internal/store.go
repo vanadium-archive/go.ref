@@ -40,6 +40,7 @@ type Benchmark struct {
 	// Results from most recently uploaded runs for this benchmark.
 	NanoSecsPerOp   float64
 	MegaBytesPerSec float64
+	LastUpdate      time.Time
 }
 
 func (b Benchmark) PrettyTime() string {
