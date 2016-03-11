@@ -85,7 +85,6 @@ func blessingOpts(blessingNames []string) []naming.EndpointOpt {
 	return blessingOpts
 }
 
-// TODO(suharshs): Figure out what blessings to present here. And present discharges.
 type proxyAuthorizer struct{}
 
 func (proxyAuthorizer) AuthorizePeer(
@@ -99,7 +98,7 @@ func (proxyAuthorizer) AuthorizePeer(
 
 func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, serverBlessings []string) (
 	security.Blessings, map[string]security.Discharge, error) {
-	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	blessings := v23.GetPrincipal(ctx).BlessingStore().ForPeer(serverBlessings...)
 	discharges, _ := slib.PrepareDischarges(ctx, blessings, serverBlessings, "", nil)
 	return blessings, discharges, nil
 }
