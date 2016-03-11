@@ -101,7 +101,7 @@ func (s *sqlStore) Save(ctx *context.T, scenario ben.Scenario, code ben.SourceCo
 			return tagerr("benchmark", err)
 		}
 		// Cache this "latest" result values
-		if _, err := tx.Stmt(s.updateBenchmark).Exec(run.NanoSecsPerOp, run.MegaBytesPerSec, bm); err != nil {
+		if _, err := tx.Stmt(s.updateBenchmark).Exec(run.NanoSecsPerOp, run.MegaBytesPerSec, uploadTime, bm); err != nil {
 			return tagerr("update_benchmark", err)
 		}
 		if _, err := tx.Stmt(s.insertRun).Exec(bm, upload, run.Iterations, run.NanoSecsPerOp, run.AllocsPerOp, run.AllocedBytesPerOp, run.MegaBytesPerSec, run.Parallelism); err != nil {
@@ -159,6 +159,7 @@ func (i *sqlBmItr) Value() Benchmark {
 		&ret.Name,
 		&ret.NanoSecsPerOp,
 		&ret.MegaBytesPerSec,
+		&ret.LastUpdate,
 		&ret.Scenario.Os.Name,
 		&ret.Scenario.Os.Version,
 		&ret.Scenario.Cpu.Architecture,
@@ -308,7 +309,7 @@ func (s *sqlStore) initStmts() error {
 		},
 		{
 			&s.updateBenchmark,
-			"UPDATE Benchmark SET NanoSecsPerOp = ?, MegaBytesPerSec = ? WHERE ID = ?",
+			"UPDATE Benchmark SET NanoSecsPerOp = ?, MegaBytesPerSec = ?, LastUpdate = ? WHERE ID = ?",
 		},
 		{
 			&s.insertRun,
@@ -338,6 +339,7 @@ SELECT
 	Benchmark.Name,
 	Benchmark.NanoSecsPerOp,
 	Benchmark.MegaBytesPerSec,
+	Benchmark.LastUpdate,
 	OS.Name,
 	OS.Version,
 	CPU.Architecture,
@@ -354,6 +356,7 @@ AND (OS.Name LIKE CONCAT('%',LOWER(?),'%') OR OS.Version LIKE CONCAT('%',LOWER(?
 AND (CPU.Architecture LIKE CONCAT('%',LOWER(?),'%') OR CPU.Description LIKE CONCAT('%',LOWER(?),'%') OR CPU.ClockSpeedMHz = ?)
 AND Scenario.Uploader LIKE CONCAT('%',LOWER(?),'%')
 AND Scenario.Label LIKE CONCAT('%',LOWER(?),'%')
+ORDER BY Benchmark.LastUpdate DESC
 `,
 		},
 		{
@@ -464,6 +467,7 @@ Scenario        INTEGER,
 Name            VARCHAR(255),
 NanoSecsPerOp   DOUBLE,
 MegaBytesPerSec DOUBLE,
+LastUpdate      DATETIME,
 
 UNIQUE(Scenario, Name),
 

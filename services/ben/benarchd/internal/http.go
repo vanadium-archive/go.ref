@@ -465,6 +465,7 @@ function makeTableSortable(tb) {
               <th class="mdl-data-table__header-sortable" title="CPU architecture on which benchmarks were run">CPU</th>
               <th class="mdl-data-table__header-sortable" title="who uploaded results for this benchmark">Uploader</th>
               <th class="mdl-data-table__header-sortable">Label</th>
+              <th class="mdl-data-table__header-sortable">Last Update</th>
             </tr>
             </thead>
             <tbody>
@@ -476,6 +477,7 @@ function makeTableSortable(tb) {
                 <td class="mdl-data-table__cell--non-numeric"><div id="cpu_{{.ID}}"><a href="/?q={{refineQuery $.Query "CPU" .Scenario.Cpu.Description | urlquery}}">{{.Scenario.Cpu.Architecture}}</a></div><div class="mdl-tooltip mdl-data-table__cell-data" for="cpu_{{.ID}}">{{.Scenario.Cpu.Description}}</div></td>
                 <td class="mdl-data-table__cell--non-numeric"><a href="/?q={{refineQuery $.Query "Uploader" .Uploader | urlquery}}">{{.Uploader}}</a></td>
                 <td class="mdl-data-table__cell--non-numeric"><a href="/?q={{refineQuery $.Query "Label" .Scenario.Label | urlquery}}">{{.Scenario.Label}}</a></td>
+                <td class="mdl-data-table__cell--non-numeric">{{.LastUpdate}}</td>
                 </tr>
                 {{end}}
                 {{range .Err}}
