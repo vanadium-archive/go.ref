@@ -115,6 +115,7 @@ func (t *PackAddressTestTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *PackAddressTestTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -241,6 +242,7 @@ func (t *PackEncryptionKeysTestTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *PackEncryptionKeysTestTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -268,6 +270,7 @@ func (t *encoding5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e63727
 	return nil
 }
 func (t *encoding5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 

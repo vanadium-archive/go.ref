@@ -118,6 +118,7 @@ func (t *RequestTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *RequestTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -225,6 +226,7 @@ func (t *ResponseTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *ResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

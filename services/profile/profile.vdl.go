@@ -115,6 +115,7 @@ func (t *LibraryTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *LibraryTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -293,6 +294,7 @@ func (t *SpecificationTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SpecificationTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -322,6 +324,7 @@ func (t *profile7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 

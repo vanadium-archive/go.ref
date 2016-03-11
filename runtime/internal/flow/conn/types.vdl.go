@@ -91,7 +91,7 @@ func (t *BlessingsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *BlessingsTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Blessings":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Blessings))
+		val, err := &security.WireBlessingsTarget{Value: &t.Value.Blessings}, error(nil)
 		return nil, val, err
 	case "BKey":
 		val, err := &vdl.Uint64Target{Value: &t.Value.BKey}, error(nil)
@@ -104,6 +104,7 @@ func (t *BlessingsTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *BlessingsTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -212,6 +213,7 @@ func (t *EncryptedBlessingsTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *EncryptedBlessingsTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -239,6 +241,7 @@ func (t *types5b5d762e696f2f782f7265662f6c69622f73656375726974792f62637279707465
 	return nil
 }
 func (t *types5b5d762e696f2f782f7265662f6c69622f73656375726974792f62637279707465722e5769726543697068657274657874207374727563747b5061747465726e496420737472696e673b4279746573206d61705b737472696e675d5b5d627974657dTarget) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 
@@ -370,6 +373,7 @@ func (t *DischargesTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *DischargesTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -397,6 +401,7 @@ func (t *types5b5d762e696f2f7632332f73656375726974792e57697265446973636861726765
 	return nil
 }
 func (t *types5b5d762e696f2f7632332f73656375726974792e5769726544697363686172676520756e696f6e7b5075626c69634b657920762e696f2f7632332f73656375726974792e7075626c69634b6579446973636861726765207374727563747b54686972645061727479436176656174496420737472696e673b43617665617473205b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657d3b5369676e617475726520762e696f2f7632332f73656375726974792e5369676e6174757265207374727563747b507572706f7365205b5d627974653b4861736820762e696f2f7632332f73656375726974792e4861736820737472696e673b52205b5d627974653b53205b5d627974657d7d7dTarget) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 
@@ -523,6 +528,7 @@ func (t *EncryptedDischargesTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *EncryptedDischargesTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

@@ -26,7 +26,6 @@ package rps
 import (
 	"fmt"
 	"io"
-	"reflect"
 	"time"
 	"v.io/v23"
 	"v.io/v23/context"
@@ -103,6 +102,7 @@ func (t *GameIdTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *GameIdTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -189,6 +189,7 @@ func (t *GameOptionsTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *GameOptionsTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -203,6 +204,7 @@ func (t *GameTypeTagTarget) FromUint(src uint64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = GameTypeTag(val)
+
 	return nil
 }
 func (t *GameTypeTagTarget) FromInt(src int64, tt *vdl.Type) error {
@@ -211,6 +213,7 @@ func (t *GameTypeTagTarget) FromInt(src int64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = GameTypeTag(val)
+
 	return nil
 }
 func (t *GameTypeTagTarget) FromFloat(src float64, tt *vdl.Type) error {
@@ -219,6 +222,7 @@ func (t *GameTypeTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = GameTypeTag(val)
+
 	return nil
 }
 func (t *GameTypeTagTarget) FromComplex(src complex128, tt *vdl.Type) error {
@@ -227,6 +231,7 @@ func (t *GameTypeTagTarget) FromComplex(src complex128, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = GameTypeTag(val)
+
 	return nil
 }
 
@@ -388,6 +393,7 @@ func (t *unusedTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *unusedTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -655,6 +661,7 @@ func (t *PlayersMovesTarget) FinishElem(elem vdl.Target) error {
 	return nil
 }
 func (t *PlayersMovesTarget) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 
@@ -787,10 +794,10 @@ func (t *RoundTarget) StartField(name string) (key, field vdl.Target, _ error) {
 		val, err := &WinnerTagTarget{Value: &t.Value.Winner}, error(nil)
 		return nil, val, err
 	case "StartTime":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.StartTime))
+		val, err := &time_2.TimeTarget{Value: &t.Value.StartTime}, error(nil)
 		return nil, val, err
 	case "EndTime":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.EndTime))
+		val, err := &time_2.TimeTarget{Value: &t.Value.EndTime}, error(nil)
 		return nil, val, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_service_v_io_x_ref_examples_rps_Round)
@@ -800,6 +807,7 @@ func (t *RoundTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *RoundTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -814,6 +822,7 @@ func (t *WinnerTagTarget) FromUint(src uint64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = WinnerTag(val)
+
 	return nil
 }
 func (t *WinnerTagTarget) FromInt(src int64, tt *vdl.Type) error {
@@ -822,6 +831,7 @@ func (t *WinnerTagTarget) FromInt(src int64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = WinnerTag(val)
+
 	return nil
 }
 func (t *WinnerTagTarget) FromFloat(src float64, tt *vdl.Type) error {
@@ -830,6 +840,7 @@ func (t *WinnerTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = WinnerTag(val)
+
 	return nil
 }
 func (t *WinnerTagTarget) FromComplex(src complex128, tt *vdl.Type) error {
@@ -838,6 +849,7 @@ func (t *WinnerTagTarget) FromComplex(src complex128, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = WinnerTag(val)
+
 	return nil
 }
 
@@ -927,6 +939,7 @@ func (t *PlayResultTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *PlayResultTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -1122,10 +1135,10 @@ func (t *ScoreCardTarget) StartField(name string) (key, field vdl.Target, _ erro
 		val, err := &service5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget{Value: &t.Value.Rounds}, error(nil)
 		return nil, val, err
 	case "StartTime":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.StartTime))
+		val, err := &time_2.TimeTarget{Value: &t.Value.StartTime}, error(nil)
 		return nil, val, err
 	case "EndTime":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.EndTime))
+		val, err := &time_2.TimeTarget{Value: &t.Value.EndTime}, error(nil)
 		return nil, val, err
 	case "Winner":
 		val, err := &WinnerTagTarget{Value: &t.Value.Winner}, error(nil)
@@ -1138,6 +1151,7 @@ func (t *ScoreCardTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *ScoreCardTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -1165,6 +1179,7 @@ func (t *service5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e6420
 	return nil
 }
 func (t *service5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 

@@ -43,6 +43,7 @@ func (t *EncryptionAlgorithmTarget) FromUint(src uint64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = EncryptionAlgorithm(val)
+
 	return nil
 }
 func (t *EncryptionAlgorithmTarget) FromInt(src int64, tt *vdl.Type) error {
@@ -51,6 +52,7 @@ func (t *EncryptionAlgorithmTarget) FromInt(src int64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = EncryptionAlgorithm(val)
+
 	return nil
 }
 func (t *EncryptionAlgorithmTarget) FromFloat(src float64, tt *vdl.Type) error {
@@ -59,6 +61,7 @@ func (t *EncryptionAlgorithmTarget) FromFloat(src float64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = EncryptionAlgorithm(val)
+
 	return nil
 }
 func (t *EncryptionAlgorithmTarget) FromComplex(src complex128, tt *vdl.Type) error {
@@ -67,6 +70,7 @@ func (t *EncryptionAlgorithmTarget) FromComplex(src complex128, tt *vdl.Type) er
 		return err
 	}
 	*t.Value = EncryptionAlgorithm(val)
+
 	return nil
 }
 
@@ -103,6 +107,7 @@ func (t *EncryptionKeyTarget) FromBytes(src []byte, tt *vdl.Type) error {
 		*t.Value = make([]byte, len(src))
 		copy(*t.Value, src)
 	}
+
 	return nil
 }
 
@@ -139,6 +144,7 @@ func (t *UuidTarget) FromBytes(src []byte, tt *vdl.Type) error {
 		*t.Value = make([]byte, len(src))
 		copy(*t.Value, src)
 	}
+
 	return nil
 }
 
@@ -335,6 +341,7 @@ func (t *AdInfoTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *AdInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -362,6 +369,7 @@ func (t *types5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e63727970
 	return nil
 }
 func (t *types5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 
@@ -375,6 +383,7 @@ func (t *AdHashTarget) FromBytes(src []byte, tt *vdl.Type) error {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_lib_discovery_AdHash)
 	}
 	copy((*t.Value)[:], src)
+
 	return nil
 }
 

@@ -134,6 +134,7 @@ func (t *ShellOptsTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *ShellOptsTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -165,6 +166,7 @@ func (t *WindowSizeTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *WindowSizeTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -404,6 +406,7 @@ func (t *unusedTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *unusedTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

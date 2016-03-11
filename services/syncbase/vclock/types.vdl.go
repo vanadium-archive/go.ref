@@ -9,7 +9,6 @@ package vclock
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 	"v.io/v23/vdl"
 	time_2 "v.io/v23/vdlroot/time"
@@ -169,16 +168,16 @@ func (t *VClockDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *VClockDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "SystemTimeAtBoot":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.SystemTimeAtBoot))
+		val, err := &time_2.TimeTarget{Value: &t.Value.SystemTimeAtBoot}, error(nil)
 		return nil, val, err
 	case "Skew":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Skew))
+		val, err := &time_2.DurationTarget{Value: &t.Value.Skew}, error(nil)
 		return nil, val, err
 	case "ElapsedTimeSinceBoot":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.ElapsedTimeSinceBoot))
+		val, err := &time_2.DurationTarget{Value: &t.Value.ElapsedTimeSinceBoot}, error(nil)
 		return nil, val, err
 	case "LastNtpTs":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.LastNtpTs))
+		val, err := &time_2.TimeTarget{Value: &t.Value.LastNtpTs}, error(nil)
 		return nil, val, err
 	case "NumReboots":
 		val, err := &vdl.Uint16Target{Value: &t.Value.NumReboots}, error(nil)
@@ -194,6 +193,7 @@ func (t *VClockDataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *VClockDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

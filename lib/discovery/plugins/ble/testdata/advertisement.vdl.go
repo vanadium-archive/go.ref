@@ -124,6 +124,7 @@ func (t *AdConversionTestCaseTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *AdConversionTestCaseTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -158,6 +159,7 @@ func (t *advertisement6d61705b737472696e675d5b5d62797465Target) FinishMap(elem v
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 

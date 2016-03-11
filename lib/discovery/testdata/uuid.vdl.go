@@ -96,6 +96,7 @@ func (t *UuidTestDataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *UuidTestDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

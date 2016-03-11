@@ -97,6 +97,7 @@ func (t *BlobInfoTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *BlobInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -290,6 +291,7 @@ func (t *BlobSetTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *BlobSetTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -319,6 +321,7 @@ func (t *blob_test_types7365745b762e696f2f7632332f73657276696365732f73796e636261
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 
@@ -427,6 +430,7 @@ func (t *BlobAnyTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *BlobAnyTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -454,6 +458,7 @@ func (t *blob_test_types5b5d616e79Target) FinishElem(elem vdl.Target) error {
 	return nil
 }
 func (t *blob_test_types5b5d616e79Target) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 
@@ -555,6 +560,7 @@ func (t *NonBlobSetTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *NonBlobSetTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -584,6 +590,7 @@ func (t *blob_test_types7365745b737472696e675dTarget) FinishSet(list vdl.SetTarg
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 
@@ -675,6 +682,7 @@ func (t *BlobOptTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *BlobOptTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -695,10 +703,12 @@ func (t *blob_test_types3f762e696f2f782f7265662f73657276696365732f73796e63626173
 	return target.StartFields(tt)
 }
 func (t *blob_test_types3f762e696f2f782f7265662f73657276696365732f73796e63626173652f7673796e632f74657374646174612e426c6f62496e666f207374727563747b496e666f20737472696e673b427220762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e426c6f6252656620737472696e677dTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 func (t *blob_test_types3f762e696f2f782f7265662f73657276696365732f73796e63626173652f7673796e632f74657374646174612e426c6f62496e666f207374727563747b496e666f20737472696e673b427220762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e426c6f6252656620737472696e677dTarget) FromNil(tt *vdl.Type) error {
 	*t.Value = nil
+
 	return nil
 }
 

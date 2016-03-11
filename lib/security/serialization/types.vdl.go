@@ -78,6 +78,7 @@ func (t *SignedHeaderTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SignedHeaderTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -109,6 +110,7 @@ func (t *HashCodeTarget) FromBytes(src []byte, tt *vdl.Type) error {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_lib_security_serialization_HashCode)
 	}
 	copy((*t.Value)[:], src)
+
 	return nil
 }
 

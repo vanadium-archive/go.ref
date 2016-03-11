@@ -166,6 +166,7 @@ func (t *HistogramValueTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *HistogramValueTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -193,6 +194,7 @@ func (t *types5b5d762e696f2f782f7265662f73657276696365732f73746174732e486973746f
 	return nil
 }
 func (t *types5b5d762e696f2f782f7265662f73657276696365732f73746174732e486973746f6772616d4275636b6574207374727563747b4c6f77426f756e6420696e7436343b436f756e7420696e7436347dTarget) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 
@@ -224,6 +226,7 @@ func (t *HistogramBucketTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *HistogramBucketTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

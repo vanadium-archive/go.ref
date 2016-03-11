@@ -9,7 +9,6 @@ package nativedep
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 	"v.io/v23/vdl"
 	"v.io/v23/vdl/testdata/nativetest"
@@ -151,19 +150,19 @@ func (t *AllTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *AllTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "A":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.A))
+		val, err := &nativetest_2.WireStringTarget{Value: &t.Value.A}, error(nil)
 		return nil, val, err
 	case "B":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.B))
+		val, err := &nativetest_2.WireMapStringIntTarget{Value: &t.Value.B}, error(nil)
 		return nil, val, err
 	case "C":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.C))
+		val, err := &nativetest_2.WireTimeTarget{Value: &t.Value.C}, error(nil)
 		return nil, val, err
 	case "D":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.D))
+		val, err := &nativetest_2.WireSamePkgTarget{Value: &t.Value.D}, error(nil)
 		return nil, val, err
 	case "E":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.E))
+		val, err := &nativetest_2.WireMultiImportTarget{Value: &t.Value.E}, error(nil)
 		return nil, val, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All)
@@ -173,6 +172,7 @@ func (t *AllTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *AllTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

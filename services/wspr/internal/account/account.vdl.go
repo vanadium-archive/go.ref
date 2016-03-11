@@ -95,6 +95,7 @@ func (t *CaveatTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *CaveatTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

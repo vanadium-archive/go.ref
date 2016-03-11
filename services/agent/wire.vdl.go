@@ -127,6 +127,7 @@ func (t *ConnInfoTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *ConnInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -227,6 +228,7 @@ func (t *RpcRequestTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *RpcRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -339,6 +341,7 @@ func (t *RpcResponseTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *RpcResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

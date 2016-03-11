@@ -51,6 +51,10 @@ func qualifiedIdent(file *compile.File, ident string) string {
 
 // typeGo translates vdl.Type into a Go type.
 func typeGo(data goData, t *vdl.Type) string {
+	return typeGoInternal(data, t, true)
+}
+
+func typeGoInternal(data goData, t *vdl.Type, useNative bool) string {
 	if testingMode {
 		if t.Name() != "" {
 			return t.Name()
@@ -73,7 +77,7 @@ func typeGo(data goData, t *vdl.Type) string {
 			return def.Name
 		}
 		pkg := def.File.Package
-		if native, ok := pkg.Config.Go.WireToNativeTypes[def.Name]; ok {
+		if native, ok := pkg.Config.Go.WireToNativeTypes[def.Name]; useNative && ok {
 			// There is a Go native type configured for this defined type.
 			return nativeIdent(data, native, pkg)
 		}
@@ -259,10 +263,16 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 	case def.Type.Kind() == vdl.Union:
 		// handled for specific field structs above
 	case isNativeType(def.Type, def.File.Package):
+		// For native types, generate a Target that handles Wire->Native conversion.
+		// However, because the Value field in this generated Target is the native type
+		// rather than the wire type, it can't be returned from MakeVDLTarget on the
+		// wire type. Instead, return nil to use reflection in the case that a top-level
+		// native type is being decoded.
 		s += fmt.Sprintf("\n"+
 			"\nfunc (m *%[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
 			"\n\treturn nil" +
 			"\n}"
+		s += genTargetDef(data, def.Type)
 	default:
 		ref, body := genTargetRef(data, def.Type)
 		s += fmt.Sprintf("\n"+

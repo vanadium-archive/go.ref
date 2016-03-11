@@ -81,6 +81,7 @@ func (t *GetOpTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *GetOpTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -168,6 +169,7 @@ func (t *ScanOpTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *ScanOpTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -293,6 +295,7 @@ func (t *PutOpTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *PutOpTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -399,6 +402,7 @@ func (t *DeleteOpTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *DeleteOpTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -521,6 +525,7 @@ func (t *SyncgroupOpTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SyncgroupOpTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -650,6 +655,7 @@ func (t *SyncSnapshotOpTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SyncSnapshotOpTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -729,6 +735,7 @@ func (t *StateChangeTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	default:
 		return fmt.Errorf("label %s not in enum %v", src, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_StateChange)
 	}
+
 	return nil
 }
 
@@ -803,6 +810,7 @@ func (t *DbStateChangeRequestOpTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *DbStateChangeRequestOpTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -1203,6 +1211,7 @@ func (t *LogEntryTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

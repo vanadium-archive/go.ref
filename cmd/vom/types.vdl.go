@@ -87,6 +87,7 @@ func (t *dataRepTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	default:
 		return fmt.Errorf("label %s not in enum %v", src, __VDLType_types_v_io_x_ref_cmd_vom_dataRep)
 	}
+
 	return nil
 }
 

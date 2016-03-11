@@ -44,6 +44,7 @@ type TermTarget struct {
 
 func (t *TermTarget) FromUint(src uint64, tt *vdl.Type) error {
 	*t.Value = Term(src)
+
 	return nil
 }
 func (t *TermTarget) FromInt(src int64, tt *vdl.Type) error {
@@ -52,6 +53,7 @@ func (t *TermTarget) FromInt(src int64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = Term(val)
+
 	return nil
 }
 func (t *TermTarget) FromFloat(src float64, tt *vdl.Type) error {
@@ -60,6 +62,7 @@ func (t *TermTarget) FromFloat(src float64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = Term(val)
+
 	return nil
 }
 func (t *TermTarget) FromComplex(src complex128, tt *vdl.Type) error {
@@ -68,6 +71,7 @@ func (t *TermTarget) FromComplex(src complex128, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = Term(val)
+
 	return nil
 }
 
@@ -100,6 +104,7 @@ type IndexTarget struct {
 
 func (t *IndexTarget) FromUint(src uint64, tt *vdl.Type) error {
 	*t.Value = Index(src)
+
 	return nil
 }
 func (t *IndexTarget) FromInt(src int64, tt *vdl.Type) error {
@@ -108,6 +113,7 @@ func (t *IndexTarget) FromInt(src int64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = Index(val)
+
 	return nil
 }
 func (t *IndexTarget) FromFloat(src float64, tt *vdl.Type) error {
@@ -116,6 +122,7 @@ func (t *IndexTarget) FromFloat(src float64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = Index(val)
+
 	return nil
 }
 func (t *IndexTarget) FromComplex(src complex128, tt *vdl.Type) error {
@@ -124,6 +131,7 @@ func (t *IndexTarget) FromComplex(src complex128, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = Index(val)
+
 	return nil
 }
 
@@ -246,6 +254,7 @@ func (t *LogEntryTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

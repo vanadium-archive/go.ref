@@ -114,6 +114,7 @@ func (t *CpuTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *CpuTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -199,6 +200,7 @@ func (t *OsTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *OsTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -302,6 +304,7 @@ func (t *ScenarioTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *ScenarioTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -339,6 +342,7 @@ func (t *SourceCodeTarget) FromString(src string, tt *vdl.Type) error {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_ben_v_io_x_ref_services_ben_SourceCode)
 	}
 	*t.Value = SourceCode(src)
+
 	return nil
 }
 
@@ -504,6 +508,7 @@ func (t *RunTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *RunTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

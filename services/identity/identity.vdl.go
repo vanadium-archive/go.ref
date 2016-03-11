@@ -119,6 +119,7 @@ func (t *BlessingRootResponseTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *BlessingRootResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

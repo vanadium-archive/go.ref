@@ -91,6 +91,7 @@ func (t *GenVectorTarget) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 
@@ -170,6 +171,7 @@ func (t *KnowledgeTarget) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 
@@ -420,7 +422,7 @@ func (t *LogRecMetadataTarget) StartField(name string) (key, field vdl.Target, _
 		val, err := &vdl.StringSliceTarget{Value: &t.Value.Parents}, error(nil)
 		return nil, val, err
 	case "UpdTime":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.UpdTime))
+		val, err := &time_2.TimeTarget{Value: &t.Value.UpdTime}, error(nil)
 		return nil, val, err
 	case "PermId":
 		val, err := &vdl.StringTarget{Value: &t.Value.PermId}, error(nil)
@@ -445,6 +447,7 @@ func (t *LogRecMetadataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *LogRecMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -547,6 +550,7 @@ func (t *LogRecTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *LogRecTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -577,6 +581,7 @@ type GroupIdTarget struct {
 
 func (t *GroupIdTarget) FromUint(src uint64, tt *vdl.Type) error {
 	*t.Value = GroupId(src)
+
 	return nil
 }
 func (t *GroupIdTarget) FromInt(src int64, tt *vdl.Type) error {
@@ -585,6 +590,7 @@ func (t *GroupIdTarget) FromInt(src int64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = GroupId(val)
+
 	return nil
 }
 func (t *GroupIdTarget) FromFloat(src float64, tt *vdl.Type) error {
@@ -593,6 +599,7 @@ func (t *GroupIdTarget) FromFloat(src float64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = GroupId(val)
+
 	return nil
 }
 func (t *GroupIdTarget) FromComplex(src complex128, tt *vdl.Type) error {
@@ -601,6 +608,7 @@ func (t *GroupIdTarget) FromComplex(src complex128, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = GroupId(val)
+
 	return nil
 }
 
@@ -688,6 +696,7 @@ func (t *SyncgroupStatusTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	default:
 		return fmt.Errorf("label %s not in enum %v", src, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SyncgroupStatus)
 	}
+
 	return nil
 }
 
@@ -913,6 +922,7 @@ func (t *SyncgroupTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -947,6 +957,7 @@ func (t *sync_types6d61705b737472696e675d762e696f2f7632332f73657276696365732f737
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 
@@ -1180,6 +1191,7 @@ func (t *DataDeltaReqTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *DataDeltaReqTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -1209,6 +1221,7 @@ func (t *sync_types7365745b762e696f2f782f7265662f73657276696365732f73796e6362617
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 
@@ -1313,6 +1326,7 @@ func (t *SgDeltaReqTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SgDeltaReqTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -1476,6 +1490,7 @@ func (t *DeltaFinalRespTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *DeltaFinalRespTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -1510,6 +1525,7 @@ func (t *SgPrioritiesTarget) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 
@@ -1531,7 +1547,7 @@ func (t *SgPriorityTarget) StartField(name string) (key, field vdl.Target, _ err
 		val, err := &vdl.Int32Target{Value: &t.Value.Distance}, error(nil)
 		return nil, val, err
 	case "ServerTime":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.ServerTime))
+		val, err := &time_2.TimeTarget{Value: &t.Value.ServerTime}, error(nil)
 		return nil, val, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_SgPriority)
@@ -1541,6 +1557,7 @@ func (t *SgPriorityTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SgPriorityTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -1611,6 +1628,7 @@ func (t *ChunkHashTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *ChunkHashTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -1681,6 +1699,7 @@ func (t *ChunkDataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *ChunkDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -1744,7 +1763,7 @@ func (t *TimeReqTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *TimeReqTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "SendTs":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.SendTs))
+		val, err := &time_2.TimeTarget{Value: &t.Value.SendTs}, error(nil)
 		return nil, val, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_sync_types_v_io_x_ref_services_syncbase_server_interfaces_TimeReq)
@@ -1754,6 +1773,7 @@ func (t *TimeReqTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *TimeReqTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -1907,16 +1927,16 @@ func (t *TimeRespTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *TimeRespTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "OrigTs":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.OrigTs))
+		val, err := &time_2.TimeTarget{Value: &t.Value.OrigTs}, error(nil)
 		return nil, val, err
 	case "RecvTs":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.RecvTs))
+		val, err := &time_2.TimeTarget{Value: &t.Value.RecvTs}, error(nil)
 		return nil, val, err
 	case "SendTs":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.SendTs))
+		val, err := &time_2.TimeTarget{Value: &t.Value.SendTs}, error(nil)
 		return nil, val, err
 	case "LastNtpTs":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.LastNtpTs))
+		val, err := &time_2.TimeTarget{Value: &t.Value.LastNtpTs}, error(nil)
 		return nil, val, err
 	case "NumReboots":
 		val, err := &vdl.Uint16Target{Value: &t.Value.NumReboots}, error(nil)
@@ -1932,6 +1952,7 @@ func (t *TimeRespTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *TimeRespTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -2115,6 +2136,7 @@ func (t *BlobSharesBySyncgroupTarget) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 
@@ -2236,6 +2258,7 @@ func (t *SignpostTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SignpostTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

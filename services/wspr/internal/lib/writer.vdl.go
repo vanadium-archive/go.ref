@@ -149,6 +149,7 @@ func (t *ServerRpcReplyTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *ServerRpcReplyTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -176,6 +177,7 @@ func (t *writer5b5d616e79Target) FinishElem(elem vdl.Target) error {
 	return nil
 }
 func (t *writer5b5d616e79Target) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 
@@ -254,6 +256,7 @@ func (t *LogLevelTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	default:
 		return fmt.Errorf("label %s not in enum %v", src, __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogLevel)
 	}
+
 	return nil
 }
 
@@ -339,6 +342,7 @@ func (t *LogMessageTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *LogMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
