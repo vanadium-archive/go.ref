@@ -8,6 +8,7 @@
 package server
 
 import (
+	"fmt"
 	"v.io/v23/security/access"
 	"v.io/v23/services/groups"
 	"v.io/v23/vdl"
@@ -26,7 +27,6 @@ func (groupData) __VDLReflect(struct {
 }
 
 func (m *groupData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_groups_internal_server_groupData == nil || __VDLTypetypes0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -85,6 +85,66 @@ func (m *groupData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *groupData) MakeVDLTarget() vdl.Target {
+	return &groupDataTarget{Value: m}
+}
+
+type groupDataTarget struct {
+	Value *groupData
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *groupDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_groups_internal_server_groupData) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_groups_internal_server_groupData)
+	}
+	return t, nil
+}
+func (t *groupDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Perms":
+		val, err := &access.PermissionsTarget{Value: &t.Value.Perms}, error(nil)
+		return nil, val, err
+	case "Entries":
+		val, err := &types7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget{Value: &t.Value.Entries}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_groups_internal_server_groupData)
+	}
+}
+func (t *groupDataTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *groupDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type types7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget struct {
+	Value   *map[groups.BlessingPatternChunk]struct{}
+	currKey groups.BlessingPatternChunk
+	vdl.TargetBase
+	vdl.SetTargetBase
+}
+
+func (t *types7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypetypes1) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypetypes1)
+	}
+	*t.Value = make(map[groups.BlessingPatternChunk]struct{})
+	return t, nil
+}
+func (t *types7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) StartKey() (key vdl.Target, _ error) {
+	t.currKey = groups.BlessingPatternChunk("")
+	return &groups.BlessingPatternChunkTarget{Value: &t.currKey}, error(nil)
+}
+func (t *types7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) FinishKey(key vdl.Target) error {
+	(*t.Value)[t.currKey] = struct{}{}
+	return nil
+}
+func (t *types7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) FinishSet(list vdl.SetTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
 	return nil
 }
 

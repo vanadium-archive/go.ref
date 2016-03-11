@@ -21,10 +21,11 @@ import (
 )
 
 type goData struct {
-	File        *compile.File
-	Env         *compile.Env
-	Imports     goImports
-	typeDepends *typeDependencyNames
+	File           *compile.File
+	Env            *compile.Env
+	Imports        goImports
+	typeDepends    *typeDependencyNames
+	createdTargets map[*vdl.Type]bool // set of types whose Targets have already been created
 
 	collectImports bool // is this the import collecting pass instead of normal generation
 	importMap      importMap
@@ -96,6 +97,7 @@ func Generate(file *compile.File, env *compile.Env) []byte {
 		typeDepends:    newTypeDependencyNames(),
 		collectImports: true,
 		importMap:      importMap{},
+		createdTargets: make(map[*vdl.Type]bool),
 	}
 	// The implementation uses the template mechanism from text/template and
 	// executes the template against the goData instance.
@@ -113,6 +115,9 @@ func Generate(file *compile.File, env *compile.Env) []byte {
 
 	// Sort the imports.
 	data.Imports = goImports(data.importMap.Sort())
+
+	// Reset created targets.
+	data.createdTargets = make(map[*vdl.Type]bool)
 
 	// Now re-run the templates with the final imports to generate the output
 	// file.

@@ -8,6 +8,7 @@
 package account
 
 import (
+	"fmt"
 	"v.io/v23/vdl"
 )
 
@@ -24,7 +25,6 @@ func (Caveat) __VDLReflect(struct {
 }
 
 func (m *Caveat) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_account_v_io_x_ref_services_wspr_internal_account_Caveat == nil || __VDLTypeaccount0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -64,6 +64,37 @@ func (m *Caveat) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Caveat) MakeVDLTarget() vdl.Target {
+	return &CaveatTarget{Value: m}
+}
+
+type CaveatTarget struct {
+	Value *Caveat
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *CaveatTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_account_v_io_x_ref_services_wspr_internal_account_Caveat) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_account_v_io_x_ref_services_wspr_internal_account_Caveat)
+	}
+	return t, nil
+}
+func (t *CaveatTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Type":
+		val, err := &vdl.StringTarget{Value: &t.Value.Type}, error(nil)
+		return nil, val, err
+	case "Args":
+		val, err := &vdl.StringTarget{Value: &t.Value.Args}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_account_v_io_x_ref_services_wspr_internal_account_Caveat)
+	}
+}
+func (t *CaveatTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *CaveatTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

@@ -8,6 +8,8 @@
 package nativedep
 
 import (
+	"fmt"
+	"reflect"
 	"time"
 	"v.io/v23/vdl"
 	"v.io/v23/vdl/testdata/nativetest"
@@ -28,7 +30,6 @@ func (All) __VDLReflect(struct {
 }
 
 func (m *All) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_nativedep()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -132,6 +133,46 @@ func (m *All) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *All) MakeVDLTarget() vdl.Target {
+	return &AllTarget{Value: m}
+}
+
+type AllTarget struct {
+	Value *All
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *AllTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All)
+	}
+	return t, nil
+}
+func (t *AllTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "A":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.A))
+		return nil, val, err
+	case "B":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.B))
+		return nil, val, err
+	case "C":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.C))
+		return nil, val, err
+	case "D":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.D))
+		return nil, val, err
+	case "E":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.E))
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_nativedep_v_io_x_ref_lib_vdl_testdata_nativedep_All)
+	}
+}
+func (t *AllTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *AllTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

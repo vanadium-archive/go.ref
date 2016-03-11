@@ -8,6 +8,8 @@
 package conn
 
 import (
+	"fmt"
+	"reflect"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/security/bcrypter"
@@ -28,7 +30,6 @@ func (Blessings) __VDLReflect(struct {
 }
 
 func (m *Blessings) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_types()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -72,6 +73,37 @@ func (m *Blessings) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Blessings) MakeVDLTarget() vdl.Target {
+	return &BlessingsTarget{Value: m}
+}
+
+type BlessingsTarget struct {
+	Value *Blessings
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *BlessingsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_Blessings) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_Blessings)
+	}
+	return t, nil
+}
+func (t *BlessingsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Blessings":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Blessings))
+		return nil, val, err
+	case "BKey":
+		val, err := &vdl.Uint64Target{Value: &t.Value.BKey}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_Blessings)
+	}
+}
+func (t *BlessingsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *BlessingsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -92,7 +124,6 @@ func (EncryptedBlessings) __VDLReflect(struct {
 }
 
 func (m *EncryptedBlessings) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_EncryptedBlessings == nil || __VDLTypetypes1 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -150,6 +181,64 @@ func (m *EncryptedBlessings) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *EncryptedBlessings) MakeVDLTarget() vdl.Target {
+	return &EncryptedBlessingsTarget{Value: m}
+}
+
+type EncryptedBlessingsTarget struct {
+	Value *EncryptedBlessings
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *EncryptedBlessingsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_EncryptedBlessings) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_EncryptedBlessings)
+	}
+	return t, nil
+}
+func (t *EncryptedBlessingsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Ciphertexts":
+		val, err := &types5b5d762e696f2f782f7265662f6c69622f73656375726974792f62637279707465722e5769726543697068657274657874207374727563747b5061747465726e496420737472696e673b4279746573206d61705b737472696e675d5b5d627974657dTarget{Value: &t.Value.Ciphertexts}, error(nil)
+		return nil, val, err
+	case "BKey":
+		val, err := &vdl.Uint64Target{Value: &t.Value.BKey}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_EncryptedBlessings)
+	}
+}
+func (t *EncryptedBlessingsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *EncryptedBlessingsTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type types5b5d762e696f2f782f7265662f6c69622f73656375726974792f62637279707465722e5769726543697068657274657874207374727563747b5061747465726e496420737472696e673b4279746573206d61705b737472696e675d5b5d627974657dTarget struct {
+	Value *[]bcrypter.WireCiphertext
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *types5b5d762e696f2f782f7265662f6c69622f73656375726974792f62637279707465722e5769726543697068657274657874207374727563747b5061747465726e496420737472696e673b4279746573206d61705b737472696e675d5b5d627974657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypetypes2) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypetypes2)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]bcrypter.WireCiphertext, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *types5b5d762e696f2f782f7265662f6c69622f73656375726974792f62637279707465722e5769726543697068657274657874207374727563747b5061747465726e496420737472696e673b4279746573206d61705b737472696e675d5b5d627974657dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &bcrypter.WireCiphertextTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *types5b5d762e696f2f782f7265662f6c69622f73656375726974792f62637279707465722e5769726543697068657274657874207374727563747b5061747465726e496420737472696e673b4279746573206d61705b737472696e675d5b5d627974657dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *types5b5d762e696f2f782f7265662f6c69622f73656375726974792f62637279707465722e5769726543697068657274657874207374727563747b5061747465726e496420737472696e673b4279746573206d61705b737472696e675d5b5d627974657dTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -171,7 +260,6 @@ func (Discharges) __VDLReflect(struct {
 }
 
 func (m *Discharges) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_types()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -248,6 +336,67 @@ func (m *Discharges) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Discharges) MakeVDLTarget() vdl.Target {
+	return &DischargesTarget{Value: m}
+}
+
+type DischargesTarget struct {
+	Value *Discharges
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *DischargesTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_Discharges) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_Discharges)
+	}
+	return t, nil
+}
+func (t *DischargesTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Discharges":
+		val, err := &types5b5d762e696f2f7632332f73656375726974792e5769726544697363686172676520756e696f6e7b5075626c69634b657920762e696f2f7632332f73656375726974792e7075626c69634b6579446973636861726765207374727563747b54686972645061727479436176656174496420737472696e673b43617665617473205b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657d3b5369676e617475726520762e696f2f7632332f73656375726974792e5369676e6174757265207374727563747b507572706f7365205b5d627974653b4861736820762e696f2f7632332f73656375726974792e4861736820737472696e673b52205b5d627974653b53205b5d627974657d7d7dTarget{Value: &t.Value.Discharges}, error(nil)
+		return nil, val, err
+	case "DKey":
+		val, err := &vdl.Uint64Target{Value: &t.Value.DKey}, error(nil)
+		return nil, val, err
+	case "BKey":
+		val, err := &vdl.Uint64Target{Value: &t.Value.BKey}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_Discharges)
+	}
+}
+func (t *DischargesTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *DischargesTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type types5b5d762e696f2f7632332f73656375726974792e5769726544697363686172676520756e696f6e7b5075626c69634b657920762e696f2f7632332f73656375726974792e7075626c69634b6579446973636861726765207374727563747b54686972645061727479436176656174496420737472696e673b43617665617473205b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657d3b5369676e617475726520762e696f2f7632332f73656375726974792e5369676e6174757265207374727563747b507572706f7365205b5d627974653b4861736820762e696f2f7632332f73656375726974792e4861736820737472696e673b52205b5d627974653b53205b5d627974657d7d7dTarget struct {
+	Value *[]security.Discharge
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *types5b5d762e696f2f7632332f73656375726974792e5769726544697363686172676520756e696f6e7b5075626c69634b657920762e696f2f7632332f73656375726974792e7075626c69634b6579446973636861726765207374727563747b54686972645061727479436176656174496420737472696e673b43617665617473205b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657d3b5369676e617475726520762e696f2f7632332f73656375726974792e5369676e6174757265207374727563747b507572706f7365205b5d627974653b4861736820762e696f2f7632332f73656375726974792e4861736820737472696e673b52205b5d627974653b53205b5d627974657d7d7dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypetypes4) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypetypes4)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]security.Discharge, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *types5b5d762e696f2f7632332f73656375726974792e5769726544697363686172676520756e696f6e7b5075626c69634b657920762e696f2f7632332f73656375726974792e7075626c69634b6579446973636861726765207374727563747b54686972645061727479436176656174496420737472696e673b43617665617473205b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657d3b5369676e617475726520762e696f2f7632332f73656375726974792e5369676e6174757265207374727563747b507572706f7365205b5d627974653b4861736820762e696f2f7632332f73656375726974792e4861736820737472696e673b52205b5d627974653b53205b5d627974657d7d7dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+}
+func (t *types5b5d762e696f2f7632332f73656375726974792e5769726544697363686172676520756e696f6e7b5075626c69634b657920762e696f2f7632332f73656375726974792e7075626c69634b6579446973636861726765207374727563747b54686972645061727479436176656174496420737472696e673b43617665617473205b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657d3b5369676e617475726520762e696f2f7632332f73656375726974792e5369676e6174757265207374727563747b507572706f7365205b5d627974653b4861736820762e696f2f7632332f73656375726974792e4861736820737472696e673b52205b5d627974653b53205b5d627974657d7d7dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *types5b5d762e696f2f7632332f73656375726974792e5769726544697363686172676520756e696f6e7b5075626c69634b657920762e696f2f7632332f73656375726974792e7075626c69634b6579446973636861726765207374727563747b54686972645061727479436176656174496420737472696e673b43617665617473205b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657d3b5369676e617475726520762e696f2f7632332f73656375726974792e5369676e6174757265207374727563747b507572706f7365205b5d627974653b4861736820762e696f2f7632332f73656375726974792e4861736820737472696e673b52205b5d627974653b53205b5d627974657d7d7dTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -271,7 +420,6 @@ func (EncryptedDischarges) __VDLReflect(struct {
 }
 
 func (m *EncryptedDischarges) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_EncryptedDischarges == nil || __VDLTypetypes5 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -341,6 +489,40 @@ func (m *EncryptedDischarges) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *EncryptedDischarges) MakeVDLTarget() vdl.Target {
+	return &EncryptedDischargesTarget{Value: m}
+}
+
+type EncryptedDischargesTarget struct {
+	Value *EncryptedDischarges
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *EncryptedDischargesTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_EncryptedDischarges) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_EncryptedDischarges)
+	}
+	return t, nil
+}
+func (t *EncryptedDischargesTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Ciphertexts":
+		val, err := &types5b5d762e696f2f782f7265662f6c69622f73656375726974792f62637279707465722e5769726543697068657274657874207374727563747b5061747465726e496420737472696e673b4279746573206d61705b737472696e675d5b5d627974657dTarget{Value: &t.Value.Ciphertexts}, error(nil)
+		return nil, val, err
+	case "DKey":
+		val, err := &vdl.Uint64Target{Value: &t.Value.DKey}, error(nil)
+		return nil, val, err
+	case "BKey":
+		val, err := &vdl.Uint64Target{Value: &t.Value.BKey}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_runtime_internal_flow_conn_EncryptedDischarges)
+	}
+}
+func (t *EncryptedDischargesTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *EncryptedDischargesTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -387,7 +569,6 @@ func (x BlessingsFlowMessageBlessings) Name() string                            
 func (x BlessingsFlowMessageBlessings) __VDLReflect(__BlessingsFlowMessageReflect) {}
 
 func (m BlessingsFlowMessageBlessings) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_runtime_internal_flow_conn_BlessingsFlowMessage)
 	if err != nil {
 		return err
@@ -420,7 +601,6 @@ func (x BlessingsFlowMessageDischarges) Name() string                           
 func (x BlessingsFlowMessageDischarges) __VDLReflect(__BlessingsFlowMessageReflect) {}
 
 func (m BlessingsFlowMessageDischarges) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_runtime_internal_flow_conn_BlessingsFlowMessage)
 	if err != nil {
 		return err
@@ -453,7 +633,6 @@ func (x BlessingsFlowMessageEncryptedBlessings) Name() string                   
 func (x BlessingsFlowMessageEncryptedBlessings) __VDLReflect(__BlessingsFlowMessageReflect) {}
 
 func (m BlessingsFlowMessageEncryptedBlessings) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_runtime_internal_flow_conn_BlessingsFlowMessage)
 	if err != nil {
 		return err
@@ -486,7 +665,6 @@ func (x BlessingsFlowMessageEncryptedDischarges) Name() string                  
 func (x BlessingsFlowMessageEncryptedDischarges) __VDLReflect(__BlessingsFlowMessageReflect) {}
 
 func (m BlessingsFlowMessageEncryptedDischarges) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_runtime_internal_flow_conn_BlessingsFlowMessage)
 	if err != nil {
 		return err

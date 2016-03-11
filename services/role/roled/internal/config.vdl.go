@@ -8,6 +8,7 @@
 package internal
 
 import (
+	"fmt"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 )
@@ -46,7 +47,6 @@ func (Config) __VDLReflect(struct {
 }
 
 func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_config_v_io_x_ref_services_role_roled_internal_Config == nil || __VDLTypeconfig0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -187,6 +187,76 @@ func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Config) MakeVDLTarget() vdl.Target {
+	return &ConfigTarget{Value: m}
+}
+
+type ConfigTarget struct {
+	Value *Config
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ConfigTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_config_v_io_x_ref_services_role_roled_internal_Config) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_config_v_io_x_ref_services_role_roled_internal_Config)
+	}
+	return t, nil
+}
+func (t *ConfigTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "ImportMembers":
+		val, err := &vdl.StringSliceTarget{Value: &t.Value.ImportMembers}, error(nil)
+		return nil, val, err
+	case "Members":
+		val, err := &config5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target{Value: &t.Value.Members}, error(nil)
+		return nil, val, err
+	case "Extend":
+		val, err := &vdl.BoolTarget{Value: &t.Value.Extend}, error(nil)
+		return nil, val, err
+	case "Audit":
+		val, err := &vdl.BoolTarget{Value: &t.Value.Audit}, error(nil)
+		return nil, val, err
+	case "Expiry":
+		val, err := &vdl.StringTarget{Value: &t.Value.Expiry}, error(nil)
+		return nil, val, err
+	case "Peers":
+		val, err := &config5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target{Value: &t.Value.Peers}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_config_v_io_x_ref_services_role_roled_internal_Config)
+	}
+}
+func (t *ConfigTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ConfigTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type config5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target struct {
+	Value *[]security.BlessingPattern
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *config5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeconfig2) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeconfig2)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]security.BlessingPattern, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *config5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target) StartElem(index int) (elem vdl.Target, _ error) {
+	return &security.BlessingPatternTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *config5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *config5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 

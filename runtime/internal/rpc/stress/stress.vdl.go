@@ -8,6 +8,7 @@
 package stress
 
 import (
+	"fmt"
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
@@ -28,7 +29,6 @@ func (SumArg) __VDLReflect(struct {
 }
 
 func (m *SumArg) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumArg == nil || __VDLTypestress0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -81,6 +81,40 @@ func (m *SumArg) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *SumArg) MakeVDLTarget() vdl.Target {
+	return &SumArgTarget{Value: m}
+}
+
+type SumArgTarget struct {
+	Value *SumArg
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *SumArgTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumArg) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumArg)
+	}
+	return t, nil
+}
+func (t *SumArgTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "ABool":
+		val, err := &vdl.BoolTarget{Value: &t.Value.ABool}, error(nil)
+		return nil, val, err
+	case "AInt64":
+		val, err := &vdl.Int64Target{Value: &t.Value.AInt64}, error(nil)
+		return nil, val, err
+	case "AListOfBytes":
+		val, err := &vdl.BytesTarget{Value: &t.Value.AListOfBytes}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumArg)
+	}
+}
+func (t *SumArgTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *SumArgTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -97,7 +131,6 @@ func (SumStats) __VDLReflect(struct {
 }
 
 func (m *SumStats) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumStats == nil || __VDLTypestress2 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -161,6 +194,43 @@ func (m *SumStats) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *SumStats) MakeVDLTarget() vdl.Target {
+	return &SumStatsTarget{Value: m}
+}
+
+type SumStatsTarget struct {
+	Value *SumStats
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *SumStatsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumStats) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumStats)
+	}
+	return t, nil
+}
+func (t *SumStatsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "SumCount":
+		val, err := &vdl.Uint64Target{Value: &t.Value.SumCount}, error(nil)
+		return nil, val, err
+	case "SumStreamCount":
+		val, err := &vdl.Uint64Target{Value: &t.Value.SumStreamCount}, error(nil)
+		return nil, val, err
+	case "BytesRecv":
+		val, err := &vdl.Uint64Target{Value: &t.Value.BytesRecv}, error(nil)
+		return nil, val, err
+	case "BytesSent":
+		val, err := &vdl.Uint64Target{Value: &t.Value.BytesSent}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_stress_v_io_x_ref_runtime_internal_rpc_stress_SumStats)
+	}
+}
+func (t *SumStatsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *SumStatsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

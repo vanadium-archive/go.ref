@@ -8,6 +8,7 @@
 package server
 
 import (
+	"fmt"
 	"v.io/v23/security/access"
 	"v.io/v23/vdl"
 )
@@ -24,7 +25,6 @@ func (ServiceData) __VDLReflect(struct {
 }
 
 func (m *ServiceData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_syncbase_server_ServiceData == nil || __VDLTypetypes0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -65,6 +65,37 @@ func (m *ServiceData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *ServiceData) MakeVDLTarget() vdl.Target {
+	return &ServiceDataTarget{Value: m}
+}
+
+type ServiceDataTarget struct {
+	Value *ServiceData
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ServiceDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_ServiceData) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_ServiceData)
+	}
+	return t, nil
+}
+func (t *ServiceDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Version":
+		val, err := &vdl.Uint64Target{Value: &t.Value.Version}, error(nil)
+		return nil, val, err
+	case "Perms":
+		val, err := &access.PermissionsTarget{Value: &t.Value.Perms}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_server_ServiceData)
+	}
+}
+func (t *ServiceDataTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ServiceDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -81,7 +112,6 @@ func (AppData) __VDLReflect(struct {
 }
 
 func (m *AppData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_syncbase_server_AppData == nil || __VDLTypetypes1 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -134,6 +164,40 @@ func (m *AppData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *AppData) MakeVDLTarget() vdl.Target {
+	return &AppDataTarget{Value: m}
+}
+
+type AppDataTarget struct {
+	Value *AppData
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *AppDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_AppData) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_AppData)
+	}
+	return t, nil
+}
+func (t *AppDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Name":
+		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
+		return nil, val, err
+	case "Version":
+		val, err := &vdl.Uint64Target{Value: &t.Value.Version}, error(nil)
+		return nil, val, err
+	case "Perms":
+		val, err := &access.PermissionsTarget{Value: &t.Value.Perms}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_server_AppData)
+	}
+}
+func (t *AppDataTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *AppDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -153,7 +217,6 @@ func (DbInfo) __VDLReflect(struct {
 }
 
 func (m *DbInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_syncbase_server_DbInfo == nil || __VDLTypetypes2 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -205,6 +268,40 @@ func (m *DbInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *DbInfo) MakeVDLTarget() vdl.Target {
+	return &DbInfoTarget{Value: m}
+}
+
+type DbInfoTarget struct {
+	Value *DbInfo
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *DbInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_DbInfo) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_DbInfo)
+	}
+	return t, nil
+}
+func (t *DbInfoTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Name":
+		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
+		return nil, val, err
+	case "RootDir":
+		val, err := &vdl.StringTarget{Value: &t.Value.RootDir}, error(nil)
+		return nil, val, err
+	case "Engine":
+		val, err := &vdl.StringTarget{Value: &t.Value.Engine}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_server_DbInfo)
+	}
+}
+func (t *DbInfoTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *DbInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

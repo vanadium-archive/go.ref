@@ -170,12 +170,8 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			"\n}",
 			def.Name, commaEnumLabels("", t), qualifiedIdent(def.File, def.Name))
 		s += fmt.Sprintf("\n"+
-			"\nfunc (m %[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
-			"\n\t" + genEncDef(data, def.Type, "") +
-			"\n\treturn nil" +
-			"\n}"
-		s += fmt.Sprintf("\n"+
-			"\nfunc (m %[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			"\nfunc (m *%[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			genEncDef(data, def.Type, "") +
 			"\n\treturn nil" +
 			"\n}"
 	case vdl.Struct:
@@ -194,11 +190,7 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			def.Name, qualifiedIdent(def.File, def.Name))
 		s += fmt.Sprintf("\n"+
 			"\nfunc (m *%[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
-			"\n\t" + genEncDef(data, def.Type, "") +
-			"\n\treturn nil" +
-			"\n}"
-		s += fmt.Sprintf("\n"+
-			"\nfunc (m *%[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			genEncDef(data, def.Type, "") +
 			"\n\treturn nil" +
 			"\n}"
 	case vdl.Union:
@@ -241,7 +233,7 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			s += fmt.Sprintf("\n"+
 				"\nfunc (m %[1]s%[2]s) FillVDLTarget(t %[3]sTarget, tt *%[3]sType) error {",
 				def.Name, f.Name, data.Pkg("v.io/v23/vdl")) +
-				"\n\t" + genEncDef(data, t, f.Name) +
+				genEncDef(data, t, f.Name) +
 				"\n\treturn nil" +
 				"\n}"
 			s += fmt.Sprintf("\n"+
@@ -258,14 +250,26 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 			"\n}",
 			def.Name, qualifiedIdent(def.File, def.Name))
 		s += fmt.Sprintf("\n"+
-			"\nfunc (m %[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
-			"\n\t" + genEncDef(data, def.Type, "") +
+			"\nfunc (m *%[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			genEncDef(data, def.Type, "") +
 			"\n\treturn nil" +
 			"\n}"
+	}
+	switch {
+	case def.Type.Kind() == vdl.Union:
+		// handled for specific field structs above
+	case isNativeType(def.Type, def.File.Package):
 		s += fmt.Sprintf("\n"+
-			"\nfunc (m %[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			"\nfunc (m *%[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
 			"\n\treturn nil" +
 			"\n}"
+	default:
+		ref, body := genTargetRef(data, def.Type)
+		s += fmt.Sprintf("\n"+
+			"\nfunc (m *%[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			fmt.Sprintf("\n\treturn &%s{Value: m}", ref) +
+			"\n}"
+		s += body
 	}
 	return s
 }

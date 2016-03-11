@@ -8,6 +8,8 @@
 package localblobstore
 
 import (
+	"fmt"
+	"reflect"
 	"time"
 	"v.io/v23/vdl"
 	time_2 "v.io/v23/vdlroot/time"
@@ -32,7 +34,6 @@ func (BlobMetadata) __VDLReflect(struct {
 }
 
 func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_types()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -95,6 +96,40 @@ func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *BlobMetadata) MakeVDLTarget() vdl.Target {
+	return &BlobMetadataTarget{Value: m}
+}
+
+type BlobMetadataTarget struct {
+	Value *BlobMetadata
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *BlobMetadataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata)
+	}
+	return t, nil
+}
+func (t *BlobMetadataTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "OwnerShares":
+		val, err := &interfaces.BlobSharesBySyncgroupTarget{Value: &t.Value.OwnerShares}, error(nil)
+		return nil, val, err
+	case "Referenced":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Referenced))
+		return nil, val, err
+	case "Accessed":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Accessed))
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata)
+	}
+}
+func (t *BlobMetadataTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *BlobMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -111,7 +146,6 @@ func (PerSyncgroup) __VDLReflect(struct {
 }
 
 func (m *PerSyncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_types()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -138,6 +172,34 @@ func (m *PerSyncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *PerSyncgroup) MakeVDLTarget() vdl.Target {
+	return &PerSyncgroupTarget{Value: m}
+}
+
+type PerSyncgroupTarget struct {
+	Value *PerSyncgroup
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *PerSyncgroupTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup)
+	}
+	return t, nil
+}
+func (t *PerSyncgroupTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Priority":
+		val, err := &interfaces.SgPriorityTarget{Value: &t.Value.Priority}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup)
+	}
+}
+func (t *PerSyncgroupTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *PerSyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

@@ -24,13 +24,16 @@
 package rps
 
 import (
+	"fmt"
 	"io"
+	"reflect"
 	"time"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlconv"
 	time_2 "v.io/v23/vdlroot/time"
 )
 
@@ -45,7 +48,6 @@ func (GameId) __VDLReflect(struct {
 }
 
 func (m *GameId) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_service_v_io_x_ref_examples_rps_GameId == nil || __VDLTypeservice0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -73,6 +75,34 @@ func (m *GameId) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *GameId) MakeVDLTarget() vdl.Target {
+	return &GameIdTarget{Value: m}
+}
+
+type GameIdTarget struct {
+	Value *GameId
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *GameIdTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_service_v_io_x_ref_examples_rps_GameId) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_service_v_io_x_ref_examples_rps_GameId)
+	}
+	return t, nil
+}
+func (t *GameIdTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Id":
+		val, err := &vdl.StringTarget{Value: &t.Value.Id}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_service_v_io_x_ref_examples_rps_GameId)
+	}
+}
+func (t *GameIdTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *GameIdTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -88,7 +118,6 @@ func (GameOptions) __VDLReflect(struct {
 }
 
 func (m *GameOptions) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_service_v_io_x_ref_examples_rps_GameOptions == nil || __VDLTypeservice1 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -129,6 +158,75 @@ func (m *GameOptions) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *GameOptions) MakeVDLTarget() vdl.Target {
+	return &GameOptionsTarget{Value: m}
+}
+
+type GameOptionsTarget struct {
+	Value *GameOptions
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *GameOptionsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_service_v_io_x_ref_examples_rps_GameOptions) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_service_v_io_x_ref_examples_rps_GameOptions)
+	}
+	return t, nil
+}
+func (t *GameOptionsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "NumRounds":
+		val, err := &vdl.Int32Target{Value: &t.Value.NumRounds}, error(nil)
+		return nil, val, err
+	case "GameType":
+		val, err := &GameTypeTagTarget{Value: &t.Value.GameType}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_service_v_io_x_ref_examples_rps_GameOptions)
+	}
+}
+func (t *GameOptionsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *GameOptionsTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type GameTypeTagTarget struct {
+	Value *GameTypeTag
+	vdl.TargetBase
+}
+
+func (t *GameTypeTagTarget) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = GameTypeTag(val)
+	return nil
+}
+func (t *GameTypeTagTarget) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = GameTypeTag(val)
+	return nil
+}
+func (t *GameTypeTagTarget) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = GameTypeTag(val)
+	return nil
+}
+func (t *GameTypeTagTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = GameTypeTag(val)
 	return nil
 }
 
@@ -139,15 +237,15 @@ func (GameTypeTag) __VDLReflect(struct {
 }) {
 }
 
-func (m GameTypeTag) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64(m), __VDLType_service_v_io_x_ref_examples_rps_GameTypeTag); err != nil {
+func (m *GameTypeTag) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64((*m)), __VDLType_service_v_io_x_ref_examples_rps_GameTypeTag); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m GameTypeTag) MakeVDLTarget() vdl.Target {
-	return nil
+func (m *GameTypeTag) MakeVDLTarget() vdl.Target {
+	return &GameTypeTagTarget{Value: m}
 }
 
 type (
@@ -184,7 +282,6 @@ func (x PlayerActionMove) Name() string                       { return "Move" }
 func (x PlayerActionMove) __VDLReflect(__PlayerActionReflect) {}
 
 func (m PlayerActionMove) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_PlayerAction)
 	if err != nil {
 		return err
@@ -216,7 +313,6 @@ func (x PlayerActionQuit) Name() string                       { return "Quit" }
 func (x PlayerActionQuit) __VDLReflect(__PlayerActionReflect) {}
 
 func (m PlayerActionQuit) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_PlayerAction)
 	if err != nil {
 		return err
@@ -252,7 +348,6 @@ func (unused) __VDLReflect(struct {
 }
 
 func (m *unused) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_service_v_io_x_ref_examples_rps_unused == nil || __VDLTypeservice2 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -268,6 +363,31 @@ func (m *unused) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *unused) MakeVDLTarget() vdl.Target {
+	return &unusedTarget{Value: m}
+}
+
+type unusedTarget struct {
+	Value *unused
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *unusedTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_service_v_io_x_ref_examples_rps_unused) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_service_v_io_x_ref_examples_rps_unused)
+	}
+	return t, nil
+}
+func (t *unusedTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_service_v_io_x_ref_examples_rps_unused)
+	}
+}
+func (t *unusedTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *unusedTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -314,7 +434,6 @@ func (x JudgeActionPlayerNum) Name() string                      { return "Playe
 func (x JudgeActionPlayerNum) __VDLReflect(__JudgeActionReflect) {}
 
 func (m JudgeActionPlayerNum) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction)
 	if err != nil {
 		return err
@@ -346,7 +465,6 @@ func (x JudgeActionOpponentName) Name() string                      { return "Op
 func (x JudgeActionOpponentName) __VDLReflect(__JudgeActionReflect) {}
 
 func (m JudgeActionOpponentName) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction)
 	if err != nil {
 		return err
@@ -378,7 +496,6 @@ func (x JudgeActionMoveOptions) Name() string                      { return "Mov
 func (x JudgeActionMoveOptions) __VDLReflect(__JudgeActionReflect) {}
 
 func (m JudgeActionMoveOptions) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction)
 	if err != nil {
 		return err
@@ -427,7 +544,6 @@ func (x JudgeActionRoundResult) Name() string                      { return "Rou
 func (x JudgeActionRoundResult) __VDLReflect(__JudgeActionReflect) {}
 
 func (m JudgeActionRoundResult) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction)
 	if err != nil {
 		return err
@@ -460,7 +576,6 @@ func (x JudgeActionScore) Name() string                      { return "Score" }
 func (x JudgeActionScore) __VDLReflect(__JudgeActionReflect) {}
 
 func (m JudgeActionScore) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_service_v_io_x_ref_examples_rps_JudgeAction)
 	if err != nil {
 		return err
@@ -494,13 +609,12 @@ func (PlayersMoves) __VDLReflect(struct {
 }) {
 }
 
-func (m PlayersMoves) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
+func (m *PlayersMoves) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	listTarget1, err := t.StartList(__VDLType_service_v_io_x_ref_examples_rps_PlayersMoves, 2)
 	if err != nil {
 		return err
 	}
-	for i, elem3 := range m {
+	for i, elem3 := range *m {
 		elemTarget2, err := listTarget1.StartElem(i)
 		if err != nil {
 			return err
@@ -518,7 +632,29 @@ func (m PlayersMoves) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	return nil
 }
 
-func (m PlayersMoves) MakeVDLTarget() vdl.Target {
+func (m *PlayersMoves) MakeVDLTarget() vdl.Target {
+	return &PlayersMovesTarget{Value: m}
+}
+
+type PlayersMovesTarget struct {
+	Value *PlayersMoves
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *PlayersMovesTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_service_v_io_x_ref_examples_rps_PlayersMoves) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_service_v_io_x_ref_examples_rps_PlayersMoves)
+	}
+	return t, nil
+}
+func (t *PlayersMovesTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &vdl.StringTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *PlayersMovesTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *PlayersMovesTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -537,7 +673,6 @@ func (Round) __VDLReflect(struct {
 }
 
 func (m *Round) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_service()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -625,6 +760,84 @@ func (m *Round) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Round) MakeVDLTarget() vdl.Target {
+	return &RoundTarget{Value: m}
+}
+
+type RoundTarget struct {
+	Value *Round
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *RoundTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_service_v_io_x_ref_examples_rps_Round) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_service_v_io_x_ref_examples_rps_Round)
+	}
+	return t, nil
+}
+func (t *RoundTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Moves":
+		val, err := &PlayersMovesTarget{Value: &t.Value.Moves}, error(nil)
+		return nil, val, err
+	case "Comment":
+		val, err := &vdl.StringTarget{Value: &t.Value.Comment}, error(nil)
+		return nil, val, err
+	case "Winner":
+		val, err := &WinnerTagTarget{Value: &t.Value.Winner}, error(nil)
+		return nil, val, err
+	case "StartTime":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.StartTime))
+		return nil, val, err
+	case "EndTime":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.EndTime))
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_service_v_io_x_ref_examples_rps_Round)
+	}
+}
+func (t *RoundTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *RoundTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type WinnerTagTarget struct {
+	Value *WinnerTag
+	vdl.TargetBase
+}
+
+func (t *WinnerTagTarget) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = WinnerTag(val)
+	return nil
+}
+func (t *WinnerTagTarget) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = WinnerTag(val)
+	return nil
+}
+func (t *WinnerTagTarget) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = WinnerTag(val)
+	return nil
+}
+func (t *WinnerTagTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = WinnerTag(val)
 	return nil
 }
 
@@ -637,15 +850,15 @@ func (WinnerTag) __VDLReflect(struct {
 }) {
 }
 
-func (m WinnerTag) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64(m), __VDLType_service_v_io_x_ref_examples_rps_WinnerTag); err != nil {
+func (m *WinnerTag) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64((*m)), __VDLType_service_v_io_x_ref_examples_rps_WinnerTag); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m WinnerTag) MakeVDLTarget() vdl.Target {
-	return nil
+func (m *WinnerTag) MakeVDLTarget() vdl.Target {
+	return &WinnerTagTarget{Value: m}
 }
 
 // PlayResult is the value returned by the Play method. It indicates the outcome of the game.
@@ -659,7 +872,6 @@ func (PlayResult) __VDLReflect(struct {
 }
 
 func (m *PlayResult) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_service_v_io_x_ref_examples_rps_PlayResult == nil || __VDLTypeservice5 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -687,6 +899,34 @@ func (m *PlayResult) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *PlayResult) MakeVDLTarget() vdl.Target {
+	return &PlayResultTarget{Value: m}
+}
+
+type PlayResultTarget struct {
+	Value *PlayResult
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *PlayResultTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_service_v_io_x_ref_examples_rps_PlayResult) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_service_v_io_x_ref_examples_rps_PlayResult)
+	}
+	return t, nil
+}
+func (t *PlayResultTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "YouWon":
+		val, err := &vdl.BoolTarget{Value: &t.Value.YouWon}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_service_v_io_x_ref_examples_rps_PlayResult)
+	}
+}
+func (t *PlayResultTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *PlayResultTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -706,7 +946,6 @@ func (ScoreCard) __VDLReflect(struct {
 }
 
 func (m *ScoreCard) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_service()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -853,6 +1092,79 @@ func (m *ScoreCard) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *ScoreCard) MakeVDLTarget() vdl.Target {
+	return &ScoreCardTarget{Value: m}
+}
+
+type ScoreCardTarget struct {
+	Value *ScoreCard
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ScoreCardTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_service_v_io_x_ref_examples_rps_ScoreCard) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_service_v_io_x_ref_examples_rps_ScoreCard)
+	}
+	return t, nil
+}
+func (t *ScoreCardTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Opts":
+		val, err := &GameOptionsTarget{Value: &t.Value.Opts}, error(nil)
+		return nil, val, err
+	case "Judge":
+		val, err := &vdl.StringTarget{Value: &t.Value.Judge}, error(nil)
+		return nil, val, err
+	case "Players":
+		val, err := &vdl.StringSliceTarget{Value: &t.Value.Players}, error(nil)
+		return nil, val, err
+	case "Rounds":
+		val, err := &service5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget{Value: &t.Value.Rounds}, error(nil)
+		return nil, val, err
+	case "StartTime":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.StartTime))
+		return nil, val, err
+	case "EndTime":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.EndTime))
+		return nil, val, err
+	case "Winner":
+		val, err := &WinnerTagTarget{Value: &t.Value.Winner}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_service_v_io_x_ref_examples_rps_ScoreCard)
+	}
+}
+func (t *ScoreCardTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ScoreCardTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type service5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget struct {
+	Value *[]Round
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *service5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeservice7) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeservice7)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]Round, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *service5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &RoundTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *service5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *service5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 

@@ -8,6 +8,7 @@
 package testdata
 
 import (
+	"fmt"
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/discovery"
 )
@@ -26,7 +27,6 @@ func (PackAddressTest) __VDLReflect(struct {
 }
 
 func (m *PackAddressTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackAddressTest == nil || __VDLTypeencoding0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -84,6 +84,37 @@ func (m *PackAddressTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *PackAddressTest) MakeVDLTarget() vdl.Target {
+	return &PackAddressTestTarget{Value: m}
+}
+
+type PackAddressTestTarget struct {
+	Value *PackAddressTest
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *PackAddressTestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackAddressTest) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackAddressTest)
+	}
+	return t, nil
+}
+func (t *PackAddressTestTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "In":
+		val, err := &vdl.StringSliceTarget{Value: &t.Value.In}, error(nil)
+		return nil, val, err
+	case "Packed":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Packed}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackAddressTest)
+	}
+}
+func (t *PackAddressTestTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *PackAddressTestTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -105,7 +136,6 @@ func (PackEncryptionKeysTest) __VDLReflect(struct {
 }
 
 func (m *PackEncryptionKeysTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest == nil || __VDLTypeencoding3 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -177,6 +207,67 @@ func (m *PackEncryptionKeysTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error
 }
 
 func (m *PackEncryptionKeysTest) MakeVDLTarget() vdl.Target {
+	return &PackEncryptionKeysTestTarget{Value: m}
+}
+
+type PackEncryptionKeysTestTarget struct {
+	Value *PackEncryptionKeysTest
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *PackEncryptionKeysTestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest)
+	}
+	return t, nil
+}
+func (t *PackEncryptionKeysTestTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Algo":
+		val, err := &discovery.EncryptionAlgorithmTarget{Value: &t.Value.Algo}, error(nil)
+		return nil, val, err
+	case "Keys":
+		val, err := &encoding5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target{Value: &t.Value.Keys}, error(nil)
+		return nil, val, err
+	case "Packed":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Packed}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_encoding_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest)
+	}
+}
+func (t *PackEncryptionKeysTestTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *PackEncryptionKeysTestTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type encoding5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target struct {
+	Value *[]discovery.EncryptionKey
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *encoding5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeencoding4) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeencoding4)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]discovery.EncryptionKey, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *encoding5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartElem(index int) (elem vdl.Target, _ error) {
+	return &discovery.EncryptionKeyTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *encoding5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *encoding5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 

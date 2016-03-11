@@ -8,6 +8,8 @@
 package vclock
 
 import (
+	"fmt"
+	"reflect"
 	"time"
 	"v.io/v23/vdl"
 	time_2 "v.io/v23/vdlroot/time"
@@ -40,7 +42,6 @@ func (VClockData) __VDLReflect(struct {
 }
 
 func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_types()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -150,6 +151,49 @@ func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *VClockData) MakeVDLTarget() vdl.Target {
+	return &VClockDataTarget{Value: m}
+}
+
+type VClockDataTarget struct {
+	Value *VClockData
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *VClockDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData)
+	}
+	return t, nil
+}
+func (t *VClockDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "SystemTimeAtBoot":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.SystemTimeAtBoot))
+		return nil, val, err
+	case "Skew":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Skew))
+		return nil, val, err
+	case "ElapsedTimeSinceBoot":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.ElapsedTimeSinceBoot))
+		return nil, val, err
+	case "LastNtpTs":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.LastNtpTs))
+		return nil, val, err
+	case "NumReboots":
+		val, err := &vdl.Uint16Target{Value: &t.Value.NumReboots}, error(nil)
+		return nil, val, err
+	case "NumHops":
+		val, err := &vdl.Uint16Target{Value: &t.Value.NumHops}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_vclock_VClockData)
+	}
+}
+func (t *VClockDataTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *VClockDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

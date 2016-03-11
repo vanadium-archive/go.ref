@@ -10,8 +10,11 @@
 package app
 
 import (
+	"fmt"
+	"reflect"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlconv"
 	"v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -37,7 +40,6 @@ func (RpcRequest) __VDLReflect(struct {
 }
 
 func (m *RpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_app()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -189,6 +191,85 @@ func (m *RpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *RpcRequest) MakeVDLTarget() vdl.Target {
+	return &RpcRequestTarget{Value: m}
+}
+
+type RpcRequestTarget struct {
+	Value *RpcRequest
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *RpcRequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest)
+	}
+	return t, nil
+}
+func (t *RpcRequestTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Name":
+		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
+		return nil, val, err
+	case "Method":
+		val, err := &vdl.StringTarget{Value: &t.Value.Method}, error(nil)
+		return nil, val, err
+	case "NumInArgs":
+		val, err := &vdl.Int32Target{Value: &t.Value.NumInArgs}, error(nil)
+		return nil, val, err
+	case "NumOutArgs":
+		val, err := &vdl.Int32Target{Value: &t.Value.NumOutArgs}, error(nil)
+		return nil, val, err
+	case "IsStreaming":
+		val, err := &vdl.BoolTarget{Value: &t.Value.IsStreaming}, error(nil)
+		return nil, val, err
+	case "Deadline":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Deadline))
+		return nil, val, err
+	case "TraceRequest":
+		val, err := &vtrace.RequestTarget{Value: &t.Value.TraceRequest}, error(nil)
+		return nil, val, err
+	case "Context":
+		val, err := &server.ContextTarget{Value: &t.Value.Context}, error(nil)
+		return nil, val, err
+	case "CallOptions":
+		val, err := &app5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget{Value: &t.Value.CallOptions}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcRequest)
+	}
+}
+func (t *RpcRequestTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *RpcRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type app5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget struct {
+	Value *[]RpcCallOption
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *app5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeapp1) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeapp1)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]RpcCallOption, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *app5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+}
+func (t *app5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *app5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -226,7 +307,6 @@ func (x RpcCallOptionAllowedServersPolicy) Name() string                        
 func (x RpcCallOptionAllowedServersPolicy) __VDLReflect(__RpcCallOptionReflect) {}
 
 func (m RpcCallOptionAllowedServersPolicy) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcCallOption)
 	if err != nil {
 		return err
@@ -276,7 +356,6 @@ func (x RpcCallOptionGranter) Name() string                        { return "Gra
 func (x RpcCallOptionGranter) __VDLReflect(__RpcCallOptionReflect) {}
 
 func (m RpcCallOptionGranter) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcCallOption)
 	if err != nil {
 		return err
@@ -337,7 +416,6 @@ func (x RpcServerOptionIsLeaf) Name() string                          { return "
 func (x RpcServerOptionIsLeaf) __VDLReflect(__RpcServerOptionReflect) {}
 
 func (m RpcServerOptionIsLeaf) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcServerOption)
 	if err != nil {
 		return err
@@ -369,7 +447,6 @@ func (x RpcServerOptionServesMountTable) Name() string                          
 func (x RpcServerOptionServesMountTable) __VDLReflect(__RpcServerOptionReflect) {}
 
 func (m RpcServerOptionServesMountTable) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcServerOption)
 	if err != nil {
 		return err
@@ -406,7 +483,6 @@ func (RpcResponse) __VDLReflect(struct {
 }
 
 func (m *RpcResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_app()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -469,6 +545,64 @@ func (m *RpcResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *RpcResponse) MakeVDLTarget() vdl.Target {
+	return &RpcResponseTarget{Value: m}
+}
+
+type RpcResponseTarget struct {
+	Value *RpcResponse
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *RpcResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse)
+	}
+	return t, nil
+}
+func (t *RpcResponseTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "OutArgs":
+		val, err := &app5b5d616e79Target{Value: &t.Value.OutArgs}, error(nil)
+		return nil, val, err
+	case "TraceResponse":
+		val, err := &vtrace.ResponseTarget{Value: &t.Value.TraceResponse}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_app_v_io_x_ref_services_wspr_internal_app_RpcResponse)
+	}
+}
+func (t *RpcResponseTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *RpcResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type app5b5d616e79Target struct {
+	Value *[]*vom.RawBytes
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *app5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeapp4) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeapp4)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]*vom.RawBytes, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *app5b5d616e79Target) StartElem(index int) (elem vdl.Target, _ error) {
+	return vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+}
+func (t *app5b5d616e79Target) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *app5b5d616e79Target) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -479,14 +613,52 @@ func (GranterHandle) __VDLReflect(struct {
 }) {
 }
 
-func (m GranterHandle) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterHandle); err != nil {
+func (m *GranterHandle) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterHandle); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m GranterHandle) MakeVDLTarget() vdl.Target {
+func (m *GranterHandle) MakeVDLTarget() vdl.Target {
+	return &GranterHandleTarget{Value: m}
+}
+
+type GranterHandleTarget struct {
+	Value *GranterHandle
+	vdl.TargetBase
+}
+
+func (t *GranterHandleTarget) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = GranterHandle(val)
+	return nil
+}
+func (t *GranterHandleTarget) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = GranterHandle(val)
+	return nil
+}
+func (t *GranterHandleTarget) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = GranterHandle(val)
+	return nil
+}
+func (t *GranterHandleTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = GranterHandle(val)
 	return nil
 }
 
@@ -501,7 +673,6 @@ func (GranterRequest) __VDLReflect(struct {
 }
 
 func (m *GranterRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterRequest == nil || __VDLTypeapp5 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -543,6 +714,37 @@ func (m *GranterRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *GranterRequest) MakeVDLTarget() vdl.Target {
+	return &GranterRequestTarget{Value: m}
+}
+
+type GranterRequestTarget struct {
+	Value *GranterRequest
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *GranterRequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterRequest) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterRequest)
+	}
+	return t, nil
+}
+func (t *GranterRequestTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "GranterHandle":
+		val, err := &GranterHandleTarget{Value: &t.Value.GranterHandle}, error(nil)
+		return nil, val, err
+	case "Call":
+		val, err := &server.SecurityCallTarget{Value: &t.Value.Call}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterRequest)
+	}
+}
+func (t *GranterRequestTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *GranterRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -557,7 +759,6 @@ func (GranterResponse) __VDLReflect(struct {
 }
 
 func (m *GranterResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_app()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -613,6 +814,37 @@ func (m *GranterResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *GranterResponse) MakeVDLTarget() vdl.Target {
+	return &GranterResponseTarget{Value: m}
+}
+
+type GranterResponseTarget struct {
+	Value *GranterResponse
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *GranterResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse)
+	}
+	return t, nil
+}
+func (t *GranterResponseTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Blessings":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Blessings))
+		return nil, val, err
+	case "Err":
+		val, err := &verror.ErrorTarget{Value: &t.Value.Err}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_app_v_io_x_ref_services_wspr_internal_app_GranterResponse)
+	}
+}
+func (t *GranterResponseTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *GranterResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

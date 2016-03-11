@@ -10,6 +10,7 @@
 package tunnel
 
 import (
+	"fmt"
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
@@ -30,7 +31,6 @@ func (ShellOpts) __VDLReflect(struct {
 }
 
 func (m *ShellOpts) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_tunnel_v_io_x_ref_examples_tunnel_ShellOpts == nil || __VDLTypetunnel0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -100,6 +100,71 @@ func (m *ShellOpts) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *ShellOpts) MakeVDLTarget() vdl.Target {
+	return &ShellOptsTarget{Value: m}
+}
+
+type ShellOptsTarget struct {
+	Value *ShellOpts
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ShellOptsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_tunnel_v_io_x_ref_examples_tunnel_ShellOpts) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_tunnel_v_io_x_ref_examples_tunnel_ShellOpts)
+	}
+	return t, nil
+}
+func (t *ShellOptsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "UsePty":
+		val, err := &vdl.BoolTarget{Value: &t.Value.UsePty}, error(nil)
+		return nil, val, err
+	case "Environment":
+		val, err := &vdl.StringSliceTarget{Value: &t.Value.Environment}, error(nil)
+		return nil, val, err
+	case "WinSize":
+		val, err := &WindowSizeTarget{Value: &t.Value.WinSize}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_tunnel_v_io_x_ref_examples_tunnel_ShellOpts)
+	}
+}
+func (t *ShellOptsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ShellOptsTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type WindowSizeTarget struct {
+	Value *WindowSize
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *WindowSizeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_tunnel_v_io_x_ref_examples_tunnel_WindowSize) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_tunnel_v_io_x_ref_examples_tunnel_WindowSize)
+	}
+	return t, nil
+}
+func (t *WindowSizeTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Rows":
+		val, err := &vdl.Uint16Target{Value: &t.Value.Rows}, error(nil)
+		return nil, val, err
+	case "Cols":
+		val, err := &vdl.Uint16Target{Value: &t.Value.Cols}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_tunnel_v_io_x_ref_examples_tunnel_WindowSize)
+	}
+}
+func (t *WindowSizeTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *WindowSizeTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -114,7 +179,6 @@ func (WindowSize) __VDLReflect(struct {
 }
 
 func (m *WindowSize) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_tunnel_v_io_x_ref_examples_tunnel_WindowSize == nil || __VDLTypetunnel2 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -154,7 +218,7 @@ func (m *WindowSize) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *WindowSize) MakeVDLTarget() vdl.Target {
-	return nil
+	return &WindowSizeTarget{Value: m}
 }
 
 type (
@@ -201,7 +265,6 @@ func (x ClientShellPacketStdin) Name() string                            { retur
 func (x ClientShellPacketStdin) __VDLReflect(__ClientShellPacketReflect) {}
 
 func (m ClientShellPacketStdin) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_tunnel_v_io_x_ref_examples_tunnel_ClientShellPacket)
 	if err != nil {
 		return err
@@ -234,7 +297,6 @@ func (x ClientShellPacketEndOfFile) Name() string                            { r
 func (x ClientShellPacketEndOfFile) __VDLReflect(__ClientShellPacketReflect) {}
 
 func (m ClientShellPacketEndOfFile) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_tunnel_v_io_x_ref_examples_tunnel_ClientShellPacket)
 	if err != nil {
 		return err
@@ -267,7 +329,6 @@ func (x ClientShellPacketWinSize) Name() string                            { ret
 func (x ClientShellPacketWinSize) __VDLReflect(__ClientShellPacketReflect) {}
 
 func (m ClientShellPacketWinSize) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_tunnel_v_io_x_ref_examples_tunnel_ClientShellPacket)
 	if err != nil {
 		return err
@@ -303,7 +364,6 @@ func (unused) __VDLReflect(struct {
 }
 
 func (m *unused) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_tunnel_v_io_x_ref_examples_tunnel_unused == nil || __VDLTypetunnel4 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -319,6 +379,31 @@ func (m *unused) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *unused) MakeVDLTarget() vdl.Target {
+	return &unusedTarget{Value: m}
+}
+
+type unusedTarget struct {
+	Value *unused
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *unusedTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_tunnel_v_io_x_ref_examples_tunnel_unused) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_tunnel_v_io_x_ref_examples_tunnel_unused)
+	}
+	return t, nil
+}
+func (t *unusedTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_tunnel_v_io_x_ref_examples_tunnel_unused)
+	}
+}
+func (t *unusedTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *unusedTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -360,7 +445,6 @@ func (x ServerShellPacketStdout) Name() string                            { retu
 func (x ServerShellPacketStdout) __VDLReflect(__ServerShellPacketReflect) {}
 
 func (m ServerShellPacketStdout) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_tunnel_v_io_x_ref_examples_tunnel_ServerShellPacket)
 	if err != nil {
 		return err
@@ -393,7 +477,6 @@ func (x ServerShellPacketStderr) Name() string                            { retu
 func (x ServerShellPacketStderr) __VDLReflect(__ServerShellPacketReflect) {}
 
 func (m ServerShellPacketStderr) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_tunnel_v_io_x_ref_examples_tunnel_ServerShellPacket)
 	if err != nil {
 		return err

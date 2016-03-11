@@ -11,11 +11,13 @@ package base
 import (
 	"fmt"
 	"io"
+	"reflect"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlconv"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 )
@@ -27,14 +29,27 @@ func (NamedBool) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedBool) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromBool(bool(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedBool); err != nil {
+func (m *NamedBool) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromBool(bool((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedBool); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedBool) MakeVDLTarget() vdl.Target {
+func (m *NamedBool) MakeVDLTarget() vdl.Target {
+	return &NamedBoolTarget{Value: m}
+}
+
+type NamedBoolTarget struct {
+	Value *NamedBool
+	vdl.TargetBase
+}
+
+func (t *NamedBoolTarget) FromBool(src bool, tt *vdl.Type) error {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedBool) {
+		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedBool)
+	}
+	*t.Value = NamedBool(src)
 	return nil
 }
 
@@ -45,14 +60,52 @@ func (NamedByte) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedByte) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedByte); err != nil {
+func (m *NamedByte) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedByte); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedByte) MakeVDLTarget() vdl.Target {
+func (m *NamedByte) MakeVDLTarget() vdl.Target {
+	return &NamedByteTarget{Value: m}
+}
+
+type NamedByteTarget struct {
+	Value *NamedByte
+	vdl.TargetBase
+}
+
+func (t *NamedByteTarget) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedByte(val)
+	return nil
+}
+func (t *NamedByteTarget) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedByte(val)
+	return nil
+}
+func (t *NamedByteTarget) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedByte(val)
+	return nil
+}
+func (t *NamedByteTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedByte(val)
 	return nil
 }
 
@@ -63,14 +116,52 @@ func (NamedUint16) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedUint16) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedUint16); err != nil {
+func (m *NamedUint16) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedUint16); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedUint16) MakeVDLTarget() vdl.Target {
+func (m *NamedUint16) MakeVDLTarget() vdl.Target {
+	return &NamedUint16Target{Value: m}
+}
+
+type NamedUint16Target struct {
+	Value *NamedUint16
+	vdl.TargetBase
+}
+
+func (t *NamedUint16Target) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToUint16(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedUint16(val)
+	return nil
+}
+func (t *NamedUint16Target) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToUint16(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedUint16(val)
+	return nil
+}
+func (t *NamedUint16Target) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToUint16(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedUint16(val)
+	return nil
+}
+func (t *NamedUint16Target) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToUint16(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedUint16(val)
 	return nil
 }
 
@@ -81,14 +172,52 @@ func (NamedUint32) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedUint32) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedUint32); err != nil {
+func (m *NamedUint32) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedUint32); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedUint32) MakeVDLTarget() vdl.Target {
+func (m *NamedUint32) MakeVDLTarget() vdl.Target {
+	return &NamedUint32Target{Value: m}
+}
+
+type NamedUint32Target struct {
+	Value *NamedUint32
+	vdl.TargetBase
+}
+
+func (t *NamedUint32Target) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToUint32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedUint32(val)
+	return nil
+}
+func (t *NamedUint32Target) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToUint32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedUint32(val)
+	return nil
+}
+func (t *NamedUint32Target) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToUint32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedUint32(val)
+	return nil
+}
+func (t *NamedUint32Target) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToUint32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedUint32(val)
 	return nil
 }
 
@@ -99,14 +228,48 @@ func (NamedUint64) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedUint64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedUint64); err != nil {
+func (m *NamedUint64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedUint64); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedUint64) MakeVDLTarget() vdl.Target {
+func (m *NamedUint64) MakeVDLTarget() vdl.Target {
+	return &NamedUint64Target{Value: m}
+}
+
+type NamedUint64Target struct {
+	Value *NamedUint64
+	vdl.TargetBase
+}
+
+func (t *NamedUint64Target) FromUint(src uint64, tt *vdl.Type) error {
+	*t.Value = NamedUint64(src)
+	return nil
+}
+func (t *NamedUint64Target) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToUint64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedUint64(val)
+	return nil
+}
+func (t *NamedUint64Target) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToUint64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedUint64(val)
+	return nil
+}
+func (t *NamedUint64Target) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToUint64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedUint64(val)
 	return nil
 }
 
@@ -117,14 +280,52 @@ func (NamedInt8) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedInt8) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedInt8); err != nil {
+func (m *NamedInt8) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedInt8); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedInt8) MakeVDLTarget() vdl.Target {
+func (m *NamedInt8) MakeVDLTarget() vdl.Target {
+	return &NamedInt8Target{Value: m}
+}
+
+type NamedInt8Target struct {
+	Value *NamedInt8
+	vdl.TargetBase
+}
+
+func (t *NamedInt8Target) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToInt8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt8(val)
+	return nil
+}
+func (t *NamedInt8Target) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToInt8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt8(val)
+	return nil
+}
+func (t *NamedInt8Target) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToInt8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt8(val)
+	return nil
+}
+func (t *NamedInt8Target) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToInt8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt8(val)
 	return nil
 }
 
@@ -135,14 +336,52 @@ func (NamedInt16) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedInt16) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedInt16); err != nil {
+func (m *NamedInt16) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedInt16); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedInt16) MakeVDLTarget() vdl.Target {
+func (m *NamedInt16) MakeVDLTarget() vdl.Target {
+	return &NamedInt16Target{Value: m}
+}
+
+type NamedInt16Target struct {
+	Value *NamedInt16
+	vdl.TargetBase
+}
+
+func (t *NamedInt16Target) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToInt16(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt16(val)
+	return nil
+}
+func (t *NamedInt16Target) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToInt16(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt16(val)
+	return nil
+}
+func (t *NamedInt16Target) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToInt16(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt16(val)
+	return nil
+}
+func (t *NamedInt16Target) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToInt16(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt16(val)
 	return nil
 }
 
@@ -153,14 +392,52 @@ func (NamedInt32) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedInt32) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedInt32); err != nil {
+func (m *NamedInt32) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedInt32); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedInt32) MakeVDLTarget() vdl.Target {
+func (m *NamedInt32) MakeVDLTarget() vdl.Target {
+	return &NamedInt32Target{Value: m}
+}
+
+type NamedInt32Target struct {
+	Value *NamedInt32
+	vdl.TargetBase
+}
+
+func (t *NamedInt32Target) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt32(val)
+	return nil
+}
+func (t *NamedInt32Target) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt32(val)
+	return nil
+}
+func (t *NamedInt32Target) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt32(val)
+	return nil
+}
+func (t *NamedInt32Target) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt32(val)
 	return nil
 }
 
@@ -171,14 +448,48 @@ func (NamedInt64) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedInt64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedInt64); err != nil {
+func (m *NamedInt64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedInt64); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedInt64) MakeVDLTarget() vdl.Target {
+func (m *NamedInt64) MakeVDLTarget() vdl.Target {
+	return &NamedInt64Target{Value: m}
+}
+
+type NamedInt64Target struct {
+	Value *NamedInt64
+	vdl.TargetBase
+}
+
+func (t *NamedInt64Target) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToInt64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt64(val)
+	return nil
+}
+func (t *NamedInt64Target) FromInt(src int64, tt *vdl.Type) error {
+	*t.Value = NamedInt64(src)
+	return nil
+}
+func (t *NamedInt64Target) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToInt64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt64(val)
+	return nil
+}
+func (t *NamedInt64Target) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToInt64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedInt64(val)
 	return nil
 }
 
@@ -189,14 +500,52 @@ func (NamedFloat32) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedFloat32) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromFloat(float64(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedFloat32); err != nil {
+func (m *NamedFloat32) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromFloat(float64((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedFloat32); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedFloat32) MakeVDLTarget() vdl.Target {
+func (m *NamedFloat32) MakeVDLTarget() vdl.Target {
+	return &NamedFloat32Target{Value: m}
+}
+
+type NamedFloat32Target struct {
+	Value *NamedFloat32
+	vdl.TargetBase
+}
+
+func (t *NamedFloat32Target) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToFloat32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedFloat32(val)
+	return nil
+}
+func (t *NamedFloat32Target) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToFloat32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedFloat32(val)
+	return nil
+}
+func (t *NamedFloat32Target) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToFloat32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedFloat32(val)
+	return nil
+}
+func (t *NamedFloat32Target) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToFloat32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedFloat32(val)
 	return nil
 }
 
@@ -207,14 +556,48 @@ func (NamedFloat64) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedFloat64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromFloat(float64(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedFloat64); err != nil {
+func (m *NamedFloat64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromFloat(float64((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedFloat64); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedFloat64) MakeVDLTarget() vdl.Target {
+func (m *NamedFloat64) MakeVDLTarget() vdl.Target {
+	return &NamedFloat64Target{Value: m}
+}
+
+type NamedFloat64Target struct {
+	Value *NamedFloat64
+	vdl.TargetBase
+}
+
+func (t *NamedFloat64Target) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToFloat64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedFloat64(val)
+	return nil
+}
+func (t *NamedFloat64Target) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToFloat64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedFloat64(val)
+	return nil
+}
+func (t *NamedFloat64Target) FromFloat(src float64, tt *vdl.Type) error {
+	*t.Value = NamedFloat64(src)
+	return nil
+}
+func (t *NamedFloat64Target) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToFloat64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedFloat64(val)
 	return nil
 }
 
@@ -225,14 +608,52 @@ func (NamedComplex64) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedComplex64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromComplex(complex128(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedComplex64); err != nil {
+func (m *NamedComplex64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromComplex(complex128((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedComplex64); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedComplex64) MakeVDLTarget() vdl.Target {
+func (m *NamedComplex64) MakeVDLTarget() vdl.Target {
+	return &NamedComplex64Target{Value: m}
+}
+
+type NamedComplex64Target struct {
+	Value *NamedComplex64
+	vdl.TargetBase
+}
+
+func (t *NamedComplex64Target) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToComplex64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedComplex64(val)
+	return nil
+}
+func (t *NamedComplex64Target) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToComplex64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedComplex64(val)
+	return nil
+}
+func (t *NamedComplex64Target) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToComplex64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedComplex64(val)
+	return nil
+}
+func (t *NamedComplex64Target) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToComplex64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedComplex64(val)
 	return nil
 }
 
@@ -243,14 +664,48 @@ func (NamedComplex128) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedComplex128) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromComplex(complex128(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedComplex128); err != nil {
+func (m *NamedComplex128) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromComplex(complex128((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedComplex128); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedComplex128) MakeVDLTarget() vdl.Target {
+func (m *NamedComplex128) MakeVDLTarget() vdl.Target {
+	return &NamedComplex128Target{Value: m}
+}
+
+type NamedComplex128Target struct {
+	Value *NamedComplex128
+	vdl.TargetBase
+}
+
+func (t *NamedComplex128Target) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToComplex128(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedComplex128(val)
+	return nil
+}
+func (t *NamedComplex128Target) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToComplex128(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedComplex128(val)
+	return nil
+}
+func (t *NamedComplex128Target) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToComplex128(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = NamedComplex128(val)
+	return nil
+}
+func (t *NamedComplex128Target) FromComplex(src complex128, tt *vdl.Type) error {
+	*t.Value = NamedComplex128(src)
 	return nil
 }
 
@@ -261,14 +716,27 @@ func (NamedString) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedString) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromString(string(m), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedString); err != nil {
+func (m *NamedString) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromString(string((*m)), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedString); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedString) MakeVDLTarget() vdl.Target {
+func (m *NamedString) MakeVDLTarget() vdl.Target {
+	return &NamedStringTarget{Value: m}
+}
+
+type NamedStringTarget struct {
+	Value *NamedString
+	vdl.TargetBase
+}
+
+func (t *NamedStringTarget) FromString(src string, tt *vdl.Type) error {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedString) {
+		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedString)
+	}
+	*t.Value = NamedString(src)
 	return nil
 }
 
@@ -325,14 +793,36 @@ func (NamedEnum) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedEnum) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromEnumLabel(m.String(), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedEnum); err != nil {
+func (m *NamedEnum) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromEnumLabel((*m).String(), __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedEnum); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m NamedEnum) MakeVDLTarget() vdl.Target {
+func (m *NamedEnum) MakeVDLTarget() vdl.Target {
+	return &NamedEnumTarget{Value: m}
+}
+
+type NamedEnumTarget struct {
+	Value *NamedEnum
+	vdl.TargetBase
+}
+
+func (t *NamedEnumTarget) FromEnumLabel(src string, tt *vdl.Type) error {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedEnum) {
+		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedEnum)
+	}
+	switch src {
+	case "A":
+		*t.Value = 0
+	case "B":
+		*t.Value = 1
+	case "C":
+		*t.Value = 2
+	default:
+		return fmt.Errorf("label %s not in enum %v", src, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedEnum)
+	}
 	return nil
 }
 
@@ -343,13 +833,12 @@ func (NamedArray) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
+func (m *NamedArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	listTarget1, err := t.StartList(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedArray, 2)
 	if err != nil {
 		return err
 	}
-	for i, elem3 := range m {
+	for i, elem3 := range *m {
 		elemTarget2, err := listTarget1.StartElem(i)
 		if err != nil {
 			return err
@@ -367,7 +856,29 @@ func (m NamedArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	return nil
 }
 
-func (m NamedArray) MakeVDLTarget() vdl.Target {
+func (m *NamedArray) MakeVDLTarget() vdl.Target {
+	return &NamedArrayTarget{Value: m}
+}
+
+type NamedArrayTarget struct {
+	Value *NamedArray
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *NamedArrayTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedArray) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedArray)
+	}
+	return t, nil
+}
+func (t *NamedArrayTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &vdl.BoolTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *NamedArrayTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *NamedArrayTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -378,13 +889,12 @@ func (NamedList) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedList) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
-	listTarget1, err := t.StartList(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedList, len(m))
+func (m *NamedList) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	listTarget1, err := t.StartList(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedList, len((*m)))
 	if err != nil {
 		return err
 	}
-	for i, elem3 := range m {
+	for i, elem3 := range *m {
 		elemTarget2, err := listTarget1.StartElem(i)
 		if err != nil {
 			return err
@@ -402,7 +912,34 @@ func (m NamedList) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	return nil
 }
 
-func (m NamedList) MakeVDLTarget() vdl.Target {
+func (m *NamedList) MakeVDLTarget() vdl.Target {
+	return &NamedListTarget{Value: m}
+}
+
+type NamedListTarget struct {
+	Value *NamedList
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *NamedListTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedList) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedList)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make(NamedList, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *NamedListTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &vdl.Uint32Target{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *NamedListTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *NamedListTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -413,13 +950,12 @@ func (NamedSet) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedSet) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
-	setTarget1, err := t.StartSet(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedSet, len(m))
+func (m *NamedSet) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	setTarget1, err := t.StartSet(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedSet, len((*m)))
 	if err != nil {
 		return err
 	}
-	for key3 := range m {
+	for key3 := range *m {
 		keyTarget2, err := setTarget1.StartKey()
 		if err != nil {
 			return err
@@ -437,7 +973,36 @@ func (m NamedSet) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	return nil
 }
 
-func (m NamedSet) MakeVDLTarget() vdl.Target {
+func (m *NamedSet) MakeVDLTarget() vdl.Target {
+	return &NamedSetTarget{Value: m}
+}
+
+type NamedSetTarget struct {
+	Value   *NamedSet
+	currKey string
+	vdl.TargetBase
+	vdl.SetTargetBase
+}
+
+func (t *NamedSetTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedSet) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedSet)
+	}
+	*t.Value = make(NamedSet)
+	return t, nil
+}
+func (t *NamedSetTarget) StartKey() (key vdl.Target, _ error) {
+	t.currKey = ""
+	return &vdl.StringTarget{Value: &t.currKey}, error(nil)
+}
+func (t *NamedSetTarget) FinishKey(key vdl.Target) error {
+	(*t.Value)[t.currKey] = struct{}{}
+	return nil
+}
+func (t *NamedSetTarget) FinishSet(list vdl.SetTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
 	return nil
 }
 
@@ -448,13 +1013,12 @@ func (NamedMap) __VDLReflect(struct {
 }) {
 }
 
-func (m NamedMap) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
-	mapTarget1, err := t.StartMap(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedMap, len(m))
+func (m *NamedMap) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	mapTarget1, err := t.StartMap(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedMap, len((*m)))
 	if err != nil {
 		return err
 	}
-	for key3, value5 := range m {
+	for key3, value5 := range *m {
 		keyTarget2, err := mapTarget1.StartKey()
 		if err != nil {
 			return err
@@ -479,7 +1043,41 @@ func (m NamedMap) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	return nil
 }
 
-func (m NamedMap) MakeVDLTarget() vdl.Target {
+func (m *NamedMap) MakeVDLTarget() vdl.Target {
+	return &NamedMapTarget{Value: m}
+}
+
+type NamedMapTarget struct {
+	Value    *NamedMap
+	currKey  string
+	currElem float32
+	vdl.TargetBase
+	vdl.MapTargetBase
+}
+
+func (t *NamedMapTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedMap) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedMap)
+	}
+	*t.Value = make(NamedMap)
+	return t, nil
+}
+func (t *NamedMapTarget) StartKey() (key vdl.Target, _ error) {
+	t.currKey = ""
+	return &vdl.StringTarget{Value: &t.currKey}, error(nil)
+}
+func (t *NamedMapTarget) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+	t.currElem = float32(0)
+	return &vdl.Float32Target{Value: &t.currElem}, error(nil)
+}
+func (t *NamedMapTarget) FinishField(key, field vdl.Target) error {
+	(*t.Value)[t.currKey] = t.currElem
+	return nil
+}
+func (t *NamedMapTarget) FinishMap(elem vdl.MapTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
 	return nil
 }
 
@@ -495,7 +1093,6 @@ func (NamedStruct) __VDLReflect(struct {
 }
 
 func (m *NamedStruct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedStruct == nil || __VDLTypebase0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -547,6 +1144,40 @@ func (m *NamedStruct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *NamedStruct) MakeVDLTarget() vdl.Target {
+	return &NamedStructTarget{Value: m}
+}
+
+type NamedStructTarget struct {
+	Value *NamedStruct
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *NamedStructTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedStruct) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedStruct)
+	}
+	return t, nil
+}
+func (t *NamedStructTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "A":
+		val, err := &vdl.BoolTarget{Value: &t.Value.A}, error(nil)
+		return nil, val, err
+	case "B":
+		val, err := &vdl.StringTarget{Value: &t.Value.B}, error(nil)
+		return nil, val, err
+	case "C":
+		val, err := &vdl.Int32Target{Value: &t.Value.C}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedStruct)
+	}
+}
+func (t *NamedStructTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *NamedStructTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -587,7 +1218,6 @@ func (x NamedUnionA) Name() string                     { return "A" }
 func (x NamedUnionA) __VDLReflect(__NamedUnionReflect) {}
 
 func (m NamedUnionA) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedUnion)
 	if err != nil {
 		return err
@@ -619,7 +1249,6 @@ func (x NamedUnionB) Name() string                     { return "B" }
 func (x NamedUnionB) __VDLReflect(__NamedUnionReflect) {}
 
 func (m NamedUnionB) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedUnion)
 	if err != nil {
 		return err
@@ -651,7 +1280,6 @@ func (x NamedUnionC) Name() string                     { return "C" }
 func (x NamedUnionC) __VDLReflect(__NamedUnionReflect) {}
 
 func (m NamedUnionC) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NamedUnion)
 	if err != nil {
 		return err
@@ -719,7 +1347,6 @@ func (Scalars) __VDLReflect(struct {
 }
 
 func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Scalars == nil || __VDLTypebase1 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -1174,6 +1801,130 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Scalars) MakeVDLTarget() vdl.Target {
+	return &ScalarsTarget{Value: m}
+}
+
+type ScalarsTarget struct {
+	Value *Scalars
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ScalarsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Scalars) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Scalars)
+	}
+	return t, nil
+}
+func (t *ScalarsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "A0":
+		val, err := &vdl.BoolTarget{Value: &t.Value.A0}, error(nil)
+		return nil, val, err
+	case "A1":
+		val, err := &vdl.ByteTarget{Value: &t.Value.A1}, error(nil)
+		return nil, val, err
+	case "A2":
+		val, err := &vdl.Uint16Target{Value: &t.Value.A2}, error(nil)
+		return nil, val, err
+	case "A3":
+		val, err := &vdl.Uint32Target{Value: &t.Value.A3}, error(nil)
+		return nil, val, err
+	case "A4":
+		val, err := &vdl.Uint64Target{Value: &t.Value.A4}, error(nil)
+		return nil, val, err
+	case "A5":
+		val, err := &vdl.Int8Target{Value: &t.Value.A5}, error(nil)
+		return nil, val, err
+	case "A6":
+		val, err := &vdl.Int16Target{Value: &t.Value.A6}, error(nil)
+		return nil, val, err
+	case "A7":
+		val, err := &vdl.Int32Target{Value: &t.Value.A7}, error(nil)
+		return nil, val, err
+	case "A8":
+		val, err := &vdl.Int64Target{Value: &t.Value.A8}, error(nil)
+		return nil, val, err
+	case "A9":
+		val, err := &vdl.Float32Target{Value: &t.Value.A9}, error(nil)
+		return nil, val, err
+	case "A10":
+		val, err := &vdl.Float64Target{Value: &t.Value.A10}, error(nil)
+		return nil, val, err
+	case "A11":
+		val, err := &vdl.Complex64Target{Value: &t.Value.A11}, error(nil)
+		return nil, val, err
+	case "A12":
+		val, err := &vdl.Complex128Target{Value: &t.Value.A12}, error(nil)
+		return nil, val, err
+	case "A13":
+		val, err := &vdl.StringTarget{Value: &t.Value.A13}, error(nil)
+		return nil, val, err
+	case "A14":
+		val, err := &verror.ErrorTarget{Value: &t.Value.A14}, error(nil)
+		return nil, val, err
+	case "A15":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.A15))
+		return nil, val, err
+	case "A16":
+		val, err := &vdl.TypeObjectTarget{Value: &t.Value.A16}, error(nil)
+		return nil, val, err
+	case "B0":
+		val, err := &NamedBoolTarget{Value: &t.Value.B0}, error(nil)
+		return nil, val, err
+	case "B1":
+		val, err := &NamedByteTarget{Value: &t.Value.B1}, error(nil)
+		return nil, val, err
+	case "B2":
+		val, err := &NamedUint16Target{Value: &t.Value.B2}, error(nil)
+		return nil, val, err
+	case "B3":
+		val, err := &NamedUint32Target{Value: &t.Value.B3}, error(nil)
+		return nil, val, err
+	case "B4":
+		val, err := &NamedUint64Target{Value: &t.Value.B4}, error(nil)
+		return nil, val, err
+	case "B5":
+		val, err := &NamedInt8Target{Value: &t.Value.B5}, error(nil)
+		return nil, val, err
+	case "B6":
+		val, err := &NamedInt16Target{Value: &t.Value.B6}, error(nil)
+		return nil, val, err
+	case "B7":
+		val, err := &NamedInt32Target{Value: &t.Value.B7}, error(nil)
+		return nil, val, err
+	case "B8":
+		val, err := &NamedInt64Target{Value: &t.Value.B8}, error(nil)
+		return nil, val, err
+	case "B9":
+		val, err := &NamedFloat32Target{Value: &t.Value.B9}, error(nil)
+		return nil, val, err
+	case "B10":
+		val, err := &NamedFloat64Target{Value: &t.Value.B10}, error(nil)
+		return nil, val, err
+	case "B11":
+		val, err := &NamedComplex64Target{Value: &t.Value.B11}, error(nil)
+		return nil, val, err
+	case "B12":
+		val, err := &NamedComplex128Target{Value: &t.Value.B12}, error(nil)
+		return nil, val, err
+	case "B13":
+		val, err := &NamedStringTarget{Value: &t.Value.B13}, error(nil)
+		return nil, val, err
+	case "B14":
+		val, err := &NamedEnumTarget{Value: &t.Value.B14}, error(nil)
+		return nil, val, err
+	case "B15":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.B15))
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Scalars)
+	}
+}
+func (t *ScalarsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ScalarsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -1215,7 +1966,6 @@ func (KeyScalars) __VDLReflect(struct {
 }
 
 func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_KeyScalars == nil || __VDLTypebase2 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -1581,6 +2331,115 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *KeyScalars) MakeVDLTarget() vdl.Target {
+	return &KeyScalarsTarget{Value: m}
+}
+
+type KeyScalarsTarget struct {
+	Value *KeyScalars
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *KeyScalarsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_KeyScalars) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_KeyScalars)
+	}
+	return t, nil
+}
+func (t *KeyScalarsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "A0":
+		val, err := &vdl.BoolTarget{Value: &t.Value.A0}, error(nil)
+		return nil, val, err
+	case "A1":
+		val, err := &vdl.ByteTarget{Value: &t.Value.A1}, error(nil)
+		return nil, val, err
+	case "A2":
+		val, err := &vdl.Uint16Target{Value: &t.Value.A2}, error(nil)
+		return nil, val, err
+	case "A3":
+		val, err := &vdl.Uint32Target{Value: &t.Value.A3}, error(nil)
+		return nil, val, err
+	case "A4":
+		val, err := &vdl.Uint64Target{Value: &t.Value.A4}, error(nil)
+		return nil, val, err
+	case "A5":
+		val, err := &vdl.Int8Target{Value: &t.Value.A5}, error(nil)
+		return nil, val, err
+	case "A6":
+		val, err := &vdl.Int16Target{Value: &t.Value.A6}, error(nil)
+		return nil, val, err
+	case "A7":
+		val, err := &vdl.Int32Target{Value: &t.Value.A7}, error(nil)
+		return nil, val, err
+	case "A8":
+		val, err := &vdl.Int64Target{Value: &t.Value.A8}, error(nil)
+		return nil, val, err
+	case "A9":
+		val, err := &vdl.Float32Target{Value: &t.Value.A9}, error(nil)
+		return nil, val, err
+	case "A10":
+		val, err := &vdl.Float64Target{Value: &t.Value.A10}, error(nil)
+		return nil, val, err
+	case "A11":
+		val, err := &vdl.Complex64Target{Value: &t.Value.A11}, error(nil)
+		return nil, val, err
+	case "A12":
+		val, err := &vdl.Complex128Target{Value: &t.Value.A12}, error(nil)
+		return nil, val, err
+	case "A13":
+		val, err := &vdl.StringTarget{Value: &t.Value.A13}, error(nil)
+		return nil, val, err
+	case "B0":
+		val, err := &NamedBoolTarget{Value: &t.Value.B0}, error(nil)
+		return nil, val, err
+	case "B1":
+		val, err := &NamedByteTarget{Value: &t.Value.B1}, error(nil)
+		return nil, val, err
+	case "B2":
+		val, err := &NamedUint16Target{Value: &t.Value.B2}, error(nil)
+		return nil, val, err
+	case "B3":
+		val, err := &NamedUint32Target{Value: &t.Value.B3}, error(nil)
+		return nil, val, err
+	case "B4":
+		val, err := &NamedUint64Target{Value: &t.Value.B4}, error(nil)
+		return nil, val, err
+	case "B5":
+		val, err := &NamedInt8Target{Value: &t.Value.B5}, error(nil)
+		return nil, val, err
+	case "B6":
+		val, err := &NamedInt16Target{Value: &t.Value.B6}, error(nil)
+		return nil, val, err
+	case "B7":
+		val, err := &NamedInt32Target{Value: &t.Value.B7}, error(nil)
+		return nil, val, err
+	case "B8":
+		val, err := &NamedInt64Target{Value: &t.Value.B8}, error(nil)
+		return nil, val, err
+	case "B9":
+		val, err := &NamedFloat32Target{Value: &t.Value.B9}, error(nil)
+		return nil, val, err
+	case "B10":
+		val, err := &NamedFloat64Target{Value: &t.Value.B10}, error(nil)
+		return nil, val, err
+	case "B11":
+		val, err := &NamedComplex64Target{Value: &t.Value.B11}, error(nil)
+		return nil, val, err
+	case "B12":
+		val, err := &NamedComplex128Target{Value: &t.Value.B12}, error(nil)
+		return nil, val, err
+	case "B13":
+		val, err := &NamedStringTarget{Value: &t.Value.B13}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_KeyScalars)
+	}
+}
+func (t *KeyScalarsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *KeyScalarsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -1591,13 +2450,12 @@ func (ScalarsArray) __VDLReflect(struct {
 }) {
 }
 
-func (m ScalarsArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
+func (m *ScalarsArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	listTarget1, err := t.StartList(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_ScalarsArray, 2)
 	if err != nil {
 		return err
 	}
-	for i, elem3 := range m {
+	for i, elem3 := range *m {
 		elemTarget2, err := listTarget1.StartElem(i)
 		if err != nil {
 			return err
@@ -1616,7 +2474,29 @@ func (m ScalarsArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	return nil
 }
 
-func (m ScalarsArray) MakeVDLTarget() vdl.Target {
+func (m *ScalarsArray) MakeVDLTarget() vdl.Target {
+	return &ScalarsArrayTarget{Value: m}
+}
+
+type ScalarsArrayTarget struct {
+	Value *ScalarsArray
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *ScalarsArrayTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_ScalarsArray) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_ScalarsArray)
+	}
+	return t, nil
+}
+func (t *ScalarsArrayTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &ScalarsTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *ScalarsArrayTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *ScalarsArrayTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -1635,7 +2515,6 @@ func (Composites) __VDLReflect(struct {
 }
 
 func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Composites == nil || __VDLTypebase3 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -1852,6 +2731,237 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Composites) MakeVDLTarget() vdl.Target {
+	return &CompositesTarget{Value: m}
+}
+
+type CompositesTarget struct {
+	Value *Composites
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *CompositesTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Composites) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Composites)
+	}
+	return t, nil
+}
+func (t *CompositesTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "A0":
+		val, err := &ScalarsTarget{Value: &t.Value.A0}, error(nil)
+		return nil, val, err
+	case "A1":
+		val, err := &ScalarsArrayTarget{Value: &t.Value.A1}, error(nil)
+		return nil, val, err
+	case "A2":
+		val, err := &base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget{Value: &t.Value.A2}, error(nil)
+		return nil, val, err
+	case "A3":
+		val, err := &base7365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5dTarget{Value: &t.Value.A3}, error(nil)
+		return nil, val, err
+	case "A4":
+		val, err := &base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget{Value: &t.Value.A4}, error(nil)
+		return nil, val, err
+	case "A5":
+		val, err := &base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d636f6d706c6578313238Target{Value: &t.Value.A5}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Composites)
+	}
+}
+func (t *CompositesTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *CompositesTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget struct {
+	Value *[]Scalars
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypebase4) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypebase4)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]Scalars, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &ScalarsTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget) FinishList(elem vdl.ListTarget) error {
+	return nil
+}
+
+type base7365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5dTarget struct {
+	Value   *map[KeyScalars]struct{}
+	currKey KeyScalars
+	vdl.TargetBase
+	vdl.SetTargetBase
+}
+
+func (t *base7365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypebase5) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypebase5)
+	}
+	*t.Value = make(map[KeyScalars]struct{})
+	return t, nil
+}
+func (t *base7365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5dTarget) StartKey() (key vdl.Target, _ error) {
+	t.currKey = KeyScalars{}
+	return &KeyScalarsTarget{Value: &t.currKey}, error(nil)
+}
+func (t *base7365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5dTarget) FinishKey(key vdl.Target) error {
+	(*t.Value)[t.currKey] = struct{}{}
+	return nil
+}
+func (t *base7365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5dTarget) FinishSet(list vdl.SetTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
+	return nil
+}
+
+type base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget struct {
+	Value    *map[string]Scalars
+	currKey  string
+	currElem Scalars
+	vdl.TargetBase
+	vdl.MapTargetBase
+}
+
+func (t *base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypebase6) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypebase6)
+	}
+	*t.Value = make(map[string]Scalars)
+	return t, nil
+}
+func (t *base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget) StartKey() (key vdl.Target, _ error) {
+	t.currKey = ""
+	return &vdl.StringTarget{Value: &t.currKey}, error(nil)
+}
+func (t *base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+	t.currElem = Scalars{
+		A16: vdl.AnyType,
+		B15: NamedUnionA{false},
+	}
+	return &ScalarsTarget{Value: &t.currElem}, error(nil)
+}
+func (t *base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget) FinishField(key, field vdl.Target) error {
+	(*t.Value)[t.currKey] = t.currElem
+	return nil
+}
+func (t *base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget) FinishMap(elem vdl.MapTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
+	return nil
+}
+
+type base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d636f6d706c6578313238Target struct {
+	Value    *map[KeyScalars][]map[string]complex128
+	currKey  KeyScalars
+	currElem []map[string]complex128
+	vdl.TargetBase
+	vdl.MapTargetBase
+}
+
+func (t *base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d636f6d706c6578313238Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypebase7) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypebase7)
+	}
+	*t.Value = make(map[KeyScalars][]map[string]complex128)
+	return t, nil
+}
+func (t *base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d636f6d706c6578313238Target) StartKey() (key vdl.Target, _ error) {
+	t.currKey = KeyScalars{}
+	return &KeyScalarsTarget{Value: &t.currKey}, error(nil)
+}
+func (t *base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d636f6d706c6578313238Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+	t.currElem = []map[string]complex128(nil)
+	return &base5b5d6d61705b737472696e675d636f6d706c6578313238Target{Value: &t.currElem}, error(nil)
+}
+func (t *base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d636f6d706c6578313238Target) FinishField(key, field vdl.Target) error {
+	(*t.Value)[t.currKey] = t.currElem
+	return nil
+}
+func (t *base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d636f6d706c6578313238Target) FinishMap(elem vdl.MapTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
+	return nil
+}
+
+type base5b5d6d61705b737472696e675d636f6d706c6578313238Target struct {
+	Value *[]map[string]complex128
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *base5b5d6d61705b737472696e675d636f6d706c6578313238Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypebase8) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypebase8)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]map[string]complex128, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *base5b5d6d61705b737472696e675d636f6d706c6578313238Target) StartElem(index int) (elem vdl.Target, _ error) {
+	return &base6d61705b737472696e675d636f6d706c6578313238Target{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *base5b5d6d61705b737472696e675d636f6d706c6578313238Target) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *base5b5d6d61705b737472696e675d636f6d706c6578313238Target) FinishList(elem vdl.ListTarget) error {
+	return nil
+}
+
+type base6d61705b737472696e675d636f6d706c6578313238Target struct {
+	Value    *map[string]complex128
+	currKey  string
+	currElem complex128
+	vdl.TargetBase
+	vdl.MapTargetBase
+}
+
+func (t *base6d61705b737472696e675d636f6d706c6578313238Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypebase9) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypebase9)
+	}
+	*t.Value = make(map[string]complex128)
+	return t, nil
+}
+func (t *base6d61705b737472696e675d636f6d706c6578313238Target) StartKey() (key vdl.Target, _ error) {
+	t.currKey = ""
+	return &vdl.StringTarget{Value: &t.currKey}, error(nil)
+}
+func (t *base6d61705b737472696e675d636f6d706c6578313238Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+	t.currElem = complex128(0)
+	return &vdl.Complex128Target{Value: &t.currElem}, error(nil)
+}
+func (t *base6d61705b737472696e675d636f6d706c6578313238Target) FinishField(key, field vdl.Target) error {
+	(*t.Value)[t.currKey] = t.currElem
+	return nil
+}
+func (t *base6d61705b737472696e675d636f6d706c6578313238Target) FinishMap(elem vdl.MapTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
 	return nil
 }
 
@@ -1862,13 +2972,12 @@ func (CompositesArray) __VDLReflect(struct {
 }) {
 }
 
-func (m CompositesArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
+func (m *CompositesArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	listTarget1, err := t.StartList(__VDLType_base_v_io_x_ref_lib_vdl_testdata_base_CompositesArray, 2)
 	if err != nil {
 		return err
 	}
-	for i, elem3 := range m {
+	for i, elem3 := range *m {
 		elemTarget2, err := listTarget1.StartElem(i)
 		if err != nil {
 			return err
@@ -1887,7 +2996,29 @@ func (m CompositesArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	return nil
 }
 
-func (m CompositesArray) MakeVDLTarget() vdl.Target {
+func (m *CompositesArray) MakeVDLTarget() vdl.Target {
+	return &CompositesArrayTarget{Value: m}
+}
+
+type CompositesArrayTarget struct {
+	Value *CompositesArray
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *CompositesArrayTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_CompositesArray) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_CompositesArray)
+	}
+	return t, nil
+}
+func (t *CompositesArrayTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &CompositesTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *CompositesArrayTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *CompositesArrayTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -1905,7 +3036,6 @@ func (CompComp) __VDLReflect(struct {
 }
 
 func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_CompComp == nil || __VDLTypebase10 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -2093,6 +3223,183 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *CompComp) MakeVDLTarget() vdl.Target {
+	return &CompCompTarget{Value: m}
+}
+
+type CompCompTarget struct {
+	Value *CompComp
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *CompCompTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_CompComp) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_CompComp)
+	}
+	return t, nil
+}
+func (t *CompCompTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "A0":
+		val, err := &CompositesTarget{Value: &t.Value.A0}, error(nil)
+		return nil, val, err
+	case "A1":
+		val, err := &CompositesArrayTarget{Value: &t.Value.A1}, error(nil)
+		return nil, val, err
+	case "A2":
+		val, err := &base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget{Value: &t.Value.A2}, error(nil)
+		return nil, val, err
+	case "A3":
+		val, err := &base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget{Value: &t.Value.A3}, error(nil)
+		return nil, val, err
+	case "A4":
+		val, err := &base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget{Value: &t.Value.A4}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_CompComp)
+	}
+}
+func (t *CompCompTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *CompCompTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget struct {
+	Value *[]Composites
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypebase11) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypebase11)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]Composites, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &CompositesTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *base5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) FinishList(elem vdl.ListTarget) error {
+	return nil
+}
+
+type base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget struct {
+	Value    *map[string]Composites
+	currKey  string
+	currElem Composites
+	vdl.TargetBase
+	vdl.MapTargetBase
+}
+
+func (t *base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypebase12) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypebase12)
+	}
+	*t.Value = make(map[string]Composites)
+	return t, nil
+}
+func (t *base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartKey() (key vdl.Target, _ error) {
+	t.currKey = ""
+	return &vdl.StringTarget{Value: &t.currKey}, error(nil)
+}
+func (t *base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+	t.currElem = Composites{
+		A0: Scalars{
+			A16: vdl.AnyType,
+			B15: NamedUnionA{false},
+		},
+		A1: ScalarsArray{
+			{
+				A16: vdl.AnyType,
+				B15: NamedUnionA{false},
+			},
+			{
+				A16: vdl.AnyType,
+				B15: NamedUnionA{false},
+			},
+		},
+	}
+	return &CompositesTarget{Value: &t.currElem}, error(nil)
+}
+func (t *base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) FinishField(key, field vdl.Target) error {
+	(*t.Value)[t.currKey] = t.currElem
+	return nil
+}
+func (t *base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) FinishMap(elem vdl.MapTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
+	return nil
+}
+
+type base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget struct {
+	Value    *map[KeyScalars][]map[string]Composites
+	currKey  KeyScalars
+	currElem []map[string]Composites
+	vdl.TargetBase
+	vdl.MapTargetBase
+}
+
+func (t *base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypebase13) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypebase13)
+	}
+	*t.Value = make(map[KeyScalars][]map[string]Composites)
+	return t, nil
+}
+func (t *base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartKey() (key vdl.Target, _ error) {
+	t.currKey = KeyScalars{}
+	return &KeyScalarsTarget{Value: &t.currKey}, error(nil)
+}
+func (t *base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+	t.currElem = []map[string]Composites(nil)
+	return &base5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget{Value: &t.currElem}, error(nil)
+}
+func (t *base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) FinishField(key, field vdl.Target) error {
+	(*t.Value)[t.currKey] = t.currElem
+	return nil
+}
+func (t *base6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) FinishMap(elem vdl.MapTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
+	return nil
+}
+
+type base5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget struct {
+	Value *[]map[string]Composites
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *base5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypebase14) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypebase14)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]map[string]Composites, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *base5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &base6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *base5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *base5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -2109,7 +3416,6 @@ func (NestedArgs) __VDLReflect(struct {
 }
 
 func (m *NestedArgs) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NestedArgs == nil || __VDLTypebase15 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -2138,6 +3444,65 @@ func (m *NestedArgs) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *NestedArgs) MakeVDLTarget() vdl.Target {
+	return &NestedArgsTarget{Value: m}
+}
+
+type NestedArgsTarget struct {
+	Value *NestedArgs
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *NestedArgsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NestedArgs) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NestedArgs)
+	}
+	return t, nil
+}
+func (t *NestedArgsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Args":
+		val, err := &ArgsTarget{Value: &t.Value.Args}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_NestedArgs)
+	}
+}
+func (t *NestedArgsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *NestedArgsTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type ArgsTarget struct {
+	Value *Args
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ArgsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Args) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Args)
+	}
+	return t, nil
+}
+func (t *ArgsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "A":
+		val, err := &vdl.Int32Target{Value: &t.Value.A}, error(nil)
+		return nil, val, err
+	case "B":
+		val, err := &vdl.Int32Target{Value: &t.Value.B}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Args)
+	}
+}
+func (t *ArgsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ArgsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -2153,7 +3518,6 @@ func (Args) __VDLReflect(struct {
 }
 
 func (m *Args) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_base_v_io_x_ref_lib_vdl_testdata_base_Args == nil || __VDLTypebase16 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -2193,7 +3557,7 @@ func (m *Args) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Args) MakeVDLTarget() vdl.Target {
-	return nil
+	return &ArgsTarget{Value: m}
 }
 
 func init() {

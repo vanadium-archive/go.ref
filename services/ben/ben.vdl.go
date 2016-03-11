@@ -12,6 +12,7 @@
 package ben
 
 import (
+	"fmt"
 	"v.io/v23/vdl"
 )
 
@@ -28,7 +29,6 @@ func (Cpu) __VDLReflect(struct {
 }
 
 func (m *Cpu) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_ben_v_io_x_ref_services_ben_Cpu == nil || __VDLTypeben0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -80,6 +80,40 @@ func (m *Cpu) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Cpu) MakeVDLTarget() vdl.Target {
+	return &CpuTarget{Value: m}
+}
+
+type CpuTarget struct {
+	Value *Cpu
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *CpuTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_ben_v_io_x_ref_services_ben_Cpu) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_ben_v_io_x_ref_services_ben_Cpu)
+	}
+	return t, nil
+}
+func (t *CpuTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Architecture":
+		val, err := &vdl.StringTarget{Value: &t.Value.Architecture}, error(nil)
+		return nil, val, err
+	case "Description":
+		val, err := &vdl.StringTarget{Value: &t.Value.Description}, error(nil)
+		return nil, val, err
+	case "ClockSpeedMhz":
+		val, err := &vdl.Uint32Target{Value: &t.Value.ClockSpeedMhz}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_ben_v_io_x_ref_services_ben_Cpu)
+	}
+}
+func (t *CpuTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *CpuTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -95,7 +129,6 @@ func (Os) __VDLReflect(struct {
 }
 
 func (m *Os) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_ben_v_io_x_ref_services_ben_Os == nil || __VDLTypeben1 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -135,6 +168,37 @@ func (m *Os) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Os) MakeVDLTarget() vdl.Target {
+	return &OsTarget{Value: m}
+}
+
+type OsTarget struct {
+	Value *Os
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *OsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_ben_v_io_x_ref_services_ben_Os) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_ben_v_io_x_ref_services_ben_Os)
+	}
+	return t, nil
+}
+func (t *OsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Name":
+		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
+		return nil, val, err
+	case "Version":
+		val, err := &vdl.StringTarget{Value: &t.Value.Version}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_ben_v_io_x_ref_services_ben_Os)
+	}
+}
+func (t *OsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *OsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -151,7 +215,6 @@ func (Scenario) __VDLReflect(struct {
 }
 
 func (m *Scenario) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_ben_v_io_x_ref_services_ben_Scenario == nil || __VDLTypeben2 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -205,6 +268,40 @@ func (m *Scenario) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Scenario) MakeVDLTarget() vdl.Target {
+	return &ScenarioTarget{Value: m}
+}
+
+type ScenarioTarget struct {
+	Value *Scenario
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ScenarioTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_ben_v_io_x_ref_services_ben_Scenario) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_ben_v_io_x_ref_services_ben_Scenario)
+	}
+	return t, nil
+}
+func (t *ScenarioTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Cpu":
+		val, err := &CpuTarget{Value: &t.Value.Cpu}, error(nil)
+		return nil, val, err
+	case "Os":
+		val, err := &OsTarget{Value: &t.Value.Os}, error(nil)
+		return nil, val, err
+	case "Label":
+		val, err := &vdl.StringTarget{Value: &t.Value.Label}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_ben_v_io_x_ref_services_ben_Scenario)
+	}
+}
+func (t *ScenarioTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ScenarioTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -221,14 +318,27 @@ func (SourceCode) __VDLReflect(struct {
 }) {
 }
 
-func (m SourceCode) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromString(string(m), __VDLType_ben_v_io_x_ref_services_ben_SourceCode); err != nil {
+func (m *SourceCode) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromString(string((*m)), __VDLType_ben_v_io_x_ref_services_ben_SourceCode); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m SourceCode) MakeVDLTarget() vdl.Target {
+func (m *SourceCode) MakeVDLTarget() vdl.Target {
+	return &SourceCodeTarget{Value: m}
+}
+
+type SourceCodeTarget struct {
+	Value *SourceCode
+	vdl.TargetBase
+}
+
+func (t *SourceCodeTarget) FromString(src string, tt *vdl.Type) error {
+	if !vdl.Compatible(tt, __VDLType_ben_v_io_x_ref_services_ben_SourceCode) {
+		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_ben_v_io_x_ref_services_ben_SourceCode)
+	}
+	*t.Value = SourceCode(src)
 	return nil
 }
 
@@ -249,7 +359,6 @@ func (Run) __VDLReflect(struct {
 }
 
 func (m *Run) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_ben_v_io_x_ref_services_ben_Run == nil || __VDLTypeben3 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -349,6 +458,52 @@ func (m *Run) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Run) MakeVDLTarget() vdl.Target {
+	return &RunTarget{Value: m}
+}
+
+type RunTarget struct {
+	Value *Run
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *RunTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_ben_v_io_x_ref_services_ben_Run) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_ben_v_io_x_ref_services_ben_Run)
+	}
+	return t, nil
+}
+func (t *RunTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Name":
+		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
+		return nil, val, err
+	case "Iterations":
+		val, err := &vdl.Uint64Target{Value: &t.Value.Iterations}, error(nil)
+		return nil, val, err
+	case "NanoSecsPerOp":
+		val, err := &vdl.Float64Target{Value: &t.Value.NanoSecsPerOp}, error(nil)
+		return nil, val, err
+	case "AllocsPerOp":
+		val, err := &vdl.Uint64Target{Value: &t.Value.AllocsPerOp}, error(nil)
+		return nil, val, err
+	case "AllocedBytesPerOp":
+		val, err := &vdl.Uint64Target{Value: &t.Value.AllocedBytesPerOp}, error(nil)
+		return nil, val, err
+	case "MegaBytesPerSec":
+		val, err := &vdl.Float64Target{Value: &t.Value.MegaBytesPerSec}, error(nil)
+		return nil, val, err
+	case "Parallelism":
+		val, err := &vdl.Uint32Target{Value: &t.Value.Parallelism}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_ben_v_io_x_ref_services_ben_Run)
+	}
+}
+func (t *RunTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *RunTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

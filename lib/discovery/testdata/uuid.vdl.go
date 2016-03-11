@@ -8,6 +8,7 @@
 package testdata
 
 import (
+	"fmt"
 	"v.io/v23/vdl"
 )
 
@@ -25,7 +26,6 @@ func (UuidTestData) __VDLReflect(struct {
 }
 
 func (m *UuidTestData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_uuid_v_io_x_ref_lib_discovery_testdata_UuidTestData == nil || __VDLTypeuuid0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -65,6 +65,37 @@ func (m *UuidTestData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *UuidTestData) MakeVDLTarget() vdl.Target {
+	return &UuidTestDataTarget{Value: m}
+}
+
+type UuidTestDataTarget struct {
+	Value *UuidTestData
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *UuidTestDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_uuid_v_io_x_ref_lib_discovery_testdata_UuidTestData) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_uuid_v_io_x_ref_lib_discovery_testdata_UuidTestData)
+	}
+	return t, nil
+}
+func (t *UuidTestDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "In":
+		val, err := &vdl.StringTarget{Value: &t.Value.In}, error(nil)
+		return nil, val, err
+	case "Want":
+		val, err := &vdl.StringTarget{Value: &t.Value.Want}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_uuid_v_io_x_ref_lib_discovery_testdata_UuidTestData)
+	}
+}
+func (t *UuidTestDataTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *UuidTestDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

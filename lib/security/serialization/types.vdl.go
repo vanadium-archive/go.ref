@@ -8,6 +8,7 @@
 package serialization
 
 import (
+	"fmt"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 )
@@ -22,7 +23,6 @@ func (SignedHeader) __VDLReflect(struct {
 }
 
 func (m *SignedHeader) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_lib_security_serialization_SignedHeader == nil || __VDLTypetypes0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -50,6 +50,34 @@ func (m *SignedHeader) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *SignedHeader) MakeVDLTarget() vdl.Target {
+	return &SignedHeaderTarget{Value: m}
+}
+
+type SignedHeaderTarget struct {
+	Value *SignedHeader
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *SignedHeaderTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_lib_security_serialization_SignedHeader) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_lib_security_serialization_SignedHeader)
+	}
+	return t, nil
+}
+func (t *SignedHeaderTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "ChunkSizeBytes":
+		val, err := &vdl.Int64Target{Value: &t.Value.ChunkSizeBytes}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_lib_security_serialization_SignedHeader)
+	}
+}
+func (t *SignedHeaderTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *SignedHeaderTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -60,15 +88,27 @@ func (HashCode) __VDLReflect(struct {
 }) {
 }
 
-func (m HashCode) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
-	if err := t.FromBytes([]byte(m[:]), __VDLType_types_v_io_x_ref_lib_security_serialization_HashCode); err != nil {
+func (m *HashCode) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromBytes([]byte((*m)[:]), __VDLType_types_v_io_x_ref_lib_security_serialization_HashCode); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m HashCode) MakeVDLTarget() vdl.Target {
+func (m *HashCode) MakeVDLTarget() vdl.Target {
+	return &HashCodeTarget{Value: m}
+}
+
+type HashCodeTarget struct {
+	Value *HashCode
+	vdl.TargetBase
+}
+
+func (t *HashCodeTarget) FromBytes(src []byte, tt *vdl.Type) error {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_lib_security_serialization_HashCode) {
+		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_lib_security_serialization_HashCode)
+	}
+	copy((*t.Value)[:], src)
 	return nil
 }
 
@@ -108,7 +148,6 @@ func (x SignedDataSignature) Name() string                     { return "Signatu
 func (x SignedDataSignature) __VDLReflect(__SignedDataReflect) {}
 
 func (m SignedDataSignature) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_lib_security_serialization_SignedData)
 	if err != nil {
 		return err
@@ -141,7 +180,6 @@ func (x SignedDataHash) Name() string                     { return "Hash" }
 func (x SignedDataHash) __VDLReflect(__SignedDataReflect) {}
 
 func (m SignedDataHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_lib_security_serialization_SignedData)
 	if err != nil {
 		return err

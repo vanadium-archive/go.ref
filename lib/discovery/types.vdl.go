@@ -8,8 +8,10 @@
 package discovery
 
 import (
+	"fmt"
 	"v.io/v23/discovery"
 	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlconv"
 )
 
 type EncryptionAlgorithm int32
@@ -19,14 +21,52 @@ func (EncryptionAlgorithm) __VDLReflect(struct {
 }) {
 }
 
-func (m EncryptionAlgorithm) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_types_v_io_x_ref_lib_discovery_EncryptionAlgorithm); err != nil {
+func (m *EncryptionAlgorithm) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_types_v_io_x_ref_lib_discovery_EncryptionAlgorithm); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m EncryptionAlgorithm) MakeVDLTarget() vdl.Target {
+func (m *EncryptionAlgorithm) MakeVDLTarget() vdl.Target {
+	return &EncryptionAlgorithmTarget{Value: m}
+}
+
+type EncryptionAlgorithmTarget struct {
+	Value *EncryptionAlgorithm
+	vdl.TargetBase
+}
+
+func (t *EncryptionAlgorithmTarget) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = EncryptionAlgorithm(val)
+	return nil
+}
+func (t *EncryptionAlgorithmTarget) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = EncryptionAlgorithm(val)
+	return nil
+}
+func (t *EncryptionAlgorithmTarget) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = EncryptionAlgorithm(val)
+	return nil
+}
+func (t *EncryptionAlgorithmTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = EncryptionAlgorithm(val)
 	return nil
 }
 
@@ -37,15 +77,32 @@ func (EncryptionKey) __VDLReflect(struct {
 }) {
 }
 
-func (m EncryptionKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
-	if err := t.FromBytes([]byte(m), __VDLType_types_v_io_x_ref_lib_discovery_EncryptionKey); err != nil {
+func (m *EncryptionKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromBytes([]byte((*m)), __VDLType_types_v_io_x_ref_lib_discovery_EncryptionKey); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m EncryptionKey) MakeVDLTarget() vdl.Target {
+func (m *EncryptionKey) MakeVDLTarget() vdl.Target {
+	return &EncryptionKeyTarget{Value: m}
+}
+
+type EncryptionKeyTarget struct {
+	Value *EncryptionKey
+	vdl.TargetBase
+}
+
+func (t *EncryptionKeyTarget) FromBytes(src []byte, tt *vdl.Type) error {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_lib_discovery_EncryptionKey) {
+		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_lib_discovery_EncryptionKey)
+	}
+	if len(src) == 0 {
+		*t.Value = nil
+	} else {
+		*t.Value = make([]byte, len(src))
+		copy(*t.Value, src)
+	}
 	return nil
 }
 
@@ -56,15 +113,32 @@ func (Uuid) __VDLReflect(struct {
 }) {
 }
 
-func (m Uuid) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
-	if err := t.FromBytes([]byte(m), __VDLType_types_v_io_x_ref_lib_discovery_Uuid); err != nil {
+func (m *Uuid) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromBytes([]byte((*m)), __VDLType_types_v_io_x_ref_lib_discovery_Uuid); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m Uuid) MakeVDLTarget() vdl.Target {
+func (m *Uuid) MakeVDLTarget() vdl.Target {
+	return &UuidTarget{Value: m}
+}
+
+type UuidTarget struct {
+	Value *Uuid
+	vdl.TargetBase
+}
+
+func (t *UuidTarget) FromBytes(src []byte, tt *vdl.Type) error {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_lib_discovery_Uuid) {
+		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_lib_discovery_Uuid)
+	}
+	if len(src) == 0 {
+		*t.Value = nil
+	} else {
+		*t.Value = make([]byte, len(src))
+		copy(*t.Value, src)
+	}
 	return nil
 }
 
@@ -93,7 +167,6 @@ func (AdInfo) __VDLReflect(struct {
 }
 
 func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_lib_discovery_AdInfo == nil || __VDLTypetypes0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -219,6 +292,89 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *AdInfo) MakeVDLTarget() vdl.Target {
+	return &AdInfoTarget{Value: m}
+}
+
+type AdInfoTarget struct {
+	Value *AdInfo
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *AdInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_lib_discovery_AdInfo) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_lib_discovery_AdInfo)
+	}
+	return t, nil
+}
+func (t *AdInfoTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Ad":
+		val, err := &discovery.AdvertisementTarget{Value: &t.Value.Ad}, error(nil)
+		return nil, val, err
+	case "EncryptionAlgorithm":
+		val, err := &EncryptionAlgorithmTarget{Value: &t.Value.EncryptionAlgorithm}, error(nil)
+		return nil, val, err
+	case "EncryptionKeys":
+		val, err := &types5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target{Value: &t.Value.EncryptionKeys}, error(nil)
+		return nil, val, err
+	case "Hash":
+		val, err := &AdHashTarget{Value: &t.Value.Hash}, error(nil)
+		return nil, val, err
+	case "DirAddrs":
+		val, err := &vdl.StringSliceTarget{Value: &t.Value.DirAddrs}, error(nil)
+		return nil, val, err
+	case "Lost":
+		val, err := &vdl.BoolTarget{Value: &t.Value.Lost}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_lib_discovery_AdInfo)
+	}
+}
+func (t *AdInfoTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *AdInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type types5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target struct {
+	Value *[]EncryptionKey
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *types5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypetypes1) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypetypes1)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]EncryptionKey, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *types5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartElem(index int) (elem vdl.Target, _ error) {
+	return &EncryptionKeyTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *types5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *types5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishList(elem vdl.ListTarget) error {
+	return nil
+}
+
+type AdHashTarget struct {
+	Value *AdHash
+	vdl.TargetBase
+}
+
+func (t *AdHashTarget) FromBytes(src []byte, tt *vdl.Type) error {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_lib_discovery_AdHash) {
+		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_lib_discovery_AdHash)
+	}
+	copy((*t.Value)[:], src)
 	return nil
 }
 
@@ -230,16 +386,15 @@ func (AdHash) __VDLReflect(struct {
 }) {
 }
 
-func (m AdHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
-	if err := t.FromBytes([]byte(m[:]), __VDLType_types_v_io_x_ref_lib_discovery_AdHash); err != nil {
+func (m *AdHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromBytes([]byte((*m)[:]), __VDLType_types_v_io_x_ref_lib_discovery_AdHash); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m AdHash) MakeVDLTarget() vdl.Target {
-	return nil
+func (m *AdHash) MakeVDLTarget() vdl.Target {
+	return &AdHashTarget{Value: m}
 }
 
 func init() {

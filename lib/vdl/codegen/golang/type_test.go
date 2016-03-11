@@ -216,8 +216,10 @@ func (m TestUnionB) MakeVDLTarget() vdl.Target {
 		File: &compile.File{
 			Package: &compile.Package{},
 		},
-		Env:         compile.NewEnv(-1),
-		typeDepends: newTypeDependencyNames()}
+		Env:            compile.NewEnv(-1),
+		typeDepends:    newTypeDependencyNames(),
+		createdTargets: make(map[*vdl.Type]bool),
+	}
 	for _, test := range tests {
 		firstLetter, _ := utf8.DecodeRuneInString(test.T.Name())
 		def := &compile.TypeDef{

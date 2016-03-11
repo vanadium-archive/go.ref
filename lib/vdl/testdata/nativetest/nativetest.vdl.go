@@ -9,9 +9,12 @@
 package nativetest
 
 import (
+	"fmt"
+	"reflect"
 	"time"
 	"v.io/v23/vdl"
 	"v.io/v23/vdl/testdata/nativetest"
+	"v.io/v23/vdl/vdlconv"
 )
 
 type WireString int32
@@ -21,14 +24,14 @@ func (WireString) __VDLReflect(struct {
 }) {
 }
 
-func (m WireString) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireString); err != nil {
+func (m *WireString) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireString); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m WireString) MakeVDLTarget() vdl.Target {
+func (m *WireString) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
@@ -39,14 +42,14 @@ func (WireMapStringInt) __VDLReflect(struct {
 }) {
 }
 
-func (m WireMapStringInt) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt); err != nil {
+func (m *WireMapStringInt) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m WireMapStringInt) MakeVDLTarget() vdl.Target {
+func (m *WireMapStringInt) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
@@ -57,14 +60,14 @@ func (WireTime) __VDLReflect(struct {
 }) {
 }
 
-func (m WireTime) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime); err != nil {
+func (m *WireTime) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m WireTime) MakeVDLTarget() vdl.Target {
+func (m *WireTime) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
@@ -75,14 +78,14 @@ func (WireSamePkg) __VDLReflect(struct {
 }) {
 }
 
-func (m WireSamePkg) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg); err != nil {
+func (m *WireSamePkg) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m WireSamePkg) MakeVDLTarget() vdl.Target {
+func (m *WireSamePkg) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
@@ -93,14 +96,14 @@ func (WireMultiImport) __VDLReflect(struct {
 }) {
 }
 
-func (m WireMultiImport) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport); err != nil {
+func (m *WireMultiImport) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m WireMultiImport) MakeVDLTarget() vdl.Target {
+func (m *WireMultiImport) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
@@ -111,14 +114,52 @@ func (WireRenameMe) __VDLReflect(struct {
 }) {
 }
 
-func (m WireRenameMe) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64(m), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireRenameMe); err != nil {
+func (m *WireRenameMe) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromInt(int64((*m)), __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireRenameMe); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m WireRenameMe) MakeVDLTarget() vdl.Target {
+func (m *WireRenameMe) MakeVDLTarget() vdl.Target {
+	return &WireRenameMeTarget{Value: m}
+}
+
+type WireRenameMeTarget struct {
+	Value *WireRenameMe
+	vdl.TargetBase
+}
+
+func (t *WireRenameMeTarget) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = WireRenameMe(val)
+	return nil
+}
+func (t *WireRenameMeTarget) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = WireRenameMe(val)
+	return nil
+}
+func (t *WireRenameMeTarget) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = WireRenameMe(val)
+	return nil
+}
+func (t *WireRenameMeTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToInt32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = WireRenameMe(val)
 	return nil
 }
 
@@ -137,7 +178,6 @@ func (WireAll) __VDLReflect(struct {
 }
 
 func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_nativetest()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -254,6 +294,49 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *WireAll) MakeVDLTarget() vdl.Target {
+	return &WireAllTarget{Value: m}
+}
+
+type WireAllTarget struct {
+	Value *WireAll
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *WireAllTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll)
+	}
+	return t, nil
+}
+func (t *WireAllTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "A":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.A))
+		return nil, val, err
+	case "B":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.B))
+		return nil, val, err
+	case "C":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.C))
+		return nil, val, err
+	case "D":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.D))
+		return nil, val, err
+	case "E":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.E))
+		return nil, val, err
+	case "F":
+		val, err := &WireRenameMeTarget{Value: &t.Value.F}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_nativetest_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll)
+	}
+}
+func (t *WireAllTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *WireAllTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

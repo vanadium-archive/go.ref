@@ -8,6 +8,8 @@
 package channel
 
 import (
+	"fmt"
+	"reflect"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 )
@@ -24,7 +26,6 @@ func (Request) __VDLReflect(struct {
 }
 
 func (m *Request) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_channel_v_io_x_ref_services_wspr_internal_channel_Request == nil || __VDLTypechannel0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -83,6 +84,40 @@ func (m *Request) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Request) MakeVDLTarget() vdl.Target {
+	return &RequestTarget{Value: m}
+}
+
+type RequestTarget struct {
+	Value *Request
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *RequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_channel_v_io_x_ref_services_wspr_internal_channel_Request) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_channel_v_io_x_ref_services_wspr_internal_channel_Request)
+	}
+	return t, nil
+}
+func (t *RequestTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Type":
+		val, err := &vdl.StringTarget{Value: &t.Value.Type}, error(nil)
+		return nil, val, err
+	case "Seq":
+		val, err := &vdl.Uint32Target{Value: &t.Value.Seq}, error(nil)
+		return nil, val, err
+	case "Body":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Body))
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_channel_v_io_x_ref_services_wspr_internal_channel_Request)
+	}
+}
+func (t *RequestTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *RequestTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -98,7 +133,6 @@ func (Response) __VDLReflect(struct {
 }
 
 func (m *Response) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_channel_v_io_x_ref_services_wspr_internal_channel_Response == nil || __VDLTypechannel1 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -157,6 +191,40 @@ func (m *Response) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Response) MakeVDLTarget() vdl.Target {
+	return &ResponseTarget{Value: m}
+}
+
+type ResponseTarget struct {
+	Value *Response
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_channel_v_io_x_ref_services_wspr_internal_channel_Response) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_channel_v_io_x_ref_services_wspr_internal_channel_Response)
+	}
+	return t, nil
+}
+func (t *ResponseTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "ReqSeq":
+		val, err := &vdl.Uint32Target{Value: &t.Value.ReqSeq}, error(nil)
+		return nil, val, err
+	case "Err":
+		val, err := &vdl.StringTarget{Value: &t.Value.Err}, error(nil)
+		return nil, val, err
+	case "Body":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Body))
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_channel_v_io_x_ref_services_wspr_internal_channel_Response)
+	}
+}
+func (t *ResponseTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -194,7 +262,6 @@ func (x MessageRequest) Name() string                  { return "Request" }
 func (x MessageRequest) __VDLReflect(__MessageReflect) {}
 
 func (m MessageRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_channel_v_io_x_ref_services_wspr_internal_channel_Message)
 	if err != nil {
 		return err
@@ -227,7 +294,6 @@ func (x MessageResponse) Name() string                  { return "Response" }
 func (x MessageResponse) __VDLReflect(__MessageReflect) {}
 
 func (m MessageResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_channel_v_io_x_ref_services_wspr_internal_channel_Message)
 	if err != nil {
 		return err

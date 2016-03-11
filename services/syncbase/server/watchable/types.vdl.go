@@ -9,6 +9,7 @@ package watchable
 
 import (
 	"fmt"
+	"reflect"
 	"v.io/v23/vdl"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 )
@@ -24,7 +25,6 @@ func (GetOp) __VDLReflect(struct {
 }
 
 func (m *GetOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_GetOp == nil || __VDLTypetypes0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -53,6 +53,34 @@ func (m *GetOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *GetOp) MakeVDLTarget() vdl.Target {
+	return &GetOpTarget{Value: m}
+}
+
+type GetOpTarget struct {
+	Value *GetOp
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *GetOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_GetOp) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_GetOp)
+	}
+	return t, nil
+}
+func (t *GetOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Key":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Key}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_GetOp)
+	}
+}
+func (t *GetOpTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *GetOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -68,7 +96,6 @@ func (ScanOp) __VDLReflect(struct {
 }
 
 func (m *ScanOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_ScanOp == nil || __VDLTypetypes2 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -110,6 +137,37 @@ func (m *ScanOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *ScanOp) MakeVDLTarget() vdl.Target {
+	return &ScanOpTarget{Value: m}
+}
+
+type ScanOpTarget struct {
+	Value *ScanOp
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ScanOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_ScanOp) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_ScanOp)
+	}
+	return t, nil
+}
+func (t *ScanOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Start":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Start}, error(nil)
+		return nil, val, err
+	case "Limit":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Limit}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_ScanOp)
+	}
+}
+func (t *ScanOpTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ScanOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -131,7 +189,6 @@ func (PutOp) __VDLReflect(struct {
 }
 
 func (m *PutOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_PutOp == nil || __VDLTypetypes3 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -199,6 +256,43 @@ func (m *PutOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *PutOp) MakeVDLTarget() vdl.Target {
+	return &PutOpTarget{Value: m}
+}
+
+type PutOpTarget struct {
+	Value *PutOp
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *PutOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_PutOp) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_PutOp)
+	}
+	return t, nil
+}
+func (t *PutOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Key":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Key}, error(nil)
+		return nil, val, err
+	case "Version":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Version}, error(nil)
+		return nil, val, err
+	case "PermKey":
+		val, err := &vdl.BytesTarget{Value: &t.Value.PermKey}, error(nil)
+		return nil, val, err
+	case "PermVersion":
+		val, err := &vdl.BytesTarget{Value: &t.Value.PermVersion}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_PutOp)
+	}
+}
+func (t *PutOpTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *PutOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -217,7 +311,6 @@ func (DeleteOp) __VDLReflect(struct {
 }
 
 func (m *DeleteOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_DeleteOp == nil || __VDLTypetypes4 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -272,6 +365,40 @@ func (m *DeleteOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *DeleteOp) MakeVDLTarget() vdl.Target {
+	return &DeleteOpTarget{Value: m}
+}
+
+type DeleteOpTarget struct {
+	Value *DeleteOp
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *DeleteOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_DeleteOp) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_DeleteOp)
+	}
+	return t, nil
+}
+func (t *DeleteOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Key":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Key}, error(nil)
+		return nil, val, err
+	case "PermKey":
+		val, err := &vdl.BytesTarget{Value: &t.Value.PermKey}, error(nil)
+		return nil, val, err
+	case "PermVersion":
+		val, err := &vdl.BytesTarget{Value: &t.Value.PermVersion}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_DeleteOp)
+	}
+}
+func (t *DeleteOpTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *DeleteOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -291,7 +418,6 @@ func (SyncgroupOp) __VDLReflect(struct {
 }
 
 func (m *SyncgroupOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_SyncgroupOp == nil || __VDLTypetypes5 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -361,6 +487,40 @@ func (m *SyncgroupOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *SyncgroupOp) MakeVDLTarget() vdl.Target {
+	return &SyncgroupOpTarget{Value: m}
+}
+
+type SyncgroupOpTarget struct {
+	Value *SyncgroupOp
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *SyncgroupOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_SyncgroupOp) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_SyncgroupOp)
+	}
+	return t, nil
+}
+func (t *SyncgroupOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "SgId":
+		val, err := &interfaces.GroupIdTarget{Value: &t.Value.SgId}, error(nil)
+		return nil, val, err
+	case "Prefixes":
+		val, err := &vdl.StringSliceTarget{Value: &t.Value.Prefixes}, error(nil)
+		return nil, val, err
+	case "Remove":
+		val, err := &vdl.BoolTarget{Value: &t.Value.Remove}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_SyncgroupOp)
+	}
+}
+func (t *SyncgroupOpTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *SyncgroupOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -386,7 +546,6 @@ func (SyncSnapshotOp) __VDLReflect(struct {
 }
 
 func (m *SyncSnapshotOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_SyncSnapshotOp == nil || __VDLTypetypes7 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -454,6 +613,43 @@ func (m *SyncSnapshotOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *SyncSnapshotOp) MakeVDLTarget() vdl.Target {
+	return &SyncSnapshotOpTarget{Value: m}
+}
+
+type SyncSnapshotOpTarget struct {
+	Value *SyncSnapshotOp
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *SyncSnapshotOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_SyncSnapshotOp) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_SyncSnapshotOp)
+	}
+	return t, nil
+}
+func (t *SyncSnapshotOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Key":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Key}, error(nil)
+		return nil, val, err
+	case "Version":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Version}, error(nil)
+		return nil, val, err
+	case "PermKey":
+		val, err := &vdl.BytesTarget{Value: &t.Value.PermKey}, error(nil)
+		return nil, val, err
+	case "PermVersion":
+		val, err := &vdl.BytesTarget{Value: &t.Value.PermVersion}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_SyncSnapshotOp)
+	}
+}
+func (t *SyncSnapshotOpTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *SyncSnapshotOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -505,14 +701,34 @@ func (StateChange) __VDLReflect(struct {
 }) {
 }
 
-func (m StateChange) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromEnumLabel(m.String(), __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_StateChange); err != nil {
+func (m *StateChange) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromEnumLabel((*m).String(), __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_StateChange); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m StateChange) MakeVDLTarget() vdl.Target {
+func (m *StateChange) MakeVDLTarget() vdl.Target {
+	return &StateChangeTarget{Value: m}
+}
+
+type StateChangeTarget struct {
+	Value *StateChange
+	vdl.TargetBase
+}
+
+func (t *StateChangeTarget) FromEnumLabel(src string, tt *vdl.Type) error {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_StateChange) {
+		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_StateChange)
+	}
+	switch src {
+	case "PauseSync":
+		*t.Value = 0
+	case "ResumeSync":
+		*t.Value = 1
+	default:
+		return fmt.Errorf("label %s not in enum %v", src, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_StateChange)
+	}
 	return nil
 }
 
@@ -531,7 +747,6 @@ func (DbStateChangeRequestOp) __VDLReflect(struct {
 }
 
 func (m *DbStateChangeRequestOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_DbStateChangeRequestOp == nil || __VDLTypetypes8 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -560,6 +775,34 @@ func (m *DbStateChangeRequestOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error
 }
 
 func (m *DbStateChangeRequestOp) MakeVDLTarget() vdl.Target {
+	return &DbStateChangeRequestOpTarget{Value: m}
+}
+
+type DbStateChangeRequestOpTarget struct {
+	Value *DbStateChangeRequestOp
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *DbStateChangeRequestOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_DbStateChangeRequestOp) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_DbStateChangeRequestOp)
+	}
+	return t, nil
+}
+func (t *DbStateChangeRequestOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "RequestType":
+		val, err := &StateChangeTarget{Value: &t.Value.RequestType}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_DbStateChangeRequestOp)
+	}
+}
+func (t *DbStateChangeRequestOpTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *DbStateChangeRequestOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -614,7 +857,6 @@ func (x OpGet) Name() string             { return "Get" }
 func (x OpGet) __VDLReflect(__OpReflect) {}
 
 func (m OpGet) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_services_syncbase_server_watchable_Op)
 	if err != nil {
 		return err
@@ -647,7 +889,6 @@ func (x OpScan) Name() string             { return "Scan" }
 func (x OpScan) __VDLReflect(__OpReflect) {}
 
 func (m OpScan) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_services_syncbase_server_watchable_Op)
 	if err != nil {
 		return err
@@ -680,7 +921,6 @@ func (x OpPut) Name() string             { return "Put" }
 func (x OpPut) __VDLReflect(__OpReflect) {}
 
 func (m OpPut) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_services_syncbase_server_watchable_Op)
 	if err != nil {
 		return err
@@ -713,7 +953,6 @@ func (x OpDelete) Name() string             { return "Delete" }
 func (x OpDelete) __VDLReflect(__OpReflect) {}
 
 func (m OpDelete) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_services_syncbase_server_watchable_Op)
 	if err != nil {
 		return err
@@ -746,7 +985,6 @@ func (x OpSyncgroup) Name() string             { return "Syncgroup" }
 func (x OpSyncgroup) __VDLReflect(__OpReflect) {}
 
 func (m OpSyncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_services_syncbase_server_watchable_Op)
 	if err != nil {
 		return err
@@ -779,7 +1017,6 @@ func (x OpSyncSnapshot) Name() string             { return "SyncSnapshot" }
 func (x OpSyncSnapshot) __VDLReflect(__OpReflect) {}
 
 func (m OpSyncSnapshot) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_services_syncbase_server_watchable_Op)
 	if err != nil {
 		return err
@@ -812,7 +1049,6 @@ func (x OpDbStateChangeRequest) Name() string             { return "DbStateChang
 func (x OpDbStateChangeRequest) __VDLReflect(__OpReflect) {}
 
 func (m OpDbStateChangeRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_types_v_io_x_ref_services_syncbase_server_watchable_Op)
 	if err != nil {
 		return err
@@ -862,7 +1098,6 @@ func (LogEntry) __VDLReflect(struct {
 }
 
 func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_LogEntry == nil || __VDLTypetypes9 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -931,6 +1166,43 @@ func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *LogEntry) MakeVDLTarget() vdl.Target {
+	return &LogEntryTarget{Value: m}
+}
+
+type LogEntryTarget struct {
+	Value *LogEntry
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *LogEntryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_LogEntry) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_LogEntry)
+	}
+	return t, nil
+}
+func (t *LogEntryTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Op":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Op))
+		return nil, val, err
+	case "CommitTimestamp":
+		val, err := &vdl.Int64Target{Value: &t.Value.CommitTimestamp}, error(nil)
+		return nil, val, err
+	case "FromSync":
+		val, err := &vdl.BoolTarget{Value: &t.Value.FromSync}, error(nil)
+		return nil, val, err
+	case "Continued":
+		val, err := &vdl.BoolTarget{Value: &t.Value.Continued}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_server_watchable_LogEntry)
+	}
+}
+func (t *LogEntryTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

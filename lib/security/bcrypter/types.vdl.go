@@ -8,6 +8,7 @@
 package bcrypter
 
 import (
+	"fmt"
 	"v.io/v23/vdl"
 )
 
@@ -32,7 +33,6 @@ func (WireCiphertext) __VDLReflect(struct {
 }
 
 func (m *WireCiphertext) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireCiphertext == nil || __VDLTypetypes0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -97,6 +97,71 @@ func (m *WireCiphertext) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *WireCiphertext) MakeVDLTarget() vdl.Target {
+	return &WireCiphertextTarget{Value: m}
+}
+
+type WireCiphertextTarget struct {
+	Value *WireCiphertext
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *WireCiphertextTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireCiphertext) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireCiphertext)
+	}
+	return t, nil
+}
+func (t *WireCiphertextTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "PatternId":
+		val, err := &vdl.StringTarget{Value: &t.Value.PatternId}, error(nil)
+		return nil, val, err
+	case "Bytes":
+		val, err := &types6d61705b737472696e675d5b5d62797465Target{Value: &t.Value.Bytes}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireCiphertext)
+	}
+}
+func (t *WireCiphertextTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *WireCiphertextTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type types6d61705b737472696e675d5b5d62797465Target struct {
+	Value    *map[string][]byte
+	currKey  string
+	currElem []byte
+	vdl.TargetBase
+	vdl.MapTargetBase
+}
+
+func (t *types6d61705b737472696e675d5b5d62797465Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypetypes1) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypetypes1)
+	}
+	*t.Value = make(map[string][]byte)
+	return t, nil
+}
+func (t *types6d61705b737472696e675d5b5d62797465Target) StartKey() (key vdl.Target, _ error) {
+	t.currKey = ""
+	return &vdl.StringTarget{Value: &t.currKey}, error(nil)
+}
+func (t *types6d61705b737472696e675d5b5d62797465Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+	t.currElem = []byte(nil)
+	return &vdl.BytesTarget{Value: &t.currElem}, error(nil)
+}
+func (t *types6d61705b737472696e675d5b5d62797465Target) FinishField(key, field vdl.Target) error {
+	(*t.Value)[t.currKey] = t.currElem
+	return nil
+}
+func (t *types6d61705b737472696e675d5b5d62797465Target) FinishMap(elem vdl.MapTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
 	return nil
 }
 
@@ -118,7 +183,6 @@ func (WireParams) __VDLReflect(struct {
 }
 
 func (m *WireParams) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireParams == nil || __VDLTypetypes3 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -159,6 +223,37 @@ func (m *WireParams) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *WireParams) MakeVDLTarget() vdl.Target {
+	return &WireParamsTarget{Value: m}
+}
+
+type WireParamsTarget struct {
+	Value *WireParams
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *WireParamsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireParams) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireParams)
+	}
+	return t, nil
+}
+func (t *WireParamsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Blessing":
+		val, err := &vdl.StringTarget{Value: &t.Value.Blessing}, error(nil)
+		return nil, val, err
+	case "Params":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Params}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_lib_security_bcrypter_WireParams)
+	}
+}
+func (t *WireParamsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *WireParamsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -193,7 +288,6 @@ func (WirePrivateKey) __VDLReflect(struct {
 }
 
 func (m *WirePrivateKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_lib_security_bcrypter_WirePrivateKey == nil || __VDLTypetypes4 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -264,6 +358,67 @@ func (m *WirePrivateKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *WirePrivateKey) MakeVDLTarget() vdl.Target {
+	return &WirePrivateKeyTarget{Value: m}
+}
+
+type WirePrivateKeyTarget struct {
+	Value *WirePrivateKey
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *WirePrivateKeyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_lib_security_bcrypter_WirePrivateKey) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_lib_security_bcrypter_WirePrivateKey)
+	}
+	return t, nil
+}
+func (t *WirePrivateKeyTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Blessing":
+		val, err := &vdl.StringTarget{Value: &t.Value.Blessing}, error(nil)
+		return nil, val, err
+	case "Params":
+		val, err := &WireParamsTarget{Value: &t.Value.Params}, error(nil)
+		return nil, val, err
+	case "Keys":
+		val, err := &types5b5d5b5d62797465Target{Value: &t.Value.Keys}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_lib_security_bcrypter_WirePrivateKey)
+	}
+}
+func (t *WirePrivateKeyTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *WirePrivateKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type types5b5d5b5d62797465Target struct {
+	Value *[][]byte
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *types5b5d5b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypetypes5) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypetypes5)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([][]byte, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *types5b5d5b5d62797465Target) StartElem(index int) (elem vdl.Target, _ error) {
+	return &vdl.BytesTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *types5b5d5b5d62797465Target) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *types5b5d5b5d62797465Target) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
