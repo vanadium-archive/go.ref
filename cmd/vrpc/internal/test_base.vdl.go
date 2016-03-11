@@ -97,6 +97,7 @@ func (t *StructTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *StructTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -153,6 +154,7 @@ func (t *Array2IntTarget) FinishElem(elem vdl.Target) error {
 	return nil
 }
 func (t *Array2IntTarget) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 

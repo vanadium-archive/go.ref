@@ -43,6 +43,7 @@ func (t *MyTimeTarget) FromUint(src uint64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = MyTime(val)
+
 	return nil
 }
 func (t *MyTimeTarget) FromInt(src int64, tt *vdl.Type) error {
@@ -51,6 +52,7 @@ func (t *MyTimeTarget) FromInt(src int64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = MyTime(val)
+
 	return nil
 }
 func (t *MyTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
@@ -59,6 +61,7 @@ func (t *MyTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = MyTime(val)
+
 	return nil
 }
 func (t *MyTimeTarget) FromComplex(src complex128, tt *vdl.Type) error {
@@ -67,6 +70,7 @@ func (t *MyTimeTarget) FromComplex(src complex128, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = MyTime(val)
+
 	return nil
 }
 

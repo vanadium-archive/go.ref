@@ -216,6 +216,7 @@ func (t *DataWithSignatureTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *DataWithSignatureTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -243,6 +244,7 @@ func (t *signeddata5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652
 	return nil
 }
 func (t *signeddata5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 
@@ -451,6 +453,7 @@ func (t *WireValidatorDataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *WireValidatorDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

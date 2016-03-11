@@ -96,6 +96,7 @@ func (t *ServiceDataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *ServiceDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -198,6 +199,7 @@ func (t *AppDataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *AppDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -302,6 +304,7 @@ func (t *DbInfoTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *DbInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

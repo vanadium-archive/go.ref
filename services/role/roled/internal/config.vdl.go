@@ -230,6 +230,7 @@ func (t *ConfigTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *ConfigTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -257,6 +258,7 @@ func (t *config5b5d762e696f2f7632332f73656375726974792e426c657373696e67506174746
 	return nil
 }
 func (t *config5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 

@@ -352,16 +352,9 @@ func genEncRefForWiretype(data goData, t *vdl.Type, wireInstName, targetName str
 func encWiretypeInstName(data goData, t *vdl.Type, instName string, varCount *int) (wiretypeInstName, body string) {
 	// If this is a native type, convert it to wire type.
 	if isNativeType(t, data.File.Package) {
-		pkgPath, name := vdl.SplitIdent(t.Name())
-		wirePkgPath := pkgPath
-		if !strings.ContainsRune(pkgPath, '/') {
-			// TODO(toddw) Fix this logic - it isn't correct
-			wirePkgPath = "v.io/v23/vdlroot/" + pkgPath
-		}
-		wirePkgName := data.Pkg(wirePkgPath)
-
+		wirePkgName, name := wiretypeLocalName(data, t)
+		wireType := wirePkgName + name
 		wiretypeInstName = createUniqueName("wireValue", varCount)
-		var wireType = wirePkgName + name // TODO(bprosnitz) What should this be?!
 		body = fmt.Sprintf(`
 	var %s %s
 	if err := %s%sFromNative(&%s, %s); err != nil {
@@ -374,6 +367,11 @@ func encWiretypeInstName(data goData, t *vdl.Type, instName string, varCount *in
 
 	// If this isn't native, just return the original instName.
 	return instName, ""
+}
+
+func wiretypeLocalName(data goData, t *vdl.Type) (pkgName, name string) {
+	pkgPath, name := vdl.SplitIdent(t.Name())
+	return data.Pkg(data.Env.ResolvePackage(pkgPath).GenPath), name
 }
 
 // genFromPrimitive generates a fromX() call corresponding with the appropriate primitive type.

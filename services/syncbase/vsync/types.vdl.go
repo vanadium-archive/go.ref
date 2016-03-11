@@ -79,6 +79,7 @@ func (t *SyncDataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SyncDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -182,6 +183,7 @@ func (t *DbSyncStateTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *DbSyncStateTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -283,6 +285,7 @@ func (t *LocalLogRecTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *LocalLogRecTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -446,6 +449,7 @@ func (t *SgLocalStateTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SgLocalStateTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -647,6 +651,7 @@ func (t *DagNodeTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *DagNodeTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -806,6 +811,7 @@ func (t *BatchInfoTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *BatchInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -840,6 +846,7 @@ func (t *types6d61705b737472696e675d737472696e67Target) FinishMap(elem vdl.MapTa
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 

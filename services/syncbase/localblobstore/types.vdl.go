@@ -9,7 +9,6 @@ package localblobstore
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 	"v.io/v23/vdl"
 	time_2 "v.io/v23/vdlroot/time"
@@ -117,10 +116,10 @@ func (t *BlobMetadataTarget) StartField(name string) (key, field vdl.Target, _ e
 		val, err := &interfaces.BlobSharesBySyncgroupTarget{Value: &t.Value.OwnerShares}, error(nil)
 		return nil, val, err
 	case "Referenced":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Referenced))
+		val, err := &time_2.TimeTarget{Value: &t.Value.Referenced}, error(nil)
 		return nil, val, err
 	case "Accessed":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Accessed))
+		val, err := &time_2.TimeTarget{Value: &t.Value.Accessed}, error(nil)
 		return nil, val, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata)
@@ -130,6 +129,7 @@ func (t *BlobMetadataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *BlobMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -200,6 +200,7 @@ func (t *PerSyncgroupTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *PerSyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

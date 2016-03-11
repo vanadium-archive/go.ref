@@ -128,6 +128,7 @@ func (t *WireCiphertextTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *WireCiphertextTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -162,6 +163,7 @@ func (t *types6d61705b737472696e675d5b5d62797465Target) FinishMap(elem vdl.MapTa
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 
@@ -254,6 +256,7 @@ func (t *WireParamsTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *WireParamsTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -392,6 +395,7 @@ func (t *WirePrivateKeyTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *WirePrivateKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -419,6 +423,7 @@ func (t *types5b5d5b5d62797465Target) FinishElem(elem vdl.Target) error {
 	return nil
 }
 func (t *types5b5d5b5d62797465Target) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 

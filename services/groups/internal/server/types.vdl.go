@@ -116,6 +116,7 @@ func (t *groupDataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *groupDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -145,6 +146,7 @@ func (t *types7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c6573
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
+
 	return nil
 }
 

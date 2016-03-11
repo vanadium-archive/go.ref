@@ -40,6 +40,7 @@ func (t *ignoremeTarget) FromString(src string, tt *vdl.Type) error {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_otherfile_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme)
 	}
 	*t.Value = ignoreme(src)
+
 	return nil
 }
 

@@ -115,6 +115,7 @@ func (t *SumArgTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SumArgTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -231,6 +232,7 @@ func (t *SumStatsTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *SumStatsTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

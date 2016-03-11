@@ -9,7 +9,6 @@ package principal
 
 import (
 	"fmt"
-	"reflect"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vdl/vdlconv"
@@ -45,6 +44,7 @@ func (t *BlessingsIdTarget) FromUint(src uint64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = BlessingsId(val)
+
 	return nil
 }
 func (t *BlessingsIdTarget) FromInt(src int64, tt *vdl.Type) error {
@@ -53,6 +53,7 @@ func (t *BlessingsIdTarget) FromInt(src int64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = BlessingsId(val)
+
 	return nil
 }
 func (t *BlessingsIdTarget) FromFloat(src float64, tt *vdl.Type) error {
@@ -61,6 +62,7 @@ func (t *BlessingsIdTarget) FromFloat(src float64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = BlessingsId(val)
+
 	return nil
 }
 func (t *BlessingsIdTarget) FromComplex(src complex128, tt *vdl.Type) error {
@@ -69,6 +71,7 @@ func (t *BlessingsIdTarget) FromComplex(src complex128, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = BlessingsId(val)
+
 	return nil
 }
 
@@ -148,7 +151,7 @@ func (t *BlessingsCacheAddMessageTarget) StartField(name string) (key, field vdl
 		val, err := &BlessingsIdTarget{Value: &t.Value.CacheId}, error(nil)
 		return nil, val, err
 	case "Blessings":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Blessings))
+		val, err := &security.WireBlessingsTarget{Value: &t.Value.Blessings}, error(nil)
 		return nil, val, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage)
@@ -158,6 +161,7 @@ func (t *BlessingsCacheAddMessageTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *BlessingsCacheAddMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -247,6 +251,7 @@ func (t *BlessingsCacheDeleteMessageTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *BlessingsCacheDeleteMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 

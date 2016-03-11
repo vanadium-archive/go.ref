@@ -224,7 +224,7 @@ func (t *RpcRequestTarget) StartField(name string) (key, field vdl.Target, _ err
 		val, err := &vdl.BoolTarget{Value: &t.Value.IsStreaming}, error(nil)
 		return nil, val, err
 	case "Deadline":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Deadline))
+		val, err := &time.WireDeadlineTarget{Value: &t.Value.Deadline}, error(nil)
 		return nil, val, err
 	case "TraceRequest":
 		val, err := &vtrace.RequestTarget{Value: &t.Value.TraceRequest}, error(nil)
@@ -243,6 +243,7 @@ func (t *RpcRequestTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *RpcRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -270,6 +271,7 @@ func (t *app5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e61
 	return nil
 }
 func (t *app5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 
@@ -576,6 +578,7 @@ func (t *RpcResponseTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *RpcResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -603,6 +606,7 @@ func (t *app5b5d616e79Target) FinishElem(elem vdl.Target) error {
 	return nil
 }
 func (t *app5b5d616e79Target) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 
@@ -635,6 +639,7 @@ func (t *GranterHandleTarget) FromUint(src uint64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = GranterHandle(val)
+
 	return nil
 }
 func (t *GranterHandleTarget) FromInt(src int64, tt *vdl.Type) error {
@@ -643,6 +648,7 @@ func (t *GranterHandleTarget) FromInt(src int64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = GranterHandle(val)
+
 	return nil
 }
 func (t *GranterHandleTarget) FromFloat(src float64, tt *vdl.Type) error {
@@ -651,6 +657,7 @@ func (t *GranterHandleTarget) FromFloat(src float64, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = GranterHandle(val)
+
 	return nil
 }
 func (t *GranterHandleTarget) FromComplex(src complex128, tt *vdl.Type) error {
@@ -659,6 +666,7 @@ func (t *GranterHandleTarget) FromComplex(src complex128, tt *vdl.Type) error {
 		return err
 	}
 	*t.Value = GranterHandle(val)
+
 	return nil
 }
 
@@ -745,6 +753,7 @@ func (t *GranterRequestTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *GranterRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
@@ -832,7 +841,7 @@ func (t *GranterResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, err
 func (t *GranterResponseTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Blessings":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Blessings))
+		val, err := &security.WireBlessingsTarget{Value: &t.Value.Blessings}, error(nil)
 		return nil, val, err
 	case "Err":
 		val, err := &verror.ErrorTarget{Value: &t.Value.Err}, error(nil)
@@ -845,6 +854,7 @@ func (t *GranterResponseTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
 func (t *GranterResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
+
 	return nil
 }
 
