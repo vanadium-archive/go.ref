@@ -8,6 +8,8 @@
 package server
 
 import (
+	"fmt"
+	"reflect"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/security"
@@ -30,7 +32,6 @@ func (Context) __VDLReflect(struct {
 }
 
 func (m *Context) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_Context == nil || __VDLTypeserver0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -58,6 +59,34 @@ func (m *Context) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Context) MakeVDLTarget() vdl.Target {
+	return &ContextTarget{Value: m}
+}
+
+type ContextTarget struct {
+	Value *Context
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ContextTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_Context) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_Context)
+	}
+	return t, nil
+}
+func (t *ContextTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Language":
+		val, err := &vdl.StringTarget{Value: &t.Value.Language}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_Context)
+	}
+}
+func (t *ContextTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ContextTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -79,7 +108,6 @@ func (SecurityCall) __VDLReflect(struct {
 }
 
 func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall == nil || __VDLTypeserver1 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -263,6 +291,85 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *SecurityCall) MakeVDLTarget() vdl.Target {
+	return &SecurityCallTarget{Value: m}
+}
+
+type SecurityCallTarget struct {
+	Value *SecurityCall
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *SecurityCallTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall)
+	}
+	return t, nil
+}
+func (t *SecurityCallTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Method":
+		val, err := &vdl.StringTarget{Value: &t.Value.Method}, error(nil)
+		return nil, val, err
+	case "Suffix":
+		val, err := &vdl.StringTarget{Value: &t.Value.Suffix}, error(nil)
+		return nil, val, err
+	case "MethodTags":
+		val, err := &server5b5d616e79Target{Value: &t.Value.MethodTags}, error(nil)
+		return nil, val, err
+	case "LocalBlessings":
+		val, err := &principal.BlessingsIdTarget{Value: &t.Value.LocalBlessings}, error(nil)
+		return nil, val, err
+	case "LocalBlessingStrings":
+		val, err := &vdl.StringSliceTarget{Value: &t.Value.LocalBlessingStrings}, error(nil)
+		return nil, val, err
+	case "RemoteBlessings":
+		val, err := &principal.BlessingsIdTarget{Value: &t.Value.RemoteBlessings}, error(nil)
+		return nil, val, err
+	case "RemoteBlessingStrings":
+		val, err := &vdl.StringSliceTarget{Value: &t.Value.RemoteBlessingStrings}, error(nil)
+		return nil, val, err
+	case "LocalEndpoint":
+		val, err := &vdl.StringTarget{Value: &t.Value.LocalEndpoint}, error(nil)
+		return nil, val, err
+	case "RemoteEndpoint":
+		val, err := &vdl.StringTarget{Value: &t.Value.RemoteEndpoint}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall)
+	}
+}
+func (t *SecurityCallTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *SecurityCallTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type server5b5d616e79Target struct {
+	Value *[]*vom.RawBytes
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *server5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeserver2) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeserver2)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]*vom.RawBytes, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *server5b5d616e79Target) StartElem(index int) (elem vdl.Target, _ error) {
+	return vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+}
+func (t *server5b5d616e79Target) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *server5b5d616e79Target) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -278,7 +385,6 @@ func (CaveatValidationRequest) __VDLReflect(struct {
 }
 
 func (m *CaveatValidationRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationRequest == nil || __VDLTypeserver4 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -367,6 +473,94 @@ func (m *CaveatValidationRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 }
 
 func (m *CaveatValidationRequest) MakeVDLTarget() vdl.Target {
+	return &CaveatValidationRequestTarget{Value: m}
+}
+
+type CaveatValidationRequestTarget struct {
+	Value *CaveatValidationRequest
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *CaveatValidationRequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationRequest) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationRequest)
+	}
+	return t, nil
+}
+func (t *CaveatValidationRequestTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Call":
+		val, err := &SecurityCallTarget{Value: &t.Value.Call}, error(nil)
+		return nil, val, err
+	case "Context":
+		val, err := &ContextTarget{Value: &t.Value.Context}, error(nil)
+		return nil, val, err
+	case "Cavs":
+		val, err := &server5b5d5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget{Value: &t.Value.Cavs}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationRequest)
+	}
+}
+func (t *CaveatValidationRequestTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *CaveatValidationRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type server5b5d5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget struct {
+	Value *[][]security.Caveat
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *server5b5d5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeserver5) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeserver5)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([][]security.Caveat, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *server5b5d5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &server5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *server5b5d5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *server5b5d5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget) FinishList(elem vdl.ListTarget) error {
+	return nil
+}
+
+type server5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget struct {
+	Value *[]security.Caveat
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *server5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeserver6) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeserver6)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]security.Caveat, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *server5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &security.CaveatTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *server5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *server5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -380,7 +574,6 @@ func (CaveatValidationResponse) __VDLReflect(struct {
 }
 
 func (m *CaveatValidationResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationResponse == nil || __VDLTypeserver7 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -437,6 +630,61 @@ func (m *CaveatValidationResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) err
 }
 
 func (m *CaveatValidationResponse) MakeVDLTarget() vdl.Target {
+	return &CaveatValidationResponseTarget{Value: m}
+}
+
+type CaveatValidationResponseTarget struct {
+	Value *CaveatValidationResponse
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *CaveatValidationResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationResponse) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationResponse)
+	}
+	return t, nil
+}
+func (t *CaveatValidationResponseTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Results":
+		val, err := &server5b5d3f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797dTarget{Value: &t.Value.Results}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationResponse)
+	}
+}
+func (t *CaveatValidationResponseTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *CaveatValidationResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type server5b5d3f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797dTarget struct {
+	Value *[]error
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *server5b5d3f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeserver8) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeserver8)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]error, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *server5b5d3f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &verror.ErrorTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *server5b5d3f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *server5b5d3f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797dTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -454,7 +702,6 @@ func (ServerRpcRequestCall) __VDLReflect(struct {
 }
 
 func (m *ServerRpcRequestCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_server()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -538,6 +785,46 @@ func (m *ServerRpcRequestCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *ServerRpcRequestCall) MakeVDLTarget() vdl.Target {
+	return &ServerRpcRequestCallTarget{Value: m}
+}
+
+type ServerRpcRequestCallTarget struct {
+	Value *ServerRpcRequestCall
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ServerRpcRequestCallTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall)
+	}
+	return t, nil
+}
+func (t *ServerRpcRequestCallTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "SecurityCall":
+		val, err := &SecurityCallTarget{Value: &t.Value.SecurityCall}, error(nil)
+		return nil, val, err
+	case "Deadline":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Deadline))
+		return nil, val, err
+	case "Context":
+		val, err := &ContextTarget{Value: &t.Value.Context}, error(nil)
+		return nil, val, err
+	case "TraceRequest":
+		val, err := &vtrace.RequestTarget{Value: &t.Value.TraceRequest}, error(nil)
+		return nil, val, err
+	case "GrantedBlessings":
+		val, err := &principal.BlessingsIdTarget{Value: &t.Value.GrantedBlessings}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall)
+	}
+}
+func (t *ServerRpcRequestCallTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ServerRpcRequestCallTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -556,7 +843,6 @@ func (ServerRpcRequest) __VDLReflect(struct {
 }
 
 func (m *ServerRpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_server()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -655,6 +941,46 @@ func (m *ServerRpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *ServerRpcRequest) MakeVDLTarget() vdl.Target {
+	return &ServerRpcRequestTarget{Value: m}
+}
+
+type ServerRpcRequestTarget struct {
+	Value *ServerRpcRequest
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ServerRpcRequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest)
+	}
+	return t, nil
+}
+func (t *ServerRpcRequestTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "ServerId":
+		val, err := &vdl.Uint32Target{Value: &t.Value.ServerId}, error(nil)
+		return nil, val, err
+	case "Handle":
+		val, err := &vdl.Int32Target{Value: &t.Value.Handle}, error(nil)
+		return nil, val, err
+	case "Method":
+		val, err := &vdl.StringTarget{Value: &t.Value.Method}, error(nil)
+		return nil, val, err
+	case "Args":
+		val, err := &server5b5d616e79Target{Value: &t.Value.Args}, error(nil)
+		return nil, val, err
+	case "Call":
+		val, err := &ServerRpcRequestCallTarget{Value: &t.Value.Call}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest)
+	}
+}
+func (t *ServerRpcRequestTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ServerRpcRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -673,7 +999,6 @@ func (LookupReply) __VDLReflect(struct {
 }
 
 func (m *LookupReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_LookupReply == nil || __VDLTypeserver11 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -779,6 +1104,73 @@ func (m *LookupReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *LookupReply) MakeVDLTarget() vdl.Target {
+	return &LookupReplyTarget{Value: m}
+}
+
+type LookupReplyTarget struct {
+	Value *LookupReply
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *LookupReplyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_LookupReply) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_LookupReply)
+	}
+	return t, nil
+}
+func (t *LookupReplyTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Handle":
+		val, err := &vdl.Int32Target{Value: &t.Value.Handle}, error(nil)
+		return nil, val, err
+	case "HasAuthorizer":
+		val, err := &vdl.BoolTarget{Value: &t.Value.HasAuthorizer}, error(nil)
+		return nil, val, err
+	case "HasGlobber":
+		val, err := &vdl.BoolTarget{Value: &t.Value.HasGlobber}, error(nil)
+		return nil, val, err
+	case "Signature":
+		val, err := &server5b5d7369676e61747572652e496e74657266616365207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e673b456d62656473205b5d7369676e61747572652e456d626564207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e677d3b4d6574686f6473205b5d7369676e61747572652e4d6574686f64207374727563747b4e616d6520737472696e673b446f6320737472696e673b496e41726773205b5d7369676e61747572652e417267207374727563747b4e616d6520737472696e673b446f6320737472696e673b5479706520747970656f626a6563747d3b4f757441726773205b5d7369676e61747572652e4172673b496e53747265616d203f7369676e61747572652e4172673b4f757453747265616d203f7369676e61747572652e4172673b54616773205b5d616e797d7dTarget{Value: &t.Value.Signature}, error(nil)
+		return nil, val, err
+	case "Err":
+		val, err := &verror.ErrorTarget{Value: &t.Value.Err}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_LookupReply)
+	}
+}
+func (t *LookupReplyTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *LookupReplyTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type server5b5d7369676e61747572652e496e74657266616365207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e673b456d62656473205b5d7369676e61747572652e456d626564207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e677d3b4d6574686f6473205b5d7369676e61747572652e4d6574686f64207374727563747b4e616d6520737472696e673b446f6320737472696e673b496e41726773205b5d7369676e61747572652e417267207374727563747b4e616d6520737472696e673b446f6320737472696e673b5479706520747970656f626a6563747d3b4f757441726773205b5d7369676e61747572652e4172673b496e53747265616d203f7369676e61747572652e4172673b4f757453747265616d203f7369676e61747572652e4172673b54616773205b5d616e797d7dTarget struct {
+	Value *[]signature.Interface
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *server5b5d7369676e61747572652e496e74657266616365207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e673b456d62656473205b5d7369676e61747572652e456d626564207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e677d3b4d6574686f6473205b5d7369676e61747572652e4d6574686f64207374727563747b4e616d6520737472696e673b446f6320737472696e673b496e41726773205b5d7369676e61747572652e417267207374727563747b4e616d6520737472696e673b446f6320737472696e673b5479706520747970656f626a6563747d3b4f757441726773205b5d7369676e61747572652e4172673b496e53747265616d203f7369676e61747572652e4172673b4f757453747265616d203f7369676e61747572652e4172673b54616773205b5d616e797d7dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeserver12) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeserver12)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]signature.Interface, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *server5b5d7369676e61747572652e496e74657266616365207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e673b456d62656473205b5d7369676e61747572652e456d626564207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e677d3b4d6574686f6473205b5d7369676e61747572652e4d6574686f64207374727563747b4e616d6520737472696e673b446f6320737472696e673b496e41726773205b5d7369676e61747572652e417267207374727563747b4e616d6520737472696e673b446f6320737472696e673b5479706520747970656f626a6563747d3b4f757441726773205b5d7369676e61747572652e4172673b496e53747265616d203f7369676e61747572652e4172673b4f757453747265616d203f7369676e61747572652e4172673b54616773205b5d616e797d7dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &signature.InterfaceTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *server5b5d7369676e61747572652e496e74657266616365207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e673b456d62656473205b5d7369676e61747572652e456d626564207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e677d3b4d6574686f6473205b5d7369676e61747572652e4d6574686f64207374727563747b4e616d6520737472696e673b446f6320737472696e673b496e41726773205b5d7369676e61747572652e417267207374727563747b4e616d6520737472696e673b446f6320737472696e673b5479706520747970656f626a6563747d3b4f757441726773205b5d7369676e61747572652e4172673b496e53747265616d203f7369676e61747572652e4172673b4f757453747265616d203f7369676e61747572652e4172673b54616773205b5d616e797d7dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *server5b5d7369676e61747572652e496e74657266616365207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e673b456d62656473205b5d7369676e61747572652e456d626564207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e677d3b4d6574686f6473205b5d7369676e61747572652e4d6574686f64207374727563747b4e616d6520737472696e673b446f6320737472696e673b496e41726773205b5d7369676e61747572652e417267207374727563747b4e616d6520737472696e673b446f6320737472696e673b5479706520747970656f626a6563747d3b4f757441726773205b5d7369676e61747572652e4172673b496e53747265616d203f7369676e61747572652e4172673b4f757453747265616d203f7369676e61747572652e4172673b54616773205b5d616e797d7dTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -793,7 +1185,6 @@ func (AuthReply) __VDLReflect(struct {
 }
 
 func (m *AuthReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_AuthReply == nil || __VDLTypeserver13 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -833,6 +1224,34 @@ func (m *AuthReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *AuthReply) MakeVDLTarget() vdl.Target {
+	return &AuthReplyTarget{Value: m}
+}
+
+type AuthReplyTarget struct {
+	Value *AuthReply
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *AuthReplyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_AuthReply) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_AuthReply)
+	}
+	return t, nil
+}
+func (t *AuthReplyTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Err":
+		val, err := &verror.ErrorTarget{Value: &t.Value.Err}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_server_v_io_x_ref_services_wspr_internal_rpc_server_AuthReply)
+	}
+}
+func (t *AuthReplyTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *AuthReplyTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

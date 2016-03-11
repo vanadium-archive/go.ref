@@ -8,11 +8,13 @@
 package raft
 
 import (
+	"fmt"
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlconv"
 )
 
 // Term is a counter incremented each time a member starts an election.  The log will
@@ -24,14 +26,48 @@ func (Term) __VDLReflect(struct {
 }) {
 }
 
-func (m Term) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64(m), __VDLType_raft_v_io_x_ref_lib_raft_Term); err != nil {
+func (m *Term) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64((*m)), __VDLType_raft_v_io_x_ref_lib_raft_Term); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m Term) MakeVDLTarget() vdl.Target {
+func (m *Term) MakeVDLTarget() vdl.Target {
+	return &TermTarget{Value: m}
+}
+
+type TermTarget struct {
+	Value *Term
+	vdl.TargetBase
+}
+
+func (t *TermTarget) FromUint(src uint64, tt *vdl.Type) error {
+	*t.Value = Term(src)
+	return nil
+}
+func (t *TermTarget) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToUint64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = Term(val)
+	return nil
+}
+func (t *TermTarget) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToUint64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = Term(val)
+	return nil
+}
+func (t *TermTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToUint64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = Term(val)
 	return nil
 }
 
@@ -46,14 +82,48 @@ func (Index) __VDLReflect(struct {
 }) {
 }
 
-func (m Index) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64(m), __VDLType_raft_v_io_x_ref_lib_raft_Index); err != nil {
+func (m *Index) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64((*m)), __VDLType_raft_v_io_x_ref_lib_raft_Index); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m Index) MakeVDLTarget() vdl.Target {
+func (m *Index) MakeVDLTarget() vdl.Target {
+	return &IndexTarget{Value: m}
+}
+
+type IndexTarget struct {
+	Value *Index
+	vdl.TargetBase
+}
+
+func (t *IndexTarget) FromUint(src uint64, tt *vdl.Type) error {
+	*t.Value = Index(src)
+	return nil
+}
+func (t *IndexTarget) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToUint64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = Index(val)
+	return nil
+}
+func (t *IndexTarget) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToUint64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = Index(val)
+	return nil
+}
+func (t *IndexTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToUint64(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = Index(val)
 	return nil
 }
 
@@ -73,7 +143,6 @@ func (LogEntry) __VDLReflect(struct {
 }
 
 func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_raft_v_io_x_ref_lib_raft_LogEntry == nil || __VDLTyperaft0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -140,6 +209,43 @@ func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *LogEntry) MakeVDLTarget() vdl.Target {
+	return &LogEntryTarget{Value: m}
+}
+
+type LogEntryTarget struct {
+	Value *LogEntry
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *LogEntryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_raft_v_io_x_ref_lib_raft_LogEntry) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_raft_v_io_x_ref_lib_raft_LogEntry)
+	}
+	return t, nil
+}
+func (t *LogEntryTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Term":
+		val, err := &TermTarget{Value: &t.Value.Term}, error(nil)
+		return nil, val, err
+	case "Index":
+		val, err := &IndexTarget{Value: &t.Value.Index}, error(nil)
+		return nil, val, err
+	case "Cmd":
+		val, err := &vdl.BytesTarget{Value: &t.Value.Cmd}, error(nil)
+		return nil, val, err
+	case "Type":
+		val, err := &vdl.ByteTarget{Value: &t.Value.Type}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_raft_v_io_x_ref_lib_raft_LogEntry)
+	}
+}
+func (t *LogEntryTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

@@ -20,7 +20,17 @@ import (
 // that the encode method will be on) if the type is a union
 func genEncDef(data goData, t *vdl.Type, unionFieldName string) string {
 	varCount := 0
-	return genEncDefInternal(data, t, "m", "t", unionFieldName, "tt", &varCount)
+	instName := "(*m)"
+	if t.Kind() == vdl.Struct || t.Kind() == vdl.Union {
+		// - Struct shouldn't be dereferenced because its value is passed around
+		// as a pointer.
+		// - Unions shouldn't be dereferenced because the structs representing
+		// their fields are not represented as pointers within the union interface.
+		// e.g. Union A (an interface) contains struct AB: A(AB{}) rather than
+		// A(&AB{})
+		instName = "m"
+	}
+	return genEncDefInternal(data, t, instName, "t", unionFieldName, "tt", &varCount)
 }
 
 func genEncDefInternal(data goData, t *vdl.Type, instName, targetName, unionFieldName, forcedTypeName string, varCount *int) string {

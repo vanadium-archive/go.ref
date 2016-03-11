@@ -9,6 +9,7 @@ package lib
 
 import (
 	"fmt"
+	"reflect"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -28,7 +29,6 @@ func (ServerRpcReply) __VDLReflect(struct {
 }
 
 func (m *ServerRpcReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_writer()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -115,6 +115,67 @@ func (m *ServerRpcReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *ServerRpcReply) MakeVDLTarget() vdl.Target {
+	return &ServerRpcReplyTarget{Value: m}
+}
+
+type ServerRpcReplyTarget struct {
+	Value *ServerRpcReply
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ServerRpcReplyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply)
+	}
+	return t, nil
+}
+func (t *ServerRpcReplyTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Results":
+		val, err := &writer5b5d616e79Target{Value: &t.Value.Results}, error(nil)
+		return nil, val, err
+	case "Err":
+		val, err := &verror.ErrorTarget{Value: &t.Value.Err}, error(nil)
+		return nil, val, err
+	case "TraceResponse":
+		val, err := &vtrace.ResponseTarget{Value: &t.Value.TraceResponse}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply)
+	}
+}
+func (t *ServerRpcReplyTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ServerRpcReplyTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type writer5b5d616e79Target struct {
+	Value *[]*vom.RawBytes
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *writer5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypewriter1) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypewriter1)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]*vom.RawBytes, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *writer5b5d616e79Target) StartElem(index int) (elem vdl.Target, _ error) {
+	return vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+}
+func (t *writer5b5d616e79Target) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *writer5b5d616e79Target) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
@@ -165,14 +226,34 @@ func (LogLevel) __VDLReflect(struct {
 }) {
 }
 
-func (m LogLevel) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromEnumLabel(m.String(), __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogLevel); err != nil {
+func (m *LogLevel) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromEnumLabel((*m).String(), __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogLevel); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m LogLevel) MakeVDLTarget() vdl.Target {
+func (m *LogLevel) MakeVDLTarget() vdl.Target {
+	return &LogLevelTarget{Value: m}
+}
+
+type LogLevelTarget struct {
+	Value *LogLevel
+	vdl.TargetBase
+}
+
+func (t *LogLevelTarget) FromEnumLabel(src string, tt *vdl.Type) error {
+	if !vdl.Compatible(tt, __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogLevel) {
+		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogLevel)
+	}
+	switch src {
+	case "Info":
+		*t.Value = 0
+	case "Error":
+		*t.Value = 1
+	default:
+		return fmt.Errorf("label %s not in enum %v", src, __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogLevel)
+	}
 	return nil
 }
 
@@ -187,7 +268,6 @@ func (LogMessage) __VDLReflect(struct {
 }
 
 func (m *LogMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogMessage == nil || __VDLTypewriter2 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -228,6 +308,37 @@ func (m *LogMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *LogMessage) MakeVDLTarget() vdl.Target {
+	return &LogMessageTarget{Value: m}
+}
+
+type LogMessageTarget struct {
+	Value *LogMessage
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *LogMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogMessage) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogMessage)
+	}
+	return t, nil
+}
+func (t *LogMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Level":
+		val, err := &LogLevelTarget{Value: &t.Value.Level}, error(nil)
+		return nil, val, err
+	case "Message":
+		val, err := &vdl.StringTarget{Value: &t.Value.Message}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_writer_v_io_x_ref_services_wspr_internal_lib_LogMessage)
+	}
+}
+func (t *LogMessageTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *LogMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

@@ -8,6 +8,7 @@
 package internal
 
 import (
+	"fmt"
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
@@ -26,7 +27,6 @@ func (Struct) __VDLReflect(struct {
 }
 
 func (m *Struct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_test_base_v_io_x_ref_cmd_vrpc_internal_Struct == nil || __VDLTypetest_base0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -66,6 +66,37 @@ func (m *Struct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Struct) MakeVDLTarget() vdl.Target {
+	return &StructTarget{Value: m}
+}
+
+type StructTarget struct {
+	Value *Struct
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *StructTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_test_base_v_io_x_ref_cmd_vrpc_internal_Struct) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_test_base_v_io_x_ref_cmd_vrpc_internal_Struct)
+	}
+	return t, nil
+}
+func (t *StructTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "X":
+		val, err := &vdl.Int32Target{Value: &t.Value.X}, error(nil)
+		return nil, val, err
+	case "Y":
+		val, err := &vdl.Int32Target{Value: &t.Value.Y}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_test_base_v_io_x_ref_cmd_vrpc_internal_Struct)
+	}
+}
+func (t *StructTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *StructTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -76,13 +107,12 @@ func (Array2Int) __VDLReflect(struct {
 }) {
 }
 
-func (m Array2Int) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
+func (m *Array2Int) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	listTarget1, err := t.StartList(__VDLType_test_base_v_io_x_ref_cmd_vrpc_internal_Array2Int, 2)
 	if err != nil {
 		return err
 	}
-	for i, elem3 := range m {
+	for i, elem3 := range *m {
 		elemTarget2, err := listTarget1.StartElem(i)
 		if err != nil {
 			return err
@@ -100,7 +130,29 @@ func (m Array2Int) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	return nil
 }
 
-func (m Array2Int) MakeVDLTarget() vdl.Target {
+func (m *Array2Int) MakeVDLTarget() vdl.Target {
+	return &Array2IntTarget{Value: m}
+}
+
+type Array2IntTarget struct {
+	Value *Array2Int
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *Array2IntTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_test_base_v_io_x_ref_cmd_vrpc_internal_Array2Int) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_test_base_v_io_x_ref_cmd_vrpc_internal_Array2Int)
+	}
+	return t, nil
+}
+func (t *Array2IntTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &vdl.Int32Target{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *Array2IntTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *Array2IntTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 

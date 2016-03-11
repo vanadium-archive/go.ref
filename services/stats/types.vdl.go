@@ -9,6 +9,7 @@
 package stats
 
 import (
+	"fmt"
 	"v.io/v23/vdl"
 )
 
@@ -32,7 +33,6 @@ func (HistogramValue) __VDLReflect(struct {
 }
 
 func (m *HistogramValue) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_stats_HistogramValue == nil || __VDLTypetypes0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -126,6 +126,104 @@ func (m *HistogramValue) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *HistogramValue) MakeVDLTarget() vdl.Target {
+	return &HistogramValueTarget{Value: m}
+}
+
+type HistogramValueTarget struct {
+	Value *HistogramValue
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *HistogramValueTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_stats_HistogramValue) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_stats_HistogramValue)
+	}
+	return t, nil
+}
+func (t *HistogramValueTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Count":
+		val, err := &vdl.Int64Target{Value: &t.Value.Count}, error(nil)
+		return nil, val, err
+	case "Sum":
+		val, err := &vdl.Int64Target{Value: &t.Value.Sum}, error(nil)
+		return nil, val, err
+	case "Min":
+		val, err := &vdl.Int64Target{Value: &t.Value.Min}, error(nil)
+		return nil, val, err
+	case "Max":
+		val, err := &vdl.Int64Target{Value: &t.Value.Max}, error(nil)
+		return nil, val, err
+	case "Buckets":
+		val, err := &types5b5d762e696f2f782f7265662f73657276696365732f73746174732e486973746f6772616d4275636b6574207374727563747b4c6f77426f756e6420696e7436343b436f756e7420696e7436347dTarget{Value: &t.Value.Buckets}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_stats_HistogramValue)
+	}
+}
+func (t *HistogramValueTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *HistogramValueTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type types5b5d762e696f2f782f7265662f73657276696365732f73746174732e486973746f6772616d4275636b6574207374727563747b4c6f77426f756e6420696e7436343b436f756e7420696e7436347dTarget struct {
+	Value *[]HistogramBucket
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *types5b5d762e696f2f782f7265662f73657276696365732f73746174732e486973746f6772616d4275636b6574207374727563747b4c6f77426f756e6420696e7436343b436f756e7420696e7436347dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypetypes1) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypetypes1)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]HistogramBucket, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *types5b5d762e696f2f782f7265662f73657276696365732f73746174732e486973746f6772616d4275636b6574207374727563747b4c6f77426f756e6420696e7436343b436f756e7420696e7436347dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	return &HistogramBucketTarget{Value: &(*t.Value)[index]}, error(nil)
+}
+func (t *types5b5d762e696f2f782f7265662f73657276696365732f73746174732e486973746f6772616d4275636b6574207374727563747b4c6f77426f756e6420696e7436343b436f756e7420696e7436347dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *types5b5d762e696f2f782f7265662f73657276696365732f73746174732e486973746f6772616d4275636b6574207374727563747b4c6f77426f756e6420696e7436343b436f756e7420696e7436347dTarget) FinishList(elem vdl.ListTarget) error {
+	return nil
+}
+
+type HistogramBucketTarget struct {
+	Value *HistogramBucket
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *HistogramBucketTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_types_v_io_x_ref_services_stats_HistogramBucket) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_types_v_io_x_ref_services_stats_HistogramBucket)
+	}
+	return t, nil
+}
+func (t *HistogramBucketTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "LowBound":
+		val, err := &vdl.Int64Target{Value: &t.Value.LowBound}, error(nil)
+		return nil, val, err
+	case "Count":
+		val, err := &vdl.Int64Target{Value: &t.Value.Count}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_types_v_io_x_ref_services_stats_HistogramBucket)
+	}
+}
+func (t *HistogramBucketTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *HistogramBucketTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -143,7 +241,6 @@ func (HistogramBucket) __VDLReflect(struct {
 }
 
 func (m *HistogramBucket) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_types_v_io_x_ref_services_stats_HistogramBucket == nil || __VDLTypetypes2 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -183,7 +280,7 @@ func (m *HistogramBucket) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *HistogramBucket) MakeVDLTarget() vdl.Target {
-	return nil
+	return &HistogramBucketTarget{Value: m}
 }
 
 func init() {

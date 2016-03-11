@@ -9,6 +9,7 @@
 package profile
 
 import (
+	"fmt"
 	"v.io/v23/services/build"
 	"v.io/v23/vdl"
 )
@@ -29,7 +30,6 @@ func (Library) __VDLReflect(struct {
 }
 
 func (m *Library) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_profile_v_io_x_ref_services_profile_Library == nil || __VDLTypeprofile0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -81,6 +81,40 @@ func (m *Library) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Library) MakeVDLTarget() vdl.Target {
+	return &LibraryTarget{Value: m}
+}
+
+type LibraryTarget struct {
+	Value *Library
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *LibraryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_profile_v_io_x_ref_services_profile_Library) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_profile_v_io_x_ref_services_profile_Library)
+	}
+	return t, nil
+}
+func (t *LibraryTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Name":
+		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
+		return nil, val, err
+	case "MajorVersion":
+		val, err := &vdl.StringTarget{Value: &t.Value.MajorVersion}, error(nil)
+		return nil, val, err
+	case "MinorVersion":
+		val, err := &vdl.StringTarget{Value: &t.Value.MinorVersion}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_profile_v_io_x_ref_services_profile_Library)
+	}
+}
+func (t *LibraryTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *LibraryTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -108,7 +142,6 @@ func (Specification) __VDLReflect(struct {
 }
 
 func (m *Specification) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_profile_v_io_x_ref_services_profile_Specification == nil || __VDLTypeprofile1 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -217,6 +250,78 @@ func (m *Specification) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *Specification) MakeVDLTarget() vdl.Target {
+	return &SpecificationTarget{Value: m}
+}
+
+type SpecificationTarget struct {
+	Value *Specification
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *SpecificationTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_profile_v_io_x_ref_services_profile_Specification) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_profile_v_io_x_ref_services_profile_Specification)
+	}
+	return t, nil
+}
+func (t *SpecificationTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Label":
+		val, err := &vdl.StringTarget{Value: &t.Value.Label}, error(nil)
+		return nil, val, err
+	case "Description":
+		val, err := &vdl.StringTarget{Value: &t.Value.Description}, error(nil)
+		return nil, val, err
+	case "Arch":
+		val, err := &build.ArchitectureTarget{Value: &t.Value.Arch}, error(nil)
+		return nil, val, err
+	case "Os":
+		val, err := &build.OperatingSystemTarget{Value: &t.Value.Os}, error(nil)
+		return nil, val, err
+	case "Format":
+		val, err := &build.FormatTarget{Value: &t.Value.Format}, error(nil)
+		return nil, val, err
+	case "Libraries":
+		val, err := &profile7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget{Value: &t.Value.Libraries}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_profile_v_io_x_ref_services_profile_Specification)
+	}
+}
+func (t *SpecificationTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *SpecificationTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type profile7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget struct {
+	Value   *map[Library]struct{}
+	currKey Library
+	vdl.TargetBase
+	vdl.SetTargetBase
+}
+
+func (t *profile7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeprofile2) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeprofile2)
+	}
+	*t.Value = make(map[Library]struct{})
+	return t, nil
+}
+func (t *profile7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) StartKey() (key vdl.Target, _ error) {
+	t.currKey = Library{}
+	return &LibraryTarget{Value: &t.currKey}, error(nil)
+}
+func (t *profile7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) FinishKey(key vdl.Target) error {
+	(*t.Value)[t.currKey] = struct{}{}
+	return nil
+}
+func (t *profile7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) FinishSet(list vdl.SetTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
 	return nil
 }
 

@@ -9,6 +9,7 @@
 package identity
 
 import (
+	"fmt"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -31,7 +32,6 @@ func (BlessingRootResponse) __VDLReflect(struct {
 }
 
 func (m *BlessingRootResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_identity_v_io_x_ref_services_identity_BlessingRootResponse == nil || __VDLTypeidentity0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -88,6 +88,37 @@ func (m *BlessingRootResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *BlessingRootResponse) MakeVDLTarget() vdl.Target {
+	return &BlessingRootResponseTarget{Value: m}
+}
+
+type BlessingRootResponseTarget struct {
+	Value *BlessingRootResponse
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *BlessingRootResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_identity_v_io_x_ref_services_identity_BlessingRootResponse) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_identity_v_io_x_ref_services_identity_BlessingRootResponse)
+	}
+	return t, nil
+}
+func (t *BlessingRootResponseTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Names":
+		val, err := &vdl.StringSliceTarget{Value: &t.Value.Names}, error(nil)
+		return nil, val, err
+	case "PublicKey":
+		val, err := &vdl.StringTarget{Value: &t.Value.PublicKey}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_identity_v_io_x_ref_services_identity_BlessingRootResponse)
+	}
+}
+func (t *BlessingRootResponseTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *BlessingRootResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 

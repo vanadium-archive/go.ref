@@ -8,6 +8,7 @@
 package nativetest
 
 import (
+	"fmt"
 	"v.io/v23/vdl"
 )
 
@@ -18,14 +19,27 @@ func (ignoreme) __VDLReflect(struct {
 }) {
 }
 
-func (m ignoreme) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromString(string(m), __VDLType_otherfile_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme); err != nil {
+func (m *ignoreme) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromString(string((*m)), __VDLType_otherfile_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m ignoreme) MakeVDLTarget() vdl.Target {
+func (m *ignoreme) MakeVDLTarget() vdl.Target {
+	return &ignoremeTarget{Value: m}
+}
+
+type ignoremeTarget struct {
+	Value *ignoreme
+	vdl.TargetBase
+}
+
+func (t *ignoremeTarget) FromString(src string, tt *vdl.Type) error {
+	if !vdl.Compatible(tt, __VDLType_otherfile_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme) {
+		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_otherfile_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme)
+	}
+	*t.Value = ignoreme(src)
 	return nil
 }
 

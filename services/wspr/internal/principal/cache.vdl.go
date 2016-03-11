@@ -8,8 +8,11 @@
 package principal
 
 import (
+	"fmt"
+	"reflect"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlconv"
 )
 
 // Identifier of a blessings cache entry.
@@ -20,14 +23,52 @@ func (BlessingsId) __VDLReflect(struct {
 }) {
 }
 
-func (m BlessingsId) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64(m), __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
+func (m *BlessingsId) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64((*m)), __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m BlessingsId) MakeVDLTarget() vdl.Target {
+func (m *BlessingsId) MakeVDLTarget() vdl.Target {
+	return &BlessingsIdTarget{Value: m}
+}
+
+type BlessingsIdTarget struct {
+	Value *BlessingsId
+	vdl.TargetBase
+}
+
+func (t *BlessingsIdTarget) FromUint(src uint64, tt *vdl.Type) error {
+	val, err := vdlconv.Uint64ToUint32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = BlessingsId(val)
+	return nil
+}
+func (t *BlessingsIdTarget) FromInt(src int64, tt *vdl.Type) error {
+	val, err := vdlconv.Int64ToUint32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = BlessingsId(val)
+	return nil
+}
+func (t *BlessingsIdTarget) FromFloat(src float64, tt *vdl.Type) error {
+	val, err := vdlconv.Float64ToUint32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = BlessingsId(val)
+	return nil
+}
+func (t *BlessingsIdTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	val, err := vdlconv.Complex128ToUint32(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = BlessingsId(val)
 	return nil
 }
 
@@ -42,7 +83,6 @@ func (BlessingsCacheAddMessage) __VDLReflect(struct {
 }
 
 func (m *BlessingsCacheAddMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	__VDLEnsureNativeBuilt_cache()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
@@ -87,6 +127,37 @@ func (m *BlessingsCacheAddMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) err
 }
 
 func (m *BlessingsCacheAddMessage) MakeVDLTarget() vdl.Target {
+	return &BlessingsCacheAddMessageTarget{Value: m}
+}
+
+type BlessingsCacheAddMessageTarget struct {
+	Value *BlessingsCacheAddMessage
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *BlessingsCacheAddMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage)
+	}
+	return t, nil
+}
+func (t *BlessingsCacheAddMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "CacheId":
+		val, err := &BlessingsIdTarget{Value: &t.Value.CacheId}, error(nil)
+		return nil, val, err
+	case "Blessings":
+		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Blessings))
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage)
+	}
+}
+func (t *BlessingsCacheAddMessageTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *BlessingsCacheAddMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -105,7 +176,6 @@ func (BlessingsCacheDeleteMessage) __VDLReflect(struct {
 }
 
 func (m *BlessingsCacheDeleteMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage == nil || __VDLTypecache1 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -146,6 +216,37 @@ func (m *BlessingsCacheDeleteMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) 
 }
 
 func (m *BlessingsCacheDeleteMessage) MakeVDLTarget() vdl.Target {
+	return &BlessingsCacheDeleteMessageTarget{Value: m}
+}
+
+type BlessingsCacheDeleteMessageTarget struct {
+	Value *BlessingsCacheDeleteMessage
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *BlessingsCacheDeleteMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage)
+	}
+	return t, nil
+}
+func (t *BlessingsCacheDeleteMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "CacheId":
+		val, err := &BlessingsIdTarget{Value: &t.Value.CacheId}, error(nil)
+		return nil, val, err
+	case "DeleteAfter":
+		val, err := &vdl.Uint32Target{Value: &t.Value.DeleteAfter}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage)
+	}
+}
+func (t *BlessingsCacheDeleteMessageTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *BlessingsCacheDeleteMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
@@ -183,7 +284,6 @@ func (x BlessingsCacheMessageAdd) Name() string                                {
 func (x BlessingsCacheMessageAdd) __VDLReflect(__BlessingsCacheMessageReflect) {}
 
 func (m BlessingsCacheMessageAdd) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage)
 	if err != nil {
 		return err
@@ -216,7 +316,6 @@ func (x BlessingsCacheMessageDelete) Name() string                              
 func (x BlessingsCacheMessageDelete) __VDLReflect(__BlessingsCacheMessageReflect) {}
 
 func (m BlessingsCacheMessageDelete) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	fieldsTarget1, err := t.StartFields(__VDLType_cache_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage)
 	if err != nil {
 		return err

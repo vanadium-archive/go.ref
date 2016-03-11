@@ -8,6 +8,7 @@
 package testdata
 
 import (
+	"fmt"
 	"v.io/v23/discovery"
 	"v.io/v23/vdl"
 	discovery_2 "v.io/x/ref/lib/discovery"
@@ -27,7 +28,6 @@ func (AdConversionTestCase) __VDLReflect(struct {
 }
 
 func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-
 	if __VDLType_advertisement_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase == nil || __VDLTypeadvertisement0 == nil {
 		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
 	}
@@ -93,6 +93,71 @@ func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m *AdConversionTestCase) MakeVDLTarget() vdl.Target {
+	return &AdConversionTestCaseTarget{Value: m}
+}
+
+type AdConversionTestCaseTarget struct {
+	Value *AdConversionTestCase
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *AdConversionTestCaseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if !vdl.Compatible(tt, __VDLType_advertisement_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_advertisement_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase)
+	}
+	return t, nil
+}
+func (t *AdConversionTestCaseTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "AdInfo":
+		val, err := &discovery_2.AdInfoTarget{Value: &t.Value.AdInfo}, error(nil)
+		return nil, val, err
+	case "GattAttrs":
+		val, err := &advertisement6d61705b737472696e675d5b5d62797465Target{Value: &t.Value.GattAttrs}, error(nil)
+		return nil, val, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_advertisement_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase)
+	}
+}
+func (t *AdConversionTestCaseTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *AdConversionTestCaseTarget) FinishFields(_ vdl.FieldsTarget) error {
+	return nil
+}
+
+type advertisement6d61705b737472696e675d5b5d62797465Target struct {
+	Value    *map[string][]byte
+	currKey  string
+	currElem []byte
+	vdl.TargetBase
+	vdl.MapTargetBase
+}
+
+func (t *advertisement6d61705b737472696e675d5b5d62797465Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+	if !vdl.Compatible(tt, __VDLTypeadvertisement1) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLTypeadvertisement1)
+	}
+	*t.Value = make(map[string][]byte)
+	return t, nil
+}
+func (t *advertisement6d61705b737472696e675d5b5d62797465Target) StartKey() (key vdl.Target, _ error) {
+	t.currKey = ""
+	return &vdl.StringTarget{Value: &t.currKey}, error(nil)
+}
+func (t *advertisement6d61705b737472696e675d5b5d62797465Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+	t.currElem = []byte(nil)
+	return &vdl.BytesTarget{Value: &t.currElem}, error(nil)
+}
+func (t *advertisement6d61705b737472696e675d5b5d62797465Target) FinishField(key, field vdl.Target) error {
+	(*t.Value)[t.currKey] = t.currElem
+	return nil
+}
+func (t *advertisement6d61705b737472696e675d5b5d62797465Target) FinishMap(elem vdl.MapTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
 	return nil
 }
 
