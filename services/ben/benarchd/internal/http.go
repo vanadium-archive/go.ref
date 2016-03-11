@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"net/http"
 	"path"
+	"reflect"
 	"strings"
 	"time"
 
@@ -80,10 +81,10 @@ func (h *handler) handleQuery(w http.ResponseWriter, query *Query) {
 		h.runs(w, bm, itr)
 		return
 	}
-	h.benchmarks(w, query.String(), bm, bmarks)
+	h.benchmarks(w, query, bm, bmarks)
 }
 
-func (h *handler) benchmarks(w http.ResponseWriter, query string, first Benchmark, itr BenchmarkIterator) {
+func (h *handler) benchmarks(w http.ResponseWriter, query *Query, first Benchmark, itr BenchmarkIterator) {
 	var (
 		cancel = make(chan struct{})
 		items  = make(chan Benchmark, 2)
@@ -107,7 +108,7 @@ func (h *handler) benchmarks(w http.ResponseWriter, query string, first Benchmar
 		}
 	}()
 	args := struct {
-		Query string
+		Query *Query
 		Items <-chan Benchmark
 		Err   <-chan error
 	}{
@@ -178,8 +179,7 @@ func executeTemplate(w http.ResponseWriter, tmpl *template.Template, args interf
 
 }
 
-func newTemplate(name string, contents ...string) *template.Template {
-	t := template.New(name)
+func templateParse(t *template.Template, contents ...string) *template.Template {
 	for _, c := range contents {
 		t = template.Must(t.Parse(c))
 	}
@@ -316,7 +316,7 @@ function makeTableSortable(tb) {
 }
 </style>
 `)
-	tmplHome = newTemplate(".home", `<!DOCTYPE html>
+	tmplHome = templateParse(template.New(".home"), `<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <title>Benchmark Results Archive</title>
@@ -359,7 +359,7 @@ function makeTableSortable(tb) {
 </body>
 </html>
 `, htmlStyling, htmlFooter)
-	tmplBadQuery = newTemplate(".badquery", `
+	tmplBadQuery = templateParse(template.New(".badquery"), `
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -382,7 +382,7 @@ function makeTableSortable(tb) {
 </body>
 </html>
 `, htmlStyling, htmlFooter)
-	tmplNoBenchmarks = newTemplate(".nobenchmarks", `
+	tmplNoBenchmarks = templateParse(template.New(".nobenchmarks"), `
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -405,7 +405,19 @@ function makeTableSortable(tb) {
 </body>
 </html>
 `, htmlStyling, htmlFooter)
-	tmplBenchmarks = newTemplate(".benchmarks", `
+	tmplBenchmarks = templateParse(template.New(".benchmarks").Funcs(
+		template.FuncMap{
+			"refineQuery": func(q *Query, field, value string) (*Query, error) {
+				ret := *q
+				f := reflect.ValueOf(&ret).Elem().FieldByName(field)
+				var invalid reflect.Value
+				if f == invalid {
+					return nil, fmt.Errorf("%q is not a valid query field", field)
+				}
+				f.Set(reflect.ValueOf(value))
+				return &ret, nil
+			},
+		}), `
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -424,7 +436,20 @@ function makeTableSortable(tb) {
               <label class="mdl-textfield__label" for="q">{{.Query}}</label>
             </div>
             <input value="Search" type="submit" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"/>
+	    {{if .Query.CPU}}
+	    <a href="/?q={{refineQuery .Query "CPU" "" | urlquery}}" class="mdl-button mdl-js-button"><i class="material-icons">remove</i>CPU</a>
+	    {{end}}
+	    {{if .Query.OS}}
+	    <a href="/?q={{refineQuery .Query "OS" "" | urlquery}}" class="mdl-button mdl-js-button"><i class="material-icons">remove</i>OS</a>
+	    {{end}}
+	    {{if .Query.Uploader}}
+	    <a href="/?q={{refineQuery .Query "Uploader" "" | urlquery}}" class="mdl-button mdl-js-button"><i class="material-icons">remove</i>Uploader</a>
+	    {{end}}
+	    {{if .Query.Label}}
+	    <a href="/?q={{refineQuery .Query "Label" "" | urlquery}}" class="mdl-button mdl-js-button"><i class="material-icons">remove</i>Label</a>
+	    {{end}}
         </form>
+
         </div>
       </section>
       <section class="section--center mdl-grid mdl-grid--no-spacing mdl-shadow--2dp">
@@ -447,10 +472,10 @@ function makeTableSortable(tb) {
                 <tr>
                 <td class="mdl-data-table__cell--non-numeric"><a href="?id={{.ID | urlquery}}">{{.Name}}</a></td>
                 <td><div id="time_{{.ID}}">{{.PrettyTime}}</div><div class="mdl-tooltip" for="time_{{.ID}}"><span class="mdl-data-table__cell-data">{{.NanoSecsPerOp}}</span>ns</div></td>
-                <td class="mdl-data-table__cell--non-numeric"><div id="os_{{.ID}}">{{.Scenario.Os.Name}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="os_{{.ID}}">{{.Scenario.Os.Version}}</div></td>
-                <td class="mdl-data-table__cell--non-numeric"><div id="cpu_{{.ID}}">{{.Scenario.Cpu.Architecture}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="cpu_{{.ID}}">{{.Scenario.Cpu.Description}}</div></td>
-                <td class="mdl-data-table__cell--non-numeric">{{.Uploader}}</td>
-                <td class="mdl-data-table__cell--non-numeric">{{.Scenario.Label}}</td>
+                <td class="mdl-data-table__cell--non-numeric"><div id="os_{{.ID}}"><a href="/?q={{refineQuery $.Query "OS" .Scenario.Os.Version | urlquery}}">{{.Scenario.Os.Name}}</a></div><div class="mdl-tooltip mdl-data-table__cell-data" for="os_{{.ID}}">{{.Scenario.Os.Version}}</div></td>
+                <td class="mdl-data-table__cell--non-numeric"><div id="cpu_{{.ID}}"><a href="/?q={{refineQuery $.Query "CPU" .Scenario.Cpu.Description | urlquery}}">{{.Scenario.Cpu.Architecture}}</a></div><div class="mdl-tooltip mdl-data-table__cell-data" for="cpu_{{.ID}}">{{.Scenario.Cpu.Description}}</div></td>
+                <td class="mdl-data-table__cell--non-numeric"><a href="/?q={{refineQuery $.Query "Uploader" .Uploader | urlquery}}">{{.Uploader}}</a></td>
+                <td class="mdl-data-table__cell--non-numeric"><a href="/?q={{refineQuery $.Query "Label" .Scenario.Label | urlquery}}">{{.Scenario.Label}}</a></td>
                 </tr>
                 {{end}}
                 {{range .Err}}
@@ -468,7 +493,7 @@ function makeTableSortable(tb) {
 </body>
 </html>
 `, htmlStyling, htmlFooter)
-	tmplRuns = newTemplate(".runs", `
+	tmplRuns = templateParse(template.New(".runs"), `
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
