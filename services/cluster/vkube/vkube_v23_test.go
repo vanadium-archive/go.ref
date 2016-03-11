@@ -99,8 +99,7 @@ func TestV23Vkube(t *testing.T) {
 	gsutil("mb", "-p", *flagProject, "gs://"+id)
 	defer func() {
 		kubectlOK("delete", "namespace", id)
-		gsutil("-m", "rm", "-R", "-a", "gs://"+id+"/*")
-		gsutil("rb", "gs://"+id)
+		gsutil("-m", "rm", "-r", "gs://"+id)
 	}()
 
 	// Create app's docker image and configs.
