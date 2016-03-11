@@ -23,7 +23,7 @@ func TestReapRestartsDaemonMode(t *testing.T) {
 	// Start a device manager.
 	// (Since it will be restarted, use the VeyronCredentials environment
 	// to maintain the same set of credentials across runs)
-	dmCreds, err := ioutil.TempDir("", "TestReapReconciliationViaKill")
+	dmCreds, err := ioutil.TempDir("", "TestReapRestartsDaemonMode")
 	if err != nil {
 		t.Fatal(err)
 	}

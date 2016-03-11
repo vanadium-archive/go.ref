@@ -1178,9 +1178,10 @@ func (i *appService) stop(ctx *context.T, instanceDir string, info *instanceInfo
 	case <-deadlineExpired:
 	}
 	reap.forciblySuspend(instanceDir)
-	// Give it an extra 500 ms of grace period for the process to die after
-	// forceful shutdown.
-	deadlineExpired = time.After(500 * time.Millisecond)
+	// Give it some grace period for the process to die after forceful
+	// shutdown.
+	gracePeriod := 5 * time.Second
+	deadlineExpired = time.After(gracePeriod)
 	select {
 	case <-processExited:
 		return true, verror.New(errStoppedWithErrors, ctx, fmt.Sprintf("process failed to exit cleanly upon remote stop (%v) and was forcefully terminated", err))
@@ -1190,7 +1191,7 @@ func (i *appService) stop(ctx *context.T, instanceDir string, info *instanceInfo
 		// state. We let the reaper deal with it going forward
 		// (including restarting it if restarts are enabled).
 		reap.startWatching(instanceDir, pid)
-		return false, verror.New(errStopFailed, ctx, "process failed to exit after force stop")
+		return false, verror.New(errStopFailed, ctx, fmt.Sprintf("process failed to exit within %v after force stop", gracePeriod))
 	}
 }
 

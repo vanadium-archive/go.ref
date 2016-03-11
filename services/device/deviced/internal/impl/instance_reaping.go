@@ -5,6 +5,7 @@
 package impl
 
 import (
+	"fmt"
 	"path/filepath"
 	"sync"
 	"syscall"
@@ -50,26 +51,24 @@ func newReaper(ctx *context.T, root string, appRunner *appRunner) (*reaper, erro
 	return r, nil
 }
 
-func markNotRunning(ctx *context.T, runner *appRunner, idir string) {
+func markNotRunning(ctx *context.T, runner *appRunner, idir string) error {
 	if sa := runner.securityAgent; sa != nil && sa.keyMgr != nil {
 		info, err := loadInstanceInfo(ctx, idir)
 		if err != nil {
-			ctx.Errorf("Failed to load instance info: %v", err)
+			return fmt.Errorf("failed to load instance info: %v", err)
 		}
 		if err := sa.keyMgr.StopServing(info.handle()); err != nil {
-			ctx.Errorf("StopServing failed: %v", err)
+			return fmt.Errorf("StopServing failed: %v", err)
 		}
 	}
 
-	if err := transitionInstance(idir, device.InstanceStateRunning, device.InstanceStateNotRunning); err != nil {
-		// This may fail under two circumstances.
-		// 1. The app has crashed between where startCmd invokes
-		// startWatching and where the invoker sets the state to running.
-		// 2. Remove experiences a failure (e.g. filesystem becoming R/O)
-		// 3. The app is in the process of being Kill'ed when the reaper poll
-		// finds the process dead and attempts a restart.
-		ctx.Errorf("reaper transitionInstance(%v, %v, %v) failed: %v", idir, device.InstanceStateRunning, device.InstanceStateNotRunning, err)
+	if instanceStateIs(idir, device.InstanceStateNotRunning) {
+		return nil
 	}
+	// If the app is not in state Running, it is likely in the process of
+	// being launched or killed when the reaper poll finds the process dead.
+	// Do not attempt a restart in this case.
+	return transitionInstance(idir, device.InstanceStateRunning, device.InstanceStateNotRunning)
 }
 
 func isAlive(ctx *context.T, pid int) bool {
@@ -97,9 +96,12 @@ func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int
 	poll := func(ctx *context.T) {
 		for idir, pid := range trackedPids {
 			if !isAlive(ctx, pid) {
-				ctx.VI(2).Infof("processStatusPolling discovered pid %d ended", pid)
-				markNotRunning(ctx, appRunner, idir)
-				go appRunner.restartAppIfNecessary(ctx, idir)
+				ctx.Infof("processStatusPolling discovered pid %d ended", pid)
+				if err := markNotRunning(ctx, appRunner, idir); err != nil {
+					ctx.Errorf("markNotRunning failed: %v", err)
+				} else {
+					go appRunner.restartAppIfNecessary(ctx, idir)
+				}
 				delete(trackedPids, idir)
 			} else {
 				ctx.VI(2).Infof("processStatusPolling saw live pid: %d", pid)
