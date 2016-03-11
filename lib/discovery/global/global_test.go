@@ -7,6 +7,7 @@ package global
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/discovery"
@@ -56,8 +57,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	// Create a new discovery instance. All advertisements should be discovered with that.
-	clock := timekeeper.NewManualTime()
-	d2, err := newWithClock(ctx, testPath, clock)
+	d2, err := NewWithTTL(ctx, testPath, 0, 1*time.Millisecond)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,6 @@ func TestBasic(t *testing.T) {
 	// Make sure scan returns the lost advertisement when advertising is stopped.
 	stops[0]()
 
-	clock.AdvanceTime(scanInterval * 2)
 	update = <-scanCh
 	if !testutil.MatchLost(ctx, []discovery.Update{update}, ads[0]) {
 		t.Errorf("unexpected scan: %v", update)
@@ -193,12 +192,13 @@ func TestRefresh(t *testing.T) {
 		Addresses: []string{"/h1:123/x"},
 	}
 
-	d1, _ := newWithClock(ctx, testPath, clock)
+	const mountTTL = 10 * time.Second
+	d1, _ := newWithClock(ctx, testPath, mountTTL, 0, clock)
 
 	stop, _ := testutil.Advertise(ctx, d1, nil, &ad)
 	defer stop()
 
-	d2, _ := New(ctx, testPath)
+	d2, _ := NewWithTTL(ctx, testPath, 0, 1*time.Millisecond)
 	if err := testutil.ScanAndMatch(ctx, d2, ``, ad); err != nil {
 		t.Error(err)
 	}
