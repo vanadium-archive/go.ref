@@ -80,19 +80,21 @@ func benchmarkDecode(b *testing.B, value interface{}, zero func() interface{}) {
 
 	tenc := vom.NewTypeEncoder(typeBuf)
 	enc := vom.NewEncoderWithTypeEncoder(valBuf, tenc)
-	tdec := vom.NewTypeDecoder(typeBuf)
-	tdec.Start()
-	dec := vom.NewDecoderWithTypeDecoder(valBuf, tdec)
-
 	for i := 0; i < b.N; i++ {
 		if err := enc.Encode(value); err != nil {
 			b.Fatal(err)
 		}
 	}
+
+	tdec := vom.NewTypeDecoder(typeBuf)
+	tdec.Start()
+	defer tdec.Stop()
+	dec := vom.NewDecoderWithTypeDecoder(valBuf, tdec)
 	b.ResetTimer()
+
 	for i := 0; i < b.N; i++ {
 		if err := dec.Decode(zero()); err != nil {
-			b.Fatal(err)
+			b.Fatal(i, err)
 		}
 	}
 }
