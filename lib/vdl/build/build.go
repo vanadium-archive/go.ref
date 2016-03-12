@@ -54,7 +54,6 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/vdltool"
-	"v.io/x/lib/set"
 	"v.io/x/lib/toposort"
 	"v.io/x/ref/lib/vdl/compile"
 	"v.io/x/ref/lib/vdl/parse"
@@ -155,7 +154,7 @@ func newPackage(path, genPath, dir string, mode UnknownPathMode, opts Opts, vdle
 		Dir:           dir,
 		OpenFilesFunc: openFiles,
 	}
-	if err := pkg.initBaseFileNames(opts.exts()); err != nil {
+	if err := pkg.initBaseFileNames(); err != nil {
 		mode.logOrErrorf(vdlenv.Errors, "%s: bad package dir (%v)", pkg.Dir, err)
 		return nil
 	}
@@ -170,7 +169,7 @@ func newPackage(path, genPath, dir string, mode UnknownPathMode, opts Opts, vdle
 }
 
 // initBaseFileNames initializes p.BaseFileNames from the contents of p.Dir.
-func (p *Package) initBaseFileNames(exts map[string]bool) error {
+func (p *Package) initBaseFileNames() error {
 	infos, err := ioutil.ReadDir(p.Dir)
 	if err != nil {
 		return err
@@ -179,7 +178,7 @@ func (p *Package) initBaseFileNames(exts map[string]bool) error {
 		if info.IsDir() {
 			continue
 		}
-		if ignorePathElem(info.Name()) || !exts[filepath.Ext(info.Name())] {
+		if ignorePathElem(info.Name()) || filepath.Ext(info.Name()) != ".vdl" {
 			vdlutil.Vlog.Printf("%s: ignoring file", filepath.Join(p.Dir, info.Name()))
 			continue
 		}
@@ -695,21 +694,9 @@ func printPackagePath(v interface{}) string {
 
 // Opts specifies additional options for collecting build information.
 type Opts struct {
-	// Extensions specifies the file name extensions for valid vdl files.  If
-	// empty we use ".vdl" by default.
-	Extensions []string
-
 	// VDLConfigName specifies the name of the optional config file in each vdl
 	// source package.  If empty we use "vdl.config" by default.
 	VDLConfigName string
-}
-
-func (o Opts) exts() map[string]bool {
-	ret := set.StringBool.FromSlice(o.Extensions)
-	if len(ret) == 0 {
-		ret = map[string]bool{".vdl": true}
-	}
-	return ret
 }
 
 func (o Opts) vdlConfigName() string {

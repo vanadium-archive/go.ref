@@ -50,7 +50,7 @@ func genEncDefInternal(data goData, t *vdl.Type, instName, targetName, unionFiel
 		}`, targetName, instName, typeObjectValName, data.Pkg("v.io/v23/vdl"))
 
 	case vdl.Any:
-		if shouldUseVdlValueForAny(data.File.Package) {
+		if shouldUseVdlValueForAny(data.Package) {
 			return fmt.Sprintf(`
 		if %[2]s == nil {
 			if err := %[1]s.FromNil(%[4]s); err != nil {
@@ -193,7 +193,7 @@ func genEncDefInternal(data goData, t *vdl.Type, instName, targetName, unionFiel
 				// Because native types are initialized in init() blocks, we need
 				// another way to initialize their values if other init blocks
 				// call FillVDLTarget().
-				s += fmt.Sprintf("\n%s()", nameEnsureNativeBuilt(data))
+				s += fmt.Sprintf("\n__VDLEnsureNativeBuilt()")
 			} else {
 				// TODO(bprosnitz) This only checks if two types are nil. Check if all used types are nil.
 				s += fmt.Sprintf(`
@@ -351,7 +351,7 @@ func genEncRefForWiretype(data goData, t *vdl.Type, wireInstName, targetName str
 // but generates conversion code for native types.
 func encWiretypeInstName(data goData, t *vdl.Type, instName string, varCount *int) (wiretypeInstName, body string) {
 	// If this is a native type, convert it to wire type.
-	if isNativeType(t, data.File.Package) {
+	if isNativeType(t, data.Package) {
 		wirePkgName, name := wiretypeLocalName(data, t)
 		wireType := wirePkgName + name
 		wiretypeInstName = createUniqueName("wireValue", varCount)
@@ -512,7 +512,7 @@ func genVdlTypeBuilderInternal(data goData, t *vdl.Type, lookupName map[*vdl.Typ
 
 func containsNativeType(data goData, t *vdl.Type) bool {
 	isNative := !t.Walk(vdl.WalkAll, func(wt *vdl.Type) bool {
-		return !isNativeType(wt, data.File.Package)
+		return !isNativeType(wt, data.Package)
 	})
 	return isNative
 }
@@ -549,7 +549,7 @@ func genVdlTypesForEnc(data goData) (s string) {
 		}
 	}
 
-	s += fmt.Sprintf("\nfunc %s() {", nameEnsureNativeBuilt(data))
+	s += fmt.Sprintf("\nfunc __VDLEnsureNativeBuilt() {")
 	for _, t := range data.typeDepends.SortedTypes() {
 		if containsNativeType(data, t) {
 			s += fmt.Sprintf(`
@@ -561,10 +561,6 @@ func genVdlTypesForEnc(data goData) (s string) {
 	s += "\n}"
 
 	return
-}
-
-func nameEnsureNativeBuilt(data goData) string {
-	return fmt.Sprintf("__VDLEnsureNativeBuilt_%s", strings.TrimSuffix(data.File.BaseName, ".vdl"))
 }
 
 // isNativeType traverses the package structure to determine whether the provided type is native.
@@ -639,9 +635,9 @@ func (typeDepends *typeDependencyNames) Add(data goData, t *vdl.Type) string {
 	}
 	var str string
 	if t.Name() != "" {
-		str = fmt.Sprintf("__VDLType_%s_%s", strings.TrimSuffix(data.File.BaseName, ".vdl"), strings.Replace(strings.Replace(t.Name(), ".", "_", -1), "/", "_", -1))
+		str = fmt.Sprintf("__VDLType_%s", strings.Replace(strings.Replace(t.Name(), ".", "_", -1), "/", "_", -1))
 	} else {
-		str = fmt.Sprintf("__VDLType%s%d", strings.TrimSuffix(data.File.BaseName, ".vdl"), typeDepends.nextCount)
+		str = fmt.Sprintf("__VDLType%d", typeDepends.nextCount)
 		typeDepends.nextCount++
 	}
 	typeDepends.types[t] = str

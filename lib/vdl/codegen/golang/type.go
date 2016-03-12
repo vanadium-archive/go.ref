@@ -65,7 +65,7 @@ func typeGoInternal(data goData, t *vdl.Type, useNative bool) string {
 	if def := data.Env.FindTypeDef(t); def != nil {
 		switch {
 		case t == vdl.AnyType:
-			if shouldUseVdlValueForAny(data.File.Package) {
+			if shouldUseVdlValueForAny(data.Package) {
 				return "*" + data.Pkg("v.io/v23/vdl") + "Value"
 			} else {
 				return "*" + data.Pkg("v.io/v23/vom") + "RawBytes"

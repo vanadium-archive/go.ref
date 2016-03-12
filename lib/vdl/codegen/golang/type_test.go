@@ -42,9 +42,7 @@ func TestType(t *testing.T) {
 	}
 	data := goData{Env: compile.NewEnv(-1)}
 	for _, test := range tests {
-		data.File = &compile.File{
-			Package: &compile.Package{},
-		}
+		data.Package = &compile.Package{}
 		if got, want := typeGo(data, test.T), test.Want; got != want {
 			t.Errorf("%s\nGOT %s\nWANT %s", test.T, got, want)
 		}
@@ -213,9 +211,7 @@ func (m TestUnionB) MakeVDLTarget() vdl.Target {
 }`},
 	}
 	data := goData{
-		File: &compile.File{
-			Package: &compile.Package{},
-		},
+		Package:        &compile.Package{},
 		Env:            compile.NewEnv(-1),
 		typeDepends:    newTypeDependencyNames(),
 		createdTargets: make(map[*vdl.Type]bool),

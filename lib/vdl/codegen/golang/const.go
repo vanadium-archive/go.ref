@@ -10,7 +10,6 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/parse"
 )
 
 func constDefGo(data goData, def *compile.ConstDef) string {
@@ -93,13 +92,13 @@ func untypedConst(data goData, v *vdl.Value) string {
 			//
 			// This may seem like a strange roundtrip, but results in less generator
 			// and generated code.
-			if shouldUseVdlValueForAny(data.File.Package) {
+			if shouldUseVdlValueForAny(data.Package) {
 				return data.Pkg("v.io/v23/vdl") + "ValueOf(" + typedConst(data, elem) + ")"
 			} else {
 				return data.Pkg("v.io/v23/vom") + "RawBytesOf(" + typedConst(data, elem) + ")"
 			}
 		}
-		if shouldUseVdlValueForAny(data.File.Package) {
+		if shouldUseVdlValueForAny(data.Package) {
 			return "(*" + data.Pkg("v.io/v23/vdl") + "Value)(nil)"
 		} else {
 			return "(*" + data.Pkg("v.io/v23/vom") + "RawBytes)(nil)"
@@ -204,7 +203,7 @@ func untypedConst(data goData, v *vdl.Value) string {
 		ix, field := v.UnionField()
 		return typeGo(data, t) + t.Field(ix).Name + "{" + typedConst(data, field) + "}"
 	default:
-		data.Env.Errorf(data.File, parse.Pos{}, "%v untypedConst not implemented for %v %v", t, k)
+		data.Env.Errors.Errorf("%s: %v untypedConst not implemented for %v %v", data.Package.Name, t, k)
 		return "INVALID"
 	}
 }

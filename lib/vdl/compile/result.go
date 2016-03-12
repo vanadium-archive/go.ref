@@ -332,6 +332,47 @@ func (p *Package) resolve(name string, isLocal bool) interface{} {
 	return nil
 }
 
+// Doc returns the package documentation, which should only exist in a single
+// file in the package.
+func (p *Package) Doc() string {
+	for _, file := range p.Files {
+		if doc := file.PackageDef.Doc; doc != "" {
+			return doc
+		}
+	}
+	return ""
+}
+
+// TODO(toddw): Add ordering as appropriate to each of these!
+
+func (p *Package) TypeDefs() (x []*TypeDef) {
+	for _, file := range p.Files {
+		x = append(x, file.TypeDefs...)
+	}
+	return
+}
+
+func (p *Package) ConstDefs() (x []*ConstDef) {
+	for _, file := range p.Files {
+		x = append(x, file.ConstDefs...)
+	}
+	return
+}
+
+func (p *Package) ErrorDefs() (x []*ErrorDef) {
+	for _, file := range p.Files {
+		x = append(x, file.ErrorDefs...)
+	}
+	return
+}
+
+func (p *Package) Interfaces() (x []*Interface) {
+	for _, file := range p.Files {
+		x = append(x, file.Interfaces...)
+	}
+	return
+}
+
 // File represents a compiled vdl file.
 type File struct {
 	BaseName   string       // Base name of the vdl file, e.g. "foo.vdl"

@@ -28,8 +28,6 @@ If not specified, we'll try to find the file at its canonical location:
    v.io/v23/vom/testdata/vomdata.vdl.config
 
 The vomtestgen flags are:
- -exts=.vdl
-   Comma-separated list of valid VDL file name extensions.
  -max-errors=-1
    Stop processing after this many errors, or -1 for unlimited.
 

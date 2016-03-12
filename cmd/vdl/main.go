@@ -91,7 +91,6 @@ func (f runnerFunc) Run(_ *cmdline.Env, args []string) (e error) {
 		mode = build.UnknownPathIsIgnored
 	}
 	var opts build.Opts
-	opts.Extensions = strings.Split(flagExts, ",")
 	opts.VDLConfigName = flagVDLConfig
 	targets := build.TransitivePackages(args, mode, opts, env.Errors)
 	if err := checkErrors(env.Errors); err != nil {
@@ -360,7 +359,6 @@ var (
 	// Common flags for the tool itself, applicable to all commands.
 	flagVerbose       bool
 	flagMaxErrors     int
-	flagExts          string
 	flagVDLConfig     string
 	flagIgnoreUnknown bool
 
@@ -408,7 +406,6 @@ func init() {
 	// Common flags for the tool itself, applicable to all commands.
 	cmdVDL.Flags.BoolVar(&flagVerbose, "v", false, "Turn on verbose logging.")
 	cmdVDL.Flags.IntVar(&flagMaxErrors, "max-errors", -1, "Stop processing after this many errors, or -1 for unlimited.")
-	cmdVDL.Flags.StringVar(&flagExts, "exts", ".vdl", "Comma-separated list of valid VDL file name extensions.")
 	cmdVDL.Flags.StringVar(&flagVDLConfig, "vdl.config", "vdl.config", "Basename of the optional per-package config file.")
 	cmdVDL.Flags.BoolVar(&flagIgnoreUnknown, "ignore_unknown", false, "Ignore unknown packages provided on the command line.")
 
@@ -515,11 +512,9 @@ func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 				if handleErrorOrSkip("--go-out-dir", err, env) {
 					continue
 				}
-				for _, file := range pkg.Files {
-					data := golang.Generate(file, env)
-					if writeFile(audit, data, dir, file.BaseName+".go", env) {
-						pkgchanged = true
-					}
+				data := golang.Generate(pkg, env)
+				if writeFile(audit, data, dir, pkg.Name+".vdl.go", env, deprecatedGoFiles(pkg)) {
+					pkgchanged = true
 				}
 			case vdltool.GenLanguageJava:
 				if !shouldGenerate(pkg.Config, vdltool.GenLanguageJava) {
@@ -539,7 +534,7 @@ func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 				})
 				for _, file := range java.Generate(pkg, env) {
 					fileDir := filepath.Join(dir, file.Dir)
-					if writeFile(audit, file.Data, fileDir, file.Name, env) {
+					if writeFile(audit, file.Data, fileDir, file.Name, env, nil) {
 						pkgchanged = true
 					}
 				}
@@ -565,7 +560,7 @@ func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 					return cleanPath
 				}
 				data := javascript.Generate(pkg, env, path, optPathToJSCore)
-				if writeFile(audit, data, dir, "index.js", env) {
+				if writeFile(audit, data, dir, "index.js", env, nil) {
 					pkgchanged = true
 				}
 			default:
@@ -585,7 +580,7 @@ func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 // writeFile writes data into the standard location for file, using the given
 // suffix.  Errors are reported via env.  Returns true iff the file doesn't
 // already exist with the given data.
-func writeFile(audit bool, data []byte, dirName, baseName string, env *compile.Env) bool {
+func writeFile(audit bool, data []byte, dirName, baseName string, env *compile.Env, rmFiles []string) bool {
 	dstName := filepath.Join(dirName, baseName)
 	// Don't write any files under tmpVDLRoot, and pretend that everything's
 	// up-to-date.  There's no point in writing files under tmpVDLRoot since the
@@ -597,18 +592,41 @@ func writeFile(audit bool, data []byte, dirName, baseName string, env *compile.E
 	if oldData, err := ioutil.ReadFile(dstName); err == nil && bytes.Equal(oldData, data) {
 		return false
 	}
-	if !audit {
-		// Create containing directory, if it doesn't already exist.
-		if err := os.MkdirAll(dirName, os.FileMode(0777)); err != nil {
-			env.Errors.Errorf("Couldn't create directory %s: %v", dirName, err)
-			return true
-		}
-		if err := ioutil.WriteFile(dstName, data, os.FileMode(0666)); err != nil {
-			env.Errors.Errorf("Couldn't write file %s: %v", dstName, err)
-			return true
+	// At this point we know the old file is stale.
+	if audit {
+		return true
+	}
+	// Create containing directory, if it doesn't already exist.
+	if err := os.MkdirAll(dirName, os.FileMode(0777)); err != nil {
+		env.Errors.Errorf("Couldn't create directory %s: %v", dirName, err)
+		return true
+	}
+	if err := ioutil.WriteFile(dstName, data, os.FileMode(0666)); err != nil {
+		env.Errors.Errorf("Couldn't write file %s: %v", dstName, err)
+		return true
+	}
+	// Remove rmFiles now that we've succeeded.  This is only used for a temporary
+	// transition to new go file names.  Always try to remove all of them, even if
+	// the removal of some of them fails.
+	//
+	// TODO(toddw): Remove this when the transition is complete.
+	for _, rm := range rmFiles {
+		if baseName != rm {
+			abs := filepath.Join(dirName, rm)
+			if err := os.Remove(abs); err != nil && !os.IsNotExist(err) {
+				env.Errors.Errorf("Couldn't delete deprecated file %s: %v", abs, err)
+			}
 		}
 	}
 	return true
+}
+
+// TODO(toddw): Remove this when the transition is complete.
+func deprecatedGoFiles(pkg *compile.Package) (x []string) {
+	for _, file := range pkg.Files {
+		x = append(x, file.BaseName+".go")
+	}
+	return x
 }
 
 func handleErrorOrSkip(prefix string, err error, env *compile.Env) bool {

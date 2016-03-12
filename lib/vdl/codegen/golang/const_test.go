@@ -89,9 +89,7 @@ B: 123,
 	}
 	data := goData{Env: compile.NewEnv(-1)}
 	for _, test := range tests {
-		data.File = &compile.File{
-			Package: &compile.Package{},
-		}
+		data.Package = &compile.Package{}
 		if got, want := typedConst(data, test.V), test.Want; got != want {
 			t.Errorf("%s\n GOT %s\nWANT %s", test.Name, got, want)
 		}

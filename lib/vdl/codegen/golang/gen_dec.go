@@ -402,7 +402,7 @@ func genTargetRef(data goData, t *vdl.Type) (targTypeName, body string) {
 		}
 	}
 
-	if def := data.Env.FindTypeDef(t); (def != nil && def.File == data.File) || t.Name() == "" {
+	if def := data.Env.FindTypeDef(t); (def != nil && def.File.Package == data.Package) || t.Name() == "" {
 		body = genTargetDef(data, t)
 	}
 	targTypeName = targetTypeName(data, t)
@@ -418,7 +418,7 @@ func targetTypeName(data goData, t *vdl.Type) string {
 		}
 		return data.Pkg(pkgPath) + name + "Target"
 	} else {
-		return strings.TrimSuffix(data.File.BaseName, ".vdl") + hex.EncodeToString([]byte(t.String())) + "Target"
+		return "unnamed_" + hex.EncodeToString([]byte(t.String())) + "_Target"
 	}
 }
 
@@ -464,7 +464,7 @@ func genResetValue(data goData, t *vdl.Type, varName string) string {
 // "Value *NativeX
 // wireValue *WireX" along with a name to reference the wireValue
 func genValueField(data goData, t *vdl.Type) (assignmentName, regName, def string) {
-	if isNativeType(t, data.File.Package) {
+	if isNativeType(t, data.Package) {
 		return "t.wireValue", "t.wireValue", fmt.Sprintf(`Value *%s
 	wireValue %s`, typeGoInternal(data, t, true), typeGoInternal(data, t, false))
 	} else {
@@ -475,7 +475,7 @@ func genValueField(data goData, t *vdl.Type) (assignmentName, regName, def strin
 // genWireToNativeConversion generates a wiretype to native conversion, or empty string
 // if the provided type is not a native type.
 func genWireToNativeConversion(data goData, t *vdl.Type) string {
-	if isNativeType(t, data.File.Package) {
+	if isNativeType(t, data.Package) {
 		wirePkgName, name := wiretypeLocalName(data, t)
 		wireType := wirePkgName + name
 		return fmt.Sprintf(`

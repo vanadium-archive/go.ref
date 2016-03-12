@@ -26,8 +26,6 @@ The vdl additional help topics are:
    vdl.config  Description of vdl.config files
 
 The vdl flags are:
- -exts=.vdl
-   Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false
    Ignore unknown packages provided on the command line.
  -max-errors=-1
@@ -97,8 +95,6 @@ The vdl generate flags are:
  -status=true
    Show package names as they are updated
 
- -exts=.vdl
-   Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false
    Ignore unknown packages provided on the command line.
  -max-errors=-1
@@ -123,8 +119,6 @@ The vdl compile flags are:
  -status=true
    Show package names while we compile
 
- -exts=.vdl
-   Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false
    Ignore unknown packages provided on the command line.
  -max-errors=-1
@@ -189,8 +183,6 @@ The vdl audit flags are:
  -status=true
    Show package names as they are updated
 
- -exts=.vdl
-   Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false
    Ignore unknown packages provided on the command line.
  -max-errors=-1
@@ -220,8 +212,6 @@ Usage:
 For more information, run "vdl help packages".
 
 The vdl list flags are:
- -exts=.vdl
-   Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false
    Ignore unknown packages provided on the command line.
  -max-errors=-1

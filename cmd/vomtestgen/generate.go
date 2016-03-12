@@ -61,14 +61,10 @@ If not specified, we'll try to find the file at its canonical location:
    ` + vomdataCanonical,
 }
 
-var (
-	optGenMaxErrors int
-	optGenExts      string
-)
+var optGenMaxErrors int
 
 func init() {
 	cmdGenerate.Flags.IntVar(&optGenMaxErrors, "max-errors", -1, "Stop processing after this many errors, or -1 for unlimited.")
-	cmdGenerate.Flags.StringVar(&optGenExts, "exts", ".vdl", "Comma-separated list of valid VDL file name extensions.")
 }
 
 func main() {
@@ -154,10 +150,8 @@ func compileConfig(debug io.Writer, inName string, env *compile.Env) (*vdl.Value
 	if stat, err := data.Stat(); err != nil || stat.IsDir() {
 		return nil, fmt.Errorf("vomdata file %s is a directory", inName)
 	}
-	var opts build.Opts
-	opts.Extensions = strings.Split(optGenExts, ",")
 	// Compile package dependencies in transitive order.
-	deps := build.TransitivePackagesForConfig(basename, data, opts, env.Errors)
+	deps := build.TransitivePackagesForConfig(basename, data, build.Opts{}, env.Errors)
 	for _, dep := range deps {
 		if pkg := build.BuildPackage(dep, env); pkg != nil {
 			fmt.Fprintf(debug, "Built package %s\n", pkg.Path)
