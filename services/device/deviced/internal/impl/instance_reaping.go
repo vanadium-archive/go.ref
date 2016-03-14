@@ -96,7 +96,7 @@ func (r *reaper) processStatusPolling(ctx *context.T, trackedPids map[string]int
 	poll := func(ctx *context.T) {
 		for idir, pid := range trackedPids {
 			if !isAlive(ctx, pid) {
-				ctx.Infof("processStatusPolling discovered pid %d ended", pid)
+				ctx.Infof("processStatusPolling discovered %v (pid %d) ended", idir, pid)
 				if err := markNotRunning(ctx, appRunner, idir); err != nil {
 					ctx.Errorf("markNotRunning failed: %v", err)
 				} else {

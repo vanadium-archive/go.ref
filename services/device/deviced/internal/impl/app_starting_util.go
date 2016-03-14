@@ -123,7 +123,7 @@ func (a *appHandshaker) doHandshake(ctx *context.T, cmd *exec.Cmd, listener call
 		return 0, "", verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("failed to read pid from helper: %v", err))
 	}
 	pidFromHelper := int(pid32)
-	ctx.VI(1).Infof("read app pid %v from child", pidFromHelper)
+	ctx.Infof("Read app pid %v from child", pidFromHelper)
 
 	// Watch the app pid in case it exits.
 	watcher := newAppWatcher(pidFromHelper, func() {
