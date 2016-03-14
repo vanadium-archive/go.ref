@@ -99,7 +99,10 @@ func (m *BlobMetadata) MakeVDLTarget() vdl.Target {
 }
 
 type BlobMetadataTarget struct {
-	Value *BlobMetadata
+	Value             *BlobMetadata
+	ownerSharesTarget interfaces.BlobSharesBySyncgroupTarget
+	referencedTarget  time_2.TimeTarget
+	accessedTarget    time_2.TimeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -113,14 +116,17 @@ func (t *BlobMetadataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error)
 func (t *BlobMetadataTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "OwnerShares":
-		val, err := &interfaces.BlobSharesBySyncgroupTarget{Value: &t.Value.OwnerShares}, error(nil)
-		return nil, val, err
+		t.ownerSharesTarget.Value = &t.Value.OwnerShares
+		target, err := &t.ownerSharesTarget, error(nil)
+		return nil, target, err
 	case "Referenced":
-		val, err := &time_2.TimeTarget{Value: &t.Value.Referenced}, error(nil)
-		return nil, val, err
+		t.referencedTarget.Value = &t.Value.Referenced
+		target, err := &t.referencedTarget, error(nil)
+		return nil, target, err
 	case "Accessed":
-		val, err := &time_2.TimeTarget{Value: &t.Value.Accessed}, error(nil)
-		return nil, val, err
+		t.accessedTarget.Value = &t.Value.Accessed
+		target, err := &t.accessedTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata)
 	}
@@ -176,7 +182,8 @@ func (m *PerSyncgroup) MakeVDLTarget() vdl.Target {
 }
 
 type PerSyncgroupTarget struct {
-	Value *PerSyncgroup
+	Value          *PerSyncgroup
+	priorityTarget interfaces.SgPriorityTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -190,8 +197,9 @@ func (t *PerSyncgroupTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error)
 func (t *PerSyncgroupTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Priority":
-		val, err := &interfaces.SgPriorityTarget{Value: &t.Value.Priority}, error(nil)
-		return nil, val, err
+		t.priorityTarget.Value = &t.Value.Priority
+		target, err := &t.priorityTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup)
 	}

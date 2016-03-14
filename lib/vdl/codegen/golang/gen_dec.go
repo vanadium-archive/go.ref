@@ -139,24 +139,29 @@ func genStructTargetDef(data goData, t *vdl.Type) string {
 	var additionalBodies string
 	s := fmt.Sprintf(`
 type %[1]s struct {
-	%[2]s
-	%[3]s
-	%[4]s
-}
-func (t *%[1]s) StartFields(tt *%[5]sType) (%[5]sFieldsTarget, error) {
-	%[6]s
-	return t, nil
-}
-func (t *%[1]s) StartField(name string) (key, field %[5]sTarget, _ error) {
-	switch name {`, targetTypeName(data, t), valueFieldDef, targetBaseRef(data, "Target"), targetBaseRef(data, "FieldsTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1))
+	%[2]s`, targetTypeName(data, t), valueFieldDef)
 	for i := 0; i < t.NumField(); i++ {
 		fld := t.Field(i)
-		call, body := createTargetCall(data, fld.Type, fmt.Sprintf("&%s.%s", valueReg, fld.Name))
+		s += fmt.Sprintf("\n%s", inlineTargetField(data, fld.Type, t, vdlutil.FirstRuneToLower(fld.Name)+"Target"))
+	}
+	s += fmt.Sprintf(`
+	%[2]s
+	%[3]s
+}
+func (t *%[1]s) StartFields(tt *%[4]sType) (%[4]sFieldsTarget, error) {
+	%[5]s
+	return t, nil
+}
+func (t *%[1]s) StartField(name string) (key, field %[4]sTarget, _ error) {
+	switch name {`, targetTypeName(data, t), targetBaseRef(data, "Target"), targetBaseRef(data, "FieldsTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1))
+	for i := 0; i < t.NumField(); i++ {
+		fld := t.Field(i)
+		call, body := createTargetCall(data, fld.Type, t, fmt.Sprintf("t.%sTarget", vdlutil.FirstRuneToLower(fld.Name)), fmt.Sprintf("&%s.%s", valueReg, fld.Name))
 		additionalBodies += body
 		s += fmt.Sprintf(`
 	case %q:
-		val, err := %s
-		return nil, val, err`, fld.Name, call)
+		%s
+		return nil, target, err`, fld.Name, call)
 	}
 	s += fmt.Sprintf(`
 	default:
@@ -179,10 +184,12 @@ func (t *%[1]s) FinishFields(_ %[2]sFieldsTarget) error {
 // struct - that is either calls FromNil or StartFields.
 func genOptionalStructTargetDef(data goData, t *vdl.Type) string {
 	valueAssn, _, valueFieldDef := genValueField(data, t)
-	call, body := createTargetCall(data, t.Elem(), valueAssn)
+	call, body := createTargetCall(data, t.Elem(), t, "t.elemTarget", valueAssn)
 	s := fmt.Sprintf(`
+// Optional %[11]s
 type %[1]s struct {
 	%[2]s
+	%[10]s
 	%[3]s
 	%[4]s
 }
@@ -190,7 +197,7 @@ func (t *%[1]s) StartFields(tt *%[5]sType) (%[5]sFieldsTarget, error) {
 	if %[8]s == nil {
 		%[8]s = &%[7]s
 	}
-	target, err := %[6]s
+	%[6]s
 	if err != nil {
 		return nil, err
 	}
@@ -204,7 +211,7 @@ func (t *%[1]s) FromNil(tt *vdl.Type) error {
 	%[8]s = nil
 	%[9]s
 	return nil
-}`, targetTypeName(data, t), valueFieldDef, targetBaseRef(data, "Target"), targetBaseRef(data, "FieldsTarget"), data.Pkg("v.io/v23/vdl"), call, typedConst(data, vdl.ZeroValue(t.Elem())), valueAssn, genWireToNativeConversion(data, t))
+}`, targetTypeName(data, t), valueFieldDef, targetBaseRef(data, "Target"), targetBaseRef(data, "FieldsTarget"), data.Pkg("v.io/v23/vdl"), call, typedConst(data, vdl.ZeroValue(t.Elem())), valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Elem(), t, "elemTarget"), typeGo(data, t.Elem()))
 	s += body
 	return s
 }
@@ -213,13 +220,15 @@ func (t *%[1]s) FromNil(tt *vdl.Type) error {
 func genListTargetDef(data goData, t *vdl.Type) string {
 	valueAssn, _, valueFieldDef := genValueField(data, t)
 	s := fmt.Sprintf(`
+// %[8]s
 type %[1]s struct {
 	%[2]s
+	%[7]s
 	%[3]s
 	%[4]s
 }
 func (t *%[1]s) StartList(tt *%[5]sType, len int) (%[5]sListTarget, error) {
-	%[6]s`, targetTypeName(data, t), valueFieldDef, targetBaseRef(data, "Target"), targetBaseRef(data, "ListTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1))
+	%[6]s`, targetTypeName(data, t), valueFieldDef, targetBaseRef(data, "Target"), targetBaseRef(data, "ListTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), inlineTargetField(data, t.Elem(), t, "elemTarget"), typeGo(data, t))
 	if t.Kind() == vdl.List {
 		s += fmt.Sprintf(`
 	if cap(%[1]s) < len {
@@ -228,12 +237,13 @@ func (t *%[1]s) StartList(tt *%[5]sType, len int) (%[5]sListTarget, error) {
 		%[1]s = (%[1]s)[:len]
 	}`, valueAssn, typeGo(data, t))
 	}
-	call, body := createTargetCall(data, t.Elem(), fmt.Sprintf("&(%s)[index]", valueAssn))
+	call, body := createTargetCall(data, t.Elem(), t, "t.elemTarget", fmt.Sprintf("&(%s)[index]", valueAssn))
 	s += fmt.Sprintf(`
 	return t, nil
 }
 func (t *%[1]s) StartElem(index int) (elem %[2]sTarget, _ error) {
-	return %[3]s
+	%[3]s
+	return target, err
 }
 func (t *%[1]s) FinishElem(elem %[2]sTarget) error {
 	return nil
@@ -249,11 +259,16 @@ func (t *%[1]s) FinishList(elem %[2]sListTarget) error {
 // genSetTargetDef generates a Target that assigns to a set.
 func genSetTargetDef(data goData, t *vdl.Type) string {
 	valueAssn, _, valueFieldDef := genValueField(data, t)
-	call, body := createTargetCall(data, t.Key(), "&t.currKey")
-	s := fmt.Sprintf(`
+	call, body := createTargetCall(data, t.Key(), t, fmt.Sprintf("t.keyTarget"), "&t.currKey")
+	var s string
+	if t.Name() == "" {
+		s += fmt.Sprintf("\n// %s", typeGo(data, t))
+	}
+	s += fmt.Sprintf(`
 type %[1]s struct {
 	%[10]s
 	currKey %[3]s
+	%[13]s
 	%[4]s
 	%[5]s
 }
@@ -264,7 +279,8 @@ func (t *%[1]s) StartSet(tt *%[6]sType, len int) (%[6]sSetTarget, error) {
 }
 func (t *%[1]s) StartKey() (key %[6]sTarget, _ error) {
 	%[9]s
-	return %[8]s
+	%[8]s
+	return target, err
 }
 func (t *%[1]s) FinishKey(key %[6]sTarget) error {
 	(%[11]s)[t.currKey] = struct{}{}
@@ -276,7 +292,7 @@ func (t *%[1]s) FinishSet(list %[6]sSetTarget) error {
 	}
 	%[12]s
 	return nil
-}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), targetBaseRef(data, "Target"), targetBaseRef(data, "SetTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), call, genResetValue(data, t.Key(), "t.currKey"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t))
+}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), targetBaseRef(data, "Target"), targetBaseRef(data, "SetTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), call, genResetValue(data, t.Key(), "t.currKey"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Key(), t, "keyTarget"))
 	s += body
 	return s
 }
@@ -284,13 +300,19 @@ func (t *%[1]s) FinishSet(list %[6]sSetTarget) error {
 // genMapTargetDef generates a Target that assigns to a map.
 func genMapTargetDef(data goData, t *vdl.Type) string {
 	valueAssn, _, valueFieldDef := genValueField(data, t)
-	keyCall, keyBody := createTargetCall(data, t.Key(), "&t.currKey")
-	elemCall, elemBody := createTargetCall(data, t.Elem(), "&t.currElem")
-	s := fmt.Sprintf(`
+	keyCall, keyBody := createTargetCall(data, t.Key(), t, "t.keyTarget", "&t.currKey")
+	elemCall, elemBody := createTargetCall(data, t.Elem(), t, "t.elemTarget", "&t.currElem")
+	var s string
+	if t.Name() == "" {
+		s += fmt.Sprintf("\n// %s", typeGo(data, t))
+	}
+	s += fmt.Sprintf(`
 type %[1]s struct {
 	%[13]s
 	currKey %[3]s
 	currElem %[4]s
+	%[16]s
+	%[17]s
 	%[5]s
 	%[6]s
 }
@@ -301,11 +323,13 @@ func (t *%[1]s) StartMap(tt *%[7]sType, len int) (%[7]sMapTarget, error) {
 }
 func (t *%[1]s) StartKey() (key %[7]sTarget, _ error) {
 	%[11]s
-	return %[9]s
+	%[9]s
+	return target, err
 }
 func (t *%[1]s) FinishKeyStartField(key %[7]sTarget) (field %[7]sTarget, _ error) {
 	%[12]s
-	return %[10]s
+	%[10]s
+	return target, err
 }
 func (t *%[1]s) FinishField(key, field %[7]sTarget) error {
 	(%[14]s)[t.currKey] = t.currElem
@@ -317,7 +341,7 @@ func (t *%[1]s) FinishMap(elem %[7]sMapTarget) error {
 	}
 	%[15]s
 	return nil
-}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), typeGo(data, t.Elem()), targetBaseRef(data, "Target"), targetBaseRef(data, "MapTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), keyCall, elemCall, genResetValue(data, t.Key(), "t.currKey"), genResetValue(data, t.Elem(), "t.currElem"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t))
+}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), typeGo(data, t.Elem()), targetBaseRef(data, "Target"), targetBaseRef(data, "MapTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), keyCall, elemCall, genResetValue(data, t.Key(), "t.currKey"), genResetValue(data, t.Elem(), "t.currElem"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Key(), t, "keyTarget"), inlineTargetField(data, t.Elem(), t, "elemTarget"))
 	s += keyBody
 	s += elemBody
 	return s
@@ -386,20 +410,9 @@ func genTargetDef(data goData, t *vdl.Type) string {
 // genTargetRef returns a string representing a the name of a Target for the provided type.
 // If the Target body must be generated, it is returned as the second parameter.
 func genTargetRef(data goData, t *vdl.Type) (targTypeName, body string) {
-	if t == vdl.ErrorType {
-		return data.Pkg("v.io/v23/verror") + "ErrorTarget", ""
-	}
-	if t.Name() == "" {
-		if t.IsBytes() && t.Kind() == vdl.List {
-			return data.Pkg("v.io/v23/vdl") + "BytesTarget", ""
-		}
-		if t.Kind() == vdl.List && t.Elem() == vdl.StringType {
-			return data.Pkg("v.io/v23/vdl") + "StringSliceTarget", ""
-		}
-		switch t.Kind() {
-		case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.Complex64, vdl.Complex128, vdl.String, vdl.TypeObject:
-			return data.Pkg("v.io/v23/vdl") + kindVarName(t.Kind()) + "Target", ""
-		}
+	externalName := externalTargetTypeName(data, t)
+	if externalName != "" {
+		return externalName, ""
 	}
 
 	if def := data.Env.FindTypeDef(t); (def != nil && def.File.Package == data.Package) || t.Name() == "" {
@@ -411,29 +424,82 @@ func genTargetRef(data goData, t *vdl.Type) (targTypeName, body string) {
 
 // targetTypeName generates a stable name for a Target for the specified type.
 func targetTypeName(data goData, t *vdl.Type) string {
+	if externalName := externalTargetTypeName(data, t); externalName != "" {
+		return externalName
+	}
+	if t.Name() != "" {
+		_, name := vdl.SplitIdent(t.Name())
+		return name + "Target"
+	}
+	return "unnamed_" + hex.EncodeToString([]byte(t.String())) + "Target"
+}
+
+// externalTargetTypeName generates a stable name for a Target for the specified type.
+// It differs from targetTypeName in that it returns empty string if the target is
+// defined in this package (not external).
+func externalTargetTypeName(data goData, t *vdl.Type) string {
+	if t == vdl.ErrorType {
+		return data.Pkg("v.io/v23/verror") + "ErrorTarget"
+	}
 	if t.Name() != "" {
 		pkgPath, name := vdl.SplitIdent(t.Name())
-		if !strings.ContainsRune(pkgPath, '/') {
-			pkgPath = "v.io/v23/vdlroot/" + pkgPath
+		pkg := data.Env.ResolvePackage(pkgPath)
+		if pkg == data.Package {
+			return ""
 		}
-		return data.Pkg(pkgPath) + name + "Target"
+		return data.Pkg(pkg.GenPath) + name + "Target"
 	} else {
-		return "unnamed_" + hex.EncodeToString([]byte(t.String())) + "_Target"
+		if t.IsBytes() && t.Kind() == vdl.List {
+			return data.Pkg("v.io/v23/vdl") + "BytesTarget"
+		}
+		if t.Kind() == vdl.List && t.Elem() == vdl.StringType {
+			return data.Pkg("v.io/v23/vdl") + "StringSliceTarget"
+		}
+		switch t.Kind() {
+		case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.Complex64, vdl.Complex128, vdl.String, vdl.TypeObject:
+			return data.Pkg("v.io/v23/vdl") + kindVarName(t.Kind()) + "Target"
+		}
+		return ""
 	}
 }
 
+func inlineTargetField(data goData, t, parentType *vdl.Type, name string) string {
+	if t.Kind() == vdl.Union || t.Kind() == vdl.Any {
+		return ""
+	}
+	if isRecursiveReference(parentType, t) {
+		return ""
+	}
+	return fmt.Sprintf(`%s %s`, name, targetTypeName(data, t))
+}
+
+// typeHasReference returns true if there is a reference in parentType
+// to childType.
+func isRecursiveReference(parentType, childType *vdl.Type) bool {
+	return !childType.Walk(vdl.WalkAll, func(t *vdl.Type) bool {
+		if t == parentType {
+			return false
+		}
+		return true
+	})
+}
+
 // createTargetCall returns a go r-value that will return two parameters, target and error.
-func createTargetCall(data goData, t *vdl.Type, input string) (call, body string) {
+func createTargetCall(data goData, t, parentType *vdl.Type, targetName, input string) (call, body string) {
 	// TODO(bprosnitz) For map[string]string, we can do the following:
 	// val := make(map[string]string)
 	// t.Value.Attributes = Attributes(val)
 	// return nil, &TargetMapStringString{&val}, nil
 	// Where TargetMapStringString is a standard target. Consider doing so in the future.
 	if t.Kind() == vdl.Union || t.Kind() == vdl.Any {
-		return fmt.Sprintf("%sReflectTarget(%sValueOf(%s))", data.Pkg("v.io/v23/vdl"), data.Pkg("reflect"), input), ""
+		return fmt.Sprintf("target, err := %sReflectTarget(%sValueOf(%s))", data.Pkg("v.io/v23/vdl"), data.Pkg("reflect"), input), ""
 	}
 	ref, body := genTargetRef(data, t)
-	return fmt.Sprintf("&%s{Value:%s}, error(nil)", ref, input), body
+	if isRecursiveReference(parentType, t) {
+		return fmt.Sprintf("target, err := &%s{Value:%s}, error(nil)", ref, input), body
+	}
+	return fmt.Sprintf(`%[1]s.Value = %[2]s
+	target, err := &%[1]s, error(nil)`, targetName, input), body
 }
 
 // genIncompatibleTypeCheck generates code that will test for compatibility with the provided type.

@@ -92,7 +92,9 @@ func (m *BlessingRootResponse) MakeVDLTarget() vdl.Target {
 }
 
 type BlessingRootResponseTarget struct {
-	Value *BlessingRootResponse
+	Value           *BlessingRootResponse
+	namesTarget     vdl.StringSliceTarget
+	publicKeyTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -106,11 +108,13 @@ func (t *BlessingRootResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget
 func (t *BlessingRootResponseTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Names":
-		val, err := &vdl.StringSliceTarget{Value: &t.Value.Names}, error(nil)
-		return nil, val, err
+		t.namesTarget.Value = &t.Value.Names
+		target, err := &t.namesTarget, error(nil)
+		return nil, target, err
 	case "PublicKey":
-		val, err := &vdl.StringTarget{Value: &t.Value.PublicKey}, error(nil)
-		return nil, val, err
+		t.publicKeyTarget.Value = &t.Value.PublicKey
+		target, err := &t.publicKeyTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_identity_BlessingRootResponse)
 	}

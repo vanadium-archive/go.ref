@@ -85,7 +85,10 @@ func (m *SumArg) MakeVDLTarget() vdl.Target {
 }
 
 type SumArgTarget struct {
-	Value *SumArg
+	Value              *SumArg
+	aBoolTarget        vdl.BoolTarget
+	aInt64Target       vdl.Int64Target
+	aListOfBytesTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -99,14 +102,17 @@ func (t *SumArgTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *SumArgTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "ABool":
-		val, err := &vdl.BoolTarget{Value: &t.Value.ABool}, error(nil)
-		return nil, val, err
+		t.aBoolTarget.Value = &t.Value.ABool
+		target, err := &t.aBoolTarget, error(nil)
+		return nil, target, err
 	case "AInt64":
-		val, err := &vdl.Int64Target{Value: &t.Value.AInt64}, error(nil)
-		return nil, val, err
+		t.aInt64Target.Value = &t.Value.AInt64
+		target, err := &t.aInt64Target, error(nil)
+		return nil, target, err
 	case "AListOfBytes":
-		val, err := &vdl.BytesTarget{Value: &t.Value.AListOfBytes}, error(nil)
-		return nil, val, err
+		t.aListOfBytesTarget.Value = &t.Value.AListOfBytes
+		target, err := &t.aListOfBytesTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumArg)
 	}
@@ -199,7 +205,11 @@ func (m *SumStats) MakeVDLTarget() vdl.Target {
 }
 
 type SumStatsTarget struct {
-	Value *SumStats
+	Value                *SumStats
+	sumCountTarget       vdl.Uint64Target
+	sumStreamCountTarget vdl.Uint64Target
+	bytesRecvTarget      vdl.Uint64Target
+	bytesSentTarget      vdl.Uint64Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -213,17 +223,21 @@ func (t *SumStatsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *SumStatsTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "SumCount":
-		val, err := &vdl.Uint64Target{Value: &t.Value.SumCount}, error(nil)
-		return nil, val, err
+		t.sumCountTarget.Value = &t.Value.SumCount
+		target, err := &t.sumCountTarget, error(nil)
+		return nil, target, err
 	case "SumStreamCount":
-		val, err := &vdl.Uint64Target{Value: &t.Value.SumStreamCount}, error(nil)
-		return nil, val, err
+		t.sumStreamCountTarget.Value = &t.Value.SumStreamCount
+		target, err := &t.sumStreamCountTarget, error(nil)
+		return nil, target, err
 	case "BytesRecv":
-		val, err := &vdl.Uint64Target{Value: &t.Value.BytesRecv}, error(nil)
-		return nil, val, err
+		t.bytesRecvTarget.Value = &t.Value.BytesRecv
+		target, err := &t.bytesRecvTarget, error(nil)
+		return nil, target, err
 	case "BytesSent":
-		val, err := &vdl.Uint64Target{Value: &t.Value.BytesSent}, error(nil)
-		return nil, val, err
+		t.bytesSentTarget.Value = &t.Value.BytesSent
+		target, err := &t.bytesSentTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumStats)
 	}

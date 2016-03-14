@@ -134,7 +134,14 @@ func (m *StartMessage) MakeVDLTarget() vdl.Target {
 }
 
 type StartMessageTarget struct {
-	Value *StartMessage
+	Value                       *StartMessage
+	cleanupBlessingsTarget      vdl.BoolTarget
+	identitydTarget             vdl.StringTarget
+	identitydBlessingRootTarget identity.BlessingRootResponseTarget
+	proxyTarget                 vdl.StringTarget
+	namespaceRootTarget         vdl.StringTarget
+	logLevelTarget              vdl.Int32Target
+	logModuleTarget             vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -148,26 +155,33 @@ func (t *StartMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error)
 func (t *StartMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "CleanupBlessings":
-		val, err := &vdl.BoolTarget{Value: &t.Value.CleanupBlessings}, error(nil)
-		return nil, val, err
+		t.cleanupBlessingsTarget.Value = &t.Value.CleanupBlessings
+		target, err := &t.cleanupBlessingsTarget, error(nil)
+		return nil, target, err
 	case "Identityd":
-		val, err := &vdl.StringTarget{Value: &t.Value.Identityd}, error(nil)
-		return nil, val, err
+		t.identitydTarget.Value = &t.Value.Identityd
+		target, err := &t.identitydTarget, error(nil)
+		return nil, target, err
 	case "IdentitydBlessingRoot":
-		val, err := &identity.BlessingRootResponseTarget{Value: &t.Value.IdentitydBlessingRoot}, error(nil)
-		return nil, val, err
+		t.identitydBlessingRootTarget.Value = &t.Value.IdentitydBlessingRoot
+		target, err := &t.identitydBlessingRootTarget, error(nil)
+		return nil, target, err
 	case "Proxy":
-		val, err := &vdl.StringTarget{Value: &t.Value.Proxy}, error(nil)
-		return nil, val, err
+		t.proxyTarget.Value = &t.Value.Proxy
+		target, err := &t.proxyTarget, error(nil)
+		return nil, target, err
 	case "NamespaceRoot":
-		val, err := &vdl.StringTarget{Value: &t.Value.NamespaceRoot}, error(nil)
-		return nil, val, err
+		t.namespaceRootTarget.Value = &t.Value.NamespaceRoot
+		target, err := &t.namespaceRootTarget, error(nil)
+		return nil, target, err
 	case "LogLevel":
-		val, err := &vdl.Int32Target{Value: &t.Value.LogLevel}, error(nil)
-		return nil, val, err
+		t.logLevelTarget.Value = &t.Value.LogLevel
+		target, err := &t.logLevelTarget, error(nil)
+		return nil, target, err
 	case "LogModule":
-		val, err := &vdl.StringTarget{Value: &t.Value.LogModule}, error(nil)
-		return nil, val, err
+		t.logModuleTarget.Value = &t.Value.LogModule
+		target, err := &t.logModuleTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_StartMessage)
 	}
@@ -265,7 +279,10 @@ func (m *AssociateAccountMessage) MakeVDLTarget() vdl.Target {
 }
 
 type AssociateAccountMessageTarget struct {
-	Value *AssociateAccountMessage
+	Value         *AssociateAccountMessage
+	accountTarget vdl.StringTarget
+	originTarget  vdl.StringTarget
+	caveatsTarget unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -279,14 +296,17 @@ func (t *AssociateAccountMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTar
 func (t *AssociateAccountMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Account":
-		val, err := &vdl.StringTarget{Value: &t.Value.Account}, error(nil)
-		return nil, val, err
+		t.accountTarget.Value = &t.Value.Account
+		target, err := &t.accountTarget, error(nil)
+		return nil, target, err
 	case "Origin":
-		val, err := &vdl.StringTarget{Value: &t.Value.Origin}, error(nil)
-		return nil, val, err
+		t.originTarget.Value = &t.Value.Origin
+		target, err := &t.originTarget, error(nil)
+		return nil, target, err
 	case "Caveats":
-		val, err := &unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677d_Target{Value: &t.Value.Caveats}, error(nil)
-		return nil, val, err
+		t.caveatsTarget.Value = &t.Value.Caveats
+		target, err := &t.caveatsTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_AssociateAccountMessage)
 	}
@@ -299,13 +319,15 @@ func (t *AssociateAccountMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677d_Target struct {
-	Value *[]account.Caveat
+// []account.Caveat
+type unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget struct {
+	Value      *[]account.Caveat
+	elemTarget account.CaveatTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677d_Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 	if !vdl.Compatible(tt, __VDLType2) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType2)
 	}
@@ -316,13 +338,15 @@ func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e74657
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677d_Target) StartElem(index int) (elem vdl.Target, _ error) {
-	return &account.CaveatTarget{Value: &(*t.Value)[index]}, error(nil)
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677d_Target) FinishElem(elem vdl.Target) error {
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677d_Target) FinishList(elem vdl.ListTarget) error {
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
@@ -368,7 +392,8 @@ func (m *CreateAccountMessage) MakeVDLTarget() vdl.Target {
 }
 
 type CreateAccountMessageTarget struct {
-	Value *CreateAccountMessage
+	Value       *CreateAccountMessage
+	tokenTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -382,8 +407,9 @@ func (t *CreateAccountMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget
 func (t *CreateAccountMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Token":
-		val, err := &vdl.StringTarget{Value: &t.Value.Token}, error(nil)
-		return nil, val, err
+		t.tokenTarget.Value = &t.Value.Token
+		target, err := &t.tokenTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateAccountMessage)
 	}
@@ -437,7 +463,8 @@ func (m *CleanupMessage) MakeVDLTarget() vdl.Target {
 }
 
 type CleanupMessageTarget struct {
-	Value *CleanupMessage
+	Value            *CleanupMessage
+	instanceIdTarget vdl.Int32Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -451,8 +478,9 @@ func (t *CleanupMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, erro
 func (t *CleanupMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "InstanceId":
-		val, err := &vdl.Int32Target{Value: &t.Value.InstanceId}, error(nil)
-		return nil, val, err
+		t.instanceIdTarget.Value = &t.Value.InstanceId
+		target, err := &t.instanceIdTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CleanupMessage)
 	}
@@ -506,7 +534,8 @@ func (m *OriginHasAccountMessage) MakeVDLTarget() vdl.Target {
 }
 
 type OriginHasAccountMessageTarget struct {
-	Value *OriginHasAccountMessage
+	Value        *OriginHasAccountMessage
+	originTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -520,8 +549,9 @@ func (t *OriginHasAccountMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTar
 func (t *OriginHasAccountMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Origin":
-		val, err := &vdl.StringTarget{Value: &t.Value.Origin}, error(nil)
-		return nil, val, err
+		t.originTarget.Value = &t.Value.Origin
+		target, err := &t.originTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_OriginHasAccountMessage)
 	}
@@ -684,7 +714,11 @@ func (m *CreateInstanceMessage) MakeVDLTarget() vdl.Target {
 }
 
 type CreateInstanceMessageTarget struct {
-	Value *CreateInstanceMessage
+	Value                *CreateInstanceMessage
+	instanceIdTarget     vdl.Int32Target
+	originTarget         vdl.StringTarget
+	namespaceRootsTarget vdl.StringSliceTarget
+	proxyTarget          vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -698,17 +732,21 @@ func (t *CreateInstanceMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarge
 func (t *CreateInstanceMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "InstanceId":
-		val, err := &vdl.Int32Target{Value: &t.Value.InstanceId}, error(nil)
-		return nil, val, err
+		t.instanceIdTarget.Value = &t.Value.InstanceId
+		target, err := &t.instanceIdTarget, error(nil)
+		return nil, target, err
 	case "Origin":
-		val, err := &vdl.StringTarget{Value: &t.Value.Origin}, error(nil)
-		return nil, val, err
+		t.originTarget.Value = &t.Value.Origin
+		target, err := &t.originTarget, error(nil)
+		return nil, target, err
 	case "NamespaceRoots":
-		val, err := &vdl.StringSliceTarget{Value: &t.Value.NamespaceRoots}, error(nil)
-		return nil, val, err
+		t.namespaceRootsTarget.Value = &t.Value.NamespaceRoots
+		target, err := &t.namespaceRootsTarget, error(nil)
+		return nil, target, err
 	case "Proxy":
-		val, err := &vdl.StringTarget{Value: &t.Value.Proxy}, error(nil)
-		return nil, val, err
+		t.proxyTarget.Value = &t.Value.Proxy
+		target, err := &t.proxyTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateInstanceMessage)
 	}

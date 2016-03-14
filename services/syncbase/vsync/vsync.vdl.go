@@ -55,7 +55,8 @@ func (m *SyncData) MakeVDLTarget() vdl.Target {
 }
 
 type SyncDataTarget struct {
-	Value *SyncData
+	Value    *SyncData
+	idTarget vdl.Uint64Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -69,8 +70,9 @@ func (t *SyncDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *SyncDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Id":
-		val, err := &vdl.Uint64Target{Value: &t.Value.Id}, error(nil)
-		return nil, val, err
+		t.idTarget.Value = &t.Value.Id
+		target, err := &t.idTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_vsync_SyncData)
 	}
@@ -153,7 +155,10 @@ func (m *DbSyncState) MakeVDLTarget() vdl.Target {
 }
 
 type DbSyncStateTarget struct {
-	Value *DbSyncState
+	Value           *DbSyncState
+	genVecsTarget   interfaces.KnowledgeTarget
+	sgGenVecsTarget interfaces.KnowledgeTarget
+	isPausedTarget  vdl.BoolTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -167,14 +172,17 @@ func (t *DbSyncStateTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) 
 func (t *DbSyncStateTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "GenVecs":
-		val, err := &interfaces.KnowledgeTarget{Value: &t.Value.GenVecs}, error(nil)
-		return nil, val, err
+		t.genVecsTarget.Value = &t.Value.GenVecs
+		target, err := &t.genVecsTarget, error(nil)
+		return nil, target, err
 	case "SgGenVecs":
-		val, err := &interfaces.KnowledgeTarget{Value: &t.Value.SgGenVecs}, error(nil)
-		return nil, val, err
+		t.sgGenVecsTarget.Value = &t.Value.SgGenVecs
+		target, err := &t.sgGenVecsTarget, error(nil)
+		return nil, target, err
 	case "IsPaused":
-		val, err := &vdl.BoolTarget{Value: &t.Value.IsPaused}, error(nil)
-		return nil, val, err
+		t.isPausedTarget.Value = &t.Value.IsPaused
+		target, err := &t.isPausedTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_vsync_DbSyncState)
 	}
@@ -255,7 +263,10 @@ func (m *LocalLogRec) MakeVDLTarget() vdl.Target {
 }
 
 type LocalLogRecTarget struct {
-	Value *LocalLogRec
+	Value          *LocalLogRec
+	metadataTarget interfaces.LogRecMetadataTarget
+	posTarget      vdl.Uint64Target
+	shellTarget    vdl.BoolTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -269,14 +280,17 @@ func (t *LocalLogRecTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) 
 func (t *LocalLogRecTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Metadata":
-		val, err := &interfaces.LogRecMetadataTarget{Value: &t.Value.Metadata}, error(nil)
-		return nil, val, err
+		t.metadataTarget.Value = &t.Value.Metadata
+		target, err := &t.metadataTarget, error(nil)
+		return nil, target, err
 	case "Pos":
-		val, err := &vdl.Uint64Target{Value: &t.Value.Pos}, error(nil)
-		return nil, val, err
+		t.posTarget.Value = &t.Value.Pos
+		target, err := &t.posTarget, error(nil)
+		return nil, target, err
 	case "Shell":
-		val, err := &vdl.BoolTarget{Value: &t.Value.Shell}, error(nil)
-		return nil, val, err
+		t.shellTarget.Value = &t.Value.Shell
+		target, err := &t.shellTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_vsync_LocalLogRec)
 	}
@@ -413,7 +427,12 @@ func (m *SgLocalState) MakeVDLTarget() vdl.Target {
 }
 
 type SgLocalStateTarget struct {
-	Value *SgLocalState
+	Value                 *SgLocalState
+	numLocalJoinersTarget vdl.Uint32Target
+	watchedTarget         vdl.BoolTarget
+	remotePublisherTarget vdl.StringTarget
+	syncPendingTarget     vdl.BoolTarget
+	pendingGenVecTarget   interfaces.GenVectorTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -427,20 +446,25 @@ func (t *SgLocalStateTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error)
 func (t *SgLocalStateTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "NumLocalJoiners":
-		val, err := &vdl.Uint32Target{Value: &t.Value.NumLocalJoiners}, error(nil)
-		return nil, val, err
+		t.numLocalJoinersTarget.Value = &t.Value.NumLocalJoiners
+		target, err := &t.numLocalJoinersTarget, error(nil)
+		return nil, target, err
 	case "Watched":
-		val, err := &vdl.BoolTarget{Value: &t.Value.Watched}, error(nil)
-		return nil, val, err
+		t.watchedTarget.Value = &t.Value.Watched
+		target, err := &t.watchedTarget, error(nil)
+		return nil, target, err
 	case "RemotePublisher":
-		val, err := &vdl.StringTarget{Value: &t.Value.RemotePublisher}, error(nil)
-		return nil, val, err
+		t.remotePublisherTarget.Value = &t.Value.RemotePublisher
+		target, err := &t.remotePublisherTarget, error(nil)
+		return nil, target, err
 	case "SyncPending":
-		val, err := &vdl.BoolTarget{Value: &t.Value.SyncPending}, error(nil)
-		return nil, val, err
+		t.syncPendingTarget.Value = &t.Value.SyncPending
+		target, err := &t.syncPendingTarget, error(nil)
+		return nil, target, err
 	case "PendingGenVec":
-		val, err := &interfaces.GenVectorTarget{Value: &t.Value.PendingGenVec}, error(nil)
-		return nil, val, err
+		t.pendingGenVecTarget.Value = &t.Value.PendingGenVec
+		target, err := &t.pendingGenVecTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_vsync_SgLocalState)
 	}
@@ -606,7 +630,15 @@ func (m *DagNode) MakeVDLTarget() vdl.Target {
 }
 
 type DagNodeTarget struct {
-	Value *DagNode
+	Value          *DagNode
+	levelTarget    vdl.Uint64Target
+	parentsTarget  vdl.StringSliceTarget
+	logrecTarget   vdl.StringTarget
+	batchIdTarget  vdl.Uint64Target
+	shellTarget    vdl.BoolTarget
+	deletedTarget  vdl.BoolTarget
+	permIdTarget   vdl.StringTarget
+	permVersTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -620,29 +652,37 @@ func (t *DagNodeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *DagNodeTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Level":
-		val, err := &vdl.Uint64Target{Value: &t.Value.Level}, error(nil)
-		return nil, val, err
+		t.levelTarget.Value = &t.Value.Level
+		target, err := &t.levelTarget, error(nil)
+		return nil, target, err
 	case "Parents":
-		val, err := &vdl.StringSliceTarget{Value: &t.Value.Parents}, error(nil)
-		return nil, val, err
+		t.parentsTarget.Value = &t.Value.Parents
+		target, err := &t.parentsTarget, error(nil)
+		return nil, target, err
 	case "Logrec":
-		val, err := &vdl.StringTarget{Value: &t.Value.Logrec}, error(nil)
-		return nil, val, err
+		t.logrecTarget.Value = &t.Value.Logrec
+		target, err := &t.logrecTarget, error(nil)
+		return nil, target, err
 	case "BatchId":
-		val, err := &vdl.Uint64Target{Value: &t.Value.BatchId}, error(nil)
-		return nil, val, err
+		t.batchIdTarget.Value = &t.Value.BatchId
+		target, err := &t.batchIdTarget, error(nil)
+		return nil, target, err
 	case "Shell":
-		val, err := &vdl.BoolTarget{Value: &t.Value.Shell}, error(nil)
-		return nil, val, err
+		t.shellTarget.Value = &t.Value.Shell
+		target, err := &t.shellTarget, error(nil)
+		return nil, target, err
 	case "Deleted":
-		val, err := &vdl.BoolTarget{Value: &t.Value.Deleted}, error(nil)
-		return nil, val, err
+		t.deletedTarget.Value = &t.Value.Deleted
+		target, err := &t.deletedTarget, error(nil)
+		return nil, target, err
 	case "PermId":
-		val, err := &vdl.StringTarget{Value: &t.Value.PermId}, error(nil)
-		return nil, val, err
+		t.permIdTarget.Value = &t.Value.PermId
+		target, err := &t.permIdTarget, error(nil)
+		return nil, target, err
 	case "PermVers":
-		val, err := &vdl.StringTarget{Value: &t.Value.PermVers}, error(nil)
-		return nil, val, err
+		t.permVersTarget.Value = &t.Value.PermVers
+		target, err := &t.permVersTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_vsync_DagNode)
 	}
@@ -781,7 +821,10 @@ func (m *BatchInfo) MakeVDLTarget() vdl.Target {
 }
 
 type BatchInfoTarget struct {
-	Value *BatchInfo
+	Value               *BatchInfo
+	objectsTarget       unnamed_6d61705b737472696e675d737472696e67Target
+	linkedObjectsTarget unnamed_6d61705b737472696e675d737472696e67Target
+	countTarget         vdl.Uint64Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -795,14 +838,17 @@ func (t *BatchInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *BatchInfoTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Objects":
-		val, err := &unnamed_6d61705b737472696e675d737472696e67_Target{Value: &t.Value.Objects}, error(nil)
-		return nil, val, err
+		t.objectsTarget.Value = &t.Value.Objects
+		target, err := &t.objectsTarget, error(nil)
+		return nil, target, err
 	case "LinkedObjects":
-		val, err := &unnamed_6d61705b737472696e675d737472696e67_Target{Value: &t.Value.LinkedObjects}, error(nil)
-		return nil, val, err
+		t.linkedObjectsTarget.Value = &t.Value.LinkedObjects
+		target, err := &t.linkedObjectsTarget, error(nil)
+		return nil, target, err
 	case "Count":
-		val, err := &vdl.Uint64Target{Value: &t.Value.Count}, error(nil)
-		return nil, val, err
+		t.countTarget.Value = &t.Value.Count
+		target, err := &t.countTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_vsync_BatchInfo)
 	}
@@ -815,34 +861,41 @@ func (t *BatchInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_6d61705b737472696e675d737472696e67_Target struct {
-	Value    *map[string]string
-	currKey  string
-	currElem string
+// map[string]string
+type unnamed_6d61705b737472696e675d737472696e67Target struct {
+	Value      *map[string]string
+	currKey    string
+	currElem   string
+	keyTarget  vdl.StringTarget
+	elemTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.MapTargetBase
 }
 
-func (t *unnamed_6d61705b737472696e675d737472696e67_Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+func (t *unnamed_6d61705b737472696e675d737472696e67Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 	if !vdl.Compatible(tt, __VDLType7) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType7)
 	}
 	*t.Value = make(map[string]string)
 	return t, nil
 }
-func (t *unnamed_6d61705b737472696e675d737472696e67_Target) StartKey() (key vdl.Target, _ error) {
+func (t *unnamed_6d61705b737472696e675d737472696e67Target) StartKey() (key vdl.Target, _ error) {
 	t.currKey = ""
-	return &vdl.StringTarget{Value: &t.currKey}, error(nil)
+	t.keyTarget.Value = &t.currKey
+	target, err := &t.keyTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d737472696e67_Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+func (t *unnamed_6d61705b737472696e675d737472696e67Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
 	t.currElem = ""
-	return &vdl.StringTarget{Value: &t.currElem}, error(nil)
+	t.elemTarget.Value = &t.currElem
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d737472696e67_Target) FinishField(key, field vdl.Target) error {
+func (t *unnamed_6d61705b737472696e675d737472696e67Target) FinishField(key, field vdl.Target) error {
 	(*t.Value)[t.currKey] = t.currElem
 	return nil
 }
-func (t *unnamed_6d61705b737472696e675d737472696e67_Target) FinishMap(elem vdl.MapTarget) error {
+func (t *unnamed_6d61705b737472696e675d737472696e67Target) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}

@@ -308,7 +308,13 @@ func (m *AdInfo) MakeVDLTarget() vdl.Target {
 }
 
 type AdInfoTarget struct {
-	Value *AdInfo
+	Value                     *AdInfo
+	adTarget                  discovery.AdvertisementTarget
+	encryptionAlgorithmTarget EncryptionAlgorithmTarget
+	encryptionKeysTarget      unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target
+	hashTarget                AdHashTarget
+	dirAddrsTarget            vdl.StringSliceTarget
+	lostTarget                vdl.BoolTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -322,23 +328,29 @@ func (t *AdInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *AdInfoTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Ad":
-		val, err := &discovery.AdvertisementTarget{Value: &t.Value.Ad}, error(nil)
-		return nil, val, err
+		t.adTarget.Value = &t.Value.Ad
+		target, err := &t.adTarget, error(nil)
+		return nil, target, err
 	case "EncryptionAlgorithm":
-		val, err := &EncryptionAlgorithmTarget{Value: &t.Value.EncryptionAlgorithm}, error(nil)
-		return nil, val, err
+		t.encryptionAlgorithmTarget.Value = &t.Value.EncryptionAlgorithm
+		target, err := &t.encryptionAlgorithmTarget, error(nil)
+		return nil, target, err
 	case "EncryptionKeys":
-		val, err := &unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target{Value: &t.Value.EncryptionKeys}, error(nil)
-		return nil, val, err
+		t.encryptionKeysTarget.Value = &t.Value.EncryptionKeys
+		target, err := &t.encryptionKeysTarget, error(nil)
+		return nil, target, err
 	case "Hash":
-		val, err := &AdHashTarget{Value: &t.Value.Hash}, error(nil)
-		return nil, val, err
+		t.hashTarget.Value = &t.Value.Hash
+		target, err := &t.hashTarget, error(nil)
+		return nil, target, err
 	case "DirAddrs":
-		val, err := &vdl.StringSliceTarget{Value: &t.Value.DirAddrs}, error(nil)
-		return nil, val, err
+		t.dirAddrsTarget.Value = &t.Value.DirAddrs
+		target, err := &t.dirAddrsTarget, error(nil)
+		return nil, target, err
 	case "Lost":
-		val, err := &vdl.BoolTarget{Value: &t.Value.Lost}, error(nil)
-		return nil, val, err
+		t.lostTarget.Value = &t.Value.Lost
+		target, err := &t.lostTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_discovery_AdInfo)
 	}
@@ -351,13 +363,15 @@ func (t *AdInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target struct {
-	Value *[]EncryptionKey
+// []EncryptionKey
+type unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target struct {
+	Value      *[]EncryptionKey
+	elemTarget EncryptionKeyTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
@@ -368,13 +382,15 @@ func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e63727
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target) StartElem(index int) (elem vdl.Target, _ error) {
-	return &EncryptionKeyTarget{Value: &(*t.Value)[index]}, error(nil)
+func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartElem(index int) (elem vdl.Target, _ error) {
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target) FinishElem(elem vdl.Target) error {
+func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target) FinishList(elem vdl.ListTarget) error {
+func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }

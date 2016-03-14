@@ -221,7 +221,11 @@ func (m *LogEntry) MakeVDLTarget() vdl.Target {
 }
 
 type LogEntryTarget struct {
-	Value *LogEntry
+	Value       *LogEntry
+	termTarget  TermTarget
+	indexTarget IndexTarget
+	cmdTarget   vdl.BytesTarget
+	typeTarget  vdl.ByteTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -235,17 +239,21 @@ func (t *LogEntryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *LogEntryTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Term":
-		val, err := &TermTarget{Value: &t.Value.Term}, error(nil)
-		return nil, val, err
+		t.termTarget.Value = &t.Value.Term
+		target, err := &t.termTarget, error(nil)
+		return nil, target, err
 	case "Index":
-		val, err := &IndexTarget{Value: &t.Value.Index}, error(nil)
-		return nil, val, err
+		t.indexTarget.Value = &t.Value.Index
+		target, err := &t.indexTarget, error(nil)
+		return nil, target, err
 	case "Cmd":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Cmd}, error(nil)
-		return nil, val, err
+		t.cmdTarget.Value = &t.Value.Cmd
+		target, err := &t.cmdTarget, error(nil)
+		return nil, target, err
 	case "Type":
-		val, err := &vdl.ByteTarget{Value: &t.Value.Type}, error(nil)
-		return nil, val, err
+		t.typeTarget.Value = &t.Value.Type
+		target, err := &t.typeTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_raft_LogEntry)
 	}

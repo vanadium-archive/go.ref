@@ -70,7 +70,9 @@ func (m *Struct) MakeVDLTarget() vdl.Target {
 }
 
 type StructTarget struct {
-	Value *Struct
+	Value   *Struct
+	xTarget vdl.Int32Target
+	yTarget vdl.Int32Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -84,11 +86,13 @@ func (t *StructTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *StructTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "X":
-		val, err := &vdl.Int32Target{Value: &t.Value.X}, error(nil)
-		return nil, val, err
+		t.xTarget.Value = &t.Value.X
+		target, err := &t.xTarget, error(nil)
+		return nil, target, err
 	case "Y":
-		val, err := &vdl.Int32Target{Value: &t.Value.Y}, error(nil)
-		return nil, val, err
+		t.yTarget.Value = &t.Value.Y
+		target, err := &t.yTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_vrpc_internal_Struct)
 	}
@@ -135,8 +139,10 @@ func (m *Array2Int) MakeVDLTarget() vdl.Target {
 	return &Array2IntTarget{Value: m}
 }
 
+// Array2Int
 type Array2IntTarget struct {
-	Value *Array2Int
+	Value      *Array2Int
+	elemTarget vdl.Int32Target
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
@@ -148,7 +154,9 @@ func (t *Array2IntTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, erro
 	return t, nil
 }
 func (t *Array2IntTarget) StartElem(index int) (elem vdl.Target, _ error) {
-	return &vdl.Int32Target{Value: &(*t.Value)[index]}, error(nil)
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
 func (t *Array2IntTarget) FinishElem(elem vdl.Target) error {
 	return nil

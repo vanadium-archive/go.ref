@@ -136,7 +136,12 @@ func (m *All) MakeVDLTarget() vdl.Target {
 }
 
 type AllTarget struct {
-	Value *All
+	Value   *All
+	aTarget nativetest_2.WireStringTarget
+	bTarget nativetest_2.WireMapStringIntTarget
+	cTarget nativetest_2.WireTimeTarget
+	dTarget nativetest_2.WireSamePkgTarget
+	eTarget nativetest_2.WireMultiImportTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -150,20 +155,25 @@ func (t *AllTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *AllTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "A":
-		val, err := &nativetest_2.WireStringTarget{Value: &t.Value.A}, error(nil)
-		return nil, val, err
+		t.aTarget.Value = &t.Value.A
+		target, err := &t.aTarget, error(nil)
+		return nil, target, err
 	case "B":
-		val, err := &nativetest_2.WireMapStringIntTarget{Value: &t.Value.B}, error(nil)
-		return nil, val, err
+		t.bTarget.Value = &t.Value.B
+		target, err := &t.bTarget, error(nil)
+		return nil, target, err
 	case "C":
-		val, err := &nativetest_2.WireTimeTarget{Value: &t.Value.C}, error(nil)
-		return nil, val, err
+		t.cTarget.Value = &t.Value.C
+		target, err := &t.cTarget, error(nil)
+		return nil, target, err
 	case "D":
-		val, err := &nativetest_2.WireSamePkgTarget{Value: &t.Value.D}, error(nil)
-		return nil, val, err
+		t.dTarget.Value = &t.Value.D
+		target, err := &t.dTarget, error(nil)
+		return nil, target, err
 	case "E":
-		val, err := &nativetest_2.WireMultiImportTarget{Value: &t.Value.E}, error(nil)
-		return nil, val, err
+		t.eTarget.Value = &t.Value.E
+		target, err := &t.eTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_vdl_testdata_nativedep_All)
 	}

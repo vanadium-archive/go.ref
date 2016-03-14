@@ -105,7 +105,9 @@ func (m *WireCiphertext) MakeVDLTarget() vdl.Target {
 }
 
 type WireCiphertextTarget struct {
-	Value *WireCiphertext
+	Value           *WireCiphertext
+	patternIdTarget vdl.StringTarget
+	bytesTarget     unnamed_6d61705b737472696e675d5b5d62797465Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -119,11 +121,13 @@ func (t *WireCiphertextTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, erro
 func (t *WireCiphertextTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "PatternId":
-		val, err := &vdl.StringTarget{Value: &t.Value.PatternId}, error(nil)
-		return nil, val, err
+		t.patternIdTarget.Value = &t.Value.PatternId
+		target, err := &t.patternIdTarget, error(nil)
+		return nil, target, err
 	case "Bytes":
-		val, err := &unnamed_6d61705b737472696e675d5b5d62797465_Target{Value: &t.Value.Bytes}, error(nil)
-		return nil, val, err
+		t.bytesTarget.Value = &t.Value.Bytes
+		target, err := &t.bytesTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_security_bcrypter_WireCiphertext)
 	}
@@ -136,34 +140,41 @@ func (t *WireCiphertextTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_6d61705b737472696e675d5b5d62797465_Target struct {
-	Value    *map[string][]byte
-	currKey  string
-	currElem []byte
+// map[string][]byte
+type unnamed_6d61705b737472696e675d5b5d62797465Target struct {
+	Value      *map[string][]byte
+	currKey    string
+	currElem   []byte
+	keyTarget  vdl.StringTarget
+	elemTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.MapTargetBase
 }
 
-func (t *unnamed_6d61705b737472696e675d5b5d62797465_Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
 	*t.Value = make(map[string][]byte)
 	return t, nil
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465_Target) StartKey() (key vdl.Target, _ error) {
+func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) StartKey() (key vdl.Target, _ error) {
 	t.currKey = ""
-	return &vdl.StringTarget{Value: &t.currKey}, error(nil)
+	t.keyTarget.Value = &t.currKey
+	target, err := &t.keyTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465_Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
 	t.currElem = []byte(nil)
-	return &vdl.BytesTarget{Value: &t.currElem}, error(nil)
+	t.elemTarget.Value = &t.currElem
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465_Target) FinishField(key, field vdl.Target) error {
+func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) FinishField(key, field vdl.Target) error {
 	(*t.Value)[t.currKey] = t.currElem
 	return nil
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465_Target) FinishMap(elem vdl.MapTarget) error {
+func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
@@ -233,7 +244,9 @@ func (m *WireParams) MakeVDLTarget() vdl.Target {
 }
 
 type WireParamsTarget struct {
-	Value *WireParams
+	Value          *WireParams
+	blessingTarget vdl.StringTarget
+	paramsTarget   vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -247,11 +260,13 @@ func (t *WireParamsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *WireParamsTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Blessing":
-		val, err := &vdl.StringTarget{Value: &t.Value.Blessing}, error(nil)
-		return nil, val, err
+		t.blessingTarget.Value = &t.Value.Blessing
+		target, err := &t.blessingTarget, error(nil)
+		return nil, target, err
 	case "Params":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Params}, error(nil)
-		return nil, val, err
+		t.paramsTarget.Value = &t.Value.Params
+		target, err := &t.paramsTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_security_bcrypter_WireParams)
 	}
@@ -369,7 +384,10 @@ func (m *WirePrivateKey) MakeVDLTarget() vdl.Target {
 }
 
 type WirePrivateKeyTarget struct {
-	Value *WirePrivateKey
+	Value          *WirePrivateKey
+	blessingTarget vdl.StringTarget
+	paramsTarget   WireParamsTarget
+	keysTarget     unnamed_5b5d5b5d62797465Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -383,14 +401,17 @@ func (t *WirePrivateKeyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, erro
 func (t *WirePrivateKeyTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Blessing":
-		val, err := &vdl.StringTarget{Value: &t.Value.Blessing}, error(nil)
-		return nil, val, err
+		t.blessingTarget.Value = &t.Value.Blessing
+		target, err := &t.blessingTarget, error(nil)
+		return nil, target, err
 	case "Params":
-		val, err := &WireParamsTarget{Value: &t.Value.Params}, error(nil)
-		return nil, val, err
+		t.paramsTarget.Value = &t.Value.Params
+		target, err := &t.paramsTarget, error(nil)
+		return nil, target, err
 	case "Keys":
-		val, err := &unnamed_5b5d5b5d62797465_Target{Value: &t.Value.Keys}, error(nil)
-		return nil, val, err
+		t.keysTarget.Value = &t.Value.Keys
+		target, err := &t.keysTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_security_bcrypter_WirePrivateKey)
 	}
@@ -403,13 +424,15 @@ func (t *WirePrivateKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_5b5d5b5d62797465_Target struct {
-	Value *[][]byte
+// [][]byte
+type unnamed_5b5d5b5d62797465Target struct {
+	Value      *[][]byte
+	elemTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d5b5d62797465_Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *unnamed_5b5d5b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 	if !vdl.Compatible(tt, __VDLType5) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType5)
 	}
@@ -420,13 +443,15 @@ func (t *unnamed_5b5d5b5d62797465_Target) StartList(tt *vdl.Type, len int) (vdl.
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d5b5d62797465_Target) StartElem(index int) (elem vdl.Target, _ error) {
-	return &vdl.BytesTarget{Value: &(*t.Value)[index]}, error(nil)
+func (t *unnamed_5b5d5b5d62797465Target) StartElem(index int) (elem vdl.Target, _ error) {
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_5b5d5b5d62797465_Target) FinishElem(elem vdl.Target) error {
+func (t *unnamed_5b5d5b5d62797465Target) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d5b5d62797465_Target) FinishList(elem vdl.ListTarget) error {
+func (t *unnamed_5b5d5b5d62797465Target) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }

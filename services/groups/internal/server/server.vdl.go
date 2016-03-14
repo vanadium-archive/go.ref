@@ -89,7 +89,9 @@ func (m *groupData) MakeVDLTarget() vdl.Target {
 }
 
 type groupDataTarget struct {
-	Value *groupData
+	Value         *groupData
+	permsTarget   access.PermissionsTarget
+	entriesTarget unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -103,11 +105,13 @@ func (t *groupDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *groupDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Perms":
-		val, err := &access.PermissionsTarget{Value: &t.Value.Perms}, error(nil)
-		return nil, val, err
+		t.permsTarget.Value = &t.Value.Perms
+		target, err := &t.permsTarget, error(nil)
+		return nil, target, err
 	case "Entries":
-		val, err := &unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675d_Target{Value: &t.Value.Entries}, error(nil)
-		return nil, val, err
+		t.entriesTarget.Value = &t.Value.Entries
+		target, err := &t.entriesTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_groups_internal_server_groupData)
 	}
@@ -120,29 +124,33 @@ func (t *groupDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675d_Target struct {
-	Value   *map[groups.BlessingPatternChunk]struct{}
-	currKey groups.BlessingPatternChunk
+// map[groups.BlessingPatternChunk]struct{}
+type unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget struct {
+	Value     *map[groups.BlessingPatternChunk]struct{}
+	currKey   groups.BlessingPatternChunk
+	keyTarget groups.BlessingPatternChunkTarget
 	vdl.TargetBase
 	vdl.SetTargetBase
 }
 
-func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675d_Target) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
 	*t.Value = make(map[groups.BlessingPatternChunk]struct{})
 	return t, nil
 }
-func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675d_Target) StartKey() (key vdl.Target, _ error) {
+func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) StartKey() (key vdl.Target, _ error) {
 	t.currKey = groups.BlessingPatternChunk("")
-	return &groups.BlessingPatternChunkTarget{Value: &t.currKey}, error(nil)
+	t.keyTarget.Value = &t.currKey
+	target, err := &t.keyTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675d_Target) FinishKey(key vdl.Target) error {
+func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) FinishKey(key vdl.Target) error {
 	(*t.Value)[t.currKey] = struct{}{}
 	return nil
 }
-func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675d_Target) FinishSet(list vdl.SetTarget) error {
+func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) FinishSet(list vdl.SetTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}

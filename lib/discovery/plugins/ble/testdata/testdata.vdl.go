@@ -97,7 +97,9 @@ func (m *AdConversionTestCase) MakeVDLTarget() vdl.Target {
 }
 
 type AdConversionTestCaseTarget struct {
-	Value *AdConversionTestCase
+	Value           *AdConversionTestCase
+	adInfoTarget    discovery_2.AdInfoTarget
+	gattAttrsTarget unnamed_6d61705b737472696e675d5b5d62797465Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -111,11 +113,13 @@ func (t *AdConversionTestCaseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget
 func (t *AdConversionTestCaseTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "AdInfo":
-		val, err := &discovery_2.AdInfoTarget{Value: &t.Value.AdInfo}, error(nil)
-		return nil, val, err
+		t.adInfoTarget.Value = &t.Value.AdInfo
+		target, err := &t.adInfoTarget, error(nil)
+		return nil, target, err
 	case "GattAttrs":
-		val, err := &unnamed_6d61705b737472696e675d5b5d62797465_Target{Value: &t.Value.GattAttrs}, error(nil)
-		return nil, val, err
+		t.gattAttrsTarget.Value = &t.Value.GattAttrs
+		target, err := &t.gattAttrsTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase)
 	}
@@ -128,34 +132,41 @@ func (t *AdConversionTestCaseTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_6d61705b737472696e675d5b5d62797465_Target struct {
-	Value    *map[string][]byte
-	currKey  string
-	currElem []byte
+// map[string][]byte
+type unnamed_6d61705b737472696e675d5b5d62797465Target struct {
+	Value      *map[string][]byte
+	currKey    string
+	currElem   []byte
+	keyTarget  vdl.StringTarget
+	elemTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.MapTargetBase
 }
 
-func (t *unnamed_6d61705b737472696e675d5b5d62797465_Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
 	*t.Value = make(map[string][]byte)
 	return t, nil
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465_Target) StartKey() (key vdl.Target, _ error) {
+func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) StartKey() (key vdl.Target, _ error) {
 	t.currKey = ""
-	return &vdl.StringTarget{Value: &t.currKey}, error(nil)
+	t.keyTarget.Value = &t.currKey
+	target, err := &t.keyTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465_Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
 	t.currElem = []byte(nil)
-	return &vdl.BytesTarget{Value: &t.currElem}, error(nil)
+	t.elemTarget.Value = &t.currElem
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465_Target) FinishField(key, field vdl.Target) error {
+func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) FinishField(key, field vdl.Target) error {
 	(*t.Value)[t.currKey] = t.currElem
 	return nil
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465_Target) FinishMap(elem vdl.MapTarget) error {
+func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}

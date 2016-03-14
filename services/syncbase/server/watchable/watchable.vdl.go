@@ -57,7 +57,8 @@ func (m *GetOp) MakeVDLTarget() vdl.Target {
 }
 
 type GetOpTarget struct {
-	Value *GetOp
+	Value     *GetOp
+	keyTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -71,8 +72,9 @@ func (t *GetOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *GetOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Key":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Key}, error(nil)
-		return nil, val, err
+		t.keyTarget.Value = &t.Value.Key
+		target, err := &t.keyTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_watchable_GetOp)
 	}
@@ -142,7 +144,9 @@ func (m *ScanOp) MakeVDLTarget() vdl.Target {
 }
 
 type ScanOpTarget struct {
-	Value *ScanOp
+	Value       *ScanOp
+	startTarget vdl.BytesTarget
+	limitTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -156,11 +160,13 @@ func (t *ScanOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *ScanOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Start":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Start}, error(nil)
-		return nil, val, err
+		t.startTarget.Value = &t.Value.Start
+		target, err := &t.startTarget, error(nil)
+		return nil, target, err
 	case "Limit":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Limit}, error(nil)
-		return nil, val, err
+		t.limitTarget.Value = &t.Value.Limit
+		target, err := &t.limitTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_watchable_ScanOp)
 	}
@@ -262,7 +268,11 @@ func (m *PutOp) MakeVDLTarget() vdl.Target {
 }
 
 type PutOpTarget struct {
-	Value *PutOp
+	Value             *PutOp
+	keyTarget         vdl.BytesTarget
+	versionTarget     vdl.BytesTarget
+	permKeyTarget     vdl.BytesTarget
+	permVersionTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -276,17 +286,21 @@ func (t *PutOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *PutOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Key":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Key}, error(nil)
-		return nil, val, err
+		t.keyTarget.Value = &t.Value.Key
+		target, err := &t.keyTarget, error(nil)
+		return nil, target, err
 	case "Version":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Version}, error(nil)
-		return nil, val, err
+		t.versionTarget.Value = &t.Value.Version
+		target, err := &t.versionTarget, error(nil)
+		return nil, target, err
 	case "PermKey":
-		val, err := &vdl.BytesTarget{Value: &t.Value.PermKey}, error(nil)
-		return nil, val, err
+		t.permKeyTarget.Value = &t.Value.PermKey
+		target, err := &t.permKeyTarget, error(nil)
+		return nil, target, err
 	case "PermVersion":
-		val, err := &vdl.BytesTarget{Value: &t.Value.PermVersion}, error(nil)
-		return nil, val, err
+		t.permVersionTarget.Value = &t.Value.PermVersion
+		target, err := &t.permVersionTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_watchable_PutOp)
 	}
@@ -372,7 +386,10 @@ func (m *DeleteOp) MakeVDLTarget() vdl.Target {
 }
 
 type DeleteOpTarget struct {
-	Value *DeleteOp
+	Value             *DeleteOp
+	keyTarget         vdl.BytesTarget
+	permKeyTarget     vdl.BytesTarget
+	permVersionTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -386,14 +403,17 @@ func (t *DeleteOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *DeleteOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Key":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Key}, error(nil)
-		return nil, val, err
+		t.keyTarget.Value = &t.Value.Key
+		target, err := &t.keyTarget, error(nil)
+		return nil, target, err
 	case "PermKey":
-		val, err := &vdl.BytesTarget{Value: &t.Value.PermKey}, error(nil)
-		return nil, val, err
+		t.permKeyTarget.Value = &t.Value.PermKey
+		target, err := &t.permKeyTarget, error(nil)
+		return nil, target, err
 	case "PermVersion":
-		val, err := &vdl.BytesTarget{Value: &t.Value.PermVersion}, error(nil)
-		return nil, val, err
+		t.permVersionTarget.Value = &t.Value.PermVersion
+		target, err := &t.permVersionTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_watchable_DeleteOp)
 	}
@@ -495,7 +515,10 @@ func (m *SyncgroupOp) MakeVDLTarget() vdl.Target {
 }
 
 type SyncgroupOpTarget struct {
-	Value *SyncgroupOp
+	Value          *SyncgroupOp
+	sgIdTarget     interfaces.GroupIdTarget
+	prefixesTarget vdl.StringSliceTarget
+	removeTarget   vdl.BoolTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -509,14 +532,17 @@ func (t *SyncgroupOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) 
 func (t *SyncgroupOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "SgId":
-		val, err := &interfaces.GroupIdTarget{Value: &t.Value.SgId}, error(nil)
-		return nil, val, err
+		t.sgIdTarget.Value = &t.Value.SgId
+		target, err := &t.sgIdTarget, error(nil)
+		return nil, target, err
 	case "Prefixes":
-		val, err := &vdl.StringSliceTarget{Value: &t.Value.Prefixes}, error(nil)
-		return nil, val, err
+		t.prefixesTarget.Value = &t.Value.Prefixes
+		target, err := &t.prefixesTarget, error(nil)
+		return nil, target, err
 	case "Remove":
-		val, err := &vdl.BoolTarget{Value: &t.Value.Remove}, error(nil)
-		return nil, val, err
+		t.removeTarget.Value = &t.Value.Remove
+		target, err := &t.removeTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_watchable_SyncgroupOp)
 	}
@@ -622,7 +648,11 @@ func (m *SyncSnapshotOp) MakeVDLTarget() vdl.Target {
 }
 
 type SyncSnapshotOpTarget struct {
-	Value *SyncSnapshotOp
+	Value             *SyncSnapshotOp
+	keyTarget         vdl.BytesTarget
+	versionTarget     vdl.BytesTarget
+	permKeyTarget     vdl.BytesTarget
+	permVersionTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -636,17 +666,21 @@ func (t *SyncSnapshotOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, erro
 func (t *SyncSnapshotOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Key":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Key}, error(nil)
-		return nil, val, err
+		t.keyTarget.Value = &t.Value.Key
+		target, err := &t.keyTarget, error(nil)
+		return nil, target, err
 	case "Version":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Version}, error(nil)
-		return nil, val, err
+		t.versionTarget.Value = &t.Value.Version
+		target, err := &t.versionTarget, error(nil)
+		return nil, target, err
 	case "PermKey":
-		val, err := &vdl.BytesTarget{Value: &t.Value.PermKey}, error(nil)
-		return nil, val, err
+		t.permKeyTarget.Value = &t.Value.PermKey
+		target, err := &t.permKeyTarget, error(nil)
+		return nil, target, err
 	case "PermVersion":
-		val, err := &vdl.BytesTarget{Value: &t.Value.PermVersion}, error(nil)
-		return nil, val, err
+		t.permVersionTarget.Value = &t.Value.PermVersion
+		target, err := &t.permVersionTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_watchable_SyncSnapshotOp)
 	}
@@ -786,7 +820,8 @@ func (m *DbStateChangeRequestOp) MakeVDLTarget() vdl.Target {
 }
 
 type DbStateChangeRequestOpTarget struct {
-	Value *DbStateChangeRequestOp
+	Value             *DbStateChangeRequestOp
+	requestTypeTarget StateChangeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -800,8 +835,9 @@ func (t *DbStateChangeRequestOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarg
 func (t *DbStateChangeRequestOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "RequestType":
-		val, err := &StateChangeTarget{Value: &t.Value.RequestType}, error(nil)
-		return nil, val, err
+		t.requestTypeTarget.Value = &t.Value.RequestType
+		target, err := &t.requestTypeTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_watchable_DbStateChangeRequestOp)
 	}
@@ -1179,6 +1215,10 @@ func (m *LogEntry) MakeVDLTarget() vdl.Target {
 
 type LogEntryTarget struct {
 	Value *LogEntry
+
+	commitTimestampTarget vdl.Int64Target
+	fromSyncTarget        vdl.BoolTarget
+	continuedTarget       vdl.BoolTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1192,17 +1232,20 @@ func (t *LogEntryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *LogEntryTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Op":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Op))
-		return nil, val, err
+		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Op))
+		return nil, target, err
 	case "CommitTimestamp":
-		val, err := &vdl.Int64Target{Value: &t.Value.CommitTimestamp}, error(nil)
-		return nil, val, err
+		t.commitTimestampTarget.Value = &t.Value.CommitTimestamp
+		target, err := &t.commitTimestampTarget, error(nil)
+		return nil, target, err
 	case "FromSync":
-		val, err := &vdl.BoolTarget{Value: &t.Value.FromSync}, error(nil)
-		return nil, val, err
+		t.fromSyncTarget.Value = &t.Value.FromSync
+		target, err := &t.fromSyncTarget, error(nil)
+		return nil, target, err
 	case "Continued":
-		val, err := &vdl.BoolTarget{Value: &t.Value.Continued}, error(nil)
-		return nil, val, err
+		t.continuedTarget.Value = &t.Value.Continued
+		target, err := &t.continuedTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_watchable_LogEntry)
 	}

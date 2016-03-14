@@ -84,7 +84,10 @@ func (m *Cpu) MakeVDLTarget() vdl.Target {
 }
 
 type CpuTarget struct {
-	Value *Cpu
+	Value               *Cpu
+	architectureTarget  vdl.StringTarget
+	descriptionTarget   vdl.StringTarget
+	clockSpeedMhzTarget vdl.Uint32Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -98,14 +101,17 @@ func (t *CpuTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *CpuTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Architecture":
-		val, err := &vdl.StringTarget{Value: &t.Value.Architecture}, error(nil)
-		return nil, val, err
+		t.architectureTarget.Value = &t.Value.Architecture
+		target, err := &t.architectureTarget, error(nil)
+		return nil, target, err
 	case "Description":
-		val, err := &vdl.StringTarget{Value: &t.Value.Description}, error(nil)
-		return nil, val, err
+		t.descriptionTarget.Value = &t.Value.Description
+		target, err := &t.descriptionTarget, error(nil)
+		return nil, target, err
 	case "ClockSpeedMhz":
-		val, err := &vdl.Uint32Target{Value: &t.Value.ClockSpeedMhz}, error(nil)
-		return nil, val, err
+		t.clockSpeedMhzTarget.Value = &t.Value.ClockSpeedMhz
+		target, err := &t.clockSpeedMhzTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_ben_Cpu)
 	}
@@ -173,7 +179,9 @@ func (m *Os) MakeVDLTarget() vdl.Target {
 }
 
 type OsTarget struct {
-	Value *Os
+	Value         *Os
+	nameTarget    vdl.StringTarget
+	versionTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -187,11 +195,13 @@ func (t *OsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *OsTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Name":
-		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
-		return nil, val, err
+		t.nameTarget.Value = &t.Value.Name
+		target, err := &t.nameTarget, error(nil)
+		return nil, target, err
 	case "Version":
-		val, err := &vdl.StringTarget{Value: &t.Value.Version}, error(nil)
-		return nil, val, err
+		t.versionTarget.Value = &t.Value.Version
+		target, err := &t.versionTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_ben_Os)
 	}
@@ -274,7 +284,10 @@ func (m *Scenario) MakeVDLTarget() vdl.Target {
 }
 
 type ScenarioTarget struct {
-	Value *Scenario
+	Value       *Scenario
+	cpuTarget   CpuTarget
+	osTarget    OsTarget
+	labelTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -288,14 +301,17 @@ func (t *ScenarioTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *ScenarioTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Cpu":
-		val, err := &CpuTarget{Value: &t.Value.Cpu}, error(nil)
-		return nil, val, err
+		t.cpuTarget.Value = &t.Value.Cpu
+		target, err := &t.cpuTarget, error(nil)
+		return nil, target, err
 	case "Os":
-		val, err := &OsTarget{Value: &t.Value.Os}, error(nil)
-		return nil, val, err
+		t.osTarget.Value = &t.Value.Os
+		target, err := &t.osTarget, error(nil)
+		return nil, target, err
 	case "Label":
-		val, err := &vdl.StringTarget{Value: &t.Value.Label}, error(nil)
-		return nil, val, err
+		t.labelTarget.Value = &t.Value.Label
+		target, err := &t.labelTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_ben_Scenario)
 	}
@@ -466,7 +482,14 @@ func (m *Run) MakeVDLTarget() vdl.Target {
 }
 
 type RunTarget struct {
-	Value *Run
+	Value                   *Run
+	nameTarget              vdl.StringTarget
+	iterationsTarget        vdl.Uint64Target
+	nanoSecsPerOpTarget     vdl.Float64Target
+	allocsPerOpTarget       vdl.Uint64Target
+	allocedBytesPerOpTarget vdl.Uint64Target
+	megaBytesPerSecTarget   vdl.Float64Target
+	parallelismTarget       vdl.Uint32Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -480,26 +503,33 @@ func (t *RunTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *RunTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Name":
-		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
-		return nil, val, err
+		t.nameTarget.Value = &t.Value.Name
+		target, err := &t.nameTarget, error(nil)
+		return nil, target, err
 	case "Iterations":
-		val, err := &vdl.Uint64Target{Value: &t.Value.Iterations}, error(nil)
-		return nil, val, err
+		t.iterationsTarget.Value = &t.Value.Iterations
+		target, err := &t.iterationsTarget, error(nil)
+		return nil, target, err
 	case "NanoSecsPerOp":
-		val, err := &vdl.Float64Target{Value: &t.Value.NanoSecsPerOp}, error(nil)
-		return nil, val, err
+		t.nanoSecsPerOpTarget.Value = &t.Value.NanoSecsPerOp
+		target, err := &t.nanoSecsPerOpTarget, error(nil)
+		return nil, target, err
 	case "AllocsPerOp":
-		val, err := &vdl.Uint64Target{Value: &t.Value.AllocsPerOp}, error(nil)
-		return nil, val, err
+		t.allocsPerOpTarget.Value = &t.Value.AllocsPerOp
+		target, err := &t.allocsPerOpTarget, error(nil)
+		return nil, target, err
 	case "AllocedBytesPerOp":
-		val, err := &vdl.Uint64Target{Value: &t.Value.AllocedBytesPerOp}, error(nil)
-		return nil, val, err
+		t.allocedBytesPerOpTarget.Value = &t.Value.AllocedBytesPerOp
+		target, err := &t.allocedBytesPerOpTarget, error(nil)
+		return nil, target, err
 	case "MegaBytesPerSec":
-		val, err := &vdl.Float64Target{Value: &t.Value.MegaBytesPerSec}, error(nil)
-		return nil, val, err
+		t.megaBytesPerSecTarget.Value = &t.Value.MegaBytesPerSec
+		target, err := &t.megaBytesPerSecTarget, error(nil)
+		return nil, target, err
 	case "Parallelism":
-		val, err := &vdl.Uint32Target{Value: &t.Value.Parallelism}, error(nil)
-		return nil, val, err
+		t.parallelismTarget.Value = &t.Value.Parallelism
+		target, err := &t.parallelismTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_ben_Run)
 	}
