@@ -80,8 +80,6 @@ func (a *accessTokenBlesser) blessingCaveats(r *http.Request, p security.Princip
 			return nil, fmt.Errorf("vom.Decode failed: %v", err)
 		}
 	}
-	// TODO(suharshs, ataly): Should we ensure that we have at least a
-	// revocation or expiry caveat?
 	if len(caveats) == 0 {
 		var (
 			cav security.Caveat

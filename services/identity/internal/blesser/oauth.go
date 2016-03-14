@@ -98,7 +98,6 @@ func (b *oauthBlesser) bless(ctx *context.T, call security.Call, email, clientNa
 	if self == nil {
 		return noblessings, "", fmt.Errorf("server error: no authentication happened")
 	}
-	// TODO(suharshs, ataly): Should we ensure that we have at least a revocation or expiry caveat?
 	if len(caveats) == 0 {
 		var caveat security.Caveat
 		var err error
