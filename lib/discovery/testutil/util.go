@@ -84,7 +84,7 @@ func Scan(ctx *context.T, d discovery.T, query string) (<-chan discovery.Update,
 }
 
 func ScanAndMatch(ctx *context.T, d discovery.T, query string, wants ...discovery.Advertisement) error {
-	const timeout = 10 * time.Second
+	const timeout = 30 * time.Second
 
 	var updates []discovery.Update
 	for now := time.Now(); time.Since(now) < timeout; {
@@ -105,21 +105,23 @@ func doScan(ctx *context.T, d discovery.T, query string, expectedUpdates int) ([
 	if err != nil {
 		return nil, err
 	}
-	defer stop()
+	defer func() {
+		stop()
+		for range scanCh {
+		}
+	}()
 
 	updates := make([]discovery.Update, 0, expectedUpdates)
 	for {
-		timeout := 5 * time.Millisecond
-		if len(updates) < expectedUpdates {
-			// Increase the timeout if we do not receive enough updates
-			// to avoid flakiness in unit tests.
-			timeout = 5 * time.Second
+		var timer <-chan time.Time
+		if len(updates) >= expectedUpdates {
+			timer = time.After(5 * time.Millisecond)
 		}
 
 		select {
 		case update := <-scanCh:
 			updates = append(updates, update)
-		case <-time.After(timeout):
+		case <-timer:
 			return updates, nil
 		}
 	}

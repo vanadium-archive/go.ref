@@ -10,19 +10,21 @@ import (
 )
 
 func TestBarrier(t *testing.T) {
+	const timeout = 5 * time.Millisecond
+
 	ch := make(chan struct{})
 	done := func() { ch <- struct{}{} }
 
 	// A new barrier; Shouldn't call done.
 	br := NewBarrier(done)
-	if waitDone(ch) {
+	if waitDone(ch, timeout) {
 		t.Error("unexpected done call")
 	}
 
 	// Make sure the barrier works with one sub-closure.
 	cb := br.Add()
 	cb()
-	if !waitDone(ch) {
+	if !waitDone(ch, 0) {
 		t.Error("no expected done call")
 	}
 	// Try to add a sub-closure, but done has been already called.
@@ -36,20 +38,24 @@ func TestBarrier(t *testing.T) {
 	cb1 := br.Add()
 	cb2 := br.Add()
 	cb1()
-	if waitDone(ch) {
+	if waitDone(ch, timeout) {
 		t.Error("unexpected done call")
 	}
 	cb2()
-	if !waitDone(ch) {
+	if !waitDone(ch, 0) {
 		t.Error("no expected done call")
 	}
 }
 
-func waitDone(ch <-chan struct{}) bool {
+func waitDone(ch <-chan struct{}, timeout time.Duration) bool {
+	var timer <-chan time.Time
+	if timeout > 0 {
+		timer = time.After(timeout)
+	}
 	select {
 	case <-ch:
 		return true
-	case <-time.After(10 * time.Millisecond):
+	case <-timer:
 		return false
 	}
 }
