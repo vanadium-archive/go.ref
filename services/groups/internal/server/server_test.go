@@ -133,6 +133,7 @@ func newServer(ctx *context.T, be backend) (string, func()) {
 
 	m := server.NewManager(st, reservedAuthorizer{})
 
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", m)
 	if err != nil {
 		ctx.Fatal("NewDispatchingServer() failed: ", err)
@@ -140,7 +141,8 @@ func newServer(ctx *context.T, be backend) (string, func()) {
 
 	name := server.Status().Endpoints[0].Name()
 	return name, func() {
-		server.Stop()
+		cancel()
+		<-server.Closed()
 		if path != "" {
 			os.RemoveAll(path)
 		}

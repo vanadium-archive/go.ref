@@ -46,6 +46,7 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v\n", err)
 	}
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
@@ -60,10 +61,8 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 		if err := os.RemoveAll(rootDir); err != nil {
 			t.Fatalf("Remove(%v) failed: %v", rootDir, err)
 		}
-		// Shutdown the binary repository server.
-		if err := server.Stop(); err != nil {
-			t.Fatalf("Stop() failed: %v", err)
-		}
+		cancel()
+		<-server.Closed()
 	}
 }
 

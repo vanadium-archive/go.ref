@@ -129,13 +129,15 @@ func recvChallenge(ctx *context.T) gameChallenge {
 	fullname := naming.Join(mountPrefix, "rps", "player", name)
 	service := rps.PlayerServer(&impl{ch: ch})
 	auth := internal.NewAuthorizer(aclFile)
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewServer(ctx, fullname, service, auth)
 	if err != nil {
 		ctx.Fatalf("NewServer failed: %v", err)
 	}
 	ctx.Infof("Listening on endpoint /%s", server.Status().Endpoints[0])
 	result := <-ch
-	server.Stop()
+	cancel()
+	<-server.Closed()
 	return result
 }
 

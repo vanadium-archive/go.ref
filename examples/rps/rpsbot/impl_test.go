@@ -24,6 +24,7 @@ import (
 )
 
 func startRockPaperScissors(t *testing.T, ctx *context.T) (*RPS, func()) {
+	ctx, cancel := context.WithCancel(ctx)
 	rpsService := NewRPS(ctx)
 	names := []string{"rps/judge/test", "rps/player/test", "rps/scorekeeper/test"}
 	_, server, err := v23.WithNewServer(ctx, names[0], rps.RockPaperScissorsServer(rpsService), nil)
@@ -36,9 +37,8 @@ func startRockPaperScissors(t *testing.T, ctx *context.T) (*RPS, func()) {
 	testutil.WaitForServerPublished(server)
 
 	return rpsService, func() {
-		if err := server.Stop(); err != nil {
-			t.Fatalf("Stop() failed: %v", err)
-		}
+		cancel()
+		<-server.Closed()
 	}
 }
 

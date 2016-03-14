@@ -44,15 +44,15 @@ func StartMockRepos(t *testing.T, ctx *context.T) (*application.Envelope, func()
 func StartApplicationRepository(ctx *context.T) (*application.Envelope, func()) {
 	invoker := new(arInvoker)
 	name := MockApplicationRepoName
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewServer(ctx, name, repository.ApplicationServer(invoker), security.AllowEveryone())
 	if err != nil {
 		ctx.Fatalf("NewServer(%v) failed: %v", name, err)
 	}
 	WaitForMount(ctx, ctx, name, server)
 	return &invoker.envelope, func() {
-		if err := server.Stop(); err != nil {
-			ctx.Fatalf("Stop() failed: %v", err)
-		}
+		cancel()
+		<-server.Closed()
 	}
 }
 
@@ -92,15 +92,15 @@ type brInvoker struct{}
 // returns a cleanup function.
 func StartBinaryRepository(ctx *context.T) func() {
 	name := MockBinaryRepoName
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewServer(ctx, name, repository.BinaryServer(new(brInvoker)), security.AllowEveryone())
 	if err != nil {
 		ctx.Fatalf("Serve(%q) failed: %v", name, err)
 	}
 	WaitForMount(ctx, ctx, name, server)
 	return func() {
-		if err := server.Stop(); err != nil {
-			ctx.Fatalf("Stop() failed: %v", err)
-		}
+		cancel()
+		<-server.Closed()
 	}
 }
 

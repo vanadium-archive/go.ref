@@ -134,7 +134,8 @@ func TestClientServerBlessings(t *testing.T) {
 			t.Errorf("pserver.SetDefault(%v) failed: %v", test.server, err)
 			continue
 		}
-		_, server, err := v23.WithNewServer(serverCtx, "", testService{}, security.AllowEveryone())
+		sCtx, cancel := context.WithCancel(serverCtx)
+		_, server, err := v23.WithNewServer(sCtx, "", testService{}, security.AllowEveryone())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -155,7 +156,8 @@ func TestClientServerBlessings(t *testing.T) {
 			t.Errorf("%v: Got %v, want %v for server blessings", test.server, gotServer, test.wantClient)
 		}
 
-		server.Stop()
+		cancel()
+		<-server.Closed()
 		client.Close()
 	}
 }

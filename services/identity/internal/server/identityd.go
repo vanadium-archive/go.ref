@@ -122,6 +122,7 @@ func (s *IdentityServer) Serve(ctx, oauthCtx *context.T, externalHttpAddr, httpA
 		}
 		httpAddr = net.JoinHostPort(httphost, strconv.Itoa(httpportNum))
 	}
+	ctx, cancel := context.WithCancel(ctx)
 	rpcServer, _, externalAddr := s.Listen(ctx, oauthCtx, externalHttpAddr, httpAddr, tlsConfig)
 	fmt.Printf("HTTP_ADDR=%s\n", externalAddr)
 	if len(s.rootedObjectAddrs) > 0 {
@@ -129,9 +130,8 @@ func (s *IdentityServer) Serve(ctx, oauthCtx *context.T, externalHttpAddr, httpA
 	}
 	<-signals.ShutdownOnSignals(ctx)
 	ctx.Infof("Received shutdown request.")
-	if err := rpcServer.Stop(); err != nil {
-		ctx.Errorf("Failed to stop rpc server: %v", err)
-	}
+	cancel()
+	<-rpcServer.Closed()
 	ctx.Infof("Successfully stopped the rpc server.")
 }
 

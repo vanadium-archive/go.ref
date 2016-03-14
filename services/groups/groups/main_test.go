@@ -91,18 +91,16 @@ func startServer(ctx *context.T, t *testing.T) (rpc.Server, naming.Endpoint) {
 	return s, s.Status().Endpoints[0]
 }
 
-func stopServer(t *testing.T, server rpc.Server) {
-	if err := server.Stop(); err != nil {
-		t.Errorf("Stop() failed: %v", err)
-	}
-}
-
 func TestGroupClient(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
+	ctx, cancel := context.WithCancel(ctx)
 	server, endpoint := startServer(ctx, t)
-	defer stopServer(t, server)
+	defer func() {
+		cancel()
+		<-server.Closed()
+	}()
 
 	// Test the "create" command.
 	{

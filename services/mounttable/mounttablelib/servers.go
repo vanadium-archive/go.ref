@@ -15,8 +15,10 @@ import (
 )
 
 func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, permsFile, persistDir, debugPrefix string) (string, func(), error) {
-	var stopFuncs []func() error
+	var stopFuncs []func()
+	ctx, cancel := context.WithCancel(ctx)
 	stop := func() {
+		cancel()
 		for i := len(stopFuncs) - 1; i >= 0; i-- {
 			stopFuncs[i]()
 		}
@@ -34,7 +36,9 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 		ctx.Errorf("v23.WithNewServer failed: %v", err)
 		return "", nil, err
 	}
-	stopFuncs = append(stopFuncs, mtServer.Stop)
+	stopFuncs = append(stopFuncs, func() {
+		<-mtServer.Closed()
+	})
 	var mtName string
 	var mtEndpoints []naming.Endpoint
 	for {
@@ -74,7 +78,9 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 			stop()
 			return "", nil, err
 		}
-		stopFuncs = append(stopFuncs, nhServer.Stop)
+		stopFuncs = append(stopFuncs, func() {
+			<-nhServer.Closed()
+		})
 	}
 	return mtName, stop, nil
 }

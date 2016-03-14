@@ -41,10 +41,6 @@ func (s *service) newService(ctx *context.T, r *raft, serverName, hostPort strin
 	return s.server.Status().Endpoints, nil
 }
 
-func (s *service) stopService() {
-	s.server.Stop()
-}
-
 // Lookup implements rpc.Dispatcher.Lookup.
 func (s *service) Lookup(ctx *context.T, name string) (interface{}, security.Authorizer, error) {
 	return raftProtoServer(s), s, nil

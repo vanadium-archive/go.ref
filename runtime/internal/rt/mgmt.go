@@ -87,12 +87,14 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 		return err
 	}
 	// Fire up the server to receive calls from the parent and also ping the parent.
+	ctx, cancel := context.WithCancel(ctx)
 	_, server, err := rt.WithNewServer(ctx, "", v23.GetAppCycle(ctx).Remote(), nil)
 	if err != nil {
 		return err
 	}
 	if err = rt.callbackToParent(ctx, parentName, server.Status().Endpoints[0].Name()); err != nil {
-		server.Stop()
+		cancel()
+		<-server.Closed()
 		return err
 	}
 	return nil

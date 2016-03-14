@@ -29,7 +29,6 @@ type mockServer struct {
 
 func (s *mockServer) AddName(string) error    { return nil }
 func (s *mockServer) RemoveName(string)       {}
-func (s *mockServer) Stop() error             { return nil }
 func (s *mockServer) Closed() <-chan struct{} { return nil }
 func (s *mockServer) Status() rpc.ServerStatus {
 	defer s.mu.Unlock()

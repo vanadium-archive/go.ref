@@ -285,7 +285,7 @@ func (r *raft) Stop() {
 	r.p.Close()
 
 	vlog.Infof("@%s stopping service", r.me.id)
-	r.s.stopService()
+	<-r.s.server.Closed()
 	vlog.Infof("@%s stopped", r.me.id)
 }
 

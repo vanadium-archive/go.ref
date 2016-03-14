@@ -65,6 +65,7 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 	d := server.NewDispatcher(service)
 
 	// Publish the service in the mount table.
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, s, err := v23.WithNewDispatchingServer(ctx, *name, d)
 	if err != nil {
 		vlog.Fatal("v23.WithNewDispatchingServer() failed: ", err)
@@ -90,7 +91,8 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 	}
 
 	cleanup := func() {
-		s.Stop()
+		cancel()
+		<-s.Closed()
 		service.Close()
 	}
 

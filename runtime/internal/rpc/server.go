@@ -55,9 +55,6 @@ const (
 
 type server struct {
 	sync.Mutex
-	// stop is kept for backward compatibilty to implement Stop().
-	// TODO(mattr): deprecate Stop.
-	stop func()
 	// ctx is used by the server to make internal RPCs, error messages etc.
 	ctx               *context.T
 	cancel            context.CancelFunc // function to cancel the above context.
@@ -112,15 +109,14 @@ func WithNewDispatchingServer(ctx *context.T,
 	if err != nil {
 		return ctx, nil, err
 	}
-	ctx, stop := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 	statsPrefix := naming.Join("rpc", "server", "routing-id", rid.String())
 	// TODO(mattr,ashankar): Have the server listen on this channel of
 	// changing default blessings and update itself.
 	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	s := &server{
 		ctx:               ctx,
-		stop:              stop,
-		cancel:            stop,
+		cancel:            cancel,
 		blessings:         blessings,
 		stats:             newRPCStats(statsPrefix),
 		settingsPublisher: settingsPublisher,
@@ -182,7 +178,6 @@ func WithNewDispatchingServer(ctx *context.T,
 		clientFlowManagerOpt{s.flowMgr},
 		PreferredProtocols(s.preferredProtocols))
 	if err != nil {
-		s.stop()
 		s.cancel()
 		return ctx, nil, err
 	}
@@ -535,13 +530,6 @@ func (s *server) RemoveName(name string) {
 	defer s.Unlock()
 	vtrace.GetSpan(s.ctx).Annotate("Removed name: " + name)
 	s.publisher.RemoveName(name)
-}
-
-func (s *server) Stop() error {
-	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	s.stop()
-	<-s.Closed()
-	return nil
 }
 
 func (s *server) Closed() <-chan struct{} {

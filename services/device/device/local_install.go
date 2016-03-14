@@ -78,15 +78,15 @@ func createServer(ctx *context.T, stderr io.Writer) (*context.T, *mapServer, fun
 	dispatcher := make(mapDispatcher)
 
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{})
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	name := server.Status().Endpoints[0].Name()
 	cleanup := func() {
-		if err := server.Stop(); err != nil {
-			fmt.Fprintf(stderr, "server.Stop failed: %v", err)
-		}
+		cancel()
+		<-server.Closed()
 	}
 	return ctx, &mapServer{name: name, dispatcher: dispatcher}, cleanup, nil
 }

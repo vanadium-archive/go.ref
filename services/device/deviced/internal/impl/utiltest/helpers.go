@@ -813,15 +813,15 @@ func StartRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() 
 	if err != nil {
 		t.Fatal(testutil.FormatLogLine(2, "server.NewDispatcher failed: %v", err))
 	}
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, von, d)
 	if err != nil {
 		t.Fatal(testutil.FormatLogLine(2, "server.ServeDispatcher failed: %v", err))
 	}
 	WaitForMount(t, ctx, von, server)
 	return func() {
-		if err := server.Stop(); err != nil {
-			t.Fatal(testutil.FormatLogLine(2, "server.Stop failed: %v", err))
-		}
+		cancel()
+		<-server.Closed()
 		if err := os.RemoveAll(rootDir); err != nil {
 			t.Fatal(testutil.FormatLogLine(2, "os.RemoveAll(%q) failed: %v", rootDir, err))
 		}

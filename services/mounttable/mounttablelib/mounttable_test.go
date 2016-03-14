@@ -177,7 +177,7 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 	}
 }
 
-func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *context.T) (func() error, string, timekeeper.ManualTime) {
+func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *context.T) (func(), string, timekeeper.ManualTime) {
 	reservedDisp := debuglib.NewDispatcher(nil)
 	ctx := v23.WithReservedNameDispatcher(rootCtx, reservedDisp)
 
@@ -189,6 +189,7 @@ func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *contex
 	}
 
 	// Start serving on a loopback address.
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", mt, options.ServesMountTable(true))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
@@ -196,19 +197,26 @@ func newMT(t *testing.T, permsFile, persistDir, statsDir string, rootCtx *contex
 
 	estr := server.Status().Endpoints[0].String()
 	t.Logf("endpoint %s", estr)
-	return server.Stop, estr, clock
+	return func() {
+		cancel()
+		<-server.Closed()
+	}, estr, clock
 }
 
-func newCollection(t *testing.T, rootCtx *context.T) (func() error, string) {
+func newCollection(t *testing.T, rootCtx *context.T) (func(), string) {
 	// Start serving a collection service on a loopback address.  This
 	// is just a service we can mount and test against.
-	_, server, err := v23.WithNewDispatchingServer(rootCtx, "collection", newCollectionServer())
+	ctx, cancel := context.WithCancel(rootCtx)
+	_, server, err := v23.WithNewDispatchingServer(ctx, "collection", newCollectionServer())
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
 	estr := server.Status().Endpoints[0].String()
 	t.Logf("endpoint %s", estr)
-	return server.Stop, estr
+	return func() {
+		cancel()
+		<-server.Closed()
+	}, estr
 }
 
 func TestMountTable(t *testing.T) {

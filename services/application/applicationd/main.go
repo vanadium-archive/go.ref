@@ -52,7 +52,6 @@ func runAppD(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return fmt.Errorf("NewServer() failed: %v", err)
 	}
-	defer server.Stop()
 	epName := server.Status().Endpoints[0].Name()
 	if name != "" {
 		ctx.Infof("Application repository serving at %q (%q)", name, epName)

@@ -134,10 +134,10 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 		return nil, nil, err
 	}
 	shutdown := func() {
-		ctx.Infof("Stopping claimable server...")
-		server.Stop()
-		ctx.Infof("Stopped claimable server.")
 		cancel()
+		ctx.Infof("Stopping claimable server...")
+		<-server.Closed()
+		ctx.Infof("Stopped claimable server.")
 	}
 	publicKey, err := v23.GetPrincipal(ctx).PublicKey().MarshalBinary()
 	if err != nil {
@@ -260,6 +260,7 @@ func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
 func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pathperms.PathStore) (shutdown func(), err error) {
 	ctx = v23.WithListenSpec(ctx, args.ListenSpec)
 	wrapper := displib.NewDispatcherWrapper()
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, args.name(mt), wrapper)
 	if err != nil {
 		return nil, err
@@ -268,7 +269,8 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pa
 
 	dispatcher, dShutdown, err := impl.NewDispatcher(ctx, args.ConfigState, mt, args.TestMode, args.RestartCallback, permStore)
 	if err != nil {
-		server.Stop()
+		cancel()
+		<-server.Closed()
 		return nil, err
 	}
 
@@ -276,7 +278,8 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pa
 		// TODO(caprita): Capture the Dying state by feeding it back to
 		// the dispatcher and exposing it in Status.
 		ctx.Infof("Stopping device server...")
-		server.Stop()
+		cancel()
+		<-server.Closed()
 		dShutdown()
 		ctx.Infof("Stopped device.")
 	}

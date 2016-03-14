@@ -66,6 +66,7 @@ var complexServerProgram = gosh.RegisterFunc("complexServerProgram", func() {
 	defer remoteCmdLoop(ctx, os.Stdin)()
 
 	// Create a couple servers, and start serving.
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server1, err := v23.WithNewServer(ctx, "", &dummy{}, nil)
 	if err != nil {
 		ctx.Fatalf("r.NewServer error: %s", err)
@@ -128,20 +129,10 @@ var complexServerProgram = gosh.RegisterFunc("complexServerProgram", func() {
 	// Wait for shutdown.
 	done.Wait()
 
-	// Stop the servers.  In this example we stop them in goroutines to
-	// parallelize the wait, but if there was a dependency between the
-	// servers, the developer can simply stop them sequentially.
-	var waitServerStop sync.WaitGroup
-	waitServerStop.Add(2)
-	go func() {
-		server1.Stop()
-		waitServerStop.Done()
-	}()
-	go func() {
-		server2.Stop()
-		waitServerStop.Done()
-	}()
-	waitServerStop.Wait()
+	// Stop the servers.
+	cancel()
+	<-server1.Closed()
+	<-server2.Closed()
 
 	// This is where all cleanup code should go.  By placing it at the end,
 	// we make its purpose and order of execution clear.
@@ -217,6 +208,7 @@ var simpleServerProgram = gosh.RegisterFunc("simpleServerProgram", func() {
 	defer remoteCmdLoop(ctx, os.Stdin)()
 
 	// Create a server, and start serving.
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewServer(ctx, "", &dummy{}, nil)
 	if err != nil {
 		ctx.Fatalf("r.NewServer error: %s", err)
@@ -249,8 +241,8 @@ var simpleServerProgram = gosh.RegisterFunc("simpleServerProgram", func() {
 	// invoked through defer, but we list them here to make the order of
 	// operations obvious.
 
-	// Stop the server.
-	server.Stop()
+	cancel()
+	<-server.Closed()
 
 	// Note, this will not execute in cases of forced shutdown
 	// (e.g. SIGSTOP), when the process calls os.Exit (e.g. via log.Fatal),

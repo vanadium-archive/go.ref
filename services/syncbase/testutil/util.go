@@ -233,7 +233,7 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 	name := s.Status().Endpoints[0].Name()
 	return name, func() {
 		cancel()
-		s.Stop()
+		<-s.Closed()
 		service.Close()
 		os.RemoveAll(rootDir)
 	}

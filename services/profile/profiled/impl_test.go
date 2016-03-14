@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/build"
 	"v.io/x/ref/services/profile"
@@ -106,7 +107,8 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	_, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
+	sctx, cancel := context.WithCancel(ctx)
+	_, server, err := v23.WithNewDispatchingServer(sctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -128,7 +130,8 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	}
 
 	// Stop the first server.
-	server.Stop()
+	cancel()
+	<-server.Closed()
 
 	// Setup and start a second server.
 	dispatcher, err = NewDispatcher(store, nil)

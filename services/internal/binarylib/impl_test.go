@@ -57,6 +57,7 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 		t.Fatalf("NewDispatcher failed: %v", err)
 	}
 	dontPublishName := ""
+	ctx, cancel := context.WithCancel(ctx)
 	_, server, err := v23.WithNewDispatchingServer(ctx, dontPublishName, dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer(%q) failed: %v", dontPublishName, err)
@@ -66,9 +67,8 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 	binary := repository.BinaryClient(name)
 	return binary, endpoint, fmt.Sprintf("http://%s/test", listener.Addr()), func() {
 		// Shutdown the binary repository server.
-		if err := server.Stop(); err != nil {
-			t.Fatalf("Stop() failed: %v", err)
-		}
+		cancel()
+		<-server.Closed()
 		cleanup()
 	}
 }

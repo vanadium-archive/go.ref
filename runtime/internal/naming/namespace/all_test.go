@@ -194,7 +194,7 @@ func testResolve(t *testing.T, ctx *context.T, ns namespace.T, name string, want
 
 type serverEntry struct {
 	mountPoint string
-	stop       func() error
+	stop       func()
 	endpoint   naming.Endpoint
 	name       string
 }
@@ -212,6 +212,7 @@ func runMT(t *testing.T, ctx *context.T, mountPoint string) *serverEntry {
 }
 
 func run(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint string, mt bool) *serverEntry {
+	ctx, cancel := context.WithCancel(ctx)
 	_, s, err := v23.WithNewDispatchingServer(ctx, mountPoint, disp, options.ServesMountTable(mt))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
@@ -222,7 +223,11 @@ func run(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint string, m
 	if len(mountPoint) > 0 {
 		resolveWithRetry(ctx, mountPoint)
 	}
-	return &serverEntry{mountPoint: mountPoint, stop: s.Stop, endpoint: eps[0], name: eps[0].Name()}
+	stop := func() {
+		cancel()
+		<-s.Closed()
+	}
+	return &serverEntry{mountPoint: mountPoint, stop: stop, endpoint: eps[0], name: eps[0].Name()}
 }
 
 const (
@@ -760,11 +765,15 @@ func TestLeaf(t *testing.T) {
 	ns := v23.GetNamespace(ctx)
 	ns.SetRoots(root.name)
 
+	ctx, cancel := context.WithCancel(ctx)
 	_, server, err := v23.WithNewServer(ctx, "leaf", &leafObject{}, nil)
 	if err != nil {
 		boom(t, "v23.WithNewServer: %s", err)
 	}
-	defer server.Stop()
+	defer func() {
+		cancel()
+		<-server.Closed()
+	}()
 
 	mountEntry := resolveWithRetry(ctx, "leaf")
 	if expected := true; mountEntry.IsLeaf != expected {

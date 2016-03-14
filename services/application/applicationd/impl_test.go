@@ -82,6 +82,7 @@ func TestInterface(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
 	_, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer(%v) failed: %v", dispatcher, err)
@@ -270,9 +271,8 @@ func TestInterface(t *testing.T) {
 	checkNoProfile(t, ctx, stub)
 
 	// Shutdown the application repository server.
-	if err := server.Stop(); err != nil {
-		t.Fatalf("Stop() failed: %v", err)
-	}
+	cancel()
+	<-server.Closed()
 }
 
 func TestPreserveAcrossRestarts(t *testing.T) {
@@ -291,7 +291,8 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	_, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
+	sctx, cancel := context.WithCancel(ctx)
+	_, server, err := v23.WithNewDispatchingServer(sctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}
@@ -320,7 +321,8 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	// There is content here now.
 	checkEnvelope(t, ctx, envelopeV1, stubV1, "media")
 
-	server.Stop()
+	cancel()
+	<-server.Closed()
 
 	// Setup and start a second application server.
 	dispatcher, err = appd.NewDispatcher(storedir)
@@ -355,15 +357,14 @@ func TestTidyNow(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
 	_, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
 	if err != nil {
 		t.Fatalf("NewServer(%v) failed: %v", dispatcher, err)
 	}
-
 	defer func() {
-		if err := server.Stop(); err != nil {
-			t.Fatalf("Stop() failed: %v", err)
-		}
+		cancel()
+		<-server.Closed()
 	}()
 	endpoint := server.Status().Endpoints[0].String()
 

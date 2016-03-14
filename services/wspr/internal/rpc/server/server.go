@@ -87,7 +87,8 @@ type Server struct {
 	// cause the status poller to exit.
 	statusClose chan struct{}
 
-	ctx *context.T
+	ctx    *context.T
+	cancel context.CancelFunc
 }
 
 type serverContextKey struct{}
@@ -110,6 +111,7 @@ func NewServer(id uint32, name string, listenSpec *rpc.ListenSpec, helper Server
 	server.dispatcher = newDispatcher(server.id, server, server, server, server.helper)
 	ctx = v23.WithListenSpec(ctx, *listenSpec)
 
+	ctx, server.cancel = context.WithCancel(ctx)
 	if ctx, server.server, err = v23.WithNewDispatchingServer(ctx, name, server.dispatcher, opts...); err != nil {
 		return nil, err
 	}
@@ -746,7 +748,8 @@ func (s *Server) Stop() {
 	s.outstandingServerRequests = make(map[int32]chan *lib.ServerRpcReply)
 	s.outstandingRequestLock.Unlock()
 	s.serverStateLock.Unlock()
-	s.server.Stop()
+	s.cancel()
+	<-s.server.Closed()
 
 	// Only clear the validation requests map after stopping. Clearing them before
 	// can cause the publisher to get stuck waiting for a caveat validation that

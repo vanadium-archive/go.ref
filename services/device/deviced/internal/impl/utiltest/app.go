@@ -165,15 +165,15 @@ func (p PingServer) Ping(_ *context.T, _ rpc.ServerCall, arg PingArgs) error {
 // function.
 func SetupPingServer(t *testing.T, ctx *context.T) (PingServer, func()) {
 	pingCh := make(chan PingArgs, 1)
+	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewServer(ctx, "pingserver", PingServer{pingCh}, security.AllowEveryone())
 	if err != nil {
 		t.Fatalf("NewServer(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
 	WaitForMount(t, ctx, "pingserver", server)
 	return PingServer{pingCh}, func() {
-		if err := server.Stop(); err != nil {
-			t.Fatalf("Stop() failed: %v", err)
-		}
+		cancel()
+		<-server.Closed()
 	}
 }
 
