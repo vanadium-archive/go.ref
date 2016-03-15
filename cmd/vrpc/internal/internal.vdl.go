@@ -78,6 +78,7 @@ type StructTarget struct {
 }
 
 func (t *StructTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_cmd_vrpc_internal_Struct) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_cmd_vrpc_internal_Struct)
 	}
@@ -148,6 +149,7 @@ type Array2IntTarget struct {
 }
 
 func (t *Array2IntTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_cmd_vrpc_internal_Array2Int) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_cmd_vrpc_internal_Array2Int)
 	}

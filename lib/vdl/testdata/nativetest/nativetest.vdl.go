@@ -10,6 +10,7 @@ package nativetest
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 	"v.io/v23/vdl"
 	"v.io/v23/vdl/testdata/nativetest"
@@ -41,6 +42,7 @@ type WireStringTarget struct {
 }
 
 func (t *WireStringTarget) FromUint(src uint64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireString)
 	val, err := vdlconv.Uint64ToInt32(src)
 	if err != nil {
 		return err
@@ -53,6 +55,7 @@ func (t *WireStringTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireStringTarget) FromInt(src int64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireString)
 	val, err := vdlconv.Int64ToInt32(src)
 	if err != nil {
 		return err
@@ -65,6 +68,7 @@ func (t *WireStringTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireStringTarget) FromFloat(src float64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireString)
 	val, err := vdlconv.Float64ToInt32(src)
 	if err != nil {
 		return err
@@ -77,6 +81,7 @@ func (t *WireStringTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireStringTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireString)
 	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err
@@ -114,6 +119,7 @@ type WireMapStringIntTarget struct {
 }
 
 func (t *WireMapStringIntTarget) FromUint(src uint64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireMapStringInt)
 	val, err := vdlconv.Uint64ToInt32(src)
 	if err != nil {
 		return err
@@ -126,6 +132,7 @@ func (t *WireMapStringIntTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireMapStringIntTarget) FromInt(src int64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireMapStringInt)
 	val, err := vdlconv.Int64ToInt32(src)
 	if err != nil {
 		return err
@@ -138,6 +145,7 @@ func (t *WireMapStringIntTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireMapStringIntTarget) FromFloat(src float64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireMapStringInt)
 	val, err := vdlconv.Float64ToInt32(src)
 	if err != nil {
 		return err
@@ -150,6 +158,7 @@ func (t *WireMapStringIntTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireMapStringIntTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireMapStringInt)
 	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err
@@ -187,6 +196,7 @@ type WireTimeTarget struct {
 }
 
 func (t *WireTimeTarget) FromUint(src uint64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireTime)
 	val, err := vdlconv.Uint64ToInt32(src)
 	if err != nil {
 		return err
@@ -199,6 +209,7 @@ func (t *WireTimeTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireTimeTarget) FromInt(src int64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireTime)
 	val, err := vdlconv.Int64ToInt32(src)
 	if err != nil {
 		return err
@@ -211,6 +222,7 @@ func (t *WireTimeTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireTime)
 	val, err := vdlconv.Float64ToInt32(src)
 	if err != nil {
 		return err
@@ -223,6 +235,7 @@ func (t *WireTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireTimeTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireTime)
 	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err
@@ -260,6 +273,7 @@ type WireSamePkgTarget struct {
 }
 
 func (t *WireSamePkgTarget) FromUint(src uint64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireSamePkg)
 	val, err := vdlconv.Uint64ToInt32(src)
 	if err != nil {
 		return err
@@ -272,6 +286,7 @@ func (t *WireSamePkgTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireSamePkgTarget) FromInt(src int64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireSamePkg)
 	val, err := vdlconv.Int64ToInt32(src)
 	if err != nil {
 		return err
@@ -284,6 +299,7 @@ func (t *WireSamePkgTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireSamePkgTarget) FromFloat(src float64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireSamePkg)
 	val, err := vdlconv.Float64ToInt32(src)
 	if err != nil {
 		return err
@@ -296,6 +312,7 @@ func (t *WireSamePkgTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireSamePkgTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireSamePkg)
 	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err
@@ -333,6 +350,7 @@ type WireMultiImportTarget struct {
 }
 
 func (t *WireMultiImportTarget) FromUint(src uint64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireMultiImport)
 	val, err := vdlconv.Uint64ToInt32(src)
 	if err != nil {
 		return err
@@ -345,6 +363,7 @@ func (t *WireMultiImportTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireMultiImportTarget) FromInt(src int64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireMultiImport)
 	val, err := vdlconv.Int64ToInt32(src)
 	if err != nil {
 		return err
@@ -357,6 +376,7 @@ func (t *WireMultiImportTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireMultiImportTarget) FromFloat(src float64, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireMultiImport)
 	val, err := vdlconv.Float64ToInt32(src)
 	if err != nil {
 		return err
@@ -369,6 +389,7 @@ func (t *WireMultiImportTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireMultiImportTarget) FromComplex(src complex128, tt *vdl.Type) error {
+	t.wireValue = reflect.Zero(reflect.TypeOf(t.wireValue)).Interface().(WireMultiImport)
 	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err
@@ -405,6 +426,7 @@ type WireRenameMeTarget struct {
 }
 
 func (t *WireRenameMeTarget) FromUint(src uint64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Uint64ToInt32(src)
 	if err != nil {
 		return err
@@ -414,6 +436,7 @@ func (t *WireRenameMeTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireRenameMeTarget) FromInt(src int64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Int64ToInt32(src)
 	if err != nil {
 		return err
@@ -423,6 +446,7 @@ func (t *WireRenameMeTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireRenameMeTarget) FromFloat(src float64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Float64ToInt32(src)
 	if err != nil {
 		return err
@@ -432,6 +456,7 @@ func (t *WireRenameMeTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WireRenameMeTarget) FromComplex(src complex128, tt *vdl.Type) error {
+
 	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err
@@ -588,6 +613,7 @@ type WireAllTarget struct {
 }
 
 func (t *WireAllTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll)
 	}
@@ -655,6 +681,7 @@ type ignoremeTarget struct {
 }
 
 func (t *ignoremeTarget) FromString(src string, tt *vdl.Type) error {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme) {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme)
 	}

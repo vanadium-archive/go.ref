@@ -62,6 +62,7 @@ type SyncDataTarget struct {
 }
 
 func (t *SyncDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vsync_SyncData) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vsync_SyncData)
 	}
@@ -164,6 +165,7 @@ type DbSyncStateTarget struct {
 }
 
 func (t *DbSyncStateTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vsync_DbSyncState) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vsync_DbSyncState)
 	}
@@ -272,6 +274,7 @@ type LocalLogRecTarget struct {
 }
 
 func (t *LocalLogRecTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vsync_LocalLogRec) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vsync_LocalLogRec)
 	}
@@ -438,6 +441,7 @@ type SgLocalStateTarget struct {
 }
 
 func (t *SgLocalStateTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vsync_SgLocalState) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vsync_SgLocalState)
 	}
@@ -644,6 +648,7 @@ type DagNodeTarget struct {
 }
 
 func (t *DagNodeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vsync_DagNode) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vsync_DagNode)
 	}
@@ -830,6 +835,7 @@ type BatchInfoTarget struct {
 }
 
 func (t *BatchInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vsync_BatchInfo) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vsync_BatchInfo)
 	}
@@ -873,6 +879,7 @@ type unnamed_6d61705b737472696e675d737472696e67Target struct {
 }
 
 func (t *unnamed_6d61705b737472696e675d737472696e67Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType7) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType7)
 	}

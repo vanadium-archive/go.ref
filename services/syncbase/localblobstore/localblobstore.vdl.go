@@ -108,6 +108,7 @@ type BlobMetadataTarget struct {
 }
 
 func (t *BlobMetadataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata)
 	}
@@ -189,6 +190,7 @@ type PerSyncgroupTarget struct {
 }
 
 func (t *PerSyncgroupTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup)
 	}

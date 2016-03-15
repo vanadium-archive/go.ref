@@ -76,6 +76,7 @@ type CaveatTarget struct {
 }
 
 func (t *CaveatTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_account_Caveat) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_account_Caveat)
 	}

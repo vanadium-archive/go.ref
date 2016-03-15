@@ -113,6 +113,7 @@ type ShellOptsTarget struct {
 }
 
 func (t *ShellOptsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_examples_tunnel_ShellOpts) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_examples_tunnel_ShellOpts)
 	}
@@ -153,6 +154,7 @@ type WindowSizeTarget struct {
 }
 
 func (t *WindowSizeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_examples_tunnel_WindowSize) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_examples_tunnel_WindowSize)
 	}
@@ -401,6 +403,7 @@ type unusedTarget struct {
 }
 
 func (t *unusedTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_examples_tunnel_unused) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_examples_tunnel_unused)
 	}

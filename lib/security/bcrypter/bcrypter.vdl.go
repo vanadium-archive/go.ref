@@ -113,6 +113,7 @@ type WireCiphertextTarget struct {
 }
 
 func (t *WireCiphertextTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_security_bcrypter_WireCiphertext) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_security_bcrypter_WireCiphertext)
 	}
@@ -152,6 +153,7 @@ type unnamed_6d61705b737472696e675d5b5d62797465Target struct {
 }
 
 func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
@@ -252,6 +254,7 @@ type WireParamsTarget struct {
 }
 
 func (t *WireParamsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_security_bcrypter_WireParams) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_security_bcrypter_WireParams)
 	}
@@ -393,6 +396,7 @@ type WirePrivateKeyTarget struct {
 }
 
 func (t *WirePrivateKeyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_security_bcrypter_WirePrivateKey) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_security_bcrypter_WirePrivateKey)
 	}
@@ -433,6 +437,7 @@ type unnamed_5b5d5b5d62797465Target struct {
 }
 
 func (t *unnamed_5b5d5b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType5) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType5)
 	}

@@ -43,11 +43,13 @@ type TermTarget struct {
 }
 
 func (t *TermTarget) FromUint(src uint64, tt *vdl.Type) error {
+
 	*t.Value = Term(src)
 
 	return nil
 }
 func (t *TermTarget) FromInt(src int64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Int64ToUint64(src)
 	if err != nil {
 		return err
@@ -57,6 +59,7 @@ func (t *TermTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *TermTarget) FromFloat(src float64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Float64ToUint64(src)
 	if err != nil {
 		return err
@@ -66,6 +69,7 @@ func (t *TermTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *TermTarget) FromComplex(src complex128, tt *vdl.Type) error {
+
 	val, err := vdlconv.Complex128ToUint64(src)
 	if err != nil {
 		return err
@@ -103,11 +107,13 @@ type IndexTarget struct {
 }
 
 func (t *IndexTarget) FromUint(src uint64, tt *vdl.Type) error {
+
 	*t.Value = Index(src)
 
 	return nil
 }
 func (t *IndexTarget) FromInt(src int64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Int64ToUint64(src)
 	if err != nil {
 		return err
@@ -117,6 +123,7 @@ func (t *IndexTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *IndexTarget) FromFloat(src float64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Float64ToUint64(src)
 	if err != nil {
 		return err
@@ -126,6 +133,7 @@ func (t *IndexTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *IndexTarget) FromComplex(src complex128, tt *vdl.Type) error {
+
 	val, err := vdlconv.Complex128ToUint64(src)
 	if err != nil {
 		return err
@@ -231,6 +239,7 @@ type LogEntryTarget struct {
 }
 
 func (t *LogEntryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_raft_LogEntry) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_raft_LogEntry)
 	}

@@ -166,6 +166,7 @@ type VClockDataTarget struct {
 }
 
 func (t *VClockDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vclock_VClockData) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vclock_VClockData)
 	}

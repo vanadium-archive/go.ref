@@ -97,6 +97,7 @@ type RequestTarget struct {
 }
 
 func (t *RequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_channel_Request) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_channel_Request)
 	}
@@ -210,6 +211,7 @@ type ResponseTarget struct {
 }
 
 func (t *ResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_channel_Response) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_channel_Response)
 	}

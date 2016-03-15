@@ -105,6 +105,7 @@ type AdConversionTestCaseTarget struct {
 }
 
 func (t *AdConversionTestCaseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase)
 	}
@@ -144,6 +145,7 @@ type unnamed_6d61705b737472696e675d5b5d62797465Target struct {
 }
 
 func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}

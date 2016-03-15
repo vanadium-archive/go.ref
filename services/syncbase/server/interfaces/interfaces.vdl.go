@@ -78,6 +78,7 @@ type GenVectorTarget struct {
 }
 
 func (t *GenVectorTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_GenVector) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_GenVector)
 	}
@@ -164,6 +165,7 @@ type KnowledgeTarget struct {
 }
 
 func (t *KnowledgeTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_Knowledge) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_Knowledge)
 	}
@@ -427,6 +429,7 @@ type LogRecMetadataTarget struct {
 }
 
 func (t *LogRecMetadataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_LogRecMetadata)
 	}
@@ -572,6 +575,7 @@ type LogRecTarget struct {
 }
 
 func (t *LogRecTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_LogRec) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_LogRec)
 	}
@@ -629,11 +633,13 @@ type GroupIdTarget struct {
 }
 
 func (t *GroupIdTarget) FromUint(src uint64, tt *vdl.Type) error {
+
 	*t.Value = GroupId(src)
 
 	return nil
 }
 func (t *GroupIdTarget) FromInt(src int64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Int64ToUint64(src)
 	if err != nil {
 		return err
@@ -643,6 +649,7 @@ func (t *GroupIdTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *GroupIdTarget) FromFloat(src float64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Float64ToUint64(src)
 	if err != nil {
 		return err
@@ -652,6 +659,7 @@ func (t *GroupIdTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *GroupIdTarget) FromComplex(src complex128, tt *vdl.Type) error {
+
 	val, err := vdlconv.Complex128ToUint64(src)
 	if err != nil {
 		return err
@@ -732,6 +740,7 @@ type SyncgroupStatusTarget struct {
 }
 
 func (t *SyncgroupStatusTarget) FromEnumLabel(src string, tt *vdl.Type) error {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SyncgroupStatus) {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SyncgroupStatus)
 	}
@@ -938,6 +947,7 @@ type SyncgroupTarget struct {
 }
 
 func (t *SyncgroupTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_Syncgroup) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_Syncgroup)
 	}
@@ -1005,6 +1015,7 @@ type unnamed_6d61705b737472696e675d762e696f2f7632332f73657276696365732f73796e636
 }
 
 func (t *unnamed_6d61705b737472696e675d762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e53796e6367726f75704d656d626572496e666f207374727563747b53796e635072696f7269747920627974653b497353657276657220626f6f6c7dTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType5) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType5)
 	}
@@ -1242,6 +1253,7 @@ type DataDeltaReqTarget struct {
 }
 
 func (t *DataDeltaReqTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_DataDeltaReq) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_DataDeltaReq)
 	}
@@ -1287,6 +1299,7 @@ type unnamed_7365745b762e696f2f782f7265662f73657276696365732f73796e63626173652f7
 }
 
 func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f73796e63626173652f7365727665722f696e74657266616365732e47726f757049642075696e7436345dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType7) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType7)
 	}
@@ -1391,6 +1404,7 @@ type SgDeltaReqTarget struct {
 }
 
 func (t *SgDeltaReqTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgDeltaReq) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgDeltaReq)
 	}
@@ -1565,6 +1579,7 @@ type DeltaFinalRespTarget struct {
 }
 
 func (t *DeltaFinalRespTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_DeltaFinalResp)
 	}
@@ -1599,6 +1614,7 @@ type SgPrioritiesTarget struct {
 }
 
 func (t *SgPrioritiesTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriorities)
 	}
@@ -1638,6 +1654,7 @@ type SgPriorityTarget struct {
 }
 
 func (t *SgPriorityTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority)
 	}
@@ -1715,6 +1732,7 @@ type ChunkHashTarget struct {
 }
 
 func (t *ChunkHashTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_ChunkHash) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_ChunkHash)
 	}
@@ -1788,6 +1806,7 @@ type ChunkDataTarget struct {
 }
 
 func (t *ChunkDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_ChunkData) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_ChunkData)
 	}
@@ -1864,6 +1883,7 @@ type TimeReqTarget struct {
 }
 
 func (t *TimeReqTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_TimeReq) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_TimeReq)
 	}
@@ -2035,6 +2055,7 @@ type TimeRespTarget struct {
 }
 
 func (t *TimeRespTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_TimeResp) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_TimeResp)
 	}
@@ -2238,6 +2259,7 @@ type BlobSharesBySyncgroupTarget struct {
 }
 
 func (t *BlobSharesBySyncgroupTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_BlobSharesBySyncgroup) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_BlobSharesBySyncgroup)
 	}
@@ -2365,6 +2387,7 @@ type SignpostTarget struct {
 }
 
 func (t *SignpostTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_Signpost) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_Signpost)
 	}

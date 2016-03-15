@@ -94,6 +94,7 @@ type LibraryTarget struct {
 }
 
 func (t *LibraryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_profile_Library) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_profile_Library)
 	}
@@ -273,6 +274,7 @@ type SpecificationTarget struct {
 }
 
 func (t *SpecificationTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_profile_Specification) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_profile_Specification)
 	}
@@ -326,6 +328,7 @@ type unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c6
 }
 
 func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType2) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType2)
 	}

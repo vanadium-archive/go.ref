@@ -78,6 +78,7 @@ type BlobInfoTarget struct {
 }
 
 func (t *BlobInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vsync_testdata_BlobInfo) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vsync_testdata_BlobInfo)
 	}
@@ -276,6 +277,7 @@ type BlobSetTarget struct {
 }
 
 func (t *BlobSetTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vsync_testdata_BlobSet) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vsync_testdata_BlobSet)
 	}
@@ -313,6 +315,7 @@ type unnamed_7365745b762e696f2f7632332f73657276696365732f73796e63626173652f6e6f7
 }
 
 func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e426c6f6252656620737472696e675dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType2) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType2)
 	}
@@ -423,6 +426,7 @@ type BlobAnyTarget struct {
 }
 
 func (t *BlobAnyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vsync_testdata_BlobAny) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vsync_testdata_BlobAny)
 	}
@@ -459,6 +463,7 @@ type unnamed_5b5d616e79Target struct {
 }
 
 func (t *unnamed_5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType4) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType4)
 	}
@@ -560,6 +565,7 @@ type NonBlobSetTarget struct {
 }
 
 func (t *NonBlobSetTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vsync_testdata_NonBlobSet) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vsync_testdata_NonBlobSet)
 	}
@@ -597,6 +603,7 @@ type unnamed_7365745b737472696e675dTarget struct {
 }
 
 func (t *unnamed_7365745b737472696e675dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType6) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType6)
 	}
@@ -690,6 +697,7 @@ type BlobOptTarget struct {
 }
 
 func (t *BlobOptTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_vsync_testdata_BlobOpt) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_vsync_testdata_BlobOpt)
 	}
@@ -726,6 +734,7 @@ type unnamed_3f762e696f2f782f7265662f73657276696365732f73796e63626173652f7673796
 }
 
 func (t *unnamed_3f762e696f2f782f7265662f73657276696365732f73796e63626173652f7673796e632f74657374646174612e426c6f62496e666f207374727563747b496e666f20737472696e673b427220762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e426c6f6252656620737472696e677dTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if *t.Value == nil {
 		*t.Value = &BlobInfo{}
 	}
@@ -741,6 +750,7 @@ func (t *unnamed_3f762e696f2f782f7265662f73657276696365732f73796e63626173652f767
 	return nil
 }
 func (t *unnamed_3f762e696f2f782f7265662f73657276696365732f73796e63626173652f7673796e632f74657374646174612e426c6f62496e666f207374727563747b496e666f20737472696e673b427220762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e426c6f6252656620737472696e677dTarget) FromNil(tt *vdl.Type) error {
+
 	*t.Value = nil
 
 	return nil

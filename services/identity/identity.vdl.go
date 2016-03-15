@@ -100,6 +100,7 @@ type BlessingRootResponseTarget struct {
 }
 
 func (t *BlessingRootResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_identity_BlessingRootResponse) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_identity_BlessingRootResponse)
 	}

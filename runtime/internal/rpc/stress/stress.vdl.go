@@ -94,6 +94,7 @@ type SumArgTarget struct {
 }
 
 func (t *SumArgTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumArg) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumArg)
 	}
@@ -215,6 +216,7 @@ type SumStatsTarget struct {
 }
 
 func (t *SumStatsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumStats) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumStats)
 	}

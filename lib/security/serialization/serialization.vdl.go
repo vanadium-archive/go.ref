@@ -61,6 +61,7 @@ type SignedHeaderTarget struct {
 }
 
 func (t *SignedHeaderTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_security_serialization_SignedHeader) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_security_serialization_SignedHeader)
 	}
@@ -108,6 +109,7 @@ type HashCodeTarget struct {
 }
 
 func (t *HashCodeTarget) FromBytes(src []byte, tt *vdl.Type) error {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_security_serialization_HashCode) {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_security_serialization_HashCode)
 	}

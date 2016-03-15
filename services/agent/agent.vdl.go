@@ -108,6 +108,7 @@ type ConnInfoTarget struct {
 }
 
 func (t *ConnInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_agent_ConnInfo) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_agent_ConnInfo)
 	}
@@ -211,6 +212,7 @@ type RpcRequestTarget struct {
 }
 
 func (t *RpcRequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_agent_RpcRequest) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_agent_RpcRequest)
 	}
@@ -330,6 +332,7 @@ type RpcResponseTarget struct {
 }
 
 func (t *RpcResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_agent_RpcResponse) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_agent_RpcResponse)
 	}

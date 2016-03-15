@@ -44,6 +44,7 @@ type EncryptionAlgorithmTarget struct {
 }
 
 func (t *EncryptionAlgorithmTarget) FromUint(src uint64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Uint64ToInt32(src)
 	if err != nil {
 		return err
@@ -53,6 +54,7 @@ func (t *EncryptionAlgorithmTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *EncryptionAlgorithmTarget) FromInt(src int64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Int64ToInt32(src)
 	if err != nil {
 		return err
@@ -62,6 +64,7 @@ func (t *EncryptionAlgorithmTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *EncryptionAlgorithmTarget) FromFloat(src float64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Float64ToInt32(src)
 	if err != nil {
 		return err
@@ -71,6 +74,7 @@ func (t *EncryptionAlgorithmTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *EncryptionAlgorithmTarget) FromComplex(src complex128, tt *vdl.Type) error {
+
 	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err
@@ -104,6 +108,7 @@ type EncryptionKeyTarget struct {
 }
 
 func (t *EncryptionKeyTarget) FromBytes(src []byte, tt *vdl.Type) error {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_EncryptionKey) {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_EncryptionKey)
 	}
@@ -141,6 +146,7 @@ type UuidTarget struct {
 }
 
 func (t *UuidTarget) FromBytes(src []byte, tt *vdl.Type) error {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_Uuid) {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_Uuid)
 	}
@@ -320,6 +326,7 @@ type AdInfoTarget struct {
 }
 
 func (t *AdInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_AdInfo) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_AdInfo)
 	}
@@ -372,6 +379,7 @@ type unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e637279707
 }
 
 func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
@@ -401,6 +409,7 @@ type AdHashTarget struct {
 }
 
 func (t *AdHashTarget) FromBytes(src []byte, tt *vdl.Type) error {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_AdHash) {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_AdHash)
 	}

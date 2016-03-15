@@ -147,6 +147,7 @@ type AllTarget struct {
 }
 
 func (t *AllTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_nativedep_All) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_nativedep_All)
 	}

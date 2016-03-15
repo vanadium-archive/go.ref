@@ -85,6 +85,7 @@ type GameIdTarget struct {
 }
 
 func (t *GameIdTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_examples_rps_GameId) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_examples_rps_GameId)
 	}
@@ -172,6 +173,7 @@ type GameOptionsTarget struct {
 }
 
 func (t *GameOptionsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_examples_rps_GameOptions) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_examples_rps_GameOptions)
 	}
@@ -205,6 +207,7 @@ type GameTypeTagTarget struct {
 }
 
 func (t *GameTypeTagTarget) FromUint(src uint64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Uint64ToUint8(src)
 	if err != nil {
 		return err
@@ -214,6 +217,7 @@ func (t *GameTypeTagTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *GameTypeTagTarget) FromInt(src int64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Int64ToUint8(src)
 	if err != nil {
 		return err
@@ -223,6 +227,7 @@ func (t *GameTypeTagTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *GameTypeTagTarget) FromFloat(src float64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Float64ToUint8(src)
 	if err != nil {
 		return err
@@ -232,6 +237,7 @@ func (t *GameTypeTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *GameTypeTagTarget) FromComplex(src complex128, tt *vdl.Type) error {
+
 	val, err := vdlconv.Complex128ToUint8(src)
 	if err != nil {
 		return err
@@ -384,6 +390,7 @@ type unusedTarget struct {
 }
 
 func (t *unusedTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_examples_rps_unused) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_examples_rps_unused)
 	}
@@ -657,6 +664,7 @@ type PlayersMovesTarget struct {
 }
 
 func (t *PlayersMovesTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_examples_rps_PlayersMoves) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_examples_rps_PlayersMoves)
 	}
@@ -792,6 +800,7 @@ type RoundTarget struct {
 }
 
 func (t *RoundTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_examples_rps_Round) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_examples_rps_Round)
 	}
@@ -837,6 +846,7 @@ type WinnerTagTarget struct {
 }
 
 func (t *WinnerTagTarget) FromUint(src uint64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Uint64ToUint8(src)
 	if err != nil {
 		return err
@@ -846,6 +856,7 @@ func (t *WinnerTagTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WinnerTagTarget) FromInt(src int64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Int64ToUint8(src)
 	if err != nil {
 		return err
@@ -855,6 +866,7 @@ func (t *WinnerTagTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WinnerTagTarget) FromFloat(src float64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Float64ToUint8(src)
 	if err != nil {
 		return err
@@ -864,6 +876,7 @@ func (t *WinnerTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *WinnerTagTarget) FromComplex(src complex128, tt *vdl.Type) error {
+
 	val, err := vdlconv.Complex128ToUint8(src)
 	if err != nil {
 		return err
@@ -942,6 +955,7 @@ type PlayResultTarget struct {
 }
 
 func (t *PlayResultTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_examples_rps_PlayResult) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_examples_rps_PlayResult)
 	}
@@ -1144,6 +1158,7 @@ type ScoreCardTarget struct {
 }
 
 func (t *ScoreCardTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_examples_rps_ScoreCard) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_examples_rps_ScoreCard)
 	}
@@ -1200,6 +1215,7 @@ type unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e6420737
 }
 
 func (t *unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType7) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType7)
 	}

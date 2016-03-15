@@ -96,6 +96,7 @@ type PackAddressTestTarget struct {
 }
 
 func (t *PackAddressTestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_testdata_PackAddressTest) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_testdata_PackAddressTest)
 	}
@@ -225,6 +226,7 @@ type PackEncryptionKeysTestTarget struct {
 }
 
 func (t *PackEncryptionKeysTestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest)
 	}
@@ -265,6 +267,7 @@ type unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e637279707
 }
 
 func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType4) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType4)
 	}
@@ -353,6 +356,7 @@ type UuidTestDataTarget struct {
 }
 
 func (t *UuidTestDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_testdata_UuidTestData) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_testdata_UuidTestData)
 	}

@@ -147,6 +147,7 @@ type StartMessageTarget struct {
 }
 
 func (t *StartMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_StartMessage) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_StartMessage)
 	}
@@ -288,6 +289,7 @@ type AssociateAccountMessageTarget struct {
 }
 
 func (t *AssociateAccountMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_AssociateAccountMessage) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_AssociateAccountMessage)
 	}
@@ -328,6 +330,7 @@ type unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e6
 }
 
 func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType2) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType2)
 	}
@@ -399,6 +402,7 @@ type CreateAccountMessageTarget struct {
 }
 
 func (t *CreateAccountMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateAccountMessage) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateAccountMessage)
 	}
@@ -470,6 +474,7 @@ type CleanupMessageTarget struct {
 }
 
 func (t *CleanupMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CleanupMessage) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CleanupMessage)
 	}
@@ -541,6 +546,7 @@ type OriginHasAccountMessageTarget struct {
 }
 
 func (t *OriginHasAccountMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_OriginHasAccountMessage) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_OriginHasAccountMessage)
 	}
@@ -598,6 +604,7 @@ type GetAccountsMessageTarget struct {
 }
 
 func (t *GetAccountsMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_GetAccountsMessage) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_GetAccountsMessage)
 	}
@@ -724,6 +731,7 @@ type CreateInstanceMessageTarget struct {
 }
 
 func (t *CreateInstanceMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateInstanceMessage) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateInstanceMessage)
 	}

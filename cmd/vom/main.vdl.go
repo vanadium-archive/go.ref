@@ -76,6 +76,7 @@ type dataRepTarget struct {
 }
 
 func (t *dataRepTarget) FromEnumLabel(src string, tt *vdl.Type) error {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_cmd_vom_dataRep) {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_cmd_vom_dataRep)
 	}

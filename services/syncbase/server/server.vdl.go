@@ -77,6 +77,7 @@ type ServiceDataTarget struct {
 }
 
 func (t *ServiceDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_ServiceData) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_ServiceData)
 	}
@@ -182,6 +183,7 @@ type AppDataTarget struct {
 }
 
 func (t *AppDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_AppData) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_AppData)
 	}
@@ -293,6 +295,7 @@ type DbInfoTarget struct {
 }
 
 func (t *DbInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_DbInfo) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_DbInfo)
 	}

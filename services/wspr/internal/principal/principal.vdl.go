@@ -39,6 +39,7 @@ type BlessingsIdTarget struct {
 }
 
 func (t *BlessingsIdTarget) FromUint(src uint64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Uint64ToUint32(src)
 	if err != nil {
 		return err
@@ -48,6 +49,7 @@ func (t *BlessingsIdTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *BlessingsIdTarget) FromInt(src int64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Int64ToUint32(src)
 	if err != nil {
 		return err
@@ -57,6 +59,7 @@ func (t *BlessingsIdTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *BlessingsIdTarget) FromFloat(src float64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Float64ToUint32(src)
 	if err != nil {
 		return err
@@ -66,6 +69,7 @@ func (t *BlessingsIdTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *BlessingsIdTarget) FromComplex(src complex128, tt *vdl.Type) error {
+
 	val, err := vdlconv.Complex128ToUint32(src)
 	if err != nil {
 		return err
@@ -142,6 +146,7 @@ type BlessingsCacheAddMessageTarget struct {
 }
 
 func (t *BlessingsCacheAddMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage)
 	}
@@ -236,6 +241,7 @@ type BlessingsCacheDeleteMessageTarget struct {
 }
 
 func (t *BlessingsCacheDeleteMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage)
 	}

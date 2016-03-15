@@ -128,6 +128,7 @@ type ServerRpcReplyTarget struct {
 }
 
 func (t *ServerRpcReplyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply)
 	}
@@ -168,6 +169,7 @@ type unnamed_5b5d616e79Target struct {
 }
 
 func (t *unnamed_5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
@@ -254,6 +256,7 @@ type LogLevelTarget struct {
 }
 
 func (t *LogLevelTarget) FromEnumLabel(src string, tt *vdl.Type) error {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_lib_LogLevel) {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_lib_LogLevel)
 	}
@@ -332,6 +335,7 @@ type LogMessageTarget struct {
 }
 
 func (t *LogMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_lib_LogMessage) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_lib_LogMessage)
 	}

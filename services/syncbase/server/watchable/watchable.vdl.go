@@ -64,6 +64,7 @@ type GetOpTarget struct {
 }
 
 func (t *GetOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_GetOp) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_GetOp)
 	}
@@ -152,6 +153,7 @@ type ScanOpTarget struct {
 }
 
 func (t *ScanOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_ScanOp) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_ScanOp)
 	}
@@ -278,6 +280,7 @@ type PutOpTarget struct {
 }
 
 func (t *PutOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_PutOp) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_PutOp)
 	}
@@ -395,6 +398,7 @@ type DeleteOpTarget struct {
 }
 
 func (t *DeleteOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_DeleteOp) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_DeleteOp)
 	}
@@ -524,6 +528,7 @@ type SyncgroupOpTarget struct {
 }
 
 func (t *SyncgroupOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_SyncgroupOp) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_SyncgroupOp)
 	}
@@ -658,6 +663,7 @@ type SyncSnapshotOpTarget struct {
 }
 
 func (t *SyncSnapshotOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_SyncSnapshotOp) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_SyncSnapshotOp)
 	}
@@ -758,6 +764,7 @@ type StateChangeTarget struct {
 }
 
 func (t *StateChangeTarget) FromEnumLabel(src string, tt *vdl.Type) error {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_StateChange) {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_StateChange)
 	}
@@ -827,6 +834,7 @@ type DbStateChangeRequestOpTarget struct {
 }
 
 func (t *DbStateChangeRequestOpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_DbStateChangeRequestOp) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_DbStateChangeRequestOp)
 	}
@@ -1224,6 +1232,7 @@ type LogEntryTarget struct {
 }
 
 func (t *LogEntryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_LogEntry) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_watchable_LogEntry)
 	}

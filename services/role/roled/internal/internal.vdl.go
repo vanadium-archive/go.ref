@@ -204,6 +204,7 @@ type ConfigTarget struct {
 }
 
 func (t *ConfigTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_role_roled_internal_Config) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_role_roled_internal_Config)
 	}
@@ -256,6 +257,7 @@ type unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e6750617474657
 }
 
 func (t *unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType2) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType2)
 	}

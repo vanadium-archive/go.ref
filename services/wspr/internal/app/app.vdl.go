@@ -215,6 +215,7 @@ type RpcRequestTarget struct {
 }
 
 func (t *RpcRequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_app_RpcRequest) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_app_RpcRequest)
 	}
@@ -279,6 +280,7 @@ type unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e6
 }
 
 func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
@@ -585,6 +587,7 @@ type RpcResponseTarget struct {
 }
 
 func (t *RpcResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_app_RpcResponse) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_app_RpcResponse)
 	}
@@ -621,6 +624,7 @@ type unnamed_5b5d616e79Target struct {
 }
 
 func (t *unnamed_5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType4) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType4)
 	}
@@ -667,6 +671,7 @@ type GranterHandleTarget struct {
 }
 
 func (t *GranterHandleTarget) FromUint(src uint64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Uint64ToInt32(src)
 	if err != nil {
 		return err
@@ -676,6 +681,7 @@ func (t *GranterHandleTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *GranterHandleTarget) FromInt(src int64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Int64ToInt32(src)
 	if err != nil {
 		return err
@@ -685,6 +691,7 @@ func (t *GranterHandleTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *GranterHandleTarget) FromFloat(src float64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Float64ToInt32(src)
 	if err != nil {
 		return err
@@ -694,6 +701,7 @@ func (t *GranterHandleTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *GranterHandleTarget) FromComplex(src complex128, tt *vdl.Type) error {
+
 	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err
@@ -767,6 +775,7 @@ type GranterRequestTarget struct {
 }
 
 func (t *GranterRequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_app_GranterRequest) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_app_GranterRequest)
 	}
@@ -872,6 +881,7 @@ type GranterResponseTarget struct {
 }
 
 func (t *GranterResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_app_GranterResponse) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_app_GranterResponse)
 	}

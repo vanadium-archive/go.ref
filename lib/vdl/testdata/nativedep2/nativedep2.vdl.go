@@ -38,6 +38,7 @@ type MyTimeTarget struct {
 }
 
 func (t *MyTimeTarget) FromUint(src uint64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Uint64ToInt32(src)
 	if err != nil {
 		return err
@@ -47,6 +48,7 @@ func (t *MyTimeTarget) FromUint(src uint64, tt *vdl.Type) error {
 	return nil
 }
 func (t *MyTimeTarget) FromInt(src int64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Int64ToInt32(src)
 	if err != nil {
 		return err
@@ -56,6 +58,7 @@ func (t *MyTimeTarget) FromInt(src int64, tt *vdl.Type) error {
 	return nil
 }
 func (t *MyTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
+
 	val, err := vdlconv.Float64ToInt32(src)
 	if err != nil {
 		return err
@@ -65,6 +68,7 @@ func (t *MyTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 func (t *MyTimeTarget) FromComplex(src complex128, tt *vdl.Type) error {
+
 	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err

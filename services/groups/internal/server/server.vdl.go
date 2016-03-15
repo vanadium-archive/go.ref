@@ -97,6 +97,7 @@ type groupDataTarget struct {
 }
 
 func (t *groupDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_groups_internal_server_groupData) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_groups_internal_server_groupData)
 	}
@@ -134,6 +135,7 @@ type unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c65737
 }
 
 func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}

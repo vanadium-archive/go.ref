@@ -93,6 +93,7 @@ type CpuTarget struct {
 }
 
 func (t *CpuTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_ben_Cpu) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_ben_Cpu)
 	}
@@ -187,6 +188,7 @@ type OsTarget struct {
 }
 
 func (t *OsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_ben_Os) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_ben_Os)
 	}
@@ -293,6 +295,7 @@ type ScenarioTarget struct {
 }
 
 func (t *ScenarioTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_ben_Scenario) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_ben_Scenario)
 	}
@@ -354,6 +357,7 @@ type SourceCodeTarget struct {
 }
 
 func (t *SourceCodeTarget) FromString(src string, tt *vdl.Type) error {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_ben_SourceCode) {
 		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_ben_SourceCode)
 	}
@@ -495,6 +499,7 @@ type RunTarget struct {
 }
 
 func (t *RunTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_ben_Run) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_ben_Run)
 	}

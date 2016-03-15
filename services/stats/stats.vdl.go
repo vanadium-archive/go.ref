@@ -141,6 +141,7 @@ type HistogramValueTarget struct {
 }
 
 func (t *HistogramValueTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_stats_HistogramValue) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_stats_HistogramValue)
 	}
@@ -189,6 +190,7 @@ type unnamed_5b5d762e696f2f782f7265662f73657276696365732f73746174732e486973746f6
 }
 
 func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73746174732e486973746f6772616d4275636b6574207374727563747b4c6f77426f756e6420696e7436343b436f756e7420696e7436347dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
@@ -221,6 +223,7 @@ type HistogramBucketTarget struct {
 }
 
 func (t *HistogramBucketTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_stats_HistogramBucket) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_stats_HistogramBucket)
 	}

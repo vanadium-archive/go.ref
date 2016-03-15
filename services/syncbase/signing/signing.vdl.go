@@ -189,6 +189,7 @@ type DataWithSignatureTarget struct {
 }
 
 func (t *DataWithSignatureTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_signing_DataWithSignature) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_signing_DataWithSignature)
 	}
@@ -241,6 +242,7 @@ type unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f73696
 }
 
 func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
@@ -449,6 +451,7 @@ type WireValidatorDataTarget struct {
 }
 
 func (t *WireValidatorDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
 	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_signing_WireValidatorData) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_signing_WireValidatorData)
 	}
