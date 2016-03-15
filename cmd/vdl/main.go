@@ -44,11 +44,6 @@ func checkErrors(errs *vdlutil.Errors) error {
 %s   (run with "vdl -v" for verbose logging or "vdl help" for help)`, errs)
 }
 
-// tmpVDLRoot is set to the location of the temporary vdlroot directory where
-// standard packages are located.  It's empty if a temporary vdlroot wasn't
-// extracted.
-var tmpVDLRoot string
-
 // runnerFunc is an adapter that implements cmdline.Runner.  It generates a
 // sorted list of transitive targets, and calls the underlying function.
 type runnerFunc func([]*build.Package, *compile.Env)
@@ -56,29 +51,6 @@ type runnerFunc func([]*build.Package, *compile.Env)
 func (f runnerFunc) Run(_ *cmdline.Env, args []string) (e error) {
 	if flagVerbose {
 		vdlutil.SetVerbose()
-	}
-	ignoredErrors := vdlutil.NewErrors(-1)
-	if vdlroot := build.VDLRootDir(ignoredErrors); vdlroot != "" {
-		vdlutil.Vlog.Printf("Using VDLROOT %s", vdlroot)
-	} else {
-		// Extract built-in vdlroot to a temporary directory.
-		dir, err := ioutil.TempDir("", "vdlroot-")
-		if err != nil {
-			return fmt.Errorf("Couldn't create temporary VDLROOT: %v", err)
-		}
-		defer func() {
-			if errCleanup := os.RemoveAll(dir); e == nil {
-				e = errCleanup
-			}
-		}()
-		if err := extractVDLRootData(dir); err != nil {
-			return fmt.Errorf("Couldn't extract temporary VDLROOT: %v", err)
-		}
-		tmpVDLRoot = filepath.Join(dir, "v.io", "v23", "vdlroot")
-		if err := os.Setenv("VDLROOT", tmpVDLRoot); err != nil {
-			return fmt.Errorf("Setenv(VDLROOT, %q) failed: %v", tmpVDLRoot, err)
-		}
-		vdlutil.Vlog.Printf("Extracted temporary VDLROOT to %s", tmpVDLRoot)
 	}
 	env := compile.NewEnv(flagMaxErrors)
 	env.DisallowPathQualifiers()
@@ -174,11 +146,8 @@ The VDLROOT environment variable is similar to VDLPATH, but instead of pointing
 to multiple user source directories, it points at a single source directory
 containing the standard vdl packages.
 
-Setting VDLROOT is optional.
-
-If VDLROOT is empty, we try to find the standard packages under
-JIRI_ROOT/release/go/src/v.io/v23/vdlroot.  If both VDLROOT and JIRI_ROOT are
-empty, we use the standard packages built-in to the vdl binary.
+If VDLROOT is empty, we use the standard packages built-in to the vdl binary.
+VDLROOT is typically left empty, except by vdl tool developers.
 `,
 }
 
@@ -499,6 +468,10 @@ func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 			}
 			return true
 		}
+		if target.IsBuiltIn {
+			// Built-in targets are held in-memory, so never need code generation.
+			continue
+		}
 		// TODO(toddw): Skip code generation if the semantic contents of the
 		// generated file haven't changed.
 		pkgchanged := false
@@ -582,12 +555,6 @@ func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 // already exist with the given data.
 func writeFile(audit bool, data []byte, dirName, baseName string, env *compile.Env, rmFiles []string) bool {
 	dstName := filepath.Join(dirName, baseName)
-	// Don't write any files under tmpVDLRoot, and pretend that everything's
-	// up-to-date.  There's no point in writing files under tmpVDLRoot since the
-	// whole directory will be deleted.
-	if tmpVDLRoot != "" && strings.HasPrefix(dstName, tmpVDLRoot) {
-		return false
-	}
 	// Don't change anything if old and new are the same.
 	if oldData, err := ioutil.ReadFile(dstName); err == nil && bytes.Equal(oldData, data) {
 		return false

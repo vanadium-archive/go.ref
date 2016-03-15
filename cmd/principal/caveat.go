@@ -86,7 +86,7 @@ func buildPackages(caveatInfos []caveatInfo, env *compile.Env) error {
 	}
 	pkgs := build.TransitivePackages(pkgNames, build.UnknownPathIsError, build.Opts{}, env.Errors)
 	if !env.Errors.IsEmpty() {
-		return fmt.Errorf("failed to get transitive packages packages %v: %s", pkgNames, env.Errors)
+		return fmt.Errorf("failed to get transitive packages %v: %s", pkgNames, env.Errors)
 	}
 	for _, p := range pkgs {
 		if build.BuildPackage(p, env); !env.Errors.IsEmpty() {

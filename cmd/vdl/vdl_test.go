@@ -10,13 +10,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
 	"v.io/x/lib/envvar"
 	"v.io/x/lib/gosh"
-	"v.io/x/ref/test/testutil"
 )
 
 const (
@@ -84,28 +82,4 @@ func TestVDLGeneratorBuiltInVDLRoot(t *testing.T) {
 	cmd.Vars = env
 	cmd.Run()
 	verifyOutput(t, outDir)
-}
-
-// Ensures the vdlroot data built-in to the binary matches the current sources.
-func TestBuiltInVDLRootDataIsUpToDate(t *testing.T) {
-	sh := gosh.NewShell(t)
-	defer sh.Cleanup()
-	dir := sh.MakeTempDir()
-
-	if err := extractVDLRootData(dir); err != nil {
-		t.Fatalf("Couldn't extract vdlroot: %v", err)
-	}
-	gotRoot := filepath.Join(dir, "v.io", "v23", "vdlroot")
-	wantRoot := filepath.Join("..", "..", "..", "..", "v23", "vdlroot")
-	var debug bytes.Buffer
-	opts := testutil.FileTreeOpts{
-		Debug: &debug,
-		FileB: regexp.MustCompile(`((\.vdl)|(vdl\.config))$`),
-	}
-	switch ok, err := testutil.FileTreeEqual(gotRoot, wantRoot, opts); {
-	case err != nil:
-		t.Error(err)
-	case !ok:
-		t.Errorf("%v is not the same as %v\n%v", gotRoot, wantRoot, debug.String())
-	}
 }

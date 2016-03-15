@@ -310,11 +310,8 @@ The VDLROOT environment variable is similar to VDLPATH, but instead of pointing
 to multiple user source directories, it points at a single source directory
 containing the standard vdl packages.
 
-Setting VDLROOT is optional.
-
-If VDLROOT is empty, we try to find the standard packages under
-JIRI_ROOT/release/go/src/v.io/v23/vdlroot.  If both VDLROOT and JIRI_ROOT are
-empty, we use the standard packages built-in to the vdl binary.
+If VDLROOT is empty, we use the standard packages built-in to the vdl binary.
+VDLROOT is typically left empty, except by vdl tool developers.
 
 Vdl vdl.config
 
