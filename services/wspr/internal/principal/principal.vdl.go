@@ -134,7 +134,9 @@ func (m *BlessingsCacheAddMessage) MakeVDLTarget() vdl.Target {
 }
 
 type BlessingsCacheAddMessageTarget struct {
-	Value *BlessingsCacheAddMessage
+	Value           *BlessingsCacheAddMessage
+	cacheIdTarget   BlessingsIdTarget
+	blessingsTarget security.WireBlessingsTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -148,11 +150,13 @@ func (t *BlessingsCacheAddMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTa
 func (t *BlessingsCacheAddMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "CacheId":
-		val, err := &BlessingsIdTarget{Value: &t.Value.CacheId}, error(nil)
-		return nil, val, err
+		t.cacheIdTarget.Value = &t.Value.CacheId
+		target, err := &t.cacheIdTarget, error(nil)
+		return nil, target, err
 	case "Blessings":
-		val, err := &security.WireBlessingsTarget{Value: &t.Value.Blessings}, error(nil)
-		return nil, val, err
+		t.blessingsTarget.Value = &t.Value.Blessings
+		target, err := &t.blessingsTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage)
 	}
@@ -224,7 +228,9 @@ func (m *BlessingsCacheDeleteMessage) MakeVDLTarget() vdl.Target {
 }
 
 type BlessingsCacheDeleteMessageTarget struct {
-	Value *BlessingsCacheDeleteMessage
+	Value             *BlessingsCacheDeleteMessage
+	cacheIdTarget     BlessingsIdTarget
+	deleteAfterTarget vdl.Uint32Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -238,11 +244,13 @@ func (t *BlessingsCacheDeleteMessageTarget) StartFields(tt *vdl.Type) (vdl.Field
 func (t *BlessingsCacheDeleteMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "CacheId":
-		val, err := &BlessingsIdTarget{Value: &t.Value.CacheId}, error(nil)
-		return nil, val, err
+		t.cacheIdTarget.Value = &t.Value.CacheId
+		target, err := &t.cacheIdTarget, error(nil)
+		return nil, target, err
 	case "DeleteAfter":
-		val, err := &vdl.Uint32Target{Value: &t.Value.DeleteAfter}, error(nil)
-		return nil, val, err
+		t.deleteAfterTarget.Value = &t.Value.DeleteAfter
+		target, err := &t.deleteAfterTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage)
 	}

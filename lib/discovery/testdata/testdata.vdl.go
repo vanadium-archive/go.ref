@@ -88,7 +88,9 @@ func (m *PackAddressTest) MakeVDLTarget() vdl.Target {
 }
 
 type PackAddressTestTarget struct {
-	Value *PackAddressTest
+	Value        *PackAddressTest
+	inTarget     vdl.StringSliceTarget
+	packedTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -102,11 +104,13 @@ func (t *PackAddressTestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, err
 func (t *PackAddressTestTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "In":
-		val, err := &vdl.StringSliceTarget{Value: &t.Value.In}, error(nil)
-		return nil, val, err
+		t.inTarget.Value = &t.Value.In
+		target, err := &t.inTarget, error(nil)
+		return nil, target, err
 	case "Packed":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Packed}, error(nil)
-		return nil, val, err
+		t.packedTarget.Value = &t.Value.Packed
+		target, err := &t.packedTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_discovery_testdata_PackAddressTest)
 	}
@@ -212,7 +216,10 @@ func (m *PackEncryptionKeysTest) MakeVDLTarget() vdl.Target {
 }
 
 type PackEncryptionKeysTestTarget struct {
-	Value *PackEncryptionKeysTest
+	Value        *PackEncryptionKeysTest
+	algoTarget   discovery.EncryptionAlgorithmTarget
+	keysTarget   unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target
+	packedTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -226,14 +233,17 @@ func (t *PackEncryptionKeysTestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarg
 func (t *PackEncryptionKeysTestTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Algo":
-		val, err := &discovery.EncryptionAlgorithmTarget{Value: &t.Value.Algo}, error(nil)
-		return nil, val, err
+		t.algoTarget.Value = &t.Value.Algo
+		target, err := &t.algoTarget, error(nil)
+		return nil, target, err
 	case "Keys":
-		val, err := &unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target{Value: &t.Value.Keys}, error(nil)
-		return nil, val, err
+		t.keysTarget.Value = &t.Value.Keys
+		target, err := &t.keysTarget, error(nil)
+		return nil, target, err
 	case "Packed":
-		val, err := &vdl.BytesTarget{Value: &t.Value.Packed}, error(nil)
-		return nil, val, err
+		t.packedTarget.Value = &t.Value.Packed
+		target, err := &t.packedTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest)
 	}
@@ -246,13 +256,15 @@ func (t *PackEncryptionKeysTestTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target struct {
-	Value *[]discovery.EncryptionKey
+// []discovery.EncryptionKey
+type unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target struct {
+	Value      *[]discovery.EncryptionKey
+	elemTarget discovery.EncryptionKeyTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 	if !vdl.Compatible(tt, __VDLType4) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType4)
 	}
@@ -263,13 +275,15 @@ func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e63727
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target) StartElem(index int) (elem vdl.Target, _ error) {
-	return &discovery.EncryptionKeyTarget{Value: &(*t.Value)[index]}, error(nil)
+func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartElem(index int) (elem vdl.Target, _ error) {
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target) FinishElem(elem vdl.Target) error {
+func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465_Target) FinishList(elem vdl.ListTarget) error {
+func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
@@ -331,7 +345,9 @@ func (m *UuidTestData) MakeVDLTarget() vdl.Target {
 }
 
 type UuidTestDataTarget struct {
-	Value *UuidTestData
+	Value      *UuidTestData
+	inTarget   vdl.StringTarget
+	wantTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -345,11 +361,13 @@ func (t *UuidTestDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error)
 func (t *UuidTestDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "In":
-		val, err := &vdl.StringTarget{Value: &t.Value.In}, error(nil)
-		return nil, val, err
+		t.inTarget.Value = &t.Value.In
+		target, err := &t.inTarget, error(nil)
+		return nil, target, err
 	case "Want":
-		val, err := &vdl.StringTarget{Value: &t.Value.Want}, error(nil)
-		return nil, val, err
+		t.wantTarget.Value = &t.Value.Want
+		target, err := &t.wantTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_discovery_testdata_UuidTestData)
 	}

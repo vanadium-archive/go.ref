@@ -177,7 +177,13 @@ func (m *DataWithSignature) MakeVDLTarget() vdl.Target {
 }
 
 type DataWithSignatureTarget struct {
-	Value *DataWithSignature
+	Value                   *DataWithSignature
+	dataTarget              unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget
+	blessingsHashTarget     vdl.BytesTarget
+	authorSignedTarget      security.SignatureTarget
+	isValidatedTarget       vdl.BoolTarget
+	validatorDataHashTarget vdl.BytesTarget
+	validatorSignedTarget   security.SignatureTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -191,23 +197,29 @@ func (t *DataWithSignatureTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, e
 func (t *DataWithSignatureTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Data":
-		val, err := &unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657d_Target{Value: &t.Value.Data}, error(nil)
-		return nil, val, err
+		t.dataTarget.Value = &t.Value.Data
+		target, err := &t.dataTarget, error(nil)
+		return nil, target, err
 	case "BlessingsHash":
-		val, err := &vdl.BytesTarget{Value: &t.Value.BlessingsHash}, error(nil)
-		return nil, val, err
+		t.blessingsHashTarget.Value = &t.Value.BlessingsHash
+		target, err := &t.blessingsHashTarget, error(nil)
+		return nil, target, err
 	case "AuthorSigned":
-		val, err := &security.SignatureTarget{Value: &t.Value.AuthorSigned}, error(nil)
-		return nil, val, err
+		t.authorSignedTarget.Value = &t.Value.AuthorSigned
+		target, err := &t.authorSignedTarget, error(nil)
+		return nil, target, err
 	case "IsValidated":
-		val, err := &vdl.BoolTarget{Value: &t.Value.IsValidated}, error(nil)
-		return nil, val, err
+		t.isValidatedTarget.Value = &t.Value.IsValidated
+		target, err := &t.isValidatedTarget, error(nil)
+		return nil, target, err
 	case "ValidatorDataHash":
-		val, err := &vdl.BytesTarget{Value: &t.Value.ValidatorDataHash}, error(nil)
-		return nil, val, err
+		t.validatorDataHashTarget.Value = &t.Value.ValidatorDataHash
+		target, err := &t.validatorDataHashTarget, error(nil)
+		return nil, target, err
 	case "ValidatorSigned":
-		val, err := &security.SignatureTarget{Value: &t.Value.ValidatorSigned}, error(nil)
-		return nil, val, err
+		t.validatorSignedTarget.Value = &t.Value.ValidatorSigned
+		target, err := &t.validatorSignedTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_signing_DataWithSignature)
 	}
@@ -220,13 +232,15 @@ func (t *DataWithSignatureTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657d_Target struct {
+// []Item
+type unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget struct {
 	Value *[]Item
+
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657d_Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
@@ -237,13 +251,14 @@ func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657d_Target) StartElem(index int) (elem vdl.Target, _ error) {
-	return vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+	return target, err
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657d_Target) FinishElem(elem vdl.Target) error {
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657d_Target) FinishList(elem vdl.ListTarget) error {
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
@@ -426,7 +441,9 @@ func (m *WireValidatorData) MakeVDLTarget() vdl.Target {
 }
 
 type WireValidatorDataTarget struct {
-	Value *WireValidatorData
+	Value                     *WireValidatorData
+	namesTarget               vdl.StringSliceTarget
+	marshalledPublicKeyTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -440,11 +457,13 @@ func (t *WireValidatorDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, e
 func (t *WireValidatorDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Names":
-		val, err := &vdl.StringSliceTarget{Value: &t.Value.Names}, error(nil)
-		return nil, val, err
+		t.namesTarget.Value = &t.Value.Names
+		target, err := &t.namesTarget, error(nil)
+		return nil, target, err
 	case "MarshalledPublicKey":
-		val, err := &vdl.BytesTarget{Value: &t.Value.MarshalledPublicKey}, error(nil)
-		return nil, val, err
+		t.marshalledPublicKeyTarget.Value = &t.Value.MarshalledPublicKey
+		target, err := &t.marshalledPublicKeyTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_signing_WireValidatorData)
 	}

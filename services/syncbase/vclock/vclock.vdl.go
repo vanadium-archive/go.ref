@@ -154,7 +154,13 @@ func (m *VClockData) MakeVDLTarget() vdl.Target {
 }
 
 type VClockDataTarget struct {
-	Value *VClockData
+	Value                      *VClockData
+	systemTimeAtBootTarget     time_2.TimeTarget
+	skewTarget                 time_2.DurationTarget
+	elapsedTimeSinceBootTarget time_2.DurationTarget
+	lastNtpTsTarget            time_2.TimeTarget
+	numRebootsTarget           vdl.Uint16Target
+	numHopsTarget              vdl.Uint16Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -168,23 +174,29 @@ func (t *VClockDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *VClockDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "SystemTimeAtBoot":
-		val, err := &time_2.TimeTarget{Value: &t.Value.SystemTimeAtBoot}, error(nil)
-		return nil, val, err
+		t.systemTimeAtBootTarget.Value = &t.Value.SystemTimeAtBoot
+		target, err := &t.systemTimeAtBootTarget, error(nil)
+		return nil, target, err
 	case "Skew":
-		val, err := &time_2.DurationTarget{Value: &t.Value.Skew}, error(nil)
-		return nil, val, err
+		t.skewTarget.Value = &t.Value.Skew
+		target, err := &t.skewTarget, error(nil)
+		return nil, target, err
 	case "ElapsedTimeSinceBoot":
-		val, err := &time_2.DurationTarget{Value: &t.Value.ElapsedTimeSinceBoot}, error(nil)
-		return nil, val, err
+		t.elapsedTimeSinceBootTarget.Value = &t.Value.ElapsedTimeSinceBoot
+		target, err := &t.elapsedTimeSinceBootTarget, error(nil)
+		return nil, target, err
 	case "LastNtpTs":
-		val, err := &time_2.TimeTarget{Value: &t.Value.LastNtpTs}, error(nil)
-		return nil, val, err
+		t.lastNtpTsTarget.Value = &t.Value.LastNtpTs
+		target, err := &t.lastNtpTsTarget, error(nil)
+		return nil, target, err
 	case "NumReboots":
-		val, err := &vdl.Uint16Target{Value: &t.Value.NumReboots}, error(nil)
-		return nil, val, err
+		t.numRebootsTarget.Value = &t.Value.NumReboots
+		target, err := &t.numRebootsTarget, error(nil)
+		return nil, target, err
 	case "NumHops":
-		val, err := &vdl.Uint16Target{Value: &t.Value.NumHops}, error(nil)
-		return nil, val, err
+		t.numHopsTarget.Value = &t.Value.NumHops
+		target, err := &t.numHopsTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_vclock_VClockData)
 	}

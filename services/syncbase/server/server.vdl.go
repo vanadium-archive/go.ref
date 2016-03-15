@@ -69,7 +69,9 @@ func (m *ServiceData) MakeVDLTarget() vdl.Target {
 }
 
 type ServiceDataTarget struct {
-	Value *ServiceData
+	Value         *ServiceData
+	versionTarget vdl.Uint64Target
+	permsTarget   access.PermissionsTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -83,11 +85,13 @@ func (t *ServiceDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) 
 func (t *ServiceDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Version":
-		val, err := &vdl.Uint64Target{Value: &t.Value.Version}, error(nil)
-		return nil, val, err
+		t.versionTarget.Value = &t.Value.Version
+		target, err := &t.versionTarget, error(nil)
+		return nil, target, err
 	case "Perms":
-		val, err := &access.PermissionsTarget{Value: &t.Value.Perms}, error(nil)
-		return nil, val, err
+		t.permsTarget.Value = &t.Value.Perms
+		target, err := &t.permsTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_ServiceData)
 	}
@@ -169,7 +173,10 @@ func (m *AppData) MakeVDLTarget() vdl.Target {
 }
 
 type AppDataTarget struct {
-	Value *AppData
+	Value         *AppData
+	nameTarget    vdl.StringTarget
+	versionTarget vdl.Uint64Target
+	permsTarget   access.PermissionsTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -183,14 +190,17 @@ func (t *AppDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *AppDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Name":
-		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
-		return nil, val, err
+		t.nameTarget.Value = &t.Value.Name
+		target, err := &t.nameTarget, error(nil)
+		return nil, target, err
 	case "Version":
-		val, err := &vdl.Uint64Target{Value: &t.Value.Version}, error(nil)
-		return nil, val, err
+		t.versionTarget.Value = &t.Value.Version
+		target, err := &t.versionTarget, error(nil)
+		return nil, target, err
 	case "Perms":
-		val, err := &access.PermissionsTarget{Value: &t.Value.Perms}, error(nil)
-		return nil, val, err
+		t.permsTarget.Value = &t.Value.Perms
+		target, err := &t.permsTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_AppData)
 	}
@@ -274,7 +284,10 @@ func (m *DbInfo) MakeVDLTarget() vdl.Target {
 }
 
 type DbInfoTarget struct {
-	Value *DbInfo
+	Value         *DbInfo
+	nameTarget    vdl.StringTarget
+	rootDirTarget vdl.StringTarget
+	engineTarget  vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -288,14 +301,17 @@ func (t *DbInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *DbInfoTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Name":
-		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
-		return nil, val, err
+		t.nameTarget.Value = &t.Value.Name
+		target, err := &t.nameTarget, error(nil)
+		return nil, target, err
 	case "RootDir":
-		val, err := &vdl.StringTarget{Value: &t.Value.RootDir}, error(nil)
-		return nil, val, err
+		t.rootDirTarget.Value = &t.Value.RootDir
+		target, err := &t.rootDirTarget, error(nil)
+		return nil, target, err
 	case "Engine":
-		val, err := &vdl.StringTarget{Value: &t.Value.Engine}, error(nil)
-		return nil, val, err
+		t.engineTarget.Value = &t.Value.Engine
+		target, err := &t.engineTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_DbInfo)
 	}

@@ -96,7 +96,11 @@ func (m *AddressInfo) MakeVDLTarget() vdl.Target {
 }
 
 type AddressInfoTarget struct {
-	Value *AddressInfo
+	Value        *AddressInfo
+	streetTarget vdl.StringTarget
+	cityTarget   vdl.StringTarget
+	stateTarget  vdl.StringTarget
+	zipTarget    vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -110,17 +114,21 @@ func (t *AddressInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) 
 func (t *AddressInfoTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Street":
-		val, err := &vdl.StringTarget{Value: &t.Value.Street}, error(nil)
-		return nil, val, err
+		t.streetTarget.Value = &t.Value.Street
+		target, err := &t.streetTarget, error(nil)
+		return nil, target, err
 	case "City":
-		val, err := &vdl.StringTarget{Value: &t.Value.City}, error(nil)
-		return nil, val, err
+		t.cityTarget.Value = &t.Value.City
+		target, err := &t.cityTarget, error(nil)
+		return nil, target, err
 	case "State":
-		val, err := &vdl.StringTarget{Value: &t.Value.State}, error(nil)
-		return nil, val, err
+		t.stateTarget.Value = &t.Value.State
+		target, err := &t.stateTarget, error(nil)
+		return nil, target, err
 	case "Zip":
-		val, err := &vdl.StringTarget{Value: &t.Value.Zip}, error(nil)
-		return nil, val, err
+		t.zipTarget.Value = &t.Value.Zip
+		target, err := &t.zipTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_AddressInfo)
 	}
@@ -340,7 +348,8 @@ func (m *EquifaxCreditReport) MakeVDLTarget() vdl.Target {
 }
 
 type EquifaxCreditReportTarget struct {
-	Value *EquifaxCreditReport
+	Value        *EquifaxCreditReport
+	ratingTarget vdl.ByteTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -354,8 +363,9 @@ func (t *EquifaxCreditReportTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget,
 func (t *EquifaxCreditReportTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Rating":
-		val, err := &vdl.ByteTarget{Value: &t.Value.Rating}, error(nil)
-		return nil, val, err
+		t.ratingTarget.Value = &t.Value.Rating
+		target, err := &t.ratingTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_EquifaxCreditReport)
 	}
@@ -410,7 +420,8 @@ func (m *ExperianCreditReport) MakeVDLTarget() vdl.Target {
 }
 
 type ExperianCreditReportTarget struct {
-	Value *ExperianCreditReport
+	Value        *ExperianCreditReport
+	ratingTarget ExperianRatingTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -424,8 +435,9 @@ func (t *ExperianCreditReportTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget
 func (t *ExperianCreditReportTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Rating":
-		val, err := &ExperianRatingTarget{Value: &t.Value.Rating}, error(nil)
-		return nil, val, err
+		t.ratingTarget.Value = &t.Value.Rating
+		target, err := &t.ratingTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_ExperianCreditReport)
 	}
@@ -479,7 +491,8 @@ func (m *TransUnionCreditReport) MakeVDLTarget() vdl.Target {
 }
 
 type TransUnionCreditReportTarget struct {
-	Value *TransUnionCreditReport
+	Value        *TransUnionCreditReport
+	ratingTarget vdl.Int16Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -493,8 +506,9 @@ func (t *TransUnionCreditReportTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarg
 func (t *TransUnionCreditReportTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Rating":
-		val, err := &vdl.Int16Target{Value: &t.Value.Rating}, error(nil)
-		return nil, val, err
+		t.ratingTarget.Value = &t.Value.Rating
+		target, err := &t.ratingTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_TransUnionCreditReport)
 	}
@@ -694,7 +708,9 @@ func (m *CreditReport) MakeVDLTarget() vdl.Target {
 }
 
 type CreditReportTarget struct {
-	Value *CreditReport
+	Value        *CreditReport
+	agencyTarget CreditAgencyTarget
+
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -708,11 +724,12 @@ func (t *CreditReportTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error)
 func (t *CreditReportTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Agency":
-		val, err := &CreditAgencyTarget{Value: &t.Value.Agency}, error(nil)
-		return nil, val, err
+		t.agencyTarget.Value = &t.Value.Agency
+		target, err := &t.agencyTarget, error(nil)
+		return nil, target, err
 	case "Report":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Report))
-		return nil, val, err
+		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Report))
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_CreditReport)
 	}
@@ -820,7 +837,12 @@ func (m *Customer) MakeVDLTarget() vdl.Target {
 }
 
 type CustomerTarget struct {
-	Value *Customer
+	Value         *Customer
+	nameTarget    vdl.StringTarget
+	idTarget      vdl.Int64Target
+	activeTarget  vdl.BoolTarget
+	addressTarget AddressInfoTarget
+	creditTarget  CreditReportTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -834,20 +856,25 @@ func (t *CustomerTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *CustomerTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Name":
-		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
-		return nil, val, err
+		t.nameTarget.Value = &t.Value.Name
+		target, err := &t.nameTarget, error(nil)
+		return nil, target, err
 	case "Id":
-		val, err := &vdl.Int64Target{Value: &t.Value.Id}, error(nil)
-		return nil, val, err
+		t.idTarget.Value = &t.Value.Id
+		target, err := &t.idTarget, error(nil)
+		return nil, target, err
 	case "Active":
-		val, err := &vdl.BoolTarget{Value: &t.Value.Active}, error(nil)
-		return nil, val, err
+		t.activeTarget.Value = &t.Value.Active
+		target, err := &t.activeTarget, error(nil)
+		return nil, target, err
 	case "Address":
-		val, err := &AddressInfoTarget{Value: &t.Value.Address}, error(nil)
-		return nil, val, err
+		t.addressTarget.Value = &t.Value.Address
+		target, err := &t.addressTarget, error(nil)
+		return nil, target, err
 	case "Credit":
-		val, err := &CreditReportTarget{Value: &t.Value.Credit}, error(nil)
-		return nil, val, err
+		t.creditTarget.Value = &t.Value.Credit
+		target, err := &t.creditTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_Customer)
 	}
@@ -941,7 +968,11 @@ func (m *Invoice) MakeVDLTarget() vdl.Target {
 }
 
 type InvoiceTarget struct {
-	Value *Invoice
+	Value            *Invoice
+	custIdTarget     vdl.Int64Target
+	invoiceNumTarget vdl.Int64Target
+	amountTarget     vdl.Int64Target
+	shipToTarget     AddressInfoTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -955,17 +986,21 @@ func (t *InvoiceTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *InvoiceTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "CustId":
-		val, err := &vdl.Int64Target{Value: &t.Value.CustId}, error(nil)
-		return nil, val, err
+		t.custIdTarget.Value = &t.Value.CustId
+		target, err := &t.custIdTarget, error(nil)
+		return nil, target, err
 	case "InvoiceNum":
-		val, err := &vdl.Int64Target{Value: &t.Value.InvoiceNum}, error(nil)
-		return nil, val, err
+		t.invoiceNumTarget.Value = &t.Value.InvoiceNum
+		target, err := &t.invoiceNumTarget, error(nil)
+		return nil, target, err
 	case "Amount":
-		val, err := &vdl.Int64Target{Value: &t.Value.Amount}, error(nil)
-		return nil, val, err
+		t.amountTarget.Value = &t.Value.Amount
+		target, err := &t.amountTarget, error(nil)
+		return nil, target, err
 	case "ShipTo":
-		val, err := &AddressInfoTarget{Value: &t.Value.ShipTo}, error(nil)
-		return nil, val, err
+		t.shipToTarget.Value = &t.Value.ShipTo
+		target, err := &t.shipToTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_Invoice)
 	}
@@ -1149,7 +1184,18 @@ func (m *Numbers) MakeVDLTarget() vdl.Target {
 }
 
 type NumbersTarget struct {
-	Value *Numbers
+	Value      *Numbers
+	bTarget    vdl.ByteTarget
+	ui16Target vdl.Uint16Target
+	ui32Target vdl.Uint32Target
+	ui64Target vdl.Uint64Target
+	i16Target  vdl.Int16Target
+	i32Target  vdl.Int32Target
+	i64Target  vdl.Int64Target
+	f32Target  vdl.Float32Target
+	f64Target  vdl.Float64Target
+	c64Target  vdl.Complex64Target
+	c128Target vdl.Complex128Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1163,38 +1209,49 @@ func (t *NumbersTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *NumbersTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "B":
-		val, err := &vdl.ByteTarget{Value: &t.Value.B}, error(nil)
-		return nil, val, err
+		t.bTarget.Value = &t.Value.B
+		target, err := &t.bTarget, error(nil)
+		return nil, target, err
 	case "Ui16":
-		val, err := &vdl.Uint16Target{Value: &t.Value.Ui16}, error(nil)
-		return nil, val, err
+		t.ui16Target.Value = &t.Value.Ui16
+		target, err := &t.ui16Target, error(nil)
+		return nil, target, err
 	case "Ui32":
-		val, err := &vdl.Uint32Target{Value: &t.Value.Ui32}, error(nil)
-		return nil, val, err
+		t.ui32Target.Value = &t.Value.Ui32
+		target, err := &t.ui32Target, error(nil)
+		return nil, target, err
 	case "Ui64":
-		val, err := &vdl.Uint64Target{Value: &t.Value.Ui64}, error(nil)
-		return nil, val, err
+		t.ui64Target.Value = &t.Value.Ui64
+		target, err := &t.ui64Target, error(nil)
+		return nil, target, err
 	case "I16":
-		val, err := &vdl.Int16Target{Value: &t.Value.I16}, error(nil)
-		return nil, val, err
+		t.i16Target.Value = &t.Value.I16
+		target, err := &t.i16Target, error(nil)
+		return nil, target, err
 	case "I32":
-		val, err := &vdl.Int32Target{Value: &t.Value.I32}, error(nil)
-		return nil, val, err
+		t.i32Target.Value = &t.Value.I32
+		target, err := &t.i32Target, error(nil)
+		return nil, target, err
 	case "I64":
-		val, err := &vdl.Int64Target{Value: &t.Value.I64}, error(nil)
-		return nil, val, err
+		t.i64Target.Value = &t.Value.I64
+		target, err := &t.i64Target, error(nil)
+		return nil, target, err
 	case "F32":
-		val, err := &vdl.Float32Target{Value: &t.Value.F32}, error(nil)
-		return nil, val, err
+		t.f32Target.Value = &t.Value.F32
+		target, err := &t.f32Target, error(nil)
+		return nil, target, err
 	case "F64":
-		val, err := &vdl.Float64Target{Value: &t.Value.F64}, error(nil)
-		return nil, val, err
+		t.f64Target.Value = &t.Value.F64
+		target, err := &t.f64Target, error(nil)
+		return nil, target, err
 	case "C64":
-		val, err := &vdl.Complex64Target{Value: &t.Value.C64}, error(nil)
-		return nil, val, err
+		t.c64Target.Value = &t.Value.C64
+		target, err := &t.c64Target, error(nil)
+		return nil, target, err
 	case "C128":
-		val, err := &vdl.Complex128Target{Value: &t.Value.C128}, error(nil)
-		return nil, val, err
+		t.c128Target.Value = &t.Value.C128
+		target, err := &t.c128Target, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_Numbers)
 	}
@@ -1249,7 +1306,8 @@ func (m *FooType) MakeVDLTarget() vdl.Target {
 }
 
 type FooTypeTarget struct {
-	Value *FooType
+	Value     *FooType
+	barTarget BarTypeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1263,8 +1321,9 @@ func (t *FooTypeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *FooTypeTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Bar":
-		val, err := &BarTypeTarget{Value: &t.Value.Bar}, error(nil)
-		return nil, val, err
+		t.barTarget.Value = &t.Value.Bar
+		target, err := &t.barTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_FooType)
 	}
@@ -1278,7 +1337,8 @@ func (t *FooTypeTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 type BarTypeTarget struct {
-	Value *BarType
+	Value     *BarType
+	bazTarget BazTypeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1292,8 +1352,9 @@ func (t *BarTypeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *BarTypeTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Baz":
-		val, err := &BazTypeTarget{Value: &t.Value.Baz}, error(nil)
-		return nil, val, err
+		t.bazTarget.Value = &t.Value.Baz
+		target, err := &t.bazTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_BarType)
 	}
@@ -1307,7 +1368,9 @@ func (t *BarTypeTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 type BazTypeTarget struct {
-	Value *BazType
+	Value      *BazType
+	nameTarget vdl.StringTarget
+
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1321,11 +1384,12 @@ func (t *BazTypeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *BazTypeTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Name":
-		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
-		return nil, val, err
+		t.nameTarget.Value = &t.Value.Name
+		target, err := &t.nameTarget, error(nil)
+		return nil, target, err
 	case "TitleOrValue":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.TitleOrValue))
-		return nil, val, err
+		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.TitleOrValue))
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_BazType)
 	}
@@ -1561,8 +1625,10 @@ func (m *Array2String) MakeVDLTarget() vdl.Target {
 	return &Array2StringTarget{Value: m}
 }
 
+// Array2String
 type Array2StringTarget struct {
-	Value *Array2String
+	Value      *Array2String
+	elemTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
@@ -1574,7 +1640,9 @@ func (t *Array2StringTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, e
 	return t, nil
 }
 func (t *Array2StringTarget) StartElem(index int) (elem vdl.Target, _ error) {
-	return &vdl.StringTarget{Value: &(*t.Value)[index]}, error(nil)
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
 func (t *Array2StringTarget) FinishElem(elem vdl.Target) error {
 	return nil
@@ -1723,7 +1791,11 @@ func (m *Composite) MakeVDLTarget() vdl.Target {
 }
 
 type CompositeTarget struct {
-	Value *Composite
+	Value         *Composite
+	arrTarget     Array2StringTarget
+	listIntTarget unnamed_5b5d696e743332Target
+	mySetTarget   unnamed_7365745b696e7433325dTarget
+	mapTarget     unnamed_6d61705b737472696e675d696e743332Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1737,17 +1809,21 @@ func (t *CompositeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *CompositeTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Arr":
-		val, err := &Array2StringTarget{Value: &t.Value.Arr}, error(nil)
-		return nil, val, err
+		t.arrTarget.Value = &t.Value.Arr
+		target, err := &t.arrTarget, error(nil)
+		return nil, target, err
 	case "ListInt":
-		val, err := &unnamed_5b5d696e743332_Target{Value: &t.Value.ListInt}, error(nil)
-		return nil, val, err
+		t.listIntTarget.Value = &t.Value.ListInt
+		target, err := &t.listIntTarget, error(nil)
+		return nil, target, err
 	case "MySet":
-		val, err := &unnamed_7365745b696e7433325d_Target{Value: &t.Value.MySet}, error(nil)
-		return nil, val, err
+		t.mySetTarget.Value = &t.Value.MySet
+		target, err := &t.mySetTarget, error(nil)
+		return nil, target, err
 	case "Map":
-		val, err := &unnamed_6d61705b737472696e675d696e743332_Target{Value: &t.Value.Map}, error(nil)
-		return nil, val, err
+		t.mapTarget.Value = &t.Value.Map
+		target, err := &t.mapTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_Composite)
 	}
@@ -1760,13 +1836,15 @@ func (t *CompositeTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_5b5d696e743332_Target struct {
-	Value *[]int32
+// []int32
+type unnamed_5b5d696e743332Target struct {
+	Value      *[]int32
+	elemTarget vdl.Int32Target
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d696e743332_Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *unnamed_5b5d696e743332Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 	if !vdl.Compatible(tt, __VDLType12) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType12)
 	}
@@ -1777,40 +1855,46 @@ func (t *unnamed_5b5d696e743332_Target) StartList(tt *vdl.Type, len int) (vdl.Li
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d696e743332_Target) StartElem(index int) (elem vdl.Target, _ error) {
-	return &vdl.Int32Target{Value: &(*t.Value)[index]}, error(nil)
+func (t *unnamed_5b5d696e743332Target) StartElem(index int) (elem vdl.Target, _ error) {
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_5b5d696e743332_Target) FinishElem(elem vdl.Target) error {
+func (t *unnamed_5b5d696e743332Target) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d696e743332_Target) FinishList(elem vdl.ListTarget) error {
+func (t *unnamed_5b5d696e743332Target) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
 
-type unnamed_7365745b696e7433325d_Target struct {
-	Value   *map[int32]struct{}
-	currKey int32
+// map[int32]struct{}
+type unnamed_7365745b696e7433325dTarget struct {
+	Value     *map[int32]struct{}
+	currKey   int32
+	keyTarget vdl.Int32Target
 	vdl.TargetBase
 	vdl.SetTargetBase
 }
 
-func (t *unnamed_7365745b696e7433325d_Target) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+func (t *unnamed_7365745b696e7433325dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 	if !vdl.Compatible(tt, __VDLType13) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType13)
 	}
 	*t.Value = make(map[int32]struct{})
 	return t, nil
 }
-func (t *unnamed_7365745b696e7433325d_Target) StartKey() (key vdl.Target, _ error) {
+func (t *unnamed_7365745b696e7433325dTarget) StartKey() (key vdl.Target, _ error) {
 	t.currKey = int32(0)
-	return &vdl.Int32Target{Value: &t.currKey}, error(nil)
+	t.keyTarget.Value = &t.currKey
+	target, err := &t.keyTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_7365745b696e7433325d_Target) FinishKey(key vdl.Target) error {
+func (t *unnamed_7365745b696e7433325dTarget) FinishKey(key vdl.Target) error {
 	(*t.Value)[t.currKey] = struct{}{}
 	return nil
 }
-func (t *unnamed_7365745b696e7433325d_Target) FinishSet(list vdl.SetTarget) error {
+func (t *unnamed_7365745b696e7433325dTarget) FinishSet(list vdl.SetTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
@@ -1818,34 +1902,41 @@ func (t *unnamed_7365745b696e7433325d_Target) FinishSet(list vdl.SetTarget) erro
 	return nil
 }
 
-type unnamed_6d61705b737472696e675d696e743332_Target struct {
-	Value    *map[string]int32
-	currKey  string
-	currElem int32
+// map[string]int32
+type unnamed_6d61705b737472696e675d696e743332Target struct {
+	Value      *map[string]int32
+	currKey    string
+	currElem   int32
+	keyTarget  vdl.StringTarget
+	elemTarget vdl.Int32Target
 	vdl.TargetBase
 	vdl.MapTargetBase
 }
 
-func (t *unnamed_6d61705b737472696e675d696e743332_Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+func (t *unnamed_6d61705b737472696e675d696e743332Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 	if !vdl.Compatible(tt, __VDLType14) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType14)
 	}
 	*t.Value = make(map[string]int32)
 	return t, nil
 }
-func (t *unnamed_6d61705b737472696e675d696e743332_Target) StartKey() (key vdl.Target, _ error) {
+func (t *unnamed_6d61705b737472696e675d696e743332Target) StartKey() (key vdl.Target, _ error) {
 	t.currKey = ""
-	return &vdl.StringTarget{Value: &t.currKey}, error(nil)
+	t.keyTarget.Value = &t.currKey
+	target, err := &t.keyTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d696e743332_Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+func (t *unnamed_6d61705b737472696e675d696e743332Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
 	t.currElem = int32(0)
-	return &vdl.Int32Target{Value: &t.currElem}, error(nil)
+	t.elemTarget.Value = &t.currElem
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d696e743332_Target) FinishField(key, field vdl.Target) error {
+func (t *unnamed_6d61705b737472696e675d696e743332Target) FinishField(key, field vdl.Target) error {
 	(*t.Value)[t.currKey] = t.currElem
 	return nil
 }
-func (t *unnamed_6d61705b737472696e675d696e743332_Target) FinishMap(elem vdl.MapTarget) error {
+func (t *unnamed_6d61705b737472696e675d696e743332Target) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
@@ -1917,7 +2008,9 @@ func (m *Times) MakeVDLTarget() vdl.Target {
 }
 
 type TimesTarget struct {
-	Value *Times
+	Value          *Times
+	stampTarget    time_2.TimeTarget
+	intervalTarget time_2.DurationTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1931,11 +2024,13 @@ func (t *TimesTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *TimesTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Stamp":
-		val, err := &time_2.TimeTarget{Value: &t.Value.Stamp}, error(nil)
-		return nil, val, err
+		t.stampTarget.Value = &t.Value.Stamp
+		target, err := &t.stampTarget, error(nil)
+		return nil, target, err
 	case "Interval":
-		val, err := &time_2.DurationTarget{Value: &t.Value.Interval}, error(nil)
-		return nil, val, err
+		t.intervalTarget.Value = &t.Value.Interval
+		target, err := &t.intervalTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_Times)
 	}
@@ -2054,6 +2149,9 @@ func (m *Recursive) MakeVDLTarget() vdl.Target {
 
 type RecursiveTarget struct {
 	Value *Recursive
+
+	maybeTarget unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7dTarget
+
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -2067,14 +2165,15 @@ func (t *RecursiveTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *RecursiveTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Any":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Any))
-		return nil, val, err
+		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Any))
+		return nil, target, err
 	case "Maybe":
-		val, err := &unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d_Target{Value: &t.Value.Maybe}, error(nil)
-		return nil, val, err
+		t.maybeTarget.Value = &t.Value.Maybe
+		target, err := &t.maybeTarget, error(nil)
+		return nil, target, err
 	case "Rec":
-		val, err := &unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657d_Target{Value: &t.Value.Rec}, error(nil)
-		return nil, val, err
+		target, err := &unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget{Value: &t.Value.Rec}, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_Recursive)
 	}
@@ -2087,60 +2186,69 @@ func (t *RecursiveTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d_Target struct {
-	Value **Times
+// Optional Times
+type unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7dTarget struct {
+	Value      **Times
+	elemTarget TimesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
 
-func (t *unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d_Target) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+func (t *unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7dTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 	if *t.Value == nil {
 		*t.Value = &Times{}
 	}
-	target, err := &TimesTarget{Value: *t.Value}, error(nil)
+	t.elemTarget.Value = *t.Value
+	target, err := &t.elemTarget, error(nil)
 	if err != nil {
 		return nil, err
 	}
 	return target.StartFields(tt)
 }
-func (t *unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d_Target) FinishFields(_ vdl.FieldsTarget) error {
+func (t *unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7dTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-func (t *unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d_Target) FromNil(tt *vdl.Type) error {
+func (t *unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7dTarget) FromNil(tt *vdl.Type) error {
 	*t.Value = nil
 
 	return nil
 }
 
-type unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657d_Target struct {
-	Value    *map[Array2String]Recursive
-	currKey  Array2String
-	currElem Recursive
+// map[Array2String]Recursive
+type unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget struct {
+	Value     *map[Array2String]Recursive
+	currKey   Array2String
+	currElem  Recursive
+	keyTarget Array2StringTarget
+
 	vdl.TargetBase
 	vdl.MapTargetBase
 }
 
-func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657d_Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 	if !vdl.Compatible(tt, __VDLType17) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType17)
 	}
 	*t.Value = make(map[Array2String]Recursive)
 	return t, nil
 }
-func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657d_Target) StartKey() (key vdl.Target, _ error) {
+func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget) StartKey() (key vdl.Target, _ error) {
 	t.currKey = Array2String{}
-	return &Array2StringTarget{Value: &t.currKey}, error(nil)
+	t.keyTarget.Value = &t.currKey
+	target, err := &t.keyTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657d_Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
 	t.currElem = reflect.Zero(reflect.TypeOf(t.currElem)).Interface().(Recursive)
-	return &RecursiveTarget{Value: &t.currElem}, error(nil)
+	target, err := &RecursiveTarget{Value: &t.currElem}, error(nil)
+	return target, err
 }
-func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657d_Target) FinishField(key, field vdl.Target) error {
+func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget) FinishField(key, field vdl.Target) error {
 	(*t.Value)[t.currKey] = t.currElem
 	return nil
 }
-func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657d_Target) FinishMap(elem vdl.MapTarget) error {
+func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
@@ -2314,7 +2422,10 @@ func (m *Student) MakeVDLTarget() vdl.Target {
 }
 
 type StudentTarget struct {
-	Value *Student
+	Value          *Student
+	nameTarget     vdl.StringTarget
+	testTimeTarget time_2.TimeTarget
+
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -2328,14 +2439,16 @@ func (t *StudentTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *StudentTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Name":
-		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
-		return nil, val, err
+		t.nameTarget.Value = &t.Value.Name
+		target, err := &t.nameTarget, error(nil)
+		return nil, target, err
 	case "TestTime":
-		val, err := &time_2.TimeTarget{Value: &t.Value.TestTime}, error(nil)
-		return nil, val, err
+		t.testTimeTarget.Value = &t.Value.TestTime
+		target, err := &t.testTimeTarget, error(nil)
+		return nil, target, err
 	case "Score":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Score))
-		return nil, val, err
+		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Score))
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_Student)
 	}
@@ -2409,7 +2522,9 @@ func (m *AnythingGoes) MakeVDLTarget() vdl.Target {
 }
 
 type AnythingGoesTarget struct {
-	Value *AnythingGoes
+	Value            *AnythingGoes
+	nameOfTypeTarget vdl.StringTarget
+
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -2423,11 +2538,12 @@ func (t *AnythingGoesTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error)
 func (t *AnythingGoesTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "NameOfType":
-		val, err := &vdl.StringTarget{Value: &t.Value.NameOfType}, error(nil)
-		return nil, val, err
+		t.nameOfTypeTarget.Value = &t.Value.NameOfType
+		target, err := &t.nameOfTypeTarget, error(nil)
+		return nil, target, err
 	case "Anything":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Anything))
-		return nil, val, err
+		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Anything))
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_sb_internal_demodb_AnythingGoes)
 	}

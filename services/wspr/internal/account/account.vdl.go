@@ -68,7 +68,9 @@ func (m *Caveat) MakeVDLTarget() vdl.Target {
 }
 
 type CaveatTarget struct {
-	Value *Caveat
+	Value      *Caveat
+	typeTarget vdl.StringTarget
+	argsTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -82,11 +84,13 @@ func (t *CaveatTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *CaveatTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Type":
-		val, err := &vdl.StringTarget{Value: &t.Value.Type}, error(nil)
-		return nil, val, err
+		t.typeTarget.Value = &t.Value.Type
+		target, err := &t.typeTarget, error(nil)
+		return nil, target, err
 	case "Args":
-		val, err := &vdl.StringTarget{Value: &t.Value.Args}, error(nil)
-		return nil, val, err
+		t.argsTarget.Value = &t.Value.Args
+		target, err := &t.argsTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_account_Caveat)
 	}

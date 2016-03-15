@@ -85,7 +85,10 @@ func (m *Library) MakeVDLTarget() vdl.Target {
 }
 
 type LibraryTarget struct {
-	Value *Library
+	Value              *Library
+	nameTarget         vdl.StringTarget
+	majorVersionTarget vdl.StringTarget
+	minorVersionTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -99,14 +102,17 @@ func (t *LibraryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *LibraryTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Name":
-		val, err := &vdl.StringTarget{Value: &t.Value.Name}, error(nil)
-		return nil, val, err
+		t.nameTarget.Value = &t.Value.Name
+		target, err := &t.nameTarget, error(nil)
+		return nil, target, err
 	case "MajorVersion":
-		val, err := &vdl.StringTarget{Value: &t.Value.MajorVersion}, error(nil)
-		return nil, val, err
+		t.majorVersionTarget.Value = &t.Value.MajorVersion
+		target, err := &t.majorVersionTarget, error(nil)
+		return nil, target, err
 	case "MinorVersion":
-		val, err := &vdl.StringTarget{Value: &t.Value.MinorVersion}, error(nil)
-		return nil, val, err
+		t.minorVersionTarget.Value = &t.Value.MinorVersion
+		target, err := &t.minorVersionTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_profile_Library)
 	}
@@ -255,7 +261,13 @@ func (m *Specification) MakeVDLTarget() vdl.Target {
 }
 
 type SpecificationTarget struct {
-	Value *Specification
+	Value             *Specification
+	labelTarget       vdl.StringTarget
+	descriptionTarget vdl.StringTarget
+	archTarget        build.ArchitectureTarget
+	osTarget          build.OperatingSystemTarget
+	formatTarget      build.FormatTarget
+	librariesTarget   unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -269,23 +281,29 @@ func (t *SpecificationTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error
 func (t *SpecificationTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Label":
-		val, err := &vdl.StringTarget{Value: &t.Value.Label}, error(nil)
-		return nil, val, err
+		t.labelTarget.Value = &t.Value.Label
+		target, err := &t.labelTarget, error(nil)
+		return nil, target, err
 	case "Description":
-		val, err := &vdl.StringTarget{Value: &t.Value.Description}, error(nil)
-		return nil, val, err
+		t.descriptionTarget.Value = &t.Value.Description
+		target, err := &t.descriptionTarget, error(nil)
+		return nil, target, err
 	case "Arch":
-		val, err := &build.ArchitectureTarget{Value: &t.Value.Arch}, error(nil)
-		return nil, val, err
+		t.archTarget.Value = &t.Value.Arch
+		target, err := &t.archTarget, error(nil)
+		return nil, target, err
 	case "Os":
-		val, err := &build.OperatingSystemTarget{Value: &t.Value.Os}, error(nil)
-		return nil, val, err
+		t.osTarget.Value = &t.Value.Os
+		target, err := &t.osTarget, error(nil)
+		return nil, target, err
 	case "Format":
-		val, err := &build.FormatTarget{Value: &t.Value.Format}, error(nil)
-		return nil, val, err
+		t.formatTarget.Value = &t.Value.Format
+		target, err := &t.formatTarget, error(nil)
+		return nil, target, err
 	case "Libraries":
-		val, err := &unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5d_Target{Value: &t.Value.Libraries}, error(nil)
-		return nil, val, err
+		t.librariesTarget.Value = &t.Value.Libraries
+		target, err := &t.librariesTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_profile_Specification)
 	}
@@ -298,29 +316,33 @@ func (t *SpecificationTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5d_Target struct {
-	Value   *map[Library]struct{}
-	currKey Library
+// map[Library]struct{}
+type unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget struct {
+	Value     *map[Library]struct{}
+	currKey   Library
+	keyTarget LibraryTarget
 	vdl.TargetBase
 	vdl.SetTargetBase
 }
 
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5d_Target) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 	if !vdl.Compatible(tt, __VDLType2) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType2)
 	}
 	*t.Value = make(map[Library]struct{})
 	return t, nil
 }
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5d_Target) StartKey() (key vdl.Target, _ error) {
+func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) StartKey() (key vdl.Target, _ error) {
 	t.currKey = Library{}
-	return &LibraryTarget{Value: &t.currKey}, error(nil)
+	t.keyTarget.Value = &t.currKey
+	target, err := &t.keyTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5d_Target) FinishKey(key vdl.Target) error {
+func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) FinishKey(key vdl.Target) error {
 	(*t.Value)[t.currKey] = struct{}{}
 	return nil
 }
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5d_Target) FinishSet(list vdl.SetTarget) error {
+func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) FinishSet(list vdl.SetTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}

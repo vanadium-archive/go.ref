@@ -88,7 +88,10 @@ func (m *Request) MakeVDLTarget() vdl.Target {
 }
 
 type RequestTarget struct {
-	Value *Request
+	Value      *Request
+	typeTarget vdl.StringTarget
+	seqTarget  vdl.Uint32Target
+
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -102,14 +105,16 @@ func (t *RequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *RequestTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Type":
-		val, err := &vdl.StringTarget{Value: &t.Value.Type}, error(nil)
-		return nil, val, err
+		t.typeTarget.Value = &t.Value.Type
+		target, err := &t.typeTarget, error(nil)
+		return nil, target, err
 	case "Seq":
-		val, err := &vdl.Uint32Target{Value: &t.Value.Seq}, error(nil)
-		return nil, val, err
+		t.seqTarget.Value = &t.Value.Seq
+		target, err := &t.seqTarget, error(nil)
+		return nil, target, err
 	case "Body":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Body))
-		return nil, val, err
+		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Body))
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_channel_Request)
 	}
@@ -196,7 +201,10 @@ func (m *Response) MakeVDLTarget() vdl.Target {
 }
 
 type ResponseTarget struct {
-	Value *Response
+	Value        *Response
+	reqSeqTarget vdl.Uint32Target
+	errTarget    vdl.StringTarget
+
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -210,14 +218,16 @@ func (t *ResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *ResponseTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "ReqSeq":
-		val, err := &vdl.Uint32Target{Value: &t.Value.ReqSeq}, error(nil)
-		return nil, val, err
+		t.reqSeqTarget.Value = &t.Value.ReqSeq
+		target, err := &t.reqSeqTarget, error(nil)
+		return nil, target, err
 	case "Err":
-		val, err := &vdl.StringTarget{Value: &t.Value.Err}, error(nil)
-		return nil, val, err
+		t.errTarget.Value = &t.Value.Err
+		target, err := &t.errTarget, error(nil)
+		return nil, target, err
 	case "Body":
-		val, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Body))
-		return nil, val, err
+		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Body))
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_channel_Response)
 	}

@@ -54,7 +54,8 @@ func (m *SignedHeader) MakeVDLTarget() vdl.Target {
 }
 
 type SignedHeaderTarget struct {
-	Value *SignedHeader
+	Value                *SignedHeader
+	chunkSizeBytesTarget vdl.Int64Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -68,8 +69,9 @@ func (t *SignedHeaderTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error)
 func (t *SignedHeaderTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "ChunkSizeBytes":
-		val, err := &vdl.Int64Target{Value: &t.Value.ChunkSizeBytes}, error(nil)
-		return nil, val, err
+		t.chunkSizeBytesTarget.Value = &t.Value.ChunkSizeBytes
+		target, err := &t.chunkSizeBytesTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_security_serialization_SignedHeader)
 	}

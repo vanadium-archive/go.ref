@@ -100,7 +100,9 @@ func (m *ConnInfo) MakeVDLTarget() vdl.Target {
 }
 
 type ConnInfoTarget struct {
-	Value *ConnInfo
+	Value            *ConnInfo
+	minVersionTarget vdl.Int32Target
+	maxVersionTarget vdl.Int32Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -114,11 +116,13 @@ func (t *ConnInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *ConnInfoTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "MinVersion":
-		val, err := &vdl.Int32Target{Value: &t.Value.MinVersion}, error(nil)
-		return nil, val, err
+		t.minVersionTarget.Value = &t.Value.MinVersion
+		target, err := &t.minVersionTarget, error(nil)
+		return nil, target, err
 	case "MaxVersion":
-		val, err := &vdl.Int32Target{Value: &t.Value.MaxVersion}, error(nil)
-		return nil, val, err
+		t.maxVersionTarget.Value = &t.Value.MaxVersion
+		target, err := &t.maxVersionTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_agent_ConnInfo)
 	}
@@ -198,7 +202,10 @@ func (m *RpcRequest) MakeVDLTarget() vdl.Target {
 }
 
 type RpcRequestTarget struct {
-	Value *RpcRequest
+	Value         *RpcRequest
+	idTarget      vdl.Uint64Target
+	methodTarget  vdl.StringTarget
+	numArgsTarget vdl.Uint32Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -212,14 +219,17 @@ func (t *RpcRequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *RpcRequestTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Id":
-		val, err := &vdl.Uint64Target{Value: &t.Value.Id}, error(nil)
-		return nil, val, err
+		t.idTarget.Value = &t.Value.Id
+		target, err := &t.idTarget, error(nil)
+		return nil, target, err
 	case "Method":
-		val, err := &vdl.StringTarget{Value: &t.Value.Method}, error(nil)
-		return nil, val, err
+		t.methodTarget.Value = &t.Value.Method
+		target, err := &t.methodTarget, error(nil)
+		return nil, target, err
 	case "NumArgs":
-		val, err := &vdl.Uint32Target{Value: &t.Value.NumArgs}, error(nil)
-		return nil, val, err
+		t.numArgsTarget.Value = &t.Value.NumArgs
+		target, err := &t.numArgsTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_agent_RpcRequest)
 	}
@@ -311,7 +321,10 @@ func (m *RpcResponse) MakeVDLTarget() vdl.Target {
 }
 
 type RpcResponseTarget struct {
-	Value *RpcResponse
+	Value         *RpcResponse
+	idTarget      vdl.Uint64Target
+	errTarget     verror.ErrorTarget
+	numArgsTarget vdl.Uint32Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -325,14 +338,17 @@ func (t *RpcResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) 
 func (t *RpcResponseTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Id":
-		val, err := &vdl.Uint64Target{Value: &t.Value.Id}, error(nil)
-		return nil, val, err
+		t.idTarget.Value = &t.Value.Id
+		target, err := &t.idTarget, error(nil)
+		return nil, target, err
 	case "Err":
-		val, err := &verror.ErrorTarget{Value: &t.Value.Err}, error(nil)
-		return nil, val, err
+		t.errTarget.Value = &t.Value.Err
+		target, err := &t.errTarget, error(nil)
+		return nil, target, err
 	case "NumArgs":
-		val, err := &vdl.Uint32Target{Value: &t.Value.NumArgs}, error(nil)
-		return nil, val, err
+		t.numArgsTarget.Value = &t.Value.NumArgs
+		target, err := &t.numArgsTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_agent_RpcResponse)
 	}

@@ -78,7 +78,8 @@ func (m *GameId) MakeVDLTarget() vdl.Target {
 }
 
 type GameIdTarget struct {
-	Value *GameId
+	Value    *GameId
+	idTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -92,8 +93,9 @@ func (t *GameIdTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *GameIdTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Id":
-		val, err := &vdl.StringTarget{Value: &t.Value.Id}, error(nil)
-		return nil, val, err
+		t.idTarget.Value = &t.Value.Id
+		target, err := &t.idTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_examples_rps_GameId)
 	}
@@ -162,7 +164,9 @@ func (m *GameOptions) MakeVDLTarget() vdl.Target {
 }
 
 type GameOptionsTarget struct {
-	Value *GameOptions
+	Value           *GameOptions
+	numRoundsTarget vdl.Int32Target
+	gameTypeTarget  GameTypeTagTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -176,11 +180,13 @@ func (t *GameOptionsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) 
 func (t *GameOptionsTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "NumRounds":
-		val, err := &vdl.Int32Target{Value: &t.Value.NumRounds}, error(nil)
-		return nil, val, err
+		t.numRoundsTarget.Value = &t.Value.NumRounds
+		target, err := &t.numRoundsTarget, error(nil)
+		return nil, target, err
 	case "GameType":
-		val, err := &GameTypeTagTarget{Value: &t.Value.GameType}, error(nil)
-		return nil, val, err
+		t.gameTypeTarget.Value = &t.Value.GameType
+		target, err := &t.gameTypeTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_examples_rps_GameOptions)
 	}
@@ -642,8 +648,10 @@ func (m *PlayersMoves) MakeVDLTarget() vdl.Target {
 	return &PlayersMovesTarget{Value: m}
 }
 
+// PlayersMoves
 type PlayersMovesTarget struct {
-	Value *PlayersMoves
+	Value      *PlayersMoves
+	elemTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
@@ -655,7 +663,9 @@ func (t *PlayersMovesTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, e
 	return t, nil
 }
 func (t *PlayersMovesTarget) StartElem(index int) (elem vdl.Target, _ error) {
-	return &vdl.StringTarget{Value: &(*t.Value)[index]}, error(nil)
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
 func (t *PlayersMovesTarget) FinishElem(elem vdl.Target) error {
 	return nil
@@ -771,7 +781,12 @@ func (m *Round) MakeVDLTarget() vdl.Target {
 }
 
 type RoundTarget struct {
-	Value *Round
+	Value           *Round
+	movesTarget     PlayersMovesTarget
+	commentTarget   vdl.StringTarget
+	winnerTarget    WinnerTagTarget
+	startTimeTarget time_2.TimeTarget
+	endTimeTarget   time_2.TimeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -785,20 +800,25 @@ func (t *RoundTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *RoundTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Moves":
-		val, err := &PlayersMovesTarget{Value: &t.Value.Moves}, error(nil)
-		return nil, val, err
+		t.movesTarget.Value = &t.Value.Moves
+		target, err := &t.movesTarget, error(nil)
+		return nil, target, err
 	case "Comment":
-		val, err := &vdl.StringTarget{Value: &t.Value.Comment}, error(nil)
-		return nil, val, err
+		t.commentTarget.Value = &t.Value.Comment
+		target, err := &t.commentTarget, error(nil)
+		return nil, target, err
 	case "Winner":
-		val, err := &WinnerTagTarget{Value: &t.Value.Winner}, error(nil)
-		return nil, val, err
+		t.winnerTarget.Value = &t.Value.Winner
+		target, err := &t.winnerTarget, error(nil)
+		return nil, target, err
 	case "StartTime":
-		val, err := &time_2.TimeTarget{Value: &t.Value.StartTime}, error(nil)
-		return nil, val, err
+		t.startTimeTarget.Value = &t.Value.StartTime
+		target, err := &t.startTimeTarget, error(nil)
+		return nil, target, err
 	case "EndTime":
-		val, err := &time_2.TimeTarget{Value: &t.Value.EndTime}, error(nil)
-		return nil, val, err
+		t.endTimeTarget.Value = &t.Value.EndTime
+		target, err := &t.endTimeTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_examples_rps_Round)
 	}
@@ -915,7 +935,8 @@ func (m *PlayResult) MakeVDLTarget() vdl.Target {
 }
 
 type PlayResultTarget struct {
-	Value *PlayResult
+	Value        *PlayResult
+	youWonTarget vdl.BoolTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -929,8 +950,9 @@ func (t *PlayResultTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *PlayResultTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "YouWon":
-		val, err := &vdl.BoolTarget{Value: &t.Value.YouWon}, error(nil)
-		return nil, val, err
+		t.youWonTarget.Value = &t.Value.YouWon
+		target, err := &t.youWonTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_examples_rps_PlayResult)
 	}
@@ -1109,7 +1131,14 @@ func (m *ScoreCard) MakeVDLTarget() vdl.Target {
 }
 
 type ScoreCardTarget struct {
-	Value *ScoreCard
+	Value           *ScoreCard
+	optsTarget      GameOptionsTarget
+	judgeTarget     vdl.StringTarget
+	playersTarget   vdl.StringSliceTarget
+	roundsTarget    unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget
+	startTimeTarget time_2.TimeTarget
+	endTimeTarget   time_2.TimeTarget
+	winnerTarget    WinnerTagTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1123,26 +1152,33 @@ func (t *ScoreCardTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *ScoreCardTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Opts":
-		val, err := &GameOptionsTarget{Value: &t.Value.Opts}, error(nil)
-		return nil, val, err
+		t.optsTarget.Value = &t.Value.Opts
+		target, err := &t.optsTarget, error(nil)
+		return nil, target, err
 	case "Judge":
-		val, err := &vdl.StringTarget{Value: &t.Value.Judge}, error(nil)
-		return nil, val, err
+		t.judgeTarget.Value = &t.Value.Judge
+		target, err := &t.judgeTarget, error(nil)
+		return nil, target, err
 	case "Players":
-		val, err := &vdl.StringSliceTarget{Value: &t.Value.Players}, error(nil)
-		return nil, val, err
+		t.playersTarget.Value = &t.Value.Players
+		target, err := &t.playersTarget, error(nil)
+		return nil, target, err
 	case "Rounds":
-		val, err := &unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657d_Target{Value: &t.Value.Rounds}, error(nil)
-		return nil, val, err
+		t.roundsTarget.Value = &t.Value.Rounds
+		target, err := &t.roundsTarget, error(nil)
+		return nil, target, err
 	case "StartTime":
-		val, err := &time_2.TimeTarget{Value: &t.Value.StartTime}, error(nil)
-		return nil, val, err
+		t.startTimeTarget.Value = &t.Value.StartTime
+		target, err := &t.startTimeTarget, error(nil)
+		return nil, target, err
 	case "EndTime":
-		val, err := &time_2.TimeTarget{Value: &t.Value.EndTime}, error(nil)
-		return nil, val, err
+		t.endTimeTarget.Value = &t.Value.EndTime
+		target, err := &t.endTimeTarget, error(nil)
+		return nil, target, err
 	case "Winner":
-		val, err := &WinnerTagTarget{Value: &t.Value.Winner}, error(nil)
-		return nil, val, err
+		t.winnerTarget.Value = &t.Value.Winner
+		target, err := &t.winnerTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_examples_rps_ScoreCard)
 	}
@@ -1155,13 +1191,15 @@ func (t *ScoreCardTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657d_Target struct {
-	Value *[]Round
+// []Round
+type unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget struct {
+	Value      *[]Round
+	elemTarget RoundTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657d_Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 	if !vdl.Compatible(tt, __VDLType7) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType7)
 	}
@@ -1172,13 +1210,15 @@ func (t *unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e642
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657d_Target) StartElem(index int) (elem vdl.Target, _ error) {
-	return &RoundTarget{Value: &(*t.Value)[index]}, error(nil)
+func (t *unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
+	return target, err
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657d_Target) FinishElem(elem vdl.Target) error {
+func (t *unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657d_Target) FinishList(elem vdl.ListTarget) error {
+func (t *unnamed_5b5d762e696f2f782f7265662f6578616d706c65732f7270732e526f756e64207374727563747b4d6f76657320762e696f2f782f7265662f6578616d706c65732f7270732e506c61796572734d6f766573205b325d737472696e673b436f6d6d656e7420737472696e673b57696e6e657220762e696f2f782f7265662f6578616d706c65732f7270732e57696e6e657254616720627974653b537461727454696d652074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b456e6454696d652074696d652e54696d657dTarget) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }

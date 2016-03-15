@@ -104,7 +104,10 @@ func (m *ShellOpts) MakeVDLTarget() vdl.Target {
 }
 
 type ShellOptsTarget struct {
-	Value *ShellOpts
+	Value             *ShellOpts
+	usePtyTarget      vdl.BoolTarget
+	environmentTarget vdl.StringSliceTarget
+	winSizeTarget     WindowSizeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -118,14 +121,17 @@ func (t *ShellOptsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *ShellOptsTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "UsePty":
-		val, err := &vdl.BoolTarget{Value: &t.Value.UsePty}, error(nil)
-		return nil, val, err
+		t.usePtyTarget.Value = &t.Value.UsePty
+		target, err := &t.usePtyTarget, error(nil)
+		return nil, target, err
 	case "Environment":
-		val, err := &vdl.StringSliceTarget{Value: &t.Value.Environment}, error(nil)
-		return nil, val, err
+		t.environmentTarget.Value = &t.Value.Environment
+		target, err := &t.environmentTarget, error(nil)
+		return nil, target, err
 	case "WinSize":
-		val, err := &WindowSizeTarget{Value: &t.Value.WinSize}, error(nil)
-		return nil, val, err
+		t.winSizeTarget.Value = &t.Value.WinSize
+		target, err := &t.winSizeTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_examples_tunnel_ShellOpts)
 	}
@@ -139,7 +145,9 @@ func (t *ShellOptsTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 type WindowSizeTarget struct {
-	Value *WindowSize
+	Value      *WindowSize
+	rowsTarget vdl.Uint16Target
+	colsTarget vdl.Uint16Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -153,11 +161,13 @@ func (t *WindowSizeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *WindowSizeTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Rows":
-		val, err := &vdl.Uint16Target{Value: &t.Value.Rows}, error(nil)
-		return nil, val, err
+		t.rowsTarget.Value = &t.Value.Rows
+		target, err := &t.rowsTarget, error(nil)
+		return nil, target, err
 	case "Cols":
-		val, err := &vdl.Uint16Target{Value: &t.Value.Cols}, error(nil)
-		return nil, val, err
+		t.colsTarget.Value = &t.Value.Cols
+		target, err := &t.colsTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_examples_tunnel_WindowSize)
 	}

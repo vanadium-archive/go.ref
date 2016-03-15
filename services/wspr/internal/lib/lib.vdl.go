@@ -119,7 +119,10 @@ func (m *ServerRpcReply) MakeVDLTarget() vdl.Target {
 }
 
 type ServerRpcReplyTarget struct {
-	Value *ServerRpcReply
+	Value               *ServerRpcReply
+	resultsTarget       unnamed_5b5d616e79Target
+	errTarget           verror.ErrorTarget
+	traceResponseTarget vtrace.ResponseTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -133,14 +136,17 @@ func (t *ServerRpcReplyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, erro
 func (t *ServerRpcReplyTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Results":
-		val, err := &unnamed_5b5d616e79_Target{Value: &t.Value.Results}, error(nil)
-		return nil, val, err
+		t.resultsTarget.Value = &t.Value.Results
+		target, err := &t.resultsTarget, error(nil)
+		return nil, target, err
 	case "Err":
-		val, err := &verror.ErrorTarget{Value: &t.Value.Err}, error(nil)
-		return nil, val, err
+		t.errTarget.Value = &t.Value.Err
+		target, err := &t.errTarget, error(nil)
+		return nil, target, err
 	case "TraceResponse":
-		val, err := &vtrace.ResponseTarget{Value: &t.Value.TraceResponse}, error(nil)
-		return nil, val, err
+		t.traceResponseTarget.Value = &t.Value.TraceResponse
+		target, err := &t.traceResponseTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_lib_ServerRpcReply)
 	}
@@ -153,13 +159,15 @@ func (t *ServerRpcReplyTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type unnamed_5b5d616e79_Target struct {
+// []*vom.RawBytes
+type unnamed_5b5d616e79Target struct {
 	Value *[]*vom.RawBytes
+
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d616e79_Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *unnamed_5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 	if !vdl.Compatible(tt, __VDLType1) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
 	}
@@ -170,13 +178,14 @@ func (t *unnamed_5b5d616e79_Target) StartList(tt *vdl.Type, len int) (vdl.ListTa
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d616e79_Target) StartElem(index int) (elem vdl.Target, _ error) {
-	return vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+func (t *unnamed_5b5d616e79Target) StartElem(index int) (elem vdl.Target, _ error) {
+	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+	return target, err
 }
-func (t *unnamed_5b5d616e79_Target) FinishElem(elem vdl.Target) error {
+func (t *unnamed_5b5d616e79Target) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d616e79_Target) FinishList(elem vdl.ListTarget) error {
+func (t *unnamed_5b5d616e79Target) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
@@ -315,7 +324,9 @@ func (m *LogMessage) MakeVDLTarget() vdl.Target {
 }
 
 type LogMessageTarget struct {
-	Value *LogMessage
+	Value         *LogMessage
+	levelTarget   LogLevelTarget
+	messageTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -329,11 +340,13 @@ func (t *LogMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *LogMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Level":
-		val, err := &LogLevelTarget{Value: &t.Value.Level}, error(nil)
-		return nil, val, err
+		t.levelTarget.Value = &t.Value.Level
+		target, err := &t.levelTarget, error(nil)
+		return nil, target, err
 	case "Message":
-		val, err := &vdl.StringTarget{Value: &t.Value.Message}, error(nil)
-		return nil, val, err
+		t.messageTarget.Value = &t.Value.Message
+		target, err := &t.messageTarget, error(nil)
+		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_lib_LogMessage)
 	}
