@@ -13,6 +13,11 @@ import (
 	"v.io/x/ref/lib/discovery"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // PackAddressTest represents a test case for PackAddress.
 type PackAddressTest struct {
 	// In is the addresses to pack.
@@ -27,9 +32,6 @@ func (PackAddressTest) __VDLReflect(struct {
 }
 
 func (m *PackAddressTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_discovery_testdata_PackAddressTest == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -41,7 +43,7 @@ func (m *PackAddressTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(__VDLType1, len(m.In))
+		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.In))
 		if err != nil {
 			return err
 		}
@@ -50,7 +52,7 @@ func (m *PackAddressTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err != nil {
 				return err
 			}
-			if err := elemTarget5.FromString(string(elem6), vdl.StringType); err != nil {
+			if err := elemTarget5.FromString(string(elem6), tt.NonOptional().Field(0).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget4.FinishElem(elemTarget5); err != nil {
@@ -70,7 +72,7 @@ func (m *PackAddressTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget8.FromBytes([]byte(m.Packed), __VDLType2); err != nil {
+		if err := fieldTarget8.FromBytes([]byte(m.Packed), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
@@ -97,8 +99,8 @@ type PackAddressTestTarget struct {
 
 func (t *PackAddressTestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_testdata_PackAddressTest) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_testdata_PackAddressTest)
+	if ttWant := vdl.TypeOf((*PackAddressTest)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -113,7 +115,7 @@ func (t *PackAddressTestTarget) StartField(name string) (key, field vdl.Target, 
 		target, err := &t.packedTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_discovery_testdata_PackAddressTest)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/testdata.PackAddressTest", name)
 	}
 }
 func (t *PackAddressTestTarget) FinishField(_, _ vdl.Target) error {
@@ -142,9 +144,6 @@ func (PackEncryptionKeysTest) __VDLReflect(struct {
 }
 
 func (m *PackEncryptionKeysTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest == nil || __VDLType3 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -156,7 +155,7 @@ func (m *PackEncryptionKeysTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Algo.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_lib_discovery_EncryptionAlgorithm); err != nil {
+		if err := m.Algo.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -169,7 +168,7 @@ func (m *PackEncryptionKeysTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget6, err := fieldTarget5.StartList(__VDLType4, len(m.Keys))
+		listTarget6, err := fieldTarget5.StartList(tt.NonOptional().Field(1).Type, len(m.Keys))
 		if err != nil {
 			return err
 		}
@@ -179,7 +178,7 @@ func (m *PackEncryptionKeysTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error
 				return err
 			}
 
-			if err := elem8.FillVDLTarget(elemTarget7, __VDLType_v_io_x_ref_lib_discovery_EncryptionKey); err != nil {
+			if err := elem8.FillVDLTarget(elemTarget7, tt.NonOptional().Field(1).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget6.FinishElem(elemTarget7); err != nil {
@@ -199,7 +198,7 @@ func (m *PackEncryptionKeysTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget10.FromBytes([]byte(m.Packed), __VDLType2); err != nil {
+		if err := fieldTarget10.FromBytes([]byte(m.Packed), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
@@ -227,8 +226,8 @@ type PackEncryptionKeysTestTarget struct {
 
 func (t *PackEncryptionKeysTestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest)
+	if ttWant := vdl.TypeOf((*PackEncryptionKeysTest)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -247,7 +246,7 @@ func (t *PackEncryptionKeysTestTarget) StartField(name string) (key, field vdl.T
 		target, err := &t.packedTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/testdata.PackEncryptionKeysTest", name)
 	}
 }
 func (t *PackEncryptionKeysTestTarget) FinishField(_, _ vdl.Target) error {
@@ -268,8 +267,8 @@ type unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e637279707
 
 func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType4) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType4)
+	if ttWant := vdl.TypeOf((*[]discovery.EncryptionKey)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]discovery.EncryptionKey, len)
@@ -305,9 +304,6 @@ func (UuidTestData) __VDLReflect(struct {
 }
 
 func (m *UuidTestData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_discovery_testdata_UuidTestData == nil || __VDLType5 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -318,7 +314,7 @@ func (m *UuidTestData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.In), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.In), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -330,7 +326,7 @@ func (m *UuidTestData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Want), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.Want), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -357,8 +353,8 @@ type UuidTestDataTarget struct {
 
 func (t *UuidTestDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_testdata_UuidTestData) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_testdata_UuidTestData)
+	if ttWant := vdl.TypeOf((*UuidTestData)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -373,7 +369,7 @@ func (t *UuidTestDataTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.wantTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_discovery_testdata_UuidTestData)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/testdata.UuidTestData", name)
 	}
 }
 func (t *UuidTestDataTarget) FinishField(_, _ vdl.Target) error {
@@ -384,26 +380,8 @@ func (t *UuidTestDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func init() {
-	vdl.Register((*PackAddressTest)(nil))
-	vdl.Register((*PackEncryptionKeysTest)(nil))
-	vdl.Register((*UuidTestData)(nil))
-}
-
-var __VDLType0 *vdl.Type = vdl.TypeOf((*PackAddressTest)(nil))
-var __VDLType3 *vdl.Type = vdl.TypeOf((*PackEncryptionKeysTest)(nil))
-var __VDLType5 *vdl.Type = vdl.TypeOf((*UuidTestData)(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf([]byte(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf([]string(nil))
-var __VDLType4 *vdl.Type = vdl.TypeOf([]discovery.EncryptionKey(nil))
-var __VDLType_v_io_x_ref_lib_discovery_EncryptionAlgorithm *vdl.Type = vdl.TypeOf(discovery.EncryptionAlgorithm(0))
-var __VDLType_v_io_x_ref_lib_discovery_EncryptionKey *vdl.Type = vdl.TypeOf(discovery.EncryptionKey(nil))
-var __VDLType_v_io_x_ref_lib_discovery_testdata_PackAddressTest *vdl.Type = vdl.TypeOf(PackAddressTest{})
-var __VDLType_v_io_x_ref_lib_discovery_testdata_PackEncryptionKeysTest *vdl.Type = vdl.TypeOf(PackEncryptionKeysTest{})
-var __VDLType_v_io_x_ref_lib_discovery_testdata_UuidTestData *vdl.Type = vdl.TypeOf(UuidTestData{})
-
-func __VDLEnsureNativeBuilt() {
-}
+//////////////////////////////////////////////////
+// Const definitions
 
 var PackAddressTestData = []PackAddressTest{
 	{
@@ -422,7 +400,6 @@ var PackAddressTestData = []PackAddressTest{
 	},
 	{},
 }
-
 var PackEncryptionKeysTestData = []PackEncryptionKeysTest{
 	{
 		Algo: 1,
@@ -444,7 +421,6 @@ var PackEncryptionKeysTestData = []PackEncryptionKeysTest{
 		Packed: []byte("\x00"),
 	},
 }
-
 var ServiceUuidTest = []UuidTestData{
 	{
 		In:   "v.io",
@@ -459,7 +435,6 @@ var ServiceUuidTest = []UuidTestData{
 		Want: "be8a57d7-931d-5ee4-9243-0bebde0029a5",
 	},
 }
-
 var AttributeUuidTest = []UuidTestData{
 	{
 		In:   "name",
@@ -473,4 +448,32 @@ var AttributeUuidTest = []UuidTestData{
 		In:   "xyz",
 		Want: "c10b25a2-2d4d-5a19-bb7c-1ee1c4972b4c",
 	},
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*PackAddressTest)(nil))
+	vdl.Register((*PackEncryptionKeysTest)(nil))
+	vdl.Register((*UuidTestData)(nil))
+
+	return struct{}{}
 }

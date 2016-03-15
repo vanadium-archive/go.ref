@@ -17,6 +17,11 @@ import (
 	"v.io/v23/verror"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // ConnBehavior specifies characteristics of a connection.
 type ConnBehavior struct {
 	// Reachable specifies whether the outgoing or incoming connection can be
@@ -31,9 +36,6 @@ func (ConnBehavior) __VDLReflect(struct {
 }
 
 func (m *ConnBehavior) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_runtime_protocols_vine_ConnBehavior == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -44,7 +46,7 @@ func (m *ConnBehavior) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromBool(bool(m.Reachable), vdl.BoolType); err != nil {
+		if err := fieldTarget3.FromBool(bool(m.Reachable), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -70,8 +72,8 @@ type ConnBehaviorTarget struct {
 
 func (t *ConnBehaviorTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_runtime_protocols_vine_ConnBehavior) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_runtime_protocols_vine_ConnBehavior)
+	if ttWant := vdl.TypeOf((*ConnBehavior)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -82,7 +84,7 @@ func (t *ConnBehaviorTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.reachableTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_runtime_protocols_vine_ConnBehavior)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.ConnBehavior", name)
 	}
 }
 func (t *ConnBehaviorTarget) FinishField(_, _ vdl.Target) error {
@@ -93,27 +95,13 @@ func (t *ConnBehaviorTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func init() {
-	vdl.Register((*ConnBehavior)(nil))
-}
-
-var __VDLType0 *vdl.Type = vdl.TypeOf((*ConnBehavior)(nil))
-var __VDLType_v_io_x_ref_runtime_protocols_vine_ConnBehavior *vdl.Type = vdl.TypeOf(ConnBehavior{})
-
-func __VDLEnsureNativeBuilt() {
-}
-
+//////////////////////////////////////////////////
+// Error definitions
 var (
 	ErrInvalidAddress       = verror.Register("v.io/x/ref/runtime/protocols/vine.InvalidAddress", verror.NoRetry, "{1:}{2:} invalid vine address {3}, address must be of the form 'network/address/tag'")
 	ErrAddressNotReachable  = verror.Register("v.io/x/ref/runtime/protocols/vine.AddressNotReachable", verror.NoRetry, "{1:}{2:} address {3} not reachable")
 	ErrNoRegisteredProtocol = verror.Register("v.io/x/ref/runtime/protocols/vine.NoRegisteredProtocol", verror.NoRetry, "{1:}{2:} no registered protocol {3}")
 )
-
-func init() {
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidAddress.ID), "{1:}{2:} invalid vine address {3}, address must be of the form 'network/address/tag'")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAddressNotReachable.ID), "{1:}{2:} address {3} not reachable")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoRegisteredProtocol.ID), "{1:}{2:} no registered protocol {3}")
-}
 
 // NewErrInvalidAddress returns an error with the ErrInvalidAddress ID.
 func NewErrInvalidAddress(ctx *context.T, address string) error {
@@ -129,6 +117,9 @@ func NewErrAddressNotReachable(ctx *context.T, address string) error {
 func NewErrNoRegisteredProtocol(ctx *context.T, protocol string) error {
 	return verror.New(ErrNoRegisteredProtocol, ctx, protocol)
 }
+
+//////////////////////////////////////////////////
+// Interface definitions
 
 // VineClientMethods is the client interface
 // containing Vine methods.
@@ -246,4 +237,35 @@ var descVine = rpc.InterfaceDesc{
 			},
 		},
 	},
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*ConnBehavior)(nil))
+
+	// Set error format strings.
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidAddress.ID), "{1:}{2:} invalid vine address {3}, address must be of the form 'network/address/tag'")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAddressNotReachable.ID), "{1:}{2:} address {3} not reachable")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoRegisteredProtocol.ID), "{1:}{2:} no registered protocol {3}")
+
+	return struct{}{}
 }

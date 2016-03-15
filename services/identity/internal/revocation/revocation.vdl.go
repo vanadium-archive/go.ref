@@ -13,8 +13,10 @@ import (
 	"v.io/v23/vdl"
 )
 
-func __VDLEnsureNativeBuilt() {
-}
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Const definitions
 
 // NotRevokedCaveat is used to implement revocation.
 // It validates iff the parameter is not included in a list of blacklisted
@@ -41,5 +43,28 @@ var NotRevokedCaveat = security.CaveatDescriptor{
 		128,
 		0,
 	},
-	ParamType: vdl.TypeOf([]byte(nil)),
+	ParamType: vdl.TypeOf((*[]byte)(nil)),
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	return struct{}{}
 }

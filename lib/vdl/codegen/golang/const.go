@@ -29,11 +29,25 @@ func isByteList(t *vdl.Type) bool {
 	return t.Kind() == vdl.List && t.Elem().Kind() == vdl.Byte
 }
 
-func tagValue(data goData, v *vdl.Value) string {
+func genValueOf(data goData, v *vdl.Value) string {
 	// Use vdl.Value here because tags aren't sent across the wire and it is
 	// more convenient to use vdl.Value.
 	// Note: this is the only case because nil elems are not allowed in tags.
 	return data.Pkg("v.io/v23/vdl") + "ValueOf(" + typedConst(data, v) + ")"
+}
+
+func genTypeOf(data goData, t *vdl.Type) string {
+	// We need to generate a Go expression of type *vdl.Type that represents the
+	// type.  Since the rest of our logic can already generate the Go code for any
+	// value, we just wrap it in vdl.TypeOf to produce the final result.
+	//
+	// This may seem like a strange roundtrip, but results in less generator and
+	// generated code.
+	typeOf := data.Pkg("v.io/v23/vdl") + "TypeOf((*" + typeGoInternal(data, t, false) + ")(nil))"
+	if t.CanBeOptional() && t.Kind() != vdl.Optional {
+		typeOf += ".Elem()"
+	}
+	return typeOf
 }
 
 // TODO(bprosnitz): Generate the full tag name e.g. security.Read instead of
@@ -117,14 +131,7 @@ func untypedConst(data goData, v *vdl.Value) string {
 		case vdl.TypeObject:
 			return data.Pkg("v.io/v23/vdl") + "TypeObjectType"
 		}
-		// We need to generate a Go expression of type *vdl.Type that represents the
-		// type.  Since the rest of our logic can already generate the Go code for
-		// any value, we just wrap it in vdl.TypeOf to produce the final result.
-		//
-		// This may seem like a strange roundtrip, but results in less generator
-		// and generated code.
-		zero := vdl.ZeroValue(v.TypeObject())
-		return data.Pkg("v.io/v23/vdl") + "TypeOf(" + typedConst(data, zero) + ")"
+		return genTypeOf(data, v.TypeObject())
 	case vdl.Bool:
 		return strconv.FormatBool(v.Bool())
 	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:

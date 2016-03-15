@@ -17,6 +17,11 @@ import (
 	"v.io/v23/vdl/vdlconv"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // Term is a counter incremented each time a member starts an election.  The log will
 // show gaps in Term numbers because all elections need not be successful.
 type Term uint64
@@ -27,7 +32,7 @@ func (Term) __VDLReflect(struct {
 }
 
 func (m *Term) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64((*m)), __VDLType_v_io_x_ref_lib_raft_Term); err != nil {
+	if err := t.FromUint(uint64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -91,7 +96,7 @@ func (Index) __VDLReflect(struct {
 }
 
 func (m *Index) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64((*m)), __VDLType_v_io_x_ref_lib_raft_Index); err != nil {
+	if err := t.FromUint(uint64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -159,9 +164,6 @@ func (LogEntry) __VDLReflect(struct {
 }
 
 func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_raft_LogEntry == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -173,7 +175,7 @@ func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Term.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_lib_raft_Term); err != nil {
+		if err := m.Term.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -186,7 +188,7 @@ func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Index.FillVDLTarget(fieldTarget5, __VDLType_v_io_x_ref_lib_raft_Index); err != nil {
+		if err := m.Index.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -199,7 +201,7 @@ func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget7.FromBytes([]byte(m.Cmd), __VDLType1); err != nil {
+		if err := fieldTarget7.FromBytes([]byte(m.Cmd), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -211,7 +213,7 @@ func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget9.FromUint(uint64(m.Type), vdl.ByteType); err != nil {
+		if err := fieldTarget9.FromUint(uint64(m.Type), tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
@@ -240,8 +242,8 @@ type LogEntryTarget struct {
 
 func (t *LogEntryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_raft_LogEntry) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_raft_LogEntry)
+	if ttWant := vdl.TypeOf((*LogEntry)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -264,7 +266,7 @@ func (t *LogEntryTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.typeTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_raft_LogEntry)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/raft.LogEntry", name)
 	}
 }
 func (t *LogEntryTarget) FinishField(_, _ vdl.Target) error {
@@ -275,24 +277,14 @@ func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func init() {
-	vdl.Register((*Term)(nil))
-	vdl.Register((*Index)(nil))
-	vdl.Register((*LogEntry)(nil))
-}
-
-var __VDLType0 *vdl.Type = vdl.TypeOf((*LogEntry)(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf([]byte(nil))
-var __VDLType_v_io_x_ref_lib_raft_Index *vdl.Type = vdl.TypeOf(Index(0))
-var __VDLType_v_io_x_ref_lib_raft_LogEntry *vdl.Type = vdl.TypeOf(LogEntry{})
-var __VDLType_v_io_x_ref_lib_raft_Term *vdl.Type = vdl.TypeOf(Term(0))
-
-func __VDLEnsureNativeBuilt() {
-}
+//////////////////////////////////////////////////
+// Const definitions
 
 const ClientEntry = byte(0)
-
 const RaftEntry = byte(1)
+
+//////////////////////////////////////////////////
+// Interface definitions
 
 // raftProtoClientMethods is the client interface
 // containing raftProto methods.
@@ -736,4 +728,32 @@ func (s implraftProtoInstallSnapshotServerCallRecv) Err() error {
 		return nil
 	}
 	return s.s.errRecv
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*Term)(nil))
+	vdl.Register((*Index)(nil))
+	vdl.Register((*LogEntry)(nil))
+
+	return struct{}{}
 }

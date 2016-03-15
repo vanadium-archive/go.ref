@@ -17,6 +17,11 @@ import (
 	"v.io/v23/vdl/vdlconv"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type WireString int32
 
 func (WireString) __VDLReflect(struct {
@@ -25,7 +30,7 @@ func (WireString) __VDLReflect(struct {
 }
 
 func (m *WireString) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -102,7 +107,7 @@ func (WireMapStringInt) __VDLReflect(struct {
 }
 
 func (m *WireMapStringInt) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -179,7 +184,7 @@ func (WireTime) __VDLReflect(struct {
 }
 
 func (m *WireTime) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -256,7 +261,7 @@ func (WireSamePkg) __VDLReflect(struct {
 }
 
 func (m *WireSamePkg) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -333,7 +338,7 @@ func (WireMultiImport) __VDLReflect(struct {
 }
 
 func (m *WireMultiImport) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -410,7 +415,7 @@ func (WireRenameMe) __VDLReflect(struct {
 }
 
 func (m *WireRenameMe) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireRenameMe); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -481,7 +486,6 @@ func (WireAll) __VDLReflect(struct {
 }
 
 func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	__VDLEnsureNativeBuilt()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -498,7 +502,7 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue2.FillVDLTarget(fieldTarget4, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString); err != nil {
+		if err := wireValue2.FillVDLTarget(fieldTarget4, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
@@ -516,7 +520,7 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue5.FillVDLTarget(fieldTarget7, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt); err != nil {
+		if err := wireValue5.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -534,7 +538,7 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue8.FillVDLTarget(fieldTarget10, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime); err != nil {
+		if err := wireValue8.FillVDLTarget(fieldTarget10, tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
@@ -552,7 +556,7 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue11.FillVDLTarget(fieldTarget13, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg); err != nil {
+		if err := wireValue11.FillVDLTarget(fieldTarget13, tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
@@ -570,7 +574,7 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue14.FillVDLTarget(fieldTarget16, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport); err != nil {
+		if err := wireValue14.FillVDLTarget(fieldTarget16, tt.NonOptional().Field(4).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
@@ -583,7 +587,7 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.F.FillVDLTarget(fieldTarget18, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireRenameMe); err != nil {
+		if err := m.F.FillVDLTarget(fieldTarget18, tt.NonOptional().Field(5).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget17, fieldTarget18); err != nil {
@@ -614,8 +618,8 @@ type WireAllTarget struct {
 
 func (t *WireAllTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll)
+	if ttWant := vdl.TypeOf((*WireAll)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -646,7 +650,7 @@ func (t *WireAllTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.fTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/nativetest.WireAll", name)
 	}
 }
 func (t *WireAllTarget) FinishField(_, _ vdl.Target) error {
@@ -665,7 +669,7 @@ func (ignoreme) __VDLReflect(struct {
 }
 
 func (m *ignoreme) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromString(string((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme); err != nil {
+	if err := t.FromString(string((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -682,28 +686,12 @@ type ignoremeTarget struct {
 
 func (t *ignoremeTarget) FromString(src string, tt *vdl.Type) error {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme) {
-		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme)
+	if ttWant := vdl.TypeOf((*ignoreme)(nil)); !vdl.Compatible(tt, ttWant) {
+		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = ignoreme(src)
 
 	return nil
-}
-
-func init() {
-	vdl.RegisterNative(WireMapStringIntToNative, WireMapStringIntFromNative)
-	vdl.RegisterNative(WireMultiImportToNative, WireMultiImportFromNative)
-	vdl.RegisterNative(WireSamePkgToNative, WireSamePkgFromNative)
-	vdl.RegisterNative(WireStringToNative, WireStringFromNative)
-	vdl.RegisterNative(WireTimeToNative, WireTimeFromNative)
-	vdl.Register((*WireString)(nil))
-	vdl.Register((*WireMapStringInt)(nil))
-	vdl.Register((*WireTime)(nil))
-	vdl.Register((*WireSamePkg)(nil))
-	vdl.Register((*WireMultiImport)(nil))
-	vdl.Register((*WireRenameMe)(nil))
-	vdl.Register((*WireAll)(nil))
-	vdl.Register((*ignoreme)(nil))
 }
 
 // Type-check WireMapStringInt conversion functions.
@@ -726,193 +714,42 @@ var _ func(*WireString, string) error = WireStringFromNative
 var _ func(WireTime, *time.Time) error = WireTimeToNative
 var _ func(*WireTime, time.Time) error = WireTimeFromNative
 
-var __VDLType0 *vdl.Type
+var __VDLInitCalled bool
 
-func __VDLType0_gen() *vdl.Type {
-	__VDLType0Builder := vdl.TypeBuilder{}
-
-	__VDLType01 := __VDLType0Builder.Optional()
-	__VDLType02 := __VDLType0Builder.Struct()
-	__VDLType03 := __VDLType0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireAll").AssignBase(__VDLType02)
-	__VDLType04 := vdl.Int32Type
-	__VDLType05 := __VDLType0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireString").AssignBase(__VDLType04)
-	__VDLType02.AppendField("A", __VDLType05)
-	__VDLType06 := vdl.Int32Type
-	__VDLType07 := __VDLType0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMapStringInt").AssignBase(__VDLType06)
-	__VDLType02.AppendField("B", __VDLType07)
-	__VDLType08 := vdl.Int32Type
-	__VDLType09 := __VDLType0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireTime").AssignBase(__VDLType08)
-	__VDLType02.AppendField("C", __VDLType09)
-	__VDLType010 := vdl.Int32Type
-	__VDLType011 := __VDLType0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireSamePkg").AssignBase(__VDLType010)
-	__VDLType02.AppendField("D", __VDLType011)
-	__VDLType012 := vdl.Int32Type
-	__VDLType013 := __VDLType0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMultiImport").AssignBase(__VDLType012)
-	__VDLType02.AppendField("E", __VDLType013)
-	__VDLType014 := vdl.Int32Type
-	__VDLType015 := __VDLType0Builder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireRenameMe").AssignBase(__VDLType014)
-	__VDLType02.AppendField("F", __VDLType015)
-	__VDLType01.AssignElem(__VDLType03)
-	__VDLType0Builder.Build()
-	__VDLType0v, err := __VDLType01.Built()
-	if err != nil {
-		panic(err)
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
 	}
-	return __VDLType0v
-}
-func init() {
-	__VDLType0 = __VDLType0_gen()
-}
 
-var __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll *vdl.Type
+	// Register native type conversions first, so that vdl.TypeOf works.
+	vdl.RegisterNative(WireMapStringIntToNative, WireMapStringIntFromNative)
+	vdl.RegisterNative(WireMultiImportToNative, WireMultiImportFromNative)
+	vdl.RegisterNative(WireSamePkgToNative, WireSamePkgFromNative)
+	vdl.RegisterNative(WireStringToNative, WireStringFromNative)
+	vdl.RegisterNative(WireTimeToNative, WireTimeFromNative)
 
-func __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllBuilder := vdl.TypeBuilder{}
+	// Register types.
+	vdl.Register((*WireString)(nil))
+	vdl.Register((*WireMapStringInt)(nil))
+	vdl.Register((*WireTime)(nil))
+	vdl.Register((*WireSamePkg)(nil))
+	vdl.Register((*WireMultiImport)(nil))
+	vdl.Register((*WireRenameMe)(nil))
+	vdl.Register((*WireAll)(nil))
+	vdl.Register((*ignoreme)(nil))
 
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll1 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllBuilder.Struct()
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll2 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireAll").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll1)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll3 := vdl.Int32Type
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll4 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireString").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll3)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll1.AppendField("A", __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll4)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll5 := vdl.Int32Type
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll6 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMapStringInt").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll5)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll1.AppendField("B", __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll6)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll7 := vdl.Int32Type
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll8 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireTime").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll7)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll1.AppendField("C", __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll8)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll9 := vdl.Int32Type
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll10 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireSamePkg").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll9)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll1.AppendField("D", __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll10)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll11 := vdl.Int32Type
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll12 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMultiImport").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll11)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll1.AppendField("E", __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll12)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll13 := vdl.Int32Type
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll14 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireRenameMe").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll13)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll1.AppendField("F", __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll14)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllBuilder.Build()
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllv, err := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAllv
-}
-func init() {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll_gen()
-}
-
-var __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt *vdl.Type
-
-func __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringIntBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt1 := vdl.Int32Type
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt2 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringIntBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMapStringInt").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt1)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringIntBuilder.Build()
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringIntv, err := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringIntv
-}
-func init() {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt_gen()
-}
-
-var __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport *vdl.Type
-
-func __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImportBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport1 := vdl.Int32Type
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport2 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImportBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireMultiImport").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport1)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImportBuilder.Build()
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImportv, err := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImportv
-}
-func init() {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport_gen()
-}
-
-var __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireRenameMe *vdl.Type = vdl.TypeOf(WireRenameMe(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg *vdl.Type
-
-func __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkgBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg1 := vdl.Int32Type
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg2 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkgBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireSamePkg").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg1)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkgBuilder.Build()
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkgv, err := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkgv
-}
-func init() {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg_gen()
-}
-
-var __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString *vdl.Type
-
-func __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireStringBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString1 := vdl.Int32Type
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString2 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireStringBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireString").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString1)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireStringBuilder.Build()
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireStringv, err := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireStringv
-}
-func init() {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString_gen()
-}
-
-var __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime *vdl.Type
-
-func __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTimeBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime1 := vdl.Int32Type
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime2 := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTimeBuilder.Named("v.io/x/ref/lib/vdl/testdata/nativetest.WireTime").AssignBase(__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime1)
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTimeBuilder.Build()
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTimev, err := __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTimev
-}
-func init() {
-	__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime_gen()
-}
-
-var __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_ignoreme *vdl.Type = vdl.TypeOf(ignoreme(""))
-
-func __VDLEnsureNativeBuilt() {
-	if __VDLType0 == nil {
-		__VDLType0 = __VDLType0_gen()
-	}
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll == nil {
-		__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireAll_gen()
-	}
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt == nil {
-		__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMapStringInt_gen()
-	}
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport == nil {
-		__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireMultiImport_gen()
-	}
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg == nil {
-		__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireSamePkg_gen()
-	}
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString == nil {
-		__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireString_gen()
-	}
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime == nil {
-		__VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime = __VDLType_v_io_x_ref_lib_vdl_testdata_nativetest_WireTime_gen()
-	}
+	return struct{}{}
 }

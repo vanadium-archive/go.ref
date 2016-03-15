@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"v.io/v23/vdl"
+	"v.io/x/lib/toposort"
 	"v.io/x/ref/lib/vdl/parse"
 )
 
@@ -37,9 +38,9 @@ type TypeDef struct {
 }
 
 func (x *TypeDef) String() string {
-	c := *x
-	c.File = nil // avoid infinite loop
-	return fmt.Sprintf("%+v", c)
+	y := *x
+	y.File = nil // avoid infinite loop
+	return fmt.Sprintf("%+v", y)
 }
 
 // compileTypeDefs is the "entry point" to the rest of this file.  It takes the
@@ -49,27 +50,25 @@ func compileTypeDefs(pkg *Package, pfiles []*parse.File, env *Env) {
 		pkg:      pkg,
 		pfiles:   pfiles,
 		env:      env,
-		tbuilder: &vdl.TypeBuilder{},
+		vtb:      &vdl.TypeBuilder{},
 		builders: make(map[string]*typeDefBuilder),
 	}
 	if td.Declare(); !env.Errors.IsEmpty() {
 		return
 	}
+	if td.Describe(); !env.Errors.IsEmpty() {
+		return
+	}
 	if td.Define(); !env.Errors.IsEmpty() {
 		return
 	}
-	if td.Build(); !env.Errors.IsEmpty() {
-		return
-	}
 	td.AttachDoc()
-	// TODO(toddw): should we disallow inter-file cyclic type dependencies?  That
-	// might be an issue for generated C++.
 }
 
 // typeDefiner defines types in a package.  This is split into three phases:
 // 1) Declare ensures local type references can be resolved.
-// 2) Define describes each type, resolving named references.
-// 3) Build builds all types.
+// 2) Describe describes each type, resolving named references.
+// 3) Define sorts in dependency order, and builds and defines all types.
 //
 // It holds a builders map from type name to typeDefBuilder, where the
 // typeDefBuilder is responsible for compiling and defining a single type.
@@ -77,7 +76,7 @@ type typeDefiner struct {
 	pkg      *Package
 	pfiles   []*parse.File
 	env      *Env
-	tbuilder *vdl.TypeBuilder
+	vtb      *vdl.TypeBuilder
 	builders map[string]*typeDefBuilder
 }
 
@@ -109,57 +108,57 @@ func (td typeDefiner) makeTypeDefBuilder(file *File, pdef *parse.TypeDef) *typeD
 		td.env.prefixErrorf(file, pdef.Pos, err, "type %s invalid name", pdef.Name)
 		return nil
 	}
-	ret := new(typeDefBuilder)
-	ret.def = &TypeDef{NamePos: NamePos(pdef.NamePos), Exported: export, File: file}
-	ret.ptype = pdef.Type
+	b := new(typeDefBuilder)
+	b.def = &TypeDef{NamePos: NamePos(pdef.NamePos), Exported: export, File: file}
+	b.ptype = pdef.Type
 	// We use the qualified name to actually name the type, to ensure types
 	// defined in separate packages are hash-consed separately.
 	qname := file.Package.QualifiedName(pdef.Name)
-	ret.pending = td.tbuilder.Named(qname)
+	b.pending = td.vtb.Named(qname)
 	switch pt := pdef.Type.(type) {
 	case *parse.TypeEnum:
-		ret.def.LabelDoc = make([]string, len(pt.Labels))
-		ret.def.LabelDocSuffix = make([]string, len(pt.Labels))
+		b.def.LabelDoc = make([]string, len(pt.Labels))
+		b.def.LabelDocSuffix = make([]string, len(pt.Labels))
 		for index, plabel := range pt.Labels {
 			if err := validExportedIdent(plabel.Name, reservedFirstRuneLower); err != nil {
 				td.env.prefixErrorf(file, plabel.Pos, err, "invalid enum label name %s", plabel.Name)
 				return nil
 			}
-			ret.def.LabelDoc[index] = plabel.Doc
-			ret.def.LabelDocSuffix[index] = plabel.DocSuffix
+			b.def.LabelDoc[index] = plabel.Doc
+			b.def.LabelDocSuffix[index] = plabel.DocSuffix
 		}
 	case *parse.TypeStruct:
-		ret = attachFieldDoc(ret, pt.Fields, file, td.env)
+		b = attachFieldDoc(b, pt.Fields, file, td.env)
 	case *parse.TypeUnion:
-		ret = attachFieldDoc(ret, pt.Fields, file, td.env)
+		b = attachFieldDoc(b, pt.Fields, file, td.env)
 	}
-	return ret
+	return b
 }
 
-func attachFieldDoc(ret *typeDefBuilder, fields []*parse.Field, file *File, env *Env) *typeDefBuilder {
-	ret.def.FieldDoc = make([]string, len(fields))
-	ret.def.FieldDocSuffix = make([]string, len(fields))
+func attachFieldDoc(b *typeDefBuilder, fields []*parse.Field, file *File, env *Env) *typeDefBuilder {
+	b.def.FieldDoc = make([]string, len(fields))
+	b.def.FieldDocSuffix = make([]string, len(fields))
 	for index, pfield := range fields {
 		if err := validExportedIdent(pfield.Name, reservedFirstRuneLower); err != nil {
 			env.prefixErrorf(file, pfield.Pos, err, "invalid field name %s", pfield.Name)
 			return nil
 		}
-		ret.def.FieldDoc[index] = pfield.Doc
-		ret.def.FieldDocSuffix[index] = pfield.DocSuffix
+		b.def.FieldDoc[index] = pfield.Doc
+		b.def.FieldDocSuffix[index] = pfield.DocSuffix
 	}
-	return ret
+	return b
 }
 
-// Define uses the builders to describe each type.  Named types defined in
+// Describe uses the builders to describe each type.  Named types defined in
 // other packages must have already been compiled, and in env.  Named types
 // defined in this package are represented by the builders.
-func (td typeDefiner) Define() {
+func (td typeDefiner) Describe() {
 	for _, b := range td.builders {
 		def, file := b.def, b.def.File
-		base := compileDefinedType(b.ptype, file, td.env, td.tbuilder, td.builders)
+		base := compileDefinedType(b.ptype, file, td.env, td.vtb, td.builders)
 		switch tbase := base.(type) {
 		case nil:
-			continue // keep going to catch  more errors
+			continue // keep going to catch more errors
 		case *vdl.Type:
 			if tbase == vdl.ErrorType {
 				td.env.Errorf(file, def.Pos, "error cannot be renamed")
@@ -178,9 +177,9 @@ func (td typeDefiner) Define() {
 // compileType returns the *vdl.Type corresponding to ptype.  All named types
 // referenced by ptype must already be defined.
 func compileType(ptype parse.Type, file *File, env *Env) *vdl.Type {
-	var tbuilder vdl.TypeBuilder
-	typeOrPending := compileLiteralType(ptype, file, env, &tbuilder, nil)
-	tbuilder.Build()
+	var vtb vdl.TypeBuilder
+	typeOrPending := compileLiteralType(ptype, file, env, &vtb, nil)
+	vtb.Build()
 	switch top := typeOrPending.(type) {
 	case nil:
 		return nil
@@ -200,24 +199,24 @@ func compileType(ptype parse.Type, file *File, env *Env) *vdl.Type {
 
 // compileDefinedType compiles ptype.  It can handle definitions based on array,
 // enum, struct and union, as well as definitions based on any literal type.
-func compileDefinedType(ptype parse.Type, file *File, env *Env, tbuilder *vdl.TypeBuilder, builders map[string]*typeDefBuilder) vdl.TypeOrPending {
+func compileDefinedType(ptype parse.Type, file *File, env *Env, vtb *vdl.TypeBuilder, builders map[string]*typeDefBuilder) vdl.TypeOrPending {
 	switch pt := ptype.(type) {
 	case *parse.TypeArray:
-		elem := compileLiteralType(pt.Elem, file, env, tbuilder, builders)
+		elem := compileLiteralType(pt.Elem, file, env, vtb, builders)
 		if elem == nil {
 			return nil
 		}
-		return tbuilder.Array().AssignLen(pt.Len).AssignElem(elem)
+		return vtb.Array().AssignLen(pt.Len).AssignElem(elem)
 	case *parse.TypeEnum:
-		enum := tbuilder.Enum()
+		enum := vtb.Enum()
 		for _, plabel := range pt.Labels {
 			enum.AppendLabel(plabel.Name)
 		}
 		return enum
 	case *parse.TypeStruct:
-		st := tbuilder.Struct()
+		st := vtb.Struct()
 		for _, pfield := range pt.Fields {
-			ftype := compileLiteralType(pfield.Type, file, env, tbuilder, builders)
+			ftype := compileLiteralType(pfield.Type, file, env, vtb, builders)
 			if ftype == nil {
 				return nil
 			}
@@ -225,9 +224,9 @@ func compileDefinedType(ptype parse.Type, file *File, env *Env, tbuilder *vdl.Ty
 		}
 		return st
 	case *parse.TypeUnion:
-		union := tbuilder.Union()
+		union := vtb.Union()
 		for _, pfield := range pt.Fields {
-			ftype := compileLiteralType(pfield.Type, file, env, tbuilder, builders)
+			ftype := compileLiteralType(pfield.Type, file, env, vtb, builders)
 			if ftype == nil {
 				return nil
 			}
@@ -235,7 +234,7 @@ func compileDefinedType(ptype parse.Type, file *File, env *Env, tbuilder *vdl.Ty
 		}
 		return union
 	}
-	lit := compileLiteralType(ptype, file, env, tbuilder, builders)
+	lit := compileLiteralType(ptype, file, env, vtb, builders)
 	if _, ok := lit.(vdl.PendingOptional); ok {
 		// Don't allow Optional at the top-level of a type definition.  The purpose
 		// of this rule is twofold:
@@ -258,7 +257,7 @@ func compileDefinedType(ptype parse.Type, file *File, env *Env, tbuilder *vdl.Ty
 // compileLiteralType compiles ptype.  It can handle any literal type.  Note
 // that array, enum, struct and union are required to be defined and named,
 // and aren't allowed as regular literal types.
-func compileLiteralType(ptype parse.Type, file *File, env *Env, tbuilder *vdl.TypeBuilder, builders map[string]*typeDefBuilder) vdl.TypeOrPending {
+func compileLiteralType(ptype parse.Type, file *File, env *Env, vtb *vdl.TypeBuilder, builders map[string]*typeDefBuilder) vdl.TypeOrPending {
 	switch pt := ptype.(type) {
 	case *parse.TypeNamed:
 		if def, matched := env.ResolveType(pt.Name, file); def != nil {
@@ -274,64 +273,127 @@ func compileLiteralType(ptype parse.Type, file *File, env *Env, tbuilder *vdl.Ty
 		env.Errorf(file, pt.Pos(), "type %s undefined", pt.Name)
 		return nil
 	case *parse.TypeList:
-		elem := compileLiteralType(pt.Elem, file, env, tbuilder, builders)
+		elem := compileLiteralType(pt.Elem, file, env, vtb, builders)
 		if elem == nil {
 			return nil
 		}
-		return tbuilder.List().AssignElem(elem)
+		return vtb.List().AssignElem(elem)
 	case *parse.TypeSet:
-		key := compileLiteralType(pt.Key, file, env, tbuilder, builders)
+		key := compileLiteralType(pt.Key, file, env, vtb, builders)
 		if key == nil {
 			return nil
 		}
-		return tbuilder.Set().AssignKey(key)
+		return vtb.Set().AssignKey(key)
 	case *parse.TypeMap:
-		key := compileLiteralType(pt.Key, file, env, tbuilder, builders)
-		elem := compileLiteralType(pt.Elem, file, env, tbuilder, builders)
+		key := compileLiteralType(pt.Key, file, env, vtb, builders)
+		elem := compileLiteralType(pt.Elem, file, env, vtb, builders)
 		if key == nil || elem == nil {
 			return nil
 		}
-		return tbuilder.Map().AssignKey(key).AssignElem(elem)
+		return vtb.Map().AssignKey(key).AssignElem(elem)
 	case *parse.TypeOptional:
-		elem := compileLiteralType(pt.Base, file, env, tbuilder, builders)
+		elem := compileLiteralType(pt.Base, file, env, vtb, builders)
 		if elem == nil {
 			return nil
 		}
-		return tbuilder.Optional().AssignElem(elem)
+		return vtb.Optional().AssignElem(elem)
 	default:
 		env.Errorf(file, pt.Pos(), "unnamed %s type invalid (type must be defined)", ptype.Kind())
 		return nil
 	}
 }
 
-// Build actually builds each type and updates the package with the typedefs.
-// The order we call each pending type doesn't matter; the v.io/v23/vdl package
-// deals with arbitrary orders, and supports recursive types.  However we want
-// the order to be deterministic, otherwise the output will constantly change.
-// So we use the same order as the parsed file.
-func (td typeDefiner) Build() {
-	td.tbuilder.Build()
+// Define types.  We sort by dependencies on other types in this package.  If
+// there are cycles, the order is arbitrary; otherwise the types are ordered
+// topologically.
+//
+// The order that we call Built on each pending type doesn't actually matter;
+// the v.io/v23/vdl package deals with arbitrary orders, and supports recursive
+// types.  However we want the order to be deterministic, otherwise the output
+// will constantly change.  And it's nicer for some code generators to get types
+// in dependency order when possible.
+func (td typeDefiner) Define() {
+	td.vtb.Build()
+	// Sort all types.
+	var sorter toposort.Sorter
 	for _, pfile := range td.pfiles {
 		for _, pdef := range pfile.TypeDefs {
 			b := td.builders[pdef.Name]
-			def, file := b.def, b.def.File
-			if b.base != nil {
-				base, err := b.base.Built()
-				if err != nil {
-					td.env.prefixErrorf(file, b.ptype.Pos(), err, "%s base type invalid", def.Name)
-					return
-				}
-				def.BaseType = base
+			sorter.AddNode(b)
+			for _, dep := range td.getLocalDeps(b.ptype) {
+				sorter.AddEdge(b, dep)
 			}
-			t, err := b.pending.Built()
-			if err != nil {
-				td.env.prefixErrorf(file, def.Pos, err, "%s invalid", def.Name)
-				return
-			}
-			def.Type = t
-			addTypeDef(def, td.env)
 		}
 	}
+	sorted, _ := sorter.Sort()
+	// Define all types.
+	for _, ibuilder := range sorted {
+		b := ibuilder.(*typeDefBuilder)
+		def, file := b.def, b.def.File
+		if b.base != nil {
+			base, err := b.base.Built()
+			if err != nil {
+				td.env.prefixErrorf(file, b.ptype.Pos(), err, "%s base type invalid", def.Name)
+				return
+			}
+			def.BaseType = base
+		}
+		t, err := b.pending.Built()
+		if err != nil {
+			td.env.prefixErrorf(file, def.Pos, err, "%s invalid", def.Name)
+			return
+		}
+		def.Type = t
+		addTypeDef(def, td.env)
+	}
+}
+
+// addTypeDef updates our various structures to add a new type def.
+func addTypeDef(def *TypeDef, env *Env) {
+	def.File.TypeDefs = append(def.File.TypeDefs, def)
+	def.File.Package.typeDefs = append(def.File.Package.typeDefs, def)
+	def.File.Package.typeMap[def.Name] = def
+	if env != nil {
+		// env should only be nil during initialization of the built-in package;
+		// NewEnv ensures new environments have the built-in types.
+		env.typeMap[def.Type] = def
+	}
+}
+
+// getLocalDeps returns a list of named type dependencies for ptype, where each
+// dependency is defined in this package.
+func (td typeDefiner) getLocalDeps(ptype parse.Type) (deps []*typeDefBuilder) {
+	switch pt := ptype.(type) {
+	case *parse.TypeNamed:
+		// Named references to other types in this package are all we care about.
+		if b := td.builders[pt.Name]; b != nil {
+			deps = append(deps, b)
+		}
+	case *parse.TypeEnum:
+		// No deps.
+	case *parse.TypeArray:
+		deps = append(deps, td.getLocalDeps(pt.Elem)...)
+	case *parse.TypeList:
+		deps = append(deps, td.getLocalDeps(pt.Elem)...)
+	case *parse.TypeSet:
+		deps = append(deps, td.getLocalDeps(pt.Key)...)
+	case *parse.TypeMap:
+		deps = append(deps, td.getLocalDeps(pt.Key)...)
+		deps = append(deps, td.getLocalDeps(pt.Elem)...)
+	case *parse.TypeStruct:
+		for _, field := range pt.Fields {
+			deps = append(deps, td.getLocalDeps(field.Type)...)
+		}
+	case *parse.TypeUnion:
+		for _, field := range pt.Fields {
+			deps = append(deps, td.getLocalDeps(field.Type)...)
+		}
+	case *parse.TypeOptional:
+		deps = append(deps, td.getLocalDeps(pt.Base)...)
+	default:
+		panic(fmt.Errorf("vdl: unhandled parse.Type %T %#v", ptype, ptype))
+	}
+	return
 }
 
 // AttachDoc makes another pass to fill in doc and doc suffix slices for enums,
@@ -362,16 +424,5 @@ func (td typeDefiner) AttachDoc() {
 				}
 			}
 		}
-	}
-}
-
-// addTypeDef updates our various structures to add a new type def.
-func addTypeDef(def *TypeDef, env *Env) {
-	def.File.TypeDefs = append(def.File.TypeDefs, def)
-	def.File.Package.typeDefs[def.Name] = def
-	if env != nil {
-		// env should only be nil during initialization of the built-in package;
-		// NewEnv ensures new environments have the built-in types.
-		env.typeDefs[def.Type] = def
 	}
 }

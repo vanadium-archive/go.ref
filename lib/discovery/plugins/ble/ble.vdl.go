@@ -7,22 +7,41 @@
 
 package ble
 
-func __VDLEnsureNativeBuilt() {
-}
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Const definitions
 
 // This uuids are v5 uuid generated out of band.  These constants need
 // to be accessible in all the languages that have a ble implementation
-const IdUuid = "bf0a3657-37cb-5aad-8c13-00c1d69a141c" // NewAttributeUUID("_id")
-
+const IdUuid = "bf0a3657-37cb-5aad-8c13-00c1d69a141c"            // NewAttributeUUID("_id")
 const InterfaceNameUuid = "b2cadfd4-d003-576c-acad-58b8e3a9cbc8" // NewAttributeUUID("_interfacename")
-
-const AddressesUuid = "fe3fa941-1eda-5265-806f-d5127794a9a9" // NewAttributeUUID("_addresses")
-
-const EncryptionUuid = "6286d80a-adaa-519a-8a06-281a4645a607" // NewAttributeUUID("_encryption")
-
-const HashUuid = "9c6286f5-aab0-5009-b81b-704d57ed6035" // NewAttributeUUID("_hash")
-
-const DirAddrsUuid = "7d8b5c56-0d05-5a7a-a21e-6c0c3c31245e" // NewAttributeUUID("_diraddrs")
-
+const AddressesUuid = "fe3fa941-1eda-5265-806f-d5127794a9a9"     // NewAttributeUUID("_addresses")
+const EncryptionUuid = "6286d80a-adaa-519a-8a06-281a4645a607"    // NewAttributeUUID("_encryption")
+const HashUuid = "9c6286f5-aab0-5009-b81b-704d57ed6035"          // NewAttributeUUID("_hash")
+const DirAddrsUuid = "7d8b5c56-0d05-5a7a-a21e-6c0c3c31245e"      // NewAttributeUUID("_diraddrs")
 // The prefix for encoded attachment names.
 const AttachmentNamePrefix = "__"
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	return struct{}{}
+}

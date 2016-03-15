@@ -15,6 +15,11 @@ import (
 	"v.io/x/ref/services/syncbase/server/interfaces"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // A BlobMetadata describes information that syncbase stores for a blob it
 // holds, independent of the actual content.  Compare with a Signpost, which
 // may be stored for a blob that the current device does not hold (and
@@ -33,7 +38,6 @@ func (BlobMetadata) __VDLReflect(struct {
 }
 
 func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	__VDLEnsureNativeBuilt()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -45,7 +49,7 @@ func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.OwnerShares.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_BlobSharesBySyncgroup); err != nil {
+		if err := m.OwnerShares.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -63,7 +67,7 @@ func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue4.FillVDLTarget(fieldTarget6, __VDLType_time_Time); err != nil {
+		if err := wireValue4.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
@@ -81,7 +85,7 @@ func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue7.FillVDLTarget(fieldTarget9, __VDLType_time_Time); err != nil {
+		if err := wireValue7.FillVDLTarget(fieldTarget9, tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
@@ -109,8 +113,8 @@ type BlobMetadataTarget struct {
 
 func (t *BlobMetadataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata)
+	if ttWant := vdl.TypeOf((*BlobMetadata)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -129,7 +133,7 @@ func (t *BlobMetadataTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.accessedTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/localblobstore.BlobMetadata", name)
 	}
 }
 func (t *BlobMetadataTarget) FinishField(_, _ vdl.Target) error {
@@ -153,7 +157,6 @@ func (PerSyncgroup) __VDLReflect(struct {
 }
 
 func (m *PerSyncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	__VDLEnsureNativeBuilt()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -165,7 +168,7 @@ func (m *PerSyncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Priority.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority); err != nil {
+		if err := m.Priority.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -191,8 +194,8 @@ type PerSyncgroupTarget struct {
 
 func (t *PerSyncgroupTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup)
+	if ttWant := vdl.TypeOf((*PerSyncgroup)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -203,7 +206,7 @@ func (t *PerSyncgroupTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.priorityTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/localblobstore.PerSyncgroup", name)
 	}
 }
 func (t *PerSyncgroupTarget) FinishField(_, _ vdl.Target) error {
@@ -214,204 +217,29 @@ func (t *PerSyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func init() {
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*BlobMetadata)(nil))
 	vdl.Register((*PerSyncgroup)(nil))
-}
 
-var __VDLType0 *vdl.Type
-
-func __VDLType0_gen() *vdl.Type {
-	__VDLType0Builder := vdl.TypeBuilder{}
-
-	__VDLType01 := __VDLType0Builder.Optional()
-	__VDLType02 := __VDLType0Builder.Struct()
-	__VDLType03 := __VDLType0Builder.Named("v.io/x/ref/services/syncbase/localblobstore.BlobMetadata").AssignBase(__VDLType02)
-	__VDLType04 := __VDLType0Builder.Map()
-	__VDLType05 := __VDLType0Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.BlobSharesBySyncgroup").AssignBase(__VDLType04)
-	__VDLType06 := vdl.Uint64Type
-	__VDLType07 := __VDLType0Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.GroupId").AssignBase(__VDLType06)
-	__VDLType04.AssignKey(__VDLType07)
-	__VDLType08 := vdl.Int32Type
-	__VDLType04.AssignElem(__VDLType08)
-	__VDLType02.AppendField("OwnerShares", __VDLType05)
-	__VDLType09 := __VDLType0Builder.Struct()
-	__VDLType010 := __VDLType0Builder.Named("time.Time").AssignBase(__VDLType09)
-	__VDLType011 := vdl.Int64Type
-	__VDLType09.AppendField("Seconds", __VDLType011)
-	__VDLType09.AppendField("Nanos", __VDLType08)
-	__VDLType02.AppendField("Referenced", __VDLType010)
-	__VDLType02.AppendField("Accessed", __VDLType010)
-	__VDLType01.AssignElem(__VDLType03)
-	__VDLType0Builder.Build()
-	__VDLType0v, err := __VDLType01.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType0v
-}
-func init() {
-	__VDLType0 = __VDLType0_gen()
-}
-
-var __VDLType1 *vdl.Type
-
-func __VDLType1_gen() *vdl.Type {
-	__VDLType1Builder := vdl.TypeBuilder{}
-
-	__VDLType11 := __VDLType1Builder.Optional()
-	__VDLType12 := __VDLType1Builder.Struct()
-	__VDLType13 := __VDLType1Builder.Named("v.io/x/ref/services/syncbase/localblobstore.PerSyncgroup").AssignBase(__VDLType12)
-	__VDLType14 := __VDLType1Builder.Struct()
-	__VDLType15 := __VDLType1Builder.Named("v.io/x/ref/services/syncbase/server/interfaces.SgPriority").AssignBase(__VDLType14)
-	__VDLType16 := vdl.Int32Type
-	__VDLType14.AppendField("Distance", __VDLType16)
-	__VDLType17 := __VDLType1Builder.Struct()
-	__VDLType18 := __VDLType1Builder.Named("time.Time").AssignBase(__VDLType17)
-	__VDLType19 := vdl.Int64Type
-	__VDLType17.AppendField("Seconds", __VDLType19)
-	__VDLType17.AppendField("Nanos", __VDLType16)
-	__VDLType14.AppendField("ServerTime", __VDLType18)
-	__VDLType12.AppendField("Priority", __VDLType15)
-	__VDLType11.AssignElem(__VDLType13)
-	__VDLType1Builder.Build()
-	__VDLType1v, err := __VDLType11.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType1v
-}
-func init() {
-	__VDLType1 = __VDLType1_gen()
-}
-
-var __VDLType_time_Time *vdl.Type
-
-func __VDLType_time_Time_gen() *vdl.Type {
-	__VDLType_time_TimeBuilder := vdl.TypeBuilder{}
-
-	__VDLType_time_Time1 := __VDLType_time_TimeBuilder.Struct()
-	__VDLType_time_Time2 := __VDLType_time_TimeBuilder.Named("time.Time").AssignBase(__VDLType_time_Time1)
-	__VDLType_time_Time3 := vdl.Int64Type
-	__VDLType_time_Time1.AppendField("Seconds", __VDLType_time_Time3)
-	__VDLType_time_Time4 := vdl.Int32Type
-	__VDLType_time_Time1.AppendField("Nanos", __VDLType_time_Time4)
-	__VDLType_time_TimeBuilder.Build()
-	__VDLType_time_Timev, err := __VDLType_time_Time2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_time_Timev
-}
-func init() {
-	__VDLType_time_Time = __VDLType_time_Time_gen()
-}
-
-var __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata *vdl.Type
-
-func __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadataBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata1 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadataBuilder.Struct()
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata2 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadataBuilder.Named("v.io/x/ref/services/syncbase/localblobstore.BlobMetadata").AssignBase(__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata1)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata3 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadataBuilder.Map()
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata4 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadataBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.BlobSharesBySyncgroup").AssignBase(__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata3)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata5 := vdl.Uint64Type
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata6 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadataBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.GroupId").AssignBase(__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata5)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata3.AssignKey(__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata6)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata7 := vdl.Int32Type
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata3.AssignElem(__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata7)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata1.AppendField("OwnerShares", __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata4)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata8 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadataBuilder.Struct()
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata9 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadataBuilder.Named("time.Time").AssignBase(__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata8)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata10 := vdl.Int64Type
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata8.AppendField("Seconds", __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata10)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata8.AppendField("Nanos", __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata7)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata1.AppendField("Referenced", __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata9)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata1.AppendField("Accessed", __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata9)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadataBuilder.Build()
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadatav, err := __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadatav
-}
-func init() {
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata = __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata_gen()
-}
-
-var __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup *vdl.Type
-
-func __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroupBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup1 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroupBuilder.Struct()
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup2 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroupBuilder.Named("v.io/x/ref/services/syncbase/localblobstore.PerSyncgroup").AssignBase(__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup1)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup3 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroupBuilder.Struct()
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup4 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroupBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.SgPriority").AssignBase(__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup3)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup5 := vdl.Int32Type
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup3.AppendField("Distance", __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup5)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup6 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroupBuilder.Struct()
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup7 := __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroupBuilder.Named("time.Time").AssignBase(__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup6)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup8 := vdl.Int64Type
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup6.AppendField("Seconds", __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup8)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup6.AppendField("Nanos", __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup5)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup3.AppendField("ServerTime", __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup7)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup1.AppendField("Priority", __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup4)
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroupBuilder.Build()
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroupv, err := __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroupv
-}
-func init() {
-	__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup = __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup_gen()
-}
-
-var __VDLType_v_io_x_ref_services_syncbase_server_interfaces_BlobSharesBySyncgroup *vdl.Type = vdl.TypeOf(interfaces.BlobSharesBySyncgroup(nil))
-var __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority *vdl.Type
-
-func __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority1 := __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder.Struct()
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority2 := __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder.Named("v.io/x/ref/services/syncbase/server/interfaces.SgPriority").AssignBase(__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority1)
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority3 := vdl.Int32Type
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority1.AppendField("Distance", __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority3)
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority4 := __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder.Struct()
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority5 := __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder.Named("time.Time").AssignBase(__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority4)
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority6 := vdl.Int64Type
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority4.AppendField("Seconds", __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority6)
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority4.AppendField("Nanos", __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority3)
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority1.AppendField("ServerTime", __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority5)
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityBuilder.Build()
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityv, err := __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriorityv
-}
-func init() {
-	__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority = __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority_gen()
-}
-func __VDLEnsureNativeBuilt() {
-	if __VDLType0 == nil {
-		__VDLType0 = __VDLType0_gen()
-	}
-	if __VDLType1 == nil {
-		__VDLType1 = __VDLType1_gen()
-	}
-	if __VDLType_time_Time == nil {
-		__VDLType_time_Time = __VDLType_time_Time_gen()
-	}
-	if __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata == nil {
-		__VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata = __VDLType_v_io_x_ref_services_syncbase_localblobstore_BlobMetadata_gen()
-	}
-	if __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup == nil {
-		__VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup = __VDLType_v_io_x_ref_services_syncbase_localblobstore_PerSyncgroup_gen()
-	}
-	if __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority == nil {
-		__VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority = __VDLType_v_io_x_ref_services_syncbase_server_interfaces_SgPriority_gen()
-	}
+	return struct{}{}
 }

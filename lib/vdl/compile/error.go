@@ -23,6 +23,7 @@ type ErrorDef struct {
 	Params    []*Field          // list of positional parameter names and types
 	Formats   []LangFmt         // list of language / format pairs
 	English   string            // English format text from Formats
+	File      *File             // parent file that this error is defined in
 }
 
 // LangFmt represents a language / format string pair.
@@ -32,7 +33,9 @@ type LangFmt struct {
 }
 
 func (x *ErrorDef) String() string {
-	return fmt.Sprintf("%+v", *x)
+	y := *x
+	y.File = nil
+	return fmt.Sprintf("%+v", y)
 }
 
 // compileErrorDefs fills in pkg with compiled error definitions.
@@ -50,11 +53,10 @@ func compileErrorDefs(pkg *Package, pfiles []*parse.File, env *Env) {
 				env.prefixErrorf(file, ped.Pos, err, "error %s name conflict", name)
 				continue
 			}
-			// NOTE(spetrovic): Java depends on error id being package path
-			// followed by name, so don't change this before talking to
-			// spetrovic@google.com.
+			// The error id should not be changed; the whole point of error defs is
+			// that the id is stable.
 			id := pkg.Path + "." + name
-			ed := &ErrorDef{NamePos: NamePos(ped.NamePos), Exported: export, ID: id}
+			ed := &ErrorDef{NamePos: NamePos(ped.NamePos), Exported: export, ID: id, File: file}
 			defineErrorActions(ed, name, ped.Actions, file, env)
 			ed.Params = defineErrorParams(name, ped.Params, file, env)
 			ed.Formats = defineErrorFormats(name, ped.Formats, ed.Params, file, env)
@@ -74,9 +76,15 @@ func compileErrorDefs(pkg *Package, pfiles []*parse.File, env *Env) {
 				env.Errorf(file, ed.Pos, "error %s invalid (must define at least one English format)", name)
 				continue
 			}
-			file.ErrorDefs = append(file.ErrorDefs, ed)
+			addErrorDef(ed, env)
 		}
 	}
+}
+
+// addErrorDef updates our various structures to add a new error def.
+func addErrorDef(def *ErrorDef, env *Env) {
+	def.File.ErrorDefs = append(def.File.ErrorDefs, def)
+	def.File.Package.errorDefs = append(def.File.Package.errorDefs, def)
 }
 
 func defineErrorActions(ed *ErrorDef, name string, pactions []parse.StringPos, file *File, env *Env) {

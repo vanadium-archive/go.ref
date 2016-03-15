@@ -13,10 +13,12 @@ import (
 	"v.io/v23/verror"
 )
 
-func __VDLEnsureNativeBuilt() {
-}
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 
+//////////////////////////////////////////////////
+// Error definitions
 var (
+
 	// Internal errors.
 	errBadRequest                    = verror.Register("v.io/x/ref/runtime/internal/rpc.badRequest", verror.NoRetry, "{1:}{2:} failed to decode request: {3}")
 	errBadNumInputArgs               = verror.Register("v.io/x/ref/runtime/internal/rpc.badNumInputArgs", verror.NoRetry, "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
@@ -30,20 +32,6 @@ var (
 	errServerPeersEmpty              = verror.Register("v.io/x/ref/runtime/internal/rpc.serverPeersEmpty", verror.NoRetry, "{1:}{2:} no peers are authorized to communicate with the server")
 	errServerPeersWithPublishing     = verror.Register("v.io/x/ref/runtime/internal/rpc.serverPeersWithPublishing", verror.NoRetry, "{1:}{2:} ServerPeers option is not supported for servers that publish their endpoint at a mounttable")
 )
-
-func init() {
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadRequest.ID), "{1:}{2:} failed to decode request: {3}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadNumInputArgs.ID), "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadInputArg.ID), "{1:}{2:} failed to decode request {3}.{4} arg #{5}: {6}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadBlessings.ID), "{1:}{2:} failed to decode blessings: {3}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadBlessingsCache.ID), "{1:}{2:} failed to find blessings in cache: {3}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadDischarge.ID), "{1:}{2:} failed to decode discharge #{3}: {4}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadAuth.ID), "{1:}{2:} not authorized to call {3}.{4}: {5}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errTypeFlowFailure.ID), "{1:}{2:} type flow could not be constructed{:3}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errServerBlessingsWrongPublicKey.ID), "{1:}{2:} server blessings do not match the principals public key")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errServerPeersEmpty.ID), "{1:}{2:} no peers are authorized to communicate with the server")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errServerPeersWithPublishing.ID), "{1:}{2:} ServerPeers option is not supported for servers that publish their endpoint at a mounttable")
-}
 
 // newErrBadRequest returns an error with the errBadRequest ID.
 func newErrBadRequest(ctx *context.T, err error) error {
@@ -98,4 +86,40 @@ func newErrServerPeersEmpty(ctx *context.T) error {
 // newErrServerPeersWithPublishing returns an error with the errServerPeersWithPublishing ID.
 func newErrServerPeersWithPublishing(ctx *context.T) error {
 	return verror.New(errServerPeersWithPublishing, ctx)
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Set error format strings.
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadRequest.ID), "{1:}{2:} failed to decode request: {3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadNumInputArgs.ID), "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadInputArg.ID), "{1:}{2:} failed to decode request {3}.{4} arg #{5}: {6}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadBlessings.ID), "{1:}{2:} failed to decode blessings: {3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadBlessingsCache.ID), "{1:}{2:} failed to find blessings in cache: {3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadDischarge.ID), "{1:}{2:} failed to decode discharge #{3}: {4}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadAuth.ID), "{1:}{2:} not authorized to call {3}.{4}: {5}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errTypeFlowFailure.ID), "{1:}{2:} type flow could not be constructed{:3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errServerBlessingsWrongPublicKey.ID), "{1:}{2:} server blessings do not match the principals public key")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errServerPeersEmpty.ID), "{1:}{2:} no peers are authorized to communicate with the server")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errServerPeersWithPublishing.ID), "{1:}{2:} ServerPeers option is not supported for servers that publish their endpoint at a mounttable")
+
+	return struct{}{}
 }

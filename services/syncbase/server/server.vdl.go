@@ -13,6 +13,11 @@ import (
 	"v.io/v23/vdl"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // ServiceData represents the persistent state of a Service.
 type ServiceData struct {
 	Version uint64 // covers the fields below
@@ -25,9 +30,6 @@ func (ServiceData) __VDLReflect(struct {
 }
 
 func (m *ServiceData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_syncbase_server_ServiceData == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -38,7 +40,7 @@ func (m *ServiceData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromUint(uint64(m.Version), vdl.Uint64Type); err != nil {
+		if err := fieldTarget3.FromUint(uint64(m.Version), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -51,7 +53,7 @@ func (m *ServiceData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Perms.FillVDLTarget(fieldTarget5, __VDLType_v_io_v23_security_access_Permissions); err != nil {
+		if err := m.Perms.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -78,8 +80,8 @@ type ServiceDataTarget struct {
 
 func (t *ServiceDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_ServiceData) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_ServiceData)
+	if ttWant := vdl.TypeOf((*ServiceData)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -94,7 +96,7 @@ func (t *ServiceDataTarget) StartField(name string) (key, field vdl.Target, _ er
 		target, err := &t.permsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_ServiceData)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.ServiceData", name)
 	}
 }
 func (t *ServiceDataTarget) FinishField(_, _ vdl.Target) error {
@@ -118,9 +120,6 @@ func (AppData) __VDLReflect(struct {
 }
 
 func (m *AppData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_syncbase_server_AppData == nil || __VDLType1 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -131,7 +130,7 @@ func (m *AppData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Name), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.Name), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -143,7 +142,7 @@ func (m *AppData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromUint(uint64(m.Version), vdl.Uint64Type); err != nil {
+		if err := fieldTarget5.FromUint(uint64(m.Version), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -156,7 +155,7 @@ func (m *AppData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Perms.FillVDLTarget(fieldTarget7, __VDLType_v_io_v23_security_access_Permissions); err != nil {
+		if err := m.Perms.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -184,8 +183,8 @@ type AppDataTarget struct {
 
 func (t *AppDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_AppData) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_AppData)
+	if ttWant := vdl.TypeOf((*AppData)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -204,7 +203,7 @@ func (t *AppDataTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.permsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_AppData)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.AppData", name)
 	}
 }
 func (t *AppDataTarget) FinishField(_, _ vdl.Target) error {
@@ -231,9 +230,6 @@ func (DbInfo) __VDLReflect(struct {
 }
 
 func (m *DbInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_syncbase_server_DbInfo == nil || __VDLType2 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -244,7 +240,7 @@ func (m *DbInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Name), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.Name), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -256,7 +252,7 @@ func (m *DbInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.RootDir), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.RootDir), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -268,7 +264,7 @@ func (m *DbInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget7.FromString(string(m.Engine), vdl.StringType); err != nil {
+		if err := fieldTarget7.FromString(string(m.Engine), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -296,8 +292,8 @@ type DbInfoTarget struct {
 
 func (t *DbInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_server_DbInfo) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_server_DbInfo)
+	if ttWant := vdl.TypeOf((*DbInfo)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -316,7 +312,7 @@ func (t *DbInfoTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.engineTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_server_DbInfo)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.DbInfo", name)
 	}
 }
 func (t *DbInfoTarget) FinishField(_, _ vdl.Target) error {
@@ -327,19 +323,30 @@ func (t *DbInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func init() {
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*ServiceData)(nil))
 	vdl.Register((*AppData)(nil))
 	vdl.Register((*DbInfo)(nil))
-}
 
-var __VDLType1 *vdl.Type = vdl.TypeOf((*AppData)(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf((*DbInfo)(nil))
-var __VDLType0 *vdl.Type = vdl.TypeOf((*ServiceData)(nil))
-var __VDLType_v_io_v23_security_access_Permissions *vdl.Type = vdl.TypeOf(access.Permissions(nil))
-var __VDLType_v_io_x_ref_services_syncbase_server_AppData *vdl.Type = vdl.TypeOf(AppData{})
-var __VDLType_v_io_x_ref_services_syncbase_server_DbInfo *vdl.Type = vdl.TypeOf(DbInfo{})
-var __VDLType_v_io_x_ref_services_syncbase_server_ServiceData *vdl.Type = vdl.TypeOf(ServiceData{})
-
-func __VDLEnsureNativeBuilt() {
+	return struct{}{}
 }

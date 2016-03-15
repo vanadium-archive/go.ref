@@ -20,6 +20,11 @@ import (
 	"v.io/v23/verror"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type EncryptionAlgorithm int32
 
 func (EncryptionAlgorithm) __VDLReflect(struct {
@@ -28,7 +33,7 @@ func (EncryptionAlgorithm) __VDLReflect(struct {
 }
 
 func (m *EncryptionAlgorithm) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_discovery_EncryptionAlgorithm); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -92,7 +97,7 @@ func (EncryptionKey) __VDLReflect(struct {
 }
 
 func (m *EncryptionKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromBytes([]byte((*m)), __VDLType_v_io_x_ref_lib_discovery_EncryptionKey); err != nil {
+	if err := t.FromBytes([]byte((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -109,8 +114,8 @@ type EncryptionKeyTarget struct {
 
 func (t *EncryptionKeyTarget) FromBytes(src []byte, tt *vdl.Type) error {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_EncryptionKey) {
-		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_EncryptionKey)
+	if ttWant := vdl.TypeOf((*EncryptionKey)(nil)); !vdl.Compatible(tt, ttWant) {
+		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if len(src) == 0 {
 		*t.Value = nil
@@ -130,7 +135,7 @@ func (Uuid) __VDLReflect(struct {
 }
 
 func (m *Uuid) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromBytes([]byte((*m)), __VDLType_v_io_x_ref_lib_discovery_Uuid); err != nil {
+	if err := t.FromBytes([]byte((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -147,8 +152,8 @@ type UuidTarget struct {
 
 func (t *UuidTarget) FromBytes(src []byte, tt *vdl.Type) error {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_Uuid) {
-		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_Uuid)
+	if ttWant := vdl.TypeOf((*Uuid)(nil)); !vdl.Compatible(tt, ttWant) {
+		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if len(src) == 0 {
 		*t.Value = nil
@@ -156,6 +161,40 @@ func (t *UuidTarget) FromBytes(src []byte, tt *vdl.Type) error {
 		*t.Value = make([]byte, len(src))
 		copy(*t.Value, src)
 	}
+
+	return nil
+}
+
+// An AdHash is a hash of an advertisement.
+type AdHash [8]byte
+
+func (AdHash) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/lib/discovery.AdHash"`
+}) {
+}
+
+func (m *AdHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromBytes([]byte((*m)[:]), tt); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *AdHash) MakeVDLTarget() vdl.Target {
+	return &AdHashTarget{Value: m}
+}
+
+type AdHashTarget struct {
+	Value *AdHash
+	vdl.TargetBase
+}
+
+func (t *AdHashTarget) FromBytes(src []byte, tt *vdl.Type) error {
+
+	if ttWant := vdl.TypeOf((*AdHash)(nil)); !vdl.Compatible(tt, ttWant) {
+		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+	copy((*t.Value)[:], src)
 
 	return nil
 }
@@ -185,9 +224,6 @@ func (AdInfo) __VDLReflect(struct {
 }
 
 func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_discovery_AdInfo == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -199,7 +235,7 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Ad.FillVDLTarget(fieldTarget3, __VDLType_v_io_v23_discovery_Advertisement); err != nil {
+		if err := m.Ad.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -212,7 +248,7 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.EncryptionAlgorithm.FillVDLTarget(fieldTarget5, __VDLType_v_io_x_ref_lib_discovery_EncryptionAlgorithm); err != nil {
+		if err := m.EncryptionAlgorithm.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -225,7 +261,7 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget8, err := fieldTarget7.StartList(__VDLType1, len(m.EncryptionKeys))
+		listTarget8, err := fieldTarget7.StartList(tt.NonOptional().Field(2).Type, len(m.EncryptionKeys))
 		if err != nil {
 			return err
 		}
@@ -235,7 +271,7 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := elem10.FillVDLTarget(elemTarget9, __VDLType_v_io_x_ref_lib_discovery_EncryptionKey); err != nil {
+			if err := elem10.FillVDLTarget(elemTarget9, tt.NonOptional().Field(2).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget8.FinishElem(elemTarget9); err != nil {
@@ -255,7 +291,7 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Hash.FillVDLTarget(fieldTarget12, __VDLType_v_io_x_ref_lib_discovery_AdHash); err != nil {
+		if err := m.Hash.FillVDLTarget(fieldTarget12, tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
@@ -268,7 +304,7 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget15, err := fieldTarget14.StartList(__VDLType2, len(m.DirAddrs))
+		listTarget15, err := fieldTarget14.StartList(tt.NonOptional().Field(4).Type, len(m.DirAddrs))
 		if err != nil {
 			return err
 		}
@@ -277,7 +313,7 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err != nil {
 				return err
 			}
-			if err := elemTarget16.FromString(string(elem17), vdl.StringType); err != nil {
+			if err := elemTarget16.FromString(string(elem17), tt.NonOptional().Field(4).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget15.FinishElem(elemTarget16); err != nil {
@@ -296,7 +332,7 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget19.FromBool(bool(m.Lost), vdl.BoolType); err != nil {
+		if err := fieldTarget19.FromBool(bool(m.Lost), tt.NonOptional().Field(5).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
@@ -327,8 +363,8 @@ type AdInfoTarget struct {
 
 func (t *AdInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_AdInfo) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_AdInfo)
+	if ttWant := vdl.TypeOf((*AdInfo)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -359,7 +395,7 @@ func (t *AdInfoTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.lostTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_discovery_AdInfo)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery.AdInfo", name)
 	}
 }
 func (t *AdInfoTarget) FinishField(_, _ vdl.Target) error {
@@ -380,8 +416,8 @@ type unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e637279707
 
 func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType1) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
+	if ttWant := vdl.TypeOf((*[]EncryptionKey)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]EncryptionKey, len)
@@ -403,67 +439,15 @@ func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e63727
 	return nil
 }
 
-type AdHashTarget struct {
-	Value *AdHash
-	vdl.TargetBase
-}
-
-func (t *AdHashTarget) FromBytes(src []byte, tt *vdl.Type) error {
-
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_AdHash) {
-		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_AdHash)
-	}
-	copy((*t.Value)[:], src)
-
-	return nil
-}
-
-// An AdHash is a hash of an advertisement.
-type AdHash [8]byte
-
-func (AdHash) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/lib/discovery.AdHash"`
-}) {
-}
-
-func (m *AdHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromBytes([]byte((*m)[:]), __VDLType_v_io_x_ref_lib_discovery_AdHash); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *AdHash) MakeVDLTarget() vdl.Target {
-	return &AdHashTarget{Value: m}
-}
-
-func init() {
-	vdl.Register((*EncryptionAlgorithm)(nil))
-	vdl.Register((*EncryptionKey)(nil))
-	vdl.Register((*Uuid)(nil))
-	vdl.Register((*AdInfo)(nil))
-	vdl.Register((*AdHash)(nil))
-}
-
-var __VDLType0 *vdl.Type = vdl.TypeOf((*AdInfo)(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf([]string(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf([]EncryptionKey(nil))
-var __VDLType_v_io_v23_discovery_Advertisement *vdl.Type = vdl.TypeOf(discovery.Advertisement{})
-var __VDLType_v_io_x_ref_lib_discovery_AdHash *vdl.Type = vdl.TypeOf(AdHash{})
-var __VDLType_v_io_x_ref_lib_discovery_AdInfo *vdl.Type = vdl.TypeOf(AdInfo{})
-var __VDLType_v_io_x_ref_lib_discovery_EncryptionAlgorithm *vdl.Type = vdl.TypeOf(EncryptionAlgorithm(0))
-var __VDLType_v_io_x_ref_lib_discovery_EncryptionKey *vdl.Type = vdl.TypeOf(EncryptionKey(nil))
-var __VDLType_v_io_x_ref_lib_discovery_Uuid *vdl.Type = vdl.TypeOf(Uuid(nil))
-
-func __VDLEnsureNativeBuilt() {
-}
+//////////////////////////////////////////////////
+// Const definitions
 
 const NoEncryption = EncryptionAlgorithm(0)
-
 const TestEncryption = EncryptionAlgorithm(1)
-
 const IbeEncryption = EncryptionAlgorithm(2)
 
+//////////////////////////////////////////////////
+// Error definitions
 var (
 	ErrAlreadyBeingAdvertised = verror.Register("v.io/x/ref/lib/discovery.AlreadyBeingAdvertised", verror.NoRetry, "{1:}{2:} already being advertised: {3}")
 	ErrBadAdvertisement       = verror.Register("v.io/x/ref/lib/discovery.BadAdvertisement", verror.NoRetry, "{1:}{2:} invalid advertisement: {3}")
@@ -471,14 +455,6 @@ var (
 	ErrDiscoveryClosed        = verror.Register("v.io/x/ref/lib/discovery.DiscoveryClosed", verror.NoRetry, "{1:}{2:} discovery closed")
 	ErrNoDiscoveryPlugin      = verror.Register("v.io/x/ref/lib/discovery.NoDiscoveryPlugin", verror.NoRetry, "{1:}{2:} no discovery plugin")
 )
-
-func init() {
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAlreadyBeingAdvertised.ID), "{1:}{2:} already being advertised: {3}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBadAdvertisement.ID), "{1:}{2:} invalid advertisement: {3}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBadQuery.ID), "{1:}{2:} invalid query: {3}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDiscoveryClosed.ID), "{1:}{2:} discovery closed")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoDiscoveryPlugin.ID), "{1:}{2:} no discovery plugin")
-}
 
 // NewErrAlreadyBeingAdvertised returns an error with the ErrAlreadyBeingAdvertised ID.
 func NewErrAlreadyBeingAdvertised(ctx *context.T, id discovery.AdId) error {
@@ -504,6 +480,9 @@ func NewErrDiscoveryClosed(ctx *context.T) error {
 func NewErrNoDiscoveryPlugin(ctx *context.T) error {
 	return verror.New(ErrNoDiscoveryPlugin, ctx)
 }
+
+//////////////////////////////////////////////////
+// Interface definitions
 
 // DirectoryClientMethods is the client interface
 // containing Directory methods.
@@ -611,4 +590,41 @@ var descDirectory = rpc.InterfaceDesc{
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 	},
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*EncryptionAlgorithm)(nil))
+	vdl.Register((*EncryptionKey)(nil))
+	vdl.Register((*Uuid)(nil))
+	vdl.Register((*AdHash)(nil))
+	vdl.Register((*AdInfo)(nil))
+
+	// Set error format strings.
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAlreadyBeingAdvertised.ID), "{1:}{2:} already being advertised: {3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBadAdvertisement.ID), "{1:}{2:} invalid advertisement: {3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBadQuery.ID), "{1:}{2:} invalid query: {3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDiscoveryClosed.ID), "{1:}{2:} discovery closed")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoDiscoveryPlugin.ID), "{1:}{2:} no discovery plugin")
+
+	return struct{}{}
 }

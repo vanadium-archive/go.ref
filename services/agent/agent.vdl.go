@@ -46,6 +46,11 @@ import (
 	"v.io/v23/verror"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type ConnInfo struct {
 	MinVersion int32
 	MaxVersion int32
@@ -57,9 +62,6 @@ func (ConnInfo) __VDLReflect(struct {
 }
 
 func (m *ConnInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_agent_ConnInfo == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -70,7 +72,7 @@ func (m *ConnInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromInt(int64(m.MinVersion), vdl.Int32Type); err != nil {
+		if err := fieldTarget3.FromInt(int64(m.MinVersion), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -82,7 +84,7 @@ func (m *ConnInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromInt(int64(m.MaxVersion), vdl.Int32Type); err != nil {
+		if err := fieldTarget5.FromInt(int64(m.MaxVersion), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -109,8 +111,8 @@ type ConnInfoTarget struct {
 
 func (t *ConnInfoTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_agent_ConnInfo) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_agent_ConnInfo)
+	if ttWant := vdl.TypeOf((*ConnInfo)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -125,7 +127,7 @@ func (t *ConnInfoTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.maxVersionTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_agent_ConnInfo)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/agent.ConnInfo", name)
 	}
 }
 func (t *ConnInfoTarget) FinishField(_, _ vdl.Target) error {
@@ -148,9 +150,6 @@ func (RpcRequest) __VDLReflect(struct {
 }
 
 func (m *RpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_agent_RpcRequest == nil || __VDLType1 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -161,7 +160,7 @@ func (m *RpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromUint(uint64(m.Id), vdl.Uint64Type); err != nil {
+		if err := fieldTarget3.FromUint(uint64(m.Id), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -173,7 +172,7 @@ func (m *RpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Method), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.Method), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -185,7 +184,7 @@ func (m *RpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget7.FromUint(uint64(m.NumArgs), vdl.Uint32Type); err != nil {
+		if err := fieldTarget7.FromUint(uint64(m.NumArgs), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -213,8 +212,8 @@ type RpcRequestTarget struct {
 
 func (t *RpcRequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_agent_RpcRequest) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_agent_RpcRequest)
+	if ttWant := vdl.TypeOf((*RpcRequest)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -233,7 +232,7 @@ func (t *RpcRequestTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.numArgsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_agent_RpcRequest)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/agent.RpcRequest", name)
 	}
 }
 func (t *RpcRequestTarget) FinishField(_, _ vdl.Target) error {
@@ -256,9 +255,6 @@ func (RpcResponse) __VDLReflect(struct {
 }
 
 func (m *RpcResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_agent_RpcResponse == nil || __VDLType2 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -269,7 +265,7 @@ func (m *RpcResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromUint(uint64(m.Id), vdl.Uint64Type); err != nil {
+		if err := fieldTarget3.FromUint(uint64(m.Id), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -283,7 +279,7 @@ func (m *RpcResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != vdl.ErrFieldNoExist {
 
 		if m.Err == nil {
-			if err := fieldTarget5.FromNil(vdl.ErrorType); err != nil {
+			if err := fieldTarget5.FromNil(tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
 		} else {
@@ -305,7 +301,7 @@ func (m *RpcResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget8.FromUint(uint64(m.NumArgs), vdl.Uint32Type); err != nil {
+		if err := fieldTarget8.FromUint(uint64(m.NumArgs), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
@@ -333,8 +329,8 @@ type RpcResponseTarget struct {
 
 func (t *RpcResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_agent_RpcResponse) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_agent_RpcResponse)
+	if ttWant := vdl.TypeOf((*RpcResponse)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -353,7 +349,7 @@ func (t *RpcResponseTarget) StartField(name string) (key, field vdl.Target, _ er
 		target, err := &t.numArgsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_agent_RpcResponse)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/agent.RpcResponse", name)
 	}
 }
 func (t *RpcResponseTarget) FinishField(_, _ vdl.Target) error {
@@ -398,7 +394,7 @@ func (x RpcMessageReq) Name() string                     { return "Req" }
 func (x RpcMessageReq) __VDLReflect(__RpcMessageReflect) {}
 
 func (m RpcMessageReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_services_agent_RpcMessage)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -407,7 +403,7 @@ func (m RpcMessageReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_agent_RpcRequest); err != nil {
+	if err := m.Value.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -430,7 +426,7 @@ func (x RpcMessageResp) Name() string                     { return "Resp" }
 func (x RpcMessageResp) __VDLReflect(__RpcMessageReflect) {}
 
 func (m RpcMessageResp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_services_agent_RpcMessage)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -439,7 +435,7 @@ func (m RpcMessageResp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_agent_RpcResponse); err != nil {
+	if err := m.Value.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(1).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -456,23 +452,8 @@ func (m RpcMessageResp) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func init() {
-	vdl.Register((*ConnInfo)(nil))
-	vdl.Register((*RpcRequest)(nil))
-	vdl.Register((*RpcResponse)(nil))
-	vdl.Register((*RpcMessage)(nil))
-}
-
-var __VDLType0 *vdl.Type = vdl.TypeOf((*ConnInfo)(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf((*RpcRequest)(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf((*RpcResponse)(nil))
-var __VDLType_v_io_x_ref_services_agent_ConnInfo *vdl.Type = vdl.TypeOf(ConnInfo{})
-var __VDLType_v_io_x_ref_services_agent_RpcMessage *vdl.Type = vdl.TypeOf(RpcMessage(RpcMessageReq{RpcRequest{}}))
-var __VDLType_v_io_x_ref_services_agent_RpcRequest *vdl.Type = vdl.TypeOf(RpcRequest{})
-var __VDLType_v_io_x_ref_services_agent_RpcResponse *vdl.Type = vdl.TypeOf(RpcResponse{})
-
-func __VDLEnsureNativeBuilt() {
-}
+//////////////////////////////////////////////////
+// Interface definitions
 
 // AgentClientMethods is the client interface
 // containing Agent methods.
@@ -1053,4 +1034,33 @@ type implAgentNotifyWhenChangedServerCallSend struct {
 
 func (s implAgentNotifyWhenChangedServerCallSend) Send(item bool) error {
 	return s.s.Send(item)
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*ConnInfo)(nil))
+	vdl.Register((*RpcRequest)(nil))
+	vdl.Register((*RpcResponse)(nil))
+	vdl.Register((*RpcMessage)(nil))
+
+	return struct{}{}
 }

@@ -24,7 +24,6 @@ type goData struct {
 	Package        *compile.Package
 	Env            *compile.Env
 	Imports        goImports
-	typeDepends    *typeDependencyNames
 	createdTargets map[*vdl.Type]bool // set of types whose Targets have already been created
 
 	collectImports bool // is this the import collecting pass instead of normal generation
@@ -92,7 +91,6 @@ func Generate(pkg *compile.Package, env *compile.Env) []byte {
 	data := &goData{
 		Package:        pkg,
 		Env:            env,
-		typeDepends:    newTypeDependencyNames(),
 		collectImports: true,
 		importMap:      importMap{},
 		createdTargets: make(map[*vdl.Type]bool),
@@ -212,9 +210,8 @@ func init() {
 		"nativeIdent":             nativeIdent,
 		"typeGo":                  typeGo,
 		"typeDefGo":               typeDefGo,
-		"genVdlTypesForEnc":       genVdlTypesForEnc,
 		"constDefGo":              constDefGo,
-		"tagValue":                tagValue,
+		"genValueOf":              genValueOf,
 		"embedGo":                 embedGo,
 		"isStreamingMethod":       isStreamingMethod,
 		"hasStreamingMethods":     hasStreamingMethods,
@@ -492,47 +489,49 @@ import (
 	{{if $imp.Name}}{{$imp.Name}} {{end}}"{{$imp.Path}}"{{end}}
 ){{end}}
 
-{{$typeDefs := $pkg.TypeDefs}}
-{{if $typeDefs}}
-{{range $tdef := $typeDefs}}
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+{{if $pkg.TypeDefs}}
+//////////////////////////////////////////////////
+// Type definitions
+{{range $tdef := $pkg.TypeDefs}}
 {{typeDefGo $data $tdef}}
 {{end}}
 
-func init() { {{range $wire, $native := $pkg.Config.Go.WireToNativeTypes}}
-	{{$data.Pkg "v.io/v23/vdl"}}RegisterNative({{$wire}}ToNative, {{$wire}}FromNative){{end}}{{range $tdef := $typeDefs}}
-	{{$data.Pkg "v.io/v23/vdl"}}Register((*{{$tdef.Name}})(nil)){{end}}
-}
 {{range $wire, $native := $pkg.Config.Go.WireToNativeTypes}}{{$nat := nativeIdent $data $native $pkg}}
 // Type-check {{$wire}} conversion functions.
 var _ func({{$wire}}, *{{$nat}}) error = {{$wire}}ToNative
-var _ func(*{{$wire}}, {{$nat}}) error = {{$wire}}FromNative
-{{end}}
+var _ func(*{{$wire}}, {{$nat}}) error = {{$wire}}FromNative{{end}}
 {{end}}
 
-{{genVdlTypesForEnc $data}}
-
+{{if $pkg.ConstDefs}}
+//////////////////////////////////////////////////
+// Const definitions
 {{range $cdef := $pkg.ConstDefs}}
-{{constDefGo $data $cdef}}
+{{constDefGo $data $cdef}}{{end}}
 {{end}}
 
-{{$errorDefs := $pkg.ErrorDefs}}
-{{if $errorDefs}}var ( {{range $edef := $errorDefs}}
+{{if $pkg.ErrorDefs}}
+//////////////////////////////////////////////////
+// Error definitions
+var (
+{{range $edef := $pkg.ErrorDefs}}
 	{{$edef.Doc}}{{errorName $edef}} = {{$data.Pkg "v.io/v23/verror"}}Register("{{$edef.ID}}", {{$data.Pkg "v.io/v23/verror"}}{{$edef.RetryCode}}, "{{$edef.English}}"){{end}}
 )
 
-{{/* TODO(toddw): Don't set "en-US" or "en" again, since it's already set by Register */}}
-func init() { {{range $edef := $errorDefs}}{{range $lf := $edef.Formats}}
-	{{$data.Pkg "v.io/v23/i18n"}}Cat().SetWithBase({{$data.Pkg "v.io/v23/i18n"}}LangID("{{$lf.Lang}}"), {{$data.Pkg "v.io/v23/i18n"}}MsgID({{errorName $edef}}.ID), "{{$lf.Fmt}}"){{end}}{{end}}
-}
-{{range $edef := $errorDefs}}
+{{range $edef := $pkg.ErrorDefs}}
 {{$errName := errorName $edef}}
 {{$newErr := print (firstRuneToExport "New" $edef.Exported) (firstRuneToUpper $errName)}}
 // {{$newErr}} returns an error with the {{$errName}} ID.
 func {{$newErr}}(ctx {{argNameTypes "" (print "*" ($data.Pkg "v.io/v23/context") "T") "" "" $data $edef.Params}}) error {
 	return {{$data.Pkg "v.io/v23/verror"}}New({{$errName}}, {{argNames "" "" "ctx" "" "" $edef.Params}})
 }
-{{end}}{{end}}
+{{end}}
+{{end}}
 
+{{if $pkg.Interfaces}}
+//////////////////////////////////////////////////
+// Interface definitions
 {{range $iface := $pkg.Interfaces}}
 {{$ifaceStreaming := hasStreamingMethods $iface.AllMethods}}
 {{$rpc_ := $data.Pkg "v.io/v23/rpc"}}
@@ -676,7 +675,8 @@ func (c {{$clientSendImpl}}) Close() error {
 {{clientFinishImpl "c.ClientCall" $method}}
 	return
 }
-{{end}}{{end}}
+{{end}}
+{{end}}
 
 // {{$iface.Name}}ServerMethods is the interface a server writer
 // implements for {{$iface.Name}}.
@@ -764,7 +764,7 @@ var desc{{$iface.Name}} = {{$rpc_}}InterfaceDesc{ {{if $iface.Name}}
 			OutArgs: []{{$rpc_}}ArgDesc{ {{range $arg := $method.OutArgs}}
 				{ "{{$arg.Name}}", {{quoteStripDoc $arg.Doc}} }, // {{typeGo $data $arg.Type}}{{end}}
 			},{{end}}{{if $method.Tags}}
-			Tags: []*{{$data.Pkg "v.io/v23/vdl"}}Value{ {{range $tag := $method.Tags}}{{tagValue $data $tag}} ,{{end}} },{{end}}
+			Tags: []*{{$data.Pkg "v.io/v23/vdl"}}Value{ {{range $tag := $method.Tags}}{{genValueOf $data $tag}} ,{{end}} },{{end}}
 		},{{end}}
 	},{{end}}
 }
@@ -859,7 +859,39 @@ type {{$serverSendImpl}} struct {
 func (s {{$serverSendImpl}}) Send(item {{typeGo $data $method.OutStream}}) error {
 	return s.s.Send(item)
 }
-{{end}}{{end}}{{end}}
+{{end}}{{end}}{{end}}{{end}}{{end}}
 
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+{{if $pkg.Config.Go.WireToNativeTypes}}
+	// Register native type conversions first, so that vdl.TypeOf works.{{range $wire, $native := $pkg.Config.Go.WireToNativeTypes}}
+	{{$data.Pkg "v.io/v23/vdl"}}RegisterNative({{$wire}}ToNative, {{$wire}}FromNative){{end}}
 {{end}}
+{{if $pkg.TypeDefs}}
+	// Register types.{{range $tdef := $pkg.TypeDefs}}
+	{{$data.Pkg "v.io/v23/vdl"}}Register((*{{$tdef.Name}})(nil)){{end}}
+{{end}}
+{{if $pkg.ErrorDefs}}
+	// Set error format strings.{{/* TODO(toddw): Don't set "en-US" or "en" again, since it's already set by the original verror.Register call. */}}{{range $edef := $pkg.ErrorDefs}}{{range $lf := $edef.Formats}}
+	{{$data.Pkg "v.io/v23/i18n"}}Cat().SetWithBase({{$data.Pkg "v.io/v23/i18n"}}LangID("{{$lf.Lang}}"), {{$data.Pkg "v.io/v23/i18n"}}MsgID({{errorName $edef}}.ID), "{{$lf.Fmt}}"){{end}}{{end}}
+{{end}}
+	return struct{}{}
+}
 `

@@ -14,6 +14,11 @@ import (
 	"v.io/x/ref/services/wspr/internal/account"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type StartMessage struct {
 	CleanupBlessings      bool
 	Identityd             string
@@ -30,9 +35,6 @@ func (StartMessage) __VDLReflect(struct {
 }
 
 func (m *StartMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_browspr_StartMessage == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -43,7 +45,7 @@ func (m *StartMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromBool(bool(m.CleanupBlessings), vdl.BoolType); err != nil {
+		if err := fieldTarget3.FromBool(bool(m.CleanupBlessings), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -55,7 +57,7 @@ func (m *StartMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Identityd), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.Identityd), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -68,7 +70,7 @@ func (m *StartMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.IdentitydBlessingRoot.FillVDLTarget(fieldTarget7, __VDLType_v_io_x_ref_services_identity_BlessingRootResponse); err != nil {
+		if err := m.IdentitydBlessingRoot.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -80,7 +82,7 @@ func (m *StartMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget9.FromString(string(m.Proxy), vdl.StringType); err != nil {
+		if err := fieldTarget9.FromString(string(m.Proxy), tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
@@ -92,7 +94,7 @@ func (m *StartMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget11.FromString(string(m.NamespaceRoot), vdl.StringType); err != nil {
+		if err := fieldTarget11.FromString(string(m.NamespaceRoot), tt.NonOptional().Field(4).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
@@ -104,7 +106,7 @@ func (m *StartMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget13.FromInt(int64(m.LogLevel), vdl.Int32Type); err != nil {
+		if err := fieldTarget13.FromInt(int64(m.LogLevel), tt.NonOptional().Field(5).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
@@ -116,7 +118,7 @@ func (m *StartMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget15.FromString(string(m.LogModule), vdl.StringType); err != nil {
+		if err := fieldTarget15.FromString(string(m.LogModule), tt.NonOptional().Field(6).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
@@ -148,8 +150,8 @@ type StartMessageTarget struct {
 
 func (t *StartMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_StartMessage) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_StartMessage)
+	if ttWant := vdl.TypeOf((*StartMessage)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -184,7 +186,7 @@ func (t *StartMessageTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.logModuleTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_StartMessage)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/browspr.StartMessage", name)
 	}
 }
 func (t *StartMessageTarget) FinishField(_, _ vdl.Target) error {
@@ -207,9 +209,6 @@ func (AssociateAccountMessage) __VDLReflect(struct {
 }
 
 func (m *AssociateAccountMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_browspr_AssociateAccountMessage == nil || __VDLType1 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -220,7 +219,7 @@ func (m *AssociateAccountMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Account), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.Account), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -232,7 +231,7 @@ func (m *AssociateAccountMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Origin), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.Origin), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -245,7 +244,7 @@ func (m *AssociateAccountMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget8, err := fieldTarget7.StartList(__VDLType2, len(m.Caveats))
+		listTarget8, err := fieldTarget7.StartList(tt.NonOptional().Field(2).Type, len(m.Caveats))
 		if err != nil {
 			return err
 		}
@@ -255,7 +254,7 @@ func (m *AssociateAccountMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 				return err
 			}
 
-			if err := elem10.FillVDLTarget(elemTarget9, __VDLType_v_io_x_ref_services_wspr_internal_account_Caveat); err != nil {
+			if err := elem10.FillVDLTarget(elemTarget9, tt.NonOptional().Field(2).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget8.FinishElem(elemTarget9); err != nil {
@@ -290,8 +289,8 @@ type AssociateAccountMessageTarget struct {
 
 func (t *AssociateAccountMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_AssociateAccountMessage) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_AssociateAccountMessage)
+	if ttWant := vdl.TypeOf((*AssociateAccountMessage)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -310,7 +309,7 @@ func (t *AssociateAccountMessageTarget) StartField(name string) (key, field vdl.
 		target, err := &t.caveatsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_AssociateAccountMessage)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/browspr.AssociateAccountMessage", name)
 	}
 }
 func (t *AssociateAccountMessageTarget) FinishField(_, _ vdl.Target) error {
@@ -331,8 +330,8 @@ type unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e6
 
 func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType2) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType2)
+	if ttWant := vdl.TypeOf((*[]account.Caveat)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]account.Caveat, len)
@@ -364,9 +363,6 @@ func (CreateAccountMessage) __VDLReflect(struct {
 }
 
 func (m *CreateAccountMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateAccountMessage == nil || __VDLType3 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -377,7 +373,7 @@ func (m *CreateAccountMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Token), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.Token), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -403,8 +399,8 @@ type CreateAccountMessageTarget struct {
 
 func (t *CreateAccountMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateAccountMessage) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateAccountMessage)
+	if ttWant := vdl.TypeOf((*CreateAccountMessage)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -415,7 +411,7 @@ func (t *CreateAccountMessageTarget) StartField(name string) (key, field vdl.Tar
 		target, err := &t.tokenTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateAccountMessage)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/browspr.CreateAccountMessage", name)
 	}
 }
 func (t *CreateAccountMessageTarget) FinishField(_, _ vdl.Target) error {
@@ -436,9 +432,6 @@ func (CleanupMessage) __VDLReflect(struct {
 }
 
 func (m *CleanupMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_browspr_CleanupMessage == nil || __VDLType4 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -449,7 +442,7 @@ func (m *CleanupMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromInt(int64(m.InstanceId), vdl.Int32Type); err != nil {
+		if err := fieldTarget3.FromInt(int64(m.InstanceId), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -475,8 +468,8 @@ type CleanupMessageTarget struct {
 
 func (t *CleanupMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CleanupMessage) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CleanupMessage)
+	if ttWant := vdl.TypeOf((*CleanupMessage)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -487,7 +480,7 @@ func (t *CleanupMessageTarget) StartField(name string) (key, field vdl.Target, _
 		target, err := &t.instanceIdTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CleanupMessage)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/browspr.CleanupMessage", name)
 	}
 }
 func (t *CleanupMessageTarget) FinishField(_, _ vdl.Target) error {
@@ -508,9 +501,6 @@ func (OriginHasAccountMessage) __VDLReflect(struct {
 }
 
 func (m *OriginHasAccountMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_browspr_OriginHasAccountMessage == nil || __VDLType5 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -521,7 +511,7 @@ func (m *OriginHasAccountMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Origin), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.Origin), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -547,8 +537,8 @@ type OriginHasAccountMessageTarget struct {
 
 func (t *OriginHasAccountMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_OriginHasAccountMessage) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_OriginHasAccountMessage)
+	if ttWant := vdl.TypeOf((*OriginHasAccountMessage)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -559,7 +549,7 @@ func (t *OriginHasAccountMessageTarget) StartField(name string) (key, field vdl.
 		target, err := &t.originTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_OriginHasAccountMessage)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/browspr.OriginHasAccountMessage", name)
 	}
 }
 func (t *OriginHasAccountMessageTarget) FinishField(_, _ vdl.Target) error {
@@ -579,9 +569,6 @@ func (GetAccountsMessage) __VDLReflect(struct {
 }
 
 func (m *GetAccountsMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_browspr_GetAccountsMessage == nil || __VDLType6 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -605,15 +592,15 @@ type GetAccountsMessageTarget struct {
 
 func (t *GetAccountsMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_GetAccountsMessage) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_GetAccountsMessage)
+	if ttWant := vdl.TypeOf((*GetAccountsMessage)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
 func (t *GetAccountsMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_GetAccountsMessage)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/browspr.GetAccountsMessage", name)
 	}
 }
 func (t *GetAccountsMessageTarget) FinishField(_, _ vdl.Target) error {
@@ -637,9 +624,6 @@ func (CreateInstanceMessage) __VDLReflect(struct {
 }
 
 func (m *CreateInstanceMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateInstanceMessage == nil || __VDLType7 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -650,7 +634,7 @@ func (m *CreateInstanceMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error 
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromInt(int64(m.InstanceId), vdl.Int32Type); err != nil {
+		if err := fieldTarget3.FromInt(int64(m.InstanceId), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -662,7 +646,7 @@ func (m *CreateInstanceMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error 
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Origin), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.Origin), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -675,7 +659,7 @@ func (m *CreateInstanceMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error 
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget8, err := fieldTarget7.StartList(__VDLType8, len(m.NamespaceRoots))
+		listTarget8, err := fieldTarget7.StartList(tt.NonOptional().Field(2).Type, len(m.NamespaceRoots))
 		if err != nil {
 			return err
 		}
@@ -684,7 +668,7 @@ func (m *CreateInstanceMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error 
 			if err != nil {
 				return err
 			}
-			if err := elemTarget9.FromString(string(elem10), vdl.StringType); err != nil {
+			if err := elemTarget9.FromString(string(elem10), tt.NonOptional().Field(2).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget8.FinishElem(elemTarget9); err != nil {
@@ -703,7 +687,7 @@ func (m *CreateInstanceMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error 
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget12.FromString(string(m.Proxy), vdl.StringType); err != nil {
+		if err := fieldTarget12.FromString(string(m.Proxy), tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
@@ -732,8 +716,8 @@ type CreateInstanceMessageTarget struct {
 
 func (t *CreateInstanceMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateInstanceMessage) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateInstanceMessage)
+	if ttWant := vdl.TypeOf((*CreateInstanceMessage)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -756,7 +740,7 @@ func (t *CreateInstanceMessageTarget) StartField(name string) (key, field vdl.Ta
 		target, err := &t.proxyTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateInstanceMessage)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/browspr.CreateInstanceMessage", name)
 	}
 }
 func (t *CreateInstanceMessageTarget) FinishField(_, _ vdl.Target) error {
@@ -767,7 +751,27 @@ func (t *CreateInstanceMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func init() {
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*StartMessage)(nil))
 	vdl.Register((*AssociateAccountMessage)(nil))
 	vdl.Register((*CreateAccountMessage)(nil))
@@ -775,26 +779,6 @@ func init() {
 	vdl.Register((*OriginHasAccountMessage)(nil))
 	vdl.Register((*GetAccountsMessage)(nil))
 	vdl.Register((*CreateInstanceMessage)(nil))
-}
 
-var __VDLType1 *vdl.Type = vdl.TypeOf((*AssociateAccountMessage)(nil))
-var __VDLType4 *vdl.Type = vdl.TypeOf((*CleanupMessage)(nil))
-var __VDLType3 *vdl.Type = vdl.TypeOf((*CreateAccountMessage)(nil))
-var __VDLType7 *vdl.Type = vdl.TypeOf((*CreateInstanceMessage)(nil))
-var __VDLType6 *vdl.Type = vdl.TypeOf((*GetAccountsMessage)(nil))
-var __VDLType5 *vdl.Type = vdl.TypeOf((*OriginHasAccountMessage)(nil))
-var __VDLType0 *vdl.Type = vdl.TypeOf((*StartMessage)(nil))
-var __VDLType8 *vdl.Type = vdl.TypeOf([]string(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf([]account.Caveat(nil))
-var __VDLType_v_io_x_ref_services_identity_BlessingRootResponse *vdl.Type = vdl.TypeOf(identity.BlessingRootResponse{})
-var __VDLType_v_io_x_ref_services_wspr_internal_account_Caveat *vdl.Type = vdl.TypeOf(account.Caveat{})
-var __VDLType_v_io_x_ref_services_wspr_internal_browspr_AssociateAccountMessage *vdl.Type = vdl.TypeOf(AssociateAccountMessage{})
-var __VDLType_v_io_x_ref_services_wspr_internal_browspr_CleanupMessage *vdl.Type = vdl.TypeOf(CleanupMessage{})
-var __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateAccountMessage *vdl.Type = vdl.TypeOf(CreateAccountMessage{})
-var __VDLType_v_io_x_ref_services_wspr_internal_browspr_CreateInstanceMessage *vdl.Type = vdl.TypeOf(CreateInstanceMessage{})
-var __VDLType_v_io_x_ref_services_wspr_internal_browspr_GetAccountsMessage *vdl.Type = vdl.TypeOf(GetAccountsMessage{})
-var __VDLType_v_io_x_ref_services_wspr_internal_browspr_OriginHasAccountMessage *vdl.Type = vdl.TypeOf(OriginHasAccountMessage{})
-var __VDLType_v_io_x_ref_services_wspr_internal_browspr_StartMessage *vdl.Type = vdl.TypeOf(StartMessage{})
-
-func __VDLEnsureNativeBuilt() {
+	return struct{}{}
 }

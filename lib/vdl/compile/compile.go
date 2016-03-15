@@ -256,7 +256,7 @@ func computeDeps(pkg *Package, env *Env) {
 
 // Add immediate package deps for t and subtypes of t.
 func addTypeDeps(t *vdl.Type, pkg *Package, env *Env, tdeps map[*vdl.Type]bool, pdeps map[*Package]bool) {
-	if def := env.typeDefs[t]; def != nil {
+	if def := env.typeMap[t]; def != nil {
 		// We don't track transitive dependencies, only immediate dependencies.
 		tdeps[t] = true
 		pdeps[def.File.Package] = true
@@ -297,7 +297,7 @@ func addSubTypeDeps(t *vdl.Type, pkg *Package, env *Env, tdeps map[*vdl.Type]boo
 // for const or tag values.
 func addValueTypeDeps(v *vdl.Value, pkg *Package, env *Env, tdeps map[*vdl.Type]bool, pdeps map[*Package]bool) {
 	t := v.Type()
-	if def := env.typeDefs[t]; def != nil {
+	if def := env.typeMap[t]; def != nil {
 		tdeps[t] = true
 		pdeps[def.File.Package] = true
 		// Fall through to track transitive dependencies, based on the subvalues.

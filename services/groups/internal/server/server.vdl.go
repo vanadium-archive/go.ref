@@ -14,6 +14,11 @@ import (
 	"v.io/v23/vdl"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // groupData represents the persistent state of a group. (The group name is
 // persisted as the store entry key.)
 type groupData struct {
@@ -27,9 +32,6 @@ func (groupData) __VDLReflect(struct {
 }
 
 func (m *groupData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_groups_internal_server_groupData == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -41,7 +43,7 @@ func (m *groupData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Perms.FillVDLTarget(fieldTarget3, __VDLType_v_io_v23_security_access_Permissions); err != nil {
+		if err := m.Perms.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -54,7 +56,7 @@ func (m *groupData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		setTarget6, err := fieldTarget5.StartSet(__VDLType1, len(m.Entries))
+		setTarget6, err := fieldTarget5.StartSet(tt.NonOptional().Field(1).Type, len(m.Entries))
 		if err != nil {
 			return err
 		}
@@ -64,7 +66,7 @@ func (m *groupData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := key8.FillVDLTarget(keyTarget7, __VDLType_v_io_v23_services_groups_BlessingPatternChunk); err != nil {
+			if err := key8.FillVDLTarget(keyTarget7, tt.NonOptional().Field(1).Type.Key()); err != nil {
 				return err
 			}
 			if err := setTarget6.FinishKey(keyTarget7); err != nil {
@@ -98,8 +100,8 @@ type groupDataTarget struct {
 
 func (t *groupDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_groups_internal_server_groupData) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_groups_internal_server_groupData)
+	if ttWant := vdl.TypeOf((*groupData)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -114,7 +116,7 @@ func (t *groupDataTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.entriesTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_groups_internal_server_groupData)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/groups/internal/server.groupData", name)
 	}
 }
 func (t *groupDataTarget) FinishField(_, _ vdl.Target) error {
@@ -136,8 +138,8 @@ type unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c65737
 
 func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType1) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
+	if ttWant := vdl.TypeOf((*map[groups.BlessingPatternChunk]struct{})(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = make(map[groups.BlessingPatternChunk]struct{})
 	return t, nil
@@ -160,15 +162,28 @@ func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c6
 	return nil
 }
 
-func init() {
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*groupData)(nil))
-}
 
-var __VDLType0 *vdl.Type = vdl.TypeOf((*groupData)(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf(map[groups.BlessingPatternChunk]struct{}(nil))
-var __VDLType_v_io_v23_security_access_Permissions *vdl.Type = vdl.TypeOf(access.Permissions(nil))
-var __VDLType_v_io_v23_services_groups_BlessingPatternChunk *vdl.Type = vdl.TypeOf(groups.BlessingPatternChunk(""))
-var __VDLType_v_io_x_ref_services_groups_internal_server_groupData *vdl.Type = vdl.TypeOf(groupData{})
-
-func __VDLEnsureNativeBuilt() {
+	return struct{}{}
 }

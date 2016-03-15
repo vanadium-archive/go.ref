@@ -17,6 +17,11 @@ import (
 	"v.io/v23/vdl"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // BlessingRootResponse is the struct representing the JSON response provided
 // by the "blessing-root" route of the identity service.
 type BlessingRootResponse struct {
@@ -32,9 +37,6 @@ func (BlessingRootResponse) __VDLReflect(struct {
 }
 
 func (m *BlessingRootResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_identity_BlessingRootResponse == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -46,7 +48,7 @@ func (m *BlessingRootResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(__VDLType1, len(m.Names))
+		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Names))
 		if err != nil {
 			return err
 		}
@@ -55,7 +57,7 @@ func (m *BlessingRootResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err != nil {
 				return err
 			}
-			if err := elemTarget5.FromString(string(elem6), vdl.StringType); err != nil {
+			if err := elemTarget5.FromString(string(elem6), tt.NonOptional().Field(0).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget4.FinishElem(elemTarget5); err != nil {
@@ -74,7 +76,7 @@ func (m *BlessingRootResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget8.FromString(string(m.PublicKey), vdl.StringType); err != nil {
+		if err := fieldTarget8.FromString(string(m.PublicKey), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
@@ -101,8 +103,8 @@ type BlessingRootResponseTarget struct {
 
 func (t *BlessingRootResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_identity_BlessingRootResponse) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_identity_BlessingRootResponse)
+	if ttWant := vdl.TypeOf((*BlessingRootResponse)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -117,7 +119,7 @@ func (t *BlessingRootResponseTarget) StartField(name string) (key, field vdl.Tar
 		target, err := &t.publicKeyTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_identity_BlessingRootResponse)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/identity.BlessingRootResponse", name)
 	}
 }
 func (t *BlessingRootResponseTarget) FinishField(_, _ vdl.Target) error {
@@ -128,16 +130,8 @@ func (t *BlessingRootResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func init() {
-	vdl.Register((*BlessingRootResponse)(nil))
-}
-
-var __VDLType0 *vdl.Type = vdl.TypeOf((*BlessingRootResponse)(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf([]string(nil))
-var __VDLType_v_io_x_ref_services_identity_BlessingRootResponse *vdl.Type = vdl.TypeOf(BlessingRootResponse{})
-
-func __VDLEnsureNativeBuilt() {
-}
+//////////////////////////////////////////////////
+// Interface definitions
 
 // OAuthBlesserClientMethods is the client interface
 // containing OAuthBlesser methods.
@@ -408,4 +402,30 @@ var descMacaroonBlesser = rpc.InterfaceDesc{
 			},
 		},
 	},
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*BlessingRootResponse)(nil))
+
+	return struct{}{}
 }

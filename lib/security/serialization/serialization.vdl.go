@@ -13,6 +13,11 @@ import (
 	"v.io/v23/vdl"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type SignedHeader struct {
 	ChunkSizeBytes int64
 }
@@ -23,9 +28,6 @@ func (SignedHeader) __VDLReflect(struct {
 }
 
 func (m *SignedHeader) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_security_serialization_SignedHeader == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -36,7 +38,7 @@ func (m *SignedHeader) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromInt(int64(m.ChunkSizeBytes), vdl.Int64Type); err != nil {
+		if err := fieldTarget3.FromInt(int64(m.ChunkSizeBytes), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -62,8 +64,8 @@ type SignedHeaderTarget struct {
 
 func (t *SignedHeaderTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_security_serialization_SignedHeader) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_security_serialization_SignedHeader)
+	if ttWant := vdl.TypeOf((*SignedHeader)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -74,7 +76,7 @@ func (t *SignedHeaderTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.chunkSizeBytesTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_security_serialization_SignedHeader)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/security/serialization.SignedHeader", name)
 	}
 }
 func (t *SignedHeaderTarget) FinishField(_, _ vdl.Target) error {
@@ -93,7 +95,7 @@ func (HashCode) __VDLReflect(struct {
 }
 
 func (m *HashCode) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromBytes([]byte((*m)[:]), __VDLType_v_io_x_ref_lib_security_serialization_HashCode); err != nil {
+	if err := t.FromBytes([]byte((*m)[:]), tt); err != nil {
 		return err
 	}
 	return nil
@@ -110,8 +112,8 @@ type HashCodeTarget struct {
 
 func (t *HashCodeTarget) FromBytes(src []byte, tt *vdl.Type) error {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_security_serialization_HashCode) {
-		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_security_serialization_HashCode)
+	if ttWant := vdl.TypeOf((*HashCode)(nil)); !vdl.Compatible(tt, ttWant) {
+		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	copy((*t.Value)[:], src)
 
@@ -154,7 +156,7 @@ func (x SignedDataSignature) Name() string                     { return "Signatu
 func (x SignedDataSignature) __VDLReflect(__SignedDataReflect) {}
 
 func (m SignedDataSignature) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_lib_security_serialization_SignedData)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -163,7 +165,7 @@ func (m SignedDataSignature) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_v_io_v23_security_Signature); err != nil {
+	if err := m.Value.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -186,7 +188,7 @@ func (x SignedDataHash) Name() string                     { return "Hash" }
 func (x SignedDataHash) __VDLReflect(__SignedDataReflect) {}
 
 func (m SignedDataHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_lib_security_serialization_SignedData)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -195,7 +197,7 @@ func (m SignedDataHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_lib_security_serialization_HashCode); err != nil {
+	if err := m.Value.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(1).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -212,17 +214,30 @@ func (m SignedDataHash) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func init() {
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*SignedHeader)(nil))
 	vdl.Register((*HashCode)(nil))
 	vdl.Register((*SignedData)(nil))
-}
 
-var __VDLType0 *vdl.Type = vdl.TypeOf((*SignedHeader)(nil))
-var __VDLType_v_io_v23_security_Signature *vdl.Type = vdl.TypeOf(security.Signature{})
-var __VDLType_v_io_x_ref_lib_security_serialization_HashCode *vdl.Type = vdl.TypeOf(HashCode{})
-var __VDLType_v_io_x_ref_lib_security_serialization_SignedData *vdl.Type = vdl.TypeOf(SignedData(SignedDataSignature{security.Signature{}}))
-var __VDLType_v_io_x_ref_lib_security_serialization_SignedHeader *vdl.Type = vdl.TypeOf(SignedHeader{})
-
-func __VDLEnsureNativeBuilt() {
+	return struct{}{}
 }

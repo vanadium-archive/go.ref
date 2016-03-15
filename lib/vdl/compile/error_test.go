@@ -62,6 +62,7 @@ func cleanErrorDef(ed compile.ErrorDef) compile.ErrorDef {
 	for _, param := range ed.Params {
 		param.Pos = parse.Pos{}
 	}
+	ed.File = nil
 	return ed
 }
 

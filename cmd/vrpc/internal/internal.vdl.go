@@ -16,6 +16,11 @@ import (
 	"v.io/v23/vdl"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type Struct struct {
 	X int32
 	Y int32
@@ -27,9 +32,6 @@ func (Struct) __VDLReflect(struct {
 }
 
 func (m *Struct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_cmd_vrpc_internal_Struct == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -40,7 +42,7 @@ func (m *Struct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromInt(int64(m.X), vdl.Int32Type); err != nil {
+		if err := fieldTarget3.FromInt(int64(m.X), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -52,7 +54,7 @@ func (m *Struct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromInt(int64(m.Y), vdl.Int32Type); err != nil {
+		if err := fieldTarget5.FromInt(int64(m.Y), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -79,8 +81,8 @@ type StructTarget struct {
 
 func (t *StructTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_cmd_vrpc_internal_Struct) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_cmd_vrpc_internal_Struct)
+	if ttWant := vdl.TypeOf((*Struct)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -95,7 +97,7 @@ func (t *StructTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.yTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_cmd_vrpc_internal_Struct)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/cmd/vrpc/internal.Struct", name)
 	}
 }
 func (t *StructTarget) FinishField(_, _ vdl.Target) error {
@@ -114,7 +116,7 @@ func (Array2Int) __VDLReflect(struct {
 }
 
 func (m *Array2Int) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	listTarget1, err := t.StartList(__VDLType_v_io_x_ref_cmd_vrpc_internal_Array2Int, 2)
+	listTarget1, err := t.StartList(tt, 2)
 	if err != nil {
 		return err
 	}
@@ -123,7 +125,7 @@ func (m *Array2Int) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		if err != nil {
 			return err
 		}
-		if err := elemTarget2.FromInt(int64(elem3), vdl.Int32Type); err != nil {
+		if err := elemTarget2.FromInt(int64(elem3), tt.NonOptional().Elem()); err != nil {
 			return err
 		}
 		if err := listTarget1.FinishElem(elemTarget2); err != nil {
@@ -150,8 +152,8 @@ type Array2IntTarget struct {
 
 func (t *Array2IntTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_cmd_vrpc_internal_Array2Int) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_cmd_vrpc_internal_Array2Int)
+	if ttWant := vdl.TypeOf((*Array2Int)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -168,17 +170,8 @@ func (t *Array2IntTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func init() {
-	vdl.Register((*Struct)(nil))
-	vdl.Register((*Array2Int)(nil))
-}
-
-var __VDLType0 *vdl.Type = vdl.TypeOf((*Struct)(nil))
-var __VDLType_v_io_x_ref_cmd_vrpc_internal_Array2Int *vdl.Type = vdl.TypeOf(Array2Int{})
-var __VDLType_v_io_x_ref_cmd_vrpc_internal_Struct *vdl.Type = vdl.TypeOf(Struct{})
-
-func __VDLEnsureNativeBuilt() {
-}
+//////////////////////////////////////////////////
+// Interface definitions
 
 // TypeTesterClientMethods is the client interface
 // containing TypeTester methods.
@@ -747,4 +740,31 @@ type implTypeTesterZStreamServerCallSend struct {
 
 func (s implTypeTesterZStreamServerCallSend) Send(item bool) error {
 	return s.s.Send(item)
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*Struct)(nil))
+	vdl.Register((*Array2Int)(nil))
+
+	return struct{}{}
 }

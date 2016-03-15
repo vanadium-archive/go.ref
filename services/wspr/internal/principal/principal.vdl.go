@@ -14,6 +14,11 @@ import (
 	"v.io/v23/vdl/vdlconv"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // Identifier of a blessings cache entry.
 type BlessingsId uint32
 
@@ -23,7 +28,7 @@ func (BlessingsId) __VDLReflect(struct {
 }
 
 func (m *BlessingsId) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64((*m)), __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
+	if err := t.FromUint(uint64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -90,7 +95,6 @@ func (BlessingsCacheAddMessage) __VDLReflect(struct {
 }
 
 func (m *BlessingsCacheAddMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	__VDLEnsureNativeBuilt()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -102,7 +106,7 @@ func (m *BlessingsCacheAddMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.CacheId.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
+		if err := m.CacheId.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -120,7 +124,7 @@ func (m *BlessingsCacheAddMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue4.FillVDLTarget(fieldTarget6, __VDLType_v_io_v23_security_WireBlessings); err != nil {
+		if err := wireValue4.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
@@ -147,8 +151,8 @@ type BlessingsCacheAddMessageTarget struct {
 
 func (t *BlessingsCacheAddMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage)
+	if ttWant := vdl.TypeOf((*BlessingsCacheAddMessage)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -163,7 +167,7 @@ func (t *BlessingsCacheAddMessageTarget) StartField(name string) (key, field vdl
 		target, err := &t.blessingsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/principal.BlessingsCacheAddMessage", name)
 	}
 }
 func (t *BlessingsCacheAddMessageTarget) FinishField(_, _ vdl.Target) error {
@@ -189,9 +193,6 @@ func (BlessingsCacheDeleteMessage) __VDLReflect(struct {
 }
 
 func (m *BlessingsCacheDeleteMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage == nil || __VDLType1 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -203,7 +204,7 @@ func (m *BlessingsCacheDeleteMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) 
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.CacheId.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
+		if err := m.CacheId.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -215,7 +216,7 @@ func (m *BlessingsCacheDeleteMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) 
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromUint(uint64(m.DeleteAfter), vdl.Uint32Type); err != nil {
+		if err := fieldTarget5.FromUint(uint64(m.DeleteAfter), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -242,8 +243,8 @@ type BlessingsCacheDeleteMessageTarget struct {
 
 func (t *BlessingsCacheDeleteMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage)
+	if ttWant := vdl.TypeOf((*BlessingsCacheDeleteMessage)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -258,7 +259,7 @@ func (t *BlessingsCacheDeleteMessageTarget) StartField(name string) (key, field 
 		target, err := &t.deleteAfterTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/principal.BlessingsCacheDeleteMessage", name)
 	}
 }
 func (t *BlessingsCacheDeleteMessageTarget) FinishField(_, _ vdl.Target) error {
@@ -303,7 +304,7 @@ func (x BlessingsCacheMessageAdd) Name() string                                {
 func (x BlessingsCacheMessageAdd) __VDLReflect(__BlessingsCacheMessageReflect) {}
 
 func (m BlessingsCacheMessageAdd) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -312,7 +313,7 @@ func (m BlessingsCacheMessageAdd) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 		return err
 	}
 
-	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage); err != nil {
+	if err := m.Value.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -335,7 +336,7 @@ func (x BlessingsCacheMessageDelete) Name() string                              
 func (x BlessingsCacheMessageDelete) __VDLReflect(__BlessingsCacheMessageReflect) {}
 
 func (m BlessingsCacheMessageDelete) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -344,7 +345,7 @@ func (m BlessingsCacheMessageDelete) FillVDLTarget(t vdl.Target, tt *vdl.Type) e
 		return err
 	}
 
-	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage); err != nil {
+	if err := m.Value.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(1).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -361,261 +362,31 @@ func (m BlessingsCacheMessageDelete) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func init() {
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*BlessingsId)(nil))
 	vdl.Register((*BlessingsCacheAddMessage)(nil))
 	vdl.Register((*BlessingsCacheDeleteMessage)(nil))
 	vdl.Register((*BlessingsCacheMessage)(nil))
-}
 
-var __VDLType0 *vdl.Type
-
-func __VDLType0_gen() *vdl.Type {
-	__VDLType0Builder := vdl.TypeBuilder{}
-
-	__VDLType01 := __VDLType0Builder.Optional()
-	__VDLType02 := __VDLType0Builder.Struct()
-	__VDLType03 := __VDLType0Builder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsCacheAddMessage").AssignBase(__VDLType02)
-	__VDLType04 := vdl.Uint32Type
-	__VDLType05 := __VDLType0Builder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsId").AssignBase(__VDLType04)
-	__VDLType02.AppendField("CacheId", __VDLType05)
-	__VDLType06 := __VDLType0Builder.Struct()
-	__VDLType07 := __VDLType0Builder.Named("v.io/v23/security.WireBlessings").AssignBase(__VDLType06)
-	__VDLType08 := __VDLType0Builder.List()
-	__VDLType09 := __VDLType0Builder.List()
-	__VDLType010 := __VDLType0Builder.Struct()
-	__VDLType011 := __VDLType0Builder.Named("v.io/v23/security.Certificate").AssignBase(__VDLType010)
-	__VDLType012 := vdl.StringType
-	__VDLType010.AppendField("Extension", __VDLType012)
-	__VDLType013 := __VDLType0Builder.List()
-	__VDLType014 := vdl.ByteType
-	__VDLType013.AssignElem(__VDLType014)
-	__VDLType010.AppendField("PublicKey", __VDLType013)
-	__VDLType015 := __VDLType0Builder.List()
-	__VDLType016 := __VDLType0Builder.Struct()
-	__VDLType017 := __VDLType0Builder.Named("v.io/v23/security.Caveat").AssignBase(__VDLType016)
-	__VDLType018 := __VDLType0Builder.Array()
-	__VDLType019 := __VDLType0Builder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType018)
-	__VDLType018.AssignElem(__VDLType014)
-	__VDLType018.AssignLen(16)
-	__VDLType016.AppendField("Id", __VDLType019)
-	__VDLType016.AppendField("ParamVom", __VDLType013)
-	__VDLType015.AssignElem(__VDLType017)
-	__VDLType010.AppendField("Caveats", __VDLType015)
-	__VDLType020 := __VDLType0Builder.Struct()
-	__VDLType021 := __VDLType0Builder.Named("v.io/v23/security.Signature").AssignBase(__VDLType020)
-	__VDLType020.AppendField("Purpose", __VDLType013)
-	__VDLType022 := vdl.StringType
-	__VDLType023 := __VDLType0Builder.Named("v.io/v23/security.Hash").AssignBase(__VDLType022)
-	__VDLType020.AppendField("Hash", __VDLType023)
-	__VDLType020.AppendField("R", __VDLType013)
-	__VDLType020.AppendField("S", __VDLType013)
-	__VDLType010.AppendField("Signature", __VDLType021)
-	__VDLType09.AssignElem(__VDLType011)
-	__VDLType08.AssignElem(__VDLType09)
-	__VDLType06.AppendField("CertificateChains", __VDLType08)
-	__VDLType02.AppendField("Blessings", __VDLType07)
-	__VDLType01.AssignElem(__VDLType03)
-	__VDLType0Builder.Build()
-	__VDLType0v, err := __VDLType01.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType0v
-}
-func init() {
-	__VDLType0 = __VDLType0_gen()
-}
-
-var __VDLType1 *vdl.Type = vdl.TypeOf((*BlessingsCacheDeleteMessage)(nil))
-var __VDLType_v_io_v23_security_WireBlessings *vdl.Type
-
-func __VDLType_v_io_v23_security_WireBlessings_gen() *vdl.Type {
-	__VDLType_v_io_v23_security_WireBlessingsBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_v23_security_WireBlessings1 := __VDLType_v_io_v23_security_WireBlessingsBuilder.Struct()
-	__VDLType_v_io_v23_security_WireBlessings2 := __VDLType_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/security.WireBlessings").AssignBase(__VDLType_v_io_v23_security_WireBlessings1)
-	__VDLType_v_io_v23_security_WireBlessings3 := __VDLType_v_io_v23_security_WireBlessingsBuilder.List()
-	__VDLType_v_io_v23_security_WireBlessings4 := __VDLType_v_io_v23_security_WireBlessingsBuilder.List()
-	__VDLType_v_io_v23_security_WireBlessings5 := __VDLType_v_io_v23_security_WireBlessingsBuilder.Struct()
-	__VDLType_v_io_v23_security_WireBlessings6 := __VDLType_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/security.Certificate").AssignBase(__VDLType_v_io_v23_security_WireBlessings5)
-	__VDLType_v_io_v23_security_WireBlessings7 := vdl.StringType
-	__VDLType_v_io_v23_security_WireBlessings5.AppendField("Extension", __VDLType_v_io_v23_security_WireBlessings7)
-	__VDLType_v_io_v23_security_WireBlessings8 := __VDLType_v_io_v23_security_WireBlessingsBuilder.List()
-	__VDLType_v_io_v23_security_WireBlessings9 := vdl.ByteType
-	__VDLType_v_io_v23_security_WireBlessings8.AssignElem(__VDLType_v_io_v23_security_WireBlessings9)
-	__VDLType_v_io_v23_security_WireBlessings5.AppendField("PublicKey", __VDLType_v_io_v23_security_WireBlessings8)
-	__VDLType_v_io_v23_security_WireBlessings10 := __VDLType_v_io_v23_security_WireBlessingsBuilder.List()
-	__VDLType_v_io_v23_security_WireBlessings11 := __VDLType_v_io_v23_security_WireBlessingsBuilder.Struct()
-	__VDLType_v_io_v23_security_WireBlessings12 := __VDLType_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/security.Caveat").AssignBase(__VDLType_v_io_v23_security_WireBlessings11)
-	__VDLType_v_io_v23_security_WireBlessings13 := __VDLType_v_io_v23_security_WireBlessingsBuilder.Array()
-	__VDLType_v_io_v23_security_WireBlessings14 := __VDLType_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_v_io_v23_security_WireBlessings13)
-	__VDLType_v_io_v23_security_WireBlessings13.AssignElem(__VDLType_v_io_v23_security_WireBlessings9)
-	__VDLType_v_io_v23_security_WireBlessings13.AssignLen(16)
-	__VDLType_v_io_v23_security_WireBlessings11.AppendField("Id", __VDLType_v_io_v23_security_WireBlessings14)
-	__VDLType_v_io_v23_security_WireBlessings11.AppendField("ParamVom", __VDLType_v_io_v23_security_WireBlessings8)
-	__VDLType_v_io_v23_security_WireBlessings10.AssignElem(__VDLType_v_io_v23_security_WireBlessings12)
-	__VDLType_v_io_v23_security_WireBlessings5.AppendField("Caveats", __VDLType_v_io_v23_security_WireBlessings10)
-	__VDLType_v_io_v23_security_WireBlessings15 := __VDLType_v_io_v23_security_WireBlessingsBuilder.Struct()
-	__VDLType_v_io_v23_security_WireBlessings16 := __VDLType_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/security.Signature").AssignBase(__VDLType_v_io_v23_security_WireBlessings15)
-	__VDLType_v_io_v23_security_WireBlessings15.AppendField("Purpose", __VDLType_v_io_v23_security_WireBlessings8)
-	__VDLType_v_io_v23_security_WireBlessings17 := vdl.StringType
-	__VDLType_v_io_v23_security_WireBlessings18 := __VDLType_v_io_v23_security_WireBlessingsBuilder.Named("v.io/v23/security.Hash").AssignBase(__VDLType_v_io_v23_security_WireBlessings17)
-	__VDLType_v_io_v23_security_WireBlessings15.AppendField("Hash", __VDLType_v_io_v23_security_WireBlessings18)
-	__VDLType_v_io_v23_security_WireBlessings15.AppendField("R", __VDLType_v_io_v23_security_WireBlessings8)
-	__VDLType_v_io_v23_security_WireBlessings15.AppendField("S", __VDLType_v_io_v23_security_WireBlessings8)
-	__VDLType_v_io_v23_security_WireBlessings5.AppendField("Signature", __VDLType_v_io_v23_security_WireBlessings16)
-	__VDLType_v_io_v23_security_WireBlessings4.AssignElem(__VDLType_v_io_v23_security_WireBlessings6)
-	__VDLType_v_io_v23_security_WireBlessings3.AssignElem(__VDLType_v_io_v23_security_WireBlessings4)
-	__VDLType_v_io_v23_security_WireBlessings1.AppendField("CertificateChains", __VDLType_v_io_v23_security_WireBlessings3)
-	__VDLType_v_io_v23_security_WireBlessingsBuilder.Build()
-	__VDLType_v_io_v23_security_WireBlessingsv, err := __VDLType_v_io_v23_security_WireBlessings2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_v23_security_WireBlessingsv
-}
-func init() {
-	__VDLType_v_io_v23_security_WireBlessings = __VDLType_v_io_v23_security_WireBlessings_gen()
-}
-
-var __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage *vdl.Type
-
-func __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage1 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage2 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsCacheAddMessage").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage1)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage3 := vdl.Uint32Type
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage4 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsId").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage3)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage1.AppendField("CacheId", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage4)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage5 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage6 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Named("v.io/v23/security.WireBlessings").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage5)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage7 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage8 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage9 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage10 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Named("v.io/v23/security.Certificate").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage9)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage11 := vdl.StringType
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage9.AppendField("Extension", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage11)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage12 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage13 := vdl.ByteType
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage12.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage13)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage9.AppendField("PublicKey", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage12)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage14 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage15 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage16 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Named("v.io/v23/security.Caveat").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage15)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage17 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Array()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage18 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage17)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage17.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage13)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage17.AssignLen(16)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage15.AppendField("Id", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage18)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage15.AppendField("ParamVom", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage12)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage14.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage16)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage9.AppendField("Caveats", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage14)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage19 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage20 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Named("v.io/v23/security.Signature").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage19)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage19.AppendField("Purpose", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage12)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage21 := vdl.StringType
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage22 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Named("v.io/v23/security.Hash").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage21)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage19.AppendField("Hash", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage22)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage19.AppendField("R", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage12)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage19.AppendField("S", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage12)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage9.AppendField("Signature", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage20)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage8.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage10)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage7.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage8)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage5.AppendField("CertificateChains", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage7)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage1.AppendField("Blessings", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage6)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessageBuilder.Build()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessagev, err := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessagev
-}
-func init() {
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage = __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage_gen()
-}
-
-var __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheDeleteMessage *vdl.Type = vdl.TypeOf(BlessingsCacheDeleteMessage{})
-var __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage *vdl.Type
-
-func __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage1 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Union()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage2 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsCacheMessage").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage1)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage3 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage4 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsCacheAddMessage").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage3)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage5 := vdl.Uint32Type
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage6 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsId").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage5)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage3.AppendField("CacheId", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage6)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage7 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage8 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Named("v.io/v23/security.WireBlessings").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage7)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage9 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage10 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage11 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage12 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Named("v.io/v23/security.Certificate").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage11)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage13 := vdl.StringType
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage11.AppendField("Extension", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage13)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage14 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage15 := vdl.ByteType
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage14.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage15)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage11.AppendField("PublicKey", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage14)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage16 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage17 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage18 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Named("v.io/v23/security.Caveat").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage17)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage19 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Array()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage20 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage19)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage19.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage15)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage19.AssignLen(16)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage17.AppendField("Id", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage20)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage17.AppendField("ParamVom", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage14)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage16.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage18)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage11.AppendField("Caveats", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage16)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage21 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage22 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Named("v.io/v23/security.Signature").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage21)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage21.AppendField("Purpose", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage14)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage23 := vdl.StringType
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage24 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Named("v.io/v23/security.Hash").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage23)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage21.AppendField("Hash", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage24)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage21.AppendField("R", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage14)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage21.AppendField("S", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage14)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage11.AppendField("Signature", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage22)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage10.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage12)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage9.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage10)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage7.AppendField("CertificateChains", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage9)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage3.AppendField("Blessings", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage8)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage1.AppendField("Add", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage4)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage25 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage26 := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsCacheDeleteMessage").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage25)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage25.AppendField("CacheId", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage6)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage27 := vdl.Uint32Type
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage25.AppendField("DeleteAfter", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage27)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage1.AppendField("Delete", __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage26)
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessageBuilder.Build()
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessagev, err := __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessagev
-}
-func init() {
-	__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage = __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage_gen()
-}
-
-var __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsId *vdl.Type = vdl.TypeOf(BlessingsId(0))
-
-func __VDLEnsureNativeBuilt() {
-	if __VDLType0 == nil {
-		__VDLType0 = __VDLType0_gen()
-	}
-	if __VDLType_v_io_v23_security_WireBlessings == nil {
-		__VDLType_v_io_v23_security_WireBlessings = __VDLType_v_io_v23_security_WireBlessings_gen()
-	}
-	if __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage == nil {
-		__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage = __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheAddMessage_gen()
-	}
-	if __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage == nil {
-		__VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage = __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsCacheMessage_gen()
-	}
+	return struct{}{}
 }

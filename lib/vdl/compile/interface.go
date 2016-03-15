@@ -17,13 +17,12 @@ func compileInterfaces(pkg *Package, pfiles []*parse.File, env *Env) {
 	if id.Declare(); !env.Errors.IsEmpty() {
 		return
 	}
-	id.SortAndDefine()
+	id.Define()
 }
 
 // ifaceDefiner defines interfaces in a package.  This is split into two phases:
 // 1) Declare ensures local interface references can be resolved.
-// 2) SortAndDefine sorts in dependency order, and evaluates and defines each
-//    const.
+// 2) Define sorts in dependency order, and defines each interface.
 //
 // It holds a builders map from interface name to ifaceBuilder, where the
 // ifaceBuilder is responsible for compiling and defining a single interface.
@@ -64,9 +63,9 @@ func (id ifaceDefiner) Declare() {
 	}
 }
 
-// Sort and define interfaces.  We sort by dependencies on other interfaces in
-// this package.  The sorting is to ensure there are no cycles.
-func (id ifaceDefiner) SortAndDefine() {
+// Define interfaces.  We sort by dependencies on other interfaces in this
+// package.  The sorting is to ensure there are no cycles.
+func (id ifaceDefiner) Define() {
 	// Populate sorter with dependency information.  The sorting ensures that the
 	// list of interfaces within each file is topologically sorted, and also
 	// deterministic; in the absence of interface embeddings, interfaces are
@@ -102,7 +101,8 @@ func (id ifaceDefiner) SortAndDefine() {
 // addIfaceDef updates our various structures to add a new interface.
 func addIfaceDef(def *Interface) {
 	def.File.Interfaces = append(def.File.Interfaces, def)
-	def.File.Package.ifaceDefs[def.Name] = def
+	def.File.Package.ifaceDefs = append(def.File.Package.ifaceDefs, def)
+	def.File.Package.ifaceMap[def.Name] = def
 }
 
 // getLocalDeps returns the list of interface dependencies for b that are in

@@ -17,6 +17,11 @@ import (
 	"v.io/v23/vdl"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type SumArg struct {
 	ABool        bool
 	AInt64       int64
@@ -29,9 +34,6 @@ func (SumArg) __VDLReflect(struct {
 }
 
 func (m *SumArg) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumArg == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -42,7 +44,7 @@ func (m *SumArg) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromBool(bool(m.ABool), vdl.BoolType); err != nil {
+		if err := fieldTarget3.FromBool(bool(m.ABool), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -54,7 +56,7 @@ func (m *SumArg) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromInt(int64(m.AInt64), vdl.Int64Type); err != nil {
+		if err := fieldTarget5.FromInt(int64(m.AInt64), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -67,7 +69,7 @@ func (m *SumArg) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget7.FromBytes([]byte(m.AListOfBytes), __VDLType1); err != nil {
+		if err := fieldTarget7.FromBytes([]byte(m.AListOfBytes), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -95,8 +97,8 @@ type SumArgTarget struct {
 
 func (t *SumArgTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumArg) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumArg)
+	if ttWant := vdl.TypeOf((*SumArg)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -115,7 +117,7 @@ func (t *SumArgTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.aListOfBytesTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumArg)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/rpc/stress.SumArg", name)
 	}
 }
 func (t *SumArgTarget) FinishField(_, _ vdl.Target) error {
@@ -139,9 +141,6 @@ func (SumStats) __VDLReflect(struct {
 }
 
 func (m *SumStats) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumStats == nil || __VDLType2 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -152,7 +151,7 @@ func (m *SumStats) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromUint(uint64(m.SumCount), vdl.Uint64Type); err != nil {
+		if err := fieldTarget3.FromUint(uint64(m.SumCount), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -164,7 +163,7 @@ func (m *SumStats) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromUint(uint64(m.SumStreamCount), vdl.Uint64Type); err != nil {
+		if err := fieldTarget5.FromUint(uint64(m.SumStreamCount), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -176,7 +175,7 @@ func (m *SumStats) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget7.FromUint(uint64(m.BytesRecv), vdl.Uint64Type); err != nil {
+		if err := fieldTarget7.FromUint(uint64(m.BytesRecv), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -188,7 +187,7 @@ func (m *SumStats) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget9.FromUint(uint64(m.BytesSent), vdl.Uint64Type); err != nil {
+		if err := fieldTarget9.FromUint(uint64(m.BytesSent), tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
@@ -217,8 +216,8 @@ type SumStatsTarget struct {
 
 func (t *SumStatsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumStats) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumStats)
+	if ttWant := vdl.TypeOf((*SumStats)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -241,7 +240,7 @@ func (t *SumStatsTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.bytesSentTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumStats)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/rpc/stress.SumStats", name)
 	}
 }
 func (t *SumStatsTarget) FinishField(_, _ vdl.Target) error {
@@ -252,19 +251,8 @@ func (t *SumStatsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func init() {
-	vdl.Register((*SumArg)(nil))
-	vdl.Register((*SumStats)(nil))
-}
-
-var __VDLType0 *vdl.Type = vdl.TypeOf((*SumArg)(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf((*SumStats)(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf([]byte(nil))
-var __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumArg *vdl.Type = vdl.TypeOf(SumArg{})
-var __VDLType_v_io_x_ref_runtime_internal_rpc_stress_SumStats *vdl.Type = vdl.TypeOf(SumStats{})
-
-func __VDLEnsureNativeBuilt() {
-}
+//////////////////////////////////////////////////
+// Interface definitions
 
 // StressClientMethods is the client interface
 // containing Stress methods.
@@ -650,4 +638,31 @@ type implStressSumStreamServerCallSend struct {
 
 func (s implStressSumStreamServerCallSend) Send(item []byte) error {
 	return s.s.Send(item)
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*SumArg)(nil))
+	vdl.Register((*SumStats)(nil))
+
+	return struct{}{}
 }

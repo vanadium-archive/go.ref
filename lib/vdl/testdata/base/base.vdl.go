@@ -22,6 +22,11 @@ import (
 	"v.io/v23/vom"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type NamedBool bool
 
 func (NamedBool) __VDLReflect(struct {
@@ -30,7 +35,7 @@ func (NamedBool) __VDLReflect(struct {
 }
 
 func (m *NamedBool) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromBool(bool((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedBool); err != nil {
+	if err := t.FromBool(bool((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -47,8 +52,8 @@ type NamedBoolTarget struct {
 
 func (t *NamedBoolTarget) FromBool(src bool, tt *vdl.Type) error {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedBool) {
-		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedBool)
+	if ttWant := vdl.TypeOf((*NamedBool)(nil)); !vdl.Compatible(tt, ttWant) {
+		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = NamedBool(src)
 
@@ -63,7 +68,7 @@ func (NamedByte) __VDLReflect(struct {
 }
 
 func (m *NamedByte) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedByte); err != nil {
+	if err := t.FromUint(uint64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -127,7 +132,7 @@ func (NamedUint16) __VDLReflect(struct {
 }
 
 func (m *NamedUint16) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint16); err != nil {
+	if err := t.FromUint(uint64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -191,7 +196,7 @@ func (NamedUint32) __VDLReflect(struct {
 }
 
 func (m *NamedUint32) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint32); err != nil {
+	if err := t.FromUint(uint64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -255,7 +260,7 @@ func (NamedUint64) __VDLReflect(struct {
 }
 
 func (m *NamedUint64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint64); err != nil {
+	if err := t.FromUint(uint64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -315,7 +320,7 @@ func (NamedInt8) __VDLReflect(struct {
 }
 
 func (m *NamedInt8) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt8); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -379,7 +384,7 @@ func (NamedInt16) __VDLReflect(struct {
 }
 
 func (m *NamedInt16) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt16); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -443,7 +448,7 @@ func (NamedInt32) __VDLReflect(struct {
 }
 
 func (m *NamedInt32) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt32); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -507,7 +512,7 @@ func (NamedInt64) __VDLReflect(struct {
 }
 
 func (m *NamedInt64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt64); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -567,7 +572,7 @@ func (NamedFloat32) __VDLReflect(struct {
 }
 
 func (m *NamedFloat32) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromFloat(float64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedFloat32); err != nil {
+	if err := t.FromFloat(float64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -631,7 +636,7 @@ func (NamedFloat64) __VDLReflect(struct {
 }
 
 func (m *NamedFloat64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromFloat(float64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedFloat64); err != nil {
+	if err := t.FromFloat(float64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -691,7 +696,7 @@ func (NamedComplex64) __VDLReflect(struct {
 }
 
 func (m *NamedComplex64) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromComplex(complex128((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedComplex64); err != nil {
+	if err := t.FromComplex(complex128((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -755,7 +760,7 @@ func (NamedComplex128) __VDLReflect(struct {
 }
 
 func (m *NamedComplex128) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromComplex(complex128((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedComplex128); err != nil {
+	if err := t.FromComplex(complex128((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -815,7 +820,7 @@ func (NamedString) __VDLReflect(struct {
 }
 
 func (m *NamedString) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromString(string((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedString); err != nil {
+	if err := t.FromString(string((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -832,8 +837,8 @@ type NamedStringTarget struct {
 
 func (t *NamedStringTarget) FromString(src string, tt *vdl.Type) error {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedString) {
-		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedString)
+	if ttWant := vdl.TypeOf((*NamedString)(nil)); !vdl.Compatible(tt, ttWant) {
+		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = NamedString(src)
 
@@ -894,7 +899,7 @@ func (NamedEnum) __VDLReflect(struct {
 }
 
 func (m *NamedEnum) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromEnumLabel((*m).String(), __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedEnum); err != nil {
+	if err := t.FromEnumLabel((*m).String(), tt); err != nil {
 		return err
 	}
 	return nil
@@ -911,8 +916,8 @@ type NamedEnumTarget struct {
 
 func (t *NamedEnumTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedEnum) {
-		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedEnum)
+	if ttWant := vdl.TypeOf((*NamedEnum)(nil)); !vdl.Compatible(tt, ttWant) {
+		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	switch src {
 	case "A":
@@ -922,7 +927,7 @@ func (t *NamedEnumTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	case "C":
 		*t.Value = 2
 	default:
-		return fmt.Errorf("label %s not in enum %v", src, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedEnum)
+		return fmt.Errorf("label %s not in enum v.io/x/ref/lib/vdl/testdata/base.NamedEnum", src)
 	}
 
 	return nil
@@ -936,7 +941,7 @@ func (NamedArray) __VDLReflect(struct {
 }
 
 func (m *NamedArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	listTarget1, err := t.StartList(__VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedArray, 2)
+	listTarget1, err := t.StartList(tt, 2)
 	if err != nil {
 		return err
 	}
@@ -945,7 +950,7 @@ func (m *NamedArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		if err != nil {
 			return err
 		}
-		if err := elemTarget2.FromBool(bool(elem3), vdl.BoolType); err != nil {
+		if err := elemTarget2.FromBool(bool(elem3), tt.NonOptional().Elem()); err != nil {
 			return err
 		}
 		if err := listTarget1.FinishElem(elemTarget2); err != nil {
@@ -972,8 +977,8 @@ type NamedArrayTarget struct {
 
 func (t *NamedArrayTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedArray) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedArray)
+	if ttWant := vdl.TypeOf((*NamedArray)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -998,7 +1003,7 @@ func (NamedList) __VDLReflect(struct {
 }
 
 func (m *NamedList) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	listTarget1, err := t.StartList(__VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedList, len((*m)))
+	listTarget1, err := t.StartList(tt, len((*m)))
 	if err != nil {
 		return err
 	}
@@ -1007,7 +1012,7 @@ func (m *NamedList) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		if err != nil {
 			return err
 		}
-		if err := elemTarget2.FromUint(uint64(elem3), vdl.Uint32Type); err != nil {
+		if err := elemTarget2.FromUint(uint64(elem3), tt.NonOptional().Elem()); err != nil {
 			return err
 		}
 		if err := listTarget1.FinishElem(elemTarget2); err != nil {
@@ -1034,8 +1039,8 @@ type NamedListTarget struct {
 
 func (t *NamedListTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedList) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedList)
+	if ttWant := vdl.TypeOf((*NamedList)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make(NamedList, len)
@@ -1065,7 +1070,7 @@ func (NamedSet) __VDLReflect(struct {
 }
 
 func (m *NamedSet) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	setTarget1, err := t.StartSet(__VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedSet, len((*m)))
+	setTarget1, err := t.StartSet(tt, len((*m)))
 	if err != nil {
 		return err
 	}
@@ -1074,7 +1079,7 @@ func (m *NamedSet) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		if err != nil {
 			return err
 		}
-		if err := keyTarget2.FromString(string(key3), vdl.StringType); err != nil {
+		if err := keyTarget2.FromString(string(key3), tt.NonOptional().Key()); err != nil {
 			return err
 		}
 		if err := setTarget1.FinishKey(keyTarget2); err != nil {
@@ -1101,8 +1106,8 @@ type NamedSetTarget struct {
 
 func (t *NamedSetTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedSet) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedSet)
+	if ttWant := vdl.TypeOf((*NamedSet)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = make(NamedSet)
 	return t, nil
@@ -1133,7 +1138,7 @@ func (NamedMap) __VDLReflect(struct {
 }
 
 func (m *NamedMap) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	mapTarget1, err := t.StartMap(__VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedMap, len((*m)))
+	mapTarget1, err := t.StartMap(tt, len((*m)))
 	if err != nil {
 		return err
 	}
@@ -1142,14 +1147,14 @@ func (m *NamedMap) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		if err != nil {
 			return err
 		}
-		if err := keyTarget2.FromString(string(key3), vdl.StringType); err != nil {
+		if err := keyTarget2.FromString(string(key3), tt.NonOptional().Key()); err != nil {
 			return err
 		}
 		valueTarget4, err := mapTarget1.FinishKeyStartField(keyTarget2)
 		if err != nil {
 			return err
 		}
-		if err := valueTarget4.FromFloat(float64(value5), vdl.Float32Type); err != nil {
+		if err := valueTarget4.FromFloat(float64(value5), tt.NonOptional().Elem()); err != nil {
 			return err
 		}
 		if err := mapTarget1.FinishField(keyTarget2, valueTarget4); err != nil {
@@ -1178,8 +1183,8 @@ type NamedMapTarget struct {
 
 func (t *NamedMapTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedMap) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedMap)
+	if ttWant := vdl.TypeOf((*NamedMap)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = make(NamedMap)
 	return t, nil
@@ -1220,9 +1225,6 @@ func (NamedStruct) __VDLReflect(struct {
 }
 
 func (m *NamedStruct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedStruct == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -1233,7 +1235,7 @@ func (m *NamedStruct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromBool(bool(m.A), vdl.BoolType); err != nil {
+		if err := fieldTarget3.FromBool(bool(m.A), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -1245,7 +1247,7 @@ func (m *NamedStruct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.B), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.B), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -1257,7 +1259,7 @@ func (m *NamedStruct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget7.FromInt(int64(m.C), vdl.Int32Type); err != nil {
+		if err := fieldTarget7.FromInt(int64(m.C), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -1285,8 +1287,8 @@ type NamedStructTarget struct {
 
 func (t *NamedStructTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedStruct) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedStruct)
+	if ttWant := vdl.TypeOf((*NamedStruct)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -1305,7 +1307,7 @@ func (t *NamedStructTarget) StartField(name string) (key, field vdl.Target, _ er
 		target, err := &t.cTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedStruct)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.NamedStruct", name)
 	}
 }
 func (t *NamedStructTarget) FinishField(_, _ vdl.Target) error {
@@ -1353,7 +1355,7 @@ func (x NamedUnionA) Name() string                     { return "A" }
 func (x NamedUnionA) __VDLReflect(__NamedUnionReflect) {}
 
 func (m NamedUnionA) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUnion)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -1361,7 +1363,7 @@ func (m NamedUnionA) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	if err := fieldTarget3.FromBool(bool(m.Value), vdl.BoolType); err != nil {
+	if err := fieldTarget3.FromBool(bool(m.Value), tt.NonOptional().Field(0).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -1384,7 +1386,7 @@ func (x NamedUnionB) Name() string                     { return "B" }
 func (x NamedUnionB) __VDLReflect(__NamedUnionReflect) {}
 
 func (m NamedUnionB) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUnion)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -1392,7 +1394,7 @@ func (m NamedUnionB) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	if err := fieldTarget3.FromString(string(m.Value), vdl.StringType); err != nil {
+	if err := fieldTarget3.FromString(string(m.Value), tt.NonOptional().Field(1).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -1415,7 +1417,7 @@ func (x NamedUnionC) Name() string                     { return "C" }
 func (x NamedUnionC) __VDLReflect(__NamedUnionReflect) {}
 
 func (m NamedUnionC) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUnion)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -1423,7 +1425,7 @@ func (m NamedUnionC) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	if err := fieldTarget3.FromInt(int64(m.Value), vdl.Int32Type); err != nil {
+	if err := fieldTarget3.FromInt(int64(m.Value), tt.NonOptional().Field(2).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -1482,9 +1484,6 @@ func (Scalars) __VDLReflect(struct {
 }
 
 func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_base_Scalars == nil || __VDLType1 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -1495,7 +1494,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromBool(bool(m.A0), vdl.BoolType); err != nil {
+		if err := fieldTarget3.FromBool(bool(m.A0), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -1507,7 +1506,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromUint(uint64(m.A1), vdl.ByteType); err != nil {
+		if err := fieldTarget5.FromUint(uint64(m.A1), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -1519,7 +1518,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget7.FromUint(uint64(m.A2), vdl.Uint16Type); err != nil {
+		if err := fieldTarget7.FromUint(uint64(m.A2), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -1531,7 +1530,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget9.FromUint(uint64(m.A3), vdl.Uint32Type); err != nil {
+		if err := fieldTarget9.FromUint(uint64(m.A3), tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
@@ -1543,7 +1542,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget11.FromUint(uint64(m.A4), vdl.Uint64Type); err != nil {
+		if err := fieldTarget11.FromUint(uint64(m.A4), tt.NonOptional().Field(4).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
@@ -1555,7 +1554,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget13.FromInt(int64(m.A5), vdl.Int8Type); err != nil {
+		if err := fieldTarget13.FromInt(int64(m.A5), tt.NonOptional().Field(5).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
@@ -1567,7 +1566,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget15.FromInt(int64(m.A6), vdl.Int16Type); err != nil {
+		if err := fieldTarget15.FromInt(int64(m.A6), tt.NonOptional().Field(6).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
@@ -1579,7 +1578,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget17.FromInt(int64(m.A7), vdl.Int32Type); err != nil {
+		if err := fieldTarget17.FromInt(int64(m.A7), tt.NonOptional().Field(7).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
@@ -1591,7 +1590,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget19.FromInt(int64(m.A8), vdl.Int64Type); err != nil {
+		if err := fieldTarget19.FromInt(int64(m.A8), tt.NonOptional().Field(8).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
@@ -1603,7 +1602,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget21.FromFloat(float64(m.A9), vdl.Float32Type); err != nil {
+		if err := fieldTarget21.FromFloat(float64(m.A9), tt.NonOptional().Field(9).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget20, fieldTarget21); err != nil {
@@ -1615,7 +1614,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget23.FromFloat(float64(m.A10), vdl.Float64Type); err != nil {
+		if err := fieldTarget23.FromFloat(float64(m.A10), tt.NonOptional().Field(10).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
@@ -1627,7 +1626,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget25.FromComplex(complex128(m.A11), vdl.Complex64Type); err != nil {
+		if err := fieldTarget25.FromComplex(complex128(m.A11), tt.NonOptional().Field(11).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget24, fieldTarget25); err != nil {
@@ -1639,7 +1638,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget27.FromComplex(complex128(m.A12), vdl.Complex128Type); err != nil {
+		if err := fieldTarget27.FromComplex(complex128(m.A12), tt.NonOptional().Field(12).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget26, fieldTarget27); err != nil {
@@ -1651,7 +1650,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget29.FromString(string(m.A13), vdl.StringType); err != nil {
+		if err := fieldTarget29.FromString(string(m.A13), tt.NonOptional().Field(13).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
@@ -1665,7 +1664,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != vdl.ErrFieldNoExist {
 
 		if m.A14 == nil {
-			if err := fieldTarget31.FromNil(vdl.ErrorType); err != nil {
+			if err := fieldTarget31.FromNil(tt.NonOptional().Field(14).Type); err != nil {
 				return err
 			}
 		} else {
@@ -1689,11 +1688,11 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != vdl.ErrFieldNoExist {
 
 		if m.A15 == nil {
-			if err := fieldTarget34.FromNil(vdl.AnyType); err != nil {
+			if err := fieldTarget34.FromNil(tt.NonOptional().Field(15).Type); err != nil {
 				return err
 			}
 		} else {
-			if err := m.A15.FillVDLTarget(fieldTarget34, vdl.AnyType); err != nil {
+			if err := m.A15.FillVDLTarget(fieldTarget34, tt.NonOptional().Field(15).Type); err != nil {
 				return err
 			}
 		}
@@ -1723,7 +1722,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B0.FillVDLTarget(fieldTarget39, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedBool); err != nil {
+		if err := m.B0.FillVDLTarget(fieldTarget39, tt.NonOptional().Field(17).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget38, fieldTarget39); err != nil {
@@ -1736,7 +1735,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B1.FillVDLTarget(fieldTarget41, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedByte); err != nil {
+		if err := m.B1.FillVDLTarget(fieldTarget41, tt.NonOptional().Field(18).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget40, fieldTarget41); err != nil {
@@ -1749,7 +1748,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B2.FillVDLTarget(fieldTarget43, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint16); err != nil {
+		if err := m.B2.FillVDLTarget(fieldTarget43, tt.NonOptional().Field(19).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget42, fieldTarget43); err != nil {
@@ -1762,7 +1761,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B3.FillVDLTarget(fieldTarget45, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint32); err != nil {
+		if err := m.B3.FillVDLTarget(fieldTarget45, tt.NonOptional().Field(20).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget44, fieldTarget45); err != nil {
@@ -1775,7 +1774,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B4.FillVDLTarget(fieldTarget47, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint64); err != nil {
+		if err := m.B4.FillVDLTarget(fieldTarget47, tt.NonOptional().Field(21).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget46, fieldTarget47); err != nil {
@@ -1788,7 +1787,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B5.FillVDLTarget(fieldTarget49, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt8); err != nil {
+		if err := m.B5.FillVDLTarget(fieldTarget49, tt.NonOptional().Field(22).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget48, fieldTarget49); err != nil {
@@ -1801,7 +1800,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B6.FillVDLTarget(fieldTarget51, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt16); err != nil {
+		if err := m.B6.FillVDLTarget(fieldTarget51, tt.NonOptional().Field(23).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget50, fieldTarget51); err != nil {
@@ -1814,7 +1813,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B7.FillVDLTarget(fieldTarget53, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt32); err != nil {
+		if err := m.B7.FillVDLTarget(fieldTarget53, tt.NonOptional().Field(24).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget52, fieldTarget53); err != nil {
@@ -1827,7 +1826,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B8.FillVDLTarget(fieldTarget55, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt64); err != nil {
+		if err := m.B8.FillVDLTarget(fieldTarget55, tt.NonOptional().Field(25).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget54, fieldTarget55); err != nil {
@@ -1840,7 +1839,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B9.FillVDLTarget(fieldTarget57, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedFloat32); err != nil {
+		if err := m.B9.FillVDLTarget(fieldTarget57, tt.NonOptional().Field(26).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget56, fieldTarget57); err != nil {
@@ -1853,7 +1852,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B10.FillVDLTarget(fieldTarget59, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedFloat64); err != nil {
+		if err := m.B10.FillVDLTarget(fieldTarget59, tt.NonOptional().Field(27).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget58, fieldTarget59); err != nil {
@@ -1866,7 +1865,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B11.FillVDLTarget(fieldTarget61, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedComplex64); err != nil {
+		if err := m.B11.FillVDLTarget(fieldTarget61, tt.NonOptional().Field(28).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget60, fieldTarget61); err != nil {
@@ -1879,7 +1878,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B12.FillVDLTarget(fieldTarget63, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedComplex128); err != nil {
+		if err := m.B12.FillVDLTarget(fieldTarget63, tt.NonOptional().Field(29).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget62, fieldTarget63); err != nil {
@@ -1892,7 +1891,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B13.FillVDLTarget(fieldTarget65, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedString); err != nil {
+		if err := m.B13.FillVDLTarget(fieldTarget65, tt.NonOptional().Field(30).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget64, fieldTarget65); err != nil {
@@ -1905,7 +1904,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B14.FillVDLTarget(fieldTarget67, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedEnum); err != nil {
+		if err := m.B14.FillVDLTarget(fieldTarget67, tt.NonOptional().Field(31).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget66, fieldTarget67); err != nil {
@@ -1922,7 +1921,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		if unionValue70 == nil {
 			unionValue70 = NamedUnionA{}
 		}
-		if err := unionValue70.FillVDLTarget(fieldTarget69, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUnion); err != nil {
+		if err := unionValue70.FillVDLTarget(fieldTarget69, tt.NonOptional().Field(32).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget68, fieldTarget69); err != nil {
@@ -1980,8 +1979,8 @@ type ScalarsTarget struct {
 
 func (t *ScalarsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Scalars) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Scalars)
+	if ttWant := vdl.TypeOf((*Scalars)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -2118,7 +2117,7 @@ func (t *ScalarsTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.B15))
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Scalars)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.Scalars", name)
 	}
 }
 func (t *ScalarsTarget) FinishField(_, _ vdl.Target) error {
@@ -2167,9 +2166,6 @@ func (KeyScalars) __VDLReflect(struct {
 }
 
 func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_base_KeyScalars == nil || __VDLType2 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -2180,7 +2176,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromBool(bool(m.A0), vdl.BoolType); err != nil {
+		if err := fieldTarget3.FromBool(bool(m.A0), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -2192,7 +2188,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromUint(uint64(m.A1), vdl.ByteType); err != nil {
+		if err := fieldTarget5.FromUint(uint64(m.A1), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -2204,7 +2200,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget7.FromUint(uint64(m.A2), vdl.Uint16Type); err != nil {
+		if err := fieldTarget7.FromUint(uint64(m.A2), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -2216,7 +2212,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget9.FromUint(uint64(m.A3), vdl.Uint32Type); err != nil {
+		if err := fieldTarget9.FromUint(uint64(m.A3), tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
@@ -2228,7 +2224,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget11.FromUint(uint64(m.A4), vdl.Uint64Type); err != nil {
+		if err := fieldTarget11.FromUint(uint64(m.A4), tt.NonOptional().Field(4).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
@@ -2240,7 +2236,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget13.FromInt(int64(m.A5), vdl.Int8Type); err != nil {
+		if err := fieldTarget13.FromInt(int64(m.A5), tt.NonOptional().Field(5).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
@@ -2252,7 +2248,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget15.FromInt(int64(m.A6), vdl.Int16Type); err != nil {
+		if err := fieldTarget15.FromInt(int64(m.A6), tt.NonOptional().Field(6).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
@@ -2264,7 +2260,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget17.FromInt(int64(m.A7), vdl.Int32Type); err != nil {
+		if err := fieldTarget17.FromInt(int64(m.A7), tt.NonOptional().Field(7).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
@@ -2276,7 +2272,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget19.FromInt(int64(m.A8), vdl.Int64Type); err != nil {
+		if err := fieldTarget19.FromInt(int64(m.A8), tt.NonOptional().Field(8).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
@@ -2288,7 +2284,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget21.FromFloat(float64(m.A9), vdl.Float32Type); err != nil {
+		if err := fieldTarget21.FromFloat(float64(m.A9), tt.NonOptional().Field(9).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget20, fieldTarget21); err != nil {
@@ -2300,7 +2296,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget23.FromFloat(float64(m.A10), vdl.Float64Type); err != nil {
+		if err := fieldTarget23.FromFloat(float64(m.A10), tt.NonOptional().Field(10).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
@@ -2312,7 +2308,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget25.FromComplex(complex128(m.A11), vdl.Complex64Type); err != nil {
+		if err := fieldTarget25.FromComplex(complex128(m.A11), tt.NonOptional().Field(11).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget24, fieldTarget25); err != nil {
@@ -2324,7 +2320,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget27.FromComplex(complex128(m.A12), vdl.Complex128Type); err != nil {
+		if err := fieldTarget27.FromComplex(complex128(m.A12), tt.NonOptional().Field(12).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget26, fieldTarget27); err != nil {
@@ -2336,7 +2332,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget29.FromString(string(m.A13), vdl.StringType); err != nil {
+		if err := fieldTarget29.FromString(string(m.A13), tt.NonOptional().Field(13).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
@@ -2349,7 +2345,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B0.FillVDLTarget(fieldTarget31, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedBool); err != nil {
+		if err := m.B0.FillVDLTarget(fieldTarget31, tt.NonOptional().Field(14).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget30, fieldTarget31); err != nil {
@@ -2362,7 +2358,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B1.FillVDLTarget(fieldTarget33, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedByte); err != nil {
+		if err := m.B1.FillVDLTarget(fieldTarget33, tt.NonOptional().Field(15).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget32, fieldTarget33); err != nil {
@@ -2375,7 +2371,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B2.FillVDLTarget(fieldTarget35, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint16); err != nil {
+		if err := m.B2.FillVDLTarget(fieldTarget35, tt.NonOptional().Field(16).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget34, fieldTarget35); err != nil {
@@ -2388,7 +2384,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B3.FillVDLTarget(fieldTarget37, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint32); err != nil {
+		if err := m.B3.FillVDLTarget(fieldTarget37, tt.NonOptional().Field(17).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget36, fieldTarget37); err != nil {
@@ -2401,7 +2397,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B4.FillVDLTarget(fieldTarget39, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint64); err != nil {
+		if err := m.B4.FillVDLTarget(fieldTarget39, tt.NonOptional().Field(18).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget38, fieldTarget39); err != nil {
@@ -2414,7 +2410,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B5.FillVDLTarget(fieldTarget41, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt8); err != nil {
+		if err := m.B5.FillVDLTarget(fieldTarget41, tt.NonOptional().Field(19).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget40, fieldTarget41); err != nil {
@@ -2427,7 +2423,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B6.FillVDLTarget(fieldTarget43, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt16); err != nil {
+		if err := m.B6.FillVDLTarget(fieldTarget43, tt.NonOptional().Field(20).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget42, fieldTarget43); err != nil {
@@ -2440,7 +2436,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B7.FillVDLTarget(fieldTarget45, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt32); err != nil {
+		if err := m.B7.FillVDLTarget(fieldTarget45, tt.NonOptional().Field(21).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget44, fieldTarget45); err != nil {
@@ -2453,7 +2449,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B8.FillVDLTarget(fieldTarget47, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt64); err != nil {
+		if err := m.B8.FillVDLTarget(fieldTarget47, tt.NonOptional().Field(22).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget46, fieldTarget47); err != nil {
@@ -2466,7 +2462,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B9.FillVDLTarget(fieldTarget49, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedFloat32); err != nil {
+		if err := m.B9.FillVDLTarget(fieldTarget49, tt.NonOptional().Field(23).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget48, fieldTarget49); err != nil {
@@ -2479,7 +2475,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B10.FillVDLTarget(fieldTarget51, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedFloat64); err != nil {
+		if err := m.B10.FillVDLTarget(fieldTarget51, tt.NonOptional().Field(24).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget50, fieldTarget51); err != nil {
@@ -2492,7 +2488,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B11.FillVDLTarget(fieldTarget53, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedComplex64); err != nil {
+		if err := m.B11.FillVDLTarget(fieldTarget53, tt.NonOptional().Field(25).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget52, fieldTarget53); err != nil {
@@ -2505,7 +2501,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B12.FillVDLTarget(fieldTarget55, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedComplex128); err != nil {
+		if err := m.B12.FillVDLTarget(fieldTarget55, tt.NonOptional().Field(26).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget54, fieldTarget55); err != nil {
@@ -2518,7 +2514,7 @@ func (m *KeyScalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.B13.FillVDLTarget(fieldTarget57, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedString); err != nil {
+		if err := m.B13.FillVDLTarget(fieldTarget57, tt.NonOptional().Field(27).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget56, fieldTarget57); err != nil {
@@ -2571,8 +2567,8 @@ type KeyScalarsTarget struct {
 
 func (t *KeyScalarsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_KeyScalars) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_KeyScalars)
+	if ttWant := vdl.TypeOf((*KeyScalars)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -2691,7 +2687,7 @@ func (t *KeyScalarsTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.b13Target, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_vdl_testdata_base_KeyScalars)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.KeyScalars", name)
 	}
 }
 func (t *KeyScalarsTarget) FinishField(_, _ vdl.Target) error {
@@ -2710,7 +2706,7 @@ func (ScalarsArray) __VDLReflect(struct {
 }
 
 func (m *ScalarsArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	listTarget1, err := t.StartList(__VDLType_v_io_x_ref_lib_vdl_testdata_base_ScalarsArray, 2)
+	listTarget1, err := t.StartList(tt, 2)
 	if err != nil {
 		return err
 	}
@@ -2720,7 +2716,7 @@ func (m *ScalarsArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			return err
 		}
 
-		if err := elem3.FillVDLTarget(elemTarget2, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Scalars); err != nil {
+		if err := elem3.FillVDLTarget(elemTarget2, tt.NonOptional().Elem()); err != nil {
 			return err
 		}
 		if err := listTarget1.FinishElem(elemTarget2); err != nil {
@@ -2747,8 +2743,8 @@ type ScalarsArrayTarget struct {
 
 func (t *ScalarsArrayTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_ScalarsArray) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_ScalarsArray)
+	if ttWant := vdl.TypeOf((*ScalarsArray)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -2780,9 +2776,6 @@ func (Composites) __VDLReflect(struct {
 }
 
 func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_base_Composites == nil || __VDLType3 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -2794,7 +2787,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.A0.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Scalars); err != nil {
+		if err := m.A0.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -2807,7 +2800,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.A1.FillVDLTarget(fieldTarget5, __VDLType_v_io_x_ref_lib_vdl_testdata_base_ScalarsArray); err != nil {
+		if err := m.A1.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -2820,7 +2813,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget8, err := fieldTarget7.StartList(__VDLType4, len(m.A2))
+		listTarget8, err := fieldTarget7.StartList(tt.NonOptional().Field(2).Type, len(m.A2))
 		if err != nil {
 			return err
 		}
@@ -2830,7 +2823,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := elem10.FillVDLTarget(elemTarget9, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Scalars); err != nil {
+			if err := elem10.FillVDLTarget(elemTarget9, tt.NonOptional().Field(2).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget8.FinishElem(elemTarget9); err != nil {
@@ -2850,7 +2843,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		setTarget13, err := fieldTarget12.StartSet(__VDLType5, len(m.A3))
+		setTarget13, err := fieldTarget12.StartSet(tt.NonOptional().Field(3).Type, len(m.A3))
 		if err != nil {
 			return err
 		}
@@ -2860,7 +2853,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := key15.FillVDLTarget(keyTarget14, __VDLType_v_io_x_ref_lib_vdl_testdata_base_KeyScalars); err != nil {
+			if err := key15.FillVDLTarget(keyTarget14, tt.NonOptional().Field(3).Type.Key()); err != nil {
 				return err
 			}
 			if err := setTarget13.FinishKey(keyTarget14); err != nil {
@@ -2880,7 +2873,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		mapTarget18, err := fieldTarget17.StartMap(__VDLType6, len(m.A4))
+		mapTarget18, err := fieldTarget17.StartMap(tt.NonOptional().Field(4).Type, len(m.A4))
 		if err != nil {
 			return err
 		}
@@ -2889,7 +2882,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err != nil {
 				return err
 			}
-			if err := keyTarget19.FromString(string(key20), vdl.StringType); err != nil {
+			if err := keyTarget19.FromString(string(key20), tt.NonOptional().Field(4).Type.Key()); err != nil {
 				return err
 			}
 			valueTarget21, err := mapTarget18.FinishKeyStartField(keyTarget19)
@@ -2897,7 +2890,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := value22.FillVDLTarget(valueTarget21, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Scalars); err != nil {
+			if err := value22.FillVDLTarget(valueTarget21, tt.NonOptional().Field(4).Type.Elem()); err != nil {
 				return err
 			}
 			if err := mapTarget18.FinishField(keyTarget19, valueTarget21); err != nil {
@@ -2917,7 +2910,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		mapTarget25, err := fieldTarget24.StartMap(__VDLType7, len(m.A5))
+		mapTarget25, err := fieldTarget24.StartMap(tt.NonOptional().Field(5).Type, len(m.A5))
 		if err != nil {
 			return err
 		}
@@ -2927,7 +2920,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := key27.FillVDLTarget(keyTarget26, __VDLType_v_io_x_ref_lib_vdl_testdata_base_KeyScalars); err != nil {
+			if err := key27.FillVDLTarget(keyTarget26, tt.NonOptional().Field(5).Type.Key()); err != nil {
 				return err
 			}
 			valueTarget28, err := mapTarget25.FinishKeyStartField(keyTarget26)
@@ -2935,7 +2928,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			listTarget30, err := valueTarget28.StartList(__VDLType8, len(value29))
+			listTarget30, err := valueTarget28.StartList(tt.NonOptional().Field(5).Type.Elem(), len(value29))
 			if err != nil {
 				return err
 			}
@@ -2945,7 +2938,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 					return err
 				}
 
-				mapTarget33, err := elemTarget31.StartMap(__VDLType9, len(elem32))
+				mapTarget33, err := elemTarget31.StartMap(tt.NonOptional().Field(5).Type.Elem().Elem(), len(elem32))
 				if err != nil {
 					return err
 				}
@@ -2954,14 +2947,14 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 					if err != nil {
 						return err
 					}
-					if err := keyTarget34.FromString(string(key35), vdl.StringType); err != nil {
+					if err := keyTarget34.FromString(string(key35), tt.NonOptional().Field(5).Type.Elem().Elem().Key()); err != nil {
 						return err
 					}
 					valueTarget36, err := mapTarget33.FinishKeyStartField(keyTarget34)
 					if err != nil {
 						return err
 					}
-					if err := valueTarget36.FromComplex(complex128(value37), vdl.Complex128Type); err != nil {
+					if err := valueTarget36.FromComplex(complex128(value37), tt.NonOptional().Field(5).Type.Elem().Elem().Elem()); err != nil {
 						return err
 					}
 					if err := mapTarget33.FinishField(keyTarget34, valueTarget36); err != nil {
@@ -3013,8 +3006,8 @@ type CompositesTarget struct {
 
 func (t *CompositesTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Composites) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Composites)
+	if ttWant := vdl.TypeOf((*Composites)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -3045,7 +3038,7 @@ func (t *CompositesTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.a5Target, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Composites)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.Composites", name)
 	}
 }
 func (t *CompositesTarget) FinishField(_, _ vdl.Target) error {
@@ -3066,8 +3059,8 @@ type unnamed_5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f6261736
 
 func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType4) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType4)
+	if ttWant := vdl.TypeOf((*[]Scalars)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]Scalars, len)
@@ -3100,8 +3093,8 @@ type unnamed_7365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626
 
 func (t *unnamed_7365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType5) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType5)
+	if ttWant := vdl.TypeOf((*map[KeyScalars]struct{})(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = make(map[KeyScalars]struct{})
 	return t, nil
@@ -3137,8 +3130,8 @@ type unnamed_6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f7465737
 
 func (t *unnamed_6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7dTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType6) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType6)
+	if ttWant := vdl.TypeOf((*map[string]Scalars)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = make(map[string]Scalars)
 	return t, nil
@@ -3183,8 +3176,8 @@ type unnamed_6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626
 
 func (t *unnamed_6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d636f6d706c6578313238Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType7) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType7)
+	if ttWant := vdl.TypeOf((*map[KeyScalars][]map[string]complex128)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = make(map[KeyScalars][]map[string]complex128)
 	return t, nil
@@ -3223,8 +3216,8 @@ type unnamed_5b5d6d61705b737472696e675d636f6d706c6578313238Target struct {
 
 func (t *unnamed_5b5d6d61705b737472696e675d636f6d706c6578313238Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType8) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType8)
+	if ttWant := vdl.TypeOf((*[]map[string]complex128)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]map[string]complex128, len)
@@ -3259,8 +3252,8 @@ type unnamed_6d61705b737472696e675d636f6d706c6578313238Target struct {
 
 func (t *unnamed_6d61705b737472696e675d636f6d706c6578313238Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType9) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType9)
+	if ttWant := vdl.TypeOf((*map[string]complex128)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = make(map[string]complex128)
 	return t, nil
@@ -3297,7 +3290,7 @@ func (CompositesArray) __VDLReflect(struct {
 }
 
 func (m *CompositesArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	listTarget1, err := t.StartList(__VDLType_v_io_x_ref_lib_vdl_testdata_base_CompositesArray, 2)
+	listTarget1, err := t.StartList(tt, 2)
 	if err != nil {
 		return err
 	}
@@ -3307,7 +3300,7 @@ func (m *CompositesArray) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			return err
 		}
 
-		if err := elem3.FillVDLTarget(elemTarget2, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Composites); err != nil {
+		if err := elem3.FillVDLTarget(elemTarget2, tt.NonOptional().Elem()); err != nil {
 			return err
 		}
 		if err := listTarget1.FinishElem(elemTarget2); err != nil {
@@ -3334,8 +3327,8 @@ type CompositesArrayTarget struct {
 
 func (t *CompositesArrayTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_CompositesArray) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_CompositesArray)
+	if ttWant := vdl.TypeOf((*CompositesArray)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -3366,9 +3359,6 @@ func (CompComp) __VDLReflect(struct {
 }
 
 func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_base_CompComp == nil || __VDLType10 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -3380,7 +3370,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.A0.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Composites); err != nil {
+		if err := m.A0.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -3393,7 +3383,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.A1.FillVDLTarget(fieldTarget5, __VDLType_v_io_x_ref_lib_vdl_testdata_base_CompositesArray); err != nil {
+		if err := m.A1.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -3406,7 +3396,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget8, err := fieldTarget7.StartList(__VDLType11, len(m.A2))
+		listTarget8, err := fieldTarget7.StartList(tt.NonOptional().Field(2).Type, len(m.A2))
 		if err != nil {
 			return err
 		}
@@ -3416,7 +3406,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := elem10.FillVDLTarget(elemTarget9, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Composites); err != nil {
+			if err := elem10.FillVDLTarget(elemTarget9, tt.NonOptional().Field(2).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget8.FinishElem(elemTarget9); err != nil {
@@ -3436,7 +3426,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		mapTarget13, err := fieldTarget12.StartMap(__VDLType12, len(m.A3))
+		mapTarget13, err := fieldTarget12.StartMap(tt.NonOptional().Field(3).Type, len(m.A3))
 		if err != nil {
 			return err
 		}
@@ -3445,7 +3435,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err != nil {
 				return err
 			}
-			if err := keyTarget14.FromString(string(key15), vdl.StringType); err != nil {
+			if err := keyTarget14.FromString(string(key15), tt.NonOptional().Field(3).Type.Key()); err != nil {
 				return err
 			}
 			valueTarget16, err := mapTarget13.FinishKeyStartField(keyTarget14)
@@ -3453,7 +3443,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := value17.FillVDLTarget(valueTarget16, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Composites); err != nil {
+			if err := value17.FillVDLTarget(valueTarget16, tt.NonOptional().Field(3).Type.Elem()); err != nil {
 				return err
 			}
 			if err := mapTarget13.FinishField(keyTarget14, valueTarget16); err != nil {
@@ -3473,7 +3463,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		mapTarget20, err := fieldTarget19.StartMap(__VDLType13, len(m.A4))
+		mapTarget20, err := fieldTarget19.StartMap(tt.NonOptional().Field(4).Type, len(m.A4))
 		if err != nil {
 			return err
 		}
@@ -3483,7 +3473,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := key22.FillVDLTarget(keyTarget21, __VDLType_v_io_x_ref_lib_vdl_testdata_base_KeyScalars); err != nil {
+			if err := key22.FillVDLTarget(keyTarget21, tt.NonOptional().Field(4).Type.Key()); err != nil {
 				return err
 			}
 			valueTarget23, err := mapTarget20.FinishKeyStartField(keyTarget21)
@@ -3491,7 +3481,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			listTarget25, err := valueTarget23.StartList(__VDLType14, len(value24))
+			listTarget25, err := valueTarget23.StartList(tt.NonOptional().Field(4).Type.Elem(), len(value24))
 			if err != nil {
 				return err
 			}
@@ -3501,7 +3491,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 					return err
 				}
 
-				mapTarget28, err := elemTarget26.StartMap(__VDLType12, len(elem27))
+				mapTarget28, err := elemTarget26.StartMap(tt.NonOptional().Field(4).Type.Elem().Elem(), len(elem27))
 				if err != nil {
 					return err
 				}
@@ -3510,7 +3500,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 					if err != nil {
 						return err
 					}
-					if err := keyTarget29.FromString(string(key30), vdl.StringType); err != nil {
+					if err := keyTarget29.FromString(string(key30), tt.NonOptional().Field(4).Type.Elem().Elem().Key()); err != nil {
 						return err
 					}
 					valueTarget31, err := mapTarget28.FinishKeyStartField(keyTarget29)
@@ -3518,7 +3508,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 						return err
 					}
 
-					if err := value32.FillVDLTarget(valueTarget31, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Composites); err != nil {
+					if err := value32.FillVDLTarget(valueTarget31, tt.NonOptional().Field(4).Type.Elem().Elem().Elem()); err != nil {
 						return err
 					}
 					if err := mapTarget28.FinishField(keyTarget29, valueTarget31); err != nil {
@@ -3569,8 +3559,8 @@ type CompCompTarget struct {
 
 func (t *CompCompTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_CompComp) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_CompComp)
+	if ttWant := vdl.TypeOf((*CompComp)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -3597,7 +3587,7 @@ func (t *CompCompTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.a4Target, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_vdl_testdata_base_CompComp)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.CompComp", name)
 	}
 }
 func (t *CompCompTarget) FinishField(_, _ vdl.Target) error {
@@ -3618,8 +3608,8 @@ type unnamed_5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f6261736
 
 func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType11) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType11)
+	if ttWant := vdl.TypeOf((*[]Composites)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]Composites, len)
@@ -3654,8 +3644,8 @@ type unnamed_6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f7465737
 
 func (t *unnamed_6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType12) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType12)
+	if ttWant := vdl.TypeOf((*map[string]Composites)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = make(map[string]Composites)
 	return t, nil
@@ -3712,8 +3702,8 @@ type unnamed_6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626
 
 func (t *unnamed_6d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e677d5d5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType13) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType13)
+	if ttWant := vdl.TypeOf((*map[KeyScalars][]map[string]Composites)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = make(map[KeyScalars][]map[string]Composites)
 	return t, nil
@@ -3752,8 +3742,8 @@ type unnamed_5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f746
 
 func (t *unnamed_5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e436f6d706f7369746573207374727563747b413020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b413134203f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797d3b41313520616e793b41313620747970656f626a6563743b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c20626f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d65644279746520627974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431362075696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433322075696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436342075696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e743820696e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74313620696e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74333220696e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74363420696e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174333220666c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f6174363420666c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c6578363420636f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657831323820636f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e6720737472696e673b42313420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564456e756d20656e756d7b413b423b437d3b42313520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564556e696f6e20756e696f6e7b4120626f6f6c3b4220737472696e673b4320696e7433327d7d3b413120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172734172726179205b325d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4132205b5d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4133207365745b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c617273207374727563747b413020626f6f6c3b413120627974653b41322075696e7431363b41332075696e7433323b41342075696e7436343b413520696e74383b413620696e7431363b413720696e7433323b413820696e7436343b413920666c6f617433323b41313020666c6f617436343b41313120636f6d706c657836343b41313220636f6d706c65783132383b41313320737472696e673b423020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564426f6f6c3b423120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564427974653b423220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7431363b423320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7433323b423420762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d656455696e7436343b423520762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e74383b423620762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7431363b423720762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7433323b423820762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564496e7436343b423920762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617433323b42313020762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564466c6f617436343b42313120762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c657836343b42313220762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564436f6d706c65783132383b42313320762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4e616d6564537472696e677d5d3b4134206d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e5363616c6172733b4135206d61705b762e696f2f782f7265662f6c69622f76646c2f74657374646174612f626173652e4b65795363616c6172735d5b5d6d61705b737472696e675d636f6d706c65783132387dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType14) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType14)
+	if ttWant := vdl.TypeOf((*[]map[string]Composites)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]map[string]Composites, len)
@@ -3775,6 +3765,94 @@ func (t *unnamed_5b5d6d61705b737472696e675d762e696f2f782f7265662f6c69622f76646c2
 	return nil
 }
 
+// Args will be reordered to show up before NestedArgs in the generated output.
+type Args struct {
+	A int32
+	B int32
+}
+
+func (Args) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.Args"`
+}) {
+}
+
+func (m *Args) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("A")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget3.FromInt(int64(m.A), tt.NonOptional().Field(0).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
+		}
+	}
+	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("B")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget5.FromInt(int64(m.B), tt.NonOptional().Field(1).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Args) MakeVDLTarget() vdl.Target {
+	return &ArgsTarget{Value: m}
+}
+
+type ArgsTarget struct {
+	Value   *Args
+	aTarget vdl.Int32Target
+	bTarget vdl.Int32Target
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ArgsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
+	if ttWant := vdl.TypeOf((*Args)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+	return t, nil
+}
+func (t *ArgsTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "A":
+		t.aTarget.Value = &t.Value.A
+		target, err := &t.aTarget, error(nil)
+		return nil, target, err
+	case "B":
+		t.bTarget.Value = &t.Value.B
+		target, err := &t.bTarget, error(nil)
+		return nil, target, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.Args", name)
+	}
+}
+func (t *ArgsTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ArgsTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
 // NestedArgs is defined before Args; that's allowed in regular Go, and also
 // allowed in our vdl files.  The compiler will re-order dependent types to ease
 // code generation in other languages.
@@ -3788,9 +3866,6 @@ func (NestedArgs) __VDLReflect(struct {
 }
 
 func (m *NestedArgs) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_base_NestedArgs == nil || __VDLType15 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -3802,7 +3877,7 @@ func (m *NestedArgs) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Args.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Args); err != nil {
+		if err := m.Args.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -3828,8 +3903,8 @@ type NestedArgsTarget struct {
 
 func (t *NestedArgsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NestedArgs) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NestedArgs)
+	if ttWant := vdl.TypeOf((*NestedArgs)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -3840,7 +3915,7 @@ func (t *NestedArgsTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.argsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_vdl_testdata_base_NestedArgs)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.NestedArgs", name)
 	}
 }
 func (t *NestedArgsTarget) FinishField(_, _ vdl.Target) error {
@@ -3851,306 +3926,17 @@ func (t *NestedArgsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-type ArgsTarget struct {
-	Value   *Args
-	aTarget vdl.Int32Target
-	bTarget vdl.Int32Target
-	vdl.TargetBase
-	vdl.FieldsTargetBase
-}
-
-func (t *ArgsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
-
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Args) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Args)
-	}
-	return t, nil
-}
-func (t *ArgsTarget) StartField(name string) (key, field vdl.Target, _ error) {
-	switch name {
-	case "A":
-		t.aTarget.Value = &t.Value.A
-		target, err := &t.aTarget, error(nil)
-		return nil, target, err
-	case "B":
-		t.bTarget.Value = &t.Value.B
-		target, err := &t.bTarget, error(nil)
-		return nil, target, err
-	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_vdl_testdata_base_Args)
-	}
-}
-func (t *ArgsTarget) FinishField(_, _ vdl.Target) error {
-	return nil
-}
-func (t *ArgsTarget) FinishFields(_ vdl.FieldsTarget) error {
-
-	return nil
-}
-
-// Args will be reordered to show up before NestedArgs in the generated output.
-type Args struct {
-	A int32
-	B int32
-}
-
-func (Args) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/base.Args"`
-}) {
-}
-
-func (m *Args) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_vdl_testdata_base_Args == nil || __VDLType16 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
-	fieldsTarget1, err := t.StartFields(tt)
-	if err != nil {
-		return err
-	}
-
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("A")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromInt(int64(m.A), vdl.Int32Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("B")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromInt(int64(m.B), vdl.Int32Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
-			return err
-		}
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *Args) MakeVDLTarget() vdl.Target {
-	return &ArgsTarget{Value: m}
-}
-
-func init() {
-	vdl.Register((*NamedBool)(nil))
-	vdl.Register((*NamedByte)(nil))
-	vdl.Register((*NamedUint16)(nil))
-	vdl.Register((*NamedUint32)(nil))
-	vdl.Register((*NamedUint64)(nil))
-	vdl.Register((*NamedInt8)(nil))
-	vdl.Register((*NamedInt16)(nil))
-	vdl.Register((*NamedInt32)(nil))
-	vdl.Register((*NamedInt64)(nil))
-	vdl.Register((*NamedFloat32)(nil))
-	vdl.Register((*NamedFloat64)(nil))
-	vdl.Register((*NamedComplex64)(nil))
-	vdl.Register((*NamedComplex128)(nil))
-	vdl.Register((*NamedString)(nil))
-	vdl.Register((*NamedEnum)(nil))
-	vdl.Register((*NamedArray)(nil))
-	vdl.Register((*NamedList)(nil))
-	vdl.Register((*NamedSet)(nil))
-	vdl.Register((*NamedMap)(nil))
-	vdl.Register((*NamedStruct)(nil))
-	vdl.Register((*NamedUnion)(nil))
-	vdl.Register((*Scalars)(nil))
-	vdl.Register((*KeyScalars)(nil))
-	vdl.Register((*ScalarsArray)(nil))
-	vdl.Register((*Composites)(nil))
-	vdl.Register((*CompositesArray)(nil))
-	vdl.Register((*CompComp)(nil))
-	vdl.Register((*NestedArgs)(nil))
-	vdl.Register((*Args)(nil))
-}
-
-var __VDLType16 *vdl.Type = vdl.TypeOf((*Args)(nil))
-var __VDLType10 *vdl.Type = vdl.TypeOf((*CompComp)(nil))
-var __VDLType3 *vdl.Type = vdl.TypeOf((*Composites)(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf((*KeyScalars)(nil))
-var __VDLType0 *vdl.Type = vdl.TypeOf((*NamedStruct)(nil))
-var __VDLType15 *vdl.Type = vdl.TypeOf((*NestedArgs)(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf((*Scalars)(nil))
-var __VDLType8 *vdl.Type = vdl.TypeOf([]map[string]complex128(nil))
-var __VDLType14 *vdl.Type = vdl.TypeOf([]map[string]Composites(nil))
-var __VDLType11 *vdl.Type = vdl.TypeOf([]Composites(nil))
-var __VDLType4 *vdl.Type = vdl.TypeOf([]Scalars(nil))
-var __VDLType9 *vdl.Type = vdl.TypeOf(map[string]complex128(nil))
-var __VDLType12 *vdl.Type = vdl.TypeOf(map[string]Composites(nil))
-var __VDLType6 *vdl.Type = vdl.TypeOf(map[string]Scalars(nil))
-var __VDLType7 *vdl.Type = vdl.TypeOf(map[KeyScalars][]map[string]complex128(nil))
-var __VDLType13 *vdl.Type = vdl.TypeOf(map[KeyScalars][]map[string]Composites(nil))
-var __VDLType5 *vdl.Type = vdl.TypeOf(map[KeyScalars]struct{}(nil))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_Args *vdl.Type = vdl.TypeOf(Args{})
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_CompComp *vdl.Type = vdl.TypeOf(CompComp{
-	A0: Composites{
-		A0: Scalars{
-			A16: vdl.AnyType,
-			B15: NamedUnionA{false},
-		},
-		A1: ScalarsArray{
-			{
-				A16: vdl.AnyType,
-				B15: NamedUnionA{false},
-			},
-			{
-				A16: vdl.AnyType,
-				B15: NamedUnionA{false},
-			},
-		},
-	},
-	A1: CompositesArray{
-		{
-			A0: Scalars{
-				A16: vdl.AnyType,
-				B15: NamedUnionA{false},
-			},
-			A1: ScalarsArray{
-				{
-					A16: vdl.AnyType,
-					B15: NamedUnionA{false},
-				},
-				{
-					A16: vdl.AnyType,
-					B15: NamedUnionA{false},
-				},
-			},
-		},
-		{
-			A0: Scalars{
-				A16: vdl.AnyType,
-				B15: NamedUnionA{false},
-			},
-			A1: ScalarsArray{
-				{
-					A16: vdl.AnyType,
-					B15: NamedUnionA{false},
-				},
-				{
-					A16: vdl.AnyType,
-					B15: NamedUnionA{false},
-				},
-			},
-		},
-	},
-})
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_Composites *vdl.Type = vdl.TypeOf(Composites{
-	A0: Scalars{
-		A16: vdl.AnyType,
-		B15: NamedUnionA{false},
-	},
-	A1: ScalarsArray{
-		{
-			A16: vdl.AnyType,
-			B15: NamedUnionA{false},
-		},
-		{
-			A16: vdl.AnyType,
-			B15: NamedUnionA{false},
-		},
-	},
-})
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_CompositesArray *vdl.Type = vdl.TypeOf(CompositesArray{
-	{
-		A0: Scalars{
-			A16: vdl.AnyType,
-			B15: NamedUnionA{false},
-		},
-		A1: ScalarsArray{
-			{
-				A16: vdl.AnyType,
-				B15: NamedUnionA{false},
-			},
-			{
-				A16: vdl.AnyType,
-				B15: NamedUnionA{false},
-			},
-		},
-	},
-	{
-		A0: Scalars{
-			A16: vdl.AnyType,
-			B15: NamedUnionA{false},
-		},
-		A1: ScalarsArray{
-			{
-				A16: vdl.AnyType,
-				B15: NamedUnionA{false},
-			},
-			{
-				A16: vdl.AnyType,
-				B15: NamedUnionA{false},
-			},
-		},
-	},
-})
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_KeyScalars *vdl.Type = vdl.TypeOf(KeyScalars{})
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedArray *vdl.Type = vdl.TypeOf(NamedArray{})
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedBool *vdl.Type = vdl.TypeOf(NamedBool(false))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedByte *vdl.Type = vdl.TypeOf(NamedByte(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedComplex128 *vdl.Type = vdl.TypeOf(NamedComplex128(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedComplex64 *vdl.Type = vdl.TypeOf(NamedComplex64(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedEnum *vdl.Type = vdl.TypeOf(NamedEnumA)
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedFloat32 *vdl.Type = vdl.TypeOf(NamedFloat32(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedFloat64 *vdl.Type = vdl.TypeOf(NamedFloat64(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt16 *vdl.Type = vdl.TypeOf(NamedInt16(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt32 *vdl.Type = vdl.TypeOf(NamedInt32(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt64 *vdl.Type = vdl.TypeOf(NamedInt64(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedInt8 *vdl.Type = vdl.TypeOf(NamedInt8(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedList *vdl.Type = vdl.TypeOf(NamedList(nil))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedMap *vdl.Type = vdl.TypeOf(NamedMap(nil))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedSet *vdl.Type = vdl.TypeOf(NamedSet(nil))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedString *vdl.Type = vdl.TypeOf(NamedString(""))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedStruct *vdl.Type = vdl.TypeOf(NamedStruct{})
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint16 *vdl.Type = vdl.TypeOf(NamedUint16(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint32 *vdl.Type = vdl.TypeOf(NamedUint32(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUint64 *vdl.Type = vdl.TypeOf(NamedUint64(0))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NamedUnion *vdl.Type = vdl.TypeOf(NamedUnion(NamedUnionA{false}))
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_NestedArgs *vdl.Type = vdl.TypeOf(NestedArgs{})
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_Scalars *vdl.Type = vdl.TypeOf(Scalars{
-	A16: vdl.AnyType,
-	B15: NamedUnionA{false},
-})
-var __VDLType_v_io_x_ref_lib_vdl_testdata_base_ScalarsArray *vdl.Type = vdl.TypeOf(ScalarsArray{
-	{
-		A16: vdl.AnyType,
-		B15: NamedUnionA{false},
-	},
-	{
-		A16: vdl.AnyType,
-		B15: NamedUnionA{false},
-	},
-})
-
-func __VDLEnsureNativeBuilt() {
-}
+//////////////////////////////////////////////////
+// Const definitions
 
 const Cbool = true
-
 const Cbyte = byte(1)
-
 const Cint32 = int32(2)
-
 const Cint64 = int64(3)
-
 const Cuint32 = uint32(4)
-
 const Cuint64 = uint64(5)
-
 const Cfloat32 = float32(6)
-
 const Cfloat64 = float64(7)
-
 const CNamedBool = NamedBool(true)
 
 var CNamedStruct = NamedStruct{
@@ -4159,43 +3945,34 @@ var CNamedStruct = NamedStruct{
 }
 
 const Ccomplex64 = complex64(8 + 9i)
-
 const Ccomplex128 = complex128(10 + 11i)
-
 const Cstring = "foo"
-
 const Cenum = NamedEnumA
 
 var Cunion = NamedUnion(NamedUnionA{true})
-
 var Carray = NamedArray{
 	true,
 	false,
 }
-
 var Clist = []int32{
 	1,
 	2,
 	3,
 }
-
 var Cset = map[int32]struct{}{
 	1: struct{}{},
 	2: struct{}{},
 	3: struct{}{},
 }
-
 var cmap = map[int32]string{
 	1: "A",
 	2: "B",
 	3: "C",
 }
-
 var Cargs = Args{
 	A: 1,
 	B: 2,
 }
-
 var CScalars = Scalars{
 	A0:  true,
 	A1:  1,
@@ -4212,7 +3989,7 @@ var CScalars = Scalars{
 	A12: 12,
 	A13: "abc",
 	A15: vom.RawBytesOf(false),
-	A16: vdl.TypeOf(false),
+	A16: vdl.TypeOf((*bool)(nil)),
 	B0:  true,
 	B1:  1,
 	B2:  2,
@@ -4232,56 +4009,33 @@ var CScalars = Scalars{
 }
 
 const True = true
-
 const Foo = "foo"
-
 const Five = int32(5)
-
 const Six = uint64(6)
-
 const SixSquared = uint64(36)
-
 const FiveSquared = int32(25)
 
-var CTypeObject_bool = vdl.TypeOf(false)
-
-var CTypeObject_string = vdl.TypeOf("")
-
-var CTypeObject_bytes = vdl.TypeOf([]byte(nil))
-
-var CTypeObject_byte = vdl.TypeOf(byte(0))
-
-var CTypeObject_uint16 = vdl.TypeOf(uint16(0))
-
-var CTypeObject_int8 = vdl.TypeOf(int8(0))
-
-var CTypeObject_int16 = vdl.TypeOf(int16(0))
-
-var CTypeObject_float32 = vdl.TypeOf(float32(0))
-
-var CTypeObject_complex64 = vdl.TypeOf(complex64(0))
-
-var CTypeObject_enum = vdl.TypeOf(NamedEnumA)
-
-var CTypeObject_Array = vdl.TypeOf(NamedArray{})
-
-var CTypeObject_List = vdl.TypeOf([]string(nil))
-
-var CTypeObject_Set = vdl.TypeOf(map[string]struct{}(nil))
-
-var CTypeObject_Map = vdl.TypeOf(map[string]int64(nil))
-
-var CTypeObject_Struct = vdl.TypeOf(Scalars{
-	A16: vdl.AnyType,
-	B15: NamedUnionA{false},
-})
-
-var CTypeObject_Union = vdl.TypeOf(NamedUnion(NamedUnionA{false}))
-
+var CTypeObject_bool = vdl.TypeOf((*bool)(nil))
+var CTypeObject_string = vdl.TypeOf((*string)(nil))
+var CTypeObject_bytes = vdl.TypeOf((*[]byte)(nil))
+var CTypeObject_byte = vdl.TypeOf((*byte)(nil))
+var CTypeObject_uint16 = vdl.TypeOf((*uint16)(nil))
+var CTypeObject_int8 = vdl.TypeOf((*int8)(nil))
+var CTypeObject_int16 = vdl.TypeOf((*int16)(nil))
+var CTypeObject_float32 = vdl.TypeOf((*float32)(nil))
+var CTypeObject_complex64 = vdl.TypeOf((*complex64)(nil))
+var CTypeObject_enum = vdl.TypeOf((*NamedEnum)(nil))
+var CTypeObject_Array = vdl.TypeOf((*NamedArray)(nil))
+var CTypeObject_List = vdl.TypeOf((*[]string)(nil))
+var CTypeObject_Set = vdl.TypeOf((*map[string]struct{})(nil))
+var CTypeObject_Map = vdl.TypeOf((*map[string]int64)(nil))
+var CTypeObject_Struct = vdl.TypeOf((*Scalars)(nil)).Elem()
+var CTypeObject_Union = vdl.TypeOf((*NamedUnion)(nil))
 var CTypeObject_TypeObject = vdl.TypeObjectType
-
 var CTypeObject_Any = vdl.AnyType
 
+//////////////////////////////////////////////////
+// Error definitions
 var (
 	ErrNoParams1   = verror.Register("v.io/x/ref/lib/vdl/testdata/base.NoParams1", verror.NoRetry, "{1:}{2:} en msg")
 	ErrNoParams2   = verror.Register("v.io/x/ref/lib/vdl/testdata/base.NoParams2", verror.RetryRefetch, "{1:}{2:} en msg")
@@ -4289,16 +4043,6 @@ var (
 	ErrWithParams2 = verror.Register("v.io/x/ref/lib/vdl/testdata/base.WithParams2", verror.RetryRefetch, "{1:}{2:} en x={3} y={4}")
 	errNotExported = verror.Register("v.io/x/ref/lib/vdl/testdata/base.notExported", verror.NoRetry, "{1:}{2:} en x={3} y={4}")
 )
-
-func init() {
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoParams1.ID), "{1:}{2:} en msg")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoParams2.ID), "{1:}{2:} en msg")
-	i18n.Cat().SetWithBase(i18n.LangID("fr"), i18n.MsgID(ErrNoParams2.ID), "{1:}{2:} fr msg")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrWithParams1.ID), "{1:}{2:} en x={3} y={4}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrWithParams2.ID), "{1:}{2:} en x={3} y={4}")
-	i18n.Cat().SetWithBase(i18n.LangID("fr"), i18n.MsgID(ErrWithParams2.ID), "{1:}{2:} fr y={4} x={3}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errNotExported.ID), "{1:}{2:} en x={3} y={4}")
-}
 
 // NewErrNoParams1 returns an error with the ErrNoParams1 ID.
 func NewErrNoParams1(ctx *context.T) error {
@@ -4324,6 +4068,9 @@ func NewErrWithParams2(ctx *context.T, x string, y int32) error {
 func newErrNotExported(ctx *context.T, x string, y int32) error {
 	return verror.New(errNotExported, ctx, x, y)
 }
+
+//////////////////////////////////////////////////
+// Interface definitions
 
 // ServiceAClientMethods is the client interface
 // containing ServiceA methods.
@@ -4898,4 +4645,67 @@ var descServiceB = rpc.InterfaceDesc{
 			},
 		},
 	},
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*NamedBool)(nil))
+	vdl.Register((*NamedByte)(nil))
+	vdl.Register((*NamedUint16)(nil))
+	vdl.Register((*NamedUint32)(nil))
+	vdl.Register((*NamedUint64)(nil))
+	vdl.Register((*NamedInt8)(nil))
+	vdl.Register((*NamedInt16)(nil))
+	vdl.Register((*NamedInt32)(nil))
+	vdl.Register((*NamedInt64)(nil))
+	vdl.Register((*NamedFloat32)(nil))
+	vdl.Register((*NamedFloat64)(nil))
+	vdl.Register((*NamedComplex64)(nil))
+	vdl.Register((*NamedComplex128)(nil))
+	vdl.Register((*NamedString)(nil))
+	vdl.Register((*NamedEnum)(nil))
+	vdl.Register((*NamedArray)(nil))
+	vdl.Register((*NamedList)(nil))
+	vdl.Register((*NamedSet)(nil))
+	vdl.Register((*NamedMap)(nil))
+	vdl.Register((*NamedStruct)(nil))
+	vdl.Register((*NamedUnion)(nil))
+	vdl.Register((*Scalars)(nil))
+	vdl.Register((*KeyScalars)(nil))
+	vdl.Register((*ScalarsArray)(nil))
+	vdl.Register((*Composites)(nil))
+	vdl.Register((*CompositesArray)(nil))
+	vdl.Register((*CompComp)(nil))
+	vdl.Register((*Args)(nil))
+	vdl.Register((*NestedArgs)(nil))
+
+	// Set error format strings.
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoParams1.ID), "{1:}{2:} en msg")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoParams2.ID), "{1:}{2:} en msg")
+	i18n.Cat().SetWithBase(i18n.LangID("fr"), i18n.MsgID(ErrNoParams2.ID), "{1:}{2:} fr msg")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrWithParams1.ID), "{1:}{2:} en x={3} y={4}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrWithParams2.ID), "{1:}{2:} en x={3} y={4}")
+	i18n.Cat().SetWithBase(i18n.LangID("fr"), i18n.MsgID(ErrWithParams2.ID), "{1:}{2:} fr y={4} x={3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errNotExported.ID), "{1:}{2:} en x={3} y={4}")
+
+	return struct{}{}
 }

@@ -86,15 +86,15 @@ func typeGoInternal(data goData, t *vdl.Type, useNative bool) string {
 	// Otherwise recurse through the type.
 	switch t.Kind() {
 	case vdl.Optional:
-		return "*" + typeGo(data, t.Elem())
+		return "*" + typeGoInternal(data, t.Elem(), useNative)
 	case vdl.Array:
-		return "[" + strconv.Itoa(t.Len()) + "]" + typeGo(data, t.Elem())
+		return "[" + strconv.Itoa(t.Len()) + "]" + typeGoInternal(data, t.Elem(), useNative)
 	case vdl.List:
-		return "[]" + typeGo(data, t.Elem())
+		return "[]" + typeGoInternal(data, t.Elem(), useNative)
 	case vdl.Set:
-		return "map[" + typeGo(data, t.Key()) + "]struct{}"
+		return "map[" + typeGoInternal(data, t.Key(), useNative) + "]struct{}"
 	case vdl.Map:
-		return "map[" + typeGo(data, t.Key()) + "]" + typeGo(data, t.Elem())
+		return "map[" + typeGoInternal(data, t.Key(), useNative) + "]" + typeGoInternal(data, t.Elem(), useNative)
 	default:
 		panic(fmt.Errorf("vdl: typeGo unhandled type %v %v", t.Kind(), t))
 	}

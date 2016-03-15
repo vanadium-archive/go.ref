@@ -14,6 +14,13 @@ import (
 	"v.io/x/ref/lib/vdl/parse"
 )
 
+var (
+	// Built-in consts defined by the compiler.
+	NilConst   = vdl.ZeroValue(vdl.AnyType) // nil == any(nil)
+	TrueConst  = vdl.BoolValue(true)
+	FalseConst = vdl.BoolValue(false)
+)
+
 // ConstDef represents a user-defined named const definition in the compiled
 // results.
 type ConstDef struct {
@@ -24,42 +31,41 @@ type ConstDef struct {
 }
 
 func (x *ConstDef) String() string {
-	c := *x
-	c.File = nil // avoid infinite loop
-	return fmt.Sprintf("%+v", c)
+	y := *x
+	y.File = nil // avoid infinite loop
+	return fmt.Sprintf("%+v", y)
 }
 
 // compileConstDefs is the "entry point" to the rest of this file.  It takes the
 // consts defined in pfiles and compiles them into ConstDefs in pkg.
 func compileConstDefs(pkg *Package, pfiles []*parse.File, env *Env) {
-	cd := constDefiner{pkg, pfiles, env, make(map[string]*constBuilder)}
+	cd := constDefiner{pkg, pfiles, env, make(map[string]*constDefBuilder)}
 	if cd.Declare(); !env.Errors.IsEmpty() {
 		return
 	}
-	cd.SortAndDefine()
+	cd.Define()
 }
 
 // constDefiner defines consts in a package.  This is split into two phases:
 // 1) Declare ensures local const references can be resolved.
-// 2) SortAndDefine sorts in dependency order, and evaluates and defines each
-//    const.
+// 2) Define sorts in dependency order, and evaluates and defines each const.
 //
-// It holds a builders map from const name to constBuilder, where the
-// constBuilder is responsible for compiling and defining a single const.
+// It holds a builders map from const name to constDefBuilder, where the
+// constDefBuilder is responsible for compiling and defining a single const.
 type constDefiner struct {
 	pkg      *Package
 	pfiles   []*parse.File
 	env      *Env
-	builders map[string]*constBuilder
+	builders map[string]*constDefBuilder
 }
 
-type constBuilder struct {
+type constDefBuilder struct {
 	def   *ConstDef
 	pexpr parse.ConstExpr
 }
 
 func printConstBuilderName(ibuilder interface{}) string {
-	return ibuilder.(*constBuilder).def.Name
+	return ibuilder.(*constDefBuilder).def.Name
 }
 
 // Declare creates builders for each const defined in the package.
@@ -78,19 +84,19 @@ func (cd constDefiner) Declare() {
 				continue
 			}
 			def := &ConstDef{NamePos: NamePos(pdef.NamePos), Exported: export, File: file}
-			cd.builders[pdef.Name] = &constBuilder{def, pdef.Expr}
+			cd.builders[pdef.Name] = &constDefBuilder{def, pdef.Expr}
 		}
 	}
 }
 
-// Sort and define consts.  We sort by dependencies on other named consts in
-// this package.  We don't allow cycles.  The ordering is necessary to perform
-// simple single-pass evaluation.
+// Define consts.  We sort by dependencies on other named consts in this
+// package.  We don't allow cycles.  The ordering is necessary to perform simple
+// single-pass evaluation.
 //
 // The dependency analysis is performed on consts, not the files they occur in;
 // consts in the same package may be defined in any file, even if they cause
 // cyclic file dependencies.
-func (cd constDefiner) SortAndDefine() {
+func (cd constDefiner) Define() {
 	// Populate sorter with dependency information.  The sorting ensures that the
 	// list of const defs within each file is topologically sorted, and also
 	// deterministic; other than dependencies, const defs are listed in the same
@@ -100,7 +106,7 @@ func (cd constDefiner) SortAndDefine() {
 		for _, pdef := range pfile.ConstDefs {
 			b := cd.builders[pdef.Name]
 			sorter.AddNode(b)
-			for dep, _ := range cd.getLocalDeps(b.pexpr) {
+			for _, dep := range cd.getLocalDeps(b.pexpr) {
 				sorter.AddEdge(b, dep)
 			}
 		}
@@ -109,7 +115,7 @@ func (cd constDefiner) SortAndDefine() {
 	sorted, cycles := sorter.Sort()
 	if len(cycles) > 0 {
 		cycleStr := toposort.DumpCycles(cycles, printConstBuilderName)
-		first := cycles[0][0].(*constBuilder)
+		first := cycles[0][0].(*constDefBuilder)
 		cd.env.Errorf(first.def.File, first.def.Pos, "package %v has cyclic consts: %v", cd.pkg.Name, cycleStr)
 		return
 	}
@@ -117,7 +123,7 @@ func (cd constDefiner) SortAndDefine() {
 	// topological order, dependencies are guaranteed to be resolvable when we get
 	// around to evaluating the consts that depend on them.
 	for _, ibuilder := range sorted {
-		b := ibuilder.(*constBuilder)
+		b := ibuilder.(*constDefBuilder)
 		def, file := b.def, b.def.File
 		if value := compileConst("const", nil, b.pexpr, file, cd.env); value != nil {
 			def.Value = value
@@ -129,59 +135,45 @@ func (cd constDefiner) SortAndDefine() {
 // addConstDef updates our various structures to add a new const def.
 func addConstDef(def *ConstDef, env *Env) {
 	def.File.ConstDefs = append(def.File.ConstDefs, def)
-	def.File.Package.constDefs[def.Name] = def
+	def.File.Package.constDefs = append(def.File.Package.constDefs, def)
+	def.File.Package.constMap[def.Name] = def
 	if env != nil {
 		// env should only be nil during initialization of the built-in package;
 		// NewEnv ensures new environments have the built-in consts.
-		env.constDefs[def.Value] = def
+		env.constMap[def.Value] = def
 	}
 }
 
-// getLocalDeps returns the set of named const dependencies for pexpr that are
-// in this package.
-func (cd constDefiner) getLocalDeps(pexpr parse.ConstExpr) constBuilderSet {
+// getLocalDeps returns a list of named const dependencies for pexpr, where each
+// dependency is defined in this package.
+func (cd constDefiner) getLocalDeps(pexpr parse.ConstExpr) (deps []*constDefBuilder) {
 	switch pe := pexpr.(type) {
 	case nil, *parse.ConstLit, *parse.ConstTypeObject:
-		return nil
-	case *parse.ConstCompositeLit:
-		var deps constBuilderSet
-		for _, kv := range pe.KVList {
-			deps = mergeConstBuilderSets(deps, cd.getLocalDeps(kv.Key))
-			deps = mergeConstBuilderSets(deps, cd.getLocalDeps(kv.Value))
-		}
-		return deps
+		// These have no deps.
 	case *parse.ConstNamed:
 		// Named references to other consts in this package are all we care about.
 		if b := cd.builders[pe.Name]; b != nil {
-			return constBuilderSet{b: true}
+			deps = append(deps, b)
 		}
-		return nil
+	case *parse.ConstCompositeLit:
+		for _, kv := range pe.KVList {
+			deps = append(deps, cd.getLocalDeps(kv.Key)...)
+			deps = append(deps, cd.getLocalDeps(kv.Value)...)
+		}
 	case *parse.ConstIndexed:
-		e, i := cd.getLocalDeps(pe.Expr), cd.getLocalDeps(pe.IndexExpr)
-		return mergeConstBuilderSets(e, i)
+		deps = append(deps, cd.getLocalDeps(pe.Expr)...)
+		deps = append(deps, cd.getLocalDeps(pe.IndexExpr)...)
 	case *parse.ConstTypeConv:
-		return cd.getLocalDeps(pe.Expr)
+		deps = append(deps, cd.getLocalDeps(pe.Expr)...)
 	case *parse.ConstUnaryOp:
-		return cd.getLocalDeps(pe.Expr)
+		deps = append(deps, cd.getLocalDeps(pe.Expr)...)
 	case *parse.ConstBinaryOp:
-		l, r := cd.getLocalDeps(pe.Lexpr), cd.getLocalDeps(pe.Rexpr)
-		return mergeConstBuilderSets(l, r)
+		deps = append(deps, cd.getLocalDeps(pe.Lexpr)...)
+		deps = append(deps, cd.getLocalDeps(pe.Rexpr)...)
+	default:
+		panic(fmt.Errorf("vdl: unhandled parse.ConstExpr %T %#v", pexpr, pexpr))
 	}
-	panic(fmt.Errorf("vdl: unhandled parse.ConstExpr %T %#v", pexpr, pexpr))
-}
-
-type constBuilderSet map[*constBuilder]bool
-
-// mergeConstBuilderSets returns the union of a and b.  It may mutate either a
-// or b and return the mutated set as a result.
-func mergeConstBuilderSets(a, b constBuilderSet) constBuilderSet {
-	if a != nil {
-		for builder, _ := range b {
-			a[builder] = true
-		}
-		return a
-	}
-	return b
+	return
 }
 
 // compileConst compiles pexpr into a *vdl.Value.  All named types and consts
@@ -623,10 +615,3 @@ func evalUnionLit(t *vdl.Type, lit *parse.ConstCompositeLit, file *File, env *En
 	unionv.AssignUnionField(index, value)
 	return unionv
 }
-
-var (
-	// Built-in consts defined by the compiler.
-	NilConst   = vdl.ZeroValue(vdl.AnyType) // nil == any(nil)
-	TrueConst  = vdl.BoolValue(true)
-	FalseConst = vdl.BoolValue(false)
-)

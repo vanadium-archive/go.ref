@@ -12,6 +12,11 @@ import (
 	"v.io/v23/vdl"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type dataRep int
 
 const (
@@ -60,7 +65,7 @@ func (dataRep) __VDLReflect(struct {
 }
 
 func (m *dataRep) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromEnumLabel((*m).String(), __VDLType_v_io_x_ref_cmd_vom_dataRep); err != nil {
+	if err := t.FromEnumLabel((*m).String(), tt); err != nil {
 		return err
 	}
 	return nil
@@ -77,8 +82,8 @@ type dataRepTarget struct {
 
 func (t *dataRepTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_cmd_vom_dataRep) {
-		return fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_cmd_vom_dataRep)
+	if ttWant := vdl.TypeOf((*dataRep)(nil)); !vdl.Compatible(tt, ttWant) {
+		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	switch src {
 	case "Hex":
@@ -86,17 +91,34 @@ func (t *dataRepTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	case "Binary":
 		*t.Value = 1
 	default:
-		return fmt.Errorf("label %s not in enum %v", src, __VDLType_v_io_x_ref_cmd_vom_dataRep)
+		return fmt.Errorf("label %s not in enum v.io/x/ref/cmd/vom.dataRep", src)
 	}
 
 	return nil
 }
 
-func init() {
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*dataRep)(nil))
-}
 
-var __VDLType_v_io_x_ref_cmd_vom_dataRep *vdl.Type = vdl.TypeOf(dataRepHex)
-
-func __VDLEnsureNativeBuilt() {
+	return struct{}{}
 }

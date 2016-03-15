@@ -14,6 +14,11 @@ import (
 	"v.io/v23/vdl"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // Config contains the attributes of the role, and the list of members who have
 // access to it.
 type Config struct {
@@ -48,9 +53,6 @@ func (Config) __VDLReflect(struct {
 }
 
 func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_role_roled_internal_Config == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -62,7 +64,7 @@ func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(__VDLType1, len(m.ImportMembers))
+		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.ImportMembers))
 		if err != nil {
 			return err
 		}
@@ -71,7 +73,7 @@ func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err != nil {
 				return err
 			}
-			if err := elemTarget5.FromString(string(elem6), vdl.StringType); err != nil {
+			if err := elemTarget5.FromString(string(elem6), tt.NonOptional().Field(0).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget4.FinishElem(elemTarget5); err != nil {
@@ -91,7 +93,7 @@ func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget9, err := fieldTarget8.StartList(__VDLType2, len(m.Members))
+		listTarget9, err := fieldTarget8.StartList(tt.NonOptional().Field(1).Type, len(m.Members))
 		if err != nil {
 			return err
 		}
@@ -101,7 +103,7 @@ func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := elem11.FillVDLTarget(elemTarget10, __VDLType_v_io_v23_security_BlessingPattern); err != nil {
+			if err := elem11.FillVDLTarget(elemTarget10, tt.NonOptional().Field(1).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget9.FinishElem(elemTarget10); err != nil {
@@ -120,7 +122,7 @@ func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget13.FromBool(bool(m.Extend), vdl.BoolType); err != nil {
+		if err := fieldTarget13.FromBool(bool(m.Extend), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
@@ -132,7 +134,7 @@ func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget15.FromBool(bool(m.Audit), vdl.BoolType); err != nil {
+		if err := fieldTarget15.FromBool(bool(m.Audit), tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
@@ -144,7 +146,7 @@ func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget17.FromString(string(m.Expiry), vdl.StringType); err != nil {
+		if err := fieldTarget17.FromString(string(m.Expiry), tt.NonOptional().Field(4).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
@@ -157,7 +159,7 @@ func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget20, err := fieldTarget19.StartList(__VDLType2, len(m.Peers))
+		listTarget20, err := fieldTarget19.StartList(tt.NonOptional().Field(5).Type, len(m.Peers))
 		if err != nil {
 			return err
 		}
@@ -167,7 +169,7 @@ func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := elem22.FillVDLTarget(elemTarget21, __VDLType_v_io_v23_security_BlessingPattern); err != nil {
+			if err := elem22.FillVDLTarget(elemTarget21, tt.NonOptional().Field(5).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget20.FinishElem(elemTarget21); err != nil {
@@ -205,8 +207,8 @@ type ConfigTarget struct {
 
 func (t *ConfigTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_role_roled_internal_Config) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_role_roled_internal_Config)
+	if ttWant := vdl.TypeOf((*Config)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -237,7 +239,7 @@ func (t *ConfigTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.peersTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_role_roled_internal_Config)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/role/roled/internal.Config", name)
 	}
 }
 func (t *ConfigTarget) FinishField(_, _ vdl.Target) error {
@@ -258,8 +260,8 @@ type unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e6750617474657
 
 func (t *unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType2) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType2)
+	if ttWant := vdl.TypeOf((*[]security.BlessingPattern)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]security.BlessingPattern, len)
@@ -281,18 +283,8 @@ func (t *unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747
 	return nil
 }
 
-func init() {
-	vdl.Register((*Config)(nil))
-}
-
-var __VDLType0 *vdl.Type = vdl.TypeOf((*Config)(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf([]string(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf([]security.BlessingPattern(nil))
-var __VDLType_v_io_v23_security_BlessingPattern *vdl.Type = vdl.TypeOf(security.BlessingPattern(""))
-var __VDLType_v_io_x_ref_services_role_roled_internal_Config *vdl.Type = vdl.TypeOf(Config{})
-
-func __VDLEnsureNativeBuilt() {
-}
+//////////////////////////////////////////////////
+// Const definitions
 
 // LoggingCaveat is a caveat that will always validate but it logs the parameter on every attempt to validate it.
 var LoggingCaveat = security.CaveatDescriptor{
@@ -314,5 +306,31 @@ var LoggingCaveat = security.CaveatDescriptor{
 		128,
 		0,
 	},
-	ParamType: vdl.TypeOf([]string(nil)),
+	ParamType: vdl.TypeOf((*[]string)(nil)),
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*Config)(nil))
+
+	return struct{}{}
 }

@@ -26,10 +26,10 @@ import (
 //
 // Always create a new Env via NewEnv; the zero Env is invalid.
 type Env struct {
-	Errors    *vdlutil.Errors
-	pkgs      map[string]*Package
-	typeDefs  map[*vdl.Type]*TypeDef
-	constDefs map[*vdl.Value]*ConstDef
+	Errors   *vdlutil.Errors
+	pkgs     map[string]*Package
+	typeMap  map[*vdl.Type]*TypeDef
+	constMap map[*vdl.Value]*ConstDef
 
 	disallowPathQualifiers bool // Disallow syntax like "a/b/c".Type
 }
@@ -42,18 +42,18 @@ func NewEnv(maxErrors int) *Env {
 // NewEnvWithErrors creates a new Env, using the given errs to collect errors.
 func NewEnvWithErrors(errs *vdlutil.Errors) *Env {
 	env := &Env{
-		Errors:    errs,
-		pkgs:      make(map[string]*Package),
-		typeDefs:  make(map[*vdl.Type]*TypeDef),
-		constDefs: make(map[*vdl.Value]*ConstDef),
+		Errors:   errs,
+		pkgs:     make(map[string]*Package),
+		typeMap:  make(map[*vdl.Type]*TypeDef),
+		constMap: make(map[*vdl.Value]*ConstDef),
 	}
 	// The env always starts out with the built-in package.
 	env.pkgs[BuiltInPackage.Name] = BuiltInPackage
 	for _, def := range BuiltInFile.TypeDefs {
-		env.typeDefs[def.Type] = def
+		env.typeMap[def.Type] = def
 	}
 	for _, def := range BuiltInFile.ConstDefs {
-		env.constDefs[def.Value] = def
+		env.constMap[def.Value] = def
 	}
 	return env
 }
@@ -61,12 +61,12 @@ func NewEnvWithErrors(errs *vdlutil.Errors) *Env {
 // FindTypeDef returns the type definition corresponding to t, or nil if t isn't
 // a defined type.  All built-in and user-defined named types are considered
 // defined; e.g. unnamed lists don't have a corresponding type def.
-func (e *Env) FindTypeDef(t *vdl.Type) *TypeDef { return e.typeDefs[t] }
+func (e *Env) FindTypeDef(t *vdl.Type) *TypeDef { return e.typeMap[t] }
 
 // FindConstDef returns the const definition corresponding to v, or nil if v
 // isn't a defined const.  All user-defined named consts are considered defined;
 // e.g. method tags don't have a corresponding const def.
-func (e *Env) FindConstDef(v *vdl.Value) *ConstDef { return e.constDefs[v] }
+func (e *Env) FindConstDef(v *vdl.Value) *ConstDef { return e.constMap[v] }
 
 // ResolvePackage resolves a package path to its previous compiled results.
 func (e *Env) ResolvePackage(path string) *Package {
@@ -254,7 +254,7 @@ func (e *Env) DisallowPathQualifiers() *Env {
 // Representation of the components of an vdl file.  These data types represent
 // the results of the compilation, used by generators for different languages.
 
-// Package represents an vdl package, containing a set of files.
+// Package represents a vdl package, containing a list of files.
 type Package struct {
 	// Name is the name of the package, specified in the vdl files.
 	// E.g. "bar"
@@ -277,9 +277,15 @@ type Package struct {
 	Config vdltool.Config
 
 	// We hold some internal maps to make local name resolution cheap and easy.
-	typeDefs  map[string]*TypeDef
-	constDefs map[string]*ConstDef
-	ifaceDefs map[string]*Interface
+	typeMap  map[string]*TypeDef
+	constMap map[string]*ConstDef
+	ifaceMap map[string]*Interface
+
+	// We also hold some internal slices, to remember the dependency ordering.
+	typeDefs  []*TypeDef
+	constDefs []*ConstDef
+	errorDefs []*ErrorDef
+	ifaceDefs []*Interface
 
 	// lowercaseIdents maps from lowercased identifier to a detail string; it's
 	// used to detect and report identifier conflicts.
@@ -292,9 +298,9 @@ func newPackage(name, pkgPath, genPath string, config vdltool.Config) *Package {
 		Path:            pkgPath,
 		GenPath:         genPath,
 		Config:          config,
-		typeDefs:        make(map[string]*TypeDef),
-		constDefs:       make(map[string]*ConstDef),
-		ifaceDefs:       make(map[string]*Interface),
+		typeMap:         make(map[string]*TypeDef),
+		constMap:        make(map[string]*ConstDef),
+		ifaceMap:        make(map[string]*Interface),
 		lowercaseIdents: make(map[string]string),
 	}
 }
@@ -309,13 +315,13 @@ func (p *Package) QualifiedName(id string) string {
 }
 
 // ResolveType resolves the type name to its definition.
-func (p *Package) ResolveType(name string) *TypeDef { return p.typeDefs[name] }
+func (p *Package) ResolveType(name string) *TypeDef { return p.typeMap[name] }
 
 // ResolveConst resolves the const name to its definition.
-func (p *Package) ResolveConst(name string) *ConstDef { return p.constDefs[name] }
+func (p *Package) ResolveConst(name string) *ConstDef { return p.constMap[name] }
 
 // ResolveInterface resolves the interface name to its definition.
-func (p *Package) ResolveInterface(name string) *Interface { return p.ifaceDefs[name] }
+func (p *Package) ResolveInterface(name string) *Interface { return p.ifaceMap[name] }
 
 // resolve resolves a name against the package.
 // Checks for duplicate definitions should be performed before this is called.
@@ -343,43 +349,33 @@ func (p *Package) Doc() string {
 	return ""
 }
 
-// TODO(toddw): Add ordering as appropriate to each of these!
+// TypeDefs returns all types defined in this package, in dependency order.  If
+// type B refers to type A, B depends on A, and A will appear before B.  Types
+// may have cyclic dependencies; the ordering of cyclicly dependent types is
+// arbitrary.
+func (p *Package) TypeDefs() []*TypeDef { return p.typeDefs }
 
-func (p *Package) TypeDefs() (x []*TypeDef) {
-	for _, file := range p.Files {
-		x = append(x, file.TypeDefs...)
-	}
-	return
-}
+// ConstDefs returns all consts defined in this package, in dependency order.
+// If const B refers to const A, B depends on A, and A will appear before B.
+// Consts cannot have cyclic dependencies.
+func (p *Package) ConstDefs() (x []*ConstDef) { return p.constDefs }
 
-func (p *Package) ConstDefs() (x []*ConstDef) {
-	for _, file := range p.Files {
-		x = append(x, file.ConstDefs...)
-	}
-	return
-}
+// ErrorDefs returns all errors defined in this package.  Errors don't have
+// dependencies.
+func (p *Package) ErrorDefs() (x []*ErrorDef) { return p.errorDefs }
 
-func (p *Package) ErrorDefs() (x []*ErrorDef) {
-	for _, file := range p.Files {
-		x = append(x, file.ErrorDefs...)
-	}
-	return
-}
-
-func (p *Package) Interfaces() (x []*Interface) {
-	for _, file := range p.Files {
-		x = append(x, file.Interfaces...)
-	}
-	return
-}
+// Interfaces returns all interfaces defined in this package, in dependency
+// order.  If interface B embeds interface A, B depends on A, and A will appear
+// before B.  Interfaces cannot have cyclic dependencies.
+func (p *Package) Interfaces() (x []*Interface) { return p.ifaceDefs }
 
 // File represents a compiled vdl file.
 type File struct {
 	BaseName   string       // Base name of the vdl file, e.g. "foo.vdl"
 	PackageDef NamePos      // Name, position and docs of the "package" clause
-	ErrorDefs  []*ErrorDef  // Errors defined in this file
 	TypeDefs   []*TypeDef   // Types defined in this file
 	ConstDefs  []*ConstDef  // Consts defined in this file
+	ErrorDefs  []*ErrorDef  // Errors defined in this file
 	Interfaces []*Interface // Interfaces defined in this file
 	Package    *Package     // Parent package
 
@@ -498,8 +494,12 @@ func (x *Field) String() string   { return fmt.Sprintf("%+v", *x) }
 func (x *NamePos) String() string { return fmt.Sprintf("%+v", *x) }
 func (x *Package) String() string {
 	c := *x
+	c.typeMap = nil
+	c.constMap = nil
+	c.ifaceMap = nil
 	c.typeDefs = nil
 	c.constDefs = nil
+	c.errorDefs = nil
 	c.ifaceDefs = nil
 	return fmt.Sprintf("%+v", c)
 }

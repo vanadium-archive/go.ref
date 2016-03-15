@@ -14,6 +14,11 @@ import (
 	"v.io/v23/vdl"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // Library describes a shared library that applications may use.
 type Library struct {
 	// Name is the name of the library.
@@ -30,9 +35,6 @@ func (Library) __VDLReflect(struct {
 }
 
 func (m *Library) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_profile_Library == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -43,7 +45,7 @@ func (m *Library) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Name), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.Name), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -55,7 +57,7 @@ func (m *Library) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.MajorVersion), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.MajorVersion), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -67,7 +69,7 @@ func (m *Library) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget7.FromString(string(m.MinorVersion), vdl.StringType); err != nil {
+		if err := fieldTarget7.FromString(string(m.MinorVersion), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -95,8 +97,8 @@ type LibraryTarget struct {
 
 func (t *LibraryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_profile_Library) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_profile_Library)
+	if ttWant := vdl.TypeOf((*Library)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -115,7 +117,7 @@ func (t *LibraryTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.minorVersionTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_profile_Library)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/profile.Library", name)
 	}
 }
 func (t *LibraryTarget) FinishField(_, _ vdl.Target) error {
@@ -150,9 +152,6 @@ func (Specification) __VDLReflect(struct {
 }
 
 func (m *Specification) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_profile_Specification == nil || __VDLType1 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -163,7 +162,7 @@ func (m *Specification) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Label), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.Label), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -175,7 +174,7 @@ func (m *Specification) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Description), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.Description), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -188,7 +187,7 @@ func (m *Specification) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Arch.FillVDLTarget(fieldTarget7, __VDLType_v_io_v23_services_build_Architecture); err != nil {
+		if err := m.Arch.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -201,7 +200,7 @@ func (m *Specification) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Os.FillVDLTarget(fieldTarget9, __VDLType_v_io_v23_services_build_OperatingSystem); err != nil {
+		if err := m.Os.FillVDLTarget(fieldTarget9, tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
@@ -214,7 +213,7 @@ func (m *Specification) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Format.FillVDLTarget(fieldTarget11, __VDLType_v_io_v23_services_build_Format); err != nil {
+		if err := m.Format.FillVDLTarget(fieldTarget11, tt.NonOptional().Field(4).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
@@ -227,7 +226,7 @@ func (m *Specification) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		setTarget14, err := fieldTarget13.StartSet(__VDLType2, len(m.Libraries))
+		setTarget14, err := fieldTarget13.StartSet(tt.NonOptional().Field(5).Type, len(m.Libraries))
 		if err != nil {
 			return err
 		}
@@ -237,7 +236,7 @@ func (m *Specification) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := key16.FillVDLTarget(keyTarget15, __VDLType_v_io_x_ref_services_profile_Library); err != nil {
+			if err := key16.FillVDLTarget(keyTarget15, tt.NonOptional().Field(5).Type.Key()); err != nil {
 				return err
 			}
 			if err := setTarget14.FinishKey(keyTarget15); err != nil {
@@ -275,8 +274,8 @@ type SpecificationTarget struct {
 
 func (t *SpecificationTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_profile_Specification) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_profile_Specification)
+	if ttWant := vdl.TypeOf((*Specification)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -307,7 +306,7 @@ func (t *SpecificationTarget) StartField(name string) (key, field vdl.Target, _ 
 		target, err := &t.librariesTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_profile_Specification)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/profile.Specification", name)
 	}
 }
 func (t *SpecificationTarget) FinishField(_, _ vdl.Target) error {
@@ -329,8 +328,8 @@ type unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c6
 
 func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType2) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType2)
+	if ttWant := vdl.TypeOf((*map[Library]struct{})(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = make(map[Library]struct{})
 	return t, nil
@@ -353,19 +352,29 @@ func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652
 	return nil
 }
 
-func init() {
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*Library)(nil))
 	vdl.Register((*Specification)(nil))
-}
 
-var __VDLType0 *vdl.Type = vdl.TypeOf((*Library)(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf((*Specification)(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf(map[Library]struct{}(nil))
-var __VDLType_v_io_v23_services_build_Architecture *vdl.Type = vdl.TypeOf(build.ArchitectureAmd64)
-var __VDLType_v_io_v23_services_build_Format *vdl.Type = vdl.TypeOf(build.FormatElf)
-var __VDLType_v_io_v23_services_build_OperatingSystem *vdl.Type = vdl.TypeOf(build.OperatingSystemDarwin)
-var __VDLType_v_io_x_ref_services_profile_Library *vdl.Type = vdl.TypeOf(Library{})
-var __VDLType_v_io_x_ref_services_profile_Specification *vdl.Type = vdl.TypeOf(Specification{})
-
-func __VDLEnsureNativeBuilt() {
+	return struct{}{}
 }

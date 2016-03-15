@@ -22,6 +22,11 @@ import (
 	"v.io/x/ref/services/wspr/internal/principal"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type Context struct {
 	Language string
 }
@@ -32,9 +37,6 @@ func (Context) __VDLReflect(struct {
 }
 
 func (m *Context) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_Context == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -45,7 +47,7 @@ func (m *Context) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Language), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.Language), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -71,8 +73,8 @@ type ContextTarget struct {
 
 func (t *ContextTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_Context) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_Context)
+	if ttWant := vdl.TypeOf((*Context)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -83,7 +85,7 @@ func (t *ContextTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.languageTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_Context)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/rpc/server.Context", name)
 	}
 }
 func (t *ContextTarget) FinishField(_, _ vdl.Target) error {
@@ -112,9 +114,6 @@ func (SecurityCall) __VDLReflect(struct {
 }
 
 func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall == nil || __VDLType1 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -125,7 +124,7 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Method), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.Method), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -137,7 +136,7 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Suffix), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.Suffix), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -150,7 +149,7 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget8, err := fieldTarget7.StartList(__VDLType2, len(m.MethodTags))
+		listTarget8, err := fieldTarget7.StartList(tt.NonOptional().Field(2).Type, len(m.MethodTags))
 		if err != nil {
 			return err
 		}
@@ -161,11 +160,11 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 
 			if elem10 == nil {
-				if err := elemTarget9.FromNil(vdl.AnyType); err != nil {
+				if err := elemTarget9.FromNil(tt.NonOptional().Field(2).Type.Elem()); err != nil {
 					return err
 				}
 			} else {
-				if err := elem10.FillVDLTarget(elemTarget9, vdl.AnyType); err != nil {
+				if err := elem10.FillVDLTarget(elemTarget9, tt.NonOptional().Field(2).Type.Elem()); err != nil {
 					return err
 				}
 			}
@@ -186,7 +185,7 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.LocalBlessings.FillVDLTarget(fieldTarget12, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
+		if err := m.LocalBlessings.FillVDLTarget(fieldTarget12, tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
@@ -199,7 +198,7 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget15, err := fieldTarget14.StartList(__VDLType3, len(m.LocalBlessingStrings))
+		listTarget15, err := fieldTarget14.StartList(tt.NonOptional().Field(4).Type, len(m.LocalBlessingStrings))
 		if err != nil {
 			return err
 		}
@@ -208,7 +207,7 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err != nil {
 				return err
 			}
-			if err := elemTarget16.FromString(string(elem17), vdl.StringType); err != nil {
+			if err := elemTarget16.FromString(string(elem17), tt.NonOptional().Field(4).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget15.FinishElem(elemTarget16); err != nil {
@@ -228,7 +227,7 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.RemoteBlessings.FillVDLTarget(fieldTarget19, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
+		if err := m.RemoteBlessings.FillVDLTarget(fieldTarget19, tt.NonOptional().Field(5).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
@@ -241,7 +240,7 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget22, err := fieldTarget21.StartList(__VDLType3, len(m.RemoteBlessingStrings))
+		listTarget22, err := fieldTarget21.StartList(tt.NonOptional().Field(6).Type, len(m.RemoteBlessingStrings))
 		if err != nil {
 			return err
 		}
@@ -250,7 +249,7 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err != nil {
 				return err
 			}
-			if err := elemTarget23.FromString(string(elem24), vdl.StringType); err != nil {
+			if err := elemTarget23.FromString(string(elem24), tt.NonOptional().Field(6).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget22.FinishElem(elemTarget23); err != nil {
@@ -269,7 +268,7 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget26.FromString(string(m.LocalEndpoint), vdl.StringType); err != nil {
+		if err := fieldTarget26.FromString(string(m.LocalEndpoint), tt.NonOptional().Field(7).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget25, fieldTarget26); err != nil {
@@ -281,7 +280,7 @@ func (m *SecurityCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget28.FromString(string(m.RemoteEndpoint), vdl.StringType); err != nil {
+		if err := fieldTarget28.FromString(string(m.RemoteEndpoint), tt.NonOptional().Field(8).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget27, fieldTarget28); err != nil {
@@ -315,8 +314,8 @@ type SecurityCallTarget struct {
 
 func (t *SecurityCallTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall)
+	if ttWant := vdl.TypeOf((*SecurityCall)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -359,7 +358,7 @@ func (t *SecurityCallTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.remoteEndpointTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/rpc/server.SecurityCall", name)
 	}
 }
 func (t *SecurityCallTarget) FinishField(_, _ vdl.Target) error {
@@ -380,8 +379,8 @@ type unnamed_5b5d616e79Target struct {
 
 func (t *unnamed_5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType2) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType2)
+	if ttWant := vdl.TypeOf((*[]*vom.RawBytes)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]*vom.RawBytes, len)
@@ -414,9 +413,6 @@ func (CaveatValidationRequest) __VDLReflect(struct {
 }
 
 func (m *CaveatValidationRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationRequest == nil || __VDLType4 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -428,7 +424,7 @@ func (m *CaveatValidationRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Call.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall); err != nil {
+		if err := m.Call.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -441,7 +437,7 @@ func (m *CaveatValidationRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Context.FillVDLTarget(fieldTarget5, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_Context); err != nil {
+		if err := m.Context.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -454,7 +450,7 @@ func (m *CaveatValidationRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget8, err := fieldTarget7.StartList(__VDLType5, len(m.Cavs))
+		listTarget8, err := fieldTarget7.StartList(tt.NonOptional().Field(2).Type, len(m.Cavs))
 		if err != nil {
 			return err
 		}
@@ -464,7 +460,7 @@ func (m *CaveatValidationRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 				return err
 			}
 
-			listTarget11, err := elemTarget9.StartList(__VDLType6, len(elem10))
+			listTarget11, err := elemTarget9.StartList(tt.NonOptional().Field(2).Type.Elem(), len(elem10))
 			if err != nil {
 				return err
 			}
@@ -474,7 +470,7 @@ func (m *CaveatValidationRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) erro
 					return err
 				}
 
-				if err := elem13.FillVDLTarget(elemTarget12, __VDLType_v_io_v23_security_Caveat); err != nil {
+				if err := elem13.FillVDLTarget(elemTarget12, tt.NonOptional().Field(2).Type.Elem().Elem()); err != nil {
 					return err
 				}
 				if err := listTarget11.FinishElem(elemTarget12); err != nil {
@@ -516,8 +512,8 @@ type CaveatValidationRequestTarget struct {
 
 func (t *CaveatValidationRequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationRequest) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationRequest)
+	if ttWant := vdl.TypeOf((*CaveatValidationRequest)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -536,7 +532,7 @@ func (t *CaveatValidationRequestTarget) StartField(name string) (key, field vdl.
 		target, err := &t.cavsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationRequest)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/rpc/server.CaveatValidationRequest", name)
 	}
 }
 func (t *CaveatValidationRequestTarget) FinishField(_, _ vdl.Target) error {
@@ -557,8 +553,8 @@ type unnamed_5b5d5b5d762e696f2f7632332f73656375726974792e43617665617420737472756
 
 func (t *unnamed_5b5d5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType5) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType5)
+	if ttWant := vdl.TypeOf((*[][]security.Caveat)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([][]security.Caveat, len)
@@ -590,8 +586,8 @@ type unnamed_5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747
 
 func (t *unnamed_5b5d762e696f2f7632332f73656375726974792e436176656174207374727563747b496420762e696f2f7632332f756e6971756569642e4964205b31365d627974653b506172616d566f6d205b5d627974657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType6) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType6)
+	if ttWant := vdl.TypeOf((*[]security.Caveat)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]security.Caveat, len)
@@ -623,9 +619,6 @@ func (CaveatValidationResponse) __VDLReflect(struct {
 }
 
 func (m *CaveatValidationResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationResponse == nil || __VDLType7 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -637,7 +630,7 @@ func (m *CaveatValidationResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(__VDLType8, len(m.Results))
+		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Results))
 		if err != nil {
 			return err
 		}
@@ -648,7 +641,7 @@ func (m *CaveatValidationResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) err
 			}
 
 			if elem6 == nil {
-				if err := elemTarget5.FromNil(vdl.ErrorType); err != nil {
+				if err := elemTarget5.FromNil(tt.NonOptional().Field(0).Type.Elem()); err != nil {
 					return err
 				}
 			} else {
@@ -691,8 +684,8 @@ type CaveatValidationResponseTarget struct {
 
 func (t *CaveatValidationResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationResponse) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationResponse)
+	if ttWant := vdl.TypeOf((*CaveatValidationResponse)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -703,7 +696,7 @@ func (t *CaveatValidationResponseTarget) StartField(name string) (key, field vdl
 		target, err := &t.resultsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationResponse)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/rpc/server.CaveatValidationResponse", name)
 	}
 }
 func (t *CaveatValidationResponseTarget) FinishField(_, _ vdl.Target) error {
@@ -724,8 +717,8 @@ type unnamed_5b5d3f6572726f72207374727563747b496420737472696e673b5265747279436f6
 
 func (t *unnamed_5b5d3f6572726f72207374727563747b496420737472696e673b5265747279436f646520656e756d7b4e6f52657472793b5265747279436f6e6e656374696f6e3b5265747279526566657463683b52657472794261636b6f66667d3b4d736720737472696e673b506172616d4c697374205b5d616e797dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType8) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType8)
+	if ttWant := vdl.TypeOf((*[]error)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]error, len)
@@ -761,7 +754,6 @@ func (ServerRpcRequestCall) __VDLReflect(struct {
 }
 
 func (m *ServerRpcRequestCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	__VDLEnsureNativeBuilt()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -773,7 +765,7 @@ func (m *ServerRpcRequestCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.SecurityCall.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall); err != nil {
+		if err := m.SecurityCall.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -791,7 +783,7 @@ func (m *ServerRpcRequestCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue4.FillVDLTarget(fieldTarget6, __VDLType_time_WireDeadline); err != nil {
+		if err := wireValue4.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
@@ -804,7 +796,7 @@ func (m *ServerRpcRequestCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Context.FillVDLTarget(fieldTarget8, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_Context); err != nil {
+		if err := m.Context.FillVDLTarget(fieldTarget8, tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
@@ -817,7 +809,7 @@ func (m *ServerRpcRequestCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.TraceRequest.FillVDLTarget(fieldTarget10, __VDLType_v_io_v23_vtrace_Request); err != nil {
+		if err := m.TraceRequest.FillVDLTarget(fieldTarget10, tt.NonOptional().Field(3).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
@@ -830,7 +822,7 @@ func (m *ServerRpcRequestCall) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.GrantedBlessings.FillVDLTarget(fieldTarget12, __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsId); err != nil {
+		if err := m.GrantedBlessings.FillVDLTarget(fieldTarget12, tt.NonOptional().Field(4).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
@@ -860,8 +852,8 @@ type ServerRpcRequestCallTarget struct {
 
 func (t *ServerRpcRequestCallTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall)
+	if ttWant := vdl.TypeOf((*ServerRpcRequestCall)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -888,7 +880,7 @@ func (t *ServerRpcRequestCallTarget) StartField(name string) (key, field vdl.Tar
 		target, err := &t.grantedBlessingsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequestCall", name)
 	}
 }
 func (t *ServerRpcRequestCallTarget) FinishField(_, _ vdl.Target) error {
@@ -914,7 +906,6 @@ func (ServerRpcRequest) __VDLReflect(struct {
 }
 
 func (m *ServerRpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	__VDLEnsureNativeBuilt()
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -925,7 +916,7 @@ func (m *ServerRpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromUint(uint64(m.ServerId), vdl.Uint32Type); err != nil {
+		if err := fieldTarget3.FromUint(uint64(m.ServerId), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -937,7 +928,7 @@ func (m *ServerRpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromInt(int64(m.Handle), vdl.Int32Type); err != nil {
+		if err := fieldTarget5.FromInt(int64(m.Handle), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -949,7 +940,7 @@ func (m *ServerRpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget7.FromString(string(m.Method), vdl.StringType); err != nil {
+		if err := fieldTarget7.FromString(string(m.Method), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -962,7 +953,7 @@ func (m *ServerRpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget10, err := fieldTarget9.StartList(__VDLType2, len(m.Args))
+		listTarget10, err := fieldTarget9.StartList(tt.NonOptional().Field(3).Type, len(m.Args))
 		if err != nil {
 			return err
 		}
@@ -973,11 +964,11 @@ func (m *ServerRpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 
 			if elem12 == nil {
-				if err := elemTarget11.FromNil(vdl.AnyType); err != nil {
+				if err := elemTarget11.FromNil(tt.NonOptional().Field(3).Type.Elem()); err != nil {
 					return err
 				}
 			} else {
-				if err := elem12.FillVDLTarget(elemTarget11, vdl.AnyType); err != nil {
+				if err := elem12.FillVDLTarget(elemTarget11, tt.NonOptional().Field(3).Type.Elem()); err != nil {
 					return err
 				}
 			}
@@ -998,7 +989,7 @@ func (m *ServerRpcRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Call.FillVDLTarget(fieldTarget14, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall); err != nil {
+		if err := m.Call.FillVDLTarget(fieldTarget14, tt.NonOptional().Field(4).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget13, fieldTarget14); err != nil {
@@ -1028,8 +1019,8 @@ type ServerRpcRequestTarget struct {
 
 func (t *ServerRpcRequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest)
+	if ttWant := vdl.TypeOf((*ServerRpcRequest)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -1056,7 +1047,7 @@ func (t *ServerRpcRequestTarget) StartField(name string) (key, field vdl.Target,
 		target, err := &t.callTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequest", name)
 	}
 }
 func (t *ServerRpcRequestTarget) FinishField(_, _ vdl.Target) error {
@@ -1082,9 +1073,6 @@ func (LookupReply) __VDLReflect(struct {
 }
 
 func (m *LookupReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_LookupReply == nil || __VDLType11 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -1095,7 +1083,7 @@ func (m *LookupReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromInt(int64(m.Handle), vdl.Int32Type); err != nil {
+		if err := fieldTarget3.FromInt(int64(m.Handle), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -1107,7 +1095,7 @@ func (m *LookupReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromBool(bool(m.HasAuthorizer), vdl.BoolType); err != nil {
+		if err := fieldTarget5.FromBool(bool(m.HasAuthorizer), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -1119,7 +1107,7 @@ func (m *LookupReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget7.FromBool(bool(m.HasGlobber), vdl.BoolType); err != nil {
+		if err := fieldTarget7.FromBool(bool(m.HasGlobber), tt.NonOptional().Field(2).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
@@ -1132,7 +1120,7 @@ func (m *LookupReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget10, err := fieldTarget9.StartList(__VDLType12, len(m.Signature))
+		listTarget10, err := fieldTarget9.StartList(tt.NonOptional().Field(3).Type, len(m.Signature))
 		if err != nil {
 			return err
 		}
@@ -1142,7 +1130,7 @@ func (m *LookupReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := elem12.FillVDLTarget(elemTarget11, __VDLType_signature_Interface); err != nil {
+			if err := elem12.FillVDLTarget(elemTarget11, tt.NonOptional().Field(3).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget10.FinishElem(elemTarget11); err != nil {
@@ -1163,7 +1151,7 @@ func (m *LookupReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != vdl.ErrFieldNoExist {
 
 		if m.Err == nil {
-			if err := fieldTarget14.FromNil(vdl.ErrorType); err != nil {
+			if err := fieldTarget14.FromNil(tt.NonOptional().Field(4).Type); err != nil {
 				return err
 			}
 		} else {
@@ -1203,8 +1191,8 @@ type LookupReplyTarget struct {
 
 func (t *LookupReplyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_LookupReply) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_LookupReply)
+	if ttWant := vdl.TypeOf((*LookupReply)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -1231,7 +1219,7 @@ func (t *LookupReplyTarget) StartField(name string) (key, field vdl.Target, _ er
 		target, err := &t.errTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_LookupReply)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/rpc/server.LookupReply", name)
 	}
 }
 func (t *LookupReplyTarget) FinishField(_, _ vdl.Target) error {
@@ -1252,8 +1240,8 @@ type unnamed_5b5d7369676e61747572652e496e74657266616365207374727563747b4e616d652
 
 func (t *unnamed_5b5d7369676e61747572652e496e74657266616365207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e673b456d62656473205b5d7369676e61747572652e456d626564207374727563747b4e616d6520737472696e673b506b675061746820737472696e673b446f6320737472696e677d3b4d6574686f6473205b5d7369676e61747572652e4d6574686f64207374727563747b4e616d6520737472696e673b446f6320737472696e673b496e41726773205b5d7369676e61747572652e417267207374727563747b4e616d6520737472696e673b446f6320737472696e673b5479706520747970656f626a6563747d3b4f757441726773205b5d7369676e61747572652e4172673b496e53747265616d203f7369676e61747572652e4172673b4f757453747265616d203f7369676e61747572652e4172673b54616773205b5d616e797d7dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType12) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType12)
+	if ttWant := vdl.TypeOf((*[]signature.Interface)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	if cap(*t.Value) < len {
 		*t.Value = make([]signature.Interface, len)
@@ -1286,9 +1274,6 @@ func (AuthReply) __VDLReflect(struct {
 }
 
 func (m *AuthReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_AuthReply == nil || __VDLType13 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -1301,7 +1286,7 @@ func (m *AuthReply) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != vdl.ErrFieldNoExist {
 
 		if m.Err == nil {
-			if err := fieldTarget3.FromNil(vdl.ErrorType); err != nil {
+			if err := fieldTarget3.FromNil(tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
 		} else {
@@ -1337,8 +1322,8 @@ type AuthReplyTarget struct {
 
 func (t *AuthReplyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_AuthReply) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_AuthReply)
+	if ttWant := vdl.TypeOf((*AuthReply)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -1349,7 +1334,7 @@ func (t *AuthReplyTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.errTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_AuthReply)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/rpc/server.AuthReply", name)
 	}
 }
 func (t *AuthReplyTarget) FinishField(_, _ vdl.Target) error {
@@ -1360,390 +1345,13 @@ func (t *AuthReplyTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func init() {
-	vdl.Register((*Context)(nil))
-	vdl.Register((*SecurityCall)(nil))
-	vdl.Register((*CaveatValidationRequest)(nil))
-	vdl.Register((*CaveatValidationResponse)(nil))
-	vdl.Register((*ServerRpcRequestCall)(nil))
-	vdl.Register((*ServerRpcRequest)(nil))
-	vdl.Register((*LookupReply)(nil))
-	vdl.Register((*AuthReply)(nil))
-}
-
-var __VDLType13 *vdl.Type = vdl.TypeOf((*AuthReply)(nil))
-var __VDLType4 *vdl.Type = vdl.TypeOf((*CaveatValidationRequest)(nil))
-var __VDLType7 *vdl.Type = vdl.TypeOf((*CaveatValidationResponse)(nil))
-var __VDLType0 *vdl.Type = vdl.TypeOf((*Context)(nil))
-var __VDLType11 *vdl.Type = vdl.TypeOf((*LookupReply)(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf((*SecurityCall)(nil))
-var __VDLType10 *vdl.Type
-
-func __VDLType10_gen() *vdl.Type {
-	__VDLType10Builder := vdl.TypeBuilder{}
-
-	__VDLType101 := __VDLType10Builder.Optional()
-	__VDLType102 := __VDLType10Builder.Struct()
-	__VDLType103 := __VDLType10Builder.Named("v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequest").AssignBase(__VDLType102)
-	__VDLType104 := vdl.Uint32Type
-	__VDLType102.AppendField("ServerId", __VDLType104)
-	__VDLType105 := vdl.Int32Type
-	__VDLType102.AppendField("Handle", __VDLType105)
-	__VDLType106 := vdl.StringType
-	__VDLType102.AppendField("Method", __VDLType106)
-	__VDLType107 := __VDLType10Builder.List()
-	__VDLType108 := vdl.AnyType
-	__VDLType107.AssignElem(__VDLType108)
-	__VDLType102.AppendField("Args", __VDLType107)
-	__VDLType109 := __VDLType10Builder.Struct()
-	__VDLType1010 := __VDLType10Builder.Named("v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequestCall").AssignBase(__VDLType109)
-	__VDLType1011 := __VDLType10Builder.Struct()
-	__VDLType1012 := __VDLType10Builder.Named("v.io/x/ref/services/wspr/internal/rpc/server.SecurityCall").AssignBase(__VDLType1011)
-	__VDLType1011.AppendField("Method", __VDLType106)
-	__VDLType1011.AppendField("Suffix", __VDLType106)
-	__VDLType1011.AppendField("MethodTags", __VDLType107)
-	__VDLType1013 := vdl.Uint32Type
-	__VDLType1014 := __VDLType10Builder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsId").AssignBase(__VDLType1013)
-	__VDLType1011.AppendField("LocalBlessings", __VDLType1014)
-	__VDLType1015 := __VDLType10Builder.List()
-	__VDLType1015.AssignElem(__VDLType106)
-	__VDLType1011.AppendField("LocalBlessingStrings", __VDLType1015)
-	__VDLType1011.AppendField("RemoteBlessings", __VDLType1014)
-	__VDLType1011.AppendField("RemoteBlessingStrings", __VDLType1015)
-	__VDLType1011.AppendField("LocalEndpoint", __VDLType106)
-	__VDLType1011.AppendField("RemoteEndpoint", __VDLType106)
-	__VDLType109.AppendField("SecurityCall", __VDLType1012)
-	__VDLType1016 := __VDLType10Builder.Struct()
-	__VDLType1017 := __VDLType10Builder.Named("time.WireDeadline").AssignBase(__VDLType1016)
-	__VDLType1018 := __VDLType10Builder.Struct()
-	__VDLType1019 := __VDLType10Builder.Named("time.Duration").AssignBase(__VDLType1018)
-	__VDLType1020 := vdl.Int64Type
-	__VDLType1018.AppendField("Seconds", __VDLType1020)
-	__VDLType1018.AppendField("Nanos", __VDLType105)
-	__VDLType1016.AppendField("FromNow", __VDLType1019)
-	__VDLType1021 := vdl.BoolType
-	__VDLType1016.AppendField("NoDeadline", __VDLType1021)
-	__VDLType109.AppendField("Deadline", __VDLType1017)
-	__VDLType1022 := __VDLType10Builder.Struct()
-	__VDLType1023 := __VDLType10Builder.Named("v.io/x/ref/services/wspr/internal/rpc/server.Context").AssignBase(__VDLType1022)
-	__VDLType1022.AppendField("Language", __VDLType106)
-	__VDLType109.AppendField("Context", __VDLType1023)
-	__VDLType1024 := __VDLType10Builder.Struct()
-	__VDLType1025 := __VDLType10Builder.Named("v.io/v23/vtrace.Request").AssignBase(__VDLType1024)
-	__VDLType1026 := __VDLType10Builder.Array()
-	__VDLType1027 := __VDLType10Builder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType1026)
-	__VDLType1028 := vdl.ByteType
-	__VDLType1026.AssignElem(__VDLType1028)
-	__VDLType1026.AssignLen(16)
-	__VDLType1024.AppendField("SpanId", __VDLType1027)
-	__VDLType1024.AppendField("TraceId", __VDLType1027)
-	__VDLType1029 := vdl.Int32Type
-	__VDLType1030 := __VDLType10Builder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLType1029)
-	__VDLType1024.AppendField("Flags", __VDLType1030)
-	__VDLType1024.AppendField("LogLevel", __VDLType105)
-	__VDLType109.AppendField("TraceRequest", __VDLType1025)
-	__VDLType109.AppendField("GrantedBlessings", __VDLType1014)
-	__VDLType102.AppendField("Call", __VDLType1010)
-	__VDLType101.AssignElem(__VDLType103)
-	__VDLType10Builder.Build()
-	__VDLType10v, err := __VDLType101.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType10v
-}
-func init() {
-	__VDLType10 = __VDLType10_gen()
-}
-
-var __VDLType9 *vdl.Type
-
-func __VDLType9_gen() *vdl.Type {
-	__VDLType9Builder := vdl.TypeBuilder{}
-
-	__VDLType91 := __VDLType9Builder.Optional()
-	__VDLType92 := __VDLType9Builder.Struct()
-	__VDLType93 := __VDLType9Builder.Named("v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequestCall").AssignBase(__VDLType92)
-	__VDLType94 := __VDLType9Builder.Struct()
-	__VDLType95 := __VDLType9Builder.Named("v.io/x/ref/services/wspr/internal/rpc/server.SecurityCall").AssignBase(__VDLType94)
-	__VDLType96 := vdl.StringType
-	__VDLType94.AppendField("Method", __VDLType96)
-	__VDLType94.AppendField("Suffix", __VDLType96)
-	__VDLType97 := __VDLType9Builder.List()
-	__VDLType98 := vdl.AnyType
-	__VDLType97.AssignElem(__VDLType98)
-	__VDLType94.AppendField("MethodTags", __VDLType97)
-	__VDLType99 := vdl.Uint32Type
-	__VDLType910 := __VDLType9Builder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsId").AssignBase(__VDLType99)
-	__VDLType94.AppendField("LocalBlessings", __VDLType910)
-	__VDLType911 := __VDLType9Builder.List()
-	__VDLType911.AssignElem(__VDLType96)
-	__VDLType94.AppendField("LocalBlessingStrings", __VDLType911)
-	__VDLType94.AppendField("RemoteBlessings", __VDLType910)
-	__VDLType94.AppendField("RemoteBlessingStrings", __VDLType911)
-	__VDLType94.AppendField("LocalEndpoint", __VDLType96)
-	__VDLType94.AppendField("RemoteEndpoint", __VDLType96)
-	__VDLType92.AppendField("SecurityCall", __VDLType95)
-	__VDLType912 := __VDLType9Builder.Struct()
-	__VDLType913 := __VDLType9Builder.Named("time.WireDeadline").AssignBase(__VDLType912)
-	__VDLType914 := __VDLType9Builder.Struct()
-	__VDLType915 := __VDLType9Builder.Named("time.Duration").AssignBase(__VDLType914)
-	__VDLType916 := vdl.Int64Type
-	__VDLType914.AppendField("Seconds", __VDLType916)
-	__VDLType917 := vdl.Int32Type
-	__VDLType914.AppendField("Nanos", __VDLType917)
-	__VDLType912.AppendField("FromNow", __VDLType915)
-	__VDLType918 := vdl.BoolType
-	__VDLType912.AppendField("NoDeadline", __VDLType918)
-	__VDLType92.AppendField("Deadline", __VDLType913)
-	__VDLType919 := __VDLType9Builder.Struct()
-	__VDLType920 := __VDLType9Builder.Named("v.io/x/ref/services/wspr/internal/rpc/server.Context").AssignBase(__VDLType919)
-	__VDLType919.AppendField("Language", __VDLType96)
-	__VDLType92.AppendField("Context", __VDLType920)
-	__VDLType921 := __VDLType9Builder.Struct()
-	__VDLType922 := __VDLType9Builder.Named("v.io/v23/vtrace.Request").AssignBase(__VDLType921)
-	__VDLType923 := __VDLType9Builder.Array()
-	__VDLType924 := __VDLType9Builder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType923)
-	__VDLType925 := vdl.ByteType
-	__VDLType923.AssignElem(__VDLType925)
-	__VDLType923.AssignLen(16)
-	__VDLType921.AppendField("SpanId", __VDLType924)
-	__VDLType921.AppendField("TraceId", __VDLType924)
-	__VDLType926 := vdl.Int32Type
-	__VDLType927 := __VDLType9Builder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLType926)
-	__VDLType921.AppendField("Flags", __VDLType927)
-	__VDLType921.AppendField("LogLevel", __VDLType917)
-	__VDLType92.AppendField("TraceRequest", __VDLType922)
-	__VDLType92.AppendField("GrantedBlessings", __VDLType910)
-	__VDLType91.AssignElem(__VDLType93)
-	__VDLType9Builder.Build()
-	__VDLType9v, err := __VDLType91.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType9v
-}
-func init() {
-	__VDLType9 = __VDLType9_gen()
-}
-
-var __VDLType8 *vdl.Type = vdl.TypeOf([]error(nil))
-var __VDLType5 *vdl.Type = vdl.TypeOf([][]security.Caveat(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf([]*vom.RawBytes(nil))
-var __VDLType12 *vdl.Type = vdl.TypeOf([]signature.Interface(nil))
-var __VDLType3 *vdl.Type = vdl.TypeOf([]string(nil))
-var __VDLType6 *vdl.Type = vdl.TypeOf([]security.Caveat(nil))
-var __VDLType_signature_Interface *vdl.Type = vdl.TypeOf(signature.Interface{})
-var __VDLType_time_WireDeadline *vdl.Type
-
-func __VDLType_time_WireDeadline_gen() *vdl.Type {
-	__VDLType_time_WireDeadlineBuilder := vdl.TypeBuilder{}
-
-	__VDLType_time_WireDeadline1 := __VDLType_time_WireDeadlineBuilder.Struct()
-	__VDLType_time_WireDeadline2 := __VDLType_time_WireDeadlineBuilder.Named("time.WireDeadline").AssignBase(__VDLType_time_WireDeadline1)
-	__VDLType_time_WireDeadline3 := __VDLType_time_WireDeadlineBuilder.Struct()
-	__VDLType_time_WireDeadline4 := __VDLType_time_WireDeadlineBuilder.Named("time.Duration").AssignBase(__VDLType_time_WireDeadline3)
-	__VDLType_time_WireDeadline5 := vdl.Int64Type
-	__VDLType_time_WireDeadline3.AppendField("Seconds", __VDLType_time_WireDeadline5)
-	__VDLType_time_WireDeadline6 := vdl.Int32Type
-	__VDLType_time_WireDeadline3.AppendField("Nanos", __VDLType_time_WireDeadline6)
-	__VDLType_time_WireDeadline1.AppendField("FromNow", __VDLType_time_WireDeadline4)
-	__VDLType_time_WireDeadline7 := vdl.BoolType
-	__VDLType_time_WireDeadline1.AppendField("NoDeadline", __VDLType_time_WireDeadline7)
-	__VDLType_time_WireDeadlineBuilder.Build()
-	__VDLType_time_WireDeadlinev, err := __VDLType_time_WireDeadline2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_time_WireDeadlinev
-}
-func init() {
-	__VDLType_time_WireDeadline = __VDLType_time_WireDeadline_gen()
-}
-
-var __VDLType_v_io_v23_security_Caveat *vdl.Type = vdl.TypeOf(security.Caveat{})
-var __VDLType_v_io_v23_vtrace_Request *vdl.Type = vdl.TypeOf(vtrace.Request{})
-var __VDLType_v_io_x_ref_services_wspr_internal_principal_BlessingsId *vdl.Type = vdl.TypeOf(principal.BlessingsId(0))
-var __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_AuthReply *vdl.Type = vdl.TypeOf(AuthReply{})
-var __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationRequest *vdl.Type = vdl.TypeOf(CaveatValidationRequest{})
-var __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_CaveatValidationResponse *vdl.Type = vdl.TypeOf(CaveatValidationResponse{})
-var __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_Context *vdl.Type = vdl.TypeOf(Context{})
-var __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_LookupReply *vdl.Type = vdl.TypeOf(LookupReply{})
-var __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_SecurityCall *vdl.Type = vdl.TypeOf(SecurityCall{})
-var __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest *vdl.Type
-
-func __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest1 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest2 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Named("v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequest").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest1)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest3 := vdl.Uint32Type
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest1.AppendField("ServerId", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest3)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest4 := vdl.Int32Type
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest1.AppendField("Handle", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest4)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest5 := vdl.StringType
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest1.AppendField("Method", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest6 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest7 := vdl.AnyType
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest6.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest7)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest1.AppendField("Args", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest6)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest8 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest9 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Named("v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequestCall").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest8)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest10 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest11 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Named("v.io/x/ref/services/wspr/internal/rpc/server.SecurityCall").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest10)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest10.AppendField("Method", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest10.AppendField("Suffix", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest10.AppendField("MethodTags", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest6)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest12 := vdl.Uint32Type
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest13 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsId").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest12)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest10.AppendField("LocalBlessings", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest13)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest14 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest14.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest10.AppendField("LocalBlessingStrings", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest14)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest10.AppendField("RemoteBlessings", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest13)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest10.AppendField("RemoteBlessingStrings", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest14)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest10.AppendField("LocalEndpoint", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest10.AppendField("RemoteEndpoint", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest8.AppendField("SecurityCall", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest11)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest15 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest16 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Named("time.WireDeadline").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest15)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest17 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest18 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Named("time.Duration").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest17)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest19 := vdl.Int64Type
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest17.AppendField("Seconds", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest19)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest17.AppendField("Nanos", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest4)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest15.AppendField("FromNow", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest18)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest20 := vdl.BoolType
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest15.AppendField("NoDeadline", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest20)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest8.AppendField("Deadline", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest16)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest21 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest22 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Named("v.io/x/ref/services/wspr/internal/rpc/server.Context").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest21)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest21.AppendField("Language", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest8.AppendField("Context", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest22)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest23 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest24 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Named("v.io/v23/vtrace.Request").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest23)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest25 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Array()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest26 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest25)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest27 := vdl.ByteType
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest25.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest27)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest25.AssignLen(16)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest23.AppendField("SpanId", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest26)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest23.AppendField("TraceId", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest26)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest28 := vdl.Int32Type
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest29 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest28)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest23.AppendField("Flags", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest29)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest23.AppendField("LogLevel", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest4)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest8.AppendField("TraceRequest", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest24)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest8.AppendField("GrantedBlessings", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest13)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest1.AppendField("Call", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest9)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestBuilder.Build()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestv, err := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestv
-}
-func init() {
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest = __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest_gen()
-}
-
-var __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall *vdl.Type
-
-func __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall_gen() *vdl.Type {
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder := vdl.TypeBuilder{}
-
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall1 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall2 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Named("v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequestCall").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall1)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall3 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall4 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Named("v.io/x/ref/services/wspr/internal/rpc/server.SecurityCall").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall3)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall5 := vdl.StringType
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall3.AppendField("Method", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall3.AppendField("Suffix", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall6 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall7 := vdl.AnyType
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall6.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall7)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall3.AppendField("MethodTags", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall6)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall8 := vdl.Uint32Type
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall9 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Named("v.io/x/ref/services/wspr/internal/principal.BlessingsId").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall8)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall3.AppendField("LocalBlessings", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall9)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall10 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.List()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall10.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall3.AppendField("LocalBlessingStrings", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall10)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall3.AppendField("RemoteBlessings", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall9)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall3.AppendField("RemoteBlessingStrings", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall10)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall3.AppendField("LocalEndpoint", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall3.AppendField("RemoteEndpoint", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall1.AppendField("SecurityCall", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall4)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall11 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall12 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Named("time.WireDeadline").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall11)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall13 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall14 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Named("time.Duration").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall13)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall15 := vdl.Int64Type
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall13.AppendField("Seconds", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall15)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall16 := vdl.Int32Type
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall13.AppendField("Nanos", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall16)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall11.AppendField("FromNow", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall14)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall17 := vdl.BoolType
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall11.AppendField("NoDeadline", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall17)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall1.AppendField("Deadline", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall12)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall18 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall19 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Named("v.io/x/ref/services/wspr/internal/rpc/server.Context").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall18)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall18.AppendField("Language", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall5)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall1.AppendField("Context", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall19)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall20 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Struct()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall21 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Named("v.io/v23/vtrace.Request").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall20)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall22 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Array()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall23 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Named("v.io/v23/uniqueid.Id").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall22)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall24 := vdl.ByteType
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall22.AssignElem(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall24)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall22.AssignLen(16)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall20.AppendField("SpanId", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall23)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall20.AppendField("TraceId", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall23)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall25 := vdl.Int32Type
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall26 := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Named("v.io/v23/vtrace.TraceFlags").AssignBase(__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall25)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall20.AppendField("Flags", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall26)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall20.AppendField("LogLevel", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall16)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall1.AppendField("TraceRequest", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall21)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall1.AppendField("GrantedBlessings", __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall9)
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallBuilder.Build()
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallv, err := __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall2.Built()
-	if err != nil {
-		panic(err)
-	}
-	return __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCallv
-}
-func init() {
-	__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall = __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall_gen()
-}
-func __VDLEnsureNativeBuilt() {
-	if __VDLType10 == nil {
-		__VDLType10 = __VDLType10_gen()
-	}
-	if __VDLType9 == nil {
-		__VDLType9 = __VDLType9_gen()
-	}
-	if __VDLType_time_WireDeadline == nil {
-		__VDLType_time_WireDeadline = __VDLType_time_WireDeadline_gen()
-	}
-	if __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest == nil {
-		__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest = __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequest_gen()
-	}
-	if __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall == nil {
-		__VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall = __VDLType_v_io_x_ref_services_wspr_internal_rpc_server_ServerRpcRequestCall_gen()
-	}
-}
-
+//////////////////////////////////////////////////
+// Error definitions
 var (
 	ErrCaveatValidationTimeout                 = verror.Register("v.io/x/ref/services/wspr/internal/rpc/server.CaveatValidationTimeout", verror.NoRetry, "{1:}{2:} Caveat validation has timed out")
 	ErrInvalidValidationResponseFromJavascript = verror.Register("v.io/x/ref/services/wspr/internal/rpc/server.InvalidValidationResponseFromJavascript", verror.NoRetry, "{1:}{2:} Invalid validation response from javascript")
 	ErrServerStopped                           = verror.Register("v.io/x/ref/services/wspr/internal/rpc/server.ServerStopped", verror.RetryBackoff, "{1:}{2:} Server has been stopped")
 )
-
-func init() {
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCaveatValidationTimeout.ID), "{1:}{2:} Caveat validation has timed out")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidValidationResponseFromJavascript.ID), "{1:}{2:} Invalid validation response from javascript")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrServerStopped.ID), "{1:}{2:} Server has been stopped")
-}
 
 // NewErrCaveatValidationTimeout returns an error with the ErrCaveatValidationTimeout ID.
 func NewErrCaveatValidationTimeout(ctx *context.T) error {
@@ -1758,4 +1366,42 @@ func NewErrInvalidValidationResponseFromJavascript(ctx *context.T) error {
 // NewErrServerStopped returns an error with the ErrServerStopped ID.
 func NewErrServerStopped(ctx *context.T) error {
 	return verror.New(ErrServerStopped, ctx)
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*Context)(nil))
+	vdl.Register((*SecurityCall)(nil))
+	vdl.Register((*CaveatValidationRequest)(nil))
+	vdl.Register((*CaveatValidationResponse)(nil))
+	vdl.Register((*ServerRpcRequestCall)(nil))
+	vdl.Register((*ServerRpcRequest)(nil))
+	vdl.Register((*LookupReply)(nil))
+	vdl.Register((*AuthReply)(nil))
+
+	// Set error format strings.
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCaveatValidationTimeout.ID), "{1:}{2:} Caveat validation has timed out")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidValidationResponseFromJavascript.ID), "{1:}{2:} Invalid validation response from javascript")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrServerStopped.ID), "{1:}{2:} Server has been stopped")
+
+	return struct{}{}
 }

@@ -213,7 +213,6 @@ func (m TestUnionB) MakeVDLTarget() vdl.Target {
 	data := goData{
 		Package:        &compile.Package{},
 		Env:            compile.NewEnv(-1),
-		typeDepends:    newTypeDependencyNames(),
 		createdTargets: make(map[*vdl.Type]bool),
 	}
 	for _, test := range tests {

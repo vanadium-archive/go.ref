@@ -115,7 +115,7 @@ func (t *%[1]s) FromBytes(src []byte, tt *%[4]sType) error {
 		%[6]s = make([]byte, len(src))
 		copy(%[6]s, src)
 	}
-	%s
+	%[7]s
 	return nil
 }`, targetTypeName(data, t), valueFieldDef, genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t))
 	} else {
@@ -128,7 +128,7 @@ func (t *%[1]s) FromBytes(src []byte, tt *%[4]sType) error {
 	%[7]s
 	%[3]s
 	copy((%[6]s)[:], src)
-	%s
+	%[7]s
 	return nil
 }`, targetTypeName(data, t), typeGo(data, t), genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t))
 	}
@@ -170,9 +170,9 @@ func (t *%[1]s) StartField(name string) (key, field %[4]sTarget, _ error) {
 	}
 	s += fmt.Sprintf(`
 	default:
-		return nil, nil, %sErrorf("field %%s not in struct %%v", name, %s)
+		return nil, nil, %sErrorf("field %%s not in struct %s", name)
 	}
-}`, data.Pkg("fmt"), data.typeDepends.Add(data, t))
+}`, data.Pkg("fmt"), t.Name())
 	s += fmt.Sprintf(`
 func (t *%[1]s) FinishField(_, _ %[2]sTarget) error {
 	return nil
@@ -376,11 +376,11 @@ func (t *%[1]s) FromEnumLabel(src string, tt *%[4]sType) error {
 	}
 	s += fmt.Sprintf(`
 	default:
-		return %sErrorf("label %%s not in enum %%v", src, %s)
+		return %sErrorf("label %%s not in enum %s", src)
 	}
 	%s
 	return nil
-}`, data.Pkg("fmt"), data.typeDepends.Add(data, t), genWireToNativeConversion(data, t))
+}`, data.Pkg("fmt"), t.Name(), genWireToNativeConversion(data, t))
 	return s
 }
 
@@ -516,9 +516,9 @@ func createTargetCall(data goData, t, parentType *vdl.Type, targetName, input st
 // genIncompatibleTypeCheck generates code that will test for compatibility with the provided type.
 // numOutArgs is the number of additional out args that the generated function should return.
 func genIncompatibleTypeCheck(data goData, t *vdl.Type, numOutArgs int) string {
-	return fmt.Sprintf(`if !%[1]sCompatible(tt, %[2]s) {
-		return %[3]s%[4]sErrorf("type %%v incompatible with %%v", tt, %[2]s)
-	}`, data.Pkg("v.io/v23/vdl"), data.typeDepends.Add(data, t), strings.Repeat("nil, ", numOutArgs), data.Pkg("fmt"))
+	return fmt.Sprintf(`if ttWant := %[1]s; !%[2]sCompatible(tt, ttWant) {
+		return %[3]s%[4]sErrorf("type %%v incompatible with %%v", tt, ttWant)
+	}`, genTypeOf(data, t), data.Pkg("v.io/v23/vdl"), strings.Repeat("nil, ", numOutArgs), data.Pkg("fmt"))
 }
 
 // targetBaseRef generates a reference to a TargetBase to embed (or

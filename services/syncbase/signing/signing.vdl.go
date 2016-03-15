@@ -14,256 +14,10 @@ import (
 	"v.io/v23/vdl"
 )
 
-// A DataWithSignature represents a signed, and possibily validated, collection
-// of Item structs.
-//
-// If IsValidated==false and the AuthorSigned signature is valid, it means:
-//    The signer whose Blessings have hash BlessingsHash asserts Data.
-//
-// If IsValidated==true and both AuthorSigned and ValidatorSigned signatures are is valid,
-// it means both:
-// 1) The signer whose Blessings b have hash BlessingsHash asserts Data.
-// 2) If vd is the ValidatorData with hash ValidatorDataHash, the owner of
-//    vd.PublicKey asserts that it checked that at least the names vd.Names[] were
-//    valid in b.
-//
-// The sender obtains:
-// - BlessingsHash (and the wire form of the blessings) with ValidationCache.AddBlessings().
-// - ValidatorDataHash (and the wire form of the ValidataData)  with ValidationCache.AddValidatorData().
-//
-// The receiver looks up:
-// - BlessingsHash with ValidationCache.LookupBlessingsData()
-// - ValidatorDataHash with ValidationCache.LookupValidatorData()
-//
-// If not yet there, the receiver inserts the valus into its ValidationCache with:
-// - ValidationCache.AddWireBlessings()
-// - ValidationCache.AddValidatorData()
-type DataWithSignature struct {
-	Data []Item
-	// BlessingsHash is a key for the validation cache; the corresponding
-	// cached value is a security.Blessings.
-	BlessingsHash []byte
-	// AuthorSigned is the signature of Data and BlessingsHash using the
-	// private key associated with the blessings hashed in BlessingsHash.
-	AuthorSigned security.Signature
-	IsValidated  bool // Whether fields below are meaningful.
-	// ValidatorDataHash is a key for the validation cache returned by
-	// ValidatorData.Hash(); the corresponding cached value is the
-	// ValidatorData.
-	ValidatorDataHash []byte
-	ValidatorSigned   security.Signature
-}
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 
-func (DataWithSignature) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/signing.DataWithSignature"`
-}) {
-}
-
-func (m *DataWithSignature) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_syncbase_signing_DataWithSignature == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
-	fieldsTarget1, err := t.StartFields(tt)
-	if err != nil {
-		return err
-	}
-
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Data")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		listTarget4, err := fieldTarget3.StartList(__VDLType1, len(m.Data))
-		if err != nil {
-			return err
-		}
-		for i, elem6 := range m.Data {
-			elemTarget5, err := listTarget4.StartElem(i)
-			if err != nil {
-				return err
-			}
-
-			unionValue7 := elem6
-			if unionValue7 == nil {
-				unionValue7 = ItemData{}
-			}
-			if err := unionValue7.FillVDLTarget(elemTarget5, __VDLType_v_io_x_ref_services_syncbase_signing_Item); err != nil {
-				return err
-			}
-			if err := listTarget4.FinishElem(elemTarget5); err != nil {
-				return err
-			}
-		}
-		if err := fieldTarget3.FinishList(listTarget4); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("BlessingsHash")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		if err := fieldTarget9.FromBytes([]byte(m.BlessingsHash), __VDLType2); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
-			return err
-		}
-	}
-	keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("AuthorSigned")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		if err := m.AuthorSigned.FillVDLTarget(fieldTarget11, __VDLType_v_io_v23_security_Signature); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
-			return err
-		}
-	}
-	keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("IsValidated")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget13.FromBool(bool(m.IsValidated), vdl.BoolType); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
-			return err
-		}
-	}
-	keyTarget14, fieldTarget15, err := fieldsTarget1.StartField("ValidatorDataHash")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		if err := fieldTarget15.FromBytes([]byte(m.ValidatorDataHash), __VDLType2); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
-			return err
-		}
-	}
-	keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("ValidatorSigned")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		if err := m.ValidatorSigned.FillVDLTarget(fieldTarget17, __VDLType_v_io_v23_security_Signature); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
-			return err
-		}
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *DataWithSignature) MakeVDLTarget() vdl.Target {
-	return &DataWithSignatureTarget{Value: m}
-}
-
-type DataWithSignatureTarget struct {
-	Value                   *DataWithSignature
-	dataTarget              unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget
-	blessingsHashTarget     vdl.BytesTarget
-	authorSignedTarget      security.SignatureTarget
-	isValidatedTarget       vdl.BoolTarget
-	validatorDataHashTarget vdl.BytesTarget
-	validatorSignedTarget   security.SignatureTarget
-	vdl.TargetBase
-	vdl.FieldsTargetBase
-}
-
-func (t *DataWithSignatureTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
-
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_signing_DataWithSignature) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_signing_DataWithSignature)
-	}
-	return t, nil
-}
-func (t *DataWithSignatureTarget) StartField(name string) (key, field vdl.Target, _ error) {
-	switch name {
-	case "Data":
-		t.dataTarget.Value = &t.Value.Data
-		target, err := &t.dataTarget, error(nil)
-		return nil, target, err
-	case "BlessingsHash":
-		t.blessingsHashTarget.Value = &t.Value.BlessingsHash
-		target, err := &t.blessingsHashTarget, error(nil)
-		return nil, target, err
-	case "AuthorSigned":
-		t.authorSignedTarget.Value = &t.Value.AuthorSigned
-		target, err := &t.authorSignedTarget, error(nil)
-		return nil, target, err
-	case "IsValidated":
-		t.isValidatedTarget.Value = &t.Value.IsValidated
-		target, err := &t.isValidatedTarget, error(nil)
-		return nil, target, err
-	case "ValidatorDataHash":
-		t.validatorDataHashTarget.Value = &t.Value.ValidatorDataHash
-		target, err := &t.validatorDataHashTarget, error(nil)
-		return nil, target, err
-	case "ValidatorSigned":
-		t.validatorSignedTarget.Value = &t.Value.ValidatorSigned
-		target, err := &t.validatorSignedTarget, error(nil)
-		return nil, target, err
-	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_signing_DataWithSignature)
-	}
-}
-func (t *DataWithSignatureTarget) FinishField(_, _ vdl.Target) error {
-	return nil
-}
-func (t *DataWithSignatureTarget) FinishFields(_ vdl.FieldsTarget) error {
-
-	return nil
-}
-
-// []Item
-type unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget struct {
-	Value *[]Item
-
-	vdl.TargetBase
-	vdl.ListTargetBase
-}
-
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
-
-	if !vdl.Compatible(tt, __VDLType1) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
-	}
-	if cap(*t.Value) < len {
-		*t.Value = make([]Item, len)
-	} else {
-		*t.Value = (*t.Value)[:len]
-	}
-	return t, nil
-}
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) StartElem(index int) (elem vdl.Target, _ error) {
-	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
-	return target, err
-}
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) FinishElem(elem vdl.Target) error {
-	return nil
-}
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) FinishList(elem vdl.ListTarget) error {
-
-	return nil
-}
+//////////////////////////////////////////////////
+// Type definitions
 
 type (
 	// Item represents any single field of the Item union type.
@@ -311,7 +65,7 @@ func (x ItemData) Name() string               { return "Data" }
 func (x ItemData) __VDLReflect(__ItemReflect) {}
 
 func (m ItemData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_services_syncbase_signing_Item)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -320,7 +74,7 @@ func (m ItemData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	if err := fieldTarget3.FromBytes([]byte(m.Value), __VDLType2); err != nil {
+	if err := fieldTarget3.FromBytes([]byte(m.Value), tt.NonOptional().Field(0).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -343,7 +97,7 @@ func (x ItemHash) Name() string               { return "Hash" }
 func (x ItemHash) __VDLReflect(__ItemReflect) {}
 
 func (m ItemHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_services_syncbase_signing_Item)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -352,7 +106,7 @@ func (m ItemHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	if err := fieldTarget3.FromBytes([]byte(m.Value), __VDLType2); err != nil {
+	if err := fieldTarget3.FromBytes([]byte(m.Value), tt.NonOptional().Field(1).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -369,6 +123,254 @@ func (m ItemHash) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
+// A DataWithSignature represents a signed, and possibily validated, collection
+// of Item structs.
+//
+// If IsValidated==false and the AuthorSigned signature is valid, it means:
+//    The signer whose Blessings have hash BlessingsHash asserts Data.
+//
+// If IsValidated==true and both AuthorSigned and ValidatorSigned signatures are is valid,
+// it means both:
+// 1) The signer whose Blessings b have hash BlessingsHash asserts Data.
+// 2) If vd is the ValidatorData with hash ValidatorDataHash, the owner of
+//    vd.PublicKey asserts that it checked that at least the names vd.Names[] were
+//    valid in b.
+//
+// The sender obtains:
+// - BlessingsHash (and the wire form of the blessings) with ValidationCache.AddBlessings().
+// - ValidatorDataHash (and the wire form of the ValidataData)  with ValidationCache.AddValidatorData().
+//
+// The receiver looks up:
+// - BlessingsHash with ValidationCache.LookupBlessingsData()
+// - ValidatorDataHash with ValidationCache.LookupValidatorData()
+//
+// If not yet there, the receiver inserts the valus into its ValidationCache with:
+// - ValidationCache.AddWireBlessings()
+// - ValidationCache.AddValidatorData()
+type DataWithSignature struct {
+	Data []Item
+	// BlessingsHash is a key for the validation cache; the corresponding
+	// cached value is a security.Blessings.
+	BlessingsHash []byte
+	// AuthorSigned is the signature of Data and BlessingsHash using the
+	// private key associated with the blessings hashed in BlessingsHash.
+	AuthorSigned security.Signature
+	IsValidated  bool // Whether fields below are meaningful.
+	// ValidatorDataHash is a key for the validation cache returned by
+	// ValidatorData.Hash(); the corresponding cached value is the
+	// ValidatorData.
+	ValidatorDataHash []byte
+	ValidatorSigned   security.Signature
+}
+
+func (DataWithSignature) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/signing.DataWithSignature"`
+}) {
+}
+
+func (m *DataWithSignature) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Data")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Data))
+		if err != nil {
+			return err
+		}
+		for i, elem6 := range m.Data {
+			elemTarget5, err := listTarget4.StartElem(i)
+			if err != nil {
+				return err
+			}
+
+			unionValue7 := elem6
+			if unionValue7 == nil {
+				unionValue7 = ItemData{}
+			}
+			if err := unionValue7.FillVDLTarget(elemTarget5, tt.NonOptional().Field(0).Type.Elem()); err != nil {
+				return err
+			}
+			if err := listTarget4.FinishElem(elemTarget5); err != nil {
+				return err
+			}
+		}
+		if err := fieldTarget3.FinishList(listTarget4); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
+		}
+	}
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("BlessingsHash")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := fieldTarget9.FromBytes([]byte(m.BlessingsHash), tt.NonOptional().Field(1).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+			return err
+		}
+	}
+	keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("AuthorSigned")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := m.AuthorSigned.FillVDLTarget(fieldTarget11, tt.NonOptional().Field(2).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
+			return err
+		}
+	}
+	keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("IsValidated")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget13.FromBool(bool(m.IsValidated), tt.NonOptional().Field(3).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+			return err
+		}
+	}
+	keyTarget14, fieldTarget15, err := fieldsTarget1.StartField("ValidatorDataHash")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := fieldTarget15.FromBytes([]byte(m.ValidatorDataHash), tt.NonOptional().Field(4).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
+			return err
+		}
+	}
+	keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("ValidatorSigned")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := m.ValidatorSigned.FillVDLTarget(fieldTarget17, tt.NonOptional().Field(5).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *DataWithSignature) MakeVDLTarget() vdl.Target {
+	return &DataWithSignatureTarget{Value: m}
+}
+
+type DataWithSignatureTarget struct {
+	Value                   *DataWithSignature
+	dataTarget              unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget
+	blessingsHashTarget     vdl.BytesTarget
+	authorSignedTarget      security.SignatureTarget
+	isValidatedTarget       vdl.BoolTarget
+	validatorDataHashTarget vdl.BytesTarget
+	validatorSignedTarget   security.SignatureTarget
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *DataWithSignatureTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
+	if ttWant := vdl.TypeOf((*DataWithSignature)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+	return t, nil
+}
+func (t *DataWithSignatureTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Data":
+		t.dataTarget.Value = &t.Value.Data
+		target, err := &t.dataTarget, error(nil)
+		return nil, target, err
+	case "BlessingsHash":
+		t.blessingsHashTarget.Value = &t.Value.BlessingsHash
+		target, err := &t.blessingsHashTarget, error(nil)
+		return nil, target, err
+	case "AuthorSigned":
+		t.authorSignedTarget.Value = &t.Value.AuthorSigned
+		target, err := &t.authorSignedTarget, error(nil)
+		return nil, target, err
+	case "IsValidated":
+		t.isValidatedTarget.Value = &t.Value.IsValidated
+		target, err := &t.isValidatedTarget, error(nil)
+		return nil, target, err
+	case "ValidatorDataHash":
+		t.validatorDataHashTarget.Value = &t.Value.ValidatorDataHash
+		target, err := &t.validatorDataHashTarget, error(nil)
+		return nil, target, err
+	case "ValidatorSigned":
+		t.validatorSignedTarget.Value = &t.Value.ValidatorSigned
+		target, err := &t.validatorSignedTarget, error(nil)
+		return nil, target, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/signing.DataWithSignature", name)
+	}
+}
+func (t *DataWithSignatureTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *DataWithSignatureTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+// []Item
+type unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget struct {
+	Value *[]Item
+
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
+	if ttWant := vdl.TypeOf((*[]Item)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]Item, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+	return target, err
+}
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) FinishList(elem vdl.ListTarget) error {
+
+	return nil
+}
+
 // WireValidatorData is the wire form of ValidatorData.
 // It excludes the unmarshalled form of the public key.
 type WireValidatorData struct {
@@ -382,9 +384,6 @@ func (WireValidatorData) __VDLReflect(struct {
 }
 
 func (m *WireValidatorData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_syncbase_signing_WireValidatorData == nil || __VDLType3 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -396,7 +395,7 @@ func (m *WireValidatorData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(__VDLType4, len(m.Names))
+		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Names))
 		if err != nil {
 			return err
 		}
@@ -405,7 +404,7 @@ func (m *WireValidatorData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err != nil {
 				return err
 			}
-			if err := elemTarget5.FromString(string(elem6), vdl.StringType); err != nil {
+			if err := elemTarget5.FromString(string(elem6), tt.NonOptional().Field(0).Type.Elem()); err != nil {
 				return err
 			}
 			if err := listTarget4.FinishElem(elemTarget5); err != nil {
@@ -425,7 +424,7 @@ func (m *WireValidatorData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget8.FromBytes([]byte(m.MarshalledPublicKey), __VDLType2); err != nil {
+		if err := fieldTarget8.FromBytes([]byte(m.MarshalledPublicKey), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
@@ -452,8 +451,8 @@ type WireValidatorDataTarget struct {
 
 func (t *WireValidatorDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_syncbase_signing_WireValidatorData) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_syncbase_signing_WireValidatorData)
+	if ttWant := vdl.TypeOf((*WireValidatorData)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -468,7 +467,7 @@ func (t *WireValidatorDataTarget) StartField(name string) (key, field vdl.Target
 		target, err := &t.marshalledPublicKeyTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_syncbase_signing_WireValidatorData)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/signing.WireValidatorData", name)
 	}
 }
 func (t *WireValidatorDataTarget) FinishField(_, _ vdl.Target) error {
@@ -479,21 +478,30 @@ func (t *WireValidatorDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func init() {
-	vdl.Register((*DataWithSignature)(nil))
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*Item)(nil))
+	vdl.Register((*DataWithSignature)(nil))
 	vdl.Register((*WireValidatorData)(nil))
-}
 
-var __VDLType0 *vdl.Type = vdl.TypeOf((*DataWithSignature)(nil))
-var __VDLType3 *vdl.Type = vdl.TypeOf((*WireValidatorData)(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf([]byte(nil))
-var __VDLType4 *vdl.Type = vdl.TypeOf([]string(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf([]Item(nil))
-var __VDLType_v_io_v23_security_Signature *vdl.Type = vdl.TypeOf(security.Signature{})
-var __VDLType_v_io_x_ref_services_syncbase_signing_DataWithSignature *vdl.Type = vdl.TypeOf(DataWithSignature{})
-var __VDLType_v_io_x_ref_services_syncbase_signing_Item *vdl.Type = vdl.TypeOf(Item(ItemData{[]byte(nil)}))
-var __VDLType_v_io_x_ref_services_syncbase_signing_WireValidatorData *vdl.Type = vdl.TypeOf(WireValidatorData{})
-
-func __VDLEnsureNativeBuilt() {
+	return struct{}{}
 }

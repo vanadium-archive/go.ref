@@ -14,6 +14,11 @@ import (
 	"v.io/v23/vom"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type Request struct {
 	Type string
 	Seq  uint32
@@ -26,9 +31,6 @@ func (Request) __VDLReflect(struct {
 }
 
 func (m *Request) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_channel_Request == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -39,7 +41,7 @@ func (m *Request) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Type), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.Type), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -51,7 +53,7 @@ func (m *Request) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromUint(uint64(m.Seq), vdl.Uint32Type); err != nil {
+		if err := fieldTarget5.FromUint(uint64(m.Seq), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -65,11 +67,11 @@ func (m *Request) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != vdl.ErrFieldNoExist {
 
 		if m.Body == nil {
-			if err := fieldTarget7.FromNil(vdl.AnyType); err != nil {
+			if err := fieldTarget7.FromNil(tt.NonOptional().Field(2).Type); err != nil {
 				return err
 			}
 		} else {
-			if err := m.Body.FillVDLTarget(fieldTarget7, vdl.AnyType); err != nil {
+			if err := m.Body.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(2).Type); err != nil {
 				return err
 			}
 		}
@@ -98,8 +100,8 @@ type RequestTarget struct {
 
 func (t *RequestTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_channel_Request) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_channel_Request)
+	if ttWant := vdl.TypeOf((*Request)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -117,7 +119,7 @@ func (t *RequestTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Body))
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_channel_Request)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/channel.Request", name)
 	}
 }
 func (t *RequestTarget) FinishField(_, _ vdl.Target) error {
@@ -140,9 +142,6 @@ func (Response) __VDLReflect(struct {
 }
 
 func (m *Response) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_channel_Response == nil || __VDLType1 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -153,7 +152,7 @@ func (m *Response) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromUint(uint64(m.ReqSeq), vdl.Uint32Type); err != nil {
+		if err := fieldTarget3.FromUint(uint64(m.ReqSeq), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -165,7 +164,7 @@ func (m *Response) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Err), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.Err), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -179,11 +178,11 @@ func (m *Response) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != vdl.ErrFieldNoExist {
 
 		if m.Body == nil {
-			if err := fieldTarget7.FromNil(vdl.AnyType); err != nil {
+			if err := fieldTarget7.FromNil(tt.NonOptional().Field(2).Type); err != nil {
 				return err
 			}
 		} else {
-			if err := m.Body.FillVDLTarget(fieldTarget7, vdl.AnyType); err != nil {
+			if err := m.Body.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(2).Type); err != nil {
 				return err
 			}
 		}
@@ -212,8 +211,8 @@ type ResponseTarget struct {
 
 func (t *ResponseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_channel_Response) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_channel_Response)
+	if ttWant := vdl.TypeOf((*Response)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -231,7 +230,7 @@ func (t *ResponseTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Body))
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_channel_Response)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/channel.Response", name)
 	}
 }
 func (t *ResponseTarget) FinishField(_, _ vdl.Target) error {
@@ -276,7 +275,7 @@ func (x MessageRequest) Name() string                  { return "Request" }
 func (x MessageRequest) __VDLReflect(__MessageReflect) {}
 
 func (m MessageRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_services_wspr_internal_channel_Message)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -285,7 +284,7 @@ func (m MessageRequest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_wspr_internal_channel_Request); err != nil {
+	if err := m.Value.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -308,7 +307,7 @@ func (x MessageResponse) Name() string                  { return "Response" }
 func (x MessageResponse) __VDLReflect(__MessageReflect) {}
 
 func (m MessageResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(__VDLType_v_io_x_ref_services_wspr_internal_channel_Message)
+	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
 	}
@@ -317,7 +316,7 @@ func (m MessageResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	if err := m.Value.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_services_wspr_internal_channel_Response); err != nil {
+	if err := m.Value.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(1).Type); err != nil {
 		return err
 	}
 	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -334,17 +333,30 @@ func (m MessageResponse) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
-func init() {
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*Request)(nil))
 	vdl.Register((*Response)(nil))
 	vdl.Register((*Message)(nil))
-}
 
-var __VDLType0 *vdl.Type = vdl.TypeOf((*Request)(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf((*Response)(nil))
-var __VDLType_v_io_x_ref_services_wspr_internal_channel_Message *vdl.Type = vdl.TypeOf(Message(MessageRequest{Request{}}))
-var __VDLType_v_io_x_ref_services_wspr_internal_channel_Request *vdl.Type = vdl.TypeOf(Request{})
-var __VDLType_v_io_x_ref_services_wspr_internal_channel_Response *vdl.Type = vdl.TypeOf(Response{})
-
-func __VDLEnsureNativeBuilt() {
+	return struct{}{}
 }

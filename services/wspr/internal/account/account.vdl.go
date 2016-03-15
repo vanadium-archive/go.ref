@@ -12,6 +12,11 @@ import (
 	"v.io/v23/vdl"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // Caveat describes a restriction on the validity of a blessing/discharge.
 // TODO Remove this
 type Caveat struct {
@@ -25,9 +30,6 @@ func (Caveat) __VDLReflect(struct {
 }
 
 func (m *Caveat) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_services_wspr_internal_account_Caveat == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -38,7 +40,7 @@ func (m *Caveat) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Type), vdl.StringType); err != nil {
+		if err := fieldTarget3.FromString(string(m.Type), tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -50,7 +52,7 @@ func (m *Caveat) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Args), vdl.StringType); err != nil {
+		if err := fieldTarget5.FromString(string(m.Args), tt.NonOptional().Field(1).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
@@ -77,8 +79,8 @@ type CaveatTarget struct {
 
 func (t *CaveatTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_services_wspr_internal_account_Caveat) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_services_wspr_internal_account_Caveat)
+	if ttWant := vdl.TypeOf((*Caveat)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -93,7 +95,7 @@ func (t *CaveatTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.argsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_services_wspr_internal_account_Caveat)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/wspr/internal/account.Caveat", name)
 	}
 }
 func (t *CaveatTarget) FinishField(_, _ vdl.Target) error {
@@ -104,12 +106,28 @@ func (t *CaveatTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func init() {
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*Caveat)(nil))
-}
 
-var __VDLType0 *vdl.Type = vdl.TypeOf((*Caveat)(nil))
-var __VDLType_v_io_x_ref_services_wspr_internal_account_Caveat *vdl.Type = vdl.TypeOf(Caveat{})
-
-func __VDLEnsureNativeBuilt() {
+	return struct{}{}
 }

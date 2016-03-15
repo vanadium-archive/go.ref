@@ -14,6 +14,11 @@ import (
 	discovery_2 "v.io/x/ref/lib/discovery"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 // AdConversionTestCase represents a test case for converting between
 // the advertisement and the Gatt characteristics.
 type AdConversionTestCase struct {
@@ -28,9 +33,6 @@ func (AdConversionTestCase) __VDLReflect(struct {
 }
 
 func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if __VDLType_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase == nil || __VDLType0 == nil {
-		panic("Initialization order error: types generated for FillVDLTarget not initialized. Consider moving caller to an init() block.")
-	}
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -42,7 +44,7 @@ func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.AdInfo.FillVDLTarget(fieldTarget3, __VDLType_v_io_x_ref_lib_discovery_AdInfo); err != nil {
+		if err := m.AdInfo.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -55,7 +57,7 @@ func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		mapTarget6, err := fieldTarget5.StartMap(__VDLType1, len(m.GattAttrs))
+		mapTarget6, err := fieldTarget5.StartMap(tt.NonOptional().Field(1).Type, len(m.GattAttrs))
 		if err != nil {
 			return err
 		}
@@ -64,7 +66,7 @@ func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err != nil {
 				return err
 			}
-			if err := keyTarget7.FromString(string(key8), vdl.StringType); err != nil {
+			if err := keyTarget7.FromString(string(key8), tt.NonOptional().Field(1).Type.Key()); err != nil {
 				return err
 			}
 			valueTarget9, err := mapTarget6.FinishKeyStartField(keyTarget7)
@@ -72,7 +74,7 @@ func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 				return err
 			}
 
-			if err := valueTarget9.FromBytes([]byte(value10), __VDLType2); err != nil {
+			if err := valueTarget9.FromBytes([]byte(value10), tt.NonOptional().Field(1).Type.Elem()); err != nil {
 				return err
 			}
 			if err := mapTarget6.FinishField(keyTarget7, valueTarget9); err != nil {
@@ -106,8 +108,8 @@ type AdConversionTestCaseTarget struct {
 
 func (t *AdConversionTestCaseTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase)
+	if ttWant := vdl.TypeOf((*AdConversionTestCase)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
@@ -122,7 +124,7 @@ func (t *AdConversionTestCaseTarget) StartField(name string) (key, field vdl.Tar
 		target, err := &t.gattAttrsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct %v", name, __VDLType_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/plugins/ble/testdata.AdConversionTestCase", name)
 	}
 }
 func (t *AdConversionTestCaseTarget) FinishField(_, _ vdl.Target) error {
@@ -146,8 +148,8 @@ type unnamed_6d61705b737472696e675d5b5d62797465Target struct {
 
 func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
-	if !vdl.Compatible(tt, __VDLType1) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, __VDLType1)
+	if ttWant := vdl.TypeOf((*map[string][]byte)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	*t.Value = make(map[string][]byte)
 	return t, nil
@@ -176,18 +178,8 @@ func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) FinishMap(elem vdl.Ma
 	return nil
 }
 
-func init() {
-	vdl.Register((*AdConversionTestCase)(nil))
-}
-
-var __VDLType0 *vdl.Type = vdl.TypeOf((*AdConversionTestCase)(nil))
-var __VDLType2 *vdl.Type = vdl.TypeOf([]byte(nil))
-var __VDLType1 *vdl.Type = vdl.TypeOf(map[string][]byte(nil))
-var __VDLType_v_io_x_ref_lib_discovery_AdInfo *vdl.Type = vdl.TypeOf(discovery_2.AdInfo{})
-var __VDLType_v_io_x_ref_lib_discovery_plugins_ble_testdata_AdConversionTestCase *vdl.Type = vdl.TypeOf(AdConversionTestCase{})
-
-func __VDLEnsureNativeBuilt() {
-}
+//////////////////////////////////////////////////
+// Const definitions
 
 // ConversionTestData contains test cases for conversions between
 // the advertisement and the Gatt characteristics
@@ -348,4 +340,30 @@ var ConversionTestData = []AdConversionTestCase{
 			"fe3fa941-1eda-5265-806f-d5127794a9a9": []byte("\x14192.168.100.100:8000\x14192.168.100.100:8001\x14192.168.100.100:8002\x14192.168.100.100:8003\x14192.168.100.100:8004\x14192.168.100.100:8005\x14192.168.100.100:8006\x14192.168.100.100:8007\x14192.168.100.100:8008\x14192.168.100.100:8009\x14192.168.100.100:8010\x14192.168.100.100:8011\x14192.168.100.100:8012"),
 		},
 	},
+}
+
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
+	vdl.Register((*AdConversionTestCase)(nil))
+
+	return struct{}{}
 }

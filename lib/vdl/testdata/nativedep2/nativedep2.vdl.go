@@ -14,6 +14,11 @@ import (
 	_ "v.io/x/ref/lib/vdl/testdata/nativetest"
 )
 
+var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
 type MyTime time.Time
 
 func (MyTime) __VDLReflect(struct {
@@ -22,7 +27,7 @@ func (MyTime) __VDLReflect(struct {
 }
 
 func (m *MyTime) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), __VDLType_v_io_x_ref_lib_vdl_testdata_nativedep2_MyTime); err != nil {
+	if err := t.FromInt(int64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
@@ -78,11 +83,28 @@ func (t *MyTimeTarget) FromComplex(src complex128, tt *vdl.Type) error {
 	return nil
 }
 
-func init() {
+var __VDLInitCalled bool
+
+// __VDLInit performs vdl initialization.  It is safe to call multiple times.
+// If you have an init ordering issue, just insert the following line verbatim
+// into your source files in this package, right after the "package foo" clause:
+//
+//    var _ = __VDLInit()
+//
+// The purpose of this function is to ensure that vdl initialization occurs in
+// the right order, and very early in the init sequence.  In particular, vdl
+// registration and package variable initialization needs to occur before
+// functions like vdl.TypeOf will work properly.
+//
+// This function returns a dummy value, so that it can be used to initialize the
+// first var in the file, to take advantage of Go's defined init order.
+func __VDLInit() struct{} {
+	if __VDLInitCalled {
+		return struct{}{}
+	}
+
+	// Register types.
 	vdl.Register((*MyTime)(nil))
-}
 
-var __VDLType_v_io_x_ref_lib_vdl_testdata_nativedep2_MyTime *vdl.Type = vdl.TypeOf(MyTime(0))
-
-func __VDLEnsureNativeBuilt() {
+	return struct{}{}
 }
