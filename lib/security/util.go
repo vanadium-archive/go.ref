@@ -21,6 +21,8 @@ import (
 var (
 	// ErrBadPassphrase is a possible return error from LoadPEMKey()
 	ErrBadPassphrase = verror.Register(pkgPath+".errBadPassphrase", verror.NoRetry, "{1:}{2:} passphrase incorrect for decrypting private key{:_}")
+	// ErrPassphraseRequired is a possible return error from LoadPEMKey()
+	ErrPassphraseRequired = verror.Register(pkgPath+".errPassphraseRequired", verror.NoRetry, "{1:}{2:} passphrase required for decrypting private key{:_}")
 
 	errNoPEMKeyBlock       = verror.Register(pkgPath+".errNoPEMKeyBlock", verror.NoRetry, "{1:}{2:} no PEM key block read{:_}")
 	errPEMKeyBlockBadType  = verror.Register(pkgPath+".errPEMKeyBlockBadType", verror.NoRetry, "{1:}{2:} PEM key block has an unrecognized type{:_}")
@@ -52,6 +54,10 @@ func LoadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
 	}
 	var data []byte
 	if x509.IsEncryptedPEMBlock(pemBlock) {
+		// Assume empty passphrase is disallowed.
+		if len(passphrase) == 0 {
+			return nil, verror.New(ErrPassphraseRequired, nil)
+		}
 		data, err = x509.DecryptPEMBlock(pemBlock, passphrase)
 		if err != nil {
 			return nil, verror.New(ErrBadPassphrase, nil)
@@ -64,6 +70,10 @@ func LoadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
 	case ecPrivateKeyPEMType:
 		key, err := x509.ParseECPrivateKey(data)
 		if err != nil {
+			// x509.DecryptPEMBlock may occasionally return random
+			// bytes for data with a nil error when the passphrase
+			// is invalid; hence, failure to parse data could be due
+			// to a bad passphrase.
 			return nil, verror.New(ErrBadPassphrase, nil)
 		}
 		return key, nil

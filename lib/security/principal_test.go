@@ -40,9 +40,9 @@ func TestLoadPersistentPrincipal(t *testing.T) {
 	if _, err = LoadPersistentPrincipal(dir, incorrect_passphrase); err == nil {
 		t.Errorf("encrypted LoadPersistentPrincipal with incorrect passphrase should fail")
 	}
-	// and return ErrBadPassphrase if the passphrase is nil.
-	if _, err = LoadPersistentPrincipal(dir, nil); verror.ErrorID(err) != ErrBadPassphrase.ID {
-		t.Errorf("encrypted LoadPersistentPrincipal with nil passphrase should return ErrBadPassphrase: %v", err)
+	// and return ErrPassphraseRequired if the passphrase is nil.
+	if _, err = LoadPersistentPrincipal(dir, nil); verror.ErrorID(err) != ErrPassphraseRequired.ID {
+		t.Errorf("encrypted LoadPersistentPrincipal with nil passphrase should return ErrPassphraseRequired: %v", err)
 	}
 	os.RemoveAll(dir)
 }

@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 
 	"v.io/x/ref"
@@ -17,24 +18,13 @@ import (
 	"v.io/x/ref/test/v23test"
 )
 
-func TestV23AgentdAllPrincipalMethods(t *testing.T) {
-	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, nil)
-	sh.PropagateChildOutput = true
-	defer sh.Cleanup()
-
-	testbin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/internal/test_principal")
+func upComesAgentd(t *testing.T, sh *v23test.Shell, credsDir, password string) {
 	agentd := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/v23agentd")
 
-	credsDir := sh.MakeTempDir()
-	principal, err := security.CreatePersistentPrincipal(credsDir, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := security.InitDefaultBlessings(principal, "happy"); err != nil {
-		t.Fatal(err)
-	}
 	agentC := sh.Cmd(agentd, credsDir)
+	if len(password) > 0 {
+		agentC.SetStdinReader(strings.NewReader(password))
+	}
 	agentRead, agentWrite, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("Failed to create pipe: %v", err)
@@ -53,7 +43,53 @@ func TestV23AgentdAllPrincipalMethods(t *testing.T) {
 		t.Fatalf("reading standard input: %v", err)
 	}
 	agentRead.Close()
+}
+
+func TestV23UnencryptedPrincipal(t *testing.T) {
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, nil)
+	sh.PropagateChildOutput = true
+	defer sh.Cleanup()
+
+	testbin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/internal/test_principal")
+
+	credsDir := sh.MakeTempDir()
+	principal, err := security.CreatePersistentPrincipal(credsDir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := security.InitDefaultBlessings(principal, "happy"); err != nil {
+		t.Fatal(err)
+	}
+
+	const noPassword = ""
+	upComesAgentd(t, sh, credsDir, noPassword)
+
 	testC := sh.Cmd(testbin, "--expect-blessing=happy")
+	testC.Vars[ref.EnvAgentPath] = constants.SocketPath(credsDir)
+	testC.Run()
+}
+
+func TestV23EncryptedPrincipal(t *testing.T) {
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, nil)
+	sh.PropagateChildOutput = true
+	defer sh.Cleanup()
+
+	testbin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/internal/test_principal")
+
+	credsDir := sh.MakeTempDir()
+	principal, err := security.CreatePersistentPrincipal(credsDir, []byte("PASSWORD"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := security.InitDefaultBlessings(principal, "sneezy"); err != nil {
+		t.Fatal(err)
+	}
+
+	upComesAgentd(t, sh, credsDir, "PASSWORD")
+
+	testC := sh.Cmd(testbin, "--expect-blessing=sneezy")
 	testC.Vars[ref.EnvAgentPath] = constants.SocketPath(credsDir)
 	testC.Run()
 }

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO(caprita): Move to internal.
+
 // Package server contains utilities for serving a principal using a
 // socket-based IPC system.
 package server
@@ -35,7 +37,7 @@ var (
 // encrypted.
 func LoadPrincipal(credentials string) (security.Principal, error) {
 	p, err := vsecurity.LoadPersistentPrincipal(credentials, nil)
-	if verror.ErrorID(err) == vsecurity.ErrBadPassphrase.ID {
+	if verror.ErrorID(err) == vsecurity.ErrPassphraseRequired.ID {
 		var pass []byte
 		p, pass, err = handlePassphrase(credentials)
 		// Zero passhphrase out so it doesn't stay in memory.
@@ -57,7 +59,7 @@ func LoadOrCreatePrincipal(credentials, newname string, withPassphrase bool) (se
 	if os.IsNotExist(err) {
 		return handleDoesNotExist(credentials, newname, withPassphrase)
 	}
-	if verror.ErrorID(err) == vsecurity.ErrBadPassphrase.ID {
+	if verror.ErrorID(err) == vsecurity.ErrPassphraseRequired.ID {
 		if !withPassphrase {
 			return nil, nil, verror.New(errNeedPassphrase, nil)
 		}

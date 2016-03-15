@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"v.io/x/ref"
+	"v.io/x/ref/lib/security"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/v23test"
 )
@@ -548,6 +549,43 @@ func TestV23Create(t *testing.T) {
 
 	// If we specify -overwrite, it will.
 	sh.Cmd(bin, "create", "--overwrite", aliceDir, "alice").Run()
+}
+
+func TestV23CreateWithPassphrase(t *testing.T) {
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, nil)
+	defer sh.Cleanup()
+
+	var (
+		outputDir = sh.MakeTempDir()
+		bin       = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
+		aliceDir  = filepath.Join(outputDir, "alice")
+	)
+
+	// Create a principal with a passphrase.
+	principalCmd := sh.Cmd(bin, "create", aliceDir, "alice")
+	principalCmd.SetStdinReader(strings.NewReader("Rumpelstiltskin"))
+	principalCmd.Run()
+
+	// Loading the principal should fail without a passphrase.
+	if _, err := security.LoadPersistentPrincipal(aliceDir, nil); err == nil {
+		t.Fatalf("expected to fail without passprhase, succeeded instead")
+	}
+
+	// Loading the principal should fail with the wrong passphrase.
+	if _, err := security.LoadPersistentPrincipal(aliceDir, []byte("Tom Tit Tom")); err == nil {
+		t.Fatalf("expected to fail with incorrect passprhase, succeeded instead")
+	}
+
+	// Loading the principal should succeed with the right passphrase.
+	if p, err := security.LoadPersistentPrincipal(aliceDir, []byte("Rumpelstiltskin")); err != nil {
+		t.Fatalf("expected to succeed with correct passprhase, failed instead: %v", err)
+	} else {
+		defaultBlessings, _ := p.BlessingStore().Default()
+		if got, want := defaultBlessings.String(), "alice"; got != want {
+			t.Fatalf("expected blessings %v, got %v instead", want, got)
+		}
+	}
 }
 
 func TestV23Caveats(t *testing.T) {

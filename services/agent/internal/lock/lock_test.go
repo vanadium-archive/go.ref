@@ -13,7 +13,6 @@ import (
 
 	"v.io/x/lib/gosh"
 	"v.io/x/lib/vlog"
-	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent/internal/lockutil"
 	"v.io/x/ref/test/timekeeper"
 )

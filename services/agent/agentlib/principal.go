@@ -14,10 +14,13 @@ import (
 	"syscall"
 	"time"
 
+	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/metadata"
+	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/internal/constants"
+	"v.io/x/ref/services/agent/internal/lock"
 	"v.io/x/ref/services/agent/internal/version"
 )
 
@@ -25,15 +28,41 @@ var (
 	errNotADirectory = verror.Register(pkgPath+".errNotADirectory", verror.NoRetry, "{1:}{2:} {3} is not a directory{:_}")
 	errCantCreate    = verror.Register(pkgPath+".errCantCreate", verror.NoRetry, "{1:}{2:} failed to create {3}{:_}")
 	errFilepathAbs   = verror.Register(pkgPath+".errAbsFailed", verror.NoRetry, "{1:}{2:} filepath.Abs failed for {3}")
-	errFindAgent     = verror.Register(pkgPath+".errFindAgent", verror.NoRetry, "{1:}{2:} couldn't find a suitable agent binary{:_}")
-	errLaunchAgent   = verror.Register(pkgPath+".errLaunchAgent", verror.NoRetry, "{1:}{2:} couldn't launch agent{:_}")
+	errFindAgent     = verror.Register(pkgPath+".errFindAgent", verror.NoRetry, "{1:}{2:} couldn't find a suitable agent binary ({3}) or load principal locally ({4})")
+	errLaunchAgent   = verror.Register(pkgPath+".errLaunchAgent", verror.NoRetry, "{1:}{2:} couldn't launch agent ({3}) or load principal locally ({4})")
 )
 
-// TODO(caprita): If we fail to run an external agent, we should consider
-// running an in-process agent to serve the principal.  This can be just for the
-// current process, but eventually we can allow other processes to connect to it
-// as well (we'll need to have reconnect logic in the client that understands to
-// start a new agent when the old one dies).
+type localPrincipal struct {
+	security.Principal
+	close func() error
+}
+
+func (p *localPrincipal) Close() error {
+	return p.close()
+}
+
+func loadPrincipalLocally(credentials string) (agent.Principal, error) {
+	p, err := vsecurity.LoadPersistentPrincipal(credentials, nil)
+	if err != nil {
+		return nil, err
+	}
+	agentDir := constants.AgentDir(credentials)
+	credsLock := lock.NewDirLock(credentials)
+	agentLock := lock.NewDirLock(agentDir)
+	if err := credsLock.Lock(); err != nil {
+		return nil, err
+	}
+	defer credsLock.Unlock()
+	if err := os.MkdirAll(agentDir, 0700); err != nil {
+		return nil, err
+	}
+	if grabbedLock, err := agentLock.TryLock(); err != nil {
+		return nil, err
+	} else if !grabbedLock {
+		return nil, fmt.Errorf("principal already locked by another process. Examine the contents of the lock file in %v for details", agentDir)
+	}
+	return &localPrincipal{Principal: p, close: agentLock.Unlock}, nil
+}
 
 // TODO(caprita): The agent is expected to be up for the entire lifetime of a
 // client; however, it should be possible for the client app to survive an agent
@@ -47,10 +76,12 @@ var (
 // the principal is not present, a new one is started as a separate daemon
 // process.  The new agent may use os.Stdin and os.Stdout in order to fetch a
 // private key decryption passphrase.  If an agent serving the principal is not
-// found and a new one cannot be started, an error is returned.  The caller
-// should call Close on the returned Principal once it's no longer used, in
-// order to free up resources and allow the agent to terminate once it has no
-// more clients.
+// found and a new one cannot be started, LoadPrincipal tries to load the
+// principal locally, which will be exclusive for this process; if that fails
+// too (for example, because the principal is encrypted), an error is returned.
+// The caller should call Close on the returned Principal once it's no longer
+// used, in order to free up resources and allow the agent to terminate once it
+// has no more clients.
 func LoadPrincipal(credsDir string) (agent.Principal, error) {
 	if finfo, err := os.Stat(credsDir); err != nil || err == nil && !finfo.IsDir() {
 		return nil, verror.New(errNotADirectory, nil, credsDir)
@@ -91,11 +122,29 @@ func LoadPrincipal(credsDir string) (agent.Principal, error) {
 		if agentBin == "" {
 			var err error
 			if agentBin, agentVersion, err = findAgent(); err != nil {
-				return nil, verror.New(errFindAgent, nil, err)
+				// Try loading the principal in memory without
+				// an external agent.
+				p, lerr := loadPrincipalLocally(credsDir)
+				if lerr != nil {
+					return nil, verror.New(errFindAgent, nil, err, lerr)
+				}
+				fmt.Fprintf(os.Stderr, "Couldn't find a suitable agent binary (%v); loaded principal locally.\n", err)
+				return p, nil
 			}
 		}
 		if err := launchAgent(credsDir, agentBin, agentVersion); err != nil {
-			return nil, verror.New(errLaunchAgent, nil, err)
+
+			// Try loading the principal in memory without an
+			// external agent.
+			// NOTE(caprita): If the agent fails to start because of
+			// bad/missing decryption passphrase, retrying locally
+			// is futile.  There's some finessing we can do.
+			p, lerr := loadPrincipalLocally(credsDir)
+			if lerr != nil {
+				return nil, verror.New(errLaunchAgent, nil, err, lerr)
+			}
+			fmt.Fprintf(os.Stderr, "Couldn't launch agent (%v); loaded principal locally.\n", err)
+			return p, nil
 		}
 	}
 }
@@ -112,12 +161,8 @@ func findAgent() (string, version.T, error) {
 	if err != nil {
 		return "", defaultVersion, fmt.Errorf("failed to find %v: %v", agentBinName, err)
 	}
-	// Verify that the binary we found understands the "--metadata" flag, as
-	// a simple check that it's executable and is a Vanadium binary.
-	//
-	// TODO(caprita): Consider verifying that the agent binary is
-	// protocol-compatible with the current process (to avoid running one
-	// that's too old).
+	// Verify that the binary we found contains a compatible agent version
+	// range in its metadata.
 	cmd := exec.Command(agentBin, "--metadata")
 	var b bytes.Buffer
 	cmd.Stdout = &b
