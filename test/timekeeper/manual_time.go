@@ -68,8 +68,8 @@ type manualTime struct {
 
 // After implements TimeKeeper.After.
 func (mt *manualTime) After(d time.Duration) <-chan time.Time {
-	mt.Lock()
 	defer mt.Unlock()
+	mt.Lock()
 	ch := make(chan time.Time, 1)
 	if d <= 0 {
 		ch <- mt.current
@@ -87,8 +87,8 @@ func (mt *manualTime) Sleep(d time.Duration) {
 
 // AdvanceTime implements ManualTime.AdvanceTime.
 func (mt *manualTime) AdvanceTime(d time.Duration) {
-	mt.Lock()
 	defer mt.Unlock()
+	mt.Lock()
 	if d > 0 {
 		mt.current = mt.current.Add(d)
 	}
@@ -123,5 +123,7 @@ func NewManualTime() ManualTime {
 
 // Now implements TimeKeeper.Now.
 func (mt *manualTime) Now() time.Time {
+	defer mt.Unlock()
+	mt.Lock()
 	return mt.current
 }
