@@ -217,11 +217,11 @@ func BenchmarkCaller2(b *testing.B) { w(b, 0, 2, false) }
 func BenchmarkCaller3(b *testing.B) { w(b, 0, 3, false) }
 func BenchmarkCaller4(b *testing.B) { w(b, 0, 4, false) }
 
-func BenchmarkCallers0(b *testing.B) { w(b, 0, 0, true) }
-func BenchmarkCallers1(b *testing.B) { w(b, 0, 1, true) }
-func BenchmarkCallers2(b *testing.B) { w(b, 0, 2, true) }
-func BenchmarkCallers3(b *testing.B) { w(b, 0, 3, true) }
-func BenchmarkCallers4(b *testing.B) { w(b, 0, 4, true) }
+func BenchmarkCallers0(b *testing.B) { w(b, 5, 0, true) }
+func BenchmarkCallers1(b *testing.B) { w(b, 5, 1, true) }
+func BenchmarkCallers2(b *testing.B) { w(b, 5, 2, true) }
+func BenchmarkCallers3(b *testing.B) { w(b, 5, 3, true) }
+func BenchmarkCallers4(b *testing.B) { w(b, 5, 4, true) }
 
 func BenchmarkCallersFrames1(b *testing.B) { w(b, 1, 1, true) }
 func BenchmarkCallersFrames2(b *testing.B) { w(b, 2, 1, true) }
