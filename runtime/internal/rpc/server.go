@@ -66,6 +66,7 @@ type server struct {
 	state             rpc.ServerState // the current state of the server.
 	stopProxy         context.CancelFunc
 	publisher         *publisher.T // publisher to publish mounttable mounts.
+	closed            chan struct{}
 
 	endpoints map[string]*inaming.Endpoint                 // endpoints that the server is listening on.
 	lnErrors  map[struct{ Protocol, Address string }]error // errors from listening
@@ -127,6 +128,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		endpoints:         make(map[string]*inaming.Endpoint),
 		lnErrors:          make(map[struct{ Protocol, Address string }]error),
 		lameDuckTimeout:   5 * time.Second,
+		closed:            make(chan struct{}),
 	}
 	channelTimeout := time.Duration(0)
 	connIdleExpiry := time.Duration(0)
@@ -245,6 +247,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		s.Lock()
 		s.state = rpc.ServerStopped
 		s.Unlock()
+		close(s.closed)
 	}()
 	return s.ctx, s, nil
 }
@@ -533,7 +536,7 @@ func (s *server) RemoveName(name string) {
 }
 
 func (s *server) Closed() <-chan struct{} {
-	return s.ctx.Done()
+	return s.closed
 }
 
 // flowServer implements the RPC server-side protocol for a single RPC, over a
