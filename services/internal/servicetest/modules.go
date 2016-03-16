@@ -5,6 +5,7 @@
 package servicetest
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -18,6 +19,7 @@ import (
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/services/internal/dirprinter"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/testutil"
 	"v.io/x/ref/test/v23test"
@@ -136,7 +138,13 @@ func SetupRootDir(t *testing.T, prefix string) (string, func()) {
 	}
 	return rootDir, func() {
 		if t.Failed() || os.Getenv(preserveWorkspaceEnv) != "" {
-			t.Logf("You can examine the %s workspace at %v", prefix, rootDir)
+			t.Logf("A dump of the %s workspace at %v:", prefix, rootDir)
+			var dump bytes.Buffer
+			if err := dirprinter.DumpDir(&dump, rootDir); err != nil {
+				t.Logf("Failed to dump %v: %v", rootDir, err)
+			} else {
+				t.Log("\n" + dump.String())
+			}
 		} else {
 			os.RemoveAll(rootDir)
 		}
