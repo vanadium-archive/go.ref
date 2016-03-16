@@ -189,39 +189,53 @@ func BenchmarkWaitgroup10(b *testing.B)   { benchmarkWaitgroup(b, 10) }
 func BenchmarkWaitgroup100(b *testing.B)  { benchmarkWaitgroup(b, 100) }
 func BenchmarkWaitgroup1000(b *testing.B) { benchmarkWaitgroup(b, 1000) }
 
-func w(b *testing.B, n int, all bool) {
-	x(b, n, all)
+func w(b *testing.B, n, skip int, all bool) {
+	x(b, n, skip, all)
 }
-func x(b *testing.B, n int, all bool) {
-	y(b, n, all)
+func x(b *testing.B, n, skip int, all bool) {
+	y(b, n, skip, all)
 }
-func y(b *testing.B, n int, all bool) {
-	z(b, n, all)
+func y(b *testing.B, n, skip int, all bool) {
+	z(b, n, skip, all)
 }
-func z(b *testing.B, n int, all bool) {
-	pcs := make([]uintptr, 5)
+func z(b *testing.B, n, skip int, all bool) {
+	pcs := make([]uintptr, n)
 	if all {
 		for i := 0; i < b.N; i++ {
-			runtime.Callers(n, pcs)
+			runtime.Callers(skip, pcs)
 		}
 	} else {
 		for i := 0; i < b.N; i++ {
-			runtime.Caller(n)
+			runtime.Caller(skip)
 		}
 	}
 }
 
-func BenchmarkCaller0(b *testing.B) { w(b, 0, false) }
-func BenchmarkCaller1(b *testing.B) { w(b, 1, false) }
-func BenchmarkCaller2(b *testing.B) { w(b, 2, false) }
-func BenchmarkCaller3(b *testing.B) { w(b, 3, false) }
-func BenchmarkCaller4(b *testing.B) { w(b, 4, false) }
+func BenchmarkCaller0(b *testing.B) { w(b, 0, 0, false) }
+func BenchmarkCaller1(b *testing.B) { w(b, 0, 1, false) }
+func BenchmarkCaller2(b *testing.B) { w(b, 0, 2, false) }
+func BenchmarkCaller3(b *testing.B) { w(b, 0, 3, false) }
+func BenchmarkCaller4(b *testing.B) { w(b, 0, 4, false) }
 
-func BenchmarkCallers0(b *testing.B) { w(b, 0, true) }
-func BenchmarkCallers1(b *testing.B) { w(b, 1, true) }
-func BenchmarkCallers2(b *testing.B) { w(b, 2, true) }
-func BenchmarkCallers3(b *testing.B) { w(b, 3, true) }
-func BenchmarkCallers4(b *testing.B) { w(b, 4, true) }
+func BenchmarkCallers0(b *testing.B) { w(b, 0, 0, true) }
+func BenchmarkCallers1(b *testing.B) { w(b, 0, 1, true) }
+func BenchmarkCallers2(b *testing.B) { w(b, 0, 2, true) }
+func BenchmarkCallers3(b *testing.B) { w(b, 0, 3, true) }
+func BenchmarkCallers4(b *testing.B) { w(b, 0, 4, true) }
+
+func BenchmarkCallersFrames1(b *testing.B) { w(b, 1, 1, true) }
+func BenchmarkCallersFrames2(b *testing.B) { w(b, 2, 1, true) }
+func BenchmarkCallersFrames3(b *testing.B) { w(b, 3, 1, true) }
+func BenchmarkCallersFrames4(b *testing.B) { w(b, 4, 1, true) }
+
+func BenchmarkFuncForPC(b *testing.B) {
+	callers := make([]uintptr, 1)
+	runtime.Callers(1, callers)
+	caller := callers[0]
+	for i := 0; i < b.N; i++ {
+		runtime.FuncForPC(caller).FileLine(caller)
+	}
+}
 
 func benchmarkRoundtrip(b *testing.B, network, addr string) {
 	l, err := net.Listen(network, addr)
