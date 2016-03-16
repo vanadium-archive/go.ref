@@ -31,6 +31,7 @@ func start(c *v23test.Cmd) {
 func TestV23PassPhraseUse(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
 	sh := v23test.NewShell(t, nil)
+	sh.PropagateChildOutput = true
 	defer sh.Cleanup()
 
 	bin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/agentd")
@@ -41,7 +42,7 @@ func TestV23PassPhraseUse(t *testing.T) {
 	c.Vars[ref.EnvCredentials] = dir
 	c.SetStdinReader(strings.NewReader("PASSWORD"))
 	start(c)
-	c.S.ReadLine() // Skip over ...creating new key... message
+	c.S.ReadLine() // Skip over ...Creating new private key... message
 	c.S.Expect("Hello")
 	c.Wait()
 

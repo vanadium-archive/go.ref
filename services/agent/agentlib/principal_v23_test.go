@@ -6,6 +6,7 @@ package agentlib_test
 
 import (
 	"bufio"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -21,6 +22,14 @@ import (
 	"v.io/x/ref/services/agent/internal/constants"
 	"v.io/x/ref/test/v23test"
 )
+
+func createFakeV23AgentdDir(t *testing.T, sh *v23test.Shell) string {
+	d := sh.MakeTempDir()
+	if err := ioutil.WriteFile(filepath.Join(d, "v23agentd"), []byte("junk"), 0700); err != nil {
+		t.Fatalf("failed to create fake agent: %v", err)
+	}
+	return d
+}
 
 // TestV23AgentPrincipal tests LoadPrincipal, which spawns an agent process.
 func TestV23AgentPrincipal(t *testing.T) {
@@ -43,11 +52,6 @@ func TestV23AgentPrincipal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Make sure the agent binary is in the path.
-	if err = os.Setenv("PATH", filepath.Dir(agentd)+":"+os.Getenv("PATH")); err != nil {
-		t.Fatalf("Setenv failed: %v", err)
-	}
-
 	// loadPrincipal uses LoadPrincipal and verifies the blessing is as
 	// expected.
 	loadPrincipal := func() agent.Principal {
@@ -62,8 +66,49 @@ func TestV23AgentPrincipal(t *testing.T) {
 		return p
 	}
 
+	origPATH := os.Getenv("PATH")
+	badAgentDir := createFakeV23AgentdDir(t, sh)
+	badAgentPATH := func() {
+		// Set up the PATH with an invalid agent.
+		if err = os.Setenv("PATH", badAgentDir+":"+origPATH); err != nil {
+			t.Fatalf("Setenv failed: %v", err)
+		}
+	}
+	goodAgentPATH := func() {
+		// Put v23agentd we built above in the PATH.
+		if err = os.Setenv("PATH", filepath.Dir(agentd)+":"+origPATH); err != nil {
+			t.Fatalf("Setenv failed: %v", err)
+		}
+	}
+
+	badAgentPATH()
+	// Load the principal locally (since an agent can't be started
+	// successfully).
 	p1 := loadPrincipal()
 
+	// A subsequent attempt to load the principal should fail since the
+	// local loading is exclusive.
+	if _, err := agentlib.LoadPrincipal(credsDir); err == nil {
+		t.Fatalf("Should have not been able to load the principal.")
+	}
+
+	// Even if we put a valid agent in the PATH, it should still not be able
+	// to load the principal due to the exclusivity.
+	goodAgentPATH()
+	if _, err := agentlib.LoadPrincipal(credsDir); err == nil {
+		t.Fatalf("Should have not been able to load the principal.")
+	}
+
+	// After letting go of the locally loaded principal, a subsequent local
+	// load will succeed.
+	p1.Close()
+	badAgentPATH()
+	p1 = loadPrincipal()
+	p1.Close()
+
+	// Use the agent now.
+	goodAgentPATH()
+	p1 = loadPrincipal()
 	// Set up a way to communicate with the agent's commands socket.
 	cmds, err := net.Dial("unix", filepath.Join(constants.AgentDir(credsDir), "commands"))
 	if err != nil {
