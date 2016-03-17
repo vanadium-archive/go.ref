@@ -18,7 +18,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	_ "v.io/x/ref/runtime/factories/roaming"
+	"v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/server"
 	"v.io/x/ref/services/syncbase/syncbaselib"
 )
@@ -38,7 +38,8 @@ type delegate struct {
 func (d *delegate) Initialize(actx application.Context) {
 	opts := syncbaselib.Opts{}
 	opts.InitFlags(flag.CommandLine)
-	d.ctx, d.shutdown = v23.Init(actx) // calls flag.Parse
+	roaming.SetArgs(actx)
+	d.ctx, d.shutdown = v23.Init() // calls flag.Parse
 	if err := setBlessings(d.ctx, actx); err != nil {
 		panic(err)
 	}

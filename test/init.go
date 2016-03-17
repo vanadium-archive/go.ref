@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !mojo
-
 package test
 
 import (
@@ -12,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
