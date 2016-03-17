@@ -3,10 +3,12 @@
 // license that can be found in the LICENSE file.
 
 #include "roundtrip.h"
-#include <stdio.h>
-#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
+#include <stdio.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 int rt_init(struct rt_test* test) {
   int err;
