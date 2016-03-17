@@ -119,6 +119,7 @@ func TestListen(t *testing.T) {
 }
 
 func TestBadConnect(t *testing.T) {
+	t.Skip()
 	timeA := time.Now()
 	ipc, path, cleanup := newServer(t)
 	timeB := time.Now()
