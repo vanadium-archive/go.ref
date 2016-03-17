@@ -61,11 +61,12 @@ var (
 
 // Session represents the state of an expect session.
 type Session struct {
-	input     *bufio.Reader
-	timeout   time.Duration
-	t         testing.TB
-	verbose   bool
-	oerr, err error
+	input           *bufio.Reader
+	timeout         time.Duration
+	t               testing.TB
+	verbose         bool
+	continueOnError bool
+	oerr, err       error
 }
 
 // NewSession creates a new Session. The parameter t may be safely be nil.
@@ -91,11 +92,20 @@ func (s *Session) OriginalError() error {
 	return s.oerr
 }
 
-// SetVerbosity enables/disable verbose debugging information, in particular,
+// TODO(caprita): Consider removing these setters and instead expose the
+// corresponding fields in Session.
+
+// SetVerbosity enables/disables verbose debugging information, in particular,
 // every line of input read will be logged via t.Logf or, if t is nil, to
 // stderr.
 func (s *Session) SetVerbosity(v bool) {
 	s.verbose = v
+}
+
+// SetContinueOnError controls whether to invoke TB.FailNow on error, i.e.
+// whether to panic on error.
+func (s *Session) SetContinueOnError(value bool) {
+	s.continueOnError = value
 }
 
 // SetTimeout sets the timeout for subsequent operations on this session.
@@ -134,6 +144,9 @@ func (s *Session) error(err error) error {
 	s.err = fmt.Errorf("%s:%d: %s", filepath.Base(file), line, err)
 	if s.t != nil {
 		s.t.Error(s.err)
+		if !s.continueOnError {
+			s.t.FailNow()
+		}
 	}
 	return s.err
 }
