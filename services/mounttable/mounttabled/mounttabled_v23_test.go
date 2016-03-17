@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"v.io/x/ref"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/v23test"
 )
@@ -33,8 +34,8 @@ func TestV23Mount(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
 	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
-	neighborhood := fmt.Sprintf("test-%s-%d", getHostname(t), os.Getpid())
-	sh.StartRootMountTable("--neighborhood-name=" + neighborhood)
+	nhName := fmt.Sprintf("test-%s-%d", getHostname(t), os.Getpid())
+	sh.StartRootMountTableWithOpts(mounttablelib.Opts{NhName: nhName})
 
 	name := sh.Vars[ref.EnvNamespacePrefix]
 	clientBin := v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/mounttable")
@@ -60,10 +61,10 @@ func TestV23Mount(t *testing.T) {
 
 	// Test globbing on the neighborhood name. Its endpoint should be the
 	// endpoint of the mount table.
-	glob = start(sh.Cmd(clientBin, "glob", "/"+neighborhoodEndpoint, neighborhood).WithCredentials(clientCreds))
-	matches = glob.ExpectSetEventuallyRE("^" + regexp.QuoteMeta(neighborhood) + ` (.*) \(Deadline .*\)$`)
+	glob = start(sh.Cmd(clientBin, "glob", "/"+neighborhoodEndpoint, nhName).WithCredentials(clientCreds))
+	matches = glob.ExpectSetEventuallyRE("^" + regexp.QuoteMeta(nhName) + ` (.*) \(Deadline .*\)$`)
 	if matches[0][1] != name {
-		t.Fatalf("expected endpoint of mount table for name %s", neighborhood)
+		t.Fatalf("expected endpoint of mount table for name %s", nhName)
 	}
 }
 

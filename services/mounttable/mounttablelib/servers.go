@@ -5,6 +5,7 @@
 package mounttablelib
 
 import (
+	"fmt"
 	"net"
 
 	"v.io/v23"
@@ -12,7 +13,26 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+	"v.io/x/ref/lib/signals"
 )
+
+func Main(opts Opts) error {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+	return MainWithCtx(ctx, opts)
+}
+
+func MainWithCtx(ctx *context.T, opts Opts) error {
+	name, stop, err := StartServers(ctx, v23.GetListenSpec(ctx), opts.MountName, opts.NhName, opts.AclFile, opts.PersistDir, "mounttable")
+	if err != nil {
+		return fmt.Errorf("mounttablelib.StartServers failed: %v", err)
+	}
+	defer stop()
+	// Consumed by integration tests and the like.
+	fmt.Printf("NAME=%s\n", name)
+	ctx.Info("Received signal ", <-signals.ShutdownOnSignals(ctx))
+	return nil
+}
 
 func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, permsFile, persistDir, debugPrefix string) (string, func(), error) {
 	var stopFuncs []func()

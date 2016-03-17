@@ -43,14 +43,14 @@ const (
 // but also receives it independently by virtue of being part of the same
 // process group.
 //
-// This is a variable, so that I can be set appropriately.  Note, there is no
+// This is a variable, so that it can be set appropriately.  Note, there is no
 // locking around it, the assumption being that it's set during initialization
 // and never reset afterwards.
 var SameSignalTimeWindow time.Duration
 
-// defaultSignals returns a set of platform-specific signals that an application
-// is encouraged to listen on.
-func defaultSignals() []os.Signal {
+// Default returns a set of platform-specific signals that applications are
+// encouraged to listen on.
+func Default() []os.Signal {
 	return []os.Signal{syscall.SIGTERM, syscall.SIGINT, STOP}
 }
 
@@ -60,7 +60,7 @@ func defaultSignals() []os.Signal {
 // process will exit.
 func ShutdownOnSignals(ctx *context.T, signals ...os.Signal) <-chan os.Signal {
 	if len(signals) == 0 {
-		signals = defaultSignals()
+		signals = Default()
 	}
 	// At least a buffer of length two so that we don't drop the first two
 	// signals we get on account of the channel being full.

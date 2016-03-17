@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !mojo
-
 // The following enables go generate to generate the doc.go file.
 //go:generate go run $JIRI_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
 
-// Package main implements syncbased, the Syncbase daemon. In addition, it
-// exports MojoMain, enabling Syncbase to run as a Mojo service.
 package main
 
 import (
@@ -16,10 +12,10 @@ import (
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
-	"v.io/x/ref/services/syncbase/syncbaselib"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 )
 
-var opts = syncbaselib.Opts{}
+var opts = mounttablelib.Opts{}
 
 func main() {
 	opts.InitFlags(&cmd.Flags)
@@ -29,15 +25,14 @@ func main() {
 
 var cmd = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(run),
-	Name:   "syncbased",
-	Short:  "Runs the Syncbase daemon",
+	Name:   "mounttabled",
+	Short:  "Runs the mount table daemon",
 	Long: `
-Command syncbased runs the Syncbase daemon, which implements the
-v.io/v23/services/syncbase interfaces.
+Command mounttabled runs the mount table daemon, which implements the
+v.io/v23/services/mounttable interfaces.
 `,
 }
 
 func run(ctx *context.T, env *cmdline.Env, args []string) error {
-	syncbaselib.MainWithCtx(ctx, opts)
-	return nil
+	return mounttablelib.MainWithCtx(ctx, opts)
 }

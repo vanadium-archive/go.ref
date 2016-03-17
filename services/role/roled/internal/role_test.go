@@ -18,12 +18,11 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	vsecurity "v.io/x/ref/lib/security"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/role"
 	irole "v.io/x/ref/services/role/roled/internal"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
-
-	_ "v.io/x/ref/runtime/factories/generic"
 )
 
 func TestSeekBlessings(t *testing.T) {

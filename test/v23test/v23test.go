@@ -30,7 +30,6 @@ import (
 )
 
 const (
-	envBinDir           = "V23_BIN_DIR"
 	envChildOutputDir   = "TMPDIR"
 	envShellTestProcess = "V23_SHELL_TEST_PROCESS"
 	useAgent            = true
@@ -47,8 +46,6 @@ func init() {
 }
 
 // TODO(sadovsky):
-// - Make StartRootMountTable and StartSyncbase fast, and change tests that
-//   build no other binaries to be normal (non-integration) tests.
 // - Eliminate test.V23Init() and either add v23test.Init() or have v23.Init()
 //   check for an env var and perform test-specific configuration.
 // - Switch to using the testing package's -test.short flag and eliminate
@@ -85,21 +82,10 @@ type Shell struct {
 	pm  principalManager
 }
 
-var calledInitTestMain = false
-
 // NewShell creates a new Shell. Tests and benchmarks should pass their
 // testing.TB; non-tests should pass nil. Ctx is the Vanadium context to use; if
 // it's nil, NewShell will call v23.Init to create a context.
 func NewShell(tb testing.TB, ctx *context.T) *Shell {
-	// Note: gosh only requires gosh.InitMain to be called if the user uses
-	// gosh.Shell.FuncCmd, while we require InitTestMain to be called whenever a
-	// user calls NewShell with a non-nil testing.TB. We're stricter than gosh
-	// because we want to make sure that V23_BIN_DIR gets shared across tests.
-	if tb != nil && !calledInitTestMain {
-		tb.Fatal("must call v23test.TestMain or v23test.InitTestMain from TestMain")
-		return nil
-	}
-
 	sh := &Shell{
 		Shell: gosh.NewShell(tb),
 		tb:    tb,
@@ -189,55 +175,58 @@ func (sh *Shell) Cleanup() {
 	}
 }
 
+// binDir is the directory where BuildGoPkg writes binaries. Initialized by
+// InitMain.
+var binDir string
+
 // BuildGoPkg compiles a Go package using the "go build" command and writes the
-// resulting binary to V23_BIN_DIR, or to the -o flag location if specified. If
-// -o is relative, it is interpreted as relative to V23_BIN_DIR. If the binary
-// already exists at the target location, it is not rebuilt. Returns the
-// absolute path to the binary.
+// resulting binary to BinDir, or to the -o flag location if specified. If -o is
+// relative, it is interpreted as relative to BinDir. If the binary already
+// exists at the target location, it is not rebuilt. Returns the absolute path
+// to the binary.
 func BuildGoPkg(sh *Shell, pkg string, flags ...string) string {
 	sh.Ok()
-	binDir := os.Getenv(envBinDir)
-	if binDir == "" {
-		sh.handleError(errors.New("v23test: missing V23_BIN_DIR"))
+	if !calledInitMain {
+		sh.handleError(errors.New("v23test: did not call v23test.TestMain or v23test.InitMain"))
 		return ""
 	}
 	return gosh.BuildGoPkg(sh.Shell, binDir, pkg, flags...)
 }
 
-// InitTestMain is intended for developers with complex setup or teardown
-// requirements; developers should generally use TestMain. InitTestMain must be
-// called early on in TestMain, before m.Run is called. It calls gosh.InitMain
-// and, if V23_BIN_DIR is not set, sets it to a new temporary directory. Returns
-// a cleanup function that should be called after m.Run but before os.Exit.
-func InitTestMain() func() {
-	gosh.InitMain()
-	calledInitTestMain = true
-	cleanup := func() {}
-	if os.Getenv(envBinDir) == "" {
-		dir, err := ioutil.TempDir("", "bin-")
-		if err != nil {
-			panic(err)
-		}
-		cleanup = func() {
-			os.RemoveAll(dir)
-			os.Unsetenv(envBinDir)
-		}
-		if err := os.Setenv(envBinDir, dir); err != nil {
-			cleanup()
-			panic(err)
-		}
+var calledInitMain = false
+
+// InitMain must be called early on in main(), before flags are parsed. It calls
+// gosh.InitMain, initializes the directory used by v23test.BuildGoPkg, and
+// returns a cleanup function. Called by gosh.TestMain.
+//
+// InitMain can also be used by test developers with complex setup or teardown
+// requirements, where gosh.TestMain is unsuitable. InitMain must be called
+// early on in TestMain, before m.Run is called. The returned cleanup function
+// should be called after m.Run but before os.Exit.
+func InitMain() func() {
+	if calledInitMain {
+		panic("v23test: already called v23test.TestMain or v23test.InitMain")
 	}
-	return cleanup
+	calledInitMain = true
+	gosh.InitMain()
+	var err error
+	binDir, err = ioutil.TempDir("", "bin-")
+	if err != nil {
+		panic(err)
+	}
+	return func() {
+		os.RemoveAll(binDir)
+	}
 }
 
 // TestMain calls flag.Parse and does some v23test/gosh setup work, then calls
 // os.Exit(m.Run()). Developers with complex setup or teardown requirements may
-// need to use InitTestMain instead.
+// need to use InitMain instead.
 func TestMain(m *testing.M) {
 	flag.Parse()
 	var code int
 	func() {
-		defer InitTestMain()()
+		defer InitMain()()
 		code = m.Run()
 	}()
 	os.Exit(code)

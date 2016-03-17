@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
+package syncbaselib
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"runtime/pprof"
@@ -15,32 +14,23 @@ import (
 	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
-	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/server"
 )
 
-var (
-	name                  = flag.String("name", "", "Name to mount at.")
-	rootDir               = flag.String("root-dir", "/var/lib/syncbase", "Root dir for storage engines and other data.")
-	engine                = flag.String("engine", "leveldb", "Storage engine to use. Currently supported: memstore and leveldb.")
-	publishInNeighborhood = flag.Bool("publish-nh", true, "Whether to publish in the neighborhood.")
-	devMode               = flag.Bool("dev", false, "Whether to run in development mode; required for RPCs such as Service.DevModeUpdateVClock.")
-	cpuprofile            = flag.String("cpuprofile", "", "If specified, write the cpu profile to the given filename.")
-)
-
-// Note: We return rpc.Server and rpc.Dispatcher as a quick hack to support
-// Mojo.
-func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
+// Serve starts the Syncbase server. Returns rpc.Server and rpc.Dispatcher for
+// use in the Mojo bindings, along with a cleanup function.
+func Serve(ctx *context.T, opts Opts) (rpc.Server, rpc.Dispatcher, func()) {
 	// Note: Adding the "runtime/pprof" import does not significantly increase the
-	// binary size (~4500bytes), so it seems okay to expose the option to profile.
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
+	// binary size (only ~4500 bytes), so it seems okay to expose the option to
+	// profile.
+	if opts.CpuProfile != "" {
+		f, err := os.Create(opts.CpuProfile)
 		if err != nil {
-			vlog.Fatal("Unable to create the cpuprofile file: ", err)
+			vlog.Fatal("Unable to create the cpu profile file: ", err)
 		}
 		defer f.Close()
 		if err = pprof.StartCPUProfile(f); err != nil {
-			vlog.Fatal("Unable to start cpuprofile: ", err)
+			vlog.Fatal("StartCPUProfile failed: ", err)
 		}
 		defer pprof.StopCPUProfile()
 	}
@@ -54,10 +44,10 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 	}
 	service, err := server.NewService(ctx, server.ServiceOptions{
 		Perms:                 perms,
-		RootDir:               *rootDir,
-		Engine:                *engine,
-		PublishInNeighborhood: *publishInNeighborhood,
-		DevMode:               *devMode,
+		RootDir:               opts.RootDir,
+		Engine:                opts.Engine,
+		PublishInNeighborhood: opts.PublishInNeighborhood,
+		DevMode:               opts.DevMode,
 	})
 	if err != nil {
 		vlog.Fatal("server.NewService() failed: ", err)
@@ -66,7 +56,7 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 
 	// Publish the service in the mount table.
 	ctx, cancel := context.WithCancel(ctx)
-	ctx, s, err := v23.WithNewDispatchingServer(ctx, *name, d)
+	ctx, s, err := v23.WithNewDispatchingServer(ctx, opts.Name, d)
 	if err != nil {
 		vlog.Fatal("v23.WithNewDispatchingServer() failed: ", err)
 	}
@@ -81,8 +71,8 @@ func Serve(ctx *context.T) (rpc.Server, rpc.Dispatcher, func()) {
 	}
 
 	// Print mount name and endpoint.
-	if *name != "" {
-		vlog.Info("Mounted at: ", *name)
+	if opts.Name != "" {
+		vlog.Info("Mounted at: ", opts.Name)
 	}
 	if eps := s.Status().Endpoints; len(eps) > 0 {
 		// Integration tests wait for this to be printed before trying to access the

@@ -21,7 +21,7 @@ import (
 	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
 	grt "v.io/x/ref/runtime/internal/rt"
-	"v.io/x/ref/test/v23test"
+	"v.io/x/ref/test"
 )
 
 var commonFlags *flags.Flags
@@ -66,14 +66,10 @@ type fakeService struct{}
 
 func (f *fakeService) Foo(ctx *context.T, call rpc.ServerCall) error { return nil }
 
-func TestV23ResolveToEndpoint(t *testing.T) {
+func TestResolveToEndpoint(t *testing.T) {
 	setupRuntime()
-	v23test.SkipUnlessRunningIntegrationTests(t)
-	sh := v23test.NewShell(t, nil)
-	defer sh.Cleanup()
-	sh.StartRootMountTable()
-
-	ctx := sh.Ctx
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
 	ns := v23.GetNamespace(ctx)
 
 	proxyEp, _ := inaming.NewEndpoint("proxy.v.io:123#")
@@ -115,8 +111,4 @@ func TestV23ResolveToEndpoint(t *testing.T) {
 		t.Logf("proxyEpStr: %v", proxyEpStr)
 		t.Logf("proxyAddr: %v", proxyAddr)
 	}
-}
-
-func TestMain(m *testing.M) {
-	v23test.TestMain(m)
 }

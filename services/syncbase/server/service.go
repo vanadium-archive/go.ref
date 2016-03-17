@@ -12,7 +12,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"time"
@@ -95,14 +95,14 @@ func PermsString(perms access.Permissions) string {
 // NewService creates a new service instance and returns it.
 // TODO(sadovsky): If possible, close all stores when the server is stopped.
 func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
-	st, err := util.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine), util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
+	st, err := util.OpenStore(opts.Engine, filepath.Join(opts.RootDir, opts.Engine), util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	if err != nil {
 		// If the top-level leveldb is corrupt, we lose the meaning of all of the
 		// app-level databases.  util.OpenStore moved the top-level leveldb
 		// aside, but it didn't do anything about the app-level leveldbs.
 		if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
 			vlog.Errorf("top-level leveldb is corrupt, moving all apps aside")
-			appDir := path.Join(opts.RootDir, util.AppDir)
+			appDir := filepath.Join(opts.RootDir, util.AppDir)
 			newPath := appDir + ".corrupt." + time.Now().Format(time.RFC3339)
 			if err := os.Rename(appDir, newPath); err != nil {
 				return nil, verror.New(verror.ErrInternal, ctx, "could not move apps aside: "+err.Error())

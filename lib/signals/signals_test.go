@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package signals
+package signals_test
 
 import (
 	"bufio"
@@ -23,6 +23,7 @@ import (
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/security/securityflag"
+	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
@@ -42,13 +43,13 @@ func stopLoop(stop func(), stdin io.Reader, ch chan<- struct{}) {
 	}
 }
 
-func program(signals ...os.Signal) {
+func program(sigs ...os.Signal) {
 	ctx, shutdown := test.V23Init()
 	closeStopLoop := make(chan struct{})
 	// obtain ac here since stopLoop may execute after shutdown is called below
 	ac := v23.GetAppCycle(ctx)
 	go stopLoop(func() { ac.Stop(ctx) }, os.Stdin, closeStopLoop)
-	wait := ShutdownOnSignals(ctx, signals...)
+	wait := signals.ShutdownOnSignals(ctx, sigs...)
 	fmt.Printf("ready\n")
 	fmt.Printf("received signal %s\n", <-wait)
 	shutdown()
@@ -64,7 +65,7 @@ var handleCustom = gosh.RegisterFunc("handleCustom", func() {
 })
 
 var handleCustomWithStop = gosh.RegisterFunc("handleCustomWithStop", func() {
-	program(STOP, syscall.SIGABRT, syscall.SIGHUP)
+	program(signals.STOP, syscall.SIGABRT, syscall.SIGHUP)
 })
 
 var handleDefaultsIgnoreChan = gosh.RegisterFunc("handleDefaultsIgnoreChan", func() {
@@ -74,7 +75,7 @@ var handleDefaultsIgnoreChan = gosh.RegisterFunc("handleDefaultsIgnoreChan", fun
 	// obtain ac here since stopLoop may execute after shutdown is called below
 	ac := v23.GetAppCycle(ctx)
 	go stopLoop(func() { ac.Stop(ctx) }, os.Stdin, closeStopLoop)
-	ShutdownOnSignals(ctx)
+	signals.ShutdownOnSignals(ctx)
 	fmt.Printf("ready\n")
 	<-closeStopLoop
 })
@@ -89,13 +90,13 @@ func isSignalInSet(sig os.Signal, set []os.Signal) bool {
 }
 
 func checkSignalIsDefault(t *testing.T, sig os.Signal) {
-	if !isSignalInSet(sig, defaultSignals()) {
+	if !isSignalInSet(sig, signals.Default()) {
 		t.Errorf("signal %s not in default signal set, as expected", sig)
 	}
 }
 
 func checkSignalIsNotDefault(t *testing.T, sig os.Signal) {
-	if isSignalInSet(sig, defaultSignals()) {
+	if isSignalInSet(sig, signals.Default()) {
 		t.Errorf("signal %s unexpectedly in default signal set", sig)
 	}
 }
@@ -188,7 +189,7 @@ func TestDoubleSignal(t *testing.T) {
 	checkSignalIsDefault(t, syscall.SIGINT)
 	cmd.Signal(syscall.SIGINT)
 	cmd.Wait()
-	checkExitStatus(t, cmd, DoubleStopExitCode)
+	checkExitStatus(t, cmd, signals.DoubleStopExitCode)
 }
 
 // TestSignalAndStop verifies that sending a signal followed by a stop command
@@ -205,7 +206,7 @@ func TestSignalAndStop(t *testing.T) {
 	cmd.S.Expectf("received signal %s", syscall.SIGTERM)
 	fmt.Fprintf(stdinPipe, "stop\n")
 	cmd.Wait()
-	checkExitStatus(t, cmd, DoubleStopExitCode)
+	checkExitStatus(t, cmd, signals.DoubleStopExitCode)
 }
 
 // TestDoubleStop verifies that sending a succession of stop commands to a child
@@ -221,7 +222,7 @@ func TestDoubleStop(t *testing.T) {
 	cmd.S.Expectf("received signal %s", v23.LocalStop)
 	fmt.Fprintf(stdinPipe, "stop\n")
 	cmd.Wait()
-	checkExitStatus(t, cmd, DoubleStopExitCode)
+	checkExitStatus(t, cmd, signals.DoubleStopExitCode)
 }
 
 // TestSendUnhandledSignal verifies that sending a signal that the child does
@@ -255,7 +256,7 @@ func TestDoubleSignalIgnoreChan(t *testing.T) {
 	checkSignalIsDefault(t, syscall.SIGINT)
 	cmd.Signal(syscall.SIGINT)
 	cmd.Wait()
-	checkExitStatus(t, cmd, DoubleStopExitCode)
+	checkExitStatus(t, cmd, signals.DoubleStopExitCode)
 }
 
 // TestHandlerCustomSignal verifies that sending a non-default signal to a
@@ -296,13 +297,13 @@ func TestHandlerCustomSignalWithStop(t *testing.T) {
 // TestParseSignalsList verifies that ShutdownOnSignals correctly interprets
 // the input list of signals.
 func TestParseSignalsList(t *testing.T) {
-	list := []os.Signal{STOP, syscall.SIGTERM}
-	ShutdownOnSignals(nil, list...)
+	list := []os.Signal{signals.STOP, syscall.SIGTERM}
+	signals.ShutdownOnSignals(nil, list...)
 	if !isSignalInSet(syscall.SIGTERM, list) {
 		t.Errorf("signal %s not in signal set, as expected: %v", syscall.SIGTERM, list)
 	}
-	if !isSignalInSet(STOP, list) {
-		t.Errorf("signal %s not in signal set, as expected: %v", STOP, list)
+	if !isSignalInSet(signals.STOP, list) {
+		t.Errorf("signal %s not in signal set, as expected: %v", signals.STOP, list)
 	}
 }
 

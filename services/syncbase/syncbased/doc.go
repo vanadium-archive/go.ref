@@ -6,26 +6,26 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Command mounttabled runs the mount table daemon, which implements the
-v.io/v23/services/mounttable interfaces.
+Command syncbased runs the Syncbase daemon, which implements the
+v.io/v23/services/syncbase interfaces.
 
 Usage:
-   mounttabled [flags]
+   syncbased [flags]
 
-The mounttabled flags are:
- -acls=
-   ACL file.  Default is to allow all access.
+The syncbased flags are:
+ -cpuprofile=
+   If specified, write the cpu profile to the given filename.
+ -dev=false
+   Whether to run in development mode; required for RPCs such as
+   Service.DevModeUpdateVClock.
+ -engine=leveldb
+   Storage engine to use: memstore or leveldb.
  -name=
-   If provided, causes the mount table to mount itself under this name.  The
-   name may be absolute for a remote mount table service (e.g. "/<remote mt
-   address>//some/suffix") or could be relative to this process' default mount
-   table (e.g. "some/suffix").
- -neighborhood-name=
-   If provided, enables sharing with the local neighborhood with the provided
-   name.  The address of this mount table will be published to the neighboorhood
-   and everything in the neighborhood will be visible on this mount table.
- -persist-dir=
-   Directory in which to persist permissions.
+   Name to mount at.
+ -publish-nh=true
+   Whether to publish in the neighborhood.
+ -root-dir=/var/lib/syncbase
+   Root dir for storage engines and other data.
 
 The global flags are:
  -alsologtostderr=true
@@ -42,6 +42,42 @@ The global flags are:
    Displays metadata for the program and exits.
  -stderrthreshold=2
    logs at or above this threshold go to stderr
+ -test.bench=
+   regular expression to select benchmarks to run
+ -test.benchmem=false
+   print memory allocations for benchmarks
+ -test.benchtime=1s
+   approximate run time for each benchmark
+ -test.blockprofile=
+   write a goroutine blocking profile to the named file after execution
+ -test.blockprofilerate=1
+   if >= 0, calls runtime.SetBlockProfileRate()
+ -test.count=1
+   run tests and benchmarks `n` times
+ -test.coverprofile=
+   write a coverage profile to the named file after execution
+ -test.cpu=
+   comma-separated list of number of CPUs to use for each test
+ -test.cpuprofile=
+   write a cpu profile to the named file during execution
+ -test.memprofile=
+   write a memory profile to the named file after execution
+ -test.memprofilerate=0
+   if >=0, sets runtime.MemProfileRate
+ -test.outputdir=
+   directory in which to write profiles
+ -test.parallel=<number of threads>
+   maximum test parallelism
+ -test.run=
+   regular expression to select tests and examples to run
+ -test.short=false
+   run smaller test suite to save time
+ -test.timeout=0
+   if positive, sets an aggregate time limit for all tests
+ -test.trace=
+   write an execution trace to the named file after execution
+ -test.v=false
+   verbose: print additional output
  -time=false
    Dump timing information to stderr before exiting the program.
  -v=0

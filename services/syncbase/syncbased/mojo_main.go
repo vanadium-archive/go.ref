@@ -6,11 +6,8 @@
 
 package main
 
-// To build:
-// cd $JIRI_ROOT/release/projects/mojo/syncbase
-// make build
-
 import (
+	"flag"
 	"log"
 
 	"mojo/public/go/application"
@@ -21,7 +18,9 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/server"
+	"v.io/x/ref/services/syncbase/syncbaselib"
 )
 
 //#include "mojo/public/c/system/types.h"
@@ -37,11 +36,13 @@ type delegate struct {
 }
 
 func (d *delegate) Initialize(actx application.Context) {
-	d.ctx, d.shutdown = v23.Init(actx)
+	opts := syncbaselib.Opts{}
+	opts.InitFlags(flag.CommandLine)
+	d.ctx, d.shutdown = v23.Init(actx) // calls flag.Parse
 	if err := setBlessings(d.ctx, actx); err != nil {
 		panic(err)
 	}
-	d.srv, d.disp, d.cleanup = Serve(d.ctx)
+	d.srv, d.disp, d.cleanup = syncbaselib.Serve(d.ctx, opts)
 }
 
 const numGoroutines = 100
