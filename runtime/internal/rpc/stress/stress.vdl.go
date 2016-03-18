@@ -251,6 +251,12 @@ func (t *SumStatsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroSumArg   = SumArg{}
+	__VDLZeroSumStats = SumStats{}
+)
+
 //////////////////////////////////////////////////
 // Interface definitions
 

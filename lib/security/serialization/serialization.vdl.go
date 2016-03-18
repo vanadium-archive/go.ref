@@ -214,6 +214,13 @@ func (m SignedDataHash) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroSignedHeader = SignedHeader{}
+	__VDLZeroHashCode     = HashCode{}
+	__VDLZeroSignedData   = SignedData(SignedDataSignature{})
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

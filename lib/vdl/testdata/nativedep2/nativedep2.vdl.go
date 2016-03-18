@@ -83,6 +83,11 @@ func (t *MyTimeTarget) FromComplex(src complex128, tt *vdl.Type) error {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroMyTime = MyTime(0)
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

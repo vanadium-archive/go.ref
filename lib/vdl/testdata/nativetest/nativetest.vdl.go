@@ -694,25 +694,61 @@ func (t *ignoremeTarget) FromString(src string, tt *vdl.Type) error {
 	return nil
 }
 
-// Type-check WireMapStringInt conversion functions.
-var _ func(WireMapStringInt, *map[string]int) error = WireMapStringIntToNative
-var _ func(*WireMapStringInt, map[string]int) error = WireMapStringIntFromNative
+// Create zero values for each type.
+var (
+	__VDLZeroWireString = func() string {
+		var native string
+		if err := vdl.Convert(&native, WireString(0)); err != nil {
+			panic(err)
+		}
+		return native
+	}()
+	__VDLZeroWireMapStringInt = func() map[string]int {
+		var native map[string]int
+		if err := vdl.Convert(&native, WireMapStringInt(0)); err != nil {
+			panic(err)
+		}
+		return native
+	}()
+	__VDLZeroWireTime = func() time.Time {
+		var native time.Time
+		if err := vdl.Convert(&native, WireTime(0)); err != nil {
+			panic(err)
+		}
+		return native
+	}()
+	__VDLZeroWireSamePkg = func() nativetest.NativeSamePkg {
+		var native nativetest.NativeSamePkg
+		if err := vdl.Convert(&native, WireSamePkg(0)); err != nil {
+			panic(err)
+		}
+		return native
+	}()
+	__VDLZeroWireMultiImport = func() map[nativetest.NativeSamePkg]time.Time {
+		var native map[nativetest.NativeSamePkg]time.Time
+		if err := vdl.Convert(&native, WireMultiImport(0)); err != nil {
+			panic(err)
+		}
+		return native
+	}()
+	__VDLZeroWireRenameMe = WireRenameMe(0)
+	__VDLZeroWireAll      = WireAll{}
+	__VDLZeroignoreme     = ignoreme("")
+)
 
-// Type-check WireMultiImport conversion functions.
-var _ func(WireMultiImport, *map[nativetest.NativeSamePkg]time.Time) error = WireMultiImportToNative
-var _ func(*WireMultiImport, map[nativetest.NativeSamePkg]time.Time) error = WireMultiImportFromNative
-
-// Type-check WireSamePkg conversion functions.
-var _ func(WireSamePkg, *nativetest.NativeSamePkg) error = WireSamePkgToNative
-var _ func(*WireSamePkg, nativetest.NativeSamePkg) error = WireSamePkgFromNative
-
-// Type-check WireString conversion functions.
-var _ func(WireString, *string) error = WireStringToNative
-var _ func(*WireString, string) error = WireStringFromNative
-
-// Type-check WireTime conversion functions.
-var _ func(WireTime, *time.Time) error = WireTimeToNative
-var _ func(*WireTime, time.Time) error = WireTimeFromNative
+// Type-check native conversion functions.
+var (
+	_ func(WireMapStringInt, *map[string]int) error                        = WireMapStringIntToNative
+	_ func(*WireMapStringInt, map[string]int) error                        = WireMapStringIntFromNative
+	_ func(WireMultiImport, *map[nativetest.NativeSamePkg]time.Time) error = WireMultiImportToNative
+	_ func(*WireMultiImport, map[nativetest.NativeSamePkg]time.Time) error = WireMultiImportFromNative
+	_ func(WireSamePkg, *nativetest.NativeSamePkg) error                   = WireSamePkgToNative
+	_ func(*WireSamePkg, nativetest.NativeSamePkg) error                   = WireSamePkgFromNative
+	_ func(WireString, *string) error                                      = WireStringToNative
+	_ func(*WireString, string) error                                      = WireStringFromNative
+	_ func(WireTime, *time.Time) error                                     = WireTimeToNative
+	_ func(*WireTime, time.Time) error                                     = WireTimeFromNative
+)
 
 var __VDLInitCalled bool
 

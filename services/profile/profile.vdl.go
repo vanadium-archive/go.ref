@@ -267,7 +267,7 @@ type SpecificationTarget struct {
 	archTarget        build.ArchitectureTarget
 	osTarget          build.OperatingSystemTarget
 	formatTarget      build.FormatTarget
-	librariesTarget   unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget
+	librariesTarget   __VDLTarget1_set
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -318,7 +318,7 @@ func (t *SpecificationTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // map[Library]struct{}
-type unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget struct {
+type __VDLTarget1_set struct {
 	Value     *map[Library]struct{}
 	currKey   Library
 	keyTarget LibraryTarget
@@ -326,7 +326,7 @@ type unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c6
 	vdl.SetTargetBase
 }
 
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+func (t *__VDLTarget1_set) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 
 	if ttWant := vdl.TypeOf((*map[Library]struct{})(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -334,23 +334,29 @@ func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652
 	*t.Value = make(map[Library]struct{})
 	return t, nil
 }
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) StartKey() (key vdl.Target, _ error) {
+func (t *__VDLTarget1_set) StartKey() (key vdl.Target, _ error) {
 	t.currKey = Library{}
 	t.keyTarget.Value = &t.currKey
 	target, err := &t.keyTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) FinishKey(key vdl.Target) error {
+func (t *__VDLTarget1_set) FinishKey(key vdl.Target) error {
 	(*t.Value)[t.currKey] = struct{}{}
 	return nil
 }
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f70726f66696c652e4c696272617279207374727563747b4e616d6520737472696e673b4d616a6f7256657273696f6e20737472696e673b4d696e6f7256657273696f6e20737472696e677d5dTarget) FinishSet(list vdl.SetTarget) error {
+func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZeroLibrary       = Library{}
+	__VDLZeroSpecification = Specification{}
+)
 
 var __VDLInitCalled bool
 

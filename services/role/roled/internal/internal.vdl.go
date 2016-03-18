@@ -196,11 +196,11 @@ func (m *Config) MakeVDLTarget() vdl.Target {
 type ConfigTarget struct {
 	Value               *Config
 	importMembersTarget vdl.StringSliceTarget
-	membersTarget       unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target
+	membersTarget       __VDLTarget1_list
 	extendTarget        vdl.BoolTarget
 	auditTarget         vdl.BoolTarget
 	expiryTarget        vdl.StringTarget
-	peersTarget         unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target
+	peersTarget         __VDLTarget1_list
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -251,14 +251,14 @@ func (t *ConfigTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // []security.BlessingPattern
-type unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target struct {
+type __VDLTarget1_list struct {
 	Value      *[]security.BlessingPattern
 	elemTarget security.BlessingPatternTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *__VDLTarget1_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
 	if ttWant := vdl.TypeOf((*[]security.BlessingPattern)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -270,18 +270,23 @@ func (t *unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target) StartElem(index int) (elem vdl.Target, _ error) {
+func (t *__VDLTarget1_list) StartElem(index int) (elem vdl.Target, _ error) {
 	t.elemTarget.Value = &(*t.Value)[index]
 	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target) FinishElem(elem vdl.Target) error {
+func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e67Target) FinishList(elem vdl.ListTarget) error {
+func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZeroConfig = Config{}
+)
 
 //////////////////////////////////////////////////
 // Const definitions

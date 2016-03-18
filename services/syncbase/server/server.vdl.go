@@ -323,6 +323,13 @@ func (t *DbInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroServiceData = ServiceData{}
+	__VDLZeroAppData     = AppData{}
+	__VDLZeroDbInfo      = DbInfo{}
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

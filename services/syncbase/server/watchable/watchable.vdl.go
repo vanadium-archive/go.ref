@@ -1248,6 +1248,22 @@ func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroGetOp                  = GetOp{}
+	__VDLZeroScanOp                 = ScanOp{}
+	__VDLZeroPutOp                  = PutOp{}
+	__VDLZeroDeleteOp               = DeleteOp{}
+	__VDLZeroSyncgroupOp            = SyncgroupOp{}
+	__VDLZeroSyncSnapshotOp         = SyncSnapshotOp{}
+	__VDLZeroStateChange            = StateChangePauseSync
+	__VDLZeroDbStateChangeRequestOp = DbStateChangeRequestOp{}
+	__VDLZeroOp                     = Op(OpGet{})
+	__VDLZeroLogEntry               = LogEntry{
+		Op: OpGet{},
+	}
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

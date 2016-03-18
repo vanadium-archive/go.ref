@@ -14,14 +14,14 @@ import (
 	"v.io/x/ref/lib/vdl/compile"
 )
 
-func localIdent(data goData, file *compile.File, ident string) string {
+func localIdent(data *goData, file *compile.File, ident string) string {
 	if testingMode {
 		return ident
 	}
 	return data.Pkg(file.Package.GenPath) + ident
 }
 
-func nativeIdent(data goData, native vdltool.GoType, wirePkg *compile.Package) string {
+func nativeIdent(data *goData, native vdltool.GoType, wirePkg *compile.Package) string {
 	ident := native.Type
 	for _, imp := range native.Imports {
 		// Translate the packages specified in the native type into local package
@@ -50,11 +50,17 @@ func qualifiedIdent(file *compile.File, ident string) string {
 }
 
 // typeGo translates vdl.Type into a Go type.
-func typeGo(data goData, t *vdl.Type) string {
-	return typeGoInternal(data, t, true)
+func typeGo(data *goData, t *vdl.Type) string {
+	if def := data.Env.FindTypeDef(t); def != nil {
+		pkg := def.File.Package
+		if native, ok := pkg.Config.Go.WireToNativeTypes[def.Name]; ok {
+			return nativeIdent(data, native, pkg)
+		}
+	}
+	return typeGoWire(data, t)
 }
 
-func typeGoInternal(data goData, t *vdl.Type, useNative bool) string {
+func typeGoWire(data *goData, t *vdl.Type) string {
 	if testingMode {
 		if t.Name() != "" {
 			return t.Name()
@@ -67,34 +73,28 @@ func typeGoInternal(data goData, t *vdl.Type, useNative bool) string {
 		case t == vdl.AnyType:
 			if shouldUseVdlValueForAny(data.Package) {
 				return "*" + data.Pkg("v.io/v23/vdl") + "Value"
-			} else {
-				return "*" + data.Pkg("v.io/v23/vom") + "RawBytes"
 			}
+			return "*" + data.Pkg("v.io/v23/vom") + "RawBytes"
 		case t == vdl.TypeObjectType:
 			return "*" + data.Pkg("v.io/v23/vdl") + "Type"
 		case def.File == compile.BuiltInFile:
 			// Built-in primitives just use their name.
 			return def.Name
 		}
-		pkg := def.File.Package
-		if native, ok := pkg.Config.Go.WireToNativeTypes[def.Name]; useNative && ok {
-			// There is a Go native type configured for this defined type.
-			return nativeIdent(data, native, pkg)
-		}
 		return localIdent(data, def.File, def.Name)
 	}
 	// Otherwise recurse through the type.
 	switch t.Kind() {
 	case vdl.Optional:
-		return "*" + typeGoInternal(data, t.Elem(), useNative)
+		return "*" + typeGo(data, t.Elem())
 	case vdl.Array:
-		return "[" + strconv.Itoa(t.Len()) + "]" + typeGoInternal(data, t.Elem(), useNative)
+		return "[" + strconv.Itoa(t.Len()) + "]" + typeGo(data, t.Elem())
 	case vdl.List:
-		return "[]" + typeGoInternal(data, t.Elem(), useNative)
+		return "[]" + typeGo(data, t.Elem())
 	case vdl.Set:
-		return "map[" + typeGoInternal(data, t.Key(), useNative) + "]struct{}"
+		return "map[" + typeGo(data, t.Key()) + "]struct{}"
 	case vdl.Map:
-		return "map[" + typeGoInternal(data, t.Key(), useNative) + "]" + typeGoInternal(data, t.Elem(), useNative)
+		return "map[" + typeGo(data, t.Key()) + "]" + typeGo(data, t.Elem())
 	default:
 		panic(fmt.Errorf("vdl: typeGo unhandled type %v %v", t.Kind(), t))
 	}
@@ -123,7 +123,7 @@ func shouldUseVdlValueForAny(pkg *compile.Package) bool {
 }
 
 // typeDefGo prints the type definition for a type.
-func typeDefGo(data goData, def *compile.TypeDef) string {
+func typeDefGo(data *goData, def *compile.TypeDef) string {
 	s := fmt.Sprintf("%stype %s ", def.Doc, def.Name)
 	switch t := def.Type; t.Kind() {
 	case vdl.Enum:
@@ -262,7 +262,7 @@ func typeDefGo(data goData, def *compile.TypeDef) string {
 	switch {
 	case def.Type.Kind() == vdl.Union:
 		// handled for specific field structs above
-	case isNativeType(def.Type, def.File.Package):
+	case isNativeType(data.Env, def.Type):
 		// For native types, generate a Target that handles Wire->Native conversion.
 		// However, because the Value field in this generated Target is the native type
 		// rather than the wire type, it can't be returned from MakeVDLTarget on the
@@ -295,6 +295,6 @@ func commaEnumLabels(prefix string, t *vdl.Type) (s string) {
 	return
 }
 
-func embedGo(data goData, embed *compile.Interface) string {
+func embedGo(data *goData, embed *compile.Interface) string {
 	return localIdent(data, embed.File, embed.Name)
 }

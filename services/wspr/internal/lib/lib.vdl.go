@@ -124,7 +124,7 @@ func (m *ServerRpcReply) MakeVDLTarget() vdl.Target {
 
 type ServerRpcReplyTarget struct {
 	Value               *ServerRpcReply
-	resultsTarget       unnamed_5b5d616e79Target
+	resultsTarget       __VDLTarget1_list
 	errTarget           verror.ErrorTarget
 	traceResponseTarget vtrace.ResponseTarget
 	vdl.TargetBase
@@ -165,14 +165,14 @@ func (t *ServerRpcReplyTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // []*vom.RawBytes
-type unnamed_5b5d616e79Target struct {
+type __VDLTarget1_list struct {
 	Value *[]*vom.RawBytes
 
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *__VDLTarget1_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
 	if ttWant := vdl.TypeOf((*[]*vom.RawBytes)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -184,14 +184,14 @@ func (t *unnamed_5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTar
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d616e79Target) StartElem(index int) (elem vdl.Target, _ error) {
+func (t *__VDLTarget1_list) StartElem(index int) (elem vdl.Target, _ error) {
 	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
 	return target, err
 }
-func (t *unnamed_5b5d616e79Target) FinishElem(elem vdl.Target) error {
+func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d616e79Target) FinishList(elem vdl.ListTarget) error {
+func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
@@ -363,6 +363,13 @@ func (t *LogMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZeroServerRpcReply = ServerRpcReply{}
+	__VDLZeroLogLevel       = LogLevelInfo
+	__VDLZeroLogMessage     = LogMessage{}
+)
 
 var __VDLInitCalled bool
 

@@ -540,6 +540,15 @@ func (t *RunTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroCpu        = Cpu{}
+	__VDLZeroOs         = Os{}
+	__VDLZeroScenario   = Scenario{}
+	__VDLZeroSourceCode = SourceCode("")
+	__VDLZeroRun        = Run{}
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

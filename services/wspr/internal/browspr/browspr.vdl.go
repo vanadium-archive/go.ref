@@ -282,7 +282,7 @@ type AssociateAccountMessageTarget struct {
 	Value         *AssociateAccountMessage
 	accountTarget vdl.StringTarget
 	originTarget  vdl.StringTarget
-	caveatsTarget unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget
+	caveatsTarget __VDLTarget1_list
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -321,14 +321,14 @@ func (t *AssociateAccountMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // []account.Caveat
-type unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget struct {
+type __VDLTarget1_list struct {
 	Value      *[]account.Caveat
 	elemTarget account.CaveatTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *__VDLTarget1_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
 	if ttWant := vdl.TypeOf((*[]account.Caveat)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -340,15 +340,15 @@ func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e74657
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+func (t *__VDLTarget1_list) StartElem(index int) (elem vdl.Target, _ error) {
 	t.elemTarget.Value = &(*t.Value)[index]
 	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget) FinishElem(elem vdl.Target) error {
+func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6163636f756e742e436176656174207374727563747b5479706520737472696e673b4172677320737472696e677dTarget) FinishList(elem vdl.ListTarget) error {
+func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
@@ -750,6 +750,17 @@ func (t *CreateInstanceMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZeroStartMessage            = StartMessage{}
+	__VDLZeroAssociateAccountMessage = AssociateAccountMessage{}
+	__VDLZeroCreateAccountMessage    = CreateAccountMessage{}
+	__VDLZeroCleanupMessage          = CleanupMessage{}
+	__VDLZeroOriginHasAccountMessage = OriginHasAccountMessage{}
+	__VDLZeroGetAccountsMessage      = GetAccountsMessage{}
+	__VDLZeroCreateInstanceMessage   = CreateInstanceMessage{}
+)
 
 var __VDLInitCalled bool
 

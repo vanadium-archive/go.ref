@@ -40,7 +40,7 @@ func TestType(t *testing.T) {
 		{tSet, `map[string]struct{}`},
 		{tMap, `map[string]int64`},
 	}
-	data := goData{Env: compile.NewEnv(-1)}
+	data := &goData{Env: compile.NewEnv(-1)}
 	for _, test := range tests {
 		data.Package = &compile.Package{}
 		if got, want := typeGo(data, test.T), test.Want; got != want {
@@ -210,7 +210,7 @@ func (m TestUnionB) MakeVDLTarget() vdl.Target {
 	return nil
 }`},
 	}
-	data := goData{
+	data := &goData{
 		Package:        &compile.Package{},
 		Env:            compile.NewEnv(-1),
 		createdTargets: make(map[*vdl.Type]bool),

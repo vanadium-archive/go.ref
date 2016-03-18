@@ -109,7 +109,7 @@ func (m *WireCiphertext) MakeVDLTarget() vdl.Target {
 type WireCiphertextTarget struct {
 	Value           *WireCiphertext
 	patternIdTarget vdl.StringTarget
-	bytesTarget     unnamed_6d61705b737472696e675d5b5d62797465Target
+	bytesTarget     __VDLTarget1_map
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -144,7 +144,7 @@ func (t *WireCiphertextTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // map[string][]byte
-type unnamed_6d61705b737472696e675d5b5d62797465Target struct {
+type __VDLTarget1_map struct {
 	Value      *map[string][]byte
 	currKey    string
 	currElem   []byte
@@ -154,7 +154,7 @@ type unnamed_6d61705b737472696e675d5b5d62797465Target struct {
 	vdl.MapTargetBase
 }
 
-func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+func (t *__VDLTarget1_map) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
 	if ttWant := vdl.TypeOf((*map[string][]byte)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -162,23 +162,23 @@ func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) StartMap(tt *vdl.Type
 	*t.Value = make(map[string][]byte)
 	return t, nil
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) StartKey() (key vdl.Target, _ error) {
+func (t *__VDLTarget1_map) StartKey() (key vdl.Target, _ error) {
 	t.currKey = ""
 	t.keyTarget.Value = &t.currKey
 	target, err := &t.keyTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+func (t *__VDLTarget1_map) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
 	t.currElem = []byte(nil)
 	t.elemTarget.Value = &t.currElem
 	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) FinishField(key, field vdl.Target) error {
+func (t *__VDLTarget1_map) FinishField(key, field vdl.Target) error {
 	(*t.Value)[t.currKey] = t.currElem
 	return nil
 }
-func (t *unnamed_6d61705b737472696e675d5b5d62797465Target) FinishMap(elem vdl.MapTarget) error {
+func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
@@ -386,7 +386,7 @@ type WirePrivateKeyTarget struct {
 	Value          *WirePrivateKey
 	blessingTarget vdl.StringTarget
 	paramsTarget   WireParamsTarget
-	keysTarget     unnamed_5b5d5b5d62797465Target
+	keysTarget     __VDLTarget2_list
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -425,14 +425,14 @@ func (t *WirePrivateKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // [][]byte
-type unnamed_5b5d5b5d62797465Target struct {
+type __VDLTarget2_list struct {
 	Value      *[][]byte
 	elemTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d5b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *__VDLTarget2_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
 	if ttWant := vdl.TypeOf((*[][]byte)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -444,18 +444,25 @@ func (t *unnamed_5b5d5b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.L
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d5b5d62797465Target) StartElem(index int) (elem vdl.Target, _ error) {
+func (t *__VDLTarget2_list) StartElem(index int) (elem vdl.Target, _ error) {
 	t.elemTarget.Value = &(*t.Value)[index]
 	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_5b5d5b5d62797465Target) FinishElem(elem vdl.Target) error {
+func (t *__VDLTarget2_list) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d5b5d62797465Target) FinishList(elem vdl.ListTarget) error {
+func (t *__VDLTarget2_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZeroWireCiphertext = WireCiphertext{}
+	__VDLZeroWireParams     = WireParams{}
+	__VDLZeroWirePrivateKey = WirePrivateKey{}
+)
 
 //////////////////////////////////////////////////
 // Error definitions

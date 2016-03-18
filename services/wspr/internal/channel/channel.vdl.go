@@ -333,6 +333,13 @@ func (m MessageResponse) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroRequest  = Request{}
+	__VDLZeroResponse = Response{}
+	__VDLZeroMessage  = Message(MessageRequest{})
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

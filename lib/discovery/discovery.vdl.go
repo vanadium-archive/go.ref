@@ -353,7 +353,7 @@ type AdInfoTarget struct {
 	Value                     *AdInfo
 	adTarget                  discovery.AdvertisementTarget
 	encryptionAlgorithmTarget EncryptionAlgorithmTarget
-	encryptionKeysTarget      unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target
+	encryptionKeysTarget      __VDLTarget1_list
 	hashTarget                AdHashTarget
 	dirAddrsTarget            vdl.StringSliceTarget
 	lostTarget                vdl.BoolTarget
@@ -407,14 +407,14 @@ func (t *AdInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // []EncryptionKey
-type unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target struct {
+type __VDLTarget1_list struct {
 	Value      *[]EncryptionKey
 	elemTarget EncryptionKeyTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *__VDLTarget1_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
 	if ttWant := vdl.TypeOf((*[]EncryptionKey)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -426,18 +426,27 @@ func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e63727
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) StartElem(index int) (elem vdl.Target, _ error) {
+func (t *__VDLTarget1_list) StartElem(index int) (elem vdl.Target, _ error) {
 	t.elemTarget.Value = &(*t.Value)[index]
 	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishElem(elem vdl.Target) error {
+func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f6c69622f646973636f766572792e456e6372797074696f6e4b6579205b5d62797465Target) FinishList(elem vdl.ListTarget) error {
+func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZeroEncryptionAlgorithm = EncryptionAlgorithm(0)
+	__VDLZeroEncryptionKey       = EncryptionKey(nil)
+	__VDLZeroUuid                = Uuid(nil)
+	__VDLZeroAdHash              = AdHash{}
+	__VDLZeroAdInfo              = AdInfo{}
+)
 
 //////////////////////////////////////////////////
 // Const definitions

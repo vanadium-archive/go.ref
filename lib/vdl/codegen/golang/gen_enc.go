@@ -16,7 +16,7 @@ import (
 //
 // unionFieldName is the name of the union field (corresponding to the struct
 // that the encode method will be on) if the type is a union
-func genEncDef(data goData, t *vdl.Type, unionFieldName string) string {
+func genEncDef(data *goData, t *vdl.Type, unionFieldName string) string {
 	varCount := 0
 	instName := "(*m)"
 	if t.Kind() == vdl.Struct || t.Kind() == vdl.Union {
@@ -38,7 +38,7 @@ func ttVarName(ttSuffix string) string {
 	return "tt.NonOptional()" + ttSuffix
 }
 
-func genEncDefInternal(data goData, t *vdl.Type, instName, targetName, unionFieldName, ttSuffix string, varCount *int) string {
+func genEncDefInternal(data *goData, t *vdl.Type, instName, targetName, unionFieldName, ttSuffix string, varCount *int) string {
 	ttVar := ttVarName(ttSuffix)
 	if prim := genFromScalar(data, t, instName, targetName, ttSuffix, varCount); prim != "" {
 		return prim
@@ -256,7 +256,7 @@ var wireErrorType = vdl.TypeOf(vdl.WireError{})
 
 // genEncRef generates either a reference to a named encoder or the body of an
 // encoder that must be inlined (e.g. for a unnamed list)
-func genEncRef(data goData, t *vdl.Type, instName, targetName, ttSuffix string, varCount *int) string {
+func genEncRef(data *goData, t *vdl.Type, instName, targetName, ttSuffix string, varCount *int) string {
 	wireInstName, s := encWiretypeInstName(data, t, instName, varCount)
 	s += genEncRefForWiretype(data, t, wireInstName, targetName, ttSuffix, varCount)
 	return s
@@ -264,7 +264,7 @@ func genEncRef(data goData, t *vdl.Type, instName, targetName, ttSuffix string, 
 
 // genEncRefForWiretype is the same as genRef, but it assumes that the instance name refers
 // to a wiretype value.
-func genEncRefForWiretype(data goData, t *vdl.Type, wireInstName, targetName, ttSuffix string, varCount *int) string {
+func genEncRefForWiretype(data *goData, t *vdl.Type, wireInstName, targetName, ttSuffix string, varCount *int) string {
 	origType, ttVar := t, ttVarName(ttSuffix)
 	var s string
 
@@ -300,13 +300,12 @@ func genEncRefForWiretype(data goData, t *vdl.Type, wireInstName, targetName, tt
 
 	// If this is a union value, give it the default value if it is nil.
 	if t.Kind() == vdl.Union {
-		pkgPath, name := vdl.SplitIdent(t.Name())
-		unionName := createUniqueName("unionValue", varCount)
+		unionName, def := createUniqueName("unionValue", varCount), data.Env.FindTypeDef(t)
 		s += fmt.Sprintf(`
 	%[1]s := %[2]s
 	if %[1]s == nil {
 		%[1]s = %[3]s{}
-	}`, unionName, wireInstName, data.Pkg(pkgPath)+name+t.Field(0).Name)
+	}`, unionName, wireInstName, data.Pkg(def.File.Package.GenPath)+def.Name+t.Field(0).Name)
 		wireInstName = unionName
 	}
 
@@ -331,9 +330,9 @@ func genEncRefForWiretype(data goData, t *vdl.Type, wireInstName, targetName, tt
 
 // encWiretypeInstName ensures that inst name is a wiretype. It is a no-op for non-native types
 // but generates conversion code for native types.
-func encWiretypeInstName(data goData, t *vdl.Type, instName string, varCount *int) (wiretypeInstName, body string) {
+func encWiretypeInstName(data *goData, t *vdl.Type, instName string, varCount *int) (wiretypeInstName, body string) {
 	// If this is a native type, convert it to wire type.
-	if isNativeType(t, data.Package) {
+	if isNativeType(data.Env, t) {
 		wirePkgName, name := wiretypeLocalName(data, t)
 		wireType := wirePkgName + name
 		wiretypeInstName = createUniqueName("wireValue", varCount)
@@ -351,13 +350,13 @@ func encWiretypeInstName(data goData, t *vdl.Type, instName string, varCount *in
 	return instName, ""
 }
 
-func wiretypeLocalName(data goData, t *vdl.Type) (pkgName, name string) {
-	pkgPath, name := vdl.SplitIdent(t.Name())
-	return data.Pkg(data.Env.ResolvePackage(pkgPath).GenPath), name
+func wiretypeLocalName(data *goData, t *vdl.Type) (pkgName, name string) {
+	def := data.Env.FindTypeDef(t)
+	return data.Pkg(def.File.Package.GenPath), def.Name
 }
 
 // genFromScalar generates a fromX() call corresponding with the appropriate scalar type.
-func genFromScalar(data goData, t *vdl.Type, instName, targetName, ttSuffix string, varCount *int) string {
+func genFromScalar(data *goData, t *vdl.Type, instName, targetName, ttSuffix string, varCount *int) string {
 	ttVar := ttVarName(ttSuffix)
 	var methodName string
 	var castType string
@@ -402,36 +401,18 @@ func kindVarName(k vdl.Kind) string {
 	return vdlutil.FirstRuneToUpper(k.String())
 }
 
-func containsNativeType(data goData, t *vdl.Type) bool {
+func containsNativeType(data *goData, t *vdl.Type) bool {
 	isNative := !t.Walk(vdl.WalkAll, func(wt *vdl.Type) bool {
-		return !isNativeType(wt, data.Package)
+		return !isNativeType(data.Env, wt)
 	})
 	return isNative
 }
 
-// isNativeType traverses the package structure to determine whether the provided type is native.
-func isNativeType(t *vdl.Type, pkg *compile.Package) bool {
-	pkgPath, name := vdl.SplitIdent(t.Name())
-	return isNativeTypeInternal(pkgPath, name, pkg, map[*compile.Package]bool{})
-}
-
-func isNativeTypeInternal(pkgPath, name string, pkg *compile.Package, seen map[*compile.Package]bool) bool {
-	if seen[pkg] {
-		return false
-	}
-	seen[pkg] = true
-
-	if pkg.Path == pkgPath {
-		_, ok := pkg.Config.Go.WireToNativeTypes[name]
+// isNativeType returns true iff t is a native type.
+func isNativeType(env *compile.Env, t *vdl.Type) bool {
+	if def := env.FindTypeDef(t); def != nil {
+		_, ok := def.File.Package.Config.Go.WireToNativeTypes[def.Name]
 		return ok
-	}
-
-	for _, f := range pkg.Files {
-		for _, dep := range f.PackageDeps {
-			if isNativeTypeInternal(pkgPath, name, dep, seen) {
-				return true
-			}
-		}
 	}
 	return false
 }

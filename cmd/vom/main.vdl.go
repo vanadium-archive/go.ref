@@ -97,6 +97,11 @@ func (t *dataRepTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZerodataRep = dataRepHex
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

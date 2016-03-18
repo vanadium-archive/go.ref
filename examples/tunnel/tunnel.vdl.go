@@ -515,6 +515,15 @@ func (m ServerShellPacketStderr) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroWindowSize        = WindowSize{}
+	__VDLZeroShellOpts         = ShellOpts{}
+	__VDLZerounused            = unused{}
+	__VDLZeroClientShellPacket = ClientShellPacket(ClientShellPacketStdin{})
+	__VDLZeroServerShellPacket = ServerShellPacket(ServerShellPacketStdout{})
+)
+
 //////////////////////////////////////////////////
 // Interface definitions
 

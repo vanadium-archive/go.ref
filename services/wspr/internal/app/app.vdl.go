@@ -386,7 +386,7 @@ type RpcRequestTarget struct {
 	deadlineTarget     time.WireDeadlineTarget
 	traceRequestTarget vtrace.RequestTarget
 	contextTarget      server.ContextTarget
-	callOptionsTarget  unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget
+	callOptionsTarget  __VDLTarget1_list
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -449,14 +449,14 @@ func (t *RpcRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // []RpcCallOption
-type unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget struct {
+type __VDLTarget1_list struct {
 	Value *[]RpcCallOption
 
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *__VDLTarget1_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
 	if ttWant := vdl.TypeOf((*[]RpcCallOption)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -468,14 +468,14 @@ func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e74657
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+func (t *__VDLTarget1_list) StartElem(index int) (elem vdl.Target, _ error) {
 	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
 	return target, err
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget) FinishElem(elem vdl.Target) error {
+func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e52706343616c6c4f7074696f6e20756e696f6e7b416c6c6f77656453657276657273506f6c696379205b5d762e696f2f7632332f73656375726974792e426c657373696e675061747465726e20737472696e673b4772616e74657220762e696f2f782f7265662f73657276696365732f777370722f696e7465726e616c2f6170702e4772616e74657248616e646c6520696e7433327dTarget) FinishList(elem vdl.ListTarget) error {
+func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
@@ -647,7 +647,7 @@ func (m *RpcResponse) MakeVDLTarget() vdl.Target {
 
 type RpcResponseTarget struct {
 	Value               *RpcResponse
-	outArgsTarget       unnamed_5b5d616e79Target
+	outArgsTarget       __VDLTarget2_list
 	traceResponseTarget vtrace.ResponseTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
@@ -683,14 +683,14 @@ func (t *RpcResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // []*vom.RawBytes
-type unnamed_5b5d616e79Target struct {
+type __VDLTarget2_list struct {
 	Value *[]*vom.RawBytes
 
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *__VDLTarget2_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
 	if ttWant := vdl.TypeOf((*[]*vom.RawBytes)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -702,14 +702,14 @@ func (t *unnamed_5b5d616e79Target) StartList(tt *vdl.Type, len int) (vdl.ListTar
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d616e79Target) StartElem(index int) (elem vdl.Target, _ error) {
+func (t *__VDLTarget2_list) StartElem(index int) (elem vdl.Target, _ error) {
 	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
 	return target, err
 }
-func (t *unnamed_5b5d616e79Target) FinishElem(elem vdl.Target) error {
+func (t *__VDLTarget2_list) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d616e79Target) FinishList(elem vdl.ListTarget) error {
+func (t *__VDLTarget2_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
@@ -907,6 +907,17 @@ func (t *GranterResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZeroGranterHandle   = GranterHandle(0)
+	__VDLZeroRpcCallOption   = RpcCallOption(RpcCallOptionAllowedServersPolicy{})
+	__VDLZeroRpcRequest      = RpcRequest{}
+	__VDLZeroRpcServerOption = RpcServerOption(RpcServerOptionIsLeaf{})
+	__VDLZeroRpcResponse     = RpcResponse{}
+	__VDLZeroGranterRequest  = GranterRequest{}
+	__VDLZeroGranterResponse = GranterResponse{}
+)
 
 //////////////////////////////////////////////////
 // Interface definitions

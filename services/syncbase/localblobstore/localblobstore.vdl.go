@@ -217,6 +217,12 @@ func (t *PerSyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroBlobMetadata = BlobMetadata{}
+	__VDLZeroPerSyncgroup = PerSyncgroup{}
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

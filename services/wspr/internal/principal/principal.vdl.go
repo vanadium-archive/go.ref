@@ -362,6 +362,14 @@ func (m BlessingsCacheMessageDelete) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroBlessingsId                 = BlessingsId(0)
+	__VDLZeroBlessingsCacheAddMessage    = BlessingsCacheAddMessage{}
+	__VDLZeroBlessingsCacheDeleteMessage = BlessingsCacheDeleteMessage{}
+	__VDLZeroBlessingsCacheMessage       = BlessingsCacheMessage(BlessingsCacheMessageAdd{})
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

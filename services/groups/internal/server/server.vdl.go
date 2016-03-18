@@ -93,7 +93,7 @@ func (m *groupData) MakeVDLTarget() vdl.Target {
 type groupDataTarget struct {
 	Value         *groupData
 	permsTarget   access.PermissionsTarget
-	entriesTarget unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget
+	entriesTarget __VDLTarget1_set
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -128,7 +128,7 @@ func (t *groupDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // map[groups.BlessingPatternChunk]struct{}
-type unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget struct {
+type __VDLTarget1_set struct {
 	Value     *map[groups.BlessingPatternChunk]struct{}
 	currKey   groups.BlessingPatternChunk
 	keyTarget groups.BlessingPatternChunkTarget
@@ -136,7 +136,7 @@ type unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c65737
 	vdl.SetTargetBase
 }
 
-func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+func (t *__VDLTarget1_set) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 
 	if ttWant := vdl.TypeOf((*map[groups.BlessingPatternChunk]struct{})(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -144,23 +144,28 @@ func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c6
 	*t.Value = make(map[groups.BlessingPatternChunk]struct{})
 	return t, nil
 }
-func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) StartKey() (key vdl.Target, _ error) {
+func (t *__VDLTarget1_set) StartKey() (key vdl.Target, _ error) {
 	t.currKey = groups.BlessingPatternChunk("")
 	t.keyTarget.Value = &t.currKey
 	target, err := &t.keyTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) FinishKey(key vdl.Target) error {
+func (t *__VDLTarget1_set) FinishKey(key vdl.Target) error {
 	(*t.Value)[t.currKey] = struct{}{}
 	return nil
 }
-func (t *unnamed_7365745b762e696f2f7632332f73657276696365732f67726f7570732e426c657373696e675061747465726e4368756e6b20737472696e675dTarget) FinishSet(list vdl.SetTarget) error {
+func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZerogroupData = groupData{}
+)
 
 var __VDLInitCalled bool
 

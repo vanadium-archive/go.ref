@@ -452,6 +452,14 @@ func (m RpcMessageResp) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroConnInfo    = ConnInfo{}
+	__VDLZeroRpcRequest  = RpcRequest{}
+	__VDLZeroRpcResponse = RpcResponse{}
+	__VDLZeroRpcMessage  = RpcMessage(RpcMessageReq{})
+)
+
 //////////////////////////////////////////////////
 // Interface definitions
 

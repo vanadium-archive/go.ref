@@ -183,6 +183,12 @@ func (t *ConnBehaviorTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroConnKey      = ConnKey{}
+	__VDLZeroConnBehavior = ConnBehavior{}
+)
+
 //////////////////////////////////////////////////
 // Error definitions
 var (

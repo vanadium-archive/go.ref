@@ -1776,9 +1776,9 @@ func (m *Composite) MakeVDLTarget() vdl.Target {
 type CompositeTarget struct {
 	Value         *Composite
 	arrTarget     Array2StringTarget
-	listIntTarget unnamed_5b5d696e743332Target
-	mySetTarget   unnamed_7365745b696e7433325dTarget
-	mapTarget     unnamed_6d61705b737472696e675d696e743332Target
+	listIntTarget __VDLTarget1_list
+	mySetTarget   __VDLTarget2_set
+	mapTarget     __VDLTarget3_map
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1821,14 +1821,14 @@ func (t *CompositeTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // []int32
-type unnamed_5b5d696e743332Target struct {
+type __VDLTarget1_list struct {
 	Value      *[]int32
 	elemTarget vdl.Int32Target
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d696e743332Target) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *__VDLTarget1_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
 	if ttWant := vdl.TypeOf((*[]int32)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -1840,21 +1840,21 @@ func (t *unnamed_5b5d696e743332Target) StartList(tt *vdl.Type, len int) (vdl.Lis
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d696e743332Target) StartElem(index int) (elem vdl.Target, _ error) {
+func (t *__VDLTarget1_list) StartElem(index int) (elem vdl.Target, _ error) {
 	t.elemTarget.Value = &(*t.Value)[index]
 	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_5b5d696e743332Target) FinishElem(elem vdl.Target) error {
+func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d696e743332Target) FinishList(elem vdl.ListTarget) error {
+func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
 
 // map[int32]struct{}
-type unnamed_7365745b696e7433325dTarget struct {
+type __VDLTarget2_set struct {
 	Value     *map[int32]struct{}
 	currKey   int32
 	keyTarget vdl.Int32Target
@@ -1862,7 +1862,7 @@ type unnamed_7365745b696e7433325dTarget struct {
 	vdl.SetTargetBase
 }
 
-func (t *unnamed_7365745b696e7433325dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+func (t *__VDLTarget2_set) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 
 	if ttWant := vdl.TypeOf((*map[int32]struct{})(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -1870,17 +1870,17 @@ func (t *unnamed_7365745b696e7433325dTarget) StartSet(tt *vdl.Type, len int) (vd
 	*t.Value = make(map[int32]struct{})
 	return t, nil
 }
-func (t *unnamed_7365745b696e7433325dTarget) StartKey() (key vdl.Target, _ error) {
+func (t *__VDLTarget2_set) StartKey() (key vdl.Target, _ error) {
 	t.currKey = int32(0)
 	t.keyTarget.Value = &t.currKey
 	target, err := &t.keyTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_7365745b696e7433325dTarget) FinishKey(key vdl.Target) error {
+func (t *__VDLTarget2_set) FinishKey(key vdl.Target) error {
 	(*t.Value)[t.currKey] = struct{}{}
 	return nil
 }
-func (t *unnamed_7365745b696e7433325dTarget) FinishSet(list vdl.SetTarget) error {
+func (t *__VDLTarget2_set) FinishSet(list vdl.SetTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
@@ -1889,7 +1889,7 @@ func (t *unnamed_7365745b696e7433325dTarget) FinishSet(list vdl.SetTarget) error
 }
 
 // map[string]int32
-type unnamed_6d61705b737472696e675d696e743332Target struct {
+type __VDLTarget3_map struct {
 	Value      *map[string]int32
 	currKey    string
 	currElem   int32
@@ -1899,7 +1899,7 @@ type unnamed_6d61705b737472696e675d696e743332Target struct {
 	vdl.MapTargetBase
 }
 
-func (t *unnamed_6d61705b737472696e675d696e743332Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+func (t *__VDLTarget3_map) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
 	if ttWant := vdl.TypeOf((*map[string]int32)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -1907,23 +1907,23 @@ func (t *unnamed_6d61705b737472696e675d696e743332Target) StartMap(tt *vdl.Type, 
 	*t.Value = make(map[string]int32)
 	return t, nil
 }
-func (t *unnamed_6d61705b737472696e675d696e743332Target) StartKey() (key vdl.Target, _ error) {
+func (t *__VDLTarget3_map) StartKey() (key vdl.Target, _ error) {
 	t.currKey = ""
 	t.keyTarget.Value = &t.currKey
 	target, err := &t.keyTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d696e743332Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+func (t *__VDLTarget3_map) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
 	t.currElem = int32(0)
 	t.elemTarget.Value = &t.currElem
 	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d696e743332Target) FinishField(key, field vdl.Target) error {
+func (t *__VDLTarget3_map) FinishField(key, field vdl.Target) error {
 	(*t.Value)[t.currKey] = t.currElem
 	return nil
 }
-func (t *unnamed_6d61705b737472696e675d696e743332Target) FinishMap(elem vdl.MapTarget) error {
+func (t *__VDLTarget3_map) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
@@ -2136,7 +2136,7 @@ func (m *Recursive) MakeVDLTarget() vdl.Target {
 type RecursiveTarget struct {
 	Value *Recursive
 
-	maybeTarget unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7dTarget
+	maybeTarget __VDLTarget4_optional
 
 	vdl.TargetBase
 	vdl.FieldsTargetBase
@@ -2159,7 +2159,7 @@ func (t *RecursiveTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.maybeTarget, error(nil)
 		return nil, target, err
 	case "Rec":
-		target, err := &unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget{Value: &t.Value.Rec}, error(nil)
+		target, err := &__VDLTarget5_map{Value: &t.Value.Rec}, error(nil)
 		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/cmd/sb/internal/demodb.Recursive", name)
@@ -2174,14 +2174,14 @@ func (t *RecursiveTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // Optional Times
-type unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7dTarget struct {
+type __VDLTarget4_optional struct {
 	Value      **Times
 	elemTarget TimesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
 
-func (t *unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7dTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+func (t *__VDLTarget4_optional) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
 	if *t.Value == nil {
 		*t.Value = &Times{}
@@ -2193,11 +2193,11 @@ func (t *unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6
 	}
 	return target.StartFields(tt)
 }
-func (t *unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7dTarget) FinishFields(_ vdl.FieldsTarget) error {
+func (t *__VDLTarget4_optional) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-func (t *unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7dTarget) FromNil(tt *vdl.Type) error {
+func (t *__VDLTarget4_optional) FromNil(tt *vdl.Type) error {
 
 	*t.Value = nil
 
@@ -2205,7 +2205,7 @@ func (t *unnamed_3f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6
 }
 
 // map[Array2String]Recursive
-type unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget struct {
+type __VDLTarget5_map struct {
 	Value     *map[Array2String]Recursive
 	currKey   Array2String
 	currElem  Recursive
@@ -2215,7 +2215,7 @@ type unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656
 	vdl.MapTargetBase
 }
 
-func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+func (t *__VDLTarget5_map) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
 	if ttWant := vdl.TypeOf((*map[Array2String]Recursive)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -2223,22 +2223,22 @@ func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f6
 	*t.Value = make(map[Array2String]Recursive)
 	return t, nil
 }
-func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget) StartKey() (key vdl.Target, _ error) {
+func (t *__VDLTarget5_map) StartKey() (key vdl.Target, _ error) {
 	t.currKey = Array2String{}
 	t.keyTarget.Value = &t.currKey
 	target, err := &t.keyTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+func (t *__VDLTarget5_map) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
 	t.currElem = reflect.Zero(reflect.TypeOf(t.currElem)).Interface().(Recursive)
 	target, err := &RecursiveTarget{Value: &t.currElem}, error(nil)
 	return target, err
 }
-func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget) FinishField(key, field vdl.Target) error {
+func (t *__VDLTarget5_map) FinishField(key, field vdl.Target) error {
 	(*t.Value)[t.currKey] = t.currElem
 	return nil
 }
-func (t *unnamed_6d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e67205b325d737472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e526563757273697665207374727563747b416e7920616e793b4d61796265203f762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e54696d6573207374727563747b5374616d702074696d652e54696d65207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d3b496e74657276616c2074696d652e4475726174696f6e207374727563747b5365636f6e647320696e7436343b4e616e6f7320696e7433327d7d3b526563206d61705b762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e417272617932537472696e675d762e696f2f782f7265662f636d642f73622f696e7465726e616c2f64656d6f64622e5265637572736976657dTarget) FinishMap(elem vdl.MapTarget) error {
+func (t *__VDLTarget5_map) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
@@ -2543,6 +2543,52 @@ func (t *AnythingGoesTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZeroAddressInfo            = AddressInfo{}
+	__VDLZeroCreditAgency           = CreditAgencyEquifax
+	__VDLZeroExperianRating         = ExperianRatingGood
+	__VDLZeroEquifaxCreditReport    = EquifaxCreditReport{}
+	__VDLZeroExperianCreditReport   = ExperianCreditReport{}
+	__VDLZeroTransUnionCreditReport = TransUnionCreditReport{}
+	__VDLZeroAgencyReport           = AgencyReport(AgencyReportEquifaxReport{})
+	__VDLZeroCreditReport           = CreditReport{
+		Report: AgencyReportEquifaxReport{},
+	}
+	__VDLZeroCustomer = Customer{
+		Credit: CreditReport{
+			Report: AgencyReportEquifaxReport{},
+		},
+	}
+	__VDLZeroInvoice          = Invoice{}
+	__VDLZeroNumbers          = Numbers{}
+	__VDLZeroTitleOrValueType = TitleOrValueType(TitleOrValueTypeTitle{})
+	__VDLZeroBazType          = BazType{
+		TitleOrValue: TitleOrValueTypeTitle{},
+	}
+	__VDLZeroBarType = BarType{
+		Baz: BazType{
+			TitleOrValue: TitleOrValueTypeTitle{},
+		},
+	}
+	__VDLZeroFooType = FooType{
+		Bar: BarType{
+			Baz: BazType{
+				TitleOrValue: TitleOrValueTypeTitle{},
+			},
+		},
+	}
+	__VDLZeroArray2String  = Array2String{}
+	__VDLZeroComposite     = Composite{}
+	__VDLZeroTimes         = Times{}
+	__VDLZeroRecursive     = Recursive{}
+	__VDLZeroActOrSatScore = ActOrSatScore(ActOrSatScoreActScore{})
+	__VDLZeroStudent       = Student{
+		Score: ActOrSatScoreActScore{},
+	}
+	__VDLZeroAnythingGoes = AnythingGoes{}
+)
 
 var __VDLInitCalled bool
 

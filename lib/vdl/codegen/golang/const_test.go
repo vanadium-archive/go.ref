@@ -65,7 +65,7 @@ A: "foo",
 B: 123,
 }`},
 		{"UnionABC", vUnionABC, `TestUnion(TestUnionA{"abc"})`},
-		{"Union123", vUnion123, `TestUnion(TestUnionB{int64(123)})`},
+		{"Union123", vUnion123, `TestUnion(TestUnionB{123})`},
 		{"AnyABC", vAnyABC, `vom.RawBytesOf("abc")`},
 		{"Any123", vAny123, `vom.RawBytesOf(int64(123))`},
 		{"TypeObjectBool", vdl.TypeObjectValue(vdl.BoolType), `vdl.TypeOf((*bool)(nil))`},
@@ -87,7 +87,7 @@ B: 123,
 		{"TypeObjectTypeObject", vdl.TypeObjectValue(vdl.TypeObjectType), `vdl.TypeObjectType`},
 		// TODO(toddw): Add tests for optional types.
 	}
-	data := goData{Env: compile.NewEnv(-1)}
+	data := &goData{Env: compile.NewEnv(-1)}
 	for _, test := range tests {
 		data.Package = &compile.Package{}
 		if got, want := typedConst(data, test.V), test.Want; got != want {

@@ -25,6 +25,7 @@ type goData struct {
 	Env            *compile.Env
 	Imports        goImports
 	createdTargets map[*vdl.Type]bool // set of types whose Targets have already been created
+	unnamedTargets map[*vdl.Type]int  // tracks unnamed target numbers
 
 	collectImports bool // is this the import collecting pass instead of normal generation
 	importMap      importMap
@@ -94,6 +95,7 @@ func Generate(pkg *compile.Package, env *compile.Env) []byte {
 		collectImports: true,
 		importMap:      importMap{},
 		createdTargets: make(map[*vdl.Type]bool),
+		unnamedTargets: make(map[*vdl.Type]int),
 	}
 	// The implementation uses the template mechanism from text/template and
 	// executes the template against the goData instance.
@@ -112,12 +114,11 @@ func Generate(pkg *compile.Package, env *compile.Env) []byte {
 	// Sort the imports.
 	data.Imports = goImports(data.importMap.Sort())
 
-	// Reset created targets.
-	data.createdTargets = make(map[*vdl.Type]bool)
-
 	// Second pass: re-run the templates with the final imports to generate the
 	// output file.
 	data.collectImports = false
+	data.createdTargets = make(map[*vdl.Type]bool)
+	data.unnamedTargets = make(map[*vdl.Type]int)
 	buf.Reset()
 	if err := goTemplate.Execute(&buf, data); err != nil {
 		// We shouldn't see an error; it means our template is buggy.
@@ -206,12 +207,14 @@ func init() {
 		"firstRuneToExport":       vdlutil.FirstRuneToExportCase,
 		"firstRuneToUpper":        vdlutil.FirstRuneToUpper,
 		"firstRuneToLower":        vdlutil.FirstRuneToLower,
+		"vdlZeroValue":            vdl.ZeroValue,
 		"errorName":               errorName,
 		"nativeIdent":             nativeIdent,
 		"typeGo":                  typeGo,
 		"typeDefGo":               typeDefGo,
 		"constDefGo":              constDefGo,
 		"genValueOf":              genValueOf,
+		"typedConst":              typedConst,
 		"embedGo":                 embedGo,
 		"isStreamingMethod":       isStreamingMethod,
 		"hasStreamingMethods":     hasStreamingMethods,
@@ -267,7 +270,7 @@ func docBreak(doc string) string {
 }
 
 // argTypes returns a comma-separated list of each type from args.
-func argTypes(first, last string, data goData, args []*compile.Field) string {
+func argTypes(first, last string, data *goData, args []*compile.Field) string {
 	var result []string
 	if first != "" {
 		result = append(result, first)
@@ -314,7 +317,7 @@ func argNames(boxPrefix, argPrefix, first, second, last string, args []*compile.
 // argPrefix is empty, the name specified in args is used; otherwise the name is
 // prefixD, where D is the position of the argument.  If argPrefix is empty and
 // no names are specified in args, no names will be output.
-func argNameTypes(argPrefix, first, second, last string, data goData, args []*compile.Field) string {
+func argNameTypes(argPrefix, first, second, last string, data *goData, args []*compile.Field) string {
 	noNames := argPrefix == "" && !hasArgNames(args)
 	var result []string
 	if first != "" {
@@ -376,7 +379,7 @@ func uniqueNameImpl(iface *compile.Interface, method *compile.Method, suffix str
 
 // The first arg of every server method is a context; the type is either a typed
 // context for streams, or rpc.ServerCall for non-streams.
-func serverCallVar(name string, data goData, iface *compile.Interface, method *compile.Method) string {
+func serverCallVar(name string, data *goData, iface *compile.Interface, method *compile.Method) string {
 	if isStreamingMethod(method) {
 		return name + " " + uniqueName(iface, method, "ServerCall")
 	}
@@ -385,7 +388,7 @@ func serverCallVar(name string, data goData, iface *compile.Interface, method *c
 
 // The first arg of every server stub method is a context; the type is either a
 // typed context stub for streams, or rpc.ServerCall for non-streams.
-func serverCallStubVar(name string, data goData, iface *compile.Interface, method *compile.Method) string {
+func serverCallStubVar(name string, data *goData, iface *compile.Interface, method *compile.Method) string {
 	if isStreamingMethod(method) {
 		return name + " *" + uniqueName(iface, method, "ServerCallStub")
 	}
@@ -395,7 +398,7 @@ func serverCallStubVar(name string, data goData, iface *compile.Interface, metho
 // outArgsClient returns the out args of an interface method on the client,
 // wrapped in parens if necessary.  The client side always returns a final
 // error, in addition to the regular out-args.
-func outArgsClient(argPrefix string, errName string, data goData, iface *compile.Interface, method *compile.Method) string {
+func outArgsClient(argPrefix string, errName string, data *goData, iface *compile.Interface, method *compile.Method) string {
 	first, args := "", method.OutArgs
 	if isStreamingMethod(method) {
 		first, args = "ocall "+uniqueName(iface, method, "ClientCall"), nil
@@ -404,7 +407,7 @@ func outArgsClient(argPrefix string, errName string, data goData, iface *compile
 }
 
 // clientStubImpl returns the interface method client stub implementation.
-func clientStubImpl(data goData, iface *compile.Interface, method *compile.Method) string {
+func clientStubImpl(data *goData, iface *compile.Interface, method *compile.Method) string {
 	var buf bytes.Buffer
 	inargs := "nil"
 	if len(method.InArgs) > 0 {
@@ -433,14 +436,14 @@ func clientFinishImpl(varname string, method *compile.Method) string {
 }
 
 // serverStubImpl returns the interface method server stub implementation.
-func serverStubImpl(data goData, iface *compile.Interface, method *compile.Method) string {
+func serverStubImpl(data *goData, iface *compile.Interface, method *compile.Method) string {
 	var buf bytes.Buffer
 	inargs := argNames("", "i", "ctx", "call", "", method.InArgs)
 	fmt.Fprintf(&buf, "\treturn s.impl.%s(%s)", method.Name, inargs)
 	return buf.String() // the caller writes the trailing newline
 }
 
-func reInitStreamValue(data goData, t *vdl.Type, name string) string {
+func reInitStreamValue(data *goData, t *vdl.Type, name string) string {
 	switch t.Kind() {
 	case vdl.Struct:
 		return name + " = " + typeGo(data, t) + "{}\n"
@@ -498,10 +501,20 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 {{typeDefGo $data $tdef}}
 {{end}}
 
+// Create zero values for each type.
+var (
+{{range $tdef := $pkg.TypeDefs}}
+	__VDLZero{{$tdef.Name}} = {{typedConst $data (vdlZeroValue $tdef.Type)}}{{end}}
+)
+
+{{if $pkg.Config.Go.WireToNativeTypes}}
+// Type-check native conversion functions.
+var (
 {{range $wire, $native := $pkg.Config.Go.WireToNativeTypes}}{{$nat := nativeIdent $data $native $pkg}}
-// Type-check {{$wire}} conversion functions.
-var _ func({{$wire}}, *{{$nat}}) error = {{$wire}}ToNative
-var _ func(*{{$wire}}, {{$nat}}) error = {{$wire}}FromNative{{end}}
+	_ func({{$wire}}, *{{$nat}}) error = {{$wire}}ToNative
+	_ func(*{{$wire}}, {{$nat}}) error = {{$wire}}FromNative{{end}}
+)
+{{end}}
 {{end}}
 
 {{if $pkg.ConstDefs}}

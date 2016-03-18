@@ -170,6 +170,12 @@ func (t *Array2IntTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
+// Create zero values for each type.
+var (
+	__VDLZeroStruct    = Struct{}
+	__VDLZeroArray2Int = Array2Int{}
+)
+
 //////////////////////////////////////////////////
 // Interface definitions
 

@@ -941,7 +941,7 @@ type SyncgroupTarget struct {
 	appNameTarget     vdl.StringTarget
 	dbNameTarget      vdl.StringTarget
 	statusTarget      SyncgroupStatusTarget
-	joinersTarget     unnamed_6d61705b737472696e675d762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e53796e6367726f75704d656d626572496e666f207374727563747b53796e635072696f7269747920627974653b497353657276657220626f6f6c7dTarget
+	joinersTarget     __VDLTarget1_map
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1004,7 +1004,7 @@ func (t *SyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // map[string]nosql.SyncgroupMemberInfo
-type unnamed_6d61705b737472696e675d762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e53796e6367726f75704d656d626572496e666f207374727563747b53796e635072696f7269747920627974653b497353657276657220626f6f6c7dTarget struct {
+type __VDLTarget1_map struct {
 	Value      *map[string]nosql.SyncgroupMemberInfo
 	currKey    string
 	currElem   nosql.SyncgroupMemberInfo
@@ -1014,7 +1014,7 @@ type unnamed_6d61705b737472696e675d762e696f2f7632332f73657276696365732f73796e636
 	vdl.MapTargetBase
 }
 
-func (t *unnamed_6d61705b737472696e675d762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e53796e6367726f75704d656d626572496e666f207374727563747b53796e635072696f7269747920627974653b497353657276657220626f6f6c7dTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+func (t *__VDLTarget1_map) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
 	if ttWant := vdl.TypeOf((*map[string]nosql.SyncgroupMemberInfo)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -1022,23 +1022,23 @@ func (t *unnamed_6d61705b737472696e675d762e696f2f7632332f73657276696365732f73796
 	*t.Value = make(map[string]nosql.SyncgroupMemberInfo)
 	return t, nil
 }
-func (t *unnamed_6d61705b737472696e675d762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e53796e6367726f75704d656d626572496e666f207374727563747b53796e635072696f7269747920627974653b497353657276657220626f6f6c7dTarget) StartKey() (key vdl.Target, _ error) {
+func (t *__VDLTarget1_map) StartKey() (key vdl.Target, _ error) {
 	t.currKey = ""
 	t.keyTarget.Value = &t.currKey
 	target, err := &t.keyTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e53796e6367726f75704d656d626572496e666f207374727563747b53796e635072696f7269747920627974653b497353657276657220626f6f6c7dTarget) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+func (t *__VDLTarget1_map) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
 	t.currElem = nosql.SyncgroupMemberInfo{}
 	t.elemTarget.Value = &t.currElem
 	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e53796e6367726f75704d656d626572496e666f207374727563747b53796e635072696f7269747920627974653b497353657276657220626f6f6c7dTarget) FinishField(key, field vdl.Target) error {
+func (t *__VDLTarget1_map) FinishField(key, field vdl.Target) error {
 	(*t.Value)[t.currKey] = t.currElem
 	return nil
 }
-func (t *unnamed_6d61705b737472696e675d762e696f2f7632332f73657276696365732f73796e63626173652f6e6f73716c2e53796e6367726f75704d656d626572496e666f207374727563747b53796e635072696f7269747920627974653b497353657276657220626f6f6c7dTarget) FinishMap(elem vdl.MapTarget) error {
+func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
@@ -1257,7 +1257,7 @@ type DataDeltaReqTarget struct {
 	Value         *DataDeltaReq
 	appNameTarget vdl.StringTarget
 	dbNameTarget  vdl.StringTarget
-	sgIdsTarget   unnamed_7365745b762e696f2f782f7265662f73657276696365732f73796e63626173652f7365727665722f696e74657266616365732e47726f757049642075696e7436345dTarget
+	sgIdsTarget   __VDLTarget2_set
 	gvsTarget     KnowledgeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
@@ -1301,7 +1301,7 @@ func (t *DataDeltaReqTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // map[GroupId]struct{}
-type unnamed_7365745b762e696f2f782f7265662f73657276696365732f73796e63626173652f7365727665722f696e74657266616365732e47726f757049642075696e7436345dTarget struct {
+type __VDLTarget2_set struct {
 	Value     *map[GroupId]struct{}
 	currKey   GroupId
 	keyTarget GroupIdTarget
@@ -1309,7 +1309,7 @@ type unnamed_7365745b762e696f2f782f7265662f73657276696365732f73796e63626173652f7
 	vdl.SetTargetBase
 }
 
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f73796e63626173652f7365727665722f696e74657266616365732e47726f757049642075696e7436345dTarget) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
+func (t *__VDLTarget2_set) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 
 	if ttWant := vdl.TypeOf((*map[GroupId]struct{})(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -1317,17 +1317,17 @@ func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f73796e636261736
 	*t.Value = make(map[GroupId]struct{})
 	return t, nil
 }
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f73796e63626173652f7365727665722f696e74657266616365732e47726f757049642075696e7436345dTarget) StartKey() (key vdl.Target, _ error) {
+func (t *__VDLTarget2_set) StartKey() (key vdl.Target, _ error) {
 	t.currKey = GroupId(0)
 	t.keyTarget.Value = &t.currKey
 	target, err := &t.keyTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f73796e63626173652f7365727665722f696e74657266616365732e47726f757049642075696e7436345dTarget) FinishKey(key vdl.Target) error {
+func (t *__VDLTarget2_set) FinishKey(key vdl.Target) error {
 	(*t.Value)[t.currKey] = struct{}{}
 	return nil
 }
-func (t *unnamed_7365745b762e696f2f782f7265662f73657276696365732f73796e63626173652f7365727665722f696e74657266616365732e47726f757049642075696e7436345dTarget) FinishSet(list vdl.SetTarget) error {
+func (t *__VDLTarget2_set) FinishSet(list vdl.SetTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
@@ -2362,7 +2362,7 @@ type SignpostTarget struct {
 	Value        *Signpost
 	peerTarget   vdl.StringTarget
 	sourceTarget vdl.StringTarget
-	sgIdsTarget  unnamed_7365745b762e696f2f782f7265662f73657276696365732f73796e63626173652f7365727665722f696e74657266616365732e47726f757049642075696e7436345dTarget
+	sgIdsTarget  __VDLTarget2_set
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -2399,6 +2399,30 @@ func (t *SignpostTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZeroGenVector             = GenVector(nil)
+	__VDLZeroKnowledge             = Knowledge(nil)
+	__VDLZeroLogRecMetadata        = LogRecMetadata{}
+	__VDLZeroLogRec                = LogRec{}
+	__VDLZeroGroupId               = GroupId(0)
+	__VDLZeroSyncgroupStatus       = SyncgroupStatusPublishPending
+	__VDLZeroSyncgroup             = Syncgroup{}
+	__VDLZeroSgDeltaReq            = SgDeltaReq{}
+	__VDLZeroDataDeltaReq          = DataDeltaReq{}
+	__VDLZeroDeltaReq              = DeltaReq(DeltaReqSgs{})
+	__VDLZeroDeltaResp             = DeltaResp(DeltaRespRec{})
+	__VDLZeroSgPriority            = SgPriority{}
+	__VDLZeroSgPriorities          = SgPriorities(nil)
+	__VDLZeroDeltaFinalResp        = DeltaFinalResp{}
+	__VDLZeroChunkHash             = ChunkHash{}
+	__VDLZeroChunkData             = ChunkData{}
+	__VDLZeroTimeReq               = TimeReq{}
+	__VDLZeroTimeResp              = TimeResp{}
+	__VDLZeroBlobSharesBySyncgroup = BlobSharesBySyncgroup(nil)
+	__VDLZeroSignpost              = Signpost{}
+)
 
 //////////////////////////////////////////////////
 // Const definitions

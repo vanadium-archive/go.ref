@@ -284,7 +284,7 @@ func (m *DataWithSignature) MakeVDLTarget() vdl.Target {
 
 type DataWithSignatureTarget struct {
 	Value                   *DataWithSignature
-	dataTarget              unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget
+	dataTarget              __VDLTarget1_list
 	blessingsHashTarget     vdl.BytesTarget
 	authorSignedTarget      security.SignatureTarget
 	isValidatedTarget       vdl.BoolTarget
@@ -340,14 +340,14 @@ func (t *DataWithSignatureTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // []Item
-type unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget struct {
+type __VDLTarget1_list struct {
 	Value *[]Item
 
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *__VDLTarget1_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
 	if ttWant := vdl.TypeOf((*[]Item)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -359,14 +359,14 @@ func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7
 	}
 	return t, nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) StartElem(index int) (elem vdl.Target, _ error) {
+func (t *__VDLTarget1_list) StartElem(index int) (elem vdl.Target, _ error) {
 	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
 	return target, err
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) FinishElem(elem vdl.Target) error {
+func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *unnamed_5b5d762e696f2f782f7265662f73657276696365732f73796e63626173652f7369676e696e672e4974656d20756e696f6e7b44617461205b5d627974653b48617368205b5d627974657dTarget) FinishList(elem vdl.ListTarget) error {
+func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
@@ -477,6 +477,13 @@ func (t *WireValidatorDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZeroItem              = Item(ItemData{})
+	__VDLZeroDataWithSignature = DataWithSignature{}
+	__VDLZeroWireValidatorData = WireValidatorData{}
+)
 
 var __VDLInitCalled bool
 

@@ -816,8 +816,8 @@ func (m *BatchInfo) MakeVDLTarget() vdl.Target {
 
 type BatchInfoTarget struct {
 	Value               *BatchInfo
-	objectsTarget       unnamed_6d61705b737472696e675d737472696e67Target
-	linkedObjectsTarget unnamed_6d61705b737472696e675d737472696e67Target
+	objectsTarget       __VDLTarget1_map
+	linkedObjectsTarget __VDLTarget1_map
 	countTarget         vdl.Uint64Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
@@ -857,7 +857,7 @@ func (t *BatchInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // map[string]string
-type unnamed_6d61705b737472696e675d737472696e67Target struct {
+type __VDLTarget1_map struct {
 	Value      *map[string]string
 	currKey    string
 	currElem   string
@@ -867,7 +867,7 @@ type unnamed_6d61705b737472696e675d737472696e67Target struct {
 	vdl.MapTargetBase
 }
 
-func (t *unnamed_6d61705b737472696e675d737472696e67Target) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+func (t *__VDLTarget1_map) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
 	if ttWant := vdl.TypeOf((*map[string]string)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -875,29 +875,39 @@ func (t *unnamed_6d61705b737472696e675d737472696e67Target) StartMap(tt *vdl.Type
 	*t.Value = make(map[string]string)
 	return t, nil
 }
-func (t *unnamed_6d61705b737472696e675d737472696e67Target) StartKey() (key vdl.Target, _ error) {
+func (t *__VDLTarget1_map) StartKey() (key vdl.Target, _ error) {
 	t.currKey = ""
 	t.keyTarget.Value = &t.currKey
 	target, err := &t.keyTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d737472696e67Target) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+func (t *__VDLTarget1_map) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
 	t.currElem = ""
 	t.elemTarget.Value = &t.currElem
 	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
-func (t *unnamed_6d61705b737472696e675d737472696e67Target) FinishField(key, field vdl.Target) error {
+func (t *__VDLTarget1_map) FinishField(key, field vdl.Target) error {
 	(*t.Value)[t.currKey] = t.currElem
 	return nil
 }
-func (t *unnamed_6d61705b737472696e675d737472696e67Target) FinishMap(elem vdl.MapTarget) error {
+func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 	if len(*t.Value) == 0 {
 		*t.Value = nil
 	}
 
 	return nil
 }
+
+// Create zero values for each type.
+var (
+	__VDLZeroSyncData     = SyncData{}
+	__VDLZeroDbSyncState  = DbSyncState{}
+	__VDLZeroLocalLogRec  = LocalLogRec{}
+	__VDLZeroSgLocalState = SgLocalState{}
+	__VDLZeroDagNode      = DagNode{}
+	__VDLZeroBatchInfo    = BatchInfo{}
+)
 
 var __VDLInitCalled bool
 
