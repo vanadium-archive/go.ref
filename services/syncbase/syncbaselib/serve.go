@@ -43,11 +43,11 @@ func Serve(ctx *context.T, opts Opts) (rpc.Server, rpc.Dispatcher, func()) {
 		vlog.Infof("Read permissions from command line flag: %v", server.PermsString(perms))
 	}
 	service, err := server.NewService(ctx, server.ServiceOptions{
-		Perms:                 perms,
-		RootDir:               opts.RootDir,
-		Engine:                opts.Engine,
-		PublishInNeighborhood: opts.PublishInNeighborhood,
-		DevMode:               opts.DevMode,
+		Perms:           perms,
+		RootDir:         opts.RootDir,
+		Engine:          opts.Engine,
+		SkipPublishInNh: opts.SkipPublishInNh,
+		DevMode:         opts.DevMode,
 	})
 	if err != nil {
 		vlog.Fatal("server.NewService() failed: ", err)

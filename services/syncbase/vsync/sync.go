@@ -106,7 +106,7 @@ type syncService struct {
 	cancelAdvSyncgroups map[string]context.CancelFunc // cancels syncgroup advertising.
 
 	// Whether to enable neighborhood advertising.
-	publishInNH bool
+	publishInNh bool
 
 	// In-memory sync state per Database. This state is populated at
 	// startup, and periodically persisted by the initiator.
@@ -163,7 +163,7 @@ var (
 // neighborhood. The "peer manager" thread continuously maintains viable peers
 // that the syncer can pick from. In addition, the sync module responds to
 // incoming RPCs from remote sync modules and local clients.
-func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string, cl *vclock.VClock, publishInNH bool) (*syncService, error) {
+func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string, cl *vclock.VClock, publishInNh bool) (*syncService, error) {
 	discovery, err := v23.NewDiscovery(ctx)
 	if err != nil {
 		return nil, err
@@ -175,7 +175,7 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 		vclock:              cl,
 		ctx:                 ctx,
 		discovery:           discovery,
-		publishInNH:         publishInNH,
+		publishInNh:         publishInNh,
 		cancelAdvSyncgroups: make(map[string]context.CancelFunc),
 	}
 
@@ -473,7 +473,7 @@ func AddNames(ctx *context.T, ss interfaces.SyncServerMethods, svr rpc.Server) e
 // being advertised over the neighborhood. If not, it begins advertising. The
 // caller of the function is holding nameLock.
 func (s *syncService) advertiseSyncbaseInNeighborhood() error {
-	if !s.publishInNH {
+	if !s.publishInNh {
 		return nil
 	}
 
@@ -511,7 +511,7 @@ func (s *syncService) advertiseSyncbaseInNeighborhood() error {
 // Syncbase loses admin access, any previous syncgroup advertisements are
 // cancelled. The caller of the function is holding nameLock.
 func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup) error {
-	if !s.publishInNH {
+	if !s.publishInNh {
 		return nil
 	}
 

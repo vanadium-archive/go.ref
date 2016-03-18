@@ -11,6 +11,7 @@ package server
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -58,15 +59,16 @@ type ServiceOptions struct {
 	// Service-level permissions. Used only when creating a brand-new storage
 	// instance.
 	Perms access.Permissions
-	// Root dir for data storage.
+	// Root dir for data storage. If empty, we write to a fresh directory created
+	// using ioutil.TempDir.
 	RootDir string
-	// Storage engine to use (for service and per-database engines).
+	// Storage engine to use: memstore or leveldb. If empty, we use the default
+	// storage engine, currently leveldb.
 	Engine string
-	// Whether to publish in the neighborhood.
-	PublishInNeighborhood bool
-	// Whether to run in "development" mode.
-	// Certain RPCs (e.g. DevModeUpdateVClock and DevModeGetTime) will fail unless
-	// we are running in development mode.
+	// Whether to skip publishing in the neighborhood.
+	SkipPublishInNh bool
+	// Whether to run in development mode; required for RPCs such as
+	// Service.DevModeUpdateVClock.
 	DevMode bool
 }
 
@@ -95,13 +97,25 @@ func PermsString(perms access.Permissions) string {
 // NewService creates a new service instance and returns it.
 // TODO(sadovsky): If possible, close all stores when the server is stopped.
 func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
+	// Fill in default values for missing options.
+	if opts.Engine == "" {
+		opts.Engine = "leveldb"
+	}
+	if opts.RootDir == "" {
+		var err error
+		if opts.RootDir, err = ioutil.TempDir("", "syncbased-"); err != nil {
+			return nil, err
+		}
+		vlog.Infof("Created new root dir: %s", opts.RootDir)
+	}
+
 	st, err := util.OpenStore(opts.Engine, filepath.Join(opts.RootDir, opts.Engine), util.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	if err != nil {
-		// If the top-level leveldb is corrupt, we lose the meaning of all of the
-		// app-level databases.  util.OpenStore moved the top-level leveldb
-		// aside, but it didn't do anything about the app-level leveldbs.
+		// If the top-level store is corrupt, we lose the meaning of all of the
+		// app-level databases. util.OpenStore moved the top-level store aside, but
+		// it didn't do anything about the app-level stores.
 		if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
-			vlog.Errorf("top-level leveldb is corrupt, moving all apps aside")
+			vlog.Errorf("top-level store is corrupt, moving all apps aside")
 			appDir := filepath.Join(opts.RootDir, util.AppDir)
 			newPath := appDir + ".corrupt." + time.Now().Format(time.RFC3339)
 			if err := os.Rename(appDir, newPath); err != nil {
@@ -185,7 +199,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 
 	// Note, vsync.New internally handles both first-time and subsequent
 	// invocations.
-	if s.sync, err = vsync.New(ctx, s, opts.Engine, opts.RootDir, s.vclock, opts.PublishInNeighborhood); err != nil {
+	if s.sync, err = vsync.New(ctx, s, opts.Engine, opts.RootDir, s.vclock, !opts.SkipPublishInNh); err != nil {
 		return nil, err
 	}
 
@@ -220,9 +234,10 @@ func openDatabases(ctx *context.T, st store.Store, a *app) error {
 			ErrorIfExists:   false,
 		})
 		if err != nil {
-			// If the database is corrupt, nosql.OpenDatabase will have moved it aside.
-			// We need to delete the app's reference to the database so that the client
-			// application can recreate the database the next time it starts.
+			// If the database is corrupt, nosql.OpenDatabase will have moved it
+			// aside. We need to delete the app's reference to the database so that
+			// the client application can recreate the database the next time it
+			// starts.
 			if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
 				vlog.Errorf("app %s, database %s is corrupt, deleting the app's reference to it",
 					a.name, info.Name)
@@ -260,9 +275,9 @@ func openDatabases(ctx *context.T, st store.Store, a *app) error {
 // accepting incoming RPC requests and when the restart is complete. We can
 // control when the server starts accepting incoming requests by using a fake
 // dispatcher until we are ready and then switching to the real one after
-// restart. However, we will still need synchronization between
-// Add/RemoveName. So we decided to add synchronization from the get go and
-// avoid the fake dispatcher.
+// restart. However, we will still need synchronization between Add/RemoveName.
+// So, we decided to add synchronization from the get-go and avoid the fake
+// dispatcher.
 func (s *service) AddNames(ctx *context.T, svr rpc.Server) error {
 	return vsync.AddNames(ctx, s.sync, svr)
 }

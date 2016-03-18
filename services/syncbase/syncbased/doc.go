@@ -18,14 +18,16 @@ The syncbased flags are:
  -dev=false
    Whether to run in development mode; required for RPCs such as
    Service.DevModeUpdateVClock.
- -engine=leveldb
-   Storage engine to use: memstore or leveldb.
+ -engine=
+   Storage engine to use: memstore or leveldb. If empty, we use the default
+   storage engine, currently leveldb.
  -name=
    Name to mount at.
- -publish-nh=true
-   Whether to publish in the neighborhood.
- -root-dir=/var/lib/syncbase
-   Root dir for storage engines and other data.
+ -root-dir=
+   Root dir for data storage. If empty, we write to a fresh directory created
+   using ioutil.TempDir.
+ -skip-publish-in-nh=false
+   Whether to skip publishing in the neighborhood.
 
 The global flags are:
  -alsologtostderr=true

@@ -99,18 +99,6 @@ func (sh *Shell) StartSyncbase(c *Credentials, opts syncbaselib.Opts, permsLiter
 		sh.Ctx.Infof("syncbased -cpuprofile for %s: %s", opts.Name, opts.CpuProfile)
 	}
 
-	// TODO(sadovsky): Hack. See TODO in syncbaselib/opts.go about default values.
-	if opts.Engine == "" {
-		opts.Engine = "leveldb"
-	}
-	opts.PublishInNeighborhood = true
-	if opts.RootDir == "" {
-		opts.RootDir = sh.MakeTempDir()
-		if sh.Err != nil {
-			return nil
-		}
-	}
-
 	cmd := sh.FuncCmd(syncbasedMain, opts)
 	if sh.Err != nil {
 		return nil

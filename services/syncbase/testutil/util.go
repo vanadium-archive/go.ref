@@ -218,10 +218,11 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 	}
 	serverCtx, cancel := context.WithCancel(serverCtx)
 	service, err := server.NewService(serverCtx, server.ServiceOptions{
-		Perms:   perms,
-		RootDir: rootDir,
-		Engine:  store.EngineForTest,
-		DevMode: true,
+		Perms:           perms,
+		RootDir:         rootDir,
+		Engine:          store.EngineForTest,
+		DevMode:         true,
+		SkipPublishInNh: true,
 	})
 	if err != nil {
 		vlog.Fatal("server.NewService() failed: ", err)

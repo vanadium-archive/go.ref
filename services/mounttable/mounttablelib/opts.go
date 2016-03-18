@@ -15,6 +15,8 @@ type Opts struct {
 	PersistDir string
 }
 
+// Note: Where possible, we have flag default values be zero values, so that
+// struct-based configuration matches flag-based configuration.
 func (o *Opts) InitFlags(f *flag.FlagSet) {
 	f.StringVar(&o.MountName, "name", "", `If provided, causes the mount table to mount itself under this name.  The name may be absolute for a remote mount table service (e.g. "/<remote mt address>//some/suffix") or could be relative to this process' default mount table (e.g. "some/suffix").`)
 	f.StringVar(&o.AclFile, "acls", "", "ACL file.  Default is to allow all access.")

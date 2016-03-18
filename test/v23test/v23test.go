@@ -37,6 +37,10 @@ const (
 
 var envPrincipal string
 
+var (
+	errDidNotCallInitMain = errors.New("v23test: did not call v23test.TestMain or v23test.InitMain")
+)
+
 func init() {
 	if useAgent {
 		envPrincipal = ref.EnvAgentPath
@@ -180,14 +184,14 @@ func (sh *Shell) Cleanup() {
 var binDir string
 
 // BuildGoPkg compiles a Go package using the "go build" command and writes the
-// resulting binary to BinDir, or to the -o flag location if specified. If -o is
-// relative, it is interpreted as relative to BinDir. If the binary already
-// exists at the target location, it is not rebuilt. Returns the absolute path
-// to the binary.
+// resulting binary to a temporary directory, or to the -o flag location if
+// specified. If -o is relative, it is interpreted as relative to the temporary
+// directory. If the binary already exists at the target location, it is not
+// rebuilt. Returns the absolute path to the binary.
 func BuildGoPkg(sh *Shell, pkg string, flags ...string) string {
 	sh.Ok()
 	if !calledInitMain {
-		sh.handleError(errors.New("v23test: did not call v23test.TestMain or v23test.InitMain"))
+		sh.handleError(errDidNotCallInitMain)
 		return ""
 	}
 	return gosh.BuildGoPkg(sh.Shell, binDir, pkg, flags...)
@@ -195,12 +199,12 @@ func BuildGoPkg(sh *Shell, pkg string, flags ...string) string {
 
 var calledInitMain = false
 
-// InitMain must be called early on in main(), before flags are parsed. It calls
-// gosh.InitMain, initializes the directory used by v23test.BuildGoPkg, and
-// returns a cleanup function. Called by gosh.TestMain.
+// InitMain is called by v23test.TestMain; non-tests must call it early on in
+// main(), before flags are parsed. It calls gosh.InitMain, initializes the
+// directory used by v23test.BuildGoPkg, and returns a cleanup function.
 //
 // InitMain can also be used by test developers with complex setup or teardown
-// requirements, where gosh.TestMain is unsuitable. InitMain must be called
+// requirements, where v23test.TestMain is unsuitable. InitMain must be called
 // early on in TestMain, before m.Run is called. The returned cleanup function
 // should be called after m.Run but before os.Exit.
 func InitMain() func() {
@@ -283,9 +287,14 @@ func (sh *Shell) Cmd(name string, args ...string) *Cmd {
 
 // FuncCmd returns a Cmd for an invocation of the given registered Func. The
 // given arguments are gob-encoded in the parent process, then gob-decoded in
-// the child and passed to the Func. To specify command-line arguments for the
-// child invocation, append to the returned Cmd's Args.
+// the child and passed to the Func as parameters. To specify command-line
+// arguments for the child invocation, append to the returned Cmd's Args.
 func (sh *Shell) FuncCmd(f *gosh.Func, args ...interface{}) *Cmd {
+	sh.Ok()
+	if !calledInitMain {
+		sh.handleError(errDidNotCallInitMain)
+		return nil
+	}
 	c := sh.Shell.FuncCmd(f, args...)
 	if sh.Err != nil {
 		return nil
