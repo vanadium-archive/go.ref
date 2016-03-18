@@ -22,6 +22,94 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 //////////////////////////////////////////////////
 // Type definitions
 
+// ConnKey is a key that represents a connection from a Dialer tag to an Acceptor tag.
+type ConnKey struct {
+	Dialer   string
+	Acceptor string
+}
+
+func (ConnKey) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/runtime/protocols/vine.ConnKey"`
+}) {
+}
+
+func (m *ConnKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Dialer")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget3.FromString(string(m.Dialer), tt.NonOptional().Field(0).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
+		}
+	}
+	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Acceptor")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget5.FromString(string(m.Acceptor), tt.NonOptional().Field(1).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *ConnKey) MakeVDLTarget() vdl.Target {
+	return &ConnKeyTarget{Value: m}
+}
+
+type ConnKeyTarget struct {
+	Value          *ConnKey
+	dialerTarget   vdl.StringTarget
+	acceptorTarget vdl.StringTarget
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ConnKeyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
+	if ttWant := vdl.TypeOf((*ConnKey)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+	return t, nil
+}
+func (t *ConnKeyTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Dialer":
+		t.dialerTarget.Value = &t.Value.Dialer
+		target, err := &t.dialerTarget, error(nil)
+		return nil, target, err
+	case "Acceptor":
+		t.acceptorTarget.Value = &t.Value.Acceptor
+		target, err := &t.acceptorTarget, error(nil)
+		return nil, target, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.ConnKey", name)
+	}
+}
+func (t *ConnKeyTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *ConnKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
 // ConnBehavior specifies characteristics of a connection.
 type ConnBehavior struct {
 	// Reachable specifies whether the outgoing or incoming connection can be
@@ -101,6 +189,7 @@ var (
 	ErrInvalidAddress       = verror.Register("v.io/x/ref/runtime/protocols/vine.InvalidAddress", verror.NoRetry, "{1:}{2:} invalid vine address {3}, address must be of the form 'network/address/tag'")
 	ErrAddressNotReachable  = verror.Register("v.io/x/ref/runtime/protocols/vine.AddressNotReachable", verror.NoRetry, "{1:}{2:} address {3} not reachable")
 	ErrNoRegisteredProtocol = verror.Register("v.io/x/ref/runtime/protocols/vine.NoRegisteredProtocol", verror.NoRetry, "{1:}{2:} no registered protocol {3}")
+	ErrCantAcceptFromTag    = verror.Register("v.io/x/ref/runtime/protocols/vine.CantAcceptFromTag", verror.NoRetry, "{1:}{2:} can't accept connection from tag {3}")
 )
 
 // NewErrInvalidAddress returns an error with the ErrInvalidAddress ID.
@@ -118,6 +207,11 @@ func NewErrNoRegisteredProtocol(ctx *context.T, protocol string) error {
 	return verror.New(ErrNoRegisteredProtocol, ctx, protocol)
 }
 
+// NewErrCantAcceptFromTag returns an error with the ErrCantAcceptFromTag ID.
+func NewErrCantAcceptFromTag(ctx *context.T, tag string) error {
+	return verror.New(ErrCantAcceptFromTag, ctx, tag)
+}
+
 //////////////////////////////////////////////////
 // Interface definitions
 
@@ -127,14 +221,13 @@ func NewErrNoRegisteredProtocol(ctx *context.T, protocol string) error {
 // Vine is the interface to a vine service that can dynamically change the network
 // behavior of connection's on the vine service's process.
 type VineClientMethods interface {
-	// SetOutgoingBehaviors sets the policy that the accepting vine service's process
-	// will use on outgoing connections.
-	// outgoing is a map from server tag to the desired connection behavior.
+	// SetBehaviors sets the policy that the accepting vine service's process
+	// will use on connections.
+	// behaviors is a map from server tag to the desired connection behavior.
 	// For example,
-	//   client.SetOutgoingBehaviors(map[string]ConnBehavior{"foo", ConnBehavior{Reachable: false}})
-	// will cause all vine protocol dial calls on the accepting vine service's
-	// process to fail when dialing out to tag "foo".
-	SetOutgoingBehaviors(_ *context.T, outgoing map[string]ConnBehavior, _ ...rpc.CallOpt) error
+	//   client.SetBehaviors(map[ConnKey]ConnBehavior{ConnKey{"foo", "bar"}, ConnBehavior{Reachable: false}})
+	// will cause all vine protocol dial calls from "foo" to "bar" to fail.
+	SetBehaviors(_ *context.T, behaviors map[ConnKey]ConnBehavior, _ ...rpc.CallOpt) error
 }
 
 // VineClientStub adds universal methods to VineClientMethods.
@@ -152,8 +245,8 @@ type implVineClientStub struct {
 	name string
 }
 
-func (c implVineClientStub) SetOutgoingBehaviors(ctx *context.T, i0 map[string]ConnBehavior, opts ...rpc.CallOpt) (err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "SetOutgoingBehaviors", []interface{}{i0}, nil, opts...)
+func (c implVineClientStub) SetBehaviors(ctx *context.T, i0 map[ConnKey]ConnBehavior, opts ...rpc.CallOpt) (err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "SetBehaviors", []interface{}{i0}, nil, opts...)
 	return
 }
 
@@ -163,14 +256,13 @@ func (c implVineClientStub) SetOutgoingBehaviors(ctx *context.T, i0 map[string]C
 // Vine is the interface to a vine service that can dynamically change the network
 // behavior of connection's on the vine service's process.
 type VineServerMethods interface {
-	// SetOutgoingBehaviors sets the policy that the accepting vine service's process
-	// will use on outgoing connections.
-	// outgoing is a map from server tag to the desired connection behavior.
+	// SetBehaviors sets the policy that the accepting vine service's process
+	// will use on connections.
+	// behaviors is a map from server tag to the desired connection behavior.
 	// For example,
-	//   client.SetOutgoingBehaviors(map[string]ConnBehavior{"foo", ConnBehavior{Reachable: false}})
-	// will cause all vine protocol dial calls on the accepting vine service's
-	// process to fail when dialing out to tag "foo".
-	SetOutgoingBehaviors(_ *context.T, _ rpc.ServerCall, outgoing map[string]ConnBehavior) error
+	//   client.SetBehaviors(map[ConnKey]ConnBehavior{ConnKey{"foo", "bar"}, ConnBehavior{Reachable: false}})
+	// will cause all vine protocol dial calls from "foo" to "bar" to fail.
+	SetBehaviors(_ *context.T, _ rpc.ServerCall, behaviors map[ConnKey]ConnBehavior) error
 }
 
 // VineServerStubMethods is the server interface containing
@@ -208,8 +300,8 @@ type implVineServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implVineServerStub) SetOutgoingBehaviors(ctx *context.T, call rpc.ServerCall, i0 map[string]ConnBehavior) error {
-	return s.impl.SetOutgoingBehaviors(ctx, call, i0)
+func (s implVineServerStub) SetBehaviors(ctx *context.T, call rpc.ServerCall, i0 map[ConnKey]ConnBehavior) error {
+	return s.impl.SetBehaviors(ctx, call, i0)
 }
 
 func (s implVineServerStub) Globber() *rpc.GlobState {
@@ -230,10 +322,10 @@ var descVine = rpc.InterfaceDesc{
 	Doc:     "// Vine is the interface to a vine service that can dynamically change the network\n// behavior of connection's on the vine service's process.",
 	Methods: []rpc.MethodDesc{
 		{
-			Name: "SetOutgoingBehaviors",
-			Doc:  "// SetOutgoingBehaviors sets the policy that the accepting vine service's process\n// will use on outgoing connections.\n// outgoing is a map from server tag to the desired connection behavior.\n// For example,\n//   client.SetOutgoingBehaviors(map[string]ConnBehavior{\"foo\", ConnBehavior{Reachable: false}})\n// will cause all vine protocol dial calls on the accepting vine service's\n// process to fail when dialing out to tag \"foo\".",
+			Name: "SetBehaviors",
+			Doc:  "// SetBehaviors sets the policy that the accepting vine service's process\n// will use on connections.\n// behaviors is a map from server tag to the desired connection behavior.\n// For example,\n//   client.SetBehaviors(map[ConnKey]ConnBehavior{ConnKey{\"foo\", \"bar\"}, ConnBehavior{Reachable: false}})\n// will cause all vine protocol dial calls from \"foo\" to \"bar\" to fail.",
 			InArgs: []rpc.ArgDesc{
-				{"outgoing", ``}, // map[string]ConnBehavior
+				{"behaviors", ``}, // map[ConnKey]ConnBehavior
 			},
 		},
 	},
@@ -260,12 +352,14 @@ func __VDLInit() struct{} {
 	}
 
 	// Register types.
+	vdl.Register((*ConnKey)(nil))
 	vdl.Register((*ConnBehavior)(nil))
 
 	// Set error format strings.
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidAddress.ID), "{1:}{2:} invalid vine address {3}, address must be of the form 'network/address/tag'")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAddressNotReachable.ID), "{1:}{2:} address {3} not reachable")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoRegisteredProtocol.ID), "{1:}{2:} no registered protocol {3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCantAcceptFromTag.ID), "{1:}{2:} can't accept connection from tag {3}")
 
 	return struct{}{}
 }
