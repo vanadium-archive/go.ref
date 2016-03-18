@@ -10,15 +10,15 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/flow"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/goroutines"
 )
 
 func TestLameDuck(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	dflows, aflows := make(chan flow.Flow, 3), make(chan flow.Flow, 3)

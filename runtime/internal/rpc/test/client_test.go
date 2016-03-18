@@ -66,7 +66,7 @@ func testInit(t *testing.T, startServer bool) (sh *v23test.Shell, ctx *context.T
 
 // TODO(sadovsky): Switch to using v23test.Shell.StartRootMountTable.
 var rootMT = gosh.RegisterFunc("rootMT", func(deb bool) error {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	if deb {
 		p, a := debug.WrapAddress("tcp", "127.0.0.1:0")
@@ -136,7 +136,7 @@ func (es *echoServerObject) Sleep(_ *context.T, _ rpc.ServerCall, d string) erro
 }
 
 var echoServer = gosh.RegisterFunc("echoServer", func(id, mp, addr string) error {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	if addr == "" {
@@ -170,7 +170,7 @@ func startEchoServer(t *testing.T, sh *v23test.Shell, id, mp, addr string) (*v23
 // Echo client
 
 var echoClient = gosh.RegisterFunc("echoClient", func(name string, args ...string) error {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	client := v23.GetClient(ctx)
@@ -426,7 +426,7 @@ func TestStartCallSecurity(t *testing.T) {
 }
 
 var childPing = gosh.RegisterFunc("childPing", func(name string) error {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	got := ""

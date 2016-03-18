@@ -26,7 +26,7 @@ import (
 
 func TestInit(t *testing.T) {
 	ref.EnvClearCredentials()
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	mgr := logger.Manager(ctx)

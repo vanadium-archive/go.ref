@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/flow/message"
 	_ "v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/protocols/debug"
+	"v.io/x/ref/test"
 )
 
 func block(c *Conn, p int) chan struct{} {
@@ -101,7 +101,7 @@ func TestOrdering(t *testing.T) {
 	const nflows = 4
 	const nmessages = 4
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	ch := make(chan message.Message, 100)

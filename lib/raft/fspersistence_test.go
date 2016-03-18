@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/test"
 )
 
 func tempDir(t *testing.T) string {
@@ -56,7 +56,7 @@ outer:
 // TestCreation verifies that a log is created when we start a fresh instance and is still there after we stop it.
 func TestCreation(t *testing.T) {
 	vlog.Infof("TestCreation")
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	td := tempDir(t)
 	defer os.RemoveAll(td)
@@ -96,7 +96,7 @@ func TestCreation(t *testing.T) {
 // We also test that a truncated log remains truncated after an orderly stop and restart.
 func TestPersistence(t *testing.T) {
 	vlog.Infof("TestPersistence")
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	td := tempDir(t)
 	defer os.RemoveAll(td)
@@ -223,7 +223,7 @@ func waitForLeadership(r *raft, timeout time.Duration) bool {
 // TestSnapshot sets the limit for taking a snapshot down to 1 record and makes sure that snapshots are taken.
 func TestSnapshot(t *testing.T) {
 	vlog.Infof("TestSnapshot")
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	td := tempDir(t)
 	defer os.RemoveAll(td)
@@ -290,7 +290,7 @@ outer:
 // TestRemoteSnapshot makes sure a member can be recovered from a snapshot taken elsewhere.
 func TestRemoteSnapshot(t *testing.T) {
 	vlog.Infof("TestRemoteSnapshot")
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	config := RaftConfig{HostPort: "127.0.0.1:0", SnapshotThreshold: 30}
 	rs, cs := buildRafts(t, ctx, 3, &config)

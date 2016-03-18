@@ -139,8 +139,10 @@ func TestStatus(t *testing.T) {
 func TestRemoveFailedAdd(t *testing.T) {
 	// Test that removing an already unmounted name (due to an error while mounting),
 	// results in a Status that has no entries.
-	// We use v23.Init instead of v23.InitWithMounTable to make all calls to the mounttable fail.
-	ctx, shutdown := v23.Init()
+	// We use test.V23Init instead of test.V23InitWithMounTable to make all
+	// calls to the mounttable fail: the context returned by test.V23Init
+	// has no namespace roots.
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	ns := v23.GetNamespace(ctx)
 	pubctx, cancel := context.WithCancel(ctx)

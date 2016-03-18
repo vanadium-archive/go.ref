@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/v23"
 	"v.io/x/lib/gosh"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/identity/internal/auditor"
@@ -23,6 +22,7 @@ import (
 	"v.io/x/ref/services/identity/internal/revocation"
 	"v.io/x/ref/services/identity/internal/server"
 	"v.io/x/ref/services/identity/internal/util"
+	"v.io/x/ref/test"
 )
 
 var (
@@ -35,7 +35,7 @@ var TestIdentityd = gosh.RegisterFunc("TestIdentityd", func() error {
 	// Duration to use for tls cert and blessing duration.
 	duration := 365 * 24 * time.Hour
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	// If no tls-config has been provided, generate new cert and key and use them.

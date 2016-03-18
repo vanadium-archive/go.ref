@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/test"
 )
 
 type client struct {
@@ -152,8 +152,8 @@ func cleanUp(rs []*raft) {
 }
 
 func TestClientSnapshot(t *testing.T) {
-	vlog.Infof("TestCreation")
-	ctx, shutdown := v23.Init()
+	vlog.Infof("TestClientSnapshot")
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	// Make sure the test client works as expected.

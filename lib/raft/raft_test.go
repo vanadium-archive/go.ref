@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/test"
 )
 
 // waitForLogAgreement makes sure all working servers agree on the log.
@@ -94,7 +94,7 @@ func waitForAllRunning(rs []*raft, timeout time.Duration) bool {
 
 func TestAppend(t *testing.T) {
 	vlog.Infof("TestAppend")
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	rs, cs := buildRafts(t, ctx, 3, nil)
@@ -171,8 +171,8 @@ func syncer(t *testing.T, ctx *context.T, ch chan struct{}, r *raft, c *client, 
 // TestSync just makes sure syncers don't get stuck.  I'm not entirely certain how to test that they
 // are actually in sync when the Sync returns.
 func TestSync(t *testing.T) {
-	vlog.Infof("TestAppend")
-	ctx, shutdown := v23.Init()
+	vlog.Infof("TestSync")
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	rs, cs := buildRafts(t, ctx, 5, nil)

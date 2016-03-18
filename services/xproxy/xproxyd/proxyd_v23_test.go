@@ -14,6 +14,7 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/gosh"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/v23test"
 )
 
@@ -51,7 +52,7 @@ func TestV23Proxyd(t *testing.T) {
 }
 
 var runServer = gosh.RegisterFunc("runServer", func() error {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	// Set the listen spec to listen only via the proxy.
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Proxy: proxyName})
@@ -63,7 +64,7 @@ var runServer = gosh.RegisterFunc("runServer", func() error {
 })
 
 var runClient = gosh.RegisterFunc("runClient", func() error {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	var response string
 	if err := v23.GetClient(ctx).Call(ctx, serverName, "Echo", nil, []interface{}{&response}); err != nil {

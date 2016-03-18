@@ -18,6 +18,7 @@ import (
 	"v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/internal/lib/roaming"
 	inaming "v.io/x/ref/runtime/internal/naming"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -26,7 +27,7 @@ type testServer struct{}
 func (t *testServer) Foo(*context.T, rpc.ServerCall) error { return nil }
 
 func TestRoaming(t *testing.T) {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	waitForEndpoints := func(server rpc.Server, n int) rpc.ServerStatus {

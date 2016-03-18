@@ -14,12 +14,11 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-
 	"v.io/x/lib/ibe"
-
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/security/bcrypter"
 	"v.io/x/ref/runtime/factories/fake"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/goroutines"
 	"v.io/x/ref/test/testutil"
 )
@@ -148,7 +147,7 @@ func (fc *fakeDischargeClient) Closed() <-chan struct{} { return nil }
 func TestUnidirectional(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
 		return &fakeDischargeClient{v23.GetPrincipal(ctx)}
@@ -185,7 +184,7 @@ func TestUnidirectional(t *testing.T) {
 func TestBidirectional(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	ctx = fake.SetClientFactory(ctx, func(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
 		return &fakeDischargeClient{v23.GetPrincipal(ctx)}
@@ -225,7 +224,7 @@ func TestBidirectional(t *testing.T) {
 func TestPrivateMutualAuth(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	var err error

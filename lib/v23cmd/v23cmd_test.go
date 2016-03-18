@@ -13,6 +13,7 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/test"
 )
 
 var cmdRoot = &cmdline.Command{
@@ -100,17 +101,17 @@ func TestParseAndRunForTest(t *testing.T) {
 		{"no_init", "NoInit <nil> <for test value>"},
 		{"with_init", "WithInit <nil> <for test value>"},
 	}
-	for _, test := range tests {
-		ctx, shutdown := v23.Init()
+	for _, tc := range tests {
+		ctx, shutdown := test.V23Init()
 		ctx = context.WithValue(ctx, forTestKey, forTestValue)
 
 		var stdout bytes.Buffer
 		env := &cmdline.Env{Stdout: &stdout}
-		if err := ParseAndRunForTest(cmdRoot, ctx, env, []string{test.cmd}); err != nil {
+		if err := ParseAndRunForTest(cmdRoot, ctx, env, []string{tc.cmd}); err != nil {
 			t.Errorf("ParseAndRunForTest failed: %v", err)
 		}
-		if got, want := stdout.String(), test.stdout; got != want {
-			t.Errorf("got stdout %q, want %q", got, want)
+		if got, want := stdout.String(), tc.stdout; got != want {
+			t.Errorf("got stdout \"%s\", want \"%s\"", got, want)
 		}
 		shutdown()
 	}

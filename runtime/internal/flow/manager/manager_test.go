@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/naming"
 	_ "v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/goroutines"
 )
 
@@ -24,7 +24,7 @@ const leakWaitTime = 250 * time.Millisecond
 
 func TestDirectConnection(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -41,7 +41,7 @@ func TestDirectConnection(t *testing.T) {
 
 func TestDialCachedConn(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -76,7 +76,7 @@ func TestDialCachedConn(t *testing.T) {
 
 func TestBidirectionalListeningEndpoint(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -95,7 +95,7 @@ func TestBidirectionalListeningEndpoint(t *testing.T) {
 
 func TestPublicKeyOnlyClientBlessings(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -124,7 +124,7 @@ func TestPublicKeyOnlyClientBlessings(t *testing.T) {
 
 func TestStopListening(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -194,7 +194,7 @@ func writeLine(f flow.Flow, data string) error {
 
 func BenchmarkDialCachedConn(b *testing.B) {
 	defer goroutines.NoLeaks(b, leakWaitTime)()
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {

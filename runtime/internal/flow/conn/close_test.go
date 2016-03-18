@@ -11,11 +11,11 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	_ "v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/protocols/debug"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/goroutines"
 )
 
@@ -65,7 +65,7 @@ func (s *set) open() int {
 func TestRemoteDialerClose(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	s := set{conns: map[flow.Conn]bool{}}
 	ctx = debug.WithFilter(ctx, s.add)
@@ -84,7 +84,7 @@ func TestRemoteDialerClose(t *testing.T) {
 func TestRemoteAcceptorClose(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	s := set{conns: map[flow.Conn]bool{}}
 	ctx = debug.WithFilter(ctx, s.add)
@@ -103,7 +103,7 @@ func TestRemoteAcceptorClose(t *testing.T) {
 func TestUnderlyingConnectionClosed(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	s := set{conns: map[flow.Conn]bool{}}
 	ctx = debug.WithFilter(ctx, s.add)
@@ -119,7 +119,7 @@ func TestUnderlyingConnectionClosed(t *testing.T) {
 func TestDialAfterConnClose(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	d, a, derr, aerr := setupConns(t, "local", "", ctx, ctx, nil, nil, nil, nil)
 	if derr != nil || aerr != nil {
@@ -140,7 +140,7 @@ func TestDialAfterConnClose(t *testing.T) {
 func TestReadWriteAfterConnClose(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	for _, dialerDials := range []bool{true, false} {
 		df, flows, cl := setupFlow(t, "local", "", ctx, ctx, dialerDials)
@@ -176,7 +176,7 @@ func TestReadWriteAfterConnClose(t *testing.T) {
 func TestFlowCancelOnWrite(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	accept := make(chan flow.Flow, 1)
 	dc, ac, derr, aerr := setupConns(t, "local", "", ctx, ctx, nil, accept, nil, nil)
@@ -215,7 +215,7 @@ func TestFlowCancelOnWrite(t *testing.T) {
 func TestFlowCancelOnRead(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	accept := make(chan flow.Flow, 1)
 	dc, ac, derr, aerr := setupConns(t, "local", "", ctx, ctx, nil, accept, nil, nil)

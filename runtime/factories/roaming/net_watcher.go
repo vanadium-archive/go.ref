@@ -11,11 +11,9 @@ import (
 	"os"
 	"strings"
 
-	"v.io/x/lib/netstate"
-
 	"v.io/v23"
 	"v.io/v23/config"
-
+	"v.io/x/lib/netstate"
 	"v.io/x/ref/runtime/factories/roaming"
 )
 

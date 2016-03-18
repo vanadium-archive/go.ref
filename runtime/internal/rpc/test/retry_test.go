@@ -13,6 +13,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/x/ref/test"
 )
 
 var errRetryThis = verror.Register("retry_test.retryThis", verror.RetryBackoff, "retryable error")
@@ -33,7 +34,7 @@ func (s *retryServer) TryAgain(ctx *context.T, _ rpc.ServerCall) error {
 }
 
 func TestRetryCall(t *testing.T) {
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
 	// Start the server.

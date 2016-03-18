@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/flow"
 	_ "v.io/x/ref/runtime/factories/fake"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/goroutines"
 )
 
@@ -66,7 +66,7 @@ func doRead(t *testing.T, f flow.Flow, want []byte, wg *sync.WaitGroup) {
 func TestLargeWrite(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	df, flows, cl := setupFlow(t, "local", "", ctx, ctx, true)
 	defer cl()
 	defer shutdown()
@@ -84,7 +84,7 @@ func TestLargeWrite(t *testing.T) {
 func TestConnRTT(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	payload := []byte{0}
-	ctx, shutdown := v23.Init()
+	ctx, shutdown := test.V23Init()
 	df, flows, cl := setupFlow(t, "local", "", ctx, ctx, true)
 	defer cl()
 	defer shutdown()
