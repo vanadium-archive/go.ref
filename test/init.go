@@ -23,6 +23,12 @@ var debugOnShutdown = flag.String("v23.debug-address", "",
 		" and hang so you can look at it. This only works when running a single test,"+
 		" because you have to ctrl-c to finish the test.")
 
+// TODO(caprita): Instead of V23Init, should we have a test runtime factory? The
+// problem with V23Init is that it creates a context using v23.Init, and then we
+// edit the context to configure things like the listen spec, namespace, and
+// principal.  Would be better to set these things correctly for the test to
+// begin with.
+
 // V23Init initializes the runtime and sets up the principal with a self-signed
 // TestBlessing. The blessing setup step is skipped if this function is invoked
 // from a v23test.Shell child process, since v23test.Shell passes credentials to

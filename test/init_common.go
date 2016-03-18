@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO(caprita): Merge this with init.go now that v.io/c/20864 got rid of
+// init_mojo.go.
+
 package test
 
 import (
@@ -51,16 +54,23 @@ func internalInit(ctx *context.T, createMounttable bool) *context.T {
 	ns := v23.GetNamespace(ctx)
 	ns.CacheCtl(naming.DisableCache(true))
 
-	if !v23testProcess && createMounttable {
-		disp, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
-		if err != nil {
-			panic(err)
+	// TODO(caprita): Whether this is a Shell child process is but an
+	// approximation as to whether we should or should not edit the
+	// namespace in the context.  See also TODO on V23Init.
+	if !v23testProcess {
+		if createMounttable {
+			disp, err := mounttablelib.NewMountTableDispatcher(ctx, "", "", "mounttable")
+			if err != nil {
+				panic(err)
+			}
+			_, s, err := v23.WithNewDispatchingServer(ctx, "", disp, options.ServesMountTable(true))
+			if err != nil {
+				panic(err)
+			}
+			ns.SetRoots(s.Status().Endpoints[0].Name())
+		} else {
+			ns.SetRoots()
 		}
-		_, s, err := v23.WithNewDispatchingServer(ctx, "", disp, options.ServesMountTable(true))
-		if err != nil {
-			panic(err)
-		}
-		ns.SetRoots(s.Status().Endpoints[0].Name())
 	}
 
 	return ctx

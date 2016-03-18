@@ -161,9 +161,12 @@ func (ns *namespaceMock) Glob(ctx *context.T, pattern string, opts ...naming.Nam
 	panic("Glob not implemented")
 }
 
-func (ns *namespaceMock) SetRoots(...string) error {
+func (ns *namespaceMock) SetRoots(args ...string) error {
 	defer apilog.LogCall(nil)(nil) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	panic("Calling SetRoots on a mock namespace.  This is not supported.")
+	if len(args) > 0 {
+		panic("Calling SetRoots with arguments on a mock namespace.  This is not supported.")
+	}
+	return nil
 }
 
 func (ns *namespaceMock) Roots() []string {
