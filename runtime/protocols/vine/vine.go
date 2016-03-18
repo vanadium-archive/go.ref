@@ -24,7 +24,10 @@ import (
 )
 
 func init() {
-	v := &vine{behaviors: make(map[ConnKey]ConnBehavior)}
+	v := &vine{
+		behaviors: make(map[ConnKey]ConnBehavior),
+		conns:     make(map[ConnKey]map[*conn]bool),
+	}
 	flow.RegisterProtocol("vine", v)
 }
 
@@ -58,6 +61,9 @@ type vine struct {
 	// If a ConnKey isn't in the map, the connection will be created under normal
 	// network characteristics.
 	behaviors map[ConnKey]ConnBehavior
+	// conns stores all the vine connections. Sets of *conns are keyed by their
+	// corresponding ConnKey
+	conns map[ConnKey]map[*conn]bool
 }
 
 // SetBehaviors sets the policy that the accepting vine service's process
@@ -67,9 +73,20 @@ type vine struct {
 //   client.SetBehaviors(map[ConnKey]ConnBehavior{ConnKey{"foo", "bar"}, ConnBehavior{Reachable: false}})
 // will cause all vine protocol dial calls from "foo" to "bar" to fail.
 func (v *vine) SetBehaviors(ctx *context.T, call rpc.ServerCall, behaviors map[ConnKey]ConnBehavior) error {
+	var toKill []flow.Conn
 	v.mu.Lock()
 	v.behaviors = behaviors
+	for key, behavior := range behaviors {
+		if !behavior.Reachable {
+			for conn := range v.conns[key] {
+				toKill = append(toKill, conn)
+			}
+		}
+	}
 	v.mu.Unlock()
+	for _, conn := range toKill {
+		conn.Close()
+	}
 	return nil
 }
 
@@ -102,10 +119,14 @@ func (v *vine) Dial(ctx *context.T, protocol, address string, timeout time.Durat
 	if err := sendLocalTag(ctx, c); err != nil {
 		return nil, err
 	}
-	return &conn{
+	conn := &conn{
 		base: c,
 		addr: addr(createDialingAddress(laddr.Network(), laddr.String(), localTag)),
-	}, nil
+		key:  key,
+		vine: v,
+	}
+	v.insertConn(conn)
+	return conn, nil
 }
 
 // Resolve returns the resolved protocol and addresses. For example,
@@ -151,9 +172,34 @@ func (v *vine) Listen(ctx *context.T, protocol, address string) (flow.Listener, 
 	}, nil
 }
 
+func (v *vine) insertConn(c *conn) {
+	key := c.key
+	v.mu.Lock()
+	if m, ok := v.conns[key]; !ok {
+		v.conns[key] = make(map[*conn]bool)
+		v.conns[key][c] = true
+	} else {
+		m[c] = true
+	}
+	v.mu.Unlock()
+}
+
+func (v *vine) removeConn(c *conn) {
+	key := c.key
+	v.mu.Lock()
+	if m, ok := v.conns[key]; ok {
+		if _, ok := m[c]; ok {
+			delete(m, c)
+		}
+	}
+	v.mu.Unlock()
+}
+
 type conn struct {
 	base flow.Conn
 	addr addr
+	key  ConnKey
+	vine *vine
 }
 
 // WriteMsg wraps the base flow.Conn's WriteMsg method to allow injection of
@@ -169,6 +215,7 @@ func (c *conn) ReadMsg() ([]byte, error) {
 }
 
 func (c *conn) Close() error {
+	c.vine.removeConn(c)
 	return c.base.Close()
 }
 
@@ -199,7 +246,14 @@ func (l *listener) Accept(ctx *context.T) (flow.Conn, error) {
 	if ok && !behavior.Reachable {
 		return nil, NewErrCantAcceptFromTag(ctx, remoteTag)
 	}
-	return &conn{base: c, addr: l.addr}, nil
+	conn := &conn{
+		base: c,
+		addr: l.addr,
+		key:  key,
+		vine: l.vine,
+	}
+	l.vine.insertConn(conn)
+	return conn, nil
 }
 
 func (l *listener) Addr() net.Addr {

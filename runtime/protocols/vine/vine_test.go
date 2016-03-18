@@ -49,11 +49,6 @@ func TestOutgoingReachable(t *testing.T) {
 	if err := client.Call(ctx, "reachable", "Foo", nil, nil); err != nil {
 		t.Error(err)
 	}
-	// We create a new client to avoid using cached connections.
-	ctx, client, err = v23.WithNewClient(ctx)
-	if err != nil {
-		t.Error(err)
-	}
 	if err := client.Call(ctx, "unreachable", "Foo", nil, nil); err != nil {
 		t.Error(err)
 	}
@@ -67,23 +62,22 @@ func TestOutgoingReachable(t *testing.T) {
 	}); err != nil {
 		t.Error(err)
 	}
-	// We create a new client to avoid using cached connections.
-	ctx, client, err = v23.WithNewClient(ctx)
-	if err != nil {
-		t.Error(err)
-	}
-	// The call to reachable should succeed
+	// The call to reachable should succeed since the cached connection still exists.
 	if err := client.Call(ctx, "reachable", "Foo", nil, nil); err != nil {
 		t.Error(err)
 	}
-	// We create a new client to avoid using cached connections.
-	ctx, client, err = v23.WithNewClient(ctx)
-	if err != nil {
-		t.Error(err)
-	}
-	// but the call to unreachable should fail.
+	// the call to unreachable should fail, since the cached connection should be closed
+	// and the new attempt to create a connection fails as well.
 	if err := client.Call(ctx, "unreachable", "Foo", nil, nil, options.NoRetry{}); err == nil {
 		t.Errorf("wanted call to fail")
+	}
+	// Create new clients to avoid using cached connections.
+	if ctx, _, err = v23.WithNewClient(ctx); err != nil {
+		t.Error(err)
+	}
+	// Now, a call to reachable should still work even without a cached connection.
+	if err := client.Call(ctx, "reachable", "Foo", nil, nil); err != nil {
+		t.Error(err)
 	}
 }
 
@@ -96,6 +90,9 @@ func TestIncomingReachable(t *testing.T) {
 		t.Fatal(err)
 	}
 	denyCtx := vine.WithLocalTag(ctx, "denyClient")
+	if denyCtx, _, err = v23.WithNewClient(denyCtx); err != nil {
+		t.Fatal(err)
+	}
 
 	sctx := vine.WithLocalTag(ctx, "server")
 	sctx, cancel := context.WithCancel(sctx)
@@ -113,15 +110,7 @@ func TestIncomingReachable(t *testing.T) {
 	if err := v23.GetClient(ctx).Call(ctx, "server", "Foo", nil, nil); err != nil {
 		t.Error(err)
 	}
-	if err := v23.GetClient(denyCtx).Call(ctx, "server", "Foo", nil, nil); err != nil {
-		t.Error(err)
-	}
-
-	// Create new clients to avoid using cached connections.
-	if ctx, _, err = v23.WithNewClient(ctx); err != nil {
-		t.Error(err)
-	}
-	if denyCtx, _, err = v23.WithNewClient(denyCtx); err != nil {
+	if err := v23.GetClient(denyCtx).Call(denyCtx, "server", "Foo", nil, nil); err != nil {
 		t.Error(err)
 	}
 
@@ -135,13 +124,22 @@ func TestIncomingReachable(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Now, the call from client to server should work.
+	// Now, the call from client to server should work, since the connection is still cached.
 	if err := v23.GetClient(ctx).Call(ctx, "server", "Foo", nil, nil); err != nil {
 		t.Error(err)
 	}
-	// but the call from denyclient to server should fail.
+	// but the call from denyclient to server should fail, since the cached connection
+	// should be closed and the new call should also fail.
 	if err := v23.GetClient(denyCtx).Call(denyCtx, "server", "Foo", nil, nil, options.NoRetry{}); err == nil {
 		t.Errorf("wanted call to fail")
+	}
+	// Create new clients to avoid using cached connections.
+	if ctx, _, err = v23.WithNewClient(ctx); err != nil {
+		t.Error(err)
+	}
+	// Now, a call with "client" should still work even without a cached connection.
+	if err := v23.GetClient(ctx).Call(ctx, "server", "Foo", nil, nil); err != nil {
+		t.Error(err)
 	}
 }
 
