@@ -111,7 +111,7 @@ func NewClient(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
 		}
 	}
 	if c.flowMgr == nil {
-		c.flowMgr = manager.New(ctx, naming.NullRoutingID, nil, 0, connIdleExpiry)
+		c.flowMgr = manager.New(ctx, naming.NullRoutingID, nil, 0, connIdleExpiry, nil)
 	}
 
 	go func() {

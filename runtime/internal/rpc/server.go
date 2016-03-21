@@ -112,8 +112,6 @@ func WithNewDispatchingServer(ctx *context.T,
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	statsPrefix := naming.Join("rpc", "server", "routing-id", rid.String())
-	// TODO(mattr,ashankar): Have the server listen on this channel of
-	// changing default blessings and update itself.
 	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	s := &server{
 		ctx:               ctx,
@@ -175,7 +173,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		s.ctx, s.cancel = context.WithRootCancel(ctx)
 	}
 
-	s.flowMgr = manager.NewWithBlessings(s.ctx, s.blessings, rid, authorizedPeers, settingsPublisher, channelTimeout, connIdleExpiry)
+	s.flowMgr = manager.New(s.ctx, rid, settingsPublisher, channelTimeout, connIdleExpiry, authorizedPeers)
 	s.ctx, _, err = v23.WithNewClient(s.ctx,
 		clientFlowManagerOpt{s.flowMgr},
 		PreferredProtocols(s.preferredProtocols))

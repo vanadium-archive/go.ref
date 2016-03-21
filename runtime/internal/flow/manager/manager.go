@@ -74,9 +74,20 @@ type endpointState struct {
 	roaming      bool
 }
 
-func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid naming.RoutingID,
-	serverAuthorizedPeers []security.BlessingPattern, dhcpPublisher *pubsub.Publisher,
-	channelTimeout time.Duration, idleExpiry time.Duration) flow.Manager {
+// New creates a new flow manager.
+func New(
+	ctx *context.T,
+	rid naming.RoutingID,
+	dhcpPublisher *pubsub.Publisher,
+	channelTimeout time.Duration,
+	idleExpiry time.Duration,
+	authorizedPeers []security.BlessingPattern) flow.Manager {
+	var serverBlessings security.Blessings
+	if rid != naming.NullRoutingID {
+		// TODO(mattr,ashankar): Have the server listen on this channel of
+		// changing default blessings and update itself.
+		serverBlessings, _ = v23.GetPrincipal(ctx).BlessingStore().Default()
+	}
 	m := &manager{
 		rid:                  rid,
 		closed:               make(chan struct{}),
@@ -87,7 +98,7 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 	}
 	if rid != naming.NullRoutingID {
 		m.serverBlessings = serverBlessings
-		m.serverAuthorizedPeers = serverAuthorizedPeers
+		m.serverAuthorizedPeers = authorizedPeers
 		m.serverNames = security.BlessingNames(v23.GetPrincipal(ctx), serverBlessings)
 		m.ls = &listenState{
 			q:             upcqueue.New(),
@@ -123,15 +134,6 @@ func NewWithBlessings(ctx *context.T, serverBlessings security.Blessings, rid na
 		}
 	}()
 	return m
-}
-
-func New(ctx *context.T, rid naming.RoutingID, dhcpPublisher *pubsub.Publisher,
-	channelTimeout time.Duration, idleExpiry time.Duration) flow.Manager {
-	var serverBlessings security.Blessings
-	if rid != naming.NullRoutingID {
-		serverBlessings, _ = v23.GetPrincipal(ctx).BlessingStore().Default()
-	}
-	return NewWithBlessings(ctx, serverBlessings, rid, nil, dhcpPublisher, channelTimeout, idleExpiry)
 }
 
 func (m *manager) stopListening() {

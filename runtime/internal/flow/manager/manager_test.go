@@ -26,11 +26,11 @@ func TestDirectConnection(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
 
-	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
-	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0)
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0, nil)
 
 	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 
@@ -43,12 +43,12 @@ func TestDialCachedConn(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
 
-	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
 
-	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0)
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0, nil)
 	// At first the cache should be empty.
 	if got, want := len(dm.(*manager).cache.addrCache), 0; got != want {
 		t.Fatalf("got cache size %v, want %v", got, want)
@@ -78,12 +78,12 @@ func TestBidirectionalListeningEndpoint(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
 
-	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
 
-	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0)
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0, nil)
 	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 	// Now am should be able to make a flow to dm even though dm is not listening.
 	testFlows(t, ctx, am, dm, flowtest.AllowAllPeersAuthorizer{})
@@ -97,18 +97,18 @@ func TestPublicKeyOnlyClientBlessings(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
 
-	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
-	nulldm := New(ctx, naming.NullRoutingID, nil, 0, 0)
+	nulldm := New(ctx, naming.NullRoutingID, nil, 0, 0, nil)
 	_, af := testFlows(t, ctx, nulldm, am, flowtest.AllowAllPeersAuthorizer{})
 	// Ensure that the remote blessings of the underlying conn of the accepted blessings
 	// only has the public key of the client and no certificates.
 	if rBlessings := af.Conn().(*conn.Conn).RemoteBlessings(); len(rBlessings.String()) > 0 || rBlessings.PublicKey() == nil {
 		t.Errorf("got %v, want no-cert blessings", rBlessings)
 	}
-	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0)
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0, nil)
 	_, af = testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 	// Ensure that the remote blessings of the underlying conn of the accepted flow are
 	// non-zero if we did specify a RoutingID.
@@ -126,11 +126,11 @@ func TestStopListening(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
 
-	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
-	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0)
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0, nil)
 	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 
 	lameEP := am.Status().Endpoints[0]
@@ -196,11 +196,11 @@ func BenchmarkDialCachedConn(b *testing.B) {
 	defer goroutines.NoLeaks(b, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
 
-	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0)
+	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		b.Fatal(err)
 	}
-	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0)
+	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0, nil)
 	// At first the cache should be empty.
 	if got, want := len(dm.(*manager).cache.addrCache), 0; got != want {
 		b.Fatalf("got cache size %v, want %v", got, want)

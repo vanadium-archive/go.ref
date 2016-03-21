@@ -433,7 +433,7 @@ func (r *Runtime) NewFlowManager(ctx *context.T, channelTimeout time.Duration) (
 		return nil, err
 	}
 	id, _ := ctx.Value(initKey).(*initData)
-	return manager.New(ctx, rid, id.settingsPublisher, channelTimeout, id.connIdleExpiry), nil
+	return manager.New(ctx, rid, id.settingsPublisher, channelTimeout, id.connIdleExpiry, nil), nil
 }
 
 func (r *Runtime) commonServerInit(ctx *context.T, opts ...rpc.ServerOpt) (*pubsub.Publisher, []rpc.ServerOpt, error) {
