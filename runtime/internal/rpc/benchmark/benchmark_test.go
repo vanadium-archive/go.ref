@@ -7,6 +7,7 @@ package benchmark_test
 import (
 	"os"
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -25,9 +26,9 @@ import (
 )
 
 var (
-	serverAddr, tpcServerAddr, proxiedServerAddr string
-	ctx, tpcCtx                                  *context.T
-	serverCrypter, clientCrypter                 *bcrypter.Crypter
+	serverAddr, expServerAddr, tpcServerAddr, proxiedServerAddr string
+	ctx, expCtx, tpcCtx                                         *context.T
+	serverCrypter, clientCrypter                                *bcrypter.Crypter
 )
 
 // Benchmarks for non-streaming RPC.
@@ -41,6 +42,29 @@ func Benchmark__100B(b *testing.B) { runEcho(b, 100) }
 func Benchmark___1KB(b *testing.B) { runEcho(b, 1000) }
 func Benchmark__10KB(b *testing.B) { runEcho(b, 10000) }
 func Benchmark_100KB(b *testing.B) { runEcho(b, 100000) }
+
+// Benchmark for non-streaming RPC with a Client ExpiryCaveat.
+func runEchoClientExpiry(b *testing.B, payloadSize int) {
+	internal.CallEcho(b, expCtx, serverAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
+}
+
+func Benchmark____1B_ClientExpiryCav(b *testing.B) { runEchoClientExpiry(b, 1) }
+func Benchmark___10B_ClientExpiryCav(b *testing.B) { runEchoClientExpiry(b, 10) }
+func Benchmark__100B_ClientExpiryCav(b *testing.B) { runEchoClientExpiry(b, 100) }
+func Benchmark___1KB_ClientExpiryCav(b *testing.B) { runEchoClientExpiry(b, 1000) }
+func Benchmark__10KB_ClientExpiryCav(b *testing.B) { runEchoClientExpiry(b, 10000) }
+func Benchmark_100KB_ClientExpiryCav(b *testing.B) { runEchoClientExpiry(b, 100000) }
+
+func runEchoServerExpiry(b *testing.B, payloadSize int) {
+	internal.CallEcho(b, ctx, expServerAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
+}
+
+func Benchmark____1B_ServerExpiryCav(b *testing.B) { runEchoServerExpiry(b, 1) }
+func Benchmark___10B_ServerExpiryCav(b *testing.B) { runEchoServerExpiry(b, 10) }
+func Benchmark__100B_ServerExpiryCav(b *testing.B) { runEchoServerExpiry(b, 100) }
+func Benchmark___1KB_ServerExpiryCav(b *testing.B) { runEchoServerExpiry(b, 1000) }
+func Benchmark__10KB_ServerExpiryCav(b *testing.B) { runEchoServerExpiry(b, 10000) }
+func Benchmark_100KB_ServerExpiryCav(b *testing.B) { runEchoServerExpiry(b, 100000) }
 
 // Benchmark for non-streaming RPC with a Client ThirdPartyCaveat.
 func runEchoClientTPC(b *testing.B, payloadSize int) {
@@ -212,6 +236,7 @@ func TestMain(m *testing.M) {
 	ctx, shutdown = test.V23Init()
 
 	setupServerClient(ctx)
+	setupExpiryCaveatServerClient(ctx)
 	setupThirdPartyCaveatServerClient(ctx)
 	setupProxiedServerClient(ctx)
 	setupPrivateMutualAuthentication(ctx)
@@ -230,6 +255,39 @@ func setupServerClient(ctx *context.T) {
 	serverAddr = server.Status().Endpoints[0].Name()
 	// Create a Conn to exclude the Conn setup time from the benchmark.
 	internal.CallEcho(&testing.B{}, ctx, serverAddr, 1, 0, benchmark.NewStats(1))
+}
+
+func setupExpiryCaveatServerClient(ctx *context.T) {
+	p := v23.GetPrincipal(ctx)
+	b, _ := p.BlessingStore().Default()
+	expcav, err := security.NewExpiryCaveat(time.Now().Add(time.Hour))
+	if err != nil {
+		ctx.Fatal(err)
+	}
+	expcavb, err := p.Bless(p.PublicKey(), b, "expcav", expcav)
+	if err != nil {
+		ctx.Fatal(err)
+	}
+	store := lsecurity.FixedBlessingsStore(expcavb, nil)
+	expcavp, err := lsecurity.ForkPrincipal(p, store, p.Roots())
+	if err != nil {
+		ctx.Fatal(err)
+	}
+	expCtx, err = v23.WithPrincipal(ctx, expcavp)
+	if err != nil {
+		ctx.Fatal(err)
+	}
+
+	// Create a server with the ExpiryCaveat principal.
+	_, expServer, err := v23.WithNewServer(expCtx, "", internal.NewService(), security.DefaultAuthorizer())
+	if err != nil {
+		ctx.Fatalf("NewServer failed: %v", err)
+	}
+	expServerAddr = expServer.Status().Endpoints[0].Name()
+
+	// Create Conns to exclude the Conn setup time from the benchmark.
+	internal.CallEcho(&testing.B{}, expCtx, serverAddr, 1, 0, benchmark.NewStats(1))
+	internal.CallEcho(&testing.B{}, ctx, expServerAddr, 1, 0, benchmark.NewStats(1))
 }
 
 func setupThirdPartyCaveatServerClient(ctx *context.T) {
