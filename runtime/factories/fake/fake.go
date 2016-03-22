@@ -16,7 +16,7 @@ import (
 	"v.io/v23/flow"
 
 	"v.io/x/ref/runtime/internal"
-	"v.io/x/ref/runtime/internal/lib/xwebsocket"
+	"v.io/x/ref/runtime/protocols/lib/websocket"
 	_ "v.io/x/ref/runtime/protocols/local"
 	_ "v.io/x/ref/runtime/protocols/tcp"
 	_ "v.io/x/ref/runtime/protocols/ws"
@@ -34,7 +34,7 @@ var (
 
 func init() {
 	v23.RegisterRuntimeFactory(Init)
-	flow.RegisterUnknownProtocol("wsh", xwebsocket.WSH{})
+	flow.RegisterUnknownProtocol("wsh", websocket.WSH{})
 }
 
 func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {

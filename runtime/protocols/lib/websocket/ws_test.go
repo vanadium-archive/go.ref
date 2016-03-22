@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package xwebsocket_test
+package websocket_test
 
 import (
 	"bytes"
@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/runtime/internal/lib/tcputil"
-	websocket "v.io/x/ref/runtime/internal/lib/xwebsocket"
+	"v.io/x/ref/runtime/protocols/lib/tcputil"
+	websocket "v.io/x/ref/runtime/protocols/lib/websocket"
 
 	"v.io/v23/context"
 	"v.io/v23/flow"

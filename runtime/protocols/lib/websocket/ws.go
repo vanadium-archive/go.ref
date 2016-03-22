@@ -4,7 +4,7 @@
 
 // +build !nacl
 
-package xwebsocket
+package websocket
 
 import (
 	"net"
@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"time"
 
-	"v.io/x/ref/runtime/internal/lib/tcputil"
+	"v.io/x/ref/runtime/protocols/lib/tcputil"
 
 	"github.com/gorilla/websocket"
 

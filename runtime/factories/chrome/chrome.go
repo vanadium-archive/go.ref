@@ -16,8 +16,8 @@ import (
 
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/runtime/internal"
-	"v.io/x/ref/runtime/internal/lib/xwebsocket"
 	grt "v.io/x/ref/runtime/internal/rt"
+	"v.io/x/ref/runtime/protocols/lib/websocket"
 	_ "v.io/x/ref/runtime/protocols/ws"
 	_ "v.io/x/ref/runtime/protocols/wsh_nacl"
 )
@@ -26,7 +26,7 @@ var commonFlags *flags.Flags
 
 func init() {
 	v23.RegisterRuntimeFactory(Init)
-	flow.RegisterUnknownProtocol("wsh", xwebsocket.WS{})
+	flow.RegisterUnknownProtocol("wsh", websocket.WS{})
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
 }
 

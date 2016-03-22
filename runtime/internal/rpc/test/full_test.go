@@ -37,9 +37,9 @@ import (
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/security/bcrypter"
 	"v.io/x/ref/runtime/internal/flow/crypto"
-	"v.io/x/ref/runtime/internal/lib/tcputil"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/protocols/debug"
+	"v.io/x/ref/runtime/protocols/lib/tcputil"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )

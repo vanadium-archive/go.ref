@@ -4,7 +4,7 @@
 
 // +build !nacl
 
-package xwebsocket
+package websocket
 
 import (
 	"io"
@@ -16,7 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"v.io/x/ref/internal/logger"
-	"v.io/x/ref/runtime/internal/lib/tcputil"
+	"v.io/x/ref/runtime/protocols/lib/tcputil"
 
 	"v.io/v23/context"
 	"v.io/v23/flow"

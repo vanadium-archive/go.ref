@@ -7,7 +7,7 @@ package websocket
 import (
 	"v.io/v23/flow"
 
-	websocket "v.io/x/ref/runtime/internal/lib/xwebsocket"
+	websocket "v.io/x/ref/runtime/protocols/lib/websocket"
 )
 
 func init() {

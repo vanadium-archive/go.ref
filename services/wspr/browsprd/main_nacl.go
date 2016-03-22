@@ -22,7 +22,7 @@ import (
 	"v.io/x/ref/internal/logger"
 	vsecurity "v.io/x/ref/lib/security"
 	_ "v.io/x/ref/runtime/factories/chrome"
-	"v.io/x/ref/runtime/internal/lib/xwebsocket"
+	"v.io/x/ref/runtime/protocols/lib/websocket"
 	"v.io/x/ref/services/wspr/internal/app"
 	"v.io/x/ref/services/wspr/internal/browspr"
 	"v.io/x/ref/services/wspr/internal/channel/channel_nacl"
@@ -62,7 +62,7 @@ func newBrowsprInstance(inst ppapi.Instance) ppapi.InstanceHandlers {
 	browsprInst.initFileSystem()
 
 	// Give the websocket interface the ppapi instance.
-	xwebsocket.PpapiInstance = inst
+	websocket.PpapiInstance = inst
 
 	// Set up the channel and register start rpc handler.
 	browsprInst.channel = channel_nacl.NewChannel(inst)

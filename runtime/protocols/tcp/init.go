@@ -6,7 +6,7 @@ package tcp
 
 import (
 	"v.io/v23/flow"
-	"v.io/x/ref/runtime/internal/lib/tcputil"
+	"v.io/x/ref/runtime/protocols/lib/tcputil"
 )
 
 func init() {

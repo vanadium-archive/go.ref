@@ -4,7 +4,7 @@
 
 // +build !nacl
 
-package xwebsocket
+package websocket
 
 import (
 	"fmt"
