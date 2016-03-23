@@ -256,8 +256,8 @@ func (m *CachedDischarge) MakeVDLTarget() vdl.Target {
 }
 
 type CachedDischargeTarget struct {
-	Value *CachedDischarge
-
+	Value           *CachedDischarge
+	dischargeTarget security.WireDischargeTarget
 	cacheTimeTarget time_2.TimeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
@@ -273,7 +273,8 @@ func (t *CachedDischargeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, err
 func (t *CachedDischargeTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Discharge":
-		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Discharge))
+		t.dischargeTarget.Value = &t.Value.Discharge
+		target, err := &t.dischargeTarget, error(nil)
 		return nil, target, err
 	case "CacheTime":
 		t.cacheTimeTarget.Value = &t.Value.CacheTime
@@ -587,11 +588,11 @@ func (t *__VDLTarget2_map) FinishMap(elem vdl.MapTarget) error {
 
 // map[dischargeCacheKey]security.Discharge
 type __VDLTarget3_map struct {
-	Value     *map[dischargeCacheKey]security.Discharge
-	currKey   dischargeCacheKey
-	currElem  security.Discharge
-	keyTarget dischargeCacheKeyTarget
-
+	Value      *map[dischargeCacheKey]security.Discharge
+	currKey    dischargeCacheKey
+	currElem   security.Discharge
+	keyTarget  dischargeCacheKeyTarget
+	elemTarget security.WireDischargeTarget
 	vdl.TargetBase
 	vdl.MapTargetBase
 }
@@ -612,7 +613,8 @@ func (t *__VDLTarget3_map) StartKey() (key vdl.Target, _ error) {
 }
 func (t *__VDLTarget3_map) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
 	t.currElem = reflect.Zero(reflect.TypeOf(t.currElem)).Interface().(security.Discharge)
-	target, err := vdl.ReflectTarget(reflect.ValueOf(&t.currElem))
+	t.elemTarget.Value = &t.currElem
+	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
 func (t *__VDLTarget3_map) FinishField(key, field vdl.Target) error {

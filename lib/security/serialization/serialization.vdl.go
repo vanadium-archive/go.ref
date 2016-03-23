@@ -141,9 +141,10 @@ type (
 	SignedDataHash struct{ Value HashCode }
 	// __SignedDataReflect describes the SignedData union type.
 	__SignedDataReflect struct {
-		Name  string `vdl:"v.io/x/ref/lib/security/serialization.SignedData"`
-		Type  SignedData
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/lib/security/serialization.SignedData"`
+		Type               SignedData
+		UnionTargetFactory signedDataTargetFactory
+		Union              struct {
 			Signature SignedDataSignature
 			Hash      SignedDataHash
 		}
@@ -212,6 +213,57 @@ func (m SignedDataHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m SignedDataHash) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type SignedDataTarget struct {
+	Value     *SignedData
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *SignedDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*SignedData)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *SignedDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Signature":
+		val := security.Signature{}
+		return nil, &security.SignatureTarget{Value: &val}, nil
+	case "Hash":
+		val := HashCode{}
+		return nil, &HashCodeTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/lib/security/serialization.SignedData", name)
+	}
+}
+func (t *SignedDataTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Signature":
+		*t.Value = SignedDataSignature{*(fieldTarget.(*security.SignatureTarget)).Value}
+	case "Hash":
+		*t.Value = SignedDataHash{*(fieldTarget.(*HashCodeTarget)).Value}
+	}
+	return nil
+}
+func (t *SignedDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type signedDataTargetFactory struct{}
+
+func (t signedDataTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*SignedData); ok {
+		return &SignedDataTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *SignedData", union)
 }
 
 // Create zero values for each type.

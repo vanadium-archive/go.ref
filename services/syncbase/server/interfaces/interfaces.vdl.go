@@ -1357,9 +1357,10 @@ type (
 	DeltaReqData struct{ Value DataDeltaReq }
 	// __DeltaReqReflect describes the DeltaReq union type.
 	__DeltaReqReflect struct {
-		Name  string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.DeltaReq"`
-		Type  DeltaReq
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.DeltaReq"`
+		Type               DeltaReq
+		UnionTargetFactory deltaReqTargetFactory
+		Union              struct {
 			Sgs  DeltaReqSgs
 			Data DeltaReqData
 		}
@@ -1430,6 +1431,57 @@ func (m DeltaReqData) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
+type DeltaReqTarget struct {
+	Value     *DeltaReq
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *DeltaReqTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*DeltaReq)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *DeltaReqTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Sgs":
+		val := SgDeltaReq{}
+		return nil, &SgDeltaReqTarget{Value: &val}, nil
+	case "Data":
+		val := DataDeltaReq{}
+		return nil, &DataDeltaReqTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/services/syncbase/server/interfaces.DeltaReq", name)
+	}
+}
+func (t *DeltaReqTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Sgs":
+		*t.Value = DeltaReqSgs{*(fieldTarget.(*SgDeltaReqTarget)).Value}
+	case "Data":
+		*t.Value = DeltaReqData{*(fieldTarget.(*DataDeltaReqTarget)).Value}
+	}
+	return nil
+}
+func (t *DeltaReqTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type deltaReqTargetFactory struct{}
+
+func (t deltaReqTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*DeltaReq); ok {
+		return &DeltaReqTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *DeltaReq", union)
+}
+
 type (
 	// DeltaResp represents any single field of the DeltaResp union type.
 	//
@@ -1452,9 +1504,10 @@ type (
 	DeltaRespGvs struct{ Value Knowledge }
 	// __DeltaRespReflect describes the DeltaResp union type.
 	__DeltaRespReflect struct {
-		Name  string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.DeltaResp"`
-		Type  DeltaResp
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.DeltaResp"`
+		Type               DeltaResp
+		UnionTargetFactory deltaRespTargetFactory
+		Union              struct {
 			Rec DeltaRespRec
 			Gvs DeltaRespGvs
 		}
@@ -1523,6 +1576,57 @@ func (m DeltaRespGvs) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m DeltaRespGvs) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type DeltaRespTarget struct {
+	Value     *DeltaResp
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *DeltaRespTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*DeltaResp)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *DeltaRespTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Rec":
+		val := LogRec{}
+		return nil, &LogRecTarget{Value: &val}, nil
+	case "Gvs":
+		val := Knowledge(nil)
+		return nil, &KnowledgeTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/services/syncbase/server/interfaces.DeltaResp", name)
+	}
+}
+func (t *DeltaRespTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Rec":
+		*t.Value = DeltaRespRec{*(fieldTarget.(*LogRecTarget)).Value}
+	case "Gvs":
+		*t.Value = DeltaRespGvs{*(fieldTarget.(*KnowledgeTarget)).Value}
+	}
+	return nil
+}
+func (t *DeltaRespTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type deltaRespTargetFactory struct{}
+
+func (t deltaRespTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*DeltaResp); ok {
+		return &DeltaRespTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *DeltaResp", union)
 }
 
 // A SgPriority represents data used to decide whether to transfer blob ownership

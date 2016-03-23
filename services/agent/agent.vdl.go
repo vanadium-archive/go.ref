@@ -379,9 +379,10 @@ type (
 	RpcMessageResp struct{ Value RpcResponse }
 	// __RpcMessageReflect describes the RpcMessage union type.
 	__RpcMessageReflect struct {
-		Name  string `vdl:"v.io/x/ref/services/agent.RpcMessage"`
-		Type  RpcMessage
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/services/agent.RpcMessage"`
+		Type               RpcMessage
+		UnionTargetFactory rpcMessageTargetFactory
+		Union              struct {
 			Req  RpcMessageReq
 			Resp RpcMessageResp
 		}
@@ -450,6 +451,57 @@ func (m RpcMessageResp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m RpcMessageResp) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type RpcMessageTarget struct {
+	Value     *RpcMessage
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *RpcMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*RpcMessage)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *RpcMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Req":
+		val := RpcRequest{}
+		return nil, &RpcRequestTarget{Value: &val}, nil
+	case "Resp":
+		val := RpcResponse{}
+		return nil, &RpcResponseTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/services/agent.RpcMessage", name)
+	}
+}
+func (t *RpcMessageTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Req":
+		*t.Value = RpcMessageReq{*(fieldTarget.(*RpcRequestTarget)).Value}
+	case "Resp":
+		*t.Value = RpcMessageResp{*(fieldTarget.(*RpcResponseTarget)).Value}
+	}
+	return nil
+}
+func (t *RpcMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type rpcMessageTargetFactory struct{}
+
+func (t rpcMessageTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*RpcMessage); ok {
+		return &RpcMessageTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *RpcMessage", union)
 }
 
 // Create zero values for each type.

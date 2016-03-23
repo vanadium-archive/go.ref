@@ -289,9 +289,10 @@ type (
 	BlessingsCacheMessageDelete struct{ Value BlessingsCacheDeleteMessage }
 	// __BlessingsCacheMessageReflect describes the BlessingsCacheMessage union type.
 	__BlessingsCacheMessageReflect struct {
-		Name  string `vdl:"v.io/x/ref/services/wspr/internal/principal.BlessingsCacheMessage"`
-		Type  BlessingsCacheMessage
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/services/wspr/internal/principal.BlessingsCacheMessage"`
+		Type               BlessingsCacheMessage
+		UnionTargetFactory blessingsCacheMessageTargetFactory
+		Union              struct {
 			Add    BlessingsCacheMessageAdd
 			Delete BlessingsCacheMessageDelete
 		}
@@ -360,6 +361,57 @@ func (m BlessingsCacheMessageDelete) FillVDLTarget(t vdl.Target, tt *vdl.Type) e
 
 func (m BlessingsCacheMessageDelete) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type BlessingsCacheMessageTarget struct {
+	Value     *BlessingsCacheMessage
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *BlessingsCacheMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*BlessingsCacheMessage)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *BlessingsCacheMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Add":
+		val := BlessingsCacheAddMessage{}
+		return nil, &BlessingsCacheAddMessageTarget{Value: &val}, nil
+	case "Delete":
+		val := BlessingsCacheDeleteMessage{}
+		return nil, &BlessingsCacheDeleteMessageTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/services/wspr/internal/principal.BlessingsCacheMessage", name)
+	}
+}
+func (t *BlessingsCacheMessageTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Add":
+		*t.Value = BlessingsCacheMessageAdd{*(fieldTarget.(*BlessingsCacheAddMessageTarget)).Value}
+	case "Delete":
+		*t.Value = BlessingsCacheMessageDelete{*(fieldTarget.(*BlessingsCacheDeleteMessageTarget)).Value}
+	}
+	return nil
+}
+func (t *BlessingsCacheMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type blessingsCacheMessageTargetFactory struct{}
+
+func (t blessingsCacheMessageTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*BlessingsCacheMessage); ok {
+		return &BlessingsCacheMessageTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *BlessingsCacheMessage", union)
 }
 
 // Create zero values for each type.

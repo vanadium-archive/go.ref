@@ -334,9 +334,10 @@ type (
 	PlayerActionQuit struct{ Value unused } // Indicates that the player is quitting the game.
 	// __PlayerActionReflect describes the PlayerAction union type.
 	__PlayerActionReflect struct {
-		Name  string `vdl:"v.io/x/ref/examples/rps.PlayerAction"`
-		Type  PlayerAction
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/examples/rps.PlayerAction"`
+		Type               PlayerAction
+		UnionTargetFactory playerActionTargetFactory
+		Union              struct {
 			Move PlayerActionMove
 			Quit PlayerActionQuit
 		}
@@ -404,6 +405,57 @@ func (m PlayerActionQuit) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m PlayerActionQuit) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type PlayerActionTarget struct {
+	Value     *PlayerAction
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *PlayerActionTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*PlayerAction)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *PlayerActionTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Move":
+		val := ""
+		return nil, &vdl.StringTarget{Value: &val}, nil
+	case "Quit":
+		val := unused{}
+		return nil, &unusedTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/examples/rps.PlayerAction", name)
+	}
+}
+func (t *PlayerActionTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Move":
+		*t.Value = PlayerActionMove{*(fieldTarget.(*vdl.StringTarget)).Value}
+	case "Quit":
+		*t.Value = PlayerActionQuit{*(fieldTarget.(*unusedTarget)).Value}
+	}
+	return nil
+}
+func (t *PlayerActionTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type playerActionTargetFactory struct{}
+
+func (t playerActionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*PlayerAction); ok {
+		return &PlayerActionTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *PlayerAction", union)
 }
 
 type PlayersMoves [2]string
@@ -974,9 +1026,10 @@ type (
 	JudgeActionScore struct{ Value ScoreCard } // The result of the game.
 	// __JudgeActionReflect describes the JudgeAction union type.
 	__JudgeActionReflect struct {
-		Name  string `vdl:"v.io/x/ref/examples/rps.JudgeAction"`
-		Type  JudgeAction
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/examples/rps.JudgeAction"`
+		Type               JudgeAction
+		UnionTargetFactory judgeActionTargetFactory
+		Union              struct {
 			PlayerNum    JudgeActionPlayerNum
 			OpponentName JudgeActionOpponentName
 			MoveOptions  JudgeActionMoveOptions
@@ -1158,6 +1211,72 @@ func (m JudgeActionScore) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m JudgeActionScore) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type JudgeActionTarget struct {
+	Value     *JudgeAction
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *JudgeActionTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*JudgeAction)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *JudgeActionTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "PlayerNum":
+		val := int32(0)
+		return nil, &vdl.Int32Target{Value: &val}, nil
+	case "OpponentName":
+		val := ""
+		return nil, &vdl.StringTarget{Value: &val}, nil
+	case "MoveOptions":
+		val := []string(nil)
+		return nil, &vdl.StringSliceTarget{Value: &val}, nil
+	case "RoundResult":
+		val := Round{}
+		return nil, &RoundTarget{Value: &val}, nil
+	case "Score":
+		val := ScoreCard{}
+		return nil, &ScoreCardTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/examples/rps.JudgeAction", name)
+	}
+}
+func (t *JudgeActionTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "PlayerNum":
+		*t.Value = JudgeActionPlayerNum{*(fieldTarget.(*vdl.Int32Target)).Value}
+	case "OpponentName":
+		*t.Value = JudgeActionOpponentName{*(fieldTarget.(*vdl.StringTarget)).Value}
+	case "MoveOptions":
+		*t.Value = JudgeActionMoveOptions{*(fieldTarget.(*vdl.StringSliceTarget)).Value}
+	case "RoundResult":
+		*t.Value = JudgeActionRoundResult{*(fieldTarget.(*RoundTarget)).Value}
+	case "Score":
+		*t.Value = JudgeActionScore{*(fieldTarget.(*ScoreCardTarget)).Value}
+	}
+	return nil
+}
+func (t *JudgeActionTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type judgeActionTargetFactory struct{}
+
+func (t judgeActionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*JudgeAction); ok {
+		return &JudgeActionTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *JudgeAction", union)
 }
 
 // PlayResult is the value returned by the Play method. It indicates the outcome of the game.

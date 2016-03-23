@@ -127,9 +127,10 @@ type (
 	BlobUnionBi struct{ Value BlobInfo }
 	// __BlobUnionReflect describes the BlobUnion union type.
 	__BlobUnionReflect struct {
-		Name  string `vdl:"v.io/x/ref/services/syncbase/vsync/testdata.BlobUnion"`
-		Type  BlobUnion
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/services/syncbase/vsync/testdata.BlobUnion"`
+		Type               BlobUnion
+		UnionTargetFactory blobUnionTargetFactory
+		Union              struct {
 			Num BlobUnionNum
 			Bi  BlobUnionBi
 		}
@@ -197,6 +198,57 @@ func (m BlobUnionBi) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m BlobUnionBi) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type BlobUnionTarget struct {
+	Value     *BlobUnion
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *BlobUnionTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*BlobUnion)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *BlobUnionTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Num":
+		val := int32(0)
+		return nil, &vdl.Int32Target{Value: &val}, nil
+	case "Bi":
+		val := BlobInfo{}
+		return nil, &BlobInfoTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/services/syncbase/vsync/testdata.BlobUnion", name)
+	}
+}
+func (t *BlobUnionTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Num":
+		*t.Value = BlobUnionNum{*(fieldTarget.(*vdl.Int32Target)).Value}
+	case "Bi":
+		*t.Value = BlobUnionBi{*(fieldTarget.(*BlobInfoTarget)).Value}
+	}
+	return nil
+}
+func (t *BlobUnionTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type blobUnionTargetFactory struct{}
+
+func (t blobUnionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*BlobUnion); ok {
+		return &BlobUnionTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *BlobUnion", union)
 }
 
 type BlobSet struct {

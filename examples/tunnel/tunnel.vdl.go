@@ -313,9 +313,10 @@ type (
 	ClientShellPacketWinSize struct{ Value WindowSize }
 	// __ClientShellPacketReflect describes the ClientShellPacket union type.
 	__ClientShellPacketReflect struct {
-		Name  string `vdl:"v.io/x/ref/examples/tunnel.ClientShellPacket"`
-		Type  ClientShellPacket
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/examples/tunnel.ClientShellPacket"`
+		Type               ClientShellPacket
+		UnionTargetFactory clientShellPacketTargetFactory
+		Union              struct {
 			Stdin     ClientShellPacketStdin
 			EndOfFile ClientShellPacketEndOfFile
 			WinSize   ClientShellPacketWinSize
@@ -419,6 +420,62 @@ func (m ClientShellPacketWinSize) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
+type ClientShellPacketTarget struct {
+	Value     *ClientShellPacket
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ClientShellPacketTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*ClientShellPacket)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *ClientShellPacketTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Stdin":
+		val := []byte(nil)
+		return nil, &vdl.BytesTarget{Value: &val}, nil
+	case "EndOfFile":
+		val := unused{}
+		return nil, &unusedTarget{Value: &val}, nil
+	case "WinSize":
+		val := WindowSize{}
+		return nil, &WindowSizeTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/examples/tunnel.ClientShellPacket", name)
+	}
+}
+func (t *ClientShellPacketTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Stdin":
+		*t.Value = ClientShellPacketStdin{*(fieldTarget.(*vdl.BytesTarget)).Value}
+	case "EndOfFile":
+		*t.Value = ClientShellPacketEndOfFile{*(fieldTarget.(*unusedTarget)).Value}
+	case "WinSize":
+		*t.Value = ClientShellPacketWinSize{*(fieldTarget.(*WindowSizeTarget)).Value}
+	}
+	return nil
+}
+func (t *ClientShellPacketTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type clientShellPacketTargetFactory struct{}
+
+func (t clientShellPacketTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*ClientShellPacket); ok {
+		return &ClientShellPacketTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *ClientShellPacket", union)
+}
+
 type (
 	// ServerShellPacket represents any single field of the ServerShellPacket union type.
 	ServerShellPacket interface {
@@ -442,9 +499,10 @@ type (
 	ServerShellPacketStderr struct{ Value []byte }
 	// __ServerShellPacketReflect describes the ServerShellPacket union type.
 	__ServerShellPacketReflect struct {
-		Name  string `vdl:"v.io/x/ref/examples/tunnel.ServerShellPacket"`
-		Type  ServerShellPacket
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/examples/tunnel.ServerShellPacket"`
+		Type               ServerShellPacket
+		UnionTargetFactory serverShellPacketTargetFactory
+		Union              struct {
 			Stdout ServerShellPacketStdout
 			Stderr ServerShellPacketStderr
 		}
@@ -513,6 +571,57 @@ func (m ServerShellPacketStderr) FillVDLTarget(t vdl.Target, tt *vdl.Type) error
 
 func (m ServerShellPacketStderr) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type ServerShellPacketTarget struct {
+	Value     *ServerShellPacket
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ServerShellPacketTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*ServerShellPacket)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *ServerShellPacketTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Stdout":
+		val := []byte(nil)
+		return nil, &vdl.BytesTarget{Value: &val}, nil
+	case "Stderr":
+		val := []byte(nil)
+		return nil, &vdl.BytesTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/examples/tunnel.ServerShellPacket", name)
+	}
+}
+func (t *ServerShellPacketTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Stdout":
+		*t.Value = ServerShellPacketStdout{*(fieldTarget.(*vdl.BytesTarget)).Value}
+	case "Stderr":
+		*t.Value = ServerShellPacketStderr{*(fieldTarget.(*vdl.BytesTarget)).Value}
+	}
+	return nil
+}
+func (t *ServerShellPacketTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type serverShellPacketTargetFactory struct{}
+
+func (t serverShellPacketTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*ServerShellPacket); ok {
+		return &ServerShellPacketTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *ServerShellPacket", union)
 }
 
 // Create zero values for each type.

@@ -1339,9 +1339,10 @@ type (
 	NamedUnionC struct{ Value int32 }
 	// __NamedUnionReflect describes the NamedUnion union type.
 	__NamedUnionReflect struct {
-		Name  string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedUnion"`
-		Type  NamedUnion
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/lib/vdl/testdata/base.NamedUnion"`
+		Type               NamedUnion
+		UnionTargetFactory namedUnionTargetFactory
+		Union              struct {
 			A NamedUnionA
 			B NamedUnionB
 			C NamedUnionC
@@ -1440,6 +1441,62 @@ func (m NamedUnionC) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m NamedUnionC) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type NamedUnionTarget struct {
+	Value     *NamedUnion
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *NamedUnionTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*NamedUnion)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *NamedUnionTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "A":
+		val := false
+		return nil, &vdl.BoolTarget{Value: &val}, nil
+	case "B":
+		val := ""
+		return nil, &vdl.StringTarget{Value: &val}, nil
+	case "C":
+		val := int32(0)
+		return nil, &vdl.Int32Target{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/lib/vdl/testdata/base.NamedUnion", name)
+	}
+}
+func (t *NamedUnionTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "A":
+		*t.Value = NamedUnionA{*(fieldTarget.(*vdl.BoolTarget)).Value}
+	case "B":
+		*t.Value = NamedUnionB{*(fieldTarget.(*vdl.StringTarget)).Value}
+	case "C":
+		*t.Value = NamedUnionC{*(fieldTarget.(*vdl.Int32Target)).Value}
+	}
+	return nil
+}
+func (t *NamedUnionTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type namedUnionTargetFactory struct{}
+
+func (t namedUnionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*NamedUnion); ok {
+		return &NamedUnionTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *NamedUnion", union)
 }
 
 type Scalars struct {
@@ -1972,7 +2029,7 @@ type ScalarsTarget struct {
 	b12Target NamedComplex128Target
 	b13Target NamedStringTarget
 	b14Target NamedEnumTarget
-
+	b15Target NamedUnionTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -2114,7 +2171,8 @@ func (t *ScalarsTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.b14Target, error(nil)
 		return nil, target, err
 	case "B15":
-		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.B15))
+		t.b15Target.Value = &t.Value.B15
+		target, err := &t.b15Target, error(nil)
 		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.Scalars", name)

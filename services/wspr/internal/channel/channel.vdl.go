@@ -260,9 +260,10 @@ type (
 	MessageResponse struct{ Value Response }
 	// __MessageReflect describes the Message union type.
 	__MessageReflect struct {
-		Name  string `vdl:"v.io/x/ref/services/wspr/internal/channel.Message"`
-		Type  Message
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/services/wspr/internal/channel.Message"`
+		Type               Message
+		UnionTargetFactory messageTargetFactory
+		Union              struct {
 			Request  MessageRequest
 			Response MessageResponse
 		}
@@ -331,6 +332,57 @@ func (m MessageResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m MessageResponse) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type MessageTarget struct {
+	Value     *Message
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *MessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*Message)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *MessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Request":
+		val := Request{}
+		return nil, &RequestTarget{Value: &val}, nil
+	case "Response":
+		val := Response{}
+		return nil, &ResponseTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/services/wspr/internal/channel.Message", name)
+	}
+}
+func (t *MessageTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Request":
+		*t.Value = MessageRequest{*(fieldTarget.(*RequestTarget)).Value}
+	case "Response":
+		*t.Value = MessageResponse{*(fieldTarget.(*ResponseTarget)).Value}
+	}
+	return nil
+}
+func (t *MessageTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type messageTargetFactory struct{}
+
+func (t messageTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*Message); ok {
+		return &MessageTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *Message", union)
 }
 
 // Create zero values for each type.

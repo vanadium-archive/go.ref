@@ -9,7 +9,6 @@ package conn
 
 import (
 	"fmt"
-	"reflect"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/security"
@@ -404,8 +403,8 @@ func (t *DischargesTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 // []security.Discharge
 type __VDLTarget2_list struct {
-	Value *[]security.Discharge
-
+	Value      *[]security.Discharge
+	elemTarget security.WireDischargeTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
@@ -423,7 +422,8 @@ func (t *__VDLTarget2_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, er
 	return t, nil
 }
 func (t *__VDLTarget2_list) StartElem(index int) (elem vdl.Target, _ error) {
-	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
 func (t *__VDLTarget2_list) FinishElem(elem vdl.Target) error {
@@ -591,9 +591,10 @@ type (
 	BlessingsFlowMessageEncryptedDischarges struct{ Value EncryptedDischarges }
 	// __BlessingsFlowMessageReflect describes the BlessingsFlowMessage union type.
 	__BlessingsFlowMessageReflect struct {
-		Name  string `vdl:"v.io/x/ref/runtime/internal/flow/conn.BlessingsFlowMessage"`
-		Type  BlessingsFlowMessage
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/runtime/internal/flow/conn.BlessingsFlowMessage"`
+		Type               BlessingsFlowMessage
+		UnionTargetFactory blessingsFlowMessageTargetFactory
+		Union              struct {
 			Blessings           BlessingsFlowMessageBlessings
 			Discharges          BlessingsFlowMessageDischarges
 			EncryptedBlessings  BlessingsFlowMessageEncryptedBlessings
@@ -728,6 +729,67 @@ func (m BlessingsFlowMessageEncryptedDischarges) FillVDLTarget(t vdl.Target, tt 
 
 func (m BlessingsFlowMessageEncryptedDischarges) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type BlessingsFlowMessageTarget struct {
+	Value     *BlessingsFlowMessage
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *BlessingsFlowMessageTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*BlessingsFlowMessage)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *BlessingsFlowMessageTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Blessings":
+		val := Blessings{}
+		return nil, &BlessingsTarget{Value: &val}, nil
+	case "Discharges":
+		val := Discharges{}
+		return nil, &DischargesTarget{Value: &val}, nil
+	case "EncryptedBlessings":
+		val := EncryptedBlessings{}
+		return nil, &EncryptedBlessingsTarget{Value: &val}, nil
+	case "EncryptedDischarges":
+		val := EncryptedDischarges{}
+		return nil, &EncryptedDischargesTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/runtime/internal/flow/conn.BlessingsFlowMessage", name)
+	}
+}
+func (t *BlessingsFlowMessageTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Blessings":
+		*t.Value = BlessingsFlowMessageBlessings{*(fieldTarget.(*BlessingsTarget)).Value}
+	case "Discharges":
+		*t.Value = BlessingsFlowMessageDischarges{*(fieldTarget.(*DischargesTarget)).Value}
+	case "EncryptedBlessings":
+		*t.Value = BlessingsFlowMessageEncryptedBlessings{*(fieldTarget.(*EncryptedBlessingsTarget)).Value}
+	case "EncryptedDischarges":
+		*t.Value = BlessingsFlowMessageEncryptedDischarges{*(fieldTarget.(*EncryptedDischargesTarget)).Value}
+	}
+	return nil
+}
+func (t *BlessingsFlowMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type blessingsFlowMessageTargetFactory struct{}
+
+func (t blessingsFlowMessageTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*BlessingsFlowMessage); ok {
+		return &BlessingsFlowMessageTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *BlessingsFlowMessage", union)
 }
 
 // Create zero values for each type.

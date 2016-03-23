@@ -12,6 +12,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/vdltool"
 	"v.io/x/ref/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 func localIdent(data *goData, file *compile.File, ident string) string {
@@ -222,7 +223,9 @@ func typeDefGo(data *goData, def *compile.TypeDef) string {
 			"\n\t__%[1]sReflect struct {"+
 			"\n\t\tName string `vdl:%[2]q`"+
 			"\n\t\tType %[1]s"+
-			"\n\t\tUnion struct {", def.Name, qualifiedIdent(def.File, def.Name))
+			"\n\t\tUnionTargetFactory %[3]sTargetFactory"+
+			"\n\t\tUnion struct {", def.Name, qualifiedIdent(def.File, def.Name),
+			vdlutil.FirstRuneToLower(def.Name))
 		for ix := 0; ix < t.NumField(); ix++ {
 			s += fmt.Sprintf("\n\t\t\t%[2]s %[1]s%[2]s", def.Name, t.Field(ix).Name)
 		}
@@ -261,7 +264,9 @@ func typeDefGo(data *goData, def *compile.TypeDef) string {
 	}
 	switch {
 	case def.Type.Kind() == vdl.Union:
-		// handled for specific field structs above
+		// MakeVdlTarget defined for specific union fields above.
+		_, body := genTargetRef(data, def.Type)
+		s += body
 	case isNativeType(data.Env, def.Type):
 		// For native types, generate a Target that handles Wire->Native conversion.
 		// However, because the Value field in this generated Target is the native type

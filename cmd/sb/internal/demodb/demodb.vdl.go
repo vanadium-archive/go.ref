@@ -541,9 +541,10 @@ type (
 	AgencyReportTransUnionReport struct{ Value TransUnionCreditReport }
 	// __AgencyReportReflect describes the AgencyReport union type.
 	__AgencyReportReflect struct {
-		Name  string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.AgencyReport"`
-		Type  AgencyReport
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.AgencyReport"`
+		Type               AgencyReport
+		UnionTargetFactory agencyReportTargetFactory
+		Union              struct {
 			EquifaxReport    AgencyReportEquifaxReport
 			ExperianReport   AgencyReportExperianReport
 			TransUnionReport AgencyReportTransUnionReport
@@ -647,6 +648,62 @@ func (m AgencyReportTransUnionReport) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
+type AgencyReportTarget struct {
+	Value     *AgencyReport
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *AgencyReportTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*AgencyReport)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *AgencyReportTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "EquifaxReport":
+		val := EquifaxCreditReport{}
+		return nil, &EquifaxCreditReportTarget{Value: &val}, nil
+	case "ExperianReport":
+		val := ExperianCreditReport{}
+		return nil, &ExperianCreditReportTarget{Value: &val}, nil
+	case "TransUnionReport":
+		val := TransUnionCreditReport{}
+		return nil, &TransUnionCreditReportTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/cmd/sb/internal/demodb.AgencyReport", name)
+	}
+}
+func (t *AgencyReportTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "EquifaxReport":
+		*t.Value = AgencyReportEquifaxReport{*(fieldTarget.(*EquifaxCreditReportTarget)).Value}
+	case "ExperianReport":
+		*t.Value = AgencyReportExperianReport{*(fieldTarget.(*ExperianCreditReportTarget)).Value}
+	case "TransUnionReport":
+		*t.Value = AgencyReportTransUnionReport{*(fieldTarget.(*TransUnionCreditReportTarget)).Value}
+	}
+	return nil
+}
+func (t *AgencyReportTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type agencyReportTargetFactory struct{}
+
+func (t agencyReportTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*AgencyReport); ok {
+		return &AgencyReportTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *AgencyReport", union)
+}
+
 type CreditReport struct {
 	Agency CreditAgency
 	Report AgencyReport
@@ -706,7 +763,7 @@ func (m *CreditReport) MakeVDLTarget() vdl.Target {
 type CreditReportTarget struct {
 	Value        *CreditReport
 	agencyTarget CreditAgencyTarget
-
+	reportTarget AgencyReportTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -725,7 +782,8 @@ func (t *CreditReportTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.agencyTarget, error(nil)
 		return nil, target, err
 	case "Report":
-		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Report))
+		t.reportTarget.Value = &t.Value.Report
+		target, err := &t.reportTarget, error(nil)
 		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/cmd/sb/internal/demodb.CreditReport", name)
@@ -1274,9 +1332,10 @@ type (
 	TitleOrValueTypeValue struct{ Value int64 }
 	// __TitleOrValueTypeReflect describes the TitleOrValueType union type.
 	__TitleOrValueTypeReflect struct {
-		Name  string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.TitleOrValueType"`
-		Type  TitleOrValueType
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.TitleOrValueType"`
+		Type               TitleOrValueType
+		UnionTargetFactory titleOrValueTypeTargetFactory
+		Union              struct {
 			Title TitleOrValueTypeTitle
 			Value TitleOrValueTypeValue
 		}
@@ -1345,6 +1404,57 @@ func (m TitleOrValueTypeValue) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
+type TitleOrValueTypeTarget struct {
+	Value     *TitleOrValueType
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *TitleOrValueTypeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*TitleOrValueType)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *TitleOrValueTypeTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Title":
+		val := ""
+		return nil, &vdl.StringTarget{Value: &val}, nil
+	case "Value":
+		val := int64(0)
+		return nil, &vdl.Int64Target{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/cmd/sb/internal/demodb.TitleOrValueType", name)
+	}
+}
+func (t *TitleOrValueTypeTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Title":
+		*t.Value = TitleOrValueTypeTitle{*(fieldTarget.(*vdl.StringTarget)).Value}
+	case "Value":
+		*t.Value = TitleOrValueTypeValue{*(fieldTarget.(*vdl.Int64Target)).Value}
+	}
+	return nil
+}
+func (t *TitleOrValueTypeTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type titleOrValueTypeTargetFactory struct{}
+
+func (t titleOrValueTypeTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*TitleOrValueType); ok {
+		return &TitleOrValueTypeTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *TitleOrValueType", union)
+}
+
 type BazType struct {
 	Name         string
 	TitleOrValue TitleOrValueType
@@ -1401,9 +1511,9 @@ func (m *BazType) MakeVDLTarget() vdl.Target {
 }
 
 type BazTypeTarget struct {
-	Value      *BazType
-	nameTarget vdl.StringTarget
-
+	Value              *BazType
+	nameTarget         vdl.StringTarget
+	titleOrValueTarget TitleOrValueTypeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1422,7 +1532,8 @@ func (t *BazTypeTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.nameTarget, error(nil)
 		return nil, target, err
 	case "TitleOrValue":
-		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.TitleOrValue))
+		t.titleOrValueTarget.Value = &t.Value.TitleOrValue
+		target, err := &t.titleOrValueTarget, error(nil)
 		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/cmd/sb/internal/demodb.BazType", name)
@@ -2265,9 +2376,10 @@ type (
 	ActOrSatScoreSatScore struct{ Value uint16 }
 	// __ActOrSatScoreReflect describes the ActOrSatScore union type.
 	__ActOrSatScoreReflect struct {
-		Name  string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.ActOrSatScore"`
-		Type  ActOrSatScore
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.ActOrSatScore"`
+		Type               ActOrSatScore
+		UnionTargetFactory actOrSatScoreTargetFactory
+		Union              struct {
 			ActScore ActOrSatScoreActScore
 			SatScore ActOrSatScoreSatScore
 		}
@@ -2334,6 +2446,57 @@ func (m ActOrSatScoreSatScore) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m ActOrSatScoreSatScore) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type ActOrSatScoreTarget struct {
+	Value     *ActOrSatScore
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ActOrSatScoreTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*ActOrSatScore)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *ActOrSatScoreTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "ActScore":
+		val := uint16(0)
+		return nil, &vdl.Uint16Target{Value: &val}, nil
+	case "SatScore":
+		val := uint16(0)
+		return nil, &vdl.Uint16Target{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/cmd/sb/internal/demodb.ActOrSatScore", name)
+	}
+}
+func (t *ActOrSatScoreTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "ActScore":
+		*t.Value = ActOrSatScoreActScore{*(fieldTarget.(*vdl.Uint16Target)).Value}
+	case "SatScore":
+		*t.Value = ActOrSatScoreSatScore{*(fieldTarget.(*vdl.Uint16Target)).Value}
+	}
+	return nil
+}
+func (t *ActOrSatScoreTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type actOrSatScoreTargetFactory struct{}
+
+func (t actOrSatScoreTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*ActOrSatScore); ok {
+		return &ActOrSatScoreTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *ActOrSatScore", union)
 }
 
 type Student struct {
@@ -2414,7 +2577,7 @@ type StudentTarget struct {
 	Value          *Student
 	nameTarget     vdl.StringTarget
 	testTimeTarget time_2.TimeTarget
-
+	scoreTarget    ActOrSatScoreTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -2437,7 +2600,8 @@ func (t *StudentTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.testTimeTarget, error(nil)
 		return nil, target, err
 	case "Score":
-		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Score))
+		t.scoreTarget.Value = &t.Value.Score
+		target, err := &t.scoreTarget, error(nil)
 		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/cmd/sb/internal/demodb.Student", name)

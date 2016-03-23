@@ -9,7 +9,6 @@ package watchable
 
 import (
 	"fmt"
-	"reflect"
 	"v.io/v23/vdl"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 )
@@ -873,9 +872,10 @@ type (
 	OpDbStateChangeRequest struct{ Value DbStateChangeRequestOp }
 	// __OpReflect describes the Op union type.
 	__OpReflect struct {
-		Name  string `vdl:"v.io/x/ref/services/syncbase/server/watchable.Op"`
-		Type  Op
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/services/syncbase/server/watchable.Op"`
+		Type               Op
+		UnionTargetFactory opTargetFactory
+		Union              struct {
 			Get                  OpGet
 			Scan                 OpScan
 			Put                  OpPut
@@ -1111,6 +1111,82 @@ func (m OpDbStateChangeRequest) MakeVDLTarget() vdl.Target {
 	return nil
 }
 
+type OpTarget struct {
+	Value     *Op
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *OpTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*Op)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *OpTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Get":
+		val := GetOp{}
+		return nil, &GetOpTarget{Value: &val}, nil
+	case "Scan":
+		val := ScanOp{}
+		return nil, &ScanOpTarget{Value: &val}, nil
+	case "Put":
+		val := PutOp{}
+		return nil, &PutOpTarget{Value: &val}, nil
+	case "Delete":
+		val := DeleteOp{}
+		return nil, &DeleteOpTarget{Value: &val}, nil
+	case "Syncgroup":
+		val := SyncgroupOp{}
+		return nil, &SyncgroupOpTarget{Value: &val}, nil
+	case "SyncSnapshot":
+		val := SyncSnapshotOp{}
+		return nil, &SyncSnapshotOpTarget{Value: &val}, nil
+	case "DbStateChangeRequest":
+		val := DbStateChangeRequestOp{}
+		return nil, &DbStateChangeRequestOpTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/services/syncbase/server/watchable.Op", name)
+	}
+}
+func (t *OpTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Get":
+		*t.Value = OpGet{*(fieldTarget.(*GetOpTarget)).Value}
+	case "Scan":
+		*t.Value = OpScan{*(fieldTarget.(*ScanOpTarget)).Value}
+	case "Put":
+		*t.Value = OpPut{*(fieldTarget.(*PutOpTarget)).Value}
+	case "Delete":
+		*t.Value = OpDelete{*(fieldTarget.(*DeleteOpTarget)).Value}
+	case "Syncgroup":
+		*t.Value = OpSyncgroup{*(fieldTarget.(*SyncgroupOpTarget)).Value}
+	case "SyncSnapshot":
+		*t.Value = OpSyncSnapshot{*(fieldTarget.(*SyncSnapshotOpTarget)).Value}
+	case "DbStateChangeRequest":
+		*t.Value = OpDbStateChangeRequest{*(fieldTarget.(*DbStateChangeRequestOpTarget)).Value}
+	}
+	return nil
+}
+func (t *OpTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type opTargetFactory struct{}
+
+func (t opTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*Op); ok {
+		return &OpTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *Op", union)
+}
+
 // LogEntry represents a single store operation. This operation may have been
 // part of a transaction, as signified by the Continued boolean. Read-only
 // operations (and read-only transactions) are not logged.
@@ -1203,8 +1279,8 @@ func (m *LogEntry) MakeVDLTarget() vdl.Target {
 }
 
 type LogEntryTarget struct {
-	Value *LogEntry
-
+	Value                 *LogEntry
+	opTarget              OpTarget
 	commitTimestampTarget vdl.Int64Target
 	fromSyncTarget        vdl.BoolTarget
 	continuedTarget       vdl.BoolTarget
@@ -1222,7 +1298,8 @@ func (t *LogEntryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *LogEntryTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Op":
-		target, err := vdl.ReflectTarget(reflect.ValueOf(&t.Value.Op))
+		t.opTarget.Value = &t.Value.Op
+		target, err := &t.opTarget, error(nil)
 		return nil, target, err
 	case "CommitTimestamp":
 		t.commitTimestampTarget.Value = &t.Value.CommitTimestamp

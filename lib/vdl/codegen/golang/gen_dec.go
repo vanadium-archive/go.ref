@@ -222,6 +222,105 @@ func (t *%[1]s) FromNil(tt *vdl.Type) error {
 	return s
 }
 
+// genUnionTargetDef generates a Target that assigns to a union.
+func genUnionTargetDef(data *goData, t *vdl.Type) string {
+	def := data.Env.FindTypeDef(t)
+	valueAssn, _, valueFieldDef := genValueField(data, t)
+	var s string
+	if t.Name() == "" {
+		s += fmt.Sprintf("\n// %s", typeGo(data, t))
+	}
+	var anyValueField = ""
+	for i := 0; i < t.NumField(); i++ {
+		if t.Field(i).Type == vdl.AnyType {
+			if shouldUseVdlValueForAny(data.Package) {
+				anyValueField = fmt.Sprintf("anyValue %sValue", data.Pkg("v.io/v23/vdl"))
+			} else {
+				anyValueField = fmt.Sprintf("anyValue %sRawBytes", data.Pkg("v.io/v23/vom"))
+			}
+			break
+		}
+	}
+	s += fmt.Sprintf(`
+type %[1]s struct {
+	%[7]s
+	fieldName string
+	%[8]s
+	%[2]s
+	%[3]s
+}
+func (t *%[1]s) StartFields(tt *%[4]sType) (%[4]sFieldsTarget, error) {
+	%[5]s
+	%[6]s
+	return t, nil
+}
+func (t *%[1]s) StartField(name string) (key, field %[4]sTarget, _ error) {
+	t.fieldName = name
+	switch name {`, targetTypeName(data, t), targetBaseRef(data, "Target"), targetBaseRef(data, "FieldsTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), genResetWire(data, t), valueFieldDef, anyValueField)
+	var additionalBodies string
+	for i := 0; i < t.NumField(); i++ {
+		fld := t.Field(i)
+		if fld.Type == vdl.AnyType {
+			if shouldUseVdlValueForAny(data.Package) {
+				s += fmt.Sprintf(`
+		case %[1]q:
+	t.anyValue = %[2]sValue{}
+	target, err := %[2]sValueTarget(&t.anyValue)
+	return nil, target, err`, fld.Name, data.Pkg("v.io/v23/vdl"))
+			} else {
+				s += fmt.Sprintf(`
+		case %[1]q:
+	t.anyValue = %[2]sRawBytes{}
+	return nil, t.anyValue.MakeVDLTarget(), nil`, fld.Name, data.Pkg("v.io/v23/vom"))
+			}
+		} else {
+			ref, body := genTargetRef(data, fld.Type)
+			additionalBodies += body
+			s += fmt.Sprintf(`
+		case %[1]q:
+	val := %[2]s
+	return nil, &%[3]s{Value:&val}, nil`, fld.Name, typedConst(data, vdl.ZeroValue(fld.Type)), ref)
+		}
+	}
+	s += fmt.Sprintf(`
+	default:
+		return nil, nil, %[4]sErrorf("field %%s not in union %[2]s", name)
+	}
+}
+func (t *%[1]s) FinishField(_, fieldTarget %[3]sTarget) error {
+	switch t.fieldName {`, targetTypeName(data, t), t.Name(), data.Pkg("v.io/v23/vdl"), data.Pkg("fmt"))
+	for i := 0; i < t.NumField(); i++ {
+		fld := t.Field(i)
+		if fld.Type == vdl.AnyType {
+			s += fmt.Sprintf(`
+		case %[1]q:
+	%[2]s = %[3]s%[4]s{&t.anyValue}`, fld.Name, valueAssn, def.Name, fld.Name)
+		} else {
+			s += fmt.Sprintf(`
+		case %[1]q:
+	%[3]s = %[4]s%[5]s{*(fieldTarget.(*%[2]s)).Value}`, fld.Name, targetTypeName(data, fld.Type), valueAssn, def.Name, fld.Name)
+		}
+	}
+	s += fmt.Sprintf(`}
+	return nil
+}
+func (t *%[1]s) FinishFields(_ %[3]sFieldsTarget) error {
+	%[2]s
+	return nil
+}
+
+type %[6]sFactory struct{}
+
+func (t %[6]sFactory) VDLMakeUnionTarget(union interface{}) (%[3]sTarget, error) {
+	if typedUnion, ok := union.(*%[4]s); ok {
+		return &%[1]s{Value: typedUnion}, nil
+	}
+	return nil, %[5]sErrorf("got %%T, want *%[4]s", union)
+}`, targetTypeName(data, t), genWireToNativeConversion(data, t), data.Pkg("v.io/v23/vdl"), typeGo(data, t), data.Pkg("fmt"), vdlutil.FirstRuneToLower(targetTypeName(data, t)))
+	s += additionalBodies
+	return s
+}
+
 // genListTargetDef generates a Target that assigns to a list.
 func genListTargetDef(data *goData, t *vdl.Type) string {
 	valueAssn, _, valueFieldDef := genValueField(data, t)
@@ -385,6 +484,9 @@ func (t *%[1]s) FromEnumLabel(src string, tt *%[4]sType) error {
 
 // genTargetDef calls the appropriate Target generator based on type t.
 func genTargetDef(data *goData, t *vdl.Type) string {
+	if def := data.Env.FindTypeDef(t); def != nil && def.File.Package != data.Package {
+		return ""
+	}
 	if !data.createdTargets[t] {
 		data.createdTargets[t] = true
 		if t.IsBytes() {
@@ -398,6 +500,8 @@ func genTargetDef(data *goData, t *vdl.Type) string {
 				panic("only structs can be optional")
 			}
 			return genOptionalStructTargetDef(data, t)
+		case vdl.Union:
+			return genUnionTargetDef(data, t)
 		case vdl.List, vdl.Array:
 			return genListTargetDef(data, t)
 		case vdl.Set:
@@ -425,9 +529,7 @@ func genTargetRef(data *goData, t *vdl.Type) (targTypeName, body string) {
 		return externalName, ""
 	}
 
-	if def := data.Env.FindTypeDef(t); (def != nil && def.File.Package == data.Package) || t.Name() == "" {
-		body = genTargetDef(data, t)
-	}
+	body = genTargetDef(data, t)
 	targTypeName = targetTypeName(data, t)
 	return
 }
@@ -477,7 +579,7 @@ func externalTargetTypeName(data *goData, t *vdl.Type) string {
 }
 
 func inlineTargetField(data *goData, t, parentType *vdl.Type, name string) string {
-	if t.Kind() == vdl.Union || t.Kind() == vdl.Any {
+	if t.Kind() == vdl.Any {
 		return ""
 	}
 	if isRecursiveReference(parentType, t) {
@@ -504,7 +606,7 @@ func createTargetCall(data *goData, t, parentType *vdl.Type, targetName, input s
 	// t.Value.Attributes = Attributes(val)
 	// return nil, &TargetMapStringString{&val}, nil
 	// Where TargetMapStringString is a standard target. Consider doing so in the future.
-	if t.Kind() == vdl.Union || t.Kind() == vdl.Any {
+	if t.Kind() == vdl.Any {
 		return fmt.Sprintf("target, err := %sReflectTarget(%sValueOf(%s))", data.Pkg("v.io/v23/vdl"), data.Pkg("reflect"), input), ""
 	}
 	ref, body := genTargetRef(data, t)
@@ -554,7 +656,7 @@ func genValueField(data *goData, t *vdl.Type) (assignmentName, regName, def stri
 // genResetWire generates code that will reset the wireValue if applicable
 func genResetWire(data *goData, t *vdl.Type) string {
 	if isNativeType(data.Env, t) {
-		return fmt.Sprintf(`t.wireValue = %[2]sZero(%[2]sTypeOf(t.wireValue)).Interface().(%[1]s)`, typeGoWire(data, t), data.Pkg("reflect"))
+		return fmt.Sprintf(`t.wireValue = %s`, typedConstWire(data, vdl.ZeroValue(t)))
 	}
 	return ""
 }

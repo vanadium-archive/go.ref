@@ -115,9 +115,10 @@ type (
 	RpcCallOptionGranter struct{ Value GranterHandle }
 	// __RpcCallOptionReflect describes the RpcCallOption union type.
 	__RpcCallOptionReflect struct {
-		Name  string `vdl:"v.io/x/ref/services/wspr/internal/app.RpcCallOption"`
-		Type  RpcCallOption
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/services/wspr/internal/app.RpcCallOption"`
+		Type               RpcCallOption
+		UnionTargetFactory rpcCallOptionTargetFactory
+		Union              struct {
 			AllowedServersPolicy RpcCallOptionAllowedServersPolicy
 			Granter              RpcCallOptionGranter
 		}
@@ -202,6 +203,90 @@ func (m RpcCallOptionGranter) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 }
 
 func (m RpcCallOptionGranter) MakeVDLTarget() vdl.Target {
+	return nil
+}
+
+type RpcCallOptionTarget struct {
+	Value     *RpcCallOption
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *RpcCallOptionTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*RpcCallOption)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *RpcCallOptionTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "AllowedServersPolicy":
+		val := []security.BlessingPattern(nil)
+		return nil, &__VDLTarget1_list{Value: &val}, nil
+	case "Granter":
+		val := GranterHandle(0)
+		return nil, &GranterHandleTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/services/wspr/internal/app.RpcCallOption", name)
+	}
+}
+func (t *RpcCallOptionTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "AllowedServersPolicy":
+		*t.Value = RpcCallOptionAllowedServersPolicy{*(fieldTarget.(*__VDLTarget1_list)).Value}
+	case "Granter":
+		*t.Value = RpcCallOptionGranter{*(fieldTarget.(*GranterHandleTarget)).Value}
+	}
+	return nil
+}
+func (t *RpcCallOptionTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type rpcCallOptionTargetFactory struct{}
+
+func (t rpcCallOptionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*RpcCallOption); ok {
+		return &RpcCallOptionTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *RpcCallOption", union)
+}
+
+// []security.BlessingPattern
+type __VDLTarget1_list struct {
+	Value      *[]security.BlessingPattern
+	elemTarget security.BlessingPatternTarget
+	vdl.TargetBase
+	vdl.ListTargetBase
+}
+
+func (t *__VDLTarget1_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+
+	if ttWant := vdl.TypeOf((*[]security.BlessingPattern)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+	if cap(*t.Value) < len {
+		*t.Value = make([]security.BlessingPattern, len)
+	} else {
+		*t.Value = (*t.Value)[:len]
+	}
+	return t, nil
+}
+func (t *__VDLTarget1_list) StartElem(index int) (elem vdl.Target, _ error) {
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
+	return target, err
+}
+func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
+	return nil
+}
+func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
+
 	return nil
 }
 
@@ -386,7 +471,7 @@ type RpcRequestTarget struct {
 	deadlineTarget     time.WireDeadlineTarget
 	traceRequestTarget vtrace.RequestTarget
 	contextTarget      server.ContextTarget
-	callOptionsTarget  __VDLTarget1_list
+	callOptionsTarget  __VDLTarget2_list
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -449,14 +534,14 @@ func (t *RpcRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // []RpcCallOption
-type __VDLTarget1_list struct {
-	Value *[]RpcCallOption
-
+type __VDLTarget2_list struct {
+	Value      *[]RpcCallOption
+	elemTarget RpcCallOptionTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *__VDLTarget1_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *__VDLTarget2_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
 	if ttWant := vdl.TypeOf((*[]RpcCallOption)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -468,14 +553,15 @@ func (t *__VDLTarget1_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, er
 	}
 	return t, nil
 }
-func (t *__VDLTarget1_list) StartElem(index int) (elem vdl.Target, _ error) {
-	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+func (t *__VDLTarget2_list) StartElem(index int) (elem vdl.Target, _ error) {
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
-func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
+func (t *__VDLTarget2_list) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
+func (t *__VDLTarget2_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
@@ -499,9 +585,10 @@ type (
 	RpcServerOptionServesMountTable struct{ Value bool }
 	// __RpcServerOptionReflect describes the RpcServerOption union type.
 	__RpcServerOptionReflect struct {
-		Name  string `vdl:"v.io/x/ref/services/wspr/internal/app.RpcServerOption"`
-		Type  RpcServerOption
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/services/wspr/internal/app.RpcServerOption"`
+		Type               RpcServerOption
+		UnionTargetFactory rpcServerOptionTargetFactory
+		Union              struct {
 			IsLeaf           RpcServerOptionIsLeaf
 			ServesMountTable RpcServerOptionServesMountTable
 		}
@@ -568,6 +655,57 @@ func (m RpcServerOptionServesMountTable) FillVDLTarget(t vdl.Target, tt *vdl.Typ
 
 func (m RpcServerOptionServesMountTable) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type RpcServerOptionTarget struct {
+	Value     *RpcServerOption
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *RpcServerOptionTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*RpcServerOption)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *RpcServerOptionTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "IsLeaf":
+		val := false
+		return nil, &vdl.BoolTarget{Value: &val}, nil
+	case "ServesMountTable":
+		val := false
+		return nil, &vdl.BoolTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/services/wspr/internal/app.RpcServerOption", name)
+	}
+}
+func (t *RpcServerOptionTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "IsLeaf":
+		*t.Value = RpcServerOptionIsLeaf{*(fieldTarget.(*vdl.BoolTarget)).Value}
+	case "ServesMountTable":
+		*t.Value = RpcServerOptionServesMountTable{*(fieldTarget.(*vdl.BoolTarget)).Value}
+	}
+	return nil
+}
+func (t *RpcServerOptionTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type rpcServerOptionTargetFactory struct{}
+
+func (t rpcServerOptionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*RpcServerOption); ok {
+		return &RpcServerOptionTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *RpcServerOption", union)
 }
 
 type RpcResponse struct {
@@ -647,7 +785,7 @@ func (m *RpcResponse) MakeVDLTarget() vdl.Target {
 
 type RpcResponseTarget struct {
 	Value               *RpcResponse
-	outArgsTarget       __VDLTarget2_list
+	outArgsTarget       __VDLTarget3_list
 	traceResponseTarget vtrace.ResponseTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
@@ -683,14 +821,14 @@ func (t *RpcResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // []*vom.RawBytes
-type __VDLTarget2_list struct {
+type __VDLTarget3_list struct {
 	Value *[]*vom.RawBytes
 
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
 
-func (t *__VDLTarget2_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
+func (t *__VDLTarget3_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, error) {
 
 	if ttWant := vdl.TypeOf((*[]*vom.RawBytes)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
@@ -702,14 +840,14 @@ func (t *__VDLTarget2_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, er
 	}
 	return t, nil
 }
-func (t *__VDLTarget2_list) StartElem(index int) (elem vdl.Target, _ error) {
+func (t *__VDLTarget3_list) StartElem(index int) (elem vdl.Target, _ error) {
 	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
 	return target, err
 }
-func (t *__VDLTarget2_list) FinishElem(elem vdl.Target) error {
+func (t *__VDLTarget3_list) FinishElem(elem vdl.Target) error {
 	return nil
 }
-func (t *__VDLTarget2_list) FinishList(elem vdl.ListTarget) error {
+func (t *__VDLTarget3_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }

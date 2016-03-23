@@ -9,7 +9,6 @@ package signing
 
 import (
 	"fmt"
-	"reflect"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 )
@@ -50,9 +49,10 @@ type (
 	ItemHash struct{ Value []byte } // Hash of what would have been in Data, as returned by SumByteVectorWithLength(Data).
 	// __ItemReflect describes the Item union type.
 	__ItemReflect struct {
-		Name  string `vdl:"v.io/x/ref/services/syncbase/signing.Item"`
-		Type  Item
-		Union struct {
+		Name               string `vdl:"v.io/x/ref/services/syncbase/signing.Item"`
+		Type               Item
+		UnionTargetFactory itemTargetFactory
+		Union              struct {
 			Data ItemData
 			Hash ItemHash
 		}
@@ -121,6 +121,57 @@ func (m ItemHash) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 func (m ItemHash) MakeVDLTarget() vdl.Target {
 	return nil
+}
+
+type ItemTarget struct {
+	Value     *Item
+	fieldName string
+
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *ItemTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+	if ttWant := vdl.TypeOf((*Item)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+
+	return t, nil
+}
+func (t *ItemTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	t.fieldName = name
+	switch name {
+	case "Data":
+		val := []byte(nil)
+		return nil, &vdl.BytesTarget{Value: &val}, nil
+	case "Hash":
+		val := []byte(nil)
+		return nil, &vdl.BytesTarget{Value: &val}, nil
+	default:
+		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/services/syncbase/signing.Item", name)
+	}
+}
+func (t *ItemTarget) FinishField(_, fieldTarget vdl.Target) error {
+	switch t.fieldName {
+	case "Data":
+		*t.Value = ItemData{*(fieldTarget.(*vdl.BytesTarget)).Value}
+	case "Hash":
+		*t.Value = ItemHash{*(fieldTarget.(*vdl.BytesTarget)).Value}
+	}
+	return nil
+}
+func (t *ItemTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+type itemTargetFactory struct{}
+
+func (t itemTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
+	if typedUnion, ok := union.(*Item); ok {
+		return &ItemTarget{Value: typedUnion}, nil
+	}
+	return nil, fmt.Errorf("got %T, want *Item", union)
 }
 
 // A DataWithSignature represents a signed, and possibily validated, collection
@@ -341,8 +392,8 @@ func (t *DataWithSignatureTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 // []Item
 type __VDLTarget1_list struct {
-	Value *[]Item
-
+	Value      *[]Item
+	elemTarget ItemTarget
 	vdl.TargetBase
 	vdl.ListTargetBase
 }
@@ -360,7 +411,8 @@ func (t *__VDLTarget1_list) StartList(tt *vdl.Type, len int) (vdl.ListTarget, er
 	return t, nil
 }
 func (t *__VDLTarget1_list) StartElem(index int) (elem vdl.Target, _ error) {
-	target, err := vdl.ReflectTarget(reflect.ValueOf(&(*t.Value)[index]))
+	t.elemTarget.Value = &(*t.Value)[index]
+	target, err := &t.elemTarget, error(nil)
 	return target, err
 }
 func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
