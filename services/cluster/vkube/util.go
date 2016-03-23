@@ -218,10 +218,14 @@ func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object,
 	if len(oldNames) != 1 {
 		return fmt.Errorf("found %d replication controllers for this application: %q", len(oldNames), oldNames)
 	}
-	if secretName, rootBlessings, err := findPodAttributes(oldNames[0], namespace); err != nil {
-		fmt.Fprintf(stderr, "WARNING: %v\n", err)
-	} else if err := addPodAgent(ctx, config, rc, secretName, rootBlessings); err != nil {
+	secretName, rootBlessings, err := findPodAttributes(oldNames[0], namespace)
+	if err != nil {
 		return err
+	}
+	if secretName != "" {
+		if err := addPodAgent(ctx, config, rc, secretName, rootBlessings); err != nil {
+			return err
+		}
 	}
 	json, err := rc.json()
 	if err != nil {
@@ -301,9 +305,6 @@ func findPodAttributes(rcName, namespace string) (string, string, error) {
 			break
 		}
 	}
-	if secret == "" {
-		return "", "", fmt.Errorf("failed to find secret name in replication controller %q", rcName)
-	}
 
 	// Find root blessings.
 	var root string
@@ -317,9 +318,6 @@ L:
 				}
 			}
 		}
-	}
-	if root == "" {
-		return "", "", fmt.Errorf("failed to find root blessings in replication controller %q", rcName)
 	}
 	return secret, root, nil
 }

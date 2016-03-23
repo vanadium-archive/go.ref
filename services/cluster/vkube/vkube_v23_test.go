@@ -118,6 +118,14 @@ func TestV23Vkube(t *testing.T) {
 	if err := createAppConfig(appConf2, id, appImage, "2"); err != nil {
 		t.Fatal(err)
 	}
+	bbConf1 := filepath.Join(workdir, "busybox1.json")
+	if err := createBusyboxConfig(bbConf1, id, "1"); err != nil {
+		t.Fatal(err)
+	}
+	bbConf2 := filepath.Join(workdir, "busybox2.json")
+	if err := createBusyboxConfig(bbConf2, id, "2"); err != nil {
+		t.Fatal(err)
+	}
 
 	vkubeOK("build-docker-images", "-v", "-tag=test")
 	// Clean up local docker images.
@@ -161,6 +169,12 @@ func TestV23Vkube(t *testing.T) {
 	vkubeOK("stop", "-f", appConf2)
 	kubectlFail("get", "rc", "tunneld-2") // No longer running
 	vkubeFail("stop", "-f", appConf2)     // No longer running
+
+	vkubeOK("start", "-f", bbConf1, "--noblessings", "--wait")
+	vkubeFail("start", "-f", bbConf1, "--noblessings") // Already running
+	vkubeOK("update", "-f", bbConf2, "--wait")
+	vkubeOK("stop", "-f", bbConf2)
+	vkubeFail("stop", "-f", bbConf2) // No longer running
 
 	vkubeOK("stop-cluster-agent")
 	kubectlFail("get", "service", "cluster-agent")
@@ -207,9 +221,7 @@ func setupDockerDirectory(workdir string) (string, error) {
 	}
 	if out, err := exec.Command("jiri", "go", "build",
 		"-o", filepath.Join(dockerDir, "tunneld"),
-		// TODO(rthellend): Remove -tags noopenssl after we move to Go 1.6.
-		"-tags", "noopenssl",
-		"-ldflags", "-extldflags \"-static\"",
+		"-ldflags", "-extldflags -static",
 		"v.io/x/ref/examples/tunnel/tunneld").CombinedOutput(); err != nil {
 		return "", fmt.Errorf("build failed: %v: %s", err, string(out))
 	}
@@ -260,6 +272,47 @@ func createAppConfig(path, id, image, version string) error {
             "resources": {
               "limits": { "cpu": "0.1", "memory": "100M" }
             }
+          }
+        ]
+      }
+    }
+  }
+}`)).Execute(f, params)
+}
+
+func createBusyboxConfig(path, id, version string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	params := struct{ ID, Version string }{id, version}
+	return template.Must(template.New("appcfg").Parse(`{
+  "apiVersion": "v1",
+  "kind": "ReplicationController",
+  "metadata": {
+    "name": "busybox-{{.Version}}",
+    "namespace": "{{.ID}}",
+    "labels": {
+      "application": "busybox"
+    }
+  },
+  "spec": {
+    "replicas": 1,
+    "template": {
+      "metadata": {
+        "labels": {
+          "application": "busybox",
+          "version": "{{.Version}}"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "busybox",
+            "image": "busybox",
+            "command": [ "sleep", "3600" ]
           }
         ]
       }

@@ -95,9 +95,13 @@ Usage:
 
 <extension> The blessing name extension to give to the application.
 
+If --noblessings is set, this argument is not needed.
+
 The vkube start flags are:
  -f=
    Filename to use to create the kubernetes resource.
+ -noblessings=false
+   Do not pass blessings to the application.
  -wait=false
    Wait for at least one replica to be ready.
 

@@ -128,9 +128,7 @@ func goBuildArgs(binary, target string) []string {
 		"build",
 		"-o",
 		binary,
-		// TODO(rthellend): Remove -tags noopenssl after we move to Go 1.6.
-		"-tags", "noopenssl",
-		"-ldflags", "-extldflags \"-static\"",
+		"-ldflags", "-extldflags -static",
 		target,
 	}
 }

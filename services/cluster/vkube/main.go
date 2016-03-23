@@ -29,6 +29,7 @@ var (
 	flagKubectlBin     string
 	flagGcloudBin      string
 	flagGetCredentials bool
+	flagNoBlessings    bool
 	flagResourceFile   string
 	flagVerbose        bool
 	flagTag            string
@@ -58,6 +59,7 @@ func main() {
 	cmd.Flags.StringVar(&flagGcloudBin, "gcloud", "gcloud", "The 'gcloud' binary to use.")
 	cmd.Flags.BoolVar(&flagGetCredentials, "get-credentials", true, "When true, use gcloud to get the cluster credentials. Otherwise, assume kubectl already has the correct credentials, and 'vkube kubectl' is equivalent to 'kubectl'.")
 
+	cmdStart.Flags.BoolVar(&flagNoBlessings, "noblessings", false, "Do not pass blessings to the application.")
 	cmdStart.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to create the kubernetes resource.")
 	cmdStart.Flags.BoolVar(&flagWait, "wait", false, "Wait for at least one replica to be ready.")
 
@@ -104,14 +106,19 @@ var cmdStart = &cmdline.Command{
 	Short:    "Starts an application.",
 	Long:     "Starts an application.",
 	ArgsName: "<extension>",
-	ArgsLong: "<extension> The blessing name extension to give to the application.",
+	ArgsLong: `<extension> The blessing name extension to give to the application.
+
+If --noblessings is set, this argument is not needed.
+`,
 }
 
 func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
-	if expected, got := 1, len(args); expected != got {
-		return env.UsageErrorf("start: incorrect number of arguments, expected %d, got %d", expected, got)
+	if flagNoBlessings && len(args) != 0 {
+		return env.UsageErrorf("start: no arguments are expected when --noblessings is set")
 	}
-	extension := args[0]
+	if !flagNoBlessings && len(args) != 1 {
+		return env.UsageErrorf("start: expected one argument, got %d", len(args))
+	}
 	if flagResourceFile == "" {
 		return fmt.Errorf("-f must be specified.")
 	}
@@ -124,31 +131,40 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 			fmt.Fprintf(env.Stderr, "WARNING: %q is not set. Rolling updates will not work.\n", v)
 		}
 	}
-	agentAddr, err := findClusterAgent(config, true)
-	if err != nil {
-		return err
-	}
-	secretName, err := makeSecretName()
-	if err != nil {
-		return err
-	}
 	namespace := rc.getString("metadata.namespace")
 	appName := rc.getString("spec.template.metadata.labels.application")
-	if n, err := findReplicationControllerNamesForApp(appName, namespace); err != nil {
-		return err
-	} else if len(n) != 0 {
-		return fmt.Errorf("replication controller for application=%q already running: %q", appName, n)
-	}
-	if err := createSecret(ctx, secretName, namespace, agentAddr, extension); err != nil {
-		return err
-	}
-	fmt.Fprintln(env.Stdout, "Created secret successfully.")
 
-	if err := createReplicationController(ctx, config, rc, secretName); err != nil {
-		if err := deleteSecret(ctx, config, secretName, rootBlessings(ctx), namespace); err != nil {
-			ctx.Error(err)
+	if flagNoBlessings {
+		if out, err := kubectlCreate(rc); err != nil {
+			fmt.Fprintln(env.Stderr, string(out))
+			return err
 		}
-		return err
+	} else {
+		agentAddr, err := findClusterAgent(config, true)
+		if err != nil {
+			return err
+		}
+		secretName, err := makeSecretName()
+		if err != nil {
+			return err
+		}
+		if n, err := findReplicationControllerNamesForApp(appName, namespace); err != nil {
+			return err
+		} else if len(n) != 0 {
+			return fmt.Errorf("replication controller for application=%q already running: %q", appName, n)
+		}
+		extension := args[0]
+		if err := createSecret(ctx, secretName, namespace, agentAddr, extension); err != nil {
+			return err
+		}
+		fmt.Fprintln(env.Stdout, "Created secret successfully.")
+
+		if err := createReplicationController(ctx, config, rc, secretName); err != nil {
+			if err := deleteSecret(ctx, config, secretName, rootBlessings(ctx), namespace); err != nil {
+				fmt.Fprintf(env.Stderr, "Error deleting secret: %v\n", err)
+			}
+			return err
+		}
 	}
 	fmt.Fprintln(env.Stdout, "Created replication controller successfully.")
 	if flagWait {
@@ -218,10 +234,12 @@ func runCmdStop(ctx *context.T, env *cmdline.Env, args []string, config *vkubeCo
 		return fmt.Errorf("failed to stop replication controller: %v: %s", err, out)
 	}
 	fmt.Fprintln(env.Stdout, "Stopping replication controller.")
-	if err := deleteSecret(ctx, config, secretName, rootBlessings, namespace); err != nil {
-		return fmt.Errorf("failed to delete secret: %v", err)
+	if secretName != "" {
+		if err := deleteSecret(ctx, config, secretName, rootBlessings, namespace); err != nil {
+			return fmt.Errorf("failed to delete secret: %v", err)
+		}
+		fmt.Fprintln(env.Stdout, "Deleting secret.")
 	}
-	fmt.Fprintln(env.Stdout, "Deleting secret.")
 	return nil
 }
 
