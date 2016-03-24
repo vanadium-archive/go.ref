@@ -218,6 +218,11 @@ func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object,
 	if len(oldNames) != 1 {
 		return fmt.Errorf("found %d replication controllers for this application: %q", len(oldNames), oldNames)
 	}
+	if oldNames[0] == rc.getString("metadata.name") {
+		// Assume this update is a no op.
+		fmt.Fprintf(stderr, "replication controller %q already exists\n", oldNames[0])
+		return nil
+	}
 	secretName, rootBlessings, err := findPodAttributes(oldNames[0], namespace)
 	if err != nil {
 		return err
@@ -226,6 +231,19 @@ func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object,
 		if err := addPodAgent(ctx, config, rc, secretName, rootBlessings); err != nil {
 			return err
 		}
+	}
+	if hasPersistentDisk(rc) {
+		// Rolling updates with persistent disks don't work because
+		// the new Pod cannot come up until the old one has released
+		// the disk. Instead, we create the new RC and delete the old
+		// one.
+		if out, err := kubectlCreate(rc); err != nil {
+			return fmt.Errorf("failed to create replication controller: %v: %s", err, string(out))
+		}
+		if out, err := kubectl("delete", "rc", oldNames[0], "--namespace="+namespace); err != nil {
+			return fmt.Errorf("failed to delete replication controller %q: %v: %s", oldNames[0], err, string(out))
+		}
+		return nil
 	}
 	json, err := rc.json()
 	if err != nil {
@@ -239,6 +257,15 @@ func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object,
 		return fmt.Errorf("failed to update replication controller %q: %v\n", oldNames[0], err)
 	}
 	return nil
+}
+
+func hasPersistentDisk(obj object) bool {
+	for _, v := range obj.getObjectArray("spec.template.spec.volumes") {
+		if v.get("gcePersistentDisk") != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // createNamespaceIfNotExist creates a Namespace object if it doesn't already exist.
