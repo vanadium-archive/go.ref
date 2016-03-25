@@ -33,6 +33,8 @@ The vkube flags are:
    equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
 
 The global flags are:
  -alsologtostderr=true
@@ -115,6 +117,8 @@ The vkube start flags are:
    equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
 
 Vkube update
 
@@ -140,6 +144,8 @@ The vkube update flags are:
    equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
 
 Vkube stop
 
@@ -162,6 +168,8 @@ The vkube stop flags are:
    equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
 
 Vkube start-cluster-agent
 
@@ -184,6 +192,8 @@ The vkube start-cluster-agent flags are:
    equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
 
 Vkube stop-cluster-agent
 
@@ -203,6 +213,8 @@ The vkube stop-cluster-agent flags are:
    equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
 
 Vkube claim-cluster-agent
 
@@ -222,6 +234,8 @@ The vkube claim-cluster-agent flags are:
    equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
 
 Vkube build-docker-images
 
@@ -246,6 +260,8 @@ The vkube build-docker-images flags are:
    equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
 
 Vkube kubectl
 
@@ -267,6 +283,8 @@ The vkube kubectl flags are:
    equivalent to 'kubectl'.
  -kubectl=kubectl
    The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
 
 Vkube help - Display help for commands or topics
 

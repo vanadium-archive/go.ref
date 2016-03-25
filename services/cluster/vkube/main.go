@@ -30,10 +30,17 @@ var (
 	flagGcloudBin      string
 	flagGetCredentials bool
 	flagNoBlessings    bool
+	flagNoHeaders      bool
 	flagResourceFile   string
 	flagVerbose        bool
 	flagTag            string
 	flagWait           bool
+)
+
+const (
+	Deployment            = "Deployment"
+	Pod                   = "Pod"
+	ReplicationController = "ReplicationController"
 )
 
 func main() {
@@ -58,6 +65,7 @@ func main() {
 	cmd.Flags.StringVar(&flagKubectlBin, "kubectl", "kubectl", "The 'kubectl' binary to use.")
 	cmd.Flags.StringVar(&flagGcloudBin, "gcloud", "gcloud", "The 'gcloud' binary to use.")
 	cmd.Flags.BoolVar(&flagGetCredentials, "get-credentials", true, "When true, use gcloud to get the cluster credentials. Otherwise, assume kubectl already has the correct credentials, and 'vkube kubectl' is equivalent to 'kubectl'.")
+	cmd.Flags.BoolVar(&flagNoHeaders, "no-headers", false, "When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.")
 
 	cmdStart.Flags.BoolVar(&flagNoBlessings, "noblessings", false, "Do not pass blessings to the application.")
 	cmdStart.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to create the kubernetes resource.")
@@ -83,7 +91,9 @@ func kubeCmdRunner(kcmd func(ctx *context.T, env *cmdline.Env, args []string, co
 			return err
 		}
 		if flagGetCredentials {
-			fmt.Fprintf(env.Stderr, "Project: %s Zone: %s Cluster: %s\n\n", config.Project, config.Zone, config.Cluster)
+			if !flagNoHeaders {
+				fmt.Fprintf(env.Stderr, "Project: %s Zone: %s Cluster: %s\n\n", config.Project, config.Zone, config.Cluster)
+			}
 			f, err := ioutil.TempFile("", "kubeconfig-")
 			if err != nil {
 				return err
@@ -122,7 +132,7 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 	if flagResourceFile == "" {
 		return fmt.Errorf("-f must be specified.")
 	}
-	rc, err := readReplicationControllerConfig(flagResourceFile)
+	kind, rc, err := readResourceConfig(flagResourceFile)
 	if err != nil {
 		return err
 	}
@@ -133,6 +143,14 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 	}
 	namespace := rc.getString("metadata.namespace")
 	appName := rc.getString("spec.template.metadata.labels.application")
+
+	if kind == ReplicationController {
+		if n, err := findReplicationControllerNamesForApp(appName, namespace); err != nil {
+			return err
+		} else if len(n) != 0 {
+			return fmt.Errorf("replication controller for application=%q already running: %q", appName, n)
+		}
+	}
 
 	if flagNoBlessings {
 		if out, err := kubectlCreate(rc); err != nil {
@@ -148,25 +166,38 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 		if err != nil {
 			return err
 		}
-		if n, err := findReplicationControllerNamesForApp(appName, namespace); err != nil {
-			return err
-		} else if len(n) != 0 {
-			return fmt.Errorf("replication controller for application=%q already running: %q", appName, n)
-		}
 		extension := args[0]
 		if err := createSecret(ctx, secretName, namespace, agentAddr, extension); err != nil {
 			return err
 		}
+		// Delete Secret if we encounter an error while creating the Deployment
+		// or Replication Controller.
+		needToDeleteSecret := true
+		defer func() {
+			if needToDeleteSecret {
+				if err := deleteSecret(ctx, config, secretName, rootBlessings(ctx), namespace); err != nil {
+					fmt.Fprintf(env.Stderr, "Error deleting secret: %v\n", err)
+				}
+			}
+		}()
 		fmt.Fprintln(env.Stdout, "Created secret successfully.")
 
-		if err := createReplicationController(ctx, config, rc, secretName); err != nil {
-			if err := deleteSecret(ctx, config, secretName, rootBlessings(ctx), namespace); err != nil {
-				fmt.Fprintf(env.Stderr, "Error deleting secret: %v\n", err)
+		switch kind {
+		case Deployment:
+			if err := createDeployment(ctx, config, rc, secretName); err != nil {
+				return err
 			}
-			return err
+			fmt.Fprintln(env.Stdout, "Created deployment successfully.")
+		case ReplicationController:
+			if err := createReplicationController(ctx, config, rc, secretName); err != nil {
+				return err
+			}
+			fmt.Fprintln(env.Stdout, "Created replication controller successfully.")
+		default:
+			return fmt.Errorf("unexpected kind: %q", kind)
 		}
+		needToDeleteSecret = false
 	}
-	fmt.Fprintln(env.Stdout, "Created replication controller successfully.")
 	if flagWait {
 		if err := waitForReadyPods(appName, namespace); err != nil {
 			return err
@@ -187,14 +218,25 @@ func runCmdUpdate(ctx *context.T, env *cmdline.Env, args []string, config *vkube
 	if flagResourceFile == "" {
 		return fmt.Errorf("-f must be specified.")
 	}
-	rc, err := readReplicationControllerConfig(flagResourceFile)
+	kind, rc, err := readResourceConfig(flagResourceFile)
 	if err != nil {
 		return err
 	}
-	if err := updateReplicationController(ctx, config, rc, env.Stdout, env.Stderr); err != nil {
-		return err
+	switch kind {
+	case ReplicationController:
+		if err := updateReplicationController(ctx, config, rc, env.Stdout, env.Stderr); err != nil {
+			return err
+		}
+		fmt.Fprintln(env.Stdout, "Updated replication controller successfully.")
+	case Deployment:
+		if err := updateDeployment(ctx, config, rc, env.Stdout, env.Stderr); err != nil {
+			return err
+		}
+		fmt.Fprintln(env.Stdout, "Updated deployment successfully.")
+	default:
+		return fmt.Errorf("unexpected kind: %q", kind)
 	}
-	fmt.Fprintln(env.Stdout, "Updated replication controller successfully.")
+
 	if flagWait {
 		namespace := rc.getString("metadata.namespace")
 		appName := rc.getString("spec.template.metadata.labels.application")
@@ -217,7 +259,7 @@ func runCmdStop(ctx *context.T, env *cmdline.Env, args []string, config *vkubeCo
 	if flagResourceFile == "" {
 		return fmt.Errorf("-f must be specified.")
 	}
-	rc, err := readReplicationControllerConfig(flagResourceFile)
+	kind, rc, err := readResourceConfig(flagResourceFile)
 	if err != nil {
 		return err
 	}
@@ -226,14 +268,24 @@ func runCmdStop(ctx *context.T, env *cmdline.Env, args []string, config *vkubeCo
 		return fmt.Errorf("metadata.name must be set")
 	}
 	namespace := rc.getString("metadata.namespace")
-	secretName, rootBlessings, err := findPodAttributes(name, namespace)
+	secretName, rootBlessings, err := findPodAttributes(kind, name, namespace)
 	if err != nil {
 		return err
 	}
-	if out, err := kubectl("--namespace="+namespace, "stop", "rc", name); err != nil {
-		return fmt.Errorf("failed to stop replication controller: %v: %s", err, out)
+	switch kind {
+	case ReplicationController:
+		if out, err := kubectl("--namespace="+namespace, "delete", "rc", name); err != nil {
+			return fmt.Errorf("failed to stop replication controller: %v: %s", err, out)
+		}
+		fmt.Fprintln(env.Stdout, "Stopping replication controller.")
+	case Deployment:
+		if out, err := kubectl("--namespace="+namespace, "delete", "deployment", name); err != nil {
+			return fmt.Errorf("failed to stop deployment: %v: %s", err, out)
+		}
+		fmt.Fprintln(env.Stdout, "Stopping deployment.")
+	default:
+		return fmt.Errorf("unexpected kind: %q", kind)
 	}
-	fmt.Fprintln(env.Stdout, "Stopping replication controller.")
 	if secretName != "" {
 		if err := deleteSecret(ctx, config, secretName, rootBlessings, namespace); err != nil {
 			return fmt.Errorf("failed to delete secret: %v", err)

@@ -35,35 +35,36 @@ func localAgentAddress(config *vkubeConfig) string {
 	)
 }
 
-// readReplicationControllerConfig reads a ReplicationController config from a
+// readResourceConfig reads a Deployment or ReplicationController config from a
 // file.
-func readReplicationControllerConfig(fileName string) (object, error) {
+func readResourceConfig(fileName string) (string, object, error) {
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 	var rc object
 	if err := rc.importJSON(data); err != nil {
-		return nil, err
+		return "", nil, err
 	}
-	if kind := rc.getString("kind"); kind != "ReplicationController" {
-		return nil, fmt.Errorf("expected kind=\"ReplicationController\", got %q", kind)
+	kind := rc.getString("kind")
+	if kind != Deployment && kind != ReplicationController {
+		return "", nil, fmt.Errorf("expected kind=%q or kind=%q, got %q", Deployment, ReplicationController, kind)
 	}
-	return rc, nil
+	return kind, rc, nil
 }
 
-// addPodAgent takes either a ReplicationController or Pod object and adds a
-// pod-agent container to it. The existing containers are updated to use the
+// addPodAgent takes a Deployment, ReplicationController, or Pod object and adds
+// a pod-agent container to it. The existing containers are updated to use the
 // pod agent.
 func addPodAgent(ctx *context.T, config *vkubeConfig, obj object, secretName, rootBlessings string) error {
 	var base string
 	switch kind := obj.getString("kind"); kind {
-	case "ReplicationController":
+	case Deployment, ReplicationController:
 		base = "spec.template."
-	case "Pod":
+	case Pod:
 		base = ""
 	default:
-		return fmt.Errorf("expected kind=\"ReplicationController\" or \"Pod\", got %q", kind)
+		return fmt.Errorf("expected kind=%q, %q, or %q, got %q", Deployment, ReplicationController, Pod, kind)
 	}
 
 	// Add the volumes used by the pod agent container.
@@ -195,6 +196,18 @@ func deleteSecret(ctx *context.T, config *vkubeConfig, name, rootBlessings, name
 	return nil
 }
 
+// createDeployment takes a Deployment object, adds a pod-agent, and then
+// creates it on kubernetes.
+func createDeployment(ctx *context.T, config *vkubeConfig, rc object, secretName string) error {
+	if err := addPodAgent(ctx, config, rc, secretName, rootBlessings(ctx)); err != nil {
+		return err
+	}
+	if out, err := kubectlCreate(rc, "--record"); err != nil {
+		return fmt.Errorf("failed to create deployment: %v\n%s\n", err, string(out))
+	}
+	return nil
+}
+
 // createReplicationController takes a ReplicationController object, adds a
 // pod-agent, and then creates it on kubernetes.
 func createReplicationController(ctx *context.T, config *vkubeConfig, rc object, secretName string) error {
@@ -204,6 +217,35 @@ func createReplicationController(ctx *context.T, config *vkubeConfig, rc object,
 	if out, err := kubectlCreate(rc); err != nil {
 		return fmt.Errorf("failed to create replication controller: %v\n%s\n", err, string(out))
 	}
+	return nil
+}
+
+// updateDeployment takes a Deployment object, adds a pod-agent (if needed),
+// and then applies the update.
+func updateDeployment(ctx *context.T, config *vkubeConfig, rc object, stdout, stderr io.Writer) error {
+	name := rc.getString("metadata.name")
+	namespace := rc.getString("metadata.namespace")
+	secretName, rootBlessings, err := findPodAttributes(Deployment, name, namespace)
+	if err != nil {
+		return err
+	}
+	if secretName != "" {
+		if err := addPodAgent(ctx, config, rc, secretName, rootBlessings); err != nil {
+			return err
+		}
+	}
+	json, err := rc.json()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(flagKubectlBin, "apply", "-f", "-", "--namespace="+namespace)
+	cmd.Stdin = bytes.NewBuffer(json)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to update deployment %q: %v\n", name, err)
+	}
+	// TODO(rthellend): Watch the rollout and make sure it succeeeds. Roll back otherwise.
 	return nil
 }
 
@@ -223,7 +265,7 @@ func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object,
 		fmt.Fprintf(stderr, "replication controller %q already exists\n", oldNames[0])
 		return nil
 	}
-	secretName, rootBlessings, err := findPodAttributes(oldNames[0], namespace)
+	secretName, rootBlessings, err := findPodAttributes(ReplicationController, oldNames[0], namespace)
 	if err != nil {
 		return err
 	}
@@ -313,11 +355,21 @@ func findReplicationControllerNamesForApp(app, namespace string) ([]string, erro
 }
 
 // findPodAttributes finds the name of the Secret object and root blessings
-// associated the given Replication Controller.
-func findPodAttributes(rcName, namespace string) (string, string, error) {
-	data, err := kubectl("--namespace="+namespace, "get", "rc", rcName, "-o", "json")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get replication controller %q: %v\n%s\n", rcName, err, string(data))
+// associated the given Deployment or Replication Controller.
+func findPodAttributes(kind, name, namespace string) (string, string, error) {
+	var (
+		data []byte
+		err  error
+	)
+	switch kind {
+	case Deployment:
+		if data, err = kubectl("--namespace="+namespace, "get", "deployment", name, "-o", "json"); err != nil {
+			return "", "", fmt.Errorf("failed to get deployment %q: %v\n%s\n", name, err, string(data))
+		}
+	case ReplicationController:
+		if data, err = kubectl("--namespace="+namespace, "get", "rc", name, "-o", "json"); err != nil {
+			return "", "", fmt.Errorf("failed to get replication controller %q: %v\n%s\n", name, err, string(data))
+		}
 	}
 	var rc object
 	if err := rc.importJSON(data); err != nil {
@@ -391,12 +443,13 @@ func waitForReadyPods(appName, namespace string) error {
 
 // kubectlCreate runs 'kubectl create -f' on the given object and returns the
 // output.
-func kubectlCreate(o object) ([]byte, error) {
+func kubectlCreate(o object, extraArgs ...string) ([]byte, error) {
 	json, err := o.json()
 	if err != nil {
 		return nil, err
 	}
-	cmd := exec.Command(flagKubectlBin, "create", "-f", "-")
+	args := append([]string{"create", "-f", "-"}, extraArgs...)
+	cmd := exec.Command(flagKubectlBin, args...)
 	cmd.Stdin = bytes.NewBuffer(json)
 	return cmd.CombinedOutput()
 }

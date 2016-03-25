@@ -74,7 +74,7 @@ func TestV23Vkube(t *testing.T) {
 				if expectSuccess && c.Err != nil {
 					t.Error(testutil.FormatLogLine(2, "Unexpected failure: %s %s :%v", name, strings.Join(args, " "), c.Err))
 				} else if !expectSuccess && c.Err == nil {
-					t.Error(testutil.FormatLogLine(2, "Unexpected success %d: %s %s", name, strings.Join(args, " ")))
+					t.Error(testutil.FormatLogLine(2, "Unexpected success %d: %s", name, strings.Join(args, " ")))
 				}
 				return output
 			}
@@ -83,10 +83,10 @@ func TestV23Vkube(t *testing.T) {
 		gcloud      = cmd("gcloud", true, "--project="+*flagProject)
 		docker      = cmd("docker", true)
 		getCreds    = fmt.Sprintf("--get-credentials=%v", *flagGetCredentials)
-		vkubeOK     = cmd(vkubeBin, true, "--config="+vkubeCfgPath, getCreds)
-		vkubeFail   = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds)
-		kubectlOK   = cmd(vkubeBin, true, "--config="+vkubeCfgPath, getCreds, "kubectl", "--", "--namespace="+id)
-		kubectlFail = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds, "kubectl", "--", "--namespace="+id)
+		vkubeOK     = cmd(vkubeBin, true, "--config="+vkubeCfgPath, getCreds, "--no-headers")
+		vkubeFail   = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds, "--no-headers")
+		kubectlOK   = cmd(vkubeBin, true, "--config="+vkubeCfgPath, getCreds, "--no-headers", "kubectl", "--", "--namespace="+id)
+		kubectlFail = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds, "--no-headers", "kubectl", "--", "--namespace="+id)
 		vshOK       = cmd(vshBin, true)
 	)
 
