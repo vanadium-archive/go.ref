@@ -18,6 +18,7 @@ import (
 	lsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/security/bcrypter"
 	_ "v.io/x/ref/runtime/factories/roaming"
+	bm "v.io/x/ref/runtime/internal/rpc/benchmark"
 	"v.io/x/ref/runtime/internal/rpc/benchmark/internal"
 	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test"
@@ -175,19 +176,20 @@ func Benchmark___1KB_mux___1K_chunks__10KB(b *testing.B) { runMux(b, 1000, 1000,
 // network connections between iterations since the stream manager is
 // recreated with the client).
 func benchmarkConnectionEstablishment(b *testing.B, ctx *context.T, server string) {
+	var buf [1]byte
 	for i := 0; i < b.N; i++ {
 		// The client and server are running with the same principal
 		// here (since they are both keyed off the same 'ctx').
 		cctx, cancel := context.WithCancel(ctx)
-		cctx, client, err := v23.WithNewClient(cctx)
+		cctx, _, err := v23.WithNewClient(cctx)
 		if err != nil {
 			b.Fatalf("Iteration %d/%d: %v", i, b.N, err)
 		}
-		conn, err := client.PinConnection(cctx, server)
-		if err != nil {
-			b.Fatalf("Iteration %d/%d: %v", i, b.N, err)
+		// Execute an RPC to ensure that the connection is established
+		// by both ends.
+		if _, err := bm.BenchmarkClient(server).Echo(cctx, buf[:]); err != nil {
+			b.Fatal(err)
 		}
-		conn.Unpin()
 		cancel()
 	}
 }
