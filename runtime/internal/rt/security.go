@@ -6,8 +6,9 @@ package rt
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
-	"os/user"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/security"
@@ -86,20 +87,17 @@ func ipcAgent() (agent.Principal, error) {
 }
 
 func defaultBlessingName() string {
-	var name string
-	if user, _ := user.Current(); user != nil && len(user.Username) > 0 {
-		name = user.Username
-	} else {
-		name = "anonymous"
+	options := []string{
+		"apple", "banana", "cherry", "dragonfruit", "elderberry", "fig", "grape", "honeydew",
 	}
+	name := fmt.Sprintf("anonymous-%s-%d",
+		options[rand.New(rand.NewSource(time.Now().Unix())).Intn(len(options))],
+		os.Getpid())
 	host, _ := os.Hostname()
-	if host == "(none)" {
-		// (none) is a common default hostname and contains parentheses,
-		// which are invalid blessings characters.
-		host = "anonymous"
+	// (none) is a common default hostname and contains parentheses,
+	// which are invalid blessings characters.
+	if host == "(none)" || len(host) == 0 {
+		return name
 	}
-	if len(host) > 0 {
-		name = name + "@" + host
-	}
-	return fmt.Sprintf("%s-%d", name, os.Getpid())
+	return name + "@" + host
 }
