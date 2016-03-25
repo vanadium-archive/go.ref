@@ -61,7 +61,6 @@ import (
 	"v.io/v23/services/binary"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-	"v.io/x/ref"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/lib/security"
@@ -311,7 +310,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		if p, err = vsecurity.CreatePersistentPrincipal(credentialsDir, nil); err != nil {
 			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err))
 		}
-		cmd.Env = append(cmd.Env, ref.EnvCredentials+"="+credentialsDir)
+		cfg.Set("v23.credentials", credentialsDir)
 	}
 	dmPrincipal := v23.GetPrincipal(ctx)
 	dmBlessings, _ := dmPrincipal.BlessingStore().Default()

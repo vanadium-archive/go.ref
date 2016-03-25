@@ -101,7 +101,7 @@ func deviceManagerFunc(publishName string, args ...string) error {
 			Name:            publishName,
 			ListenSpec:      listenSpec,
 			ConfigState:     configState,
-			TestMode:        strings.HasSuffix(fmt.Sprint(blessings), "/testdm"),
+			TestMode:        strings.HasSuffix(fmt.Sprint(blessings), ":testdm"),
 			RestartCallback: func() { fmt.Println("restart handler") },
 			PairingToken:    pairingToken,
 		},
