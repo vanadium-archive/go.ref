@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"v.io/v23/security"
 	"v.io/x/ref"
@@ -81,19 +80,6 @@ func TestV23ClusterAgentD(t *testing.T) {
 		"--secret-key-file="+secretPath,
 		"--root-blessings="+rootBlessings(t, sh, agentCreds),
 	).Start()
-
-	// Wait for the socket to show up.
-	// TODO(rthellend): This should be fixed in agentlib.
-	for c := 0; ; c++ {
-		if _, err := os.Stat(sockPath); err == nil {
-			break
-		}
-		if c < 10 {
-			time.Sleep(time.Second)
-			continue
-		}
-		t.Fatalf("%q still doesn't exist after 10 sec", sockPath)
-	}
 
 	// The principal served by the pod agent should have a blessing name
 	// that starts with root:alice:foo:.

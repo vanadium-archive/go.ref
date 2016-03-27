@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"reflect"
 	"sync"
+	"syscall"
 	"time"
 
 	"v.io/v23/vom"
@@ -18,7 +20,10 @@ import (
 	"v.io/x/ref/services/agent"
 )
 
-const currentVersion = 1
+const (
+	currentVersion    = 1
+	connectTimeoutSec = 60
+)
 
 var zeroTime time.Time
 
@@ -110,7 +115,22 @@ func (ipc *IPC) Listen(path string) error {
 
 // Connect to a listening socket at 'path'.
 func (ipc *IPC) Connect(path string) (*IPCConn, error) {
-	conn, err := net.Dial("unix", path)
+	var (
+		conn net.Conn
+		err  error
+	)
+	for retry := 0; retry < connectTimeoutSec; retry++ {
+		conn, err = net.Dial("unix", path)
+		// It's possible the agent isn't ready yet, in which case, the
+		// underlying connect() call returns ENOENT. Retry.
+		if opErr, ok := err.(*net.OpError); ok {
+			if sysErr, ok := opErr.Err.(*os.SyscallError); ok && sysErr.Err == syscall.ENOENT {
+				time.Sleep(time.Second)
+				continue
+			}
+		}
+		break
+	}
 	if err != nil {
 		return nil, err
 	}
