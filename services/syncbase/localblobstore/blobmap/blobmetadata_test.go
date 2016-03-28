@@ -10,7 +10,7 @@ import "io/ioutil"
 import "os"
 import "testing"
 
-import "v.io/v23/services/syncbase/nosql"
+import wire "v.io/v23/services/syncbase"
 import "v.io/v23/verror"
 import "v.io/x/ref/services/syncbase/localblobstore"
 import "v.io/x/ref/services/syncbase/localblobstore/blobmap"
@@ -62,7 +62,7 @@ func TestAddRetrieveAndDeleteBlobMetadata(t *testing.T) {
 	}
 
 	// Two blob Ids: b[0] and b[1].
-	b := []nosql.BlobRef{"foo", "bar"}
+	b := []wire.BlobRef{"foo", "bar"}
 
 	var bmd localblobstore.BlobMetadata
 	var bmdList []localblobstore.BlobMetadata

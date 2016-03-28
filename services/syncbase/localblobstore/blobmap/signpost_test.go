@@ -12,7 +12,7 @@ import "os"
 import "reflect"
 import "testing"
 
-import "v.io/v23/services/syncbase/nosql"
+import wire "v.io/v23/services/syncbase"
 import "v.io/v23/verror"
 import "v.io/x/ref/services/syncbase/localblobstore/blobmap"
 import "v.io/x/ref/services/syncbase/server/interfaces"
@@ -44,7 +44,7 @@ func TestAddRetrieveAndDeleteSignpost(t *testing.T) {
 	}
 
 	// Two blob Ids: b[0] and b[1].
-	b := []nosql.BlobRef{"foo", "bar"}
+	b := []wire.BlobRef{"foo", "bar"}
 
 	var sp interfaces.Signpost
 	var spList []interfaces.Signpost

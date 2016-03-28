@@ -30,7 +30,7 @@ func GlobChildren(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob
 	for it.Advance() {
 		key = it.Key(key)
 		parts := common.SplitKeyParts(string(key))
-		// For explanation of Escape(), see comment in server/nosql/dispatcher.go.
+		// For explanation of Escape(), see comment in server/dispatcher.go.
 		name := pubutil.Escape(parts[len(parts)-1])
 		if matcher.Match(name) {
 			// TODO(rogulenko): Check for resolve access. (For table glob, this means

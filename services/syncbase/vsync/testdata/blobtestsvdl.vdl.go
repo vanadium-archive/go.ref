@@ -10,7 +10,7 @@ package blobtestsvdl
 import (
 	"fmt"
 	"reflect"
-	"v.io/v23/services/syncbase/nosql"
+	"v.io/v23/services/syncbase"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 )
@@ -22,7 +22,7 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 
 type BlobInfo struct {
 	Info string
-	Br   nosql.BlobRef
+	Br   syncbase.BlobRef
 }
 
 func (BlobInfo) __VDLReflect(struct {
@@ -74,7 +74,7 @@ func (m *BlobInfo) MakeVDLTarget() vdl.Target {
 type BlobInfoTarget struct {
 	Value      *BlobInfo
 	infoTarget vdl.StringTarget
-	brTarget   nosql.BlobRefTarget
+	brTarget   syncbase.BlobRefTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -253,7 +253,7 @@ func (t blobUnionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Targe
 
 type BlobSet struct {
 	Info string
-	Bs   map[nosql.BlobRef]struct{}
+	Bs   map[syncbase.BlobRef]struct{}
 }
 
 func (BlobSet) __VDLReflect(struct {
@@ -356,25 +356,25 @@ func (t *BlobSetTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-// map[nosql.BlobRef]struct{}
+// map[syncbase.BlobRef]struct{}
 type __VDLTarget1_set struct {
-	Value     *map[nosql.BlobRef]struct{}
-	currKey   nosql.BlobRef
-	keyTarget nosql.BlobRefTarget
+	Value     *map[syncbase.BlobRef]struct{}
+	currKey   syncbase.BlobRef
+	keyTarget syncbase.BlobRefTarget
 	vdl.TargetBase
 	vdl.SetTargetBase
 }
 
 func (t *__VDLTarget1_set) StartSet(tt *vdl.Type, len int) (vdl.SetTarget, error) {
 
-	if ttWant := vdl.TypeOf((*map[nosql.BlobRef]struct{})(nil)); !vdl.Compatible(tt, ttWant) {
+	if ttWant := vdl.TypeOf((*map[syncbase.BlobRef]struct{})(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
-	*t.Value = make(map[nosql.BlobRef]struct{})
+	*t.Value = make(map[syncbase.BlobRef]struct{})
 	return t, nil
 }
 func (t *__VDLTarget1_set) StartKey() (key vdl.Target, _ error) {
-	t.currKey = nosql.BlobRef("")
+	t.currKey = syncbase.BlobRef("")
 	t.keyTarget.Value = &t.currKey
 	target, err := &t.keyTarget, error(nil)
 	return target, err

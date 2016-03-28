@@ -8,21 +8,21 @@
 package fs_cablobstore
 
 import "v.io/v23/context"
-import "v.io/v23/services/syncbase/nosql"
+import wire "v.io/v23/services/syncbase"
 import "v.io/x/ref/services/syncbase/localblobstore"
 
 // SetBlobMetadata() sets the BlobMetadata associated with a blob to *bmd.
-func (fscabs *FsCaBlobStore) SetBlobMetadata(ctx *context.T, blobID nosql.BlobRef, bmd *localblobstore.BlobMetadata) error {
+func (fscabs *FsCaBlobStore) SetBlobMetadata(ctx *context.T, blobID wire.BlobRef, bmd *localblobstore.BlobMetadata) error {
 	return fscabs.bm.SetBlobMetadata(ctx, blobID, bmd)
 }
 
 // GetBlobMetadata() yields in *bmd the BlobMetadata associated with a blob.
-func (fscabs *FsCaBlobStore) GetBlobMetadata(ctx *context.T, blobID nosql.BlobRef, bmd *localblobstore.BlobMetadata) (err error) {
+func (fscabs *FsCaBlobStore) GetBlobMetadata(ctx *context.T, blobID wire.BlobRef, bmd *localblobstore.BlobMetadata) (err error) {
 	return fscabs.bm.GetBlobMetadata(ctx, blobID, bmd)
 }
 
 // DeleteBlobMetadata() deletes the BlobMetadata for the specified blob.
-func (fscabs *FsCaBlobStore) DeleteBlobMetadata(ctx *context.T, blobID nosql.BlobRef) error {
+func (fscabs *FsCaBlobStore) DeleteBlobMetadata(ctx *context.T, blobID wire.BlobRef) error {
 	return fscabs.bm.DeleteBlobMetadata(ctx, blobID)
 }
 

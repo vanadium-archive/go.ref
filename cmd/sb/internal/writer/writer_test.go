@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23/syncbase/nosql"
+	"v.io/v23/syncbase"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 	db "v.io/x/ref/cmd/sb/internal/demodb"
@@ -56,7 +56,7 @@ func array2String(s1, s2 string) db.Array2String {
 	return db.Array2String(a)
 }
 
-func newResultStream(iRows [][]interface{}) nosql.ResultStream {
+func newResultStream(iRows [][]interface{}) syncbase.ResultStream {
 	vRows := make([][]*vom.RawBytes, len(iRows))
 	for i, iRow := range iRows {
 		vRow := make([]*vom.RawBytes, len(iRow))

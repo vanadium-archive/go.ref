@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package nosql
+package server
 
 import (
 	"math/rand"
@@ -17,7 +17,7 @@ import (
 	"v.io/v23/query/syncql"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -108,7 +108,7 @@ func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOp
 }
 
 // NewDatabase creates a new database instance and returns it.
-// Designed for use from within App.CreateNoSQLDatabase.
+// Designed for use from within App.CreateDatabase.
 func NewDatabase(ctx *context.T, a interfaces.App, name string, metadata *wire.SchemaMetadata, opts DatabaseOptions) (*database, error) {
 	if opts.Perms == nil {
 		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
@@ -139,9 +139,9 @@ func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, metadata *wire
 		return wire.NewErrBoundToBatch(ctx)
 	}
 	// This database does not yet exist; d is just an ephemeral handle that holds
-	// {name string, a *app}. d.a.CreateNoSQLDatabase will create a new database
-	// handle and store it in d.a.dbs[d.name].
-	return d.a.CreateNoSQLDatabase(ctx, call, d.name, perms, metadata)
+	// {name string, a *app}. d.a.CreateDatabase will create a new database handle
+	// and store it in d.a.dbs[d.name].
+	return d.a.CreateDatabase(ctx, call, d.name, perms, metadata)
 }
 
 func (d *databaseReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
@@ -151,7 +151,7 @@ func (d *databaseReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion
 	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 		return err
 	}
-	return d.a.DestroyNoSQLDatabase(ctx, call, d.name)
+	return d.a.DestroyDatabase(ctx, call, d.name)
 }
 
 func (d *databaseReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (bool, error) {
@@ -378,7 +378,7 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServer
 	}
 }
 
-// See comment in v.io/v23/services/syncbase/nosql/service.vdl for why we can't
+// See comment in v.io/v23/services/syncbase/service.vdl for why we can't
 // implement ListTables using Glob.
 func (d *databaseReq) ListTables(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	if !d.exists {
@@ -395,7 +395,7 @@ func (d *databaseReq) ListTables(ctx *context.T, call rpc.ServerCall) ([]string,
 		for it.Advance() {
 			keyBytes = it.Key(keyBytes)
 			parts := common.SplitNKeyParts(string(keyBytes), 2)
-			// For explanation of Escape(), see comment in server/nosql/dispatcher.go.
+			// For explanation of Escape(), see comment in dispatcher.go.
 			res = append(res, pubutil.Escape(parts[1]))
 		}
 		if err := it.Err(); err != nil {

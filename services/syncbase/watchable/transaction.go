@@ -55,7 +55,7 @@ func AddSyncSnapshotOp(ctx *context.T, tx *watchable.Transaction, key, version [
 // receives the request at the proper position in the timeline (the transaction
 // commit) and makes appropriate updates to the db state causing the request to
 // take effect.
-// Note: this is an internal function used by nosql.database
+// Note: This is an internal function used by server.database.
 func AddDbStateChangeRequestOp(ctx *context.T, tx *watchable.Transaction, stateChangeType StateChange) error {
 	op := &DbStateChangeRequestOp{
 		RequestType: stateChangeType,

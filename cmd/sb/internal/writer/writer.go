@@ -13,7 +13,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"v.io/v23/syncbase/nosql"
+	"v.io/v23/syncbase"
 	"v.io/v23/vdl"
 	vtime "v.io/v23/vdlroot/time"
 	"v.io/v23/vom"
@@ -28,7 +28,7 @@ const (
 )
 
 // WriteTable formats the results as ASCII tables.
-func WriteTable(out io.Writer, columnNames []string, rs nosql.ResultStream) error {
+func WriteTable(out io.Writer, columnNames []string, rs syncbase.ResultStream) error {
 	// Buffer the results so we can compute the column widths.
 	columnWidths := make([]int, len(columnNames))
 	for i, cName := range columnNames {
@@ -104,7 +104,7 @@ func getJustification(val *vom.RawBytes) Justification {
 }
 
 // WriteCSV formats the results as CSV as specified by https://tools.ietf.org/html/rfc4180.
-func WriteCSV(out io.Writer, columnNames []string, rs nosql.ResultStream, delimiter string) error {
+func WriteCSV(out io.Writer, columnNames []string, rs syncbase.ResultStream, delimiter string) error {
 	delim := ""
 	for _, cName := range columnNames {
 		str := doubleQuoteForCSV(cName, delimiter)
@@ -141,7 +141,7 @@ func doubleQuoteForCSV(str, delimiter string) string {
 }
 
 // WriteJson formats the result as a JSON array of arrays (rows) of values.
-func WriteJson(out io.Writer, columnNames []string, rs nosql.ResultStream) error {
+func WriteJson(out io.Writer, columnNames []string, rs syncbase.ResultStream) error {
 	io.WriteString(out, "[")
 	jsonColNames := make([][]byte, len(columnNames))
 	for i, cName := range columnNames {

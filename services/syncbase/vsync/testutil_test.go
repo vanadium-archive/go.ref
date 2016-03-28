@@ -16,7 +16,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -67,22 +67,22 @@ type mockApp struct {
 	s *mockService
 }
 
-func (a *mockApp) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
+func (a *mockApp) Database(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
 	wst, err := watchable.Wrap(a.s.st, a.s.vclock, &watchable.Options{
 		ManagedPrefixes: []string{common.RowPrefix, common.PermsPrefix},
 	})
 	return &mockDatabase{st: wst}, err
 }
 
-func (a *mockApp) NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+func (a *mockApp) DatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	return []string{"mockdb"}, nil
 }
 
-func (a *mockApp) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, metadata *wire.SchemaMetadata) error {
+func (a *mockApp) CreateDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, metadata *wire.SchemaMetadata) error {
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (a *mockApp) DestroyNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error {
+func (a *mockApp) DestroyDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error {
 	return verror.NewErrNotImplemented(ctx)
 }
 
@@ -178,7 +178,7 @@ func createDatabase(t *testing.T, s *mockService) *mockDatabase {
 	if err != nil {
 		t.Errorf("Error while creating App: %v", err)
 	}
-	db, err := app.NoSQLDatabase(nil, nil, "mockdb")
+	db, err := app.Database(nil, nil, "mockdb")
 	if err != nil {
 		t.Errorf("Error while creating Database: %v", err)
 	}

@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"testing"
 
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store/watchable"
 )

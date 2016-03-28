@@ -7,7 +7,7 @@
 package blobmap
 
 import "v.io/v23/context"
-import "v.io/v23/services/syncbase/nosql"
+import wire "v.io/v23/services/syncbase"
 import "v.io/v23/vom"
 import "v.io/x/ref/services/syncbase/localblobstore"
 import "v.io/x/ref/services/syncbase/server/interfaces"
@@ -15,12 +15,12 @@ import "v.io/x/ref/services/syncbase/store"
 
 // signpostKey() returns the key used in the store to reference the signpost
 // for blobId.
-func signpostKey(blobId nosql.BlobRef) []byte {
+func signpostKey(blobId wire.BlobRef) []byte {
 	return []byte(signpostPrefix + string(blobId))
 }
 
 // SetSignpost() sets the Signpost associated with a blob to *sp.
-func (bm *BlobMap) SetSignpost(ctx *context.T, blobId nosql.BlobRef, sp *interfaces.Signpost) (err error) {
+func (bm *BlobMap) SetSignpost(ctx *context.T, blobId wire.BlobRef, sp *interfaces.Signpost) (err error) {
 	var val []byte
 	val, err = vom.Encode(sp)
 	if err == nil {
@@ -30,7 +30,7 @@ func (bm *BlobMap) SetSignpost(ctx *context.T, blobId nosql.BlobRef, sp *interfa
 }
 
 // GetSignpost() yields in *sp the Signpost associated with a blob.
-func (bm *BlobMap) GetSignpost(ctx *context.T, blobId nosql.BlobRef, sp *interfaces.Signpost) (err error) {
+func (bm *BlobMap) GetSignpost(ctx *context.T, blobId wire.BlobRef, sp *interfaces.Signpost) (err error) {
 	var valBuf [maxSignpostLen]byte
 	var val []byte
 	val, err = bm.st.Get(signpostKey(blobId), valBuf[:])
@@ -42,7 +42,7 @@ func (bm *BlobMap) GetSignpost(ctx *context.T, blobId nosql.BlobRef, sp *interfa
 }
 
 // DeleteSignpost() deletes the Signpost for the specified blob.
-func (bm *BlobMap) DeleteSignpost(ctx *context.T, blobId nosql.BlobRef) error {
+func (bm *BlobMap) DeleteSignpost(ctx *context.T, blobId wire.BlobRef) error {
 	return bm.st.Delete(signpostKey(blobId))
 }
 
@@ -62,7 +62,7 @@ type SignpostStream struct {
 
 	keyBuf   [maxKeyLen]byte      // buffer for keys
 	valBuf   [maxSignpostLen]byte // buffer for values
-	blobId   nosql.BlobRef        // blobId key for current element
+	blobId   wire.BlobRef         // blobId key for current element
 	signpost interfaces.Signpost  // Signpost of current element
 	err      error                // error encountered.
 	more     bool                 // whether stream may be consulted again
@@ -92,7 +92,7 @@ func (ss *SignpostStream) Advance() (ok bool) {
 			ss.err = ss.stream.Err()
 			ss.more = false // no more stream, even if no error
 		} else {
-			ss.blobId = nosql.BlobRef(ss.stream.Key(ss.keyBuf[:])[1:])
+			ss.blobId = wire.BlobRef(ss.stream.Key(ss.keyBuf[:])[1:])
 			var value []byte = ss.stream.Value(ss.valBuf[:])
 			ss.err = vom.Decode(value, &ss.signpost)
 			ok = (ss.err == nil)
@@ -107,7 +107,7 @@ func (ss *SignpostStream) Advance() (ok bool) {
 // BlobId() returns the blob Id of the blob Id and Signpost staged by
 // Advance().  BlobId() may panic if Advance() returned false or was not called
 // at all.  BlobId() does not block.
-func (ss *SignpostStream) BlobId() (result nosql.BlobRef) {
+func (ss *SignpostStream) BlobId() (result wire.BlobRef) {
 	return ss.blobId
 }
 

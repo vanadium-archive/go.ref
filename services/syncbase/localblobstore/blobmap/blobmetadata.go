@@ -7,19 +7,19 @@
 package blobmap
 
 import "v.io/v23/context"
-import "v.io/v23/services/syncbase/nosql"
+import wire "v.io/v23/services/syncbase"
 import "v.io/v23/vom"
 import "v.io/x/ref/services/syncbase/localblobstore"
 import "v.io/x/ref/services/syncbase/store"
 
 // metadataKey() returns the key used in the store to reference the metadata
 // for blobId.
-func metadataKey(blobId nosql.BlobRef) []byte {
+func metadataKey(blobId wire.BlobRef) []byte {
 	return []byte(metadataPrefix + string(blobId))
 }
 
 // SetBlobMetadata() sets the BlobMetadata associated with a blob to *bmd.
-func (bm *BlobMap) SetBlobMetadata(ctx *context.T, blobId nosql.BlobRef, bmd *localblobstore.BlobMetadata) (err error) {
+func (bm *BlobMap) SetBlobMetadata(ctx *context.T, blobId wire.BlobRef, bmd *localblobstore.BlobMetadata) (err error) {
 	var val []byte
 
 	val, err = vom.Encode(bmd)
@@ -30,7 +30,7 @@ func (bm *BlobMap) SetBlobMetadata(ctx *context.T, blobId nosql.BlobRef, bmd *lo
 }
 
 // GetBlobMetadata() yields in *bmd the BlobMetadata associated with a blob.
-func (bm *BlobMap) GetBlobMetadata(ctx *context.T, blobId nosql.BlobRef, bmd *localblobstore.BlobMetadata) (err error) {
+func (bm *BlobMap) GetBlobMetadata(ctx *context.T, blobId wire.BlobRef, bmd *localblobstore.BlobMetadata) (err error) {
 	var valBuf [maxBlobMetadataLen]byte
 	var val []byte
 
@@ -42,7 +42,7 @@ func (bm *BlobMap) GetBlobMetadata(ctx *context.T, blobId nosql.BlobRef, bmd *lo
 }
 
 // DeleteBlobMetadata() deletes the BlobMetadata for the specified blob.
-func (bm *BlobMap) DeleteBlobMetadata(ctx *context.T, blobId nosql.BlobRef) error {
+func (bm *BlobMap) DeleteBlobMetadata(ctx *context.T, blobId wire.BlobRef) error {
 	return bm.st.Delete(metadataKey(blobId))
 }
 
@@ -62,7 +62,7 @@ type BlobMetadataStream struct {
 
 	keyBuf   [maxKeyLen]byte             // buffer for keys
 	valBuf   [maxBlobMetadataLen]byte    // buffer for values
-	blobId   nosql.BlobRef               // blobId key for current element
+	blobId   wire.BlobRef                // blobId key for current element
 	metadata localblobstore.BlobMetadata // BlobMetadata of current element
 	err      error                       // error encountered.
 	more     bool                        // whether stream may be consulted again
@@ -92,7 +92,7 @@ func (bms *BlobMetadataStream) Advance() (ok bool) {
 			bms.err = bms.stream.Err()
 			bms.more = false // no more stream, even if no error
 		} else {
-			bms.blobId = nosql.BlobRef(bms.stream.Key(bms.keyBuf[:])[1:])
+			bms.blobId = wire.BlobRef(bms.stream.Key(bms.keyBuf[:])[1:])
 			var value []byte = bms.stream.Value(bms.valBuf[:])
 			bms.err = vom.Decode(value, &bms.metadata)
 			ok = (bms.err == nil)
@@ -107,7 +107,7 @@ func (bms *BlobMetadataStream) Advance() (ok bool) {
 // BlobId() returns the blob ID of the blob Id and BlobMetadata staged by
 // Advance().  BlobId() may panic if Advance() returned false or was not called
 // at all.  BlobId() does not block.
-func (bms *BlobMetadataStream) BlobId() (result nosql.BlobRef) {
+func (bms *BlobMetadataStream) BlobId() (result wire.BlobRef) {
 	return bms.blobId
 }
 

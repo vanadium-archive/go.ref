@@ -8,7 +8,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/watchable"
 )
@@ -26,7 +26,7 @@ type Database interface {
 
 	// CheckPermsInternal checks whether the given RPC (ctx, call) is allowed per
 	// the database perms.
-	// Designed for use from within App.DestroyNoSQLDatabase.
+	// Designed for use from within App.DestroyDatabase.
 	CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error
 
 	// SetPermsInternal updates the database perms.

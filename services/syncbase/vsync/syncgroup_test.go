@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/store/watchable"

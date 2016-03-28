@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	wire "v.io/v23/services/syncbase/nosql"
-	"v.io/v23/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
+	"v.io/v23/syncbase"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 )
@@ -150,7 +150,7 @@ func t(timeStr string) time.Time {
 
 // Creates demo tables in the provided database. Tables are destroyed and
 // recreated if they already exist.
-func PopulateDemoDB(ctx *context.T, db nosql.Database) error {
+func PopulateDemoDB(ctx *context.T, db syncbase.Database) error {
 	for i, t := range demoTables {
 		if err := db.Table(t.name).Destroy(ctx); err != nil {
 			return fmt.Errorf("failed destroying table %s (%d/%d): %v", t.name, i+1, len(demoTables), err)
@@ -158,7 +158,7 @@ func PopulateDemoDB(ctx *context.T, db nosql.Database) error {
 		if err := db.Table(t.name).Create(ctx, nil); err != nil {
 			return fmt.Errorf("failed creating table %s (%d/%d): %v", t.name, i+1, len(demoTables), err)
 		}
-		if err := nosql.RunInBatch(ctx, db, wire.BatchOptions{}, func(db nosql.BatchDatabase) error {
+		if err := syncbase.RunInBatch(ctx, db, wire.BatchOptions{}, func(db syncbase.BatchDatabase) error {
 			dt := db.Table(t.name)
 			for _, kv := range t.rows {
 				if err := dt.Put(ctx, kv.key, kv.value); err != nil {

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"

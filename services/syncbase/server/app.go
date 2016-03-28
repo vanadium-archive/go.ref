@@ -16,12 +16,10 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
-	nosqlwire "v.io/v23/services/syncbase/nosql"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/nosql"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
 )
@@ -107,7 +105,7 @@ func (a *app) Service() interfaces.Service {
 	return a.s
 }
 
-func (a *app) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
+func (a *app) Database(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
 	if !a.exists {
 		vlog.Fatalf("app %q does not exist", a.name)
 	}
@@ -120,7 +118,7 @@ func (a *app) NoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) 
 	return d, nil
 }
 
-func (a *app) NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+func (a *app) DatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	if !a.exists {
 		vlog.Fatalf("app %q does not exist", a.name)
 	}
@@ -135,7 +133,7 @@ func (a *app) NoSQLDatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string,
 	return dbNames, nil
 }
 
-func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, metadata *nosqlwire.SchemaMetadata) (reterr error) {
+func (a *app) CreateDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, metadata *wire.SchemaMetadata) (reterr error) {
 	if !a.exists {
 		vlog.Fatalf("app %q does not exist", a.name)
 	}
@@ -190,7 +188,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 		perms = aData.Perms
 	}
 	// TODO(ivanpi): NewDatabase doesn't close the store on failure.
-	d, err := nosql.NewDatabase(ctx, a, dbName, metadata, nosql.DatabaseOptions{
+	d, err := NewDatabase(ctx, a, dbName, metadata, DatabaseOptions{
 		Perms:   perms,
 		RootDir: dbInfo.RootDir,
 		Engine:  dbInfo.Engine,
@@ -237,7 +235,7 @@ func (a *app) CreateNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName st
 	return nil
 }
 
-func (a *app) DestroyNoSQLDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error {
+func (a *app) DestroyDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error {
 	if !a.exists {
 		vlog.Fatalf("app %q does not exist", a.name)
 	}

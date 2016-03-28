@@ -16,9 +16,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
-	"v.io/v23/syncbase/nosql"
 	"v.io/v23/syncbase/util"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
@@ -48,15 +47,15 @@ func CreateApp(t testing.TB, ctx *context.T, s syncbase.Service, name string) sy
 	return a
 }
 
-func CreateNoSQLDatabase(t testing.TB, ctx *context.T, a syncbase.App, name string) nosql.Database {
-	d := a.NoSQLDatabase(name, nil)
+func CreateDatabase(t testing.TB, ctx *context.T, a syncbase.App, name string) syncbase.Database {
+	d := a.Database(name, nil)
 	if err := d.Create(ctx, nil); err != nil {
 		Fatalf(t, "d.Create() failed: %v", err)
 	}
 	return d
 }
 
-func CreateTable(t testing.TB, ctx *context.T, d nosql.Database, name string) nosql.Table {
+func CreateTable(t testing.TB, ctx *context.T, d syncbase.Database, name string) syncbase.Table {
 	tb := d.Table(name)
 	if err := tb.Create(ctx, nil); err != nil {
 		Fatalf(t, "tb.Create() failed: %v", err)
@@ -98,7 +97,7 @@ func DefaultPerms(patterns ...string) access.Permissions {
 	return perms
 }
 
-func ScanMatches(ctx *context.T, tb nosql.Table, r nosql.RowRange, wantKeys []string, wantValues []interface{}) error {
+func ScanMatches(ctx *context.T, tb syncbase.Table, r syncbase.RowRange, wantKeys []string, wantValues []interface{}) error {
 	if len(wantKeys) != len(wantValues) {
 		return fmt.Errorf("bad input args")
 	}
@@ -135,13 +134,13 @@ func ScanMatches(ctx *context.T, tb nosql.Table, r nosql.RowRange, wantKeys []st
 	return nil
 }
 
-func CheckScan(t testing.TB, ctx *context.T, tb nosql.Table, r nosql.RowRange, wantKeys []string, wantValues []interface{}) {
+func CheckScan(t testing.TB, ctx *context.T, tb syncbase.Table, r syncbase.RowRange, wantKeys []string, wantValues []interface{}) {
 	if err := ScanMatches(ctx, tb, r, wantKeys, wantValues); err != nil {
 		Fatalf(t, err.Error())
 	}
 }
 
-func CheckExec(t testing.TB, ctx *context.T, db nosql.DatabaseHandle, q string, wantHeaders []string, wantResults [][]*vom.RawBytes) {
+func CheckExec(t testing.TB, ctx *context.T, db syncbase.DatabaseHandle, q string, wantHeaders []string, wantResults [][]*vom.RawBytes) {
 	gotHeaders, it, err := db.Exec(ctx, q)
 	if err != nil {
 		t.Errorf("query %q: got %v, want nil", q, err)
@@ -162,7 +161,7 @@ func CheckExec(t testing.TB, ctx *context.T, db nosql.DatabaseHandle, q string, 
 	}
 }
 
-func CheckExecError(t testing.TB, ctx *context.T, db nosql.DatabaseHandle, q string, wantErrorID verror.ID) {
+func CheckExecError(t testing.TB, ctx *context.T, db syncbase.DatabaseHandle, q string, wantErrorID verror.ID) {
 	_, rs, err := db.Exec(ctx, q)
 	if err == nil {
 		if rs.Advance() {
@@ -178,7 +177,7 @@ func CheckExecError(t testing.TB, ctx *context.T, db nosql.DatabaseHandle, q str
 
 // CheckWatch checks that the sequence of elements from the watch stream starts
 // with the given slice of watch changes.
-func CheckWatch(t testing.TB, wstream nosql.WatchStream, changes []nosql.WatchChange) {
+func CheckWatch(t testing.TB, wstream syncbase.WatchStream, changes []syncbase.WatchChange) {
 	for _, want := range changes {
 		if !wstream.Advance() {
 			Fatalf(t, "wstream.Advance() reached the end: %v", wstream.Err())
@@ -189,8 +188,8 @@ func CheckWatch(t testing.TB, wstream nosql.WatchStream, changes []nosql.WatchCh
 	}
 }
 
-func DefaultSchema(version int32) *nosql.Schema {
-	return &nosql.Schema{
+func DefaultSchema(version int32) *syncbase.Schema {
+	return &syncbase.Schema{
 		Metadata: wire.SchemaMetadata{
 			Version: version,
 		},

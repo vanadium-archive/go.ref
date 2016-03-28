@@ -10,6 +10,7 @@ package server
 import (
 	"fmt"
 	"v.io/v23/security/access"
+	"v.io/v23/services/syncbase"
 	"v.io/v23/vdl"
 )
 
@@ -215,11 +216,10 @@ func (t *AppDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // DbInfo contains information about one database for an App.
-// TODO(sadovsky): Track NoSQL vs. SQL.
 type DbInfo struct {
 	Name string
-	// Select fields from nosql.DatabaseOptions, needed in order to open storage
-	// engine on restart.
+	// Select fields from DatabaseOptions, needed in order to open storage engine
+	// on restart.
 	RootDir string // interpreted by storage engine
 	Engine  string // name of storage engine, e.g. "leveldb"
 }
@@ -323,11 +323,265 @@ func (t *DbInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+// DatabaseData represents the persistent state of a Database.
+type DatabaseData struct {
+	Name           string
+	Version        uint64 // covers the Perms field below
+	Perms          access.Permissions
+	SchemaMetadata *syncbase.SchemaMetadata
+}
+
+func (DatabaseData) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server.DatabaseData"`
+}) {
+}
+
+func (m *DatabaseData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Name")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget3.FromString(string(m.Name), tt.NonOptional().Field(0).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
+		}
+	}
+	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Version")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget5.FromUint(uint64(m.Version), tt.NonOptional().Field(1).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+			return err
+		}
+	}
+	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Perms")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := m.Perms.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(2).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+			return err
+		}
+	}
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("SchemaMetadata")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if m.SchemaMetadata == nil {
+			if err := fieldTarget9.FromNil(tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := m.SchemaMetadata.FillVDLTarget(fieldTarget9, tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *DatabaseData) MakeVDLTarget() vdl.Target {
+	return &DatabaseDataTarget{Value: m}
+}
+
+type DatabaseDataTarget struct {
+	Value                *DatabaseData
+	nameTarget           vdl.StringTarget
+	versionTarget        vdl.Uint64Target
+	permsTarget          access.PermissionsTarget
+	schemaMetadataTarget __VDLTarget1_optional
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *DatabaseDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
+	if ttWant := vdl.TypeOf((*DatabaseData)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+	return t, nil
+}
+func (t *DatabaseDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Name":
+		t.nameTarget.Value = &t.Value.Name
+		target, err := &t.nameTarget, error(nil)
+		return nil, target, err
+	case "Version":
+		t.versionTarget.Value = &t.Value.Version
+		target, err := &t.versionTarget, error(nil)
+		return nil, target, err
+	case "Perms":
+		t.permsTarget.Value = &t.Value.Perms
+		target, err := &t.permsTarget, error(nil)
+		return nil, target, err
+	case "SchemaMetadata":
+		t.schemaMetadataTarget.Value = &t.Value.SchemaMetadata
+		target, err := &t.schemaMetadataTarget, error(nil)
+		return nil, target, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.DatabaseData", name)
+	}
+}
+func (t *DatabaseDataTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *DatabaseDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
+// Optional syncbase.SchemaMetadata
+type __VDLTarget1_optional struct {
+	Value      **syncbase.SchemaMetadata
+	elemTarget syncbase.SchemaMetadataTarget
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *__VDLTarget1_optional) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
+	if *t.Value == nil {
+		*t.Value = &syncbase.SchemaMetadata{}
+	}
+	t.elemTarget.Value = *t.Value
+	target, err := &t.elemTarget, error(nil)
+	if err != nil {
+		return nil, err
+	}
+	return target.StartFields(tt)
+}
+func (t *__VDLTarget1_optional) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+func (t *__VDLTarget1_optional) FromNil(tt *vdl.Type) error {
+
+	*t.Value = nil
+
+	return nil
+}
+
+// TableData represents the persistent state of a Table.
+type TableData struct {
+	Name  string
+	Perms access.Permissions
+}
+
+func (TableData) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server.TableData"`
+}) {
+}
+
+func (m *TableData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Name")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+		if err := fieldTarget3.FromString(string(m.Name), tt.NonOptional().Field(0).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+			return err
+		}
+	}
+	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Perms")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		if err := m.Perms.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
+			return err
+		}
+		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *TableData) MakeVDLTarget() vdl.Target {
+	return &TableDataTarget{Value: m}
+}
+
+type TableDataTarget struct {
+	Value       *TableData
+	nameTarget  vdl.StringTarget
+	permsTarget access.PermissionsTarget
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *TableDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
+	if ttWant := vdl.TypeOf((*TableData)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+	return t, nil
+}
+func (t *TableDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "Name":
+		t.nameTarget.Value = &t.Value.Name
+		target, err := &t.nameTarget, error(nil)
+		return nil, target, err
+	case "Perms":
+		t.permsTarget.Value = &t.Value.Perms
+		target, err := &t.permsTarget, error(nil)
+		return nil, target, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.TableData", name)
+	}
+}
+func (t *TableDataTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *TableDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+
 // Create zero values for each type.
 var (
-	__VDLZeroServiceData = ServiceData{}
-	__VDLZeroAppData     = AppData{}
-	__VDLZeroDbInfo      = DbInfo{}
+	__VDLZeroServiceData  = ServiceData{}
+	__VDLZeroAppData      = AppData{}
+	__VDLZeroDbInfo       = DbInfo{}
+	__VDLZeroDatabaseData = DatabaseData{}
+	__VDLZeroTableData    = TableData{}
 )
 
 var __VDLInitCalled bool
@@ -354,6 +608,8 @@ func __VDLInit() struct{} {
 	vdl.Register((*ServiceData)(nil))
 	vdl.Register((*AppData)(nil))
 	vdl.Register((*DbInfo)(nil))
+	vdl.Register((*DatabaseData)(nil))
+	vdl.Register((*TableData)(nil))
 
 	return struct{}{}
 }

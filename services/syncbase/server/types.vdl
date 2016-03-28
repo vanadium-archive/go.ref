@@ -6,6 +6,7 @@ package server
 
 import (
 	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase"
 )
 
 // ServiceData represents the persistent state of a Service.
@@ -22,11 +23,24 @@ type AppData struct {
 }
 
 // DbInfo contains information about one database for an App.
-// TODO(sadovsky): Track NoSQL vs. SQL.
 type DbInfo struct {
 	Name  string
-	// Select fields from nosql.DatabaseOptions, needed in order to open storage
-	// engine on restart.
+	// Select fields from DatabaseOptions, needed in order to open storage engine
+	// on restart.
 	RootDir string // interpreted by storage engine
 	Engine  string // name of storage engine, e.g. "leveldb"
+}
+
+// DatabaseData represents the persistent state of a Database.
+type DatabaseData struct {
+	Name           string
+	Version        uint64 // covers the Perms field below
+	Perms          access.Permissions
+	SchemaMetadata ?wire.SchemaMetadata
+}
+
+// TableData represents the persistent state of a Table.
+type TableData struct {
+	Name  string
+	Perms access.Permissions
 }

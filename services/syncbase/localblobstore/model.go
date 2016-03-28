@@ -51,7 +51,7 @@
 package localblobstore
 
 import "v.io/v23/context"
-import "v.io/v23/services/syncbase/nosql"
+import wire "v.io/v23/services/syncbase"
 import "v.io/x/ref/services/syncbase/server/interfaces"
 
 // A BlobStore represents a simple, content-addressable store.
@@ -141,13 +141,13 @@ type BlobStore interface {
 	// ------------------------------------------------
 
 	// SetBlobMetadata() sets the BlobMetadata associated with a blob to *bmd.
-	SetBlobMetadata(ctx *context.T, blobID nosql.BlobRef, bmd *BlobMetadata) error
+	SetBlobMetadata(ctx *context.T, blobID wire.BlobRef, bmd *BlobMetadata) error
 
 	// GetBlobMetadata() yields in *bmd the BlobMetadata associated with a blob.
-	GetBlobMetadata(ctx *context.T, blobID nosql.BlobRef, bmd *BlobMetadata) error
+	GetBlobMetadata(ctx *context.T, blobID wire.BlobRef, bmd *BlobMetadata) error
 
 	// DeleteBlobMetadata() deletes the BlobMetadata for the specified blob.
-	DeleteBlobMetadata(ctx *context.T, blobID nosql.BlobRef) error
+	DeleteBlobMetadata(ctx *context.T, blobID wire.BlobRef) error
 
 	// NewBlobMetadataStream() returns a pointer to a BlobMetadataStream
 	// that allows the client to iterate over each blob for which BlobMetadata
@@ -157,13 +157,13 @@ type BlobStore interface {
 	// ------------------------------------------------
 
 	// SetSignpost() sets the Signpost associated with a blob to *sp.
-	SetSignpost(ctx *context.T, blobID nosql.BlobRef, sp *interfaces.Signpost) error
+	SetSignpost(ctx *context.T, blobID wire.BlobRef, sp *interfaces.Signpost) error
 
 	// GetSignpost() yields in *sp the Signpost associated with a blob.
-	GetSignpost(ctx *context.T, blobID nosql.BlobRef, sp *interfaces.Signpost) error
+	GetSignpost(ctx *context.T, blobID wire.BlobRef, sp *interfaces.Signpost) error
 
 	// DeleteSignpost() deletes the Signpost for the specified blob.
-	DeleteSignpost(ctx *context.T, blobID nosql.BlobRef) error
+	DeleteSignpost(ctx *context.T, blobID wire.BlobRef) error
 
 	// NewSignpostStream() returns a pointer to a SignpostStream
 	// that allows the client to iterate over each blob for which a Signpost
@@ -366,7 +366,7 @@ type BlobMetadataStream interface {
 
 	// BlobId() returns the blob ID that was staged by Advance().  May
 	// panic if Advance() returned false or was not called.  Never blocks.
-	BlobId() nosql.BlobRef
+	BlobId() wire.BlobRef
 
 	// BlobMetaData() returns the BlobMetedata that was staged by
 	// Advance().  May panic if Advance() returned false or was not called.
@@ -387,7 +387,7 @@ type SignpostStream interface {
 
 	// BlobId() returns the blob ID that was staged by Advance().  May
 	// panic if Advance() returned false or was not called.  Never blocks.
-	BlobId() nosql.BlobRef
+	BlobId() wire.BlobRef
 
 	// BlobMetaData() returns the BlobMetedata that was staged by
 	// Advance().  May panic if Advance() returned false or was not called.

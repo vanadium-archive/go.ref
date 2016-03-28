@@ -17,7 +17,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/syncbase"
-	"v.io/v23/syncbase/nosql"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/cmd/sb/internal/demodb"
 	"v.io/x/ref/cmd/sb/internal/reader"
@@ -162,7 +161,7 @@ stmtLoop:
 	return nil
 }
 
-func destroyDB(ctx *context.T, d nosql.Database, dbName string) error {
+func destroyDB(ctx *context.T, d syncbase.Database, dbName string) error {
 	// For extra safety, we still require the user to explicitly specify the
 	// database name instead of blindly destroying the current database.
 	if d.Name() != dbName {
@@ -171,7 +170,7 @@ func destroyDB(ctx *context.T, d nosql.Database, dbName string) error {
 	return d.Destroy(ctx)
 }
 
-func destroyTable(ctx *context.T, d nosql.Database, tableName string) error {
+func destroyTable(ctx *context.T, d syncbase.Database, tableName string) error {
 	table := d.Table(tableName)
 	if exists, err := table.Exists(ctx); err != nil {
 		return err
@@ -181,7 +180,7 @@ func destroyTable(ctx *context.T, d nosql.Database, tableName string) error {
 	return table.Destroy(ctx)
 }
 
-func destroySyncgroup(ctx *context.T, d nosql.Database, sgName string) error {
+func destroySyncgroup(ctx *context.T, d syncbase.Database, sgName string) error {
 	sgs, err := d.GetSyncgroupNames(ctx)
 	if err != nil {
 		return err
@@ -195,7 +194,7 @@ func destroySyncgroup(ctx *context.T, d nosql.Database, sgName string) error {
 	return fmt.Errorf("couldn't find syncgroup %q", sgName)
 }
 
-func openAppDB(ctx *context.T, sbs syncbase.Service, appName, dbName string, createIfNotExists bool) (nosql.Database, error) {
+func openAppDB(ctx *context.T, sbs syncbase.Service, appName, dbName string, createIfNotExists bool) (syncbase.Database, error) {
 	app := sbs.App(appName)
 	if exists, err := app.Exists(ctx); err != nil {
 		return nil, fmt.Errorf("failed checking for app %q: %v", app.FullName(), err)
@@ -207,7 +206,7 @@ func openAppDB(ctx *context.T, sbs syncbase.Service, appName, dbName string, cre
 			return nil, err
 		}
 	}
-	d := app.NoSQLDatabase(dbName, nil)
+	d := app.Database(dbName, nil)
 	if exists, err := d.Exists(ctx); err != nil {
 		return nil, fmt.Errorf("failed checking for db %q: %v", d.FullName(), err)
 	} else if !exists {
@@ -232,7 +231,7 @@ func mergeErrors(errs []error) error {
 	return err
 }
 
-func dumpTables(ctx *context.T, w io.Writer, d nosql.Database) error {
+func dumpTables(ctx *context.T, w io.Writer, d syncbase.Database) error {
 	tables, err := d.ListTables(ctx)
 	if err != nil {
 		return fmt.Errorf("failed listing tables: %v", err)
@@ -250,7 +249,7 @@ func dumpTables(ctx *context.T, w io.Writer, d nosql.Database) error {
 	return nil
 }
 
-func dumpSyncgroups(ctx *context.T, w io.Writer, d nosql.Database) error {
+func dumpSyncgroups(ctx *context.T, w io.Writer, d syncbase.Database) error {
 	sgNames, err := d.GetSyncgroupNames(ctx)
 	if err != nil {
 		return fmt.Errorf("failed listing syncgroups: %v", err)
@@ -271,7 +270,7 @@ func dumpSyncgroups(ctx *context.T, w io.Writer, d nosql.Database) error {
 	return nil
 }
 
-func dumpDB(ctx *context.T, w io.Writer, d nosql.Database) error {
+func dumpDB(ctx *context.T, w io.Writer, d syncbase.Database) error {
 	var errors []error
 	if err := dumpTables(ctx, w, d); err != nil {
 		errors = append(errors, fmt.Errorf("failed dumping tables: %v", err))
@@ -282,7 +281,7 @@ func dumpDB(ctx *context.T, w io.Writer, d nosql.Database) error {
 	return mergeErrors(errors)
 }
 
-func makeDemoDB(ctx *context.T, w io.Writer, d nosql.Database) error {
+func makeDemoDB(ctx *context.T, w io.Writer, d syncbase.Database) error {
 	if err := demodb.PopulateDemoDB(ctx, d); err == nil {
 		fmt.Fprintln(w, "Demo tables created and populated.")
 	} else {
@@ -308,7 +307,7 @@ func splitError(err error) (int64, string) {
 	return offset, errMsg[idx2+1:]
 }
 
-func queryExec(ctx *context.T, w io.Writer, d nosql.Database, q string) error {
+func queryExec(ctx *context.T, w io.Writer, d syncbase.Database, q string) error {
 	if columnNames, rs, err := d.Exec(ctx, q); err != nil {
 		off, msg := splitError(err)
 		return fmt.Errorf("\n%s\n%s^\n%d: %s", q, strings.Repeat(" ", int(off)), off+1, msg)

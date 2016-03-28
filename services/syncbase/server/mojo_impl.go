@@ -4,6 +4,8 @@
 
 // +build mojo
 
+// TODO(sadovsky): Update to reflect new, simplified API.
+
 // Implementation of Syncbase Mojo stubs. Our strategy is to translate Mojo stub
 // requests into Vanadium stub requests, and Vanadium stub responses into Mojo
 // stub responses. As part of this procedure, we synthesize "fake" ctx and call

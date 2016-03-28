@@ -7,7 +7,7 @@ package vsync
 import (
 	"testing"
 
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 )
 
 var (

@@ -5,7 +5,7 @@
 package interfaces
 
 import (
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/security/access"
 )
 

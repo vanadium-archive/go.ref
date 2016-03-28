@@ -15,7 +15,6 @@ import (
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
-	"v.io/v23/syncbase/nosql"
 	"v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
@@ -386,11 +385,11 @@ func (a *app) ListChildren(ctx *context.T) ([]string, error) {
 	return a.ListDatabases(ctx)
 }
 func (a *app) Child(childName string) layer {
-	return makeLayer(a.NoSQLDatabase(childName, nil))
+	return makeLayer(a.Database(childName, nil))
 }
 
 type database struct {
-	nosql.Database
+	syncbase.Database
 }
 
 func (d *database) ListChildren(ctx *context.T) ([]string, error) {
@@ -401,7 +400,7 @@ func (d *database) Child(childName string) layer {
 }
 
 type table struct {
-	nosql.Table
+	syncbase.Table
 }
 
 func (t *table) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
@@ -419,8 +418,8 @@ func (t *table) Child(childName string) layer {
 }
 
 type row struct {
-	nosql.Row
-	table nosql.Table
+	syncbase.Row
+	table syncbase.Table
 }
 
 func (r *row) Name() string {
@@ -436,7 +435,7 @@ func (r *row) Destroy(ctx *context.T) error {
 	return r.Delete(ctx)
 }
 func (r *row) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
-	return r.table.SetPrefixPermissions(ctx, nosql.Prefix(r.Key()), perms)
+	return r.table.SetPrefixPermissions(ctx, syncbase.Prefix(r.Key()), perms)
 }
 func (r *row) GetPermissions(ctx *context.T) (perms access.Permissions, version string, err error) {
 	prefixPerms, err := r.table.GetPrefixPermissions(ctx, r.Key())
@@ -458,9 +457,9 @@ func makeLayer(i interface{}) layer {
 		return &service{t}
 	case syncbase.App:
 		return &app{t}
-	case nosql.Database:
+	case syncbase.Database:
 		return &database{t}
-	case nosql.Table:
+	case syncbase.Table:
 		return &table{t}
 	default:
 		vlog.Fatalf("unexpected type: %T", t)

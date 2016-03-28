@@ -30,7 +30,6 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
-	"v.io/x/ref/services/syncbase/server/nosql"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
 	storeutil "v.io/x/ref/services/syncbase/store/util"
@@ -228,7 +227,7 @@ func openDatabases(ctx *context.T, st store.Store, a *app) error {
 		if err := vom.Decode(dBytes, info); err != nil {
 			return verror.New(verror.ErrInternal, ctx, err)
 		}
-		d, err := nosql.OpenDatabase(ctx, a, info.Name, nosql.DatabaseOptions{
+		d, err := OpenDatabase(ctx, a, info.Name, DatabaseOptions{
 			RootDir: info.RootDir,
 			Engine:  info.Engine,
 		}, storeutil.OpenOptions{
@@ -236,10 +235,9 @@ func openDatabases(ctx *context.T, st store.Store, a *app) error {
 			ErrorIfExists:   false,
 		})
 		if err != nil {
-			// If the database is corrupt, nosql.OpenDatabase will have moved it
-			// aside. We need to delete the app's reference to the database so that
-			// the client application can recreate the database the next time it
-			// starts.
+			// If the database is corrupt, OpenDatabase will have moved it aside. We
+			// need to delete the app's reference to the database so that the client
+			// application can recreate the database the next time it starts.
 			if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
 				vlog.Errorf("app %s, database %s is corrupt, deleting the app's reference to it",
 					a.name, info.Name)

@@ -5,7 +5,7 @@
 package blobtestsvdl
 
 import (
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 )
 
 type BlobInfo struct {

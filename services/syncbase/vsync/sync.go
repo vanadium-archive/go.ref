@@ -24,7 +24,7 @@ import (
 	"v.io/v23/discovery"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	"v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	idiscovery "v.io/x/ref/lib/discovery"
@@ -126,9 +126,9 @@ type syncService struct {
 	batches     batchSet
 
 	// Metadata related to blob handling.
-	bst           blob.BlobStore                 // local blob store associated with this Syncbase.
-	blobDirectory map[nosql.BlobRef]*blobLocInfo // directory structure containing blob location information.
-	blobDirLock   sync.RWMutex                   // lock to synchronize access to the blob directory information.
+	bst           blob.BlobStore                // local blob store associated with this Syncbase.
+	blobDirectory map[wire.BlobRef]*blobLocInfo // directory structure containing blob location information.
+	blobDirLock   sync.RWMutex                  // lock to synchronize access to the blob directory information.
 
 	// Syncbase vclock related variables.
 	vclock *vclock.VClock
@@ -139,7 +139,7 @@ type syncService struct {
 
 // syncDatabase contains the metadata for syncing a database. This struct is
 // used as a receiver to hand off the app-initiated syncgroup calls that arrive
-// against a nosql.Database to the sync module.
+// against a database to the sync module.
 type syncDatabase struct {
 	db   interfaces.Database
 	sync interfaces.SyncServerMethods
@@ -211,7 +211,7 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 	if err != nil {
 		return nil, err
 	}
-	s.blobDirectory = make(map[nosql.BlobRef]*blobLocInfo)
+	s.blobDirectory = make(map[wire.BlobRef]*blobLocInfo)
 
 	// Channel to propagate close event to all threads.
 	s.closed = make(chan struct{})

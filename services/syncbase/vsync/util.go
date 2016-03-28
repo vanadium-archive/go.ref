@@ -11,7 +11,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -43,7 +43,7 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(string,
 			vlog.Errorf("sync: forEachDatabaseStore: cannot get app %s: %v", a, err)
 			continue
 		}
-		dbNames, err := app.NoSQLDatabaseNames(ctx, nil)
+		dbNames, err := app.DatabaseNames(ctx, nil)
 		if err != nil {
 			vlog.Errorf("sync: forEachDatabaseStore: cannot get all db names for app %s: %v", a, err)
 			continue
@@ -51,7 +51,7 @@ func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(string,
 
 		for _, d := range dbNames {
 			// For each database, get its Store and invoke the callback.
-			db, err := app.NoSQLDatabase(ctx, nil, d)
+			db, err := app.Database(ctx, nil, d)
 			if err != nil {
 				vlog.Errorf("sync: forEachDatabaseStore: cannot get db %s for app %s: %v", d, a, err)
 				continue
@@ -70,7 +70,7 @@ func (s *syncService) getDb(ctx *context.T, call rpc.ServerCall, appName, dbName
 	if err != nil {
 		return nil, err
 	}
-	return app.NoSQLDatabase(ctx, call, dbName)
+	return app.Database(ctx, call, dbName)
 }
 
 // getDbStore gets the store handle to the database.

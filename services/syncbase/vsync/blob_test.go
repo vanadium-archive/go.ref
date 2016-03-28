@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	wire "v.io/v23/services/syncbase/nosql"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"

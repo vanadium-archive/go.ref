@@ -12,6 +12,8 @@ import (
 var (
 	_ util.Permser = (*ServiceData)(nil)
 	_ util.Permser = (*AppData)(nil)
+	_ util.Permser = (*DatabaseData)(nil)
+	_ util.Permser = (*TableData)(nil)
 )
 
 func (data *ServiceData) GetPerms() access.Permissions {
@@ -19,5 +21,13 @@ func (data *ServiceData) GetPerms() access.Permissions {
 }
 
 func (data *AppData) GetPerms() access.Permissions {
+	return data.Perms
+}
+
+func (data *DatabaseData) GetPerms() access.Permissions {
+	return data.Perms
+}
+
+func (data *TableData) GetPerms() access.Permissions {
 	return data.Perms
 }
