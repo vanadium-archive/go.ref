@@ -96,7 +96,7 @@ func buildDockerImages(config *vkubeConfig, tag string, verbose bool, stdout io.
 		{"jiri", goBuildArgs("cluster_agentd", "v.io/x/ref/services/cluster/cluster_agentd")},
 		{"jiri", goBuildArgs("vrpc", "v.io/x/ref/cmd/vrpc")},
 		{"docker", []string{"build", "-t", imageName, "."}},
-		{"docker", []string{"tag", imageName, imageNameTag}},
+		{"docker", []string{"tag", "-f", imageName, imageNameTag}},
 		{flagGcloudBin, []string{"--project=" + config.Project, "docker", "push", imageName}},
 	}, out); err != nil {
 		return err
@@ -113,7 +113,7 @@ func buildDockerImages(config *vkubeConfig, tag string, verbose bool, stdout io.
 		{"jiri", goBuildArgs("pod_agentd", "v.io/x/ref/services/agent/pod_agentd")},
 		{"jiri", goBuildArgs("principal", "v.io/x/ref/cmd/principal")},
 		{"docker", []string{"build", "-t", imageName, "."}},
-		{"docker", []string{"tag", imageName, imageNameTag}},
+		{"docker", []string{"tag", "-f", imageName, imageNameTag}},
 		{flagGcloudBin, []string{"--project=" + config.Project, "docker", "push", imageName}},
 	}, out); err != nil {
 		return err
