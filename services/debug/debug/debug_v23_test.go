@@ -253,6 +253,7 @@ func TestV23VTrace(t *testing.T) {
 }
 
 func TestV23Pprof(t *testing.T) {
+	t.Skip("https://github.com/vanadium/build/issues/49")
 	v23test.SkipUnlessRunningIntegrationTests(t)
 	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
