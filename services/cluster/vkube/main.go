@@ -25,16 +25,18 @@ import (
 )
 
 var (
-	flagConfigFile     string
-	flagKubectlBin     string
-	flagGcloudBin      string
-	flagGetCredentials bool
-	flagNoBlessings    bool
-	flagNoHeaders      bool
-	flagResourceFile   string
-	flagVerbose        bool
-	flagTag            string
-	flagWait           bool
+	flagConfigFile        string
+	flagKubectlBin        string
+	flagGcloudBin         string
+	flagGetCredentials    bool
+	flagNoBlessings       bool
+	flagNoHeaders         bool
+	flagResourceFile      string
+	flagVerbose           bool
+	flagTag               string
+	flagWait              bool
+	flagClusterAgentImage string
+	flagPodAgentImage     string
 )
 
 const (
@@ -56,6 +58,8 @@ func main() {
 			cmdStop,
 			cmdStartClusterAgent,
 			cmdStopClusterAgent,
+			cmdUpdateClusterAgent,
+			cmdUpdateConfig,
 			cmdClaimClusterAgent,
 			cmdBuildDockerImages,
 			cmdKubectl,
@@ -77,6 +81,10 @@ func main() {
 	cmdStop.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to stop the kubernetes resource.")
 
 	cmdStartClusterAgent.Flags.BoolVar(&flagWait, "wait", false, "Wait for the cluster agent to be ready.")
+	cmdUpdateClusterAgent.Flags.BoolVar(&flagWait, "wait", false, "Wait for the cluster agent to be ready.")
+
+	cmdUpdateConfig.Flags.StringVar(&flagClusterAgentImage, "cluster-agent-image", "", "The new cluster agent image. If the name starts with ':', only the image tag is updated.")
+	cmdUpdateConfig.Flags.StringVar(&flagPodAgentImage, "pod-agent-image", "", "The new pod agent image. If the name starts with ':', only the image tag is updated.")
 
 	cmdBuildDockerImages.Flags.BoolVar(&flagVerbose, "v", false, "When true, the output is more verbose.")
 	cmdBuildDockerImages.Flags.StringVar(&flagTag, "tag", "", "The tag to add to the docker images. If empty, the current timestamp is used.")
@@ -334,6 +342,62 @@ func runCmdStopClusterAgent(ctx *context.T, env *cmdline.Env, args []string, con
 		return err
 	}
 	fmt.Fprintln(env.Stdout, "Stopping cluster agent.")
+	return nil
+}
+
+var cmdUpdateClusterAgent = &cmdline.Command{
+	Runner: kubeCmdRunner(runCmdUpdateClusterAgent),
+	Name:   "update-cluster-agent",
+	Short:  "Updates the cluster agent.",
+	Long:   "Updates the cluster agent.",
+}
+
+func runCmdUpdateClusterAgent(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
+	if err := updateClusterAgent(config, env.Stderr); err != nil {
+		return err
+	}
+	fmt.Fprintln(env.Stdout, "Updating cluster agent.")
+	if flagWait {
+		if err := waitForReadyPods(clusterAgentApplicationName, config.ClusterAgent.Namespace); err != nil {
+			return err
+		}
+		for {
+			if _, err := findClusterAgent(config, true); err == nil {
+				break
+			}
+			time.Sleep(time.Second)
+		}
+		fmt.Fprintf(env.Stdout, "Cluster agent is ready.\n")
+	}
+	return nil
+}
+
+var cmdUpdateConfig = &cmdline.Command{
+	Runner: kubeCmdRunner(runCmdUpdateConfig),
+	Name:   "update-config",
+	Short:  "Updates vkube.cfg.",
+	Long:   "Updates the vkube.cfg file with new cluster-agent and/or pod-agent images.",
+}
+
+func runCmdUpdateConfig(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
+	if flagClusterAgentImage != "" {
+		if flagClusterAgentImage[0] == ':' {
+			config.ClusterAgent.Image = removeTag(config.ClusterAgent.Image) + flagClusterAgentImage
+		} else {
+			config.ClusterAgent.Image = flagClusterAgentImage
+		}
+	}
+	if flagPodAgentImage != "" {
+		if flagPodAgentImage[0] == ':' {
+			config.PodAgent.Image = removeTag(config.PodAgent.Image) + flagPodAgentImage
+		} else {
+			config.PodAgent.Image = flagPodAgentImage
+		}
+	}
+	if err := writeConfig(flagConfigFile, config); err != nil {
+		return err
+	}
+	fmt.Fprintf(env.Stdout, "Updated %q.\n", flagConfigFile)
 	return nil
 }
 

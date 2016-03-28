@@ -12,15 +12,17 @@ Usage:
    vkube [flags] <command>
 
 The vkube commands are:
-   start               Starts an application.
-   update              Updates an application.
-   stop                Stops an application.
-   start-cluster-agent Starts the cluster agent.
-   stop-cluster-agent  Stops the cluster agent.
-   claim-cluster-agent Claims the cluster agent.
-   build-docker-images Builds the docker images for the cluster and pod agents.
-   kubectl             Runs kubectl on the cluster defined in vkube.cfg.
-   help                Display help for commands or topics
+   start                Starts an application.
+   update               Updates an application.
+   stop                 Stops an application.
+   start-cluster-agent  Starts the cluster agent.
+   stop-cluster-agent   Stops the cluster agent.
+   update-cluster-agent Updates the cluster agent.
+   update-config        Updates vkube.cfg.
+   claim-cluster-agent  Claims the cluster agent.
+   build-docker-images  Builds the docker images for the cluster and pod agents.
+   kubectl              Runs kubectl on the cluster defined in vkube.cfg.
+   help                 Display help for commands or topics
 
 The vkube flags are:
  -config=vkube.cfg
@@ -203,6 +205,58 @@ Usage:
    vkube stop-cluster-agent [flags]
 
 The vkube stop-cluster-agent flags are:
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
+
+Vkube update-cluster-agent
+
+Updates the cluster agent.
+
+Usage:
+   vkube update-cluster-agent [flags]
+
+The vkube update-cluster-agent flags are:
+ -wait=false
+   Wait for the cluster agent to be ready.
+
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
+
+Vkube update-config
+
+Updates the vkube.cfg file with new cluster-agent and/or pod-agent images.
+
+Usage:
+   vkube update-config [flags]
+
+The vkube update-config flags are:
+ -cluster-agent-image=
+   The new cluster agent image. If the name starts with ':', only the image tag
+   is updated.
+ -pod-agent-image=
+   The new pod agent image. If the name starts with ':', only the image tag is
+   updated.
+
  -config=vkube.cfg
    The 'vkube.cfg' file to use.
  -gcloud=gcloud

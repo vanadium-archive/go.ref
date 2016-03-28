@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 )
 
 // The config file used by the vkube command.
@@ -69,4 +71,27 @@ func readConfig(fileName string) (*vkubeConfig, error) {
 		config.ClusterAgent.Namespace = "default"
 	}
 	return &config, nil
+}
+
+// writeConfig writes a config file.
+func writeConfig(fileName string, config *vkubeConfig) error {
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	f, err := ioutil.TempFile(filepath.Dir(fileName), ".vkube-cfg-")
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(f.Name(), fileName); err != nil {
+		return err
+	}
+	return nil
 }

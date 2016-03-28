@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"v.io/v23/context"
@@ -19,12 +20,7 @@ const (
 	clusterAgentApplicationName = "cluster-agentd"
 )
 
-// createClusterAgent creates a ReplicationController and a Service to run the
-// cluster agent.
-func createClusterAgent(ctx *context.T, config *vkubeConfig) error {
-	if err := createNamespaceIfNotExist(config.ClusterAgent.Namespace); err != nil {
-		return err
-	}
+func makeClusterAgentObject(config *vkubeConfig, rootBlessings string) object {
 	version := "latest"
 	if p := strings.Split(config.ClusterAgent.Image, ":"); len(p) == 2 {
 		version = p[1]
@@ -86,7 +82,7 @@ func createClusterAgent(ctx *context.T, config *vkubeConfig) error {
 							"env": []object{
 								object{
 									"name":  "ROOT_BLESSINGS",
-									"value": rootBlessings(ctx),
+									"value": rootBlessings,
 								},
 								object{
 									"name":  "CLAIMER",
@@ -132,6 +128,16 @@ func createClusterAgent(ctx *context.T, config *vkubeConfig) error {
 		})
 	}
 
+	return ca
+}
+
+// createClusterAgent creates a ReplicationController and a Service to run the
+// cluster agent.
+func createClusterAgent(ctx *context.T, config *vkubeConfig) error {
+	if err := createNamespaceIfNotExist(config.ClusterAgent.Namespace); err != nil {
+		return err
+	}
+	ca := makeClusterAgentObject(config, rootBlessings(ctx))
 	if out, err := kubectlCreate(ca); err != nil {
 		return fmt.Errorf("failed to create replication controller: %v\n%s\n", err, string(out))
 	}
@@ -168,11 +174,57 @@ func createClusterAgent(ctx *context.T, config *vkubeConfig) error {
 // stopClusterAgent stops the cluster agent ReplicationController and deletes
 // its Service.
 func stopClusterAgent(config *vkubeConfig) error {
-	if out, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "stop", "rc", "-l", "application="+clusterAgentApplicationName); err != nil {
+	if out, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "delete", "rc", "-l", "application="+clusterAgentApplicationName); err != nil {
 		return fmt.Errorf("failed to stop %s: %v: %s", clusterAgentApplicationName, err, out)
 	}
 	if out, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "delete", "service", clusterAgentServiceName); err != nil {
 		return fmt.Errorf("failed to delete %s: %v: %s", clusterAgentServiceName, err, out)
+	}
+	return nil
+}
+
+// updateClusterAgent updates the ReplicationController of an existing cluster
+// agent.
+func updateClusterAgent(config *vkubeConfig, stderr io.Writer) error {
+	data, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "get", "rc", "-l", "application="+clusterAgentApplicationName, "-o", "json")
+	if err != nil {
+		return fmt.Errorf("failed to get replication controller %q: %v\n%s\n", clusterAgentApplicationName, err, string(data))
+	}
+	var list object
+	if err := list.importJSON(data); err != nil {
+		return fmt.Errorf("failed to parse kubectl output: %v", err)
+	}
+	items := list.getObjectArray("items")
+	if len(items) != 1 {
+		return fmt.Errorf("unexpected number of items: %d", len(items))
+	}
+	rc := items[0]
+
+	// Find root blessings.
+	containers := rc.getObjectArray("spec.template.spec.containers")
+	if len(containers) != 1 {
+		return fmt.Errorf("unexpected number of containers in cluster agent: %d", len(containers))
+	}
+	var root string
+	for _, e := range containers[0].getObjectArray("env") {
+		if e.getString("name") == "ROOT_BLESSINGS" {
+			root = e.getString("value")
+			break
+		}
+	}
+
+	newCA := makeClusterAgentObject(config, root)
+	if name := newCA.get("metadata.name"); name == rc.get("metadata.name") {
+		fmt.Fprintf(stderr, "Cluster agent %q already running\n", name)
+		return nil
+	}
+
+	if out, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "delete", "rc", "-l", "application="+clusterAgentApplicationName); err != nil {
+		return fmt.Errorf("failed to delete %s: %v: %s", clusterAgentApplicationName, err, out)
+	}
+
+	if out, err := kubectlCreate(newCA); err != nil {
+		return fmt.Errorf("failed to create replication controller: %v\n%s\n", err, string(out))
 	}
 	return nil
 }

@@ -127,23 +127,31 @@ func TestV23Vkube(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	vkubeOK("build-docker-images", "-v", "-tag=test")
+	vkubeOK("build-docker-images", "-v", "-tag=1")
+	vkubeOK("build-docker-images", "-v", "-tag=2")
 	// Clean up local docker images.
 	docker(
 		"rmi",
 		"b.gcr.io/"+id+"/cluster-agent",
-		"b.gcr.io/"+id+"/cluster-agent:test",
+		"b.gcr.io/"+id+"/cluster-agent:1",
+		"b.gcr.io/"+id+"/cluster-agent:2",
 		"b.gcr.io/"+id+"/pod-agent",
-		"b.gcr.io/"+id+"/pod-agent:test",
+		"b.gcr.io/"+id+"/pod-agent:1",
+		"b.gcr.io/"+id+"/pod-agent:2",
 		"b.gcr.io/"+id+"/tunneld",
 	)
 
 	// Run the actual tests.
+	vkubeOK("update-config",
+		"--cluster-agent-image=b.gcr.io/"+id+"/cluster-agent:1",
+		"--pod-agent-image=b.gcr.io/"+id+"/pod-agent:1")
 	vkubeOK("start-cluster-agent", "--wait")
+	vkubeOK("update-config", "--cluster-agent-image=:2", "--pod-agent-image=:2")
+	vkubeOK("update-cluster-agent", "--wait")
 	kubectlOK("get", "service", "cluster-agent")
-	kubectlOK("get", "rc", "cluster-agentd-latest")
-	vkubeOK("claim-cluster-agent")
+	kubectlOK("get", "rc", "cluster-agentd-2")
 	vkubeFail("start-cluster-agent") // Already running
+	vkubeOK("claim-cluster-agent")
 	vkubeFail("claim-cluster-agent") // Already claimed
 
 	vkubeOK("start", "-f", appConf1, "--wait", "my-app")
@@ -178,7 +186,8 @@ func TestV23Vkube(t *testing.T) {
 
 	vkubeOK("stop-cluster-agent")
 	kubectlFail("get", "service", "cluster-agent")
-	kubectlFail("get", "rc", "cluster-agentd-latest")
+	kubectlFail("get", "rc", "cluster-agentd-1")
+	kubectlFail("get", "rc", "cluster-agentd-2")
 }
 
 func createVkubeConfig(path, id string) error {
@@ -195,14 +204,14 @@ func createVkubeConfig(path, id string) error {
   "cluster": "{{.Cluster}}",
   "clusterAgent": {
     "namespace": "{{.ID}}",
-    "image": "b.gcr.io/{{.ID}}/cluster-agent:latest",
+    "image": "b.gcr.io/{{.ID}}/cluster-agent:xxx",
     "blessing": "root:alice:cluster-agent",
     "admin": "root:alice",
     "cpu": "0.1",
     "memory": "100M"
   },
   "podAgent": {
-    "image": "b.gcr.io/{{.ID}}/pod-agent:latest"
+    "image": "b.gcr.io/{{.ID}}/pod-agent:xxx"
   }
 }`)).Execute(f, params)
 }
