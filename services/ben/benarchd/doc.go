@@ -18,6 +18,10 @@ Usage:
    benarchd [flags]
 
 The benarchd flags are:
+ -assets=
+   If set, the directory containing assets (template definitions, css,
+   javascript files etc.) to use in the web interface. If not set, compiled-in
+   assets will be used instead.
  -exthttp=
    The address of the HTTP server to advertise externally, typically used if the
    HTTP server is running behind a proxy or on a machine that is unaware of its

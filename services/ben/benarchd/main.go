@@ -31,6 +31,7 @@ var (
 	flagHTTPAddr       string
 	flagPublicHTTPAddr string
 	flagName           string
+	flagAssets         string
 	cmdRoot            = &cmdline.Command{
 		Runner: v23cmd.RunnerFunc(run),
 		Name:   "benarchd",
@@ -49,6 +50,12 @@ flag.
 )
 
 func run(ctx *context.T, env *cmdline.Env, args []string) error {
+	// Initialize assets to be used by the web interface
+	assets, err := internal.NewAssets(flagAssets)
+	if err != nil {
+		return err
+	}
+
 	// Initialize the store
 	driver, dataSource, err := parseStore(ctx, flagStore)
 	if err != nil {
@@ -77,7 +84,7 @@ func run(ctx *context.T, env *cmdline.Env, args []string) error {
 		return err
 	}
 	ctx.Infof("HTTP server at http://%v", ln.Addr())
-	go http.Serve(ln, internal.NewHTTPHandler(store))
+	go http.Serve(ln, internal.NewHTTPHandler(assets, store))
 
 	// Start the v23 RPC service
 	pubAddr := fmt.Sprintf("http://%v", ln.Addr())
@@ -114,5 +121,6 @@ func main() {
 	cmdRoot.Flags.StringVar(&flagStore, "store", "", "Specification of the persistent store to use. Format: <engine>:<parameters>, where <engine> can be 'sqlite3', 'mysql' or 'sqlconfig'. For 'sqlconfig', <parameters> is a path to a file containing a JSON-serialized SqlConfig (https://godoc.org/v.io/x/lib/dbutil#SqlConfig), for the others it is the data source name (e.g., filename for sqlite3)")
 	cmdRoot.Flags.StringVar(&flagPublicHTTPAddr, "exthttp", "", "The address of the HTTP server to advertise externally, typically used if the HTTP server is running behind a proxy or on a machine that is unaware of its publicly accessible hostname/IP address. If empty, derived from --http.")
 	cmdRoot.Flags.StringVar(&flagHTTPAddr, "http", "127.0.0.1:0", "Address on which to serve HTTP requests")
+	cmdRoot.Flags.StringVar(&flagAssets, "assets", "", "If set, the directory containing assets (template definitions, css, javascript files etc.) to use in the web interface. If not set, compiled-in assets will be used instead.")
 	cmdline.Main(cmdRoot)
 }
