@@ -55,12 +55,12 @@ func CreateDatabase(t testing.TB, ctx *context.T, a syncbase.App, name string) s
 	return d
 }
 
-func CreateTable(t testing.TB, ctx *context.T, d syncbase.Database, name string) syncbase.Table {
-	tb := d.Table(name)
-	if err := tb.Create(ctx, nil); err != nil {
-		Fatalf(t, "tb.Create() failed: %v", err)
+func CreateCollection(t testing.TB, ctx *context.T, d syncbase.Database, name string) syncbase.Collection {
+	c := d.Collection(name)
+	if err := c.Create(ctx, nil); err != nil {
+		Fatalf(t, "c.Create() failed: %v", err)
 	}
-	return tb
+	return c
 }
 
 // TODO(sadovsky): Drop the 'perms' argument. The only client that passes
@@ -97,11 +97,11 @@ func DefaultPerms(patterns ...string) access.Permissions {
 	return perms
 }
 
-func ScanMatches(ctx *context.T, tb syncbase.Table, r syncbase.RowRange, wantKeys []string, wantValues []interface{}) error {
+func ScanMatches(ctx *context.T, c syncbase.Collection, r syncbase.RowRange, wantKeys []string, wantValues []interface{}) error {
 	if len(wantKeys) != len(wantValues) {
 		return fmt.Errorf("bad input args")
 	}
-	it := tb.Scan(ctx, r)
+	it := c.Scan(ctx, r)
 	gotKeys := []string{}
 	for it.Advance() {
 		gotKey := it.Key()
@@ -126,7 +126,7 @@ func ScanMatches(ctx *context.T, tb syncbase.Table, r syncbase.RowRange, wantKey
 		}
 	}
 	if err := it.Err(); err != nil {
-		return fmt.Errorf("tb.Scan() failed: %v", err)
+		return fmt.Errorf("c.Scan() failed: %v", err)
 	}
 	if len(gotKeys) != len(wantKeys) {
 		return fmt.Errorf("Unmatched keys: got %v, want %v", gotKeys, wantKeys)
@@ -134,8 +134,8 @@ func ScanMatches(ctx *context.T, tb syncbase.Table, r syncbase.RowRange, wantKey
 	return nil
 }
 
-func CheckScan(t testing.TB, ctx *context.T, tb syncbase.Table, r syncbase.RowRange, wantKeys []string, wantValues []interface{}) {
-	if err := ScanMatches(ctx, tb, r, wantKeys, wantValues); err != nil {
+func CheckScan(t testing.TB, ctx *context.T, c syncbase.Collection, r syncbase.RowRange, wantKeys []string, wantValues []interface{}) {
+	if err := ScanMatches(ctx, c, r, wantKeys, wantValues); err != nil {
 		Fatalf(t, err.Error())
 	}
 }

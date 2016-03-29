@@ -141,40 +141,40 @@ func TestIsPermsKey(t *testing.T) {
 	}
 }
 
-func TestParseTableAndRow(t *testing.T) {
+func TestParseCollectionAndRow(t *testing.T) {
 	tests := []struct {
-		key   string
-		table string
-		row   string
-		err   bool
+		key        string
+		collection string
+		row        string
+		err        bool
 	}{
-		{common.RowPrefix + "\xfetb\xferow", "tb", "row", false},
-		{common.RowPrefix + "\xfetb\xfe", "tb", "", false},
+		{common.RowPrefix + "\xfec\xferow", "c", "row", false},
+		{common.RowPrefix + "\xfec\xfe", "c", "", false},
 		{common.RowPrefix + "\xfe\xferow", "", "row", false},
 		{common.RowPrefix + "\xfe\xfe", "", "", false},
-		{common.PermsPrefix + "\xfetb\xferow", "tb", "row", false},
-		{common.PermsPrefix + "\xfetb\xfe", "tb", "", false},
+		{common.PermsPrefix + "\xfec\xferow", "c", "row", false},
+		{common.PermsPrefix + "\xfec\xfe", "c", "", false},
 		{common.PermsPrefix + "\xfe\xferow", "", "row", false},
 		{common.PermsPrefix + "\xfe\xfe", "", "", false},
-		{"pfx\xfetb\xferow", "", "", true},
-		{"pfx\xfetb\xfe", "", "", true},
+		{"pfx\xfec\xferow", "", "", true},
+		{"pfx\xfec\xfe", "", "", true},
 		{"pfx\xfe\xferow", "", "", true},
 		{"pfx\xfe\xfe", "", "", true},
-		{"\xfetb\xferow", "", "", true},
-		{"\xfetb\xfe", "", "", true},
+		{"\xfec\xferow", "", "", true},
+		{"\xfec\xfe", "", "", true},
 		{"\xfe\xferow", "", "", true},
 		{"\xfe\xfe", "", "", true},
 		{common.RowPrefix, "", "", true},
-		{common.RowPrefix + "\xfetb", "", "", true},
+		{common.RowPrefix + "\xfec", "", "", true},
 		{common.RowPrefix + "\xfe", "", "", true},
 	}
 	for _, test := range tests {
-		table, row, err := common.ParseTableAndRow(test.key)
-		if !reflect.DeepEqual(table, test.table) {
-			t.Errorf("%q: got %v, want %v", test.key, table, test.table)
+		collection, row, err := common.ParseCollectionAndRow(test.key)
+		if !reflect.DeepEqual(collection, test.collection) {
+			t.Errorf("%q: got %v, want %v", test.key, collection, test.collection)
 		}
 		if !reflect.DeepEqual(row, test.row) {
-			t.Errorf("%q: got %v, want %v", test.key, table, test.table)
+			t.Errorf("%q: got %v, want %v", test.key, collection, test.collection)
 		}
 		if !reflect.DeepEqual(err != nil, test.err) {
 			t.Errorf("%q: got %v, want %v", test.key, err != nil, test.err)

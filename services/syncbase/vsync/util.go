@@ -90,17 +90,17 @@ func unixNanoToTime(timestamp int64) time.Time {
 	return time.Unix(timestamp/nanoPerSec, timestamp%nanoPerSec)
 }
 
-// toTableRowPrefixStr converts a TableRow (table name and row key or prefix
-// pair) to a string of the form used for storing perms and row data in the
-// underlying storage engine.
-func toTableRowPrefixStr(p wire.TableRow) string {
-	return common.JoinKeyParts(p.TableName, p.Row)
+// toCollectionRowPrefixStr converts a CollectionRow (collection name and row
+// key or prefix pair) to a string of the form used for storing perms and row
+// data in the underlying storage engine.
+func toCollectionRowPrefixStr(p wire.CollectionRow) string {
+	return common.JoinKeyParts(p.CollectionName, p.Row)
 }
 
-// toRowKey prepends RowPrefix to what is presumably a "<table>:<row>" string,
-// yielding a storage engine key for a row.
-// TODO(sadovsky): Only used by CR code. Should go away once CR stores table
-// name and row key as separate fields in a "TableRow" struct.
-func toRowKey(tableRow string) string {
-	return common.JoinKeyParts(common.RowPrefix, tableRow)
+// toRowKey prepends RowPrefix to what is presumably a "<collection>:<row>"
+// string, yielding a storage engine key for a row.
+// TODO(sadovsky): Only used by CR code. Should go away once CR stores
+// collection name and row key as separate fields in a "CollectionRow" struct.
+func toRowKey(collectionRow string) string {
+	return common.JoinKeyParts(common.RowPrefix, collectionRow)
 }

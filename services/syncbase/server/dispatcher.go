@@ -71,7 +71,7 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 		return wire.AppServer(a), auth, nil
 	}
 
-	// All database, table, and row methods require the app to exist. If it
+	// All database, collection, and row methods require the app to exist. If it
 	// doesn't, abort early.
 	if !appExists {
 		return nil, nil, verror.New(verror.ErrNoExist, ctx, a.name)
@@ -86,7 +86,7 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 
 // TODO(sadovsky): Migrated from "nosql" package. Merge with code above.
 func (disp *dispatcher) LookupBeyondApp(ctx *context.T, a interfaces.App, suffix string) (interface{}, security.Authorizer, error) {
-	parts := strings.SplitN(suffix, "/", 3) // db, table, row
+	parts := strings.SplitN(suffix, "/", 3) // db, collection, row
 
 	// Note, the slice returned by strings.SplitN is guaranteed to contain at
 	// least one element.
@@ -100,10 +100,10 @@ func (disp *dispatcher) LookupBeyondApp(ctx *context.T, a interfaces.App, suffix
 		return nil, nil, wire.NewErrInvalidName(ctx, suffix)
 	}
 
-	var tableName, rowKey string
+	var collectionName, rowKey string
 	if len(parts) > 1 {
-		tableName, ok = pubutil.Unescape(parts[1])
-		if !ok || !pubutil.ValidTableName(tableName) {
+		collectionName, ok = pubutil.Unescape(parts[1])
+		if !ok || !pubutil.ValidCollectionName(collectionName) {
 			return nil, nil, wire.NewErrInvalidName(ctx, suffix)
 		}
 	}
@@ -143,8 +143,8 @@ func (disp *dispatcher) LookupBeyondApp(ctx *context.T, a interfaces.App, suffix
 		return wire.DatabaseServer(dReq), auth, nil
 	}
 
-	// All table and row methods require the database to exist. If it doesn't,
-	// abort early.
+	// All collection and row methods require the database to exist. If it
+	// doesn't, abort early.
 	if !dbExists {
 		return nil, nil, verror.New(verror.ErrNoExist, ctx, d.name)
 	}
@@ -153,17 +153,17 @@ func (disp *dispatcher) LookupBeyondApp(ctx *context.T, a interfaces.App, suffix
 	// downstream handling of this request. Depending on the order in which things
 	// execute, the client may not get an error, but in any case ultimately the
 	// store will end up in a consistent state.
-	tReq := &tableReq{
-		name: tableName,
+	cReq := &collectionReq{
+		name: collectionName,
 		d:    dReq,
 	}
 	if len(parts) == 2 {
-		return wire.TableServer(tReq), auth, nil
+		return wire.CollectionServer(cReq), auth, nil
 	}
 
 	rReq := &rowReq{
 		key: rowKey,
-		t:   tReq,
+		c:   cReq,
 	}
 	if len(parts) == 3 {
 		return wire.RowServer(rReq), auth, nil
@@ -173,8 +173,8 @@ func (disp *dispatcher) LookupBeyondApp(ctx *context.T, a interfaces.App, suffix
 }
 
 // setBatchFields sets the batch-related fields in databaseReq based on the
-// value of batchInfo (suffix of the database name component). It returns an error
-// if batchInfo is malformed or the batch does not exist.
+// value of batchInfo (suffix of the database name component). It returns an
+// error if batchInfo is malformed or the batch does not exist.
 func setBatchFields(ctx *context.T, d *databaseReq, batchInfo string) error {
 	// TODO(sadovsky): Maybe share a common keyspace between sns and txs so that
 	// we can avoid including the batch type in the batchInfo string.

@@ -20,19 +20,19 @@ type kv struct {
 	value *vom.RawBytes
 }
 
-type table struct {
+type collection struct {
 	name string
 	rows []kv
 }
 
-var demoTables []table
+var demoCollections []collection
 
 func init() {
-	// We can't call vom.RawBytesOf directly in the demoTables var initializer,
-	// because of init ordering issues with vdl.Register{,Native} calls
-	// in the vdl-generated files.
-	demoTables = []table{
-		table{
+	// We can't call vom.RawBytesOf directly in the demoCollections var
+	// initializer, because of init ordering issues with vdl.Register{,Native}
+	// calls in the vdl-generated files.
+	demoCollections = []collection{
+		collection{
 			name: "Customers",
 			rows: []kv{
 				kv{
@@ -73,7 +73,7 @@ func init() {
 				},
 			},
 		},
-		table{
+		collection{
 			name: "Numbers",
 			rows: []kv{
 				kv{
@@ -90,7 +90,7 @@ func init() {
 				},
 			},
 		},
-		table{
+		collection{
 			name: "Composites",
 			rows: []kv{
 				kv{
@@ -99,7 +99,7 @@ func init() {
 				},
 			},
 		},
-		table{
+		collection{
 			name: "Recursives",
 			rows: []kv{
 				kv{
@@ -114,7 +114,7 @@ func init() {
 				},
 			},
 		},
-		table{
+		collection{
 			name: "Students",
 			rows: []kv{
 				kv{
@@ -127,7 +127,7 @@ func init() {
 				},
 			},
 		},
-		table{
+		collection{
 			name: "AnythingGoes",
 			rows: []kv{
 				kv{
@@ -148,26 +148,26 @@ func t(timeStr string) time.Time {
 	return t
 }
 
-// Creates demo tables in the provided database. Tables are destroyed and
-// recreated if they already exist.
+// Creates demo collections in the provided database. Collections are destroyed
+// and recreated if they already exist.
 func PopulateDemoDB(ctx *context.T, db syncbase.Database) error {
-	for i, t := range demoTables {
-		if err := db.Table(t.name).Destroy(ctx); err != nil {
-			return fmt.Errorf("failed destroying table %s (%d/%d): %v", t.name, i+1, len(demoTables), err)
+	for i, c := range demoCollections {
+		if err := db.Collection(c.name).Destroy(ctx); err != nil {
+			return fmt.Errorf("failed destroying collection %s (%d/%d): %v", c.name, i+1, len(demoCollections), err)
 		}
-		if err := db.Table(t.name).Create(ctx, nil); err != nil {
-			return fmt.Errorf("failed creating table %s (%d/%d): %v", t.name, i+1, len(demoTables), err)
+		if err := db.Collection(c.name).Create(ctx, nil); err != nil {
+			return fmt.Errorf("failed creating collection %s (%d/%d): %v", c.name, i+1, len(demoCollections), err)
 		}
 		if err := syncbase.RunInBatch(ctx, db, wire.BatchOptions{}, func(db syncbase.BatchDatabase) error {
-			dt := db.Table(t.name)
-			for _, kv := range t.rows {
-				if err := dt.Put(ctx, kv.key, kv.value); err != nil {
+			dc := db.Collection(c.name)
+			for _, kv := range c.rows {
+				if err := dc.Put(ctx, kv.key, kv.value); err != nil {
 					return err
 				}
 			}
 			return nil
 		}); err != nil {
-			return fmt.Errorf("failed populating table %s (%d/%d): %v", t.name, i+1, len(demoTables), err)
+			return fmt.Errorf("failed populating collection %s (%d/%d): %v", c.name, i+1, len(demoCollections), err)
 		}
 	}
 	return nil

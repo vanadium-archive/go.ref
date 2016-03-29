@@ -9,9 +9,9 @@ import (
 	"v.io/x/ref/services/syncbase/store"
 )
 
-// Table is an internal interface to the table layer.
-type Table interface {
-	// Database returns the database handle for this table.
+// Collection is an internal interface to the collection layer.
+type Collection interface {
+	// Database returns the database handle for this collection.
 	Database() Database
 
 	// UpdatePrefixPermsIndexForSet updates the prefix permissions index to
@@ -22,6 +22,6 @@ type Table interface {
 	// reflect DeletePrefixPermissions on the given key.
 	UpdatePrefixPermsIndexForDelete(ctx *context.T, tx store.Transaction, key string) error
 
-	// Name returns the name of this table.
+	// Name returns the name of this collection.
 	Name() string
 }

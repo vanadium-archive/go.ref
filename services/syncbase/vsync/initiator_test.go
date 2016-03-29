@@ -35,7 +35,7 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 	defer cleanup()
 
 	// Check all log records.
-	objid := common.JoinKeyParts(common.RowPrefix, "tb", "foo1")
+	objid := common.JoinKeyParts(common.RowPrefix, "c", "foo1")
 	var gen uint64
 	var parents []string
 	for gen = 1; gen < 4; gen++ {
@@ -88,8 +88,8 @@ func TestLogStreamRemoteOnly(t *testing.T) {
 
 	// Verify genvec state.
 	wantVecs := interfaces.Knowledge{
-		"tb\xfefoo1": interfaces.GenVector{11: 3},
-		"tb\xfebar":  interfaces.GenVector{11: 0},
+		"c\xfefoo1": interfaces.GenVector{11: 3},
+		"c\xfebar":  interfaces.GenVector{11: 0},
 	}
 	if !reflect.DeepEqual(iSt.updLocal, wantVecs) {
 		t.Fatalf("Final local gen vec mismatch got %v, want %v", iSt.updLocal, wantVecs)
@@ -125,7 +125,7 @@ func TestLogStreamNoConflict(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-noconf-00.log.sync", false)
 	defer cleanup()
 
-	objid := common.JoinKeyParts(common.RowPrefix, "tb\xfefoo1")
+	objid := common.JoinKeyParts(common.RowPrefix, "c\xfefoo1")
 
 	// Check all log records.
 	var version uint64 = 1
@@ -186,8 +186,8 @@ func TestLogStreamNoConflict(t *testing.T) {
 
 	// Verify genvec state.
 	wantVecs := interfaces.Knowledge{
-		"tb\xfefoo1": interfaces.GenVector{11: 3},
-		"tb\xfebar":  interfaces.GenVector{11: 0},
+		"c\xfefoo1": interfaces.GenVector{11: 3},
+		"c\xfebar":  interfaces.GenVector{11: 0},
 	}
 	if !reflect.DeepEqual(iSt.updLocal, wantVecs) {
 		t.Fatalf("Final local gen vec failed got %v, want %v", iSt.updLocal, wantVecs)
@@ -223,7 +223,7 @@ func TestLogStreamConflict(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-conf-00.log.sync", false)
 	defer cleanup()
 
-	objid := common.JoinKeyParts(common.RowPrefix, "tb\xfefoo1")
+	objid := common.JoinKeyParts(common.RowPrefix, "c\xfefoo1")
 
 	// Verify conflict state.
 	if len(iSt.updObjects) != 1 {
@@ -271,7 +271,7 @@ func TestLogStreamConflictNoAncestor(t *testing.T) {
 	svc, iSt, cleanup := testInit(t, "local-init-00.log.sync", "remote-conf-03.log.sync", false)
 	defer cleanup()
 
-	objid := common.JoinKeyParts(common.RowPrefix, "tb\xfefoo1")
+	objid := common.JoinKeyParts(common.RowPrefix, "c\xfefoo1")
 
 	// Verify conflict state.
 	if len(iSt.updObjects) != 1 {
@@ -358,7 +358,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
-			Prefixes:    []wire.TableRow{{TableName: "foo", Row: ""}, {TableName: "bar", Row: ""}},
+			Prefixes:    []wire.CollectionRow{{CollectionName: "foo", Row: ""}, {CollectionName: "bar", Row: ""}},
 			MountTables: []string{"1/2/3/4", "5/6/7/8"},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
@@ -393,8 +393,8 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	sgs := make(sgSet)
 	sgs[sgId1] = struct{}{}
 	iSt.config.sgPfxs = map[string]sgSet{
-		toTableRowPrefixStr(sg1.Spec.Prefixes[0]): sgs,
-		toTableRowPrefixStr(sg1.Spec.Prefixes[1]): sgs,
+		toCollectionRowPrefixStr(sg1.Spec.Prefixes[0]): sgs,
+		toCollectionRowPrefixStr(sg1.Spec.Prefixes[1]): sgs,
 	}
 
 	sort.Strings(iSt.config.peer.mtTbls)

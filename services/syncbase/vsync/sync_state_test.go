@@ -16,8 +16,8 @@ import (
 
 // Tests for sync state management and storage in Syncbase.
 
-// TestReserveGenAndPos tests reserving generation numbers and log positions in a
-// Database log.
+// TestReserveGenAndPos tests reserving generation numbers and log positions in
+// a Database log.
 func TestReserveGenAndPos(t *testing.T) {
 	svc := createService(t)
 	defer destroyService(t, svc)
@@ -57,7 +57,7 @@ func TestPutGetDbSyncState(t *testing.T) {
 	checkDbSyncState(t, st, false, nil)
 
 	gv := interfaces.Knowledge{
-		"mocktbl/foo": interfaces.GenVector{
+		"mockcn/foo": interfaces.GenVector{
 			1: 2, 3: 4, 5: 6,
 		},
 	}

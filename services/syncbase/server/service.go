@@ -457,7 +457,7 @@ func (s *service) destroyApp(ctx *context.T, call rpc.ServerCall, appName string
 	// TODO(ivanpi): Destroying an app is in a possible race with creating a
 	// database in that app. Consider locking app mutex here, possibly other
 	// nested mutexes as well, and cancelling calls on nested objects. Same for
-	// database and table destroy.
+	// database and collection destroy.
 	a, ok := s.apps[appName]
 	if !ok {
 		return nil // destroy is idempotent

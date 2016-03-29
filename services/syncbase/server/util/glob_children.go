@@ -16,7 +16,7 @@ import (
 )
 
 // Note, Syncbase handles Glob requests by implementing GlobChildren__ at each
-// level (service, app, database, table).
+// level (service, app, database, collection).
 
 // GlobChildren implements glob over the Syncbase namespace.
 func GlobChildren(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element, sntx store.SnapshotOrTransaction, stKeyPrefix string) error {
@@ -33,8 +33,8 @@ func GlobChildren(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob
 		// For explanation of Escape(), see comment in server/dispatcher.go.
 		name := pubutil.Escape(parts[len(parts)-1])
 		if matcher.Match(name) {
-			// TODO(rogulenko): Check for resolve access. (For table glob, this means
-			// checking prefix perms.)
+			// TODO(rogulenko): Check for resolve access. (For collection glob, this
+			// means checking prefix perms.)
 			if err := call.SendStream().Send(naming.GlobChildrenReplyName{Value: name}); err != nil {
 				return err
 			}

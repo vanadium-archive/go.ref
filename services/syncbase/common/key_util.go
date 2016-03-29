@@ -57,25 +57,25 @@ func IsPermsKey(key string) bool {
 	return FirstKeyPart(key) == PermsPrefix
 }
 
-// ParseTableAndRow extracts table and row parts from the given storage engine
-// key for a row or perms. Returns an error if the given key is not a storage
-// engine key for a row or perms.
-func ParseTableAndRow(key string) (table string, row string, err error) {
+// ParseCollectionAndRow extracts collection and row parts from the given
+// storage engine key for a row or perms. Returns an error if the given key is
+// not a storage engine key for a row or perms.
+func ParseCollectionAndRow(key string) (collection string, row string, err error) {
 	parts := SplitNKeyParts(key, 3)
 	pfx := parts[0]
 	if len(parts) < 3 || (pfx != RowPrefix && pfx != PermsPrefix) {
-		return "", "", fmt.Errorf("ParseTableAndRow: invalid key %q", key)
+		return "", "", fmt.Errorf("ParseCollectionAndRow: invalid key %q", key)
 	}
 	return parts[1], parts[2], nil
 }
 
-// ParseTableAndRowOrDie calls ParseTableAndRow and panics on error.
-func ParseTableAndRowOrDie(key string) (table string, row string) {
-	table, row, err := ParseTableAndRow(key)
+// ParseCollectionAndRowOrDie calls ParseCollectionAndRow and panics on error.
+func ParseCollectionAndRowOrDie(key string) (collection string, row string) {
+	collection, row, err := ParseCollectionAndRow(key)
 	if err != nil {
 		vlog.Fatal(err)
 	}
-	return table, row
+	return collection, row
 }
 
 // ScanPrefixArgs returns args for sn.Scan() for the specified prefix.

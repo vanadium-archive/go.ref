@@ -486,18 +486,18 @@ func (t *__VDLTarget1_optional) FromNil(tt *vdl.Type) error {
 	return nil
 }
 
-// TableData represents the persistent state of a Table.
-type TableData struct {
+// CollectionData represents the persistent state of a Collection.
+type CollectionData struct {
 	Name  string
 	Perms access.Permissions
 }
 
-func (TableData) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/server.TableData"`
+func (CollectionData) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server.CollectionData"`
 }) {
 }
 
-func (m *TableData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+func (m *CollectionData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -534,26 +534,26 @@ func (m *TableData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	return nil
 }
 
-func (m *TableData) MakeVDLTarget() vdl.Target {
-	return &TableDataTarget{Value: m}
+func (m *CollectionData) MakeVDLTarget() vdl.Target {
+	return &CollectionDataTarget{Value: m}
 }
 
-type TableDataTarget struct {
-	Value       *TableData
+type CollectionDataTarget struct {
+	Value       *CollectionData
 	nameTarget  vdl.StringTarget
 	permsTarget access.PermissionsTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
 
-func (t *TableDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+func (t *CollectionDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if ttWant := vdl.TypeOf((*TableData)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+	if ttWant := vdl.TypeOf((*CollectionData)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
-func (t *TableDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
+func (t *CollectionDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Name":
 		t.nameTarget.Value = &t.Value.Name
@@ -564,24 +564,24 @@ func (t *TableDataTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.permsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.TableData", name)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.CollectionData", name)
 	}
 }
-func (t *TableDataTarget) FinishField(_, _ vdl.Target) error {
+func (t *CollectionDataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
-func (t *TableDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+func (t *CollectionDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
 
 // Create zero values for each type.
 var (
-	__VDLZeroServiceData  = ServiceData{}
-	__VDLZeroAppData      = AppData{}
-	__VDLZeroDbInfo       = DbInfo{}
-	__VDLZeroDatabaseData = DatabaseData{}
-	__VDLZeroTableData    = TableData{}
+	__VDLZeroServiceData    = ServiceData{}
+	__VDLZeroAppData        = AppData{}
+	__VDLZeroDbInfo         = DbInfo{}
+	__VDLZeroDatabaseData   = DatabaseData{}
+	__VDLZeroCollectionData = CollectionData{}
 )
 
 var __VDLInitCalled bool
@@ -609,7 +609,7 @@ func __VDLInit() struct{} {
 	vdl.Register((*AppData)(nil))
 	vdl.Register((*DbInfo)(nil))
 	vdl.Register((*DatabaseData)(nil))
-	vdl.Register((*TableData)(nil))
+	vdl.Register((*CollectionData)(nil))
 
 	return struct{}{}
 }

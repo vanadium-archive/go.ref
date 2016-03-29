@@ -16,13 +16,13 @@ const (
 	PermsPrefix      = "p"
 	RowPrefix        = "r"
 	ServicePrefix    = "s"
-	TablePrefix      = "t"
+	CollectionPrefix = "t"
 	VersionPrefix    = "v"
 	PermsIndexPrefix = "x"
 	SyncPrefix       = "y"
 
 	// KeyPartSep is a separator for parts of storage engine keys, e.g. separating
-	// table name from row key.
+	// collection name from row key.
 	KeyPartSep = "\xfe"
 
 	// PrefixRangeLimitSuffix is a key suffix that indicates the end of a prefix

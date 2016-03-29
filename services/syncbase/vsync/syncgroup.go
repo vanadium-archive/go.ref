@@ -121,13 +121,13 @@ func verifySyncgroupSpec(ctx *context.T, spec *wire.SyncgroupSpec) error {
 	// Duplicate prefixes are not allowed.
 	prefixes := make(map[string]bool, len(spec.Prefixes))
 	for _, p := range spec.Prefixes {
-		if !pubutil.ValidTableName(p.TableName) {
-			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a TableRow with invalid table name %q", p.TableName))
+		if !pubutil.ValidCollectionName(p.CollectionName) {
+			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a CollectionRow with invalid collection name %q", p.CollectionName))
 		}
 		if p.Row != "" && !pubutil.ValidRowKey(p.Row) {
-			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a TableRow with invalid row prefix %q", p.Row))
+			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a CollectionRow with invalid row prefix %q", p.Row))
 		}
-		prefixes[toTableRowPrefixStr(p)] = true
+		prefixes[toCollectionRowPrefixStr(p)] = true
 	}
 	if len(prefixes) != len(spec.Prefixes) {
 		return verror.New(verror.ErrBadArg, ctx, "group has duplicate prefixes specified")
@@ -136,13 +136,13 @@ func verifySyncgroupSpec(ctx *context.T, spec *wire.SyncgroupSpec) error {
 }
 
 // samePrefixes returns true if the two sets of prefixes are the same.
-func samePrefixes(pfx1, pfx2 []wire.TableRow) bool {
+func samePrefixes(pfx1, pfx2 []wire.CollectionRow) bool {
 	pfxMap := make(map[string]uint8)
 	for _, p := range pfx1 {
-		pfxMap[toTableRowPrefixStr(p)] |= 0x01
+		pfxMap[toCollectionRowPrefixStr(p)] |= 0x01
 	}
 	for _, p := range pfx2 {
-		pfxMap[toTableRowPrefixStr(p)] |= 0x02
+		pfxMap[toCollectionRowPrefixStr(p)] |= 0x02
 	}
 	for _, mask := range pfxMap {
 		if mask != 0x03 {
@@ -1102,7 +1102,7 @@ func (sd *syncDatabase) publishSyncgroup(ctx *context.T, call rpc.ServerCall, sg
 // be time consuming.  Consider doing it asynchronously and letting the server
 // reply to the client earlier.  However it must happen within the scope of this
 // transaction (and its snapshot view).
-func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx *watchable.Transaction, sgId interfaces.GroupId, prefixes []wire.TableRow) error {
+func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx *watchable.Transaction, sgId interfaces.GroupId, prefixes []wire.CollectionRow) error {
 	if len(prefixes) == 0 {
 		return verror.New(verror.ErrInternal, ctx, "no prefixes specified")
 	}
@@ -1118,7 +1118,7 @@ func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx *watchable.Transac
 
 	prefixStrs := make([]string, len(prefixes))
 	for i, p := range prefixes {
-		prefixStrs[i] = toTableRowPrefixStr(p)
+		prefixStrs[i] = toCollectionRowPrefixStr(p)
 	}
 	// Notify the watcher of the syncgroup prefixes to start accepting.
 	if err := sbwatchable.AddSyncgroupOp(ctx, tx, sgId, prefixStrs, false); err != nil {

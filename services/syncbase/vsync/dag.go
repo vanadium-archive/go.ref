@@ -11,9 +11,9 @@ package vsync
 //
 // Note: the sync code uses the words "object" and "object ID" (oid) as a
 // generic way to refer to syncable entities, whether they are actual user data
-// (table row and its row key), prefix-ACLs (permission entry and its prefix),
-// or other metadata such as syncgroups (syncgroup value and its internal key
-// based on the syncgroup ID).
+// (collection row and its row key), prefix-ACLs (permission entry and its
+// prefix), or other metadata such as syncgroups (syncgroup value and its
+// internal key based on the syncgroup ID).
 //
 // * Object IDs are globally unique across all devices.
 // * Syncable objects have version numbers associated with their mutations.

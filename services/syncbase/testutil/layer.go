@@ -393,33 +393,33 @@ type database struct {
 }
 
 func (d *database) ListChildren(ctx *context.T) ([]string, error) {
-	return d.ListTables(ctx)
+	return d.ListCollections(ctx)
 }
 func (d *database) Child(childName string) layer {
-	return makeLayer(d.Table(childName))
+	return makeLayer(d.Collection(childName))
 }
 
-type table struct {
-	syncbase.Table
+type collection struct {
+	syncbase.Collection
 }
 
-func (t *table) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
-	return t.Table.SetPermissions(ctx, perms)
+func (t *collection) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
+	return t.Collection.SetPermissions(ctx, perms)
 }
-func (t *table) GetPermissions(ctx *context.T) (perms access.Permissions, version string, err error) {
-	perms, err = t.Table.GetPermissions(ctx)
+func (t *collection) GetPermissions(ctx *context.T) (perms access.Permissions, version string, err error) {
+	perms, err = t.Collection.GetPermissions(ctx)
 	return perms, "", err
 }
-func (t *table) ListChildren(ctx *context.T) ([]string, error) {
+func (t *collection) ListChildren(ctx *context.T) ([]string, error) {
 	panic(notAvailable)
 }
-func (t *table) Child(childName string) layer {
-	return &row{Row: t.Row(childName), table: t.Table}
+func (t *collection) Child(childName string) layer {
+	return &row{Row: t.Row(childName), c: t.Collection}
 }
 
 type row struct {
 	syncbase.Row
-	table syncbase.Table
+	c syncbase.Collection
 }
 
 func (r *row) Name() string {
@@ -435,10 +435,10 @@ func (r *row) Destroy(ctx *context.T) error {
 	return r.Delete(ctx)
 }
 func (r *row) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
-	return r.table.SetPrefixPermissions(ctx, syncbase.Prefix(r.Key()), perms)
+	return r.c.SetPrefixPermissions(ctx, syncbase.Prefix(r.Key()), perms)
 }
 func (r *row) GetPermissions(ctx *context.T) (perms access.Permissions, version string, err error) {
-	prefixPerms, err := r.table.GetPrefixPermissions(ctx, r.Key())
+	prefixPerms, err := r.c.GetPrefixPermissions(ctx, r.Key())
 	if err != nil {
 		return nil, "", err
 	}
@@ -459,8 +459,8 @@ func makeLayer(i interface{}) layer {
 		return &app{t}
 	case syncbase.Database:
 		return &database{t}
-	case syncbase.Table:
-		return &table{t}
+	case syncbase.Collection:
+		return &collection{t}
 	default:
 		vlog.Fatalf("unexpected type: %T", t)
 	}

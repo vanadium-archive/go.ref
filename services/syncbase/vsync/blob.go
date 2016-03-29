@@ -359,7 +359,7 @@ func (sd *syncDatabase) locateBlob(ctx *context.T, br wire.BlobRef) (string, int
 	var peers = []string{loc.source, loc.peer}
 	for _, p := range peers {
 		vlog.VI(4).Infof("sync: locateBlob: attempting %s", p)
-		// Get the mounttables for this peer.
+		// Get the mount tables for this peer.
 		mtTables, err := sd.getMountTables(ctx, p)
 		if err != nil {
 			continue

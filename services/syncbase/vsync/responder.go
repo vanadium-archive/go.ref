@@ -194,7 +194,7 @@ func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 		}
 
 		for _, p := range sg.Spec.Prefixes {
-			allowedPfxs[toTableRowPrefixStr(p)] = struct{}{}
+			allowedPfxs[toCollectionRowPrefixStr(p)] = struct{}{}
 		}
 	}
 

@@ -18,7 +18,7 @@ import (
 // rowReq is a per-request object that handles Row RPCs.
 type rowReq struct {
 	key string
-	t   *tableReq
+	c   *collectionReq
 }
 
 var (
@@ -35,15 +35,15 @@ func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int32
 
 func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, schemaVersion int32) ([]byte, error) {
 	impl := func(sntx store.SnapshotOrTransaction) ([]byte, error) {
-		if err := r.t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		if err := r.c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return []byte{}, err
 		}
 		return r.get(ctx, call, sntx)
 	}
-	if r.t.d.batchId != nil {
-		return impl(r.t.d.batchReader())
+	if r.c.d.batchId != nil {
+		return impl(r.c.d.batchReader())
 	} else {
-		sn := r.t.d.st.NewSnapshot()
+		sn := r.c.d.st.NewSnapshot()
 		defer sn.Abort()
 		return impl(sn)
 	}
@@ -51,37 +51,37 @@ func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (
 
 func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, schemaVersion int32, value []byte) error {
 	impl := func(tx *watchable.Transaction) error {
-		if err := r.t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		if err := r.c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
 		return r.put(ctx, call, tx, value)
 	}
-	if r.t.d.batchId != nil {
-		if tx, err := r.t.d.batchTransaction(); err != nil {
+	if r.c.d.batchId != nil {
+		if tx, err := r.c.d.batchTransaction(); err != nil {
 			return err
 		} else {
 			return impl(tx)
 		}
 	} else {
-		return watchable.RunInTransaction(r.t.d.st, impl)
+		return watchable.RunInTransaction(r.c.d.st, impl)
 	}
 }
 
 func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
 	impl := func(tx *watchable.Transaction) error {
-		if err := r.t.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
+		if err := r.c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
 		return r.delete(ctx, call, tx)
 	}
-	if r.t.d.batchId != nil {
-		if tx, err := r.t.d.batchTransaction(); err != nil {
+	if r.c.d.batchId != nil {
+		if tx, err := r.c.d.batchTransaction(); err != nil {
 			return err
 		} else {
 			return impl(tx)
 		}
 	} else {
-		return watchable.RunInTransaction(r.t.d.st, impl)
+		return watchable.RunInTransaction(r.c.d.st, impl)
 	}
 }
 
@@ -93,15 +93,15 @@ func (r *rowReq) stKey() string {
 }
 
 func (r *rowReq) stKeyPart() string {
-	return common.JoinKeyParts(r.t.stKeyPart(), r.key)
+	return common.JoinKeyParts(r.c.stKeyPart(), r.key)
 }
 
-// checkAccess checks that this row's table exists in the database, and performs
-// an authorization check.
+// checkAccess checks that this row's collection exists in the database, and
+// performs an authorization check.
 // checkAccess returns the longest prefix of the given key that has associated
 // permissions if the access is granted.
 func (r *rowReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) (string, error) {
-	return r.t.checkAccess(ctx, call, sntx, r.key)
+	return r.c.checkAccess(ctx, call, sntx, r.key)
 }
 
 // get reads data from the storage engine.
@@ -129,7 +129,7 @@ func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx *watchable.Transact
 	}
 	// TODO(rogulenko): Avoid the redundant lookups since in theory we have all
 	// we need from the checkAccess.
-	permsKey := r.t.prefixPermsKey(permsPrefix)
+	permsKey := r.c.prefixPermsKey(permsPrefix)
 	if err := watchable.PutWithPerms(tx, []byte(r.stKey()), value, permsKey); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
@@ -145,7 +145,7 @@ func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, tx *watchable.Trans
 	}
 	// TODO(rogulenko): Avoid the redundant lookups since in theory we have all
 	// we need from the checkAccess.
-	permsKey := r.t.prefixPermsKey(permsPrefix)
+	permsKey := r.c.prefixPermsKey(permsPrefix)
 	if err := watchable.DeleteWithPerms(tx, []byte(r.stKey()), permsKey); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}

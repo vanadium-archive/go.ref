@@ -39,17 +39,17 @@ The database must exist unless -create-missing is specified.
 }
 
 var (
-	flagFormat            string
-	flagCSVDelimiter      string
-	flagCreateIfNotExists bool
-	flagMakeDemoTables    bool
+	flagFormat              string
+	flagCSVDelimiter        string
+	flagCreateIfNotExists   bool
+	flagMakeDemoCollections bool
 )
 
 func init() {
 	cmdSbShell.Flags.StringVar(&flagFormat, "format", "table", "Output format. 'table': human-readable table; 'csv': comma-separated values, use -csv-delimiter to control the delimiter; 'json': JSON objects.")
 	cmdSbShell.Flags.StringVar(&flagCSVDelimiter, "csv-delimiter", ",", "Delimiter to use when printing data as CSV (e.g. \"\t\", \",\")")
 	cmdSbShell.Flags.BoolVar(&flagCreateIfNotExists, "create-missing", false, "Create the app and/or database if they do not exist yet.")
-	cmdSbShell.Flags.BoolVar(&flagMakeDemoTables, "make-demo", false, "(Re)create demo tables in the database.")
+	cmdSbShell.Flags.BoolVar(&flagMakeDemoCollections, "make-demo", false, "(Re)create demo collections in the database.")
 }
 
 func validateFlags() error {
@@ -80,7 +80,7 @@ func runSbShell(ctx *context.T, env *cmdline.Env, args []string) error {
 		return err
 	}
 
-	if flagMakeDemoTables {
+	if flagMakeDemoCollections {
 		if err := makeDemoDB(ctx, env.Stdout, d); err != nil {
 			return err
 		}
@@ -133,15 +133,15 @@ stmtLoop:
 						switch tq[1] {
 						case "db":
 							err = destroyDB(ctx, d, tq[2])
-						case "table":
-							err = destroyTable(ctx, d, tq[2])
+						case "collection":
+							err = destroyCollection(ctx, d, tq[2])
 						case "syncgroup":
 							err = destroySyncgroup(ctx, d, tq[2])
 						default:
 							err = fmt.Errorf("unknown type: %q", tq[1])
 						}
 					} else {
-						err = fmt.Errorf("destroy requires specifying type ('db', 'table', or 'syncgroup') and name of object")
+						err = fmt.Errorf("destroy requires specifying type ('db', 'collection', or 'syncgroup') and name of object")
 					}
 				default:
 					err = fmt.Errorf("unknown statement: '%s'; expected one of: 'select', 'make-demo', 'destroy', 'dump', 'exit', 'quit'", strings.ToLower(tq[0]))
@@ -170,14 +170,14 @@ func destroyDB(ctx *context.T, d syncbase.Database, dbName string) error {
 	return d.Destroy(ctx)
 }
 
-func destroyTable(ctx *context.T, d syncbase.Database, tableName string) error {
-	table := d.Table(tableName)
-	if exists, err := table.Exists(ctx); err != nil {
+func destroyCollection(ctx *context.T, d syncbase.Database, collectionName string) error {
+	collection := d.Collection(collectionName)
+	if exists, err := collection.Exists(ctx); err != nil {
 		return err
 	} else if !exists {
-		return fmt.Errorf("couldn't find table %q", tableName)
+		return fmt.Errorf("couldn't find collection %q", collectionName)
 	}
-	return table.Destroy(ctx)
+	return collection.Destroy(ctx)
 }
 
 func destroySyncgroup(ctx *context.T, d syncbase.Database, sgName string) error {
@@ -231,20 +231,20 @@ func mergeErrors(errs []error) error {
 	return err
 }
 
-func dumpTables(ctx *context.T, w io.Writer, d syncbase.Database) error {
-	tables, err := d.ListTables(ctx)
+func dumpCollections(ctx *context.T, w io.Writer, d syncbase.Database) error {
+	collections, err := d.ListCollections(ctx)
 	if err != nil {
-		return fmt.Errorf("failed listing tables: %v", err)
+		return fmt.Errorf("failed listing collections: %v", err)
 	}
 	var errs []error
-	for _, table := range tables {
-		fmt.Fprintf(w, "table: %s\n", table)
-		if err := queryExec(ctx, w, d, fmt.Sprintf("select k, v from %s", table)); err != nil {
-			errs = append(errs, fmt.Errorf("> %s: %v", table, err))
+	for _, collection := range collections {
+		fmt.Fprintf(w, "collection: %s\n", collection)
+		if err := queryExec(ctx, w, d, fmt.Sprintf("select k, v from %s", collection)); err != nil {
+			errs = append(errs, fmt.Errorf("> %s: %v", collection, err))
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("failed dumping %d of %d tables:\n%v", len(errs), len(tables), mergeErrors(errs))
+		return fmt.Errorf("failed dumping %d of %d collections:\n%v", len(errs), len(collections), mergeErrors(errs))
 	}
 	return nil
 }
@@ -272,8 +272,8 @@ func dumpSyncgroups(ctx *context.T, w io.Writer, d syncbase.Database) error {
 
 func dumpDB(ctx *context.T, w io.Writer, d syncbase.Database) error {
 	var errors []error
-	if err := dumpTables(ctx, w, d); err != nil {
-		errors = append(errors, fmt.Errorf("failed dumping tables: %v", err))
+	if err := dumpCollections(ctx, w, d); err != nil {
+		errors = append(errors, fmt.Errorf("failed dumping collections: %v", err))
 	}
 	if err := dumpSyncgroups(ctx, w, d); err != nil {
 		errors = append(errors, fmt.Errorf("failed dumping syncgroups: %v", err))
@@ -283,9 +283,9 @@ func dumpDB(ctx *context.T, w io.Writer, d syncbase.Database) error {
 
 func makeDemoDB(ctx *context.T, w io.Writer, d syncbase.Database) error {
 	if err := demodb.PopulateDemoDB(ctx, d); err == nil {
-		fmt.Fprintln(w, "Demo tables created and populated.")
+		fmt.Fprintln(w, "Demo collections created and populated.")
 	} else {
-		return fmt.Errorf("failed making demo tables: %v", err)
+		return fmt.Errorf("failed making demo collections: %v", err)
 	}
 	return nil
 }

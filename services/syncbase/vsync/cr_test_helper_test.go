@@ -13,37 +13,37 @@ import (
 )
 
 var (
-	x = makeRowKeyFromParts("table1", "x")
-	y = makeRowKeyFromParts("table1", "y")
-	z = makeRowKeyFromParts("table1", "z")
-	a = makeRowKeyFromParts("table2", "a")
-	b = makeRowKeyFromParts("table2", "b")
-	c = makeRowKeyFromParts("table2", "c")
-	d = makePermsKeyFromParts("table1", "d")
+	x = makeRowKeyFromParts("collection1", "x")
+	y = makeRowKeyFromParts("collection1", "y")
+	z = makeRowKeyFromParts("collection1", "z")
+	a = makeRowKeyFromParts("collection2", "a")
+	b = makeRowKeyFromParts("collection2", "b")
+	c = makeRowKeyFromParts("collection2", "c")
+	d = makePermsKeyFromParts("collection1", "d")
 
-	e = makeRowKeyFromParts("table1", "e")
-	f = makeRowKeyFromParts("table1", "f")
-	g = makeRowKeyFromParts("table1", "g")
+	e = makeRowKeyFromParts("collection1", "e")
+	f = makeRowKeyFromParts("collection1", "f")
+	g = makeRowKeyFromParts("collection1", "g")
 
 	// Oids for batches containing linked objects
-	la1 = makeRowKeyFromParts("table1", "la1")
-	lb1 = makeRowKeyFromParts("table1", "lb1")
-	lc1 = makeRowKeyFromParts("table1", "lc1")
+	la1 = makeRowKeyFromParts("collection1", "la1")
+	lb1 = makeRowKeyFromParts("collection1", "lb1")
+	lc1 = makeRowKeyFromParts("collection1", "lc1")
 
-	la2 = makeRowKeyFromParts("table1", "la2")
-	lb2 = makeRowKeyFromParts("table1", "lb2")
-	lc2 = makeRowKeyFromParts("table1", "lc2")
+	la2 = makeRowKeyFromParts("collection1", "la2")
+	lb2 = makeRowKeyFromParts("collection1", "lb2")
+	lc2 = makeRowKeyFromParts("collection1", "lc2")
 
-	la3 = makeRowKeyFromParts("table1", "la3")
-	lb3 = makeRowKeyFromParts("table1", "lb3")
-	lc3 = makeRowKeyFromParts("table1", "lc3")
+	la3 = makeRowKeyFromParts("collection1", "la3")
+	lb3 = makeRowKeyFromParts("collection1", "lb3")
+	lc3 = makeRowKeyFromParts("collection1", "lc3")
 
-	la4 = makeRowKeyFromParts("table1", "la4")
-	lb4 = makeRowKeyFromParts("table1", "lb4")
-	lc4 = makeRowKeyFromParts("table1", "lc4")
+	la4 = makeRowKeyFromParts("collection1", "la4")
+	lb4 = makeRowKeyFromParts("collection1", "lb4")
+	lc4 = makeRowKeyFromParts("collection1", "lc4")
 
-	p = makeRowKeyFromParts("table3", "p")
-	q = makeRowKeyFromParts("table3", "q")
+	p = makeRowKeyFromParts("collection3", "p")
+	q = makeRowKeyFromParts("collection3", "q")
 )
 
 func createObjConflictState(isConflict, hasLocal, hasRemote, hasAncestor bool) *objConflictState {

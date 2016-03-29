@@ -214,7 +214,7 @@ type LogRecMetadata struct {
 	RecType byte   // type of log record.
 	// Id of the object that was updated. This id is relative to Application
 	// and Database names and is the store key for a particular row in a
-	// table.
+	// collection.
 	ObjId      string
 	CurVers    string    // current version number of the object.
 	Parents    []string  // 0, 1 or 2 parent versions that the current version is derived from.

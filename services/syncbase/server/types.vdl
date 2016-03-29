@@ -39,8 +39,8 @@ type DatabaseData struct {
 	SchemaMetadata ?wire.SchemaMetadata
 }
 
-// TableData represents the persistent state of a Table.
-type TableData struct {
+// CollectionData represents the persistent state of a Collection.
+type CollectionData struct {
 	Name  string
 	Perms access.Permissions
 }

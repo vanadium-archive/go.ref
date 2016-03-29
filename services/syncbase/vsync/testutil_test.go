@@ -124,7 +124,7 @@ func (d *mockDatabase) App() interfaces.App {
 	return nil
 }
 
-func (d *mockDatabase) Table(ctx *context.T, tableName string) interfaces.Table {
+func (d *mockDatabase) Collection(ctx *context.T, collectionName string) interfaces.Collection {
 	return nil
 }
 
@@ -204,12 +204,12 @@ func makeRowKey(key string) string {
 	return common.JoinKeyParts(common.RowPrefix, key)
 }
 
-func makeRowKeyFromParts(table, row string) string {
-	return common.JoinKeyParts(common.RowPrefix, table, row)
+func makeRowKeyFromParts(collection, row string) string {
+	return common.JoinKeyParts(common.RowPrefix, collection, row)
 }
 
-func makePermsKeyFromParts(table, row string) string {
-	return common.JoinKeyParts(common.PermsPrefix, table, row)
+func makePermsKeyFromParts(collection, row string) string {
+	return common.JoinKeyParts(common.PermsPrefix, collection, row)
 }
 
 // conflictResolverStream mock for testing.

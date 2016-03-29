@@ -70,12 +70,12 @@ func getResolutionType(oid string, schema *wire.SchemaMetadata) wire.ResolverTyp
 // applies to the given oid.
 // TODO(jlodhia): Implement Type based matching.
 func isRuleApplicable(oid string, rule *wire.CrRule) bool {
-	tableName, rowKey := common.ParseTableAndRowOrDie(oid)
-	if rule.TableName != "" && tableName != rule.TableName {
+	collectionName, rowKey := common.ParseCollectionAndRowOrDie(oid)
+	if rule.CollectionName != "" && collectionName != rule.CollectionName {
 		return false
 	}
-	if rule.KeyPrefix != "" && rule.TableName == "" {
-		// TableName cannot be empty if KeyPrefix is specified
+	if rule.KeyPrefix != "" && rule.CollectionName == "" {
+		// CollectionName cannot be empty if KeyPrefix is specified
 		vlog.Infof("Found illegal CrRule: %v", rule)
 		return false
 	}
@@ -88,12 +88,12 @@ func isRuleMoreSpecific(rule, other *wire.CrRule) bool {
 	if other == nil {
 		return true
 	}
-	if other.TableName == "" {
-		// other.KeyPrefix must be empty if TableName is empty.
+	if other.CollectionName == "" {
+		// other.KeyPrefix must be empty if CollectionName is empty.
 		return true
 	}
 
-	if rule.TableName != other.TableName {
+	if rule.CollectionName != other.CollectionName {
 		return false
 	}
 	return strings.HasPrefix(rule.KeyPrefix, other.KeyPrefix)

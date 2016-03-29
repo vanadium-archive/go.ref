@@ -253,11 +253,11 @@ func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall, schemaVersion i
 }
 
 func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, schemaVersion int32, q string, params []*vom.RawBytes) error {
-	// RunInTransaction() cannot be used here because we may or may not be creating a
-	// transaction.  qe.Exec must be called and the statement must be parsed before
-	// we know if a snapshot or a transaction should be created.  To duplicate the
-	// semantics of RunInTransaction, we attempt the Exec up to 100 times and retry
-	// on ErrConcurrentTransaction.
+	// RunInTransaction() cannot be used here because we may or may not be
+	// creating a transaction. qe.Exec must be called and the statement must be
+	// parsed before we know if a snapshot or a transaction should be created. To
+	// duplicate the semantics of RunInTransaction, we attempt the Exec up to 100
+	// times and retry on ErrConcurrentTransaction.
 	maxAttempts := 100
 	attempt := 0
 	for {
@@ -280,7 +280,7 @@ func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerC
 		db := &queryDb{
 			ctx:  ctx,
 			call: call,
-			req:  d,
+			dReq: d,
 			sntx: nil, // Filled in later with existing or created sn/tx.
 			tx:   nil, // Only filled in if new tx created.
 		}
@@ -315,20 +315,20 @@ func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerC
 	return impl()
 }
 
-func execCommitOrAbort(db *queryDb, err error) error {
-	if db.req.batchId != nil {
+func execCommitOrAbort(qdb *queryDb, err error) error {
+	if qdb.dReq.batchId != nil {
 		return err // part of an enclosing sn/tx
 	}
 	if err != nil {
-		if db.sntx != nil {
-			db.sntx.Abort()
+		if qdb.sntx != nil {
+			qdb.sntx.Abort()
 		}
 		return err
 	} else { // err is nil
-		if db.tx != nil {
-			return db.tx.Commit()
-		} else if db.sntx != nil {
-			return db.sntx.Abort()
+		if qdb.tx != nil {
+			return qdb.tx.Commit()
+		} else if qdb.sntx != nil {
+			return qdb.sntx.Abort()
 		}
 		return nil
 	}
@@ -367,7 +367,7 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServer
 		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
 			return err
 		}
-		return util.GlobChildren(ctx, call, matcher, sntx, common.TablePrefix)
+		return util.GlobChildren(ctx, call, matcher, sntx, common.CollectionPrefix)
 	}
 	if d.batchId != nil {
 		return impl(d.batchReader())
@@ -379,8 +379,8 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServer
 }
 
 // See comment in v.io/v23/services/syncbase/service.vdl for why we can't
-// implement ListTables using Glob.
-func (d *databaseReq) ListTables(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+// implement ListCollections using Glob.
+func (d *databaseReq) ListCollections(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.name)
 	}
@@ -389,7 +389,7 @@ func (d *databaseReq) ListTables(ctx *context.T, call rpc.ServerCall) ([]string,
 		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
 			return nil, err
 		}
-		it := sntx.Scan(common.ScanPrefixArgs(common.TablePrefix, ""))
+		it := sntx.Scan(common.ScanPrefixArgs(common.CollectionPrefix, ""))
 		keyBytes := []byte{}
 		res := []string{}
 		for it.Advance() {
@@ -444,9 +444,9 @@ func (d *database) App() interfaces.App {
 	return d.a
 }
 
-func (d *database) Table(ctx *context.T, tableName string) interfaces.Table {
-	return &tableReq{
-		name: tableName,
+func (d *database) Collection(ctx *context.T, collectionName string) interfaces.Collection {
+	return &collectionReq{
+		name: collectionName,
 		d:    &databaseReq{database: d},
 	}
 }
@@ -500,78 +500,78 @@ func (d *database) ResetCrConnectionStream() {
 type queryDb struct {
 	ctx  *context.T
 	call rpc.ServerCall
-	req  *databaseReq
+	dReq *databaseReq
 	sntx store.SnapshotOrTransaction
 	tx   *watchable.Transaction // If transaction, this will be same as sntx (else nil)
 }
 
-func (db *queryDb) GetContext() *context.T {
-	return db.ctx
+func (qdb *queryDb) GetContext() *context.T {
+	return qdb.ctx
 }
 
-func (db *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error) {
-	// At this point, when the query package calls GetTable with the writeAccessReq
-	// arg, we know whether or not we need a [writable] transaction or a snapshot.
-	// If batchId is already set, there's nothing to do; but if not, the
-	// writeAccessReq arg dictates whether a snapshot or a transaction is should
-	// be created.
-	tDb := &tableDb{
-		qdb: db,
-		req: &tableReq{
+func (qdb *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error) {
+	// At this point, when the query package calls GetTable with the
+	// writeAccessReq arg, we know whether or not we need a [writable] transaction
+	// or a snapshot. If batchId is already set, there's nothing to do; but if
+	// not, the writeAccessReq arg dictates whether a snapshot or a transaction is
+	// should be created.
+	qt := &queryTable{
+		qdb: qdb,
+		cReq: &collectionReq{
 			name: name,
-			d:    db.req,
+			d:    qdb.dReq,
 		},
 	}
-	if tDb.req.d.batchId != nil {
+	if qt.cReq.d.batchId != nil {
 		if writeAccessReq {
 			// We are in a batch (could be snapshot or transaction)
 			// and Write access is required.  Attempt to get a
 			// transaction from the request.
 			var err error
-			tDb.qdb.tx, err = tDb.qdb.req.batchTransaction()
+			qt.qdb.tx, err = qt.qdb.dReq.batchTransaction()
 			if err != nil {
 				// We are in a snapshot batch, write access cannot be provided.
 				// Return NotWritable.
-				return nil, syncql.NewErrNotWritable(tDb.qdb.GetContext(), tDb.req.name)
+				return nil, syncql.NewErrNotWritable(qt.qdb.GetContext(), qt.cReq.name)
 			}
-			tDb.qdb.sntx = tDb.qdb.tx
+			qt.qdb.sntx = qt.qdb.tx
 		} else {
-			tDb.qdb.sntx = tDb.qdb.req.batchReader()
+			qt.qdb.sntx = qt.qdb.dReq.batchReader()
 		}
 	} else {
 		// Now that we know if write access is required, create a snapshot
 		// or transaction.
 		if !writeAccessReq {
-			tDb.qdb.sntx = tDb.qdb.req.st.NewSnapshot()
+			qt.qdb.sntx = qt.qdb.dReq.st.NewSnapshot()
 		} else { // writeAccessReq
-			tDb.qdb.tx = tDb.qdb.req.st.NewWatchableTransaction()
-			tDb.qdb.sntx = tDb.qdb.tx
+			qt.qdb.tx = qt.qdb.dReq.st.NewWatchableTransaction()
+			qt.qdb.sntx = qt.qdb.tx
 		}
 	}
-	// Now that we have a table, we need to check permissions.
-	if err := util.GetWithAuth(db.ctx, db.call, db.sntx, tDb.req.stKey(), &TableData{}); err != nil {
+	// Now that we have a collection, we need to check permissions.
+	if err := util.GetWithAuth(qdb.ctx, qdb.call, qdb.sntx, qt.cReq.stKey(), &CollectionData{}); err != nil {
 		return nil, err
 	}
-	return tDb, nil
+	return qt, nil
 }
 
-// tableDb implements ds.Table.
-type tableDb struct {
-	qdb *queryDb
-	req *tableReq
+// queryTable implements ds.Table.
+type queryTable struct {
+	qdb  *queryDb
+	cReq *collectionReq
 }
 
-func (t *tableDb) GetIndexFields() []ds.Index {
+func (t *queryTable) GetIndexFields() []ds.Index {
 	// TODO(jkline): If and when secondary indexes are supported, they
 	// would be supplied here.
 	return []ds.Index{}
 }
 
-func (t *tableDb) Delete(k string) (bool, error) {
+func (t *queryTable) Delete(k string) (bool, error) {
 	// Create a rowReq and call delete.  Permissions will be checked.
 	rowReq := &rowReq{
 		key: k,
-		t:   t.req,
+		c:   t.cReq,
 	}
 	if err := rowReq.delete(t.qdb.GetContext(), t.qdb.call, t.qdb.tx); err != nil {
 		return false, err
@@ -579,16 +579,16 @@ func (t *tableDb) Delete(k string) (bool, error) {
 	return true, nil
 }
 
-func (t *tableDb) Scan(indexRanges ...ds.IndexRanges) (ds.KeyValueStream, error) {
+func (t *queryTable) Scan(indexRanges ...ds.IndexRanges) (ds.KeyValueStream, error) {
 	streams := []store.Stream{}
-	// Syncbase does not currently support secondary indexes.  As such, indexRanges is
-	// guaranteed to be one in size as it will only specify the key ranges;
+	// Syncbase does not currently support secondary indexes. As such, indexRanges
+	// is guaranteed to be one in size as it will only specify the key ranges;
 	// hence, indexRanges[0] below.
 	for _, keyRange := range *indexRanges[0].StringRanges {
 		// TODO(jkline): For now, acquire all of the streams at once to minimize the
 		// race condition. Need a way to Scan multiple ranges at the same state of
 		// uncommitted changes.
-		streams = append(streams, t.qdb.sntx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, t.req.name), keyRange.Start, keyRange.Limit)))
+		streams = append(streams, t.qdb.sntx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, t.cReq.name), keyRange.Start, keyRange.Limit)))
 	}
 	return &kvs{
 		t:        t,
@@ -601,7 +601,7 @@ func (t *tableDb) Scan(indexRanges ...ds.IndexRanges) (ds.KeyValueStream, error)
 
 // kvs implements ds.KeyValueStream.
 type kvs struct {
-	t         *tableDb
+	t         *queryTable
 	curr      int
 	validRow  bool
 	currKey   string
@@ -700,8 +700,8 @@ func (d *databaseReq) batchTransaction() (*watchable.Transaction, error) {
 }
 
 // TODO(jlodhia): Schema check should happen within a transaction for each
-// operation in database, table and row. Do schema check along with permissions
-// check when fully-specified permission model is implemented.
+// operation in database, collection and row. Do schema check along with
+// permissions check when fully-specified permission model is implemented.
 func (d *databaseReq) checkSchemaVersion(ctx *context.T, schemaVersion int32) error {
 	if !d.exists {
 		// database does not exist yet and hence there is no schema to check.

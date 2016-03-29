@@ -10,8 +10,8 @@
 // The user can then enter the following at the command line:
 //     1. dump - to get a dump of the database
 //     2. a syncbase select statement - which is executed and results printed to stdout
-//     3. a syncbase delete statement - which is executed to delete k/v pairs from a table
-//     4. make-demo - to create demo tables in the database to experiment with, equivalent to -make-demo flag
+//     3. a syncbase delete statement - which is executed to delete k/v pairs from a collection
+//     4. make-demo - to create demo collections in the database to experiment with, equivalent to -make-demo flag
 //     5. exit (or quit) - to exit the program
 //
 // When the shell is running non-interactively (stdin not connected to a tty),

@@ -108,9 +108,9 @@ func toV23SyncgroupSpec(mSpec mojom.SyncgroupSpec) (nosqlwire.SyncgroupSpec, err
 	if err != nil {
 		return nosqlwire.SyncgroupSpec{}, err
 	}
-	prefixes := make([]nosqlwire.TableRow, len(mSpec.Prefixes))
+	prefixes := make([]nosqlwire.CollectionRow, len(mSpec.Prefixes))
 	for i, v := range mSpec.Prefixes {
-		prefixes[i].TableName = v.TableName
+		prefixes[i].CollectionName = v.CollectionName
 		prefixes[i].Row = v.Row
 	}
 	return nosqlwire.SyncgroupSpec{
@@ -127,9 +127,9 @@ func toMojoSyncgroupSpec(vSpec nosqlwire.SyncgroupSpec) (mojom.SyncgroupSpec, er
 	if err != nil {
 		return mojom.SyncgroupSpec{}, err
 	}
-	prefixes := make([]mojom.TableRow, len(vSpec.Prefixes))
+	prefixes := make([]mojom.CollectionRow, len(vSpec.Prefixes))
 	for i, v := range vSpec.Prefixes {
-		prefixes[i].TableName = v.TableName
+		prefixes[i].CollectionName = v.CollectionName
 		prefixes[i].Row = v.Row
 	}
 	return mojom.SyncgroupSpec{
@@ -205,12 +205,12 @@ func (m *mojoImpl) getGlobber(ctx *context.T, call rpc.ServerCall, name string) 
 	}
 }
 
-func (m *mojoImpl) getTable(ctx *context.T, call rpc.ServerCall, name string) (nosqlwire.TableServerStubMethods, error) {
+func (m *mojoImpl) getCollection(ctx *context.T, call rpc.ServerCall, name string) (nosqlwire.CollectionServerStubMethods, error) {
 	resInt, err := m.lookupAndAuthorize(ctx, call, name)
 	if err != nil {
 		return nil, err
 	}
-	if res, ok := resInt.(nosqlwire.TableServerStubMethods); !ok {
+	if res, ok := resInt.(nosqlwire.CollectionServerStubMethods); !ok {
 		return nil, verror.NewErrInternal(ctx)
 	} else {
 		return res, nil
@@ -604,13 +604,13 @@ func (s *watchGlobStreamImpl) Send(item interface{}) error {
 		}
 	}
 	mc := mojom.WatchChange{
-		TableName:    vc.Table,
-		RowKey:       vc.Row,
-		ChangeType:   uint32(vc.ChangeType),
-		ValueBytes:   value,
-		ResumeMarker: vc.ResumeMarker,
-		FromSync:     vc.FromSync,
-		Continued:    vc.Continued,
+		CollectionName: vc.Collection,
+		RowKey:         vc.Row,
+		ChangeType:     uint32(vc.ChangeType),
+		ValueBytes:     value,
+		ResumeMarker:   vc.ResumeMarker,
+		FromSync:       vc.FromSync,
+		Continued:      vc.Continued,
 	}
 
 	// proxy.OnChange() blocks until the client acks the previous invocation,
@@ -671,14 +671,14 @@ func (m *mojoImpl) DbGetResumeMarker(name string) (mojom.Error, []byte, error) {
 	return toMojoError(err), marker, nil
 }
 
-func (m *mojoImpl) DbListTables(name string) (mojom.Error, []string, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "ListTables"))
+func (m *mojoImpl) DbListCollections(name string) (mojom.Error, []string, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "ListCollections"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	tables, err := stub.ListTables(ctx, call)
-	return toMojoError(err), tables, nil
+	collections, err := stub.ListCollections(ctx, call)
+	return toMojoError(err), collections, nil
 }
 
 ////////////////////////////////////////
@@ -796,11 +796,11 @@ func (m *mojoImpl) DbGetSyncgroupMembers(name, sgName string) (mojom.Error, map[
 }
 
 ////////////////////////////////////////
-// nosql.Table
+// nosql.Collection
 
-func (m *mojoImpl) TableCreate(name string, mPerms mojom.Perms) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.TableDesc, "Create"))
-	stub, err := m.getTable(ctx, call, name)
+func (m *mojoImpl) CollectionCreate(name string, mPerms mojom.Perms) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.CollectionDesc, "Create"))
+	stub, err := m.getCollection(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
@@ -812,9 +812,9 @@ func (m *mojoImpl) TableCreate(name string, mPerms mojom.Perms) (mojom.Error, er
 	return toMojoError(err), nil
 }
 
-func (m *mojoImpl) TableDestroy(name string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.TableDesc, "Destroy"))
-	stub, err := m.getTable(ctx, call, name)
+func (m *mojoImpl) CollectionDestroy(name string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.CollectionDesc, "Destroy"))
+	stub, err := m.getCollection(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
@@ -822,9 +822,9 @@ func (m *mojoImpl) TableDestroy(name string) (mojom.Error, error) {
 	return toMojoError(err), nil
 }
 
-func (m *mojoImpl) TableExists(name string) (mojom.Error, bool, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.TableDesc, "Exists"))
-	stub, err := m.getTable(ctx, call, name)
+func (m *mojoImpl) CollectionExists(name string) (mojom.Error, bool, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.CollectionDesc, "Exists"))
+	stub, err := m.getCollection(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), false, nil
 	}
@@ -832,17 +832,17 @@ func (m *mojoImpl) TableExists(name string) (mojom.Error, bool, error) {
 	return toMojoError(err), exists, nil
 }
 
-func (m *mojoImpl) TableGetPermissions(name string) (mojom.Error, mojom.Perms, error) {
+func (m *mojoImpl) CollectionGetPermissions(name string) (mojom.Error, mojom.Perms, error) {
 	return mojom.Error{}, mojom.Perms{}, nil
 }
 
-func (m *mojoImpl) TableSetPermissions(name string, mPerms mojom.Perms) (mojom.Error, error) {
+func (m *mojoImpl) CollectionSetPermissions(name string, mPerms mojom.Perms) (mojom.Error, error) {
 	return mojom.Error{}, nil
 }
 
-func (m *mojoImpl) TableDeleteRange(name string, start, limit []byte) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.TableDesc, "DeleteRange"))
-	stub, err := m.getTable(ctx, call, name)
+func (m *mojoImpl) CollectionDeleteRange(name string, start, limit []byte) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.CollectionDesc, "DeleteRange"))
+	stub, err := m.getCollection(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
@@ -881,16 +881,16 @@ func (s *scanStreamImpl) Recv(_ interface{}) error {
 var _ rpc.Stream = (*scanStreamImpl)(nil)
 
 // TODO(nlacasse): Provide some way for the client to cancel the stream.
-func (m *mojoImpl) TableScan(name string, start, limit []byte, ptr mojom.ScanStream_Pointer) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.TableDesc, "Scan"))
-	stub, err := m.getTable(ctx, call, name)
+func (m *mojoImpl) CollectionScan(name string, start, limit []byte, ptr mojom.ScanStream_Pointer) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.CollectionDesc, "Scan"))
+	stub, err := m.getCollection(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
 
 	proxy := mojom.NewScanStreamProxy(ptr, bindings.GetAsyncWaiter())
 
-	tableScanServerCallStub := &nosqlwire.TableScanServerCallStub{struct {
+	collectionScanServerCallStub := &nosqlwire.CollectionScanServerCallStub{struct {
 		rpc.Stream
 		rpc.ServerCall
 	}{
@@ -902,10 +902,10 @@ func (m *mojoImpl) TableScan(name string, start, limit []byte, ptr mojom.ScanStr
 	}}
 
 	go func() {
-		var err = stub.Scan(ctx, tableScanServerCallStub, noSchema, start, limit)
+		var err = stub.Scan(ctx, collectionScanServerCallStub, noSchema, start, limit)
 
-		// NOTE(nlacasse): Since we are already streaming, we send any error back
-		// to the client on the stream.  The TableScan function itself should not
+		// NOTE(nlacasse): Since we are already streaming, we send any error back to
+		// the client on the stream. The CollectionScan function itself should not
 		// return an error at this point.
 		proxy.OnDone(toMojoError(err))
 	}()
@@ -913,15 +913,15 @@ func (m *mojoImpl) TableScan(name string, start, limit []byte, ptr mojom.ScanStr
 	return mojom.Error{}, nil
 }
 
-func (m *mojoImpl) TableGetPrefixPermissions(name, key string) (mojom.Error, []mojom.PrefixPerms, error) {
+func (m *mojoImpl) CollectionGetPrefixPermissions(name, key string) (mojom.Error, []mojom.PrefixPerms, error) {
 	return mojom.Error{}, nil, nil
 }
 
-func (m *mojoImpl) TableSetPrefixPermissions(name, prefix string, mPerms mojom.Perms) (mojom.Error, error) {
+func (m *mojoImpl) CollectionSetPrefixPermissions(name, prefix string, mPerms mojom.Perms) (mojom.Error, error) {
 	return mojom.Error{}, nil
 }
 
-func (m *mojoImpl) TableDeletePrefixPermissions(name, prefix string) (mojom.Error, error) {
+func (m *mojoImpl) CollectionDeletePrefixPermissions(name, prefix string) (mojom.Error, error) {
 	return mojom.Error{}, nil
 }
 

@@ -149,8 +149,8 @@ func receiveResolutions(ctx *context.T, recvStream crRecvStream) (map[string]*wi
 	results := map[string]*wire.ResolutionInfo{}
 	for recvStream.Advance() {
 		resp := recvStream.Value()
-		// Key received as part of resolution info has struct <table>:<row>
-		// while oid is a complete row key $row:<table>:<row>
+		// Key received as part of resolution info has struct <collection>:<row>
+		// while oid is a complete row key $row:<collection>:<row>
 		results[toRowKey(resp.Key)] = &resp
 		if !resp.Continued {
 			return results, nil

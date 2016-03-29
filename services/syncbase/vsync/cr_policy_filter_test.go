@@ -11,19 +11,19 @@ import (
 )
 
 var (
-	emptyRule   = &wire.CrRule{Resolver: wire.ResolverTypeLastWins}
-	tableRule   = &wire.CrRule{TableName: "t1", Resolver: wire.ResolverTypeLastWins}
-	table2Rule  = &wire.CrRule{TableName: "t2", Resolver: wire.ResolverTypeAppResolves}
-	fooRule     = &wire.CrRule{TableName: "t1", KeyPrefix: "foo", Resolver: wire.ResolverTypeAppResolves}
-	foobarRule  = &wire.CrRule{TableName: "t1", KeyPrefix: "foobar", Resolver: wire.ResolverTypeLastWins}
-	foobar2Rule = &wire.CrRule{TableName: "t1", KeyPrefix: "foobar", Resolver: wire.ResolverTypeDefer}
-	barRule     = &wire.CrRule{TableName: "t1", KeyPrefix: "bar", Resolver: wire.ResolverTypeAppResolves}
+	emptyRule       = &wire.CrRule{Resolver: wire.ResolverTypeLastWins}
+	collectionRule  = &wire.CrRule{CollectionName: "t1", Resolver: wire.ResolverTypeLastWins}
+	collection2Rule = &wire.CrRule{CollectionName: "t2", Resolver: wire.ResolverTypeAppResolves}
+	fooRule         = &wire.CrRule{CollectionName: "t1", KeyPrefix: "foo", Resolver: wire.ResolverTypeAppResolves}
+	foobarRule      = &wire.CrRule{CollectionName: "t1", KeyPrefix: "foobar", Resolver: wire.ResolverTypeLastWins}
+	foobar2Rule     = &wire.CrRule{CollectionName: "t1", KeyPrefix: "foobar", Resolver: wire.ResolverTypeDefer}
+	barRule         = &wire.CrRule{CollectionName: "t1", KeyPrefix: "bar", Resolver: wire.ResolverTypeAppResolves}
 )
 
 var (
 	schema = &wire.SchemaMetadata{Policy: wire.CrPolicy{
 		Rules: []wire.CrRule{
-			*emptyRule, *tableRule, *table2Rule, *fooRule, *foobarRule, *foobar2Rule, *barRule,
+			*emptyRule, *collectionRule, *collection2Rule, *fooRule, *foobarRule, *foobar2Rule, *barRule,
 		}}}
 )
 
@@ -35,14 +35,14 @@ type testRule struct {
 
 func TestIsRuleMoreSpecific(t *testing.T) {
 	rules := []testRule{
-		createTestRule(tableRule, emptyRule, true),
-		createTestRule(fooRule, tableRule, true),
+		createTestRule(collectionRule, emptyRule, true),
+		createTestRule(fooRule, collectionRule, true),
 		createTestRule(foobarRule, fooRule, true),
 		createTestRule(foobar2Rule, foobarRule, true),
 
-		createTestRule(emptyRule, tableRule, false),
-		createTestRule(table2Rule, tableRule, false),
-		createTestRule(tableRule, fooRule, false),
+		createTestRule(emptyRule, collectionRule, false),
+		createTestRule(collection2Rule, collectionRule, false),
+		createTestRule(collectionRule, fooRule, false),
 		createTestRule(fooRule, foobarRule, false),
 		createTestRule(fooRule, barRule, false),
 	}
@@ -70,15 +70,15 @@ type testOidRule struct {
 func TestIsRuleApplicable(t *testing.T) {
 	rules := []testOidRule{
 		makeTestOidRule("t1", "foopie", emptyRule, true),
-		makeTestOidRule("t1", "foopie", tableRule, true),
+		makeTestOidRule("t1", "foopie", collectionRule, true),
 		makeTestOidRule("t1", "foopie", fooRule, true),
-		makeTestOidRule("t1", "abc", tableRule, true),
-		makeTestOidRule("t1", "fo", tableRule, true),
+		makeTestOidRule("t1", "abc", collectionRule, true),
+		makeTestOidRule("t1", "fo", collectionRule, true),
 		makeTestOidRule("t1", "foobar", foobarRule, true),
 		makeTestOidRule("t3", "abc", emptyRule, true),
 
 		makeTestOidRule("t1", "foopie", foobarRule, false),
-		makeTestOidRule("t1", "foopie", table2Rule, false),
+		makeTestOidRule("t1", "foopie", collection2Rule, false),
 		makeTestOidRule("t1", "foopie", barRule, false),
 	}
 	for _, test := range rules {
@@ -88,9 +88,9 @@ func TestIsRuleApplicable(t *testing.T) {
 	}
 }
 
-func makeTestOidRule(table, row string, rule *wire.CrRule, result bool) testOidRule {
+func makeTestOidRule(collection, row string, rule *wire.CrRule, result bool) testOidRule {
 	return testOidRule{
-		oid:    makeRowKeyFromParts(table, row),
+		oid:    makeRowKeyFromParts(collection, row),
 		rule:   rule,
 		result: result,
 	}

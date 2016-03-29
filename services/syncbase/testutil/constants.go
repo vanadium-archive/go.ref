@@ -61,5 +61,5 @@ var OkRowNames []string = append(OkAppNames, longNames...)
 var NotOkRowNames []string = universallyInvalidNames
 var NotOkAppNames []string = append(NotOkRowNames, longNames...)
 
-var OkDbTableNames []string = validIdentifiers
-var NotOkDbTableNames []string = append(NotOkAppNames, invalidIdentifiers...)
+var OkDbCollectionNames []string = validIdentifiers
+var NotOkDbCollectionNames []string = append(NotOkAppNames, invalidIdentifiers...)

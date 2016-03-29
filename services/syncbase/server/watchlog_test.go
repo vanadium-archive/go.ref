@@ -50,25 +50,25 @@ func TestWatchLogPerms(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("root"))
-	// Mock the service, store, db, table.
-	c := vclock.NewVClockForTests(nil)
-	st, _ := watchable.Wrap(memstore.New(), c, &watchable.Options{
+	// Mock the service, store, db, collection.
+	clk := vclock.NewVClockForTests(nil)
+	st, _ := watchable.Wrap(memstore.New(), clk, &watchable.Options{
 		ManagedPrefixes: []string{common.RowPrefix, common.PermsPrefix},
 	})
 	db := &databaseReq{database: &database{name: "d", st: st}}
-	tb := &tableReq{name: "tb", d: db}
-	// Mock create the table.
+	c := &collectionReq{name: "c", d: db}
+	// Mock create the collection.
 	perms := access.Permissions{}
 	for _, tag := range access.AllTypicalTags() {
 		perms.Add(security.BlessingPattern("root"), string(tag))
 	}
-	store.Put(ctx, st, tb.stKey(), &TableData{
-		Name:  tb.name,
+	store.Put(ctx, st, c.stKey(), &CollectionData{
+		Name:  c.name,
 		Perms: perms,
 	})
-	store.Put(ctx, st, tb.prefixPermsKey(""), perms)
-	store.Put(ctx, st, tb.permsIndexStart(""), "")
-	store.Put(ctx, st, tb.permsIndexLimit(""), "")
+	store.Put(ctx, st, c.prefixPermsKey(""), perms)
+	store.Put(ctx, st, c.permsIndexStart(""), "")
+	store.Put(ctx, st, c.permsIndexLimit(""), "")
 	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	call := &mockCall{b: blessings}
 	var expected []interface{}
@@ -76,23 +76,23 @@ func TestWatchLogPerms(t *testing.T) {
 	// Generate Put/Delete events.
 	for i := 0; i < 5; i++ {
 		// Set initial prefix permissions.
-		if err := tb.SetPrefixPermissions(ctx, call, 0, "foo", perms); err != nil {
-			t.Fatalf("tb.SetPrefixPermissions failed: %v", err)
+		if err := c.SetPrefixPermissions(ctx, call, 0, "foo", perms); err != nil {
+			t.Fatalf("c.SetPrefixPermissions failed: %v", err)
 		}
 		// Put.
-		row := &rowReq{key: "foobar", t: tb}
+		row := &rowReq{key: "foobar", c: c}
 		if err := row.Put(ctx, call, 0, []byte("value")); err != nil {
 			t.Fatalf("row.Put failed: %v", err)
 		}
-		permVersion, _ := watchable.GetVersion(ctx, st, []byte(tb.prefixPermsKey("foo")))
-		expected = append(expected, putOp(st, row.stKey(), tb.prefixPermsKey("foo"), permVersion))
+		permVersion, _ := watchable.GetVersion(ctx, st, []byte(c.prefixPermsKey("foo")))
+		expected = append(expected, putOp(st, row.stKey(), c.prefixPermsKey("foo"), permVersion))
 		// Delete.
 		if err := row.Delete(ctx, call, 0); err != nil {
 			t.Fatalf("row.Delete failed: %v", err)
 		}
 		deleteOp := &watchable.DeleteOp{
 			Key:         []byte(row.stKey()),
-			PermKey:     []byte(tb.prefixPermsKey("foo")),
+			PermKey:     []byte(c.prefixPermsKey("foo")),
 			PermVersion: permVersion,
 		}
 		expected = append(expected, deleteOp)
@@ -100,29 +100,29 @@ func TestWatchLogPerms(t *testing.T) {
 		if err := row.Put(ctx, call, 0, []byte("value")); err != nil {
 			t.Fatalf("row.Put failed: %v", err)
 		}
-		if err := tb.DeleteRange(ctx, call, 0, []byte("foo"), nil); err != nil {
-			t.Fatalf("tb.DeleteRange failed: %v", err)
+		if err := c.DeleteRange(ctx, call, 0, []byte("foo"), nil); err != nil {
+			t.Fatalf("c.DeleteRange failed: %v", err)
 		}
 		expected = append(expected, deleteOp)
 		// SetPrefixPermissions.
-		if err := tb.SetPrefixPermissions(ctx, call, 0, "foobaz", perms); err != nil {
-			t.Fatalf("tb.SetPrefixPermissions failed: %v", err)
+		if err := c.SetPrefixPermissions(ctx, call, 0, "foobaz", perms); err != nil {
+			t.Fatalf("c.SetPrefixPermissions failed: %v", err)
 		}
-		expected = append(expected, putOp(st, tb.prefixPermsKey("foobaz"), tb.prefixPermsKey("foo"), permVersion))
+		expected = append(expected, putOp(st, c.prefixPermsKey("foobaz"), c.prefixPermsKey("foo"), permVersion))
 		// SetPrefixPermissions again.
-		permVersion, _ = watchable.GetVersion(ctx, st, []byte(tb.prefixPermsKey("foobaz")))
-		if err := tb.SetPrefixPermissions(ctx, call, 0, "foobaz", perms); err != nil {
-			t.Fatalf("tb.SetPrefixPermissions failed: %v", err)
+		permVersion, _ = watchable.GetVersion(ctx, st, []byte(c.prefixPermsKey("foobaz")))
+		if err := c.SetPrefixPermissions(ctx, call, 0, "foobaz", perms); err != nil {
+			t.Fatalf("c.SetPrefixPermissions failed: %v", err)
 		}
-		expected = append(expected, putOp(st, tb.prefixPermsKey("foobaz"), tb.prefixPermsKey("foobaz"), permVersion))
+		expected = append(expected, putOp(st, c.prefixPermsKey("foobaz"), c.prefixPermsKey("foobaz"), permVersion))
 		// DeletePrefixPermissions.
-		permVersion, _ = watchable.GetVersion(ctx, st, []byte(tb.prefixPermsKey("foobaz")))
-		if err := tb.DeletePrefixPermissions(ctx, call, 0, "foobaz"); err != nil {
-			t.Fatalf("tb.DeletePrefixPermissions failed: %v", err)
+		permVersion, _ = watchable.GetVersion(ctx, st, []byte(c.prefixPermsKey("foobaz")))
+		if err := c.DeletePrefixPermissions(ctx, call, 0, "foobaz"); err != nil {
+			t.Fatalf("c.DeletePrefixPermissions failed: %v", err)
 		}
 		expected = append(expected, &watchable.DeleteOp{
-			Key:         []byte(tb.prefixPermsKey("foobaz")),
-			PermKey:     []byte(tb.prefixPermsKey("foobaz")),
+			Key:         []byte(c.prefixPermsKey("foobaz")),
+			PermKey:     []byte(c.prefixPermsKey("foobaz")),
 			PermVersion: permVersion,
 		})
 	}

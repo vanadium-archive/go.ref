@@ -45,14 +45,14 @@ func (d *databaseReq) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobS
 	if !strings.HasSuffix(req.Pattern, "*") {
 		return verror.New(verror.ErrBadArg, ctx, req.Pattern)
 	}
-	table, prefix, err := pubutil.ParseTableRowPair(ctx, strings.TrimSuffix(req.Pattern, "*"))
+	collection, prefix, err := pubutil.ParseCollectionRowPair(ctx, strings.TrimSuffix(req.Pattern, "*"))
 	if err != nil {
 		return err
 	}
 	// Get the resume marker and fetch the initial state if necessary.
 	resumeMarker := req.ResumeMarker
-	t := tableReq{
-		name: table,
+	t := collectionReq{
+		name: collection,
 		d:    d,
 	}
 	if bytes.Equal(resumeMarker, []byte("now")) {
@@ -73,7 +73,7 @@ func (d *databaseReq) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobS
 // scanInitialState sends the initial state of the watched prefix as one batch.
 // TODO(ivanpi): Send dummy update for empty prefix to be compatible with
 // v.io/v23/services/watch.
-func (t *tableReq) scanInitialState(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string) (watch.ResumeMarker, error) {
+func (t *collectionReq) scanInitialState(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string) (watch.ResumeMarker, error) {
 	sntx := t.d.st.NewSnapshot()
 	defer sntx.Abort()
 	// Get resume marker inside snapshot.
@@ -130,7 +130,7 @@ func (t *tableReq) scanInitialState(ctx *context.T, call watch.GlobWatcherWatchG
 // - scan through the watch log until the end, sending all updates to the client
 // - wait for one of two signals: new updates available or the call is canceled.
 // The 'new updates' signal is sent by the watcher via a Go channel.
-func (t *tableReq) watchUpdates(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string, resumeMarker watch.ResumeMarker) error {
+func (t *collectionReq) watchUpdates(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string, resumeMarker watch.ResumeMarker) error {
 	hasUpdates, cancelWatch := watchable.WatchUpdates(t.d.st)
 	defer cancelWatch()
 	sender := &watchBatchSender{
@@ -173,7 +173,7 @@ func (t *tableReq) watchUpdates(ctx *context.T, call watch.GlobWatcherWatchGlobS
 
 // processLogBatch converts []*watchable.LogEntry to a watch.Change stream,
 // filtering out unnecessary or inaccessible log records.
-func (t *tableReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string, logs []*watchable.LogEntry, sender *watchBatchSender) error {
+func (t *collectionReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string, logs []*watchable.LogEntry, sender *watchBatchSender) error {
 	sn := t.d.st.NewSnapshot()
 	defer sn.Abort()
 	for _, logEntry := range logs {
@@ -195,9 +195,9 @@ func (t *tableReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGl
 		if !common.IsRowKey(opKey) {
 			continue
 		}
-		table, row := common.ParseTableAndRowOrDie(opKey)
+		collection, row := common.ParseCollectionAndRowOrDie(opKey)
 		// Filter out unnecessary rows and rows that we can't access.
-		if table != t.name || !strings.HasPrefix(row, prefix) {
+		if collection != t.name || !strings.HasPrefix(row, prefix) {
 			continue
 		}
 		if _, err := t.checkAccess(ctx, call, sn, row); err != nil {
@@ -212,7 +212,7 @@ func (t *tableReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGl
 			if err != nil {
 				return err
 			}
-			if err := sender.addChange(naming.Join(table, row),
+			if err := sender.addChange(naming.Join(collection, row),
 				watch.Exists,
 				vom.RawBytesOf(wire.StoreChange{
 					Value:    rowValue,
@@ -221,7 +221,7 @@ func (t *tableReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGl
 				return err
 			}
 		case *watchable.DeleteOp:
-			if err := sender.addChange(naming.Join(table, row),
+			if err := sender.addChange(naming.Join(collection, row),
 				watch.DoesNotExist,
 				vom.RawBytesOf(wire.StoreChange{
 					FromSync: logEntry.FromSync,

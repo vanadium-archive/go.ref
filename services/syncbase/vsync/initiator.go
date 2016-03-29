@@ -201,7 +201,7 @@ func (s *syncService) filterSyncgroups(ctx *context.T, c *initiationConfig, bles
 
 		remSgIds[gid] = struct{}{}
 		for _, p := range sg.Spec.Prefixes {
-			pfxStr := toTableRowPrefixStr(p)
+			pfxStr := toCollectionRowPrefixStr(p)
 			sgs, ok := c.sgPfxs[pfxStr]
 			if !ok {
 				sgs = make(sgSet)
@@ -991,13 +991,13 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 
 		// If this is a perms key, update the local store index.
 		if common.IsPermsKey(objid) {
-			table, row := common.ParseTableAndRowOrDie(objid)
-			tb := iSt.config.db.Table(ctx, table)
+			collection, row := common.ParseCollectionAndRowOrDie(objid)
+			c := iSt.config.db.Collection(ctx, collection)
 			var err error
 			if !newVersDeleted {
-				err = tb.UpdatePrefixPermsIndexForSet(ctx, iSt.tx, row)
+				err = c.UpdatePrefixPermsIndexForSet(ctx, iSt.tx, row)
 			} else {
-				err = tb.UpdatePrefixPermsIndexForDelete(ctx, iSt.tx, row)
+				err = c.UpdatePrefixPermsIndexForDelete(ctx, iSt.tx, row)
 			}
 			if err != nil {
 				return err
