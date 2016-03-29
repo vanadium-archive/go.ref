@@ -65,8 +65,6 @@ func Generate(pkg *compile.Package, env *compile.Env) (ret []JavaFileInfo) {
 			switch tdef.Type.Kind() {
 			case vdl.Array:
 				ret = append(ret, genJavaArrayFile(tdef, env))
-			case vdl.Complex64, vdl.Complex128:
-				ret = append(ret, genJavaComplexFile(tdef, env))
 			case vdl.Enum:
 				ret = append(ret, genJavaEnumFile(tdef, env))
 			case vdl.List:

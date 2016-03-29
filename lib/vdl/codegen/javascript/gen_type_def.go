@@ -169,10 +169,6 @@ func jsKind(k vdl.Kind) string {
 		return "vdl.kind.FLOAT32"
 	case vdl.Float64:
 		return "vdl.kind.FLOAT64"
-	case vdl.Complex64:
-		return "vdl.kind.COMPLEX64"
-	case vdl.Complex128:
-		return "vdl.kind.COMPLEX128"
 	case vdl.String:
 		return "vdl.kind.STRING"
 	case vdl.Enum:
@@ -234,10 +230,6 @@ func builtinJSType(t *vdl.Type) (string, bool) {
 		return "vdl.types.FLOAT32", true
 	case vdl.Float64:
 		return "vdl.types.FLOAT64", true
-	case vdl.Complex64:
-		return "vdl.types.COMPLEX64", true
-	case vdl.Complex128:
-		return "vdl.types.COMPLEX128", true
 	case vdl.String:
 		return "vdl.types.STRING", true
 	case vdl.TypeObject:

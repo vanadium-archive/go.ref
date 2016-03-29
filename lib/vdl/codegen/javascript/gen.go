@@ -56,9 +56,9 @@ var javascriptTemplate *template.Template
 
 func bitlen(kind vdl.Kind) int {
 	switch kind {
-	case vdl.Float32, vdl.Complex64:
+	case vdl.Float32:
 		return 32
-	case vdl.Float64, vdl.Complex128:
+	case vdl.Float64:
 		return 64
 	}
 	panic(fmt.Errorf("vdl: bitLen unhandled kind %v", kind))
@@ -145,8 +145,6 @@ func untypedConst(names typeNames, v *vdl.Value) string {
 			return untypedConst(names, v.Elem())
 		}
 		return "null"
-	case vdl.Complex64, vdl.Complex128:
-		return fmt.Sprintf("new vdl.Complex(%f, %f)", real(v.Complex()), imag(v.Complex()))
 	case vdl.Enum:
 		return fmt.Sprintf("'%s'", v.EnumLabel())
 	case vdl.Array, vdl.List:

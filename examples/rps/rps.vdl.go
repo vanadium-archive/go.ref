@@ -164,16 +164,6 @@ func (t *GameTypeTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *GameTypeTagTarget) FromComplex(src complex128, tt *vdl.Type) error {
-
-	val, err := vdlconv.Complex128ToUint8(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = GameTypeTag(val)
-
-	return nil
-}
 
 // GameOptions specifies the parameters of a game.
 type GameOptions struct {
@@ -568,16 +558,6 @@ func (t *WinnerTagTarget) FromInt(src int64, tt *vdl.Type) error {
 func (t *WinnerTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	val, err := vdlconv.Float64ToUint8(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = WinnerTag(val)
-
-	return nil
-}
-func (t *WinnerTagTarget) FromComplex(src complex128, tt *vdl.Type) error {
-
-	val, err := vdlconv.Complex128ToUint8(src)
 	if err != nil {
 		return err
 	}

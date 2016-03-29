@@ -625,22 +625,6 @@ func (l *lexer) nextToken() (tok token) {
 	return
 }
 
-// handleImag handles imaginary literals "[number]i" by peeking ahead.
-func (l *lexer) handleImag(tok token, lval *yySymType) bool {
-	if l.scanner.Peek() != 'i' {
-		return false
-	}
-	l.scanner.Next()
-
-	rat := new(big.Rat)
-	if _, ok := rat.SetString(tok.text); !ok {
-		l.posErrorf(tok.pos, "can't convert token [%v] to imaginary literal", tok)
-	}
-	lval.imagpos.pos = tok.pos
-	lval.imagpos.imag = (*BigImag)(rat)
-	return true
-}
-
 // translateToken takes the token we just scanned, and translates it into a
 // token usable by yacc (lval and id).  The done return arg is true when a real
 // yacc token was generated, or false if we need another next/translate pass.
@@ -671,9 +655,6 @@ func (l *lexer) translateToken(tok token, lval *yySymType) (id int, done bool) {
 		return tSTRLIT, true
 
 	case scanner.Int:
-		if l.handleImag(tok, lval) {
-			return tIMAGLIT, true
-		}
 		lval.intpos.pos = tok.pos
 		lval.intpos.int = new(big.Int)
 		if _, ok := lval.intpos.int.SetString(tok.text, 0); !ok {
@@ -682,9 +663,6 @@ func (l *lexer) translateToken(tok token, lval *yySymType) (id int, done bool) {
 		return tINTLIT, true
 
 	case scanner.Float:
-		if l.handleImag(tok, lval) {
-			return tIMAGLIT, true
-		}
 		lval.ratpos.pos = tok.pos
 		lval.ratpos.rat = new(big.Rat)
 		if _, ok := lval.ratpos.rat.SetString(tok.text); !ok {

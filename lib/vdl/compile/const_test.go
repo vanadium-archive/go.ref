@@ -280,10 +280,6 @@ var constTests = []struct {
 		"UntypedFloat",
 		cp{{"a", `const Res = 1.5`, nil,
 			`invalid const \(1\.5 must be assigned a type\)`}}},
-	{
-		"UntypedComplex",
-		cp{{"a", `const Res = 3.4+9.8i`, nil,
-			`invalid const \(3\.4\+9\.8i must be assigned a type\)`}}},
 
 	// Test list literals.
 	{
@@ -563,9 +559,6 @@ var constTests = []struct {
 		"TypedFloat32",
 		cp{{"a", `const Res = float32(1.5)`, vdl.Float32Value(1.5), ""}}},
 	{
-		"TypedComplex64",
-		cp{{"a", `const Res = complex64(2+1.5i)`, vdl.Complex64Value(2 + 1.5i), ""}}},
-	{
 		"TypedBoolMismatch",
 		cp{{"a", `const Res = bool(1)`, nil,
 			"can't convert 1 to bool"}}},
@@ -595,9 +588,6 @@ var constTests = []struct {
 	{
 		"TypedUserFloat32",
 		cp{{"a", `type TypedFlt float32;const Res = TypedFlt(1.5)`, namedZero("p.kg/a.TypedFlt", vdl.Float32Type).AssignFloat(1.5), ""}}},
-	{
-		"TypedUserComplex64",
-		cp{{"a", `type TypedCpx complex64;const Res = TypedCpx(1.5+2i)`, namedZero("p.kg/a.TypedCpx", vdl.Complex64Type).AssignComplex(1.5 + 2i), ""}}},
 	{
 		"TypedUserBoolMismatch",
 		cp{{"a", `type TypedBool bool;const Res = TypedBool(1)`, nil,
@@ -640,12 +630,6 @@ var constTests = []struct {
 	{
 		"TypeObjectFloat32Invalid",
 		cp{{"a", `const Res = float32`, nil, "float32 is a type"}}},
-	{
-		"TypeObjectComplex64",
-		cp{{"a", `const Res = typeobject(complex64)`, vdl.TypeObjectValue(vdl.Complex64Type), ""}}},
-	{
-		"TypeObjectComplex64Invalid",
-		cp{{"a", `const Res = complex64`, nil, "complex64 is a type"}}},
 	{
 		"TypeObjectTypeObject",
 		cp{{"a", `const Res = typeobject(typeobject)`, vdl.TypeObjectValue(vdl.TypeObjectType), ""}}},
@@ -708,9 +692,6 @@ var constTests = []struct {
 	{
 		"NamedFloat32",
 		cp{{"a", `const foo = float32(1.5);const Res = foo`, vdl.Float32Value(1.5), ""}}},
-	{
-		"NamedComplex64",
-		cp{{"a", `const foo = complex64(3+2i);const Res = foo`, vdl.Complex64Value(3 + 2i), ""}}},
 	{
 		"NamedUserBool",
 		cp{{"a", `type TypedBool bool;const foo = TypedBool(true);const Res = foo`,
@@ -868,18 +849,6 @@ var constTests = []struct {
 	{
 		"FloatDivide",
 		cp{{"a", `const Res = float32(5) / 2`, vdl.Float32Value(2.5), ""}}},
-	{
-		"ComplexPlus",
-		cp{{"a", `const Res = 3i + complex64(1+2i) + 1`, vdl.Complex64Value(2 + 5i), ""}}},
-	{
-		"ComplexMinus",
-		cp{{"a", `const Res = complex64(1+2i) -4 -1i`, vdl.Complex64Value(-3 + 1i), ""}}},
-	{
-		"ComplexTimes",
-		cp{{"a", `const Res = complex64(1+3i) * (5+1i)`, vdl.Complex64Value(2 + 16i), ""}}},
-	{
-		"ComplexDivide",
-		cp{{"a", `const Res = complex64(2+16i) / (5+1i)`, vdl.Complex64Value(1 + 3i), ""}}},
 
 	// Test integer arithmetic ops.
 	{
@@ -1045,20 +1014,6 @@ var constTests = []struct {
 	{
 		"ZeroFloat32",
 		cp{{"a", `const Res = float32(0)`, vdl.Float32Value(0), ""}}},
-
-	// Test complex conversion.
-	{
-		"RealComplexToFloat",
-		cp{{"a", `const Res = float64(1+0i)`, vdl.Float64Value(1), ""}}},
-	{
-		"RealComplexToInt",
-		cp{{"a", `const Res = int32(1+0i)`, vdl.Int32Value(1), ""}}},
-	{
-		"FloatToRealComplex",
-		cp{{"a", `const Res = complex64(1.5)`, vdl.Complex64Value(1.5), ""}}},
-	{
-		"IntToRealComplex",
-		cp{{"a", `const Res = complex64(2)`, vdl.Complex64Value(2), ""}}},
 
 	// Test float rounding - note that 1.1 incurs loss of precision.
 	{

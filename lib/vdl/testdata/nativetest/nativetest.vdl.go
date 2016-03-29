@@ -84,19 +84,6 @@ func (t *WireStringTarget) FromFloat(src float64, tt *vdl.Type) error {
 	}
 	return nil
 }
-func (t *WireStringTarget) FromComplex(src complex128, tt *vdl.Type) error {
-	t.wireValue = WireString(0)
-	val, err := vdlconv.Complex128ToInt32(src)
-	if err != nil {
-		return err
-	}
-	t.wireValue = string(val)
-
-	if err := WireStringToNative(t.wireValue, t.Value); err != nil {
-		return err
-	}
-	return nil
-}
 
 type WireMapStringInt int32
 
@@ -151,19 +138,6 @@ func (t *WireMapStringIntTarget) FromInt(src int64, tt *vdl.Type) error {
 func (t *WireMapStringIntTarget) FromFloat(src float64, tt *vdl.Type) error {
 	t.wireValue = WireMapStringInt(0)
 	val, err := vdlconv.Float64ToInt32(src)
-	if err != nil {
-		return err
-	}
-	t.wireValue = map[string]int(val)
-
-	if err := WireMapStringIntToNative(t.wireValue, t.Value); err != nil {
-		return err
-	}
-	return nil
-}
-func (t *WireMapStringIntTarget) FromComplex(src complex128, tt *vdl.Type) error {
-	t.wireValue = WireMapStringInt(0)
-	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err
 	}
@@ -238,19 +212,6 @@ func (t *WireTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 	}
 	return nil
 }
-func (t *WireTimeTarget) FromComplex(src complex128, tt *vdl.Type) error {
-	t.wireValue = WireTime(0)
-	val, err := vdlconv.Complex128ToInt32(src)
-	if err != nil {
-		return err
-	}
-	t.wireValue = time.Time(val)
-
-	if err := WireTimeToNative(t.wireValue, t.Value); err != nil {
-		return err
-	}
-	return nil
-}
 
 type WireSamePkg int32
 
@@ -305,19 +266,6 @@ func (t *WireSamePkgTarget) FromInt(src int64, tt *vdl.Type) error {
 func (t *WireSamePkgTarget) FromFloat(src float64, tt *vdl.Type) error {
 	t.wireValue = WireSamePkg(0)
 	val, err := vdlconv.Float64ToInt32(src)
-	if err != nil {
-		return err
-	}
-	t.wireValue = nativetest.NativeSamePkg(val)
-
-	if err := WireSamePkgToNative(t.wireValue, t.Value); err != nil {
-		return err
-	}
-	return nil
-}
-func (t *WireSamePkgTarget) FromComplex(src complex128, tt *vdl.Type) error {
-	t.wireValue = WireSamePkg(0)
-	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err
 	}
@@ -392,19 +340,6 @@ func (t *WireMultiImportTarget) FromFloat(src float64, tt *vdl.Type) error {
 	}
 	return nil
 }
-func (t *WireMultiImportTarget) FromComplex(src complex128, tt *vdl.Type) error {
-	t.wireValue = WireMultiImport(0)
-	val, err := vdlconv.Complex128ToInt32(src)
-	if err != nil {
-		return err
-	}
-	t.wireValue = map[nativetest.NativeSamePkg]time.Time(val)
-
-	if err := WireMultiImportToNative(t.wireValue, t.Value); err != nil {
-		return err
-	}
-	return nil
-}
 
 type WireRenameMe int32
 
@@ -452,16 +387,6 @@ func (t *WireRenameMeTarget) FromInt(src int64, tt *vdl.Type) error {
 func (t *WireRenameMeTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	val, err := vdlconv.Float64ToInt32(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = WireRenameMe(val)
-
-	return nil
-}
-func (t *WireRenameMeTarget) FromComplex(src complex128, tt *vdl.Type) error {
-
-	val, err := vdlconv.Complex128ToInt32(src)
 	if err != nil {
 		return err
 	}

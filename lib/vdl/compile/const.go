@@ -247,8 +247,6 @@ func evalConstExpr(implicit *vdl.Type, pexpr parse.ConstExpr, file *File, env *E
 			return opconst.Integer(tlit)
 		case *big.Rat:
 			return opconst.Rational(tlit)
-		case *parse.BigImag:
-			return opconst.Complex(bigRatZero, (*big.Rat)(tlit))
 		default:
 			panic(fmt.Errorf("vdl: unhandled parse.ConstLit %T %#v", tlit, tlit))
 		}

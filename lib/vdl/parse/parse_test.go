@@ -4,8 +4,6 @@
 
 package parse_test
 
-// TODO(toddw): Add tests for imaginary literals.
-
 import (
 	"math/big"
 	"reflect"

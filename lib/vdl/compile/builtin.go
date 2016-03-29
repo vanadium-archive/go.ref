@@ -32,8 +32,6 @@ func init() {
 	builtInType("int64", vdl.Int64Type)
 	builtInType("float32", vdl.Float32Type)
 	builtInType("float64", vdl.Float64Type)
-	builtInType("complex64", vdl.Complex64Type)
-	builtInType("complex128", vdl.Complex128Type)
 	builtInType("string", vdl.StringType)
 	builtInType("typeobject", vdl.TypeObjectType)
 	builtInType("error", vdl.ErrorType)

@@ -17,8 +17,6 @@ type (
 	NamedInt64      int64
 	NamedFloat32    float32
 	NamedFloat64    float64
-	NamedComplex64  complex64
-	NamedComplex128 complex128
 	NamedString     string
 	NamedEnum       enum{A;B;C}
 	NamedArray      [2]bool
@@ -41,12 +39,10 @@ type Scalars struct {
 	A8  int64
 	A9  float32
 	A10  float64
-	A11 complex64
-	A12 complex128
-	A13 string
-	A14 error
-	A15 any
-	A16 typeobject
+	A11 string
+	A12 error
+	A13 any
+	A14 typeobject
 
 	B0  NamedBool
 	B1  NamedByte
@@ -58,12 +54,10 @@ type Scalars struct {
 	B7  NamedInt32
 	B8  NamedInt64
 	B9  NamedFloat32
-	B10  NamedFloat64
-	B11 NamedComplex64
-	B12 NamedComplex128
-	B13 NamedString
-	B14 NamedEnum
-	B15 NamedUnion
+	B10 NamedFloat64
+	B11 NamedString
+	B12 NamedEnum
+	B13 NamedUnion
 }
 
 // These are all scalars that may be used as map or set keys.
@@ -79,9 +73,7 @@ type KeyScalars struct {
 	A8  int64
 	A9  float32
 	A10  float64
-	A11 complex64
-	A12 complex128
-	A13 string
+	A11 string
 
 	B0  NamedBool
 	B1  NamedByte
@@ -94,8 +86,6 @@ type KeyScalars struct {
 	B8  NamedInt64
 	B9  NamedFloat32
 	B10  NamedFloat64
-	B11 NamedComplex64
-	B12 NamedComplex128
 	B13 NamedString
 }
 
@@ -107,7 +97,6 @@ type Composites struct {
 	A2 []Scalars
 	A3 set[KeyScalars]
 	A4 map[string]Scalars
-	A5 map[KeyScalars][]map[string]complex128
 }
 
 type CompositesArray [2]Composites
@@ -144,8 +133,6 @@ const (
 	Cfloat64 = float64(7)
 	CNamedBool = NamedBool(true)
 	CNamedStruct = NamedStruct{A:true, B: "test",}
-	Ccomplex64 = complex64(8+9i)
-	Ccomplex128 = complex128(10+11i)
 	Cstring = "foo"
 	Cenum  = NamedEnum.A
 	Cunion = NamedUnion{A: true}
@@ -167,11 +154,9 @@ const (
 		A8: 8,
 		A9: 9,
 		A10: 10,
-		A11: 11,
-		A12: 12,
-		A13: "abc",
-		A15: false,
-		A16: typeobject(bool),
+		A11: "abc",
+		A13: false,
+		A14: typeobject(bool),
 
 		B0: true,
 		B1: 1,
@@ -184,11 +169,9 @@ const (
 		B8: 8,
 		B9: 9,
 		B10: 10,
-		B11: 11,
-		B12: 12,
-		B13: "abc",
-		B14: NamedEnum.B,
-		B15: NamedUnion{C: 123},
+		B11: "abc",
+		B12: NamedEnum.B,
+		B13: NamedUnion{C: 123},
 	}
 
 	True = true
@@ -206,7 +189,6 @@ const (
 	CTypeObject_int8       = typeobject(int8)
 	CTypeObject_int16      = typeobject(int16)
 	CTypeObject_float32    = typeobject(float32)
-	CTypeObject_complex64  = typeobject(complex64)
 	CTypeObject_enum       = typeobject(NamedEnum)
 	CTypeObject_Array      = typeobject(NamedArray)
 	CTypeObject_List       = typeobject([]string)

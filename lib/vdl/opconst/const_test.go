@@ -37,14 +37,13 @@ var (
 	br_neg1, br_neg2 = big.NewRat(-1, 1), big.NewRat(-2, 1)
 )
 
-func boolConst(t *vdl.Type, x bool) Const          { return FromValue(boolValue(t, x)) }
-func stringConst(t *vdl.Type, x string) Const      { return FromValue(stringValue(t, x)) }
-func bytesConst(t *vdl.Type, x string) Const       { return FromValue(bytesValue(t, x)) }
-func bytes3Const(t *vdl.Type, x string) Const      { return FromValue(bytes3Value(t, x)) }
-func intConst(t *vdl.Type, x int64) Const          { return FromValue(intValue(t, x)) }
-func uintConst(t *vdl.Type, x uint64) Const        { return FromValue(uintValue(t, x)) }
-func floatConst(t *vdl.Type, x float64) Const      { return FromValue(floatValue(t, x)) }
-func complexConst(t *vdl.Type, x complex128) Const { return FromValue(complexValue(t, x)) }
+func boolConst(t *vdl.Type, x bool) Const     { return FromValue(boolValue(t, x)) }
+func stringConst(t *vdl.Type, x string) Const { return FromValue(stringValue(t, x)) }
+func bytesConst(t *vdl.Type, x string) Const  { return FromValue(bytesValue(t, x)) }
+func bytes3Const(t *vdl.Type, x string) Const { return FromValue(bytes3Value(t, x)) }
+func intConst(t *vdl.Type, x int64) Const     { return FromValue(intValue(t, x)) }
+func uintConst(t *vdl.Type, x uint64) Const   { return FromValue(uintValue(t, x)) }
+func floatConst(t *vdl.Type, x float64) Const { return FromValue(floatValue(t, x)) }
 func structNumConst(t *vdl.Type, x float64) Const {
 	return FromValue(structNumValue(t, sn{"A", x}))
 }
@@ -118,7 +117,6 @@ func TestConstToValueOK(t *testing.T) {
 		intValue(vdl.Int32Type, 123), intValue(int32TypeN, 123),
 		uintValue(vdl.Uint32Type, 123), uintValue(uint32TypeN, 123),
 		floatValue(vdl.Float32Type, 123), floatValue(float32TypeN, 123),
-		complexValue(vdl.Complex64Type, 123), complexValue(complex64TypeN, 123),
 		structNumValue(structAIntType, sn{"A", 123}), structNumValue(structAIntTypeN, sn{"A", 123}),
 	}
 	for _, test := range tests {
@@ -159,7 +157,6 @@ func TestConstToValueError(t *testing.T) {
 	}{
 		{Integer(bi1), noType},
 		{Rational(br1), noType},
-		{Complex(br1, br0), noType},
 	}
 	for _, test := range tests {
 		v, err := test.C.ToValue()
@@ -186,20 +183,15 @@ func TestConstConvertOK(t *testing.T) {
 			v{stringValue(vdl.StringType, "abc"), stringValue(stringTypeN, "abc"),
 				bytesValue(bytesType, "abc"), bytesValue(bytesTypeN, "abc"),
 				bytes3Value(bytes3Type, "abc"), bytes3Value(bytes3TypeN, "abc")}},
-		{c{Integer(bi1), Rational(br1), Complex(br1, br0)},
+		{c{Integer(bi1), Rational(br1)},
 			v{intValue(vdl.Int32Type, 1), intValue(int32TypeN, 1),
 				uintValue(vdl.Uint32Type, 1), uintValue(uint32TypeN, 1),
-				floatValue(vdl.Float32Type, 1), floatValue(float32TypeN, 1),
-				complexValue(vdl.Complex64Type, 1), complexValue(complex64TypeN, 1)}},
-		{c{Integer(bi_neg1), Rational(br_neg1), Complex(br_neg1, br0)},
+				floatValue(vdl.Float32Type, 1), floatValue(float32TypeN, 1)}},
+		{c{Integer(bi_neg1), Rational(br_neg1)},
 			v{intValue(vdl.Int32Type, -1), intValue(int32TypeN, -1),
-				floatValue(vdl.Float32Type, -1), floatValue(float32TypeN, -1),
-				complexValue(vdl.Complex64Type, -1), complexValue(complex64TypeN, -1)}},
-		{c{Rational(big.NewRat(1, 2)), Complex(big.NewRat(1, 2), br0)},
-			v{floatValue(vdl.Float32Type, 0.5), floatValue(float32TypeN, 0.5),
-				complexValue(vdl.Complex64Type, 0.5), complexValue(complex64TypeN, 0.5)}},
-		{c{Complex(br1, br1)},
-			v{complexValue(vdl.Complex64Type, 1+1i), complexValue(complex64TypeN, 1+1i)}},
+				floatValue(vdl.Float32Type, -1), floatValue(float32TypeN, -1)}},
+		{c{Rational(big.NewRat(1, 2))},
+			v{floatValue(vdl.Float32Type, 0.5), floatValue(float32TypeN, 0.5)}},
 		// Check implicit conversion of untyped bool and string consts.
 		{c{Boolean(true)},
 			v{boolValue(vdl.BoolType, true), anyValue(boolValue(vdl.BoolType, true))}},
@@ -240,13 +232,13 @@ func TestConstConvertError(t *testing.T) {
 		{Boolean(true),
 			ty{vdl.StringType, stringTypeN, bytesType, bytesTypeN, bytes3Type, bytes3TypeN,
 				vdl.Int32Type, int32TypeN, vdl.Uint32Type, uint32TypeN,
-				vdl.Float32Type, float32TypeN, vdl.Complex64Type, complex64TypeN,
+				vdl.Float32Type, float32TypeN,
 				structAIntType, structAIntTypeN},
 			cantConvert},
 		{String("abc"),
 			ty{vdl.BoolType, boolTypeN,
 				vdl.Int32Type, int32TypeN, vdl.Uint32Type, uint32TypeN,
-				vdl.Float32Type, float32TypeN, vdl.Complex64Type, complex64TypeN,
+				vdl.Float32Type, float32TypeN,
 				structAIntType, structAIntTypeN},
 			cantConvert},
 		{Integer(bi1),
@@ -255,11 +247,6 @@ func TestConstConvertError(t *testing.T) {
 				structAIntType, structAIntTypeN},
 			cantConvert},
 		{Rational(br1),
-			ty{vdl.BoolType, boolTypeN,
-				vdl.StringType, stringTypeN, bytesType, bytesTypeN, bytes3Type, bytes3TypeN,
-				structAIntType, structAIntTypeN},
-			cantConvert},
-		{Complex(br1, br0),
 			ty{vdl.BoolType, boolTypeN,
 				vdl.StringType, stringTypeN, bytesType, bytesTypeN, bytes3Type, bytes3TypeN,
 				structAIntType, structAIntTypeN},
@@ -276,17 +263,6 @@ func TestConstConvertError(t *testing.T) {
 			losesPrecision},
 		{Rational(bigRatAbsMin64), ty{vdl.Float32Type, float32TypeN}, underflows},
 		{Rational(bigRatAbsMax64), ty{vdl.Float32Type, float32TypeN}, overflows},
-		{Complex(br_neg1, br0), ty{vdl.Uint32Type, uint32TypeN}, overflows},
-		{Complex(big.NewRat(1<<32, 1), br0), ty{vdl.Int32Type, int32TypeN}, overflows},
-		{Complex(big.NewRat(1<<33, 1), br0), ty{vdl.Uint32Type, uint32TypeN}, overflows},
-		{Complex(big.NewRat(1, 2), br0),
-			ty{vdl.Int32Type, int32TypeN, vdl.Uint32Type, uint32TypeN},
-			losesPrecision},
-		{Complex(bigRatAbsMin64, br0), ty{vdl.Float32Type, float32TypeN}, underflows},
-		{Complex(bigRatAbsMax64, br0), ty{vdl.Float32Type, float32TypeN}, overflows},
-		{Complex(br0, br1),
-			ty{vdl.Int32Type, int32TypeN, vdl.Uint32Type, uint32TypeN, vdl.Float32Type, float32TypeN},
-			nonzeroImaginary},
 	}
 	for _, test := range tests {
 		for _, ct := range test.T {
@@ -310,21 +286,16 @@ func TestConstUnaryOpOK(t *testing.T) {
 
 		{Pos, Integer(bi1), Integer(bi1)},
 		{Pos, Rational(br1), Rational(br1)},
-		{Pos, Complex(br1, br1), Complex(br1, br1)},
 		{Pos, intConst(vdl.Int32Type, 1), intConst(vdl.Int32Type, 1)},
 		{Pos, floatConst(float32TypeN, 1), floatConst(float32TypeN, 1)},
-		{Pos, complexConst(complex64TypeN, 1), complexConst(complex64TypeN, 1)},
 
 		{Neg, Integer(bi1), Integer(bi_neg1)},
 		{Neg, Rational(br1), Rational(br_neg1)},
-		{Neg, Complex(br1, br1), Complex(br_neg1, br_neg1)},
 		{Neg, intConst(vdl.Int32Type, 1), intConst(vdl.Int32Type, -1)},
 		{Neg, floatConst(float32TypeN, 1), floatConst(float32TypeN, -1)},
-		{Neg, complexConst(complex64TypeN, 1), complexConst(complex64TypeN, -1)},
 
 		{BitNot, Integer(bi1), Integer(bi_neg2)},
 		{BitNot, Rational(br1), Integer(bi_neg2)},
-		{BitNot, Complex(br1, br0), Integer(bi_neg2)},
 		{BitNot, intConst(vdl.Int32Type, 1), intConst(vdl.Int32Type, -2)},
 		{BitNot, uintConst(uint32TypeN, 1), uintConst(uint32TypeN, 1<<32-2)},
 	}
@@ -346,7 +317,6 @@ func TestConstUnaryOpError(t *testing.T) {
 		{LogicNot, String("abc"), notSupported},
 		{LogicNot, Integer(bi1), notSupported},
 		{LogicNot, Rational(br1), notSupported},
-		{LogicNot, Complex(br1, br1), notSupported},
 		{LogicNot, structNumConst(structAIntTypeN, 999), notSupported},
 
 		{Pos, Boolean(false), notSupported},
@@ -361,10 +331,8 @@ func TestConstUnaryOpError(t *testing.T) {
 		{BitNot, Boolean(false), cantConvert},
 		{BitNot, String("abc"), cantConvert},
 		{BitNot, Rational(big.NewRat(1, 2)), losesPrecision},
-		{BitNot, Complex(br1, br1), nonzeroImaginary},
 		{BitNot, structNumConst(structAIntTypeN, 999), notSupported},
 		{BitNot, floatConst(float32TypeN, 1), cantConvert},
-		{BitNot, complexConst(complex64TypeN, 1), cantConvert},
 	}
 	for _, test := range tests {
 		result, err := EvalUnary(test.op, test.x)
@@ -401,71 +369,57 @@ func TestConstBinaryOpOK(t *testing.T) {
 		{Add, String("abc"), String("def"), String("abcdef")},
 		{Add, Integer(bi1), Integer(bi1), Integer(bi2)},
 		{Add, Rational(br1), Rational(br1), Rational(br2)},
-		{Add, Complex(br1, br1), Complex(br1, br1), Complex(br2, br2)},
 		{Add, stringConst(stringTypeN, "abc"), stringConst(stringTypeN, "def"), stringConst(stringTypeN, "abcdef")},
 		{Add, bytesConst(bytesTypeN, "abc"), bytesConst(bytesTypeN, "def"), bytesConst(bytesTypeN, "abcdef")},
 		{Add, intConst(int32TypeN, 1), intConst(int32TypeN, 1), intConst(int32TypeN, 2)},
 		{Add, uintConst(uint32TypeN, 1), uintConst(uint32TypeN, 1), uintConst(uint32TypeN, 2)},
 		{Add, floatConst(float32TypeN, 1), floatConst(float32TypeN, 1), floatConst(float32TypeN, 2)},
-		{Add, complexConst(complex64TypeN, 1), complexConst(complex64TypeN, 1), complexConst(complex64TypeN, 2)},
 
 		{Sub, Integer(bi2), Integer(bi1), Integer(bi1)},
 		{Sub, Rational(br2), Rational(br1), Rational(br1)},
-		{Sub, Complex(br2, br2), Complex(br1, br1), Complex(br1, br1)},
 		{Sub, intConst(int32TypeN, 2), intConst(int32TypeN, 1), intConst(int32TypeN, 1)},
 		{Sub, uintConst(uint32TypeN, 2), uintConst(uint32TypeN, 1), uintConst(uint32TypeN, 1)},
 		{Sub, floatConst(float32TypeN, 2), floatConst(float32TypeN, 1), floatConst(float32TypeN, 1)},
-		{Sub, complexConst(complex64TypeN, 2), complexConst(complex64TypeN, 1), complexConst(complex64TypeN, 1)},
 
 		{Mul, Integer(bi2), Integer(bi2), Integer(bi4)},
 		{Mul, Rational(br2), Rational(br2), Rational(br4)},
-		{Mul, Complex(br2, br2), Complex(br2, br2), Complex(br0, br8)},
 		{Mul, intConst(int32TypeN, 2), intConst(int32TypeN, 2), intConst(int32TypeN, 4)},
 		{Mul, uintConst(uint32TypeN, 2), uintConst(uint32TypeN, 2), uintConst(uint32TypeN, 4)},
 		{Mul, floatConst(float32TypeN, 2), floatConst(float32TypeN, 2), floatConst(float32TypeN, 4)},
-		{Mul, complexConst(complex64TypeN, 2+2i), complexConst(complex64TypeN, 2+2i), complexConst(complex64TypeN, 8i)},
 
 		{Div, Integer(bi4), Integer(bi2), Integer(bi2)},
 		{Div, Rational(br4), Rational(br2), Rational(br2)},
-		{Div, Complex(br4, br4), Complex(br2, br2), Complex(br2, br0)},
 		{Div, intConst(int32TypeN, 4), intConst(int32TypeN, 2), intConst(int32TypeN, 2)},
 		{Div, uintConst(uint32TypeN, 4), uintConst(uint32TypeN, 2), uintConst(uint32TypeN, 2)},
 		{Div, floatConst(float32TypeN, 4), floatConst(float32TypeN, 2), floatConst(float32TypeN, 2)},
-		{Div, complexConst(complex64TypeN, 4+4i), complexConst(complex64TypeN, 2+2i), complexConst(complex64TypeN, 2)},
 
 		{Mod, Integer(bi3), Integer(bi2), Integer(bi1)},
 		{Mod, Rational(br3), Rational(br2), Rational(br1)},
-		{Mod, Complex(br3, br0), Complex(br2, br0), Complex(br1, br0)},
 		{Mod, intConst(int32TypeN, 3), intConst(int32TypeN, 2), intConst(int32TypeN, 1)},
 		{Mod, uintConst(uint32TypeN, 3), uintConst(uint32TypeN, 2), uintConst(uint32TypeN, 1)},
 
 		{BitAnd, Integer(bi3), Integer(bi2), Integer(bi2)},
 		{BitAnd, Rational(br3), Rational(br2), Rational(br2)},
-		{BitAnd, Complex(br3, br0), Complex(br2, br0), Complex(br2, br0)},
 		{BitAnd, intConst(int32TypeN, 3), intConst(int32TypeN, 2), intConst(int32TypeN, 2)},
 		{BitAnd, uintConst(uint32TypeN, 3), uintConst(uint32TypeN, 2), uintConst(uint32TypeN, 2)},
 
 		{BitOr, Integer(bi5), Integer(bi3), Integer(bi7)},
 		{BitOr, Rational(br5), Rational(br3), Rational(br7)},
-		{BitOr, Complex(br5, br0), Complex(br3, br0), Complex(br7, br0)},
 		{BitOr, intConst(int32TypeN, 5), intConst(int32TypeN, 3), intConst(int32TypeN, 7)},
 		{BitOr, uintConst(uint32TypeN, 5), uintConst(uint32TypeN, 3), uintConst(uint32TypeN, 7)},
 
 		{BitXor, Integer(bi5), Integer(bi3), Integer(bi6)},
 		{BitXor, Rational(br5), Rational(br3), Rational(br6)},
-		{BitXor, Complex(br5, br0), Complex(br3, br0), Complex(br6, br0)},
 		{BitXor, intConst(int32TypeN, 5), intConst(int32TypeN, 3), intConst(int32TypeN, 6)},
 		{BitXor, uintConst(uint32TypeN, 5), uintConst(uint32TypeN, 3), uintConst(uint32TypeN, 6)},
 
 		{LeftShift, Integer(bi3), Integer(bi1), Integer(bi6)},
 		{LeftShift, Rational(br3), Rational(br1), Rational(br6)},
-		{LeftShift, Complex(br3, br0), Complex(br1, br0), Complex(br6, br0)},
 		{LeftShift, intConst(int32TypeN, 3), intConst(int32TypeN, 1), intConst(int32TypeN, 6)},
 		{LeftShift, uintConst(uint32TypeN, 3), uintConst(uint32TypeN, 1), uintConst(uint32TypeN, 6)},
 
 		{RightShift, Integer(bi5), Integer(bi1), Integer(bi2)},
 		{RightShift, Rational(br5), Rational(br1), Rational(br2)},
-		{RightShift, Complex(br5, br0), Complex(br1, br0), Complex(br2, br0)},
 		{RightShift, intConst(int32TypeN, 5), intConst(int32TypeN, 1), intConst(int32TypeN, 2)},
 		{RightShift, uintConst(uint32TypeN, 5), uintConst(uint32TypeN, 1), uintConst(uint32TypeN, 2)},
 	}
@@ -492,10 +446,8 @@ func TestConstEQNE(t *testing.T) {
 	}{
 		{Boolean(false), Boolean(true)},
 		{String("abc"), String("def")},
-		{Complex(br1, br1), Complex(br2, br2)},
 
 		{boolConst(boolTypeN, false), boolConst(boolTypeN, true)},
-		{complexConst(complex64TypeN, 1), complexConst(complex64TypeN, 2)},
 		{structNumConst(structAIntTypeN, 1), structNumConst(structAIntTypeN, 2)},
 	}
 	for _, test := range tests {
@@ -575,12 +527,10 @@ func TestConstBinaryOpError(t *testing.T) {
 				bytesConst(bytesTypeN, "abc"), bytes3Const(bytes3TypeN, "abc"),
 				Integer(bi1), intConst(int32TypeN, 1), uintConst(uint32TypeN, 1),
 				Rational(br1), floatConst(float32TypeN, 1),
-				Complex(br1, br1), complexConst(complex64TypeN, 1),
 				structNumConst(structAIntType, 1), structNumConst(structAIntTypeN, 1)},
 			notSupported},
 		{bo{LT, LE, GT, GE},
 			c{Boolean(true), boolConst(boolTypeN, false),
-				Complex(br1, br1), complexConst(complex64TypeN, 1),
 				structNumConst(structAIntType, 1), structNumConst(structAIntTypeN, 1)},
 			notSupported},
 		{bo{Add},

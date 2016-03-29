@@ -39,7 +39,6 @@ var (
 //   untyped string
 //   untyped integer
 //   untyped rational
-//   untyped complex
 // Literal consts are untyped, as are expressions only containing untyped
 // consts.  The result of comparison operations is untyped boolean.
 //
@@ -65,7 +64,6 @@ type Const struct {
 	//   string      - Represents typed and untyped string constants.
 	//   *big.Int    - Represents typed and untyped integer constants.
 	//   *big.Rat    - Represents typed and untyped rational constants.
-	//   *bigComplex - Represents typed and untyped complex constants.
 	//   *Value      - Represents all other typed constants.
 	rep interface{}
 
@@ -86,9 +84,6 @@ func Integer(x *big.Int) Const { return Const{x, nil} }
 
 // Rational returns an untyped rational Const.
 func Rational(x *big.Rat) Const { return Const{x, nil} }
-
-// Complex returns an untyped complex Const.
-func Complex(re, im *big.Rat) Const { return Const{newComplex(re, im), nil} }
 
 // FromValue returns a typed Const based on value v.
 func FromValue(v *vdl.Value) Const {
@@ -113,8 +108,6 @@ func FromValue(v *vdl.Value) Const {
 		return Const{new(big.Int).SetInt64(v.Int()), v.Type()}
 	case vdl.Float32, vdl.Float64:
 		return Const{new(big.Rat).SetFloat64(v.Float()), v.Type()}
-	case vdl.Complex64, vdl.Complex128:
-		return Const{new(bigComplex).SetComplex128(v.Complex()), v.Type()}
 	default:
 		return Const{v, v.Type()}
 	}
@@ -195,8 +188,6 @@ func cRepString(rep interface{}) string {
 		}
 		frep, _ := trep.Float64()
 		return strconv.FormatFloat(frep, 'g', -1, 64)
-	case *bigComplex:
-		return fmt.Sprintf("%v+%vi", cRepString(&trep.re), cRepString(&trep.im))
 	case *vdl.Value:
 		return trep.String()
 	default:
@@ -221,8 +212,6 @@ func cRepTypeString(rep interface{}, t *vdl.Type) string {
 		return "untyped integer"
 	case *big.Rat:
 		return "untyped rational"
-	case *bigComplex:
-		return "untyped complex"
 	default:
 		panic(fmt.Errorf("val: unhandled const type %T value %v", rep, rep))
 	}
@@ -278,13 +267,6 @@ func (c Const) ToValue() (*vdl.Value, error) {
 			f64, _ := trep.Float64()
 			return vx.AssignFloat(f64), nil
 		}
-	case *bigComplex:
-		switch vx.Kind() {
-		case vdl.Complex64, vdl.Complex128:
-			re64, _ := trep.re.Float64()
-			im64, _ := trep.im.Float64()
-			return vx.AssignComplex(complex(re64, im64)), nil
-		}
 	case *vdl.Value:
 		return trep, nil
 	}
@@ -314,7 +296,7 @@ func EvalUnary(op UnaryOp, x Const) (Const, error) {
 		}
 	case Pos:
 		switch x.rep.(type) {
-		case *big.Int, *big.Rat, *bigComplex:
+		case *big.Int, *big.Rat:
 			return x, nil
 		}
 	case Neg:
@@ -323,8 +305,6 @@ func EvalUnary(op UnaryOp, x Const) (Const, error) {
 			return makeConst(new(big.Int).Neg(tx), x.repType)
 		case *big.Rat:
 			return makeConst(new(big.Rat).Neg(tx), x.repType)
-		case *bigComplex:
-			return makeConst(new(bigComplex).Neg(tx), x.repType)
 		}
 	case BitNot:
 		ix, err := constToInt(x)
@@ -421,13 +401,6 @@ func opComp(op BinaryOp, x, y interface{}, resType *vdl.Type) (interface{}, erro
 		return opCmpToBool(op, tx.Cmp(y.(*big.Int))), nil
 	case *big.Rat:
 		return opCmpToBool(op, tx.Cmp(y.(*big.Rat))), nil
-	case *bigComplex:
-		switch op {
-		case EQ:
-			return tx.Equal(y.(*bigComplex)), nil
-		case NE:
-			return !tx.Equal(y.(*bigComplex)), nil
-		}
 	case *vdl.Value:
 		switch op {
 		case EQ:
@@ -449,8 +422,6 @@ func opArith(op BinaryOp, x, y interface{}, resType *vdl.Type) (interface{}, err
 		return arithBigInt(op, tx, y.(*big.Int))
 	case *big.Rat:
 		return arithBigRat(op, tx, y.(*big.Rat))
-	case *bigComplex:
-		return arithBigComplex(op, tx, y.(*bigComplex))
 	}
 	return nil, errNotSupported(x, resType)
 }
@@ -505,15 +476,6 @@ func bigRatToInt(rat *big.Rat, resType *vdl.Type) (*big.Int, error) {
 	return new(big.Int).Set(rat.Num()), nil
 }
 
-// bigComplexToRat converts complex to rational values as long as the complex
-// value has a zero imaginary component.
-func bigComplexToRat(b *bigComplex) (*big.Rat, error) {
-	if b.im.Cmp(bigRatZero) != 0 {
-		return nil, fmt.Errorf("can't convert complex %s to rational: nonzero imaginary", cRepString(b))
-	}
-	return &b.re, nil
-}
-
 // constToInt converts x to an integer value as long as there isn't any loss in
 // precision.
 func constToInt(x Const) (*big.Int, error) {
@@ -522,12 +484,6 @@ func constToInt(x Const) (*big.Int, error) {
 		return tx, nil
 	case *big.Rat:
 		return bigRatToInt(tx, x.repType)
-	case *bigComplex:
-		rat, err := bigComplexToRat(tx)
-		if err != nil {
-			return nil, err
-		}
-		return bigRatToInt(rat, x.repType)
 	}
 	return nil, fmt.Errorf("can't convert %s to integer", x.typeString())
 }
@@ -563,7 +519,7 @@ func makeConst(rep interface{}, totype *vdl.Type) (Const, error) {
 				return Const{}, err
 			}
 			return Const{trep, totype}, nil
-		case vdl.Float32, vdl.Float64, vdl.Complex64, vdl.Complex128:
+		case vdl.Float32, vdl.Float64:
 			return makeConst(new(big.Rat).SetInt(trep), totype)
 		}
 	case *big.Rat:
@@ -584,27 +540,6 @@ func makeConst(rep interface{}, totype *vdl.Type) (Const, error) {
 				return Const{}, err
 			}
 			return Const{frep, totype}, nil
-		case vdl.Complex64, vdl.Complex128:
-			frep, err := convertTypedRat(trep, totype.Kind())
-			if err != nil {
-				return Const{}, err
-			}
-			return Const{realComplex(frep), totype}, nil
-		}
-	case *bigComplex:
-		switch totype.Kind() {
-		case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64:
-			v, err := bigComplexToRat(trep)
-			if err != nil {
-				return Const{}, err
-			}
-			return makeConst(v, totype)
-		case vdl.Complex64, vdl.Complex128:
-			v, err := convertTypedComplex(trep, totype.Kind())
-			if err != nil {
-				return Const{}, err
-			}
-			return Const{v, totype}, nil
 		}
 	}
 	return Const{}, fmt.Errorf("can't convert %s to %v", cRepString(rep), cRepTypeString(rep, totype))
@@ -663,14 +598,14 @@ func checkOverflowRat(b *big.Rat, kind vdl.Kind) error {
 	// TODO(toddw): perhaps allow slightly smaller and larger values, to account
 	// for ieee754 round-to-even rules.
 	switch abs := new(big.Rat).Abs(b); kind {
-	case vdl.Float32, vdl.Complex64:
+	case vdl.Float32:
 		if abs.Cmp(bigRatAbsMin32) < 0 {
 			return fmt.Errorf("const %v underflows float32", cRepString(b))
 		}
 		if abs.Cmp(bigRatAbsMax32) > 0 {
 			return fmt.Errorf("const %v overflows float32", cRepString(b))
 		}
-	case vdl.Float64, vdl.Complex128:
+	case vdl.Float64:
 		if abs.Cmp(bigRatAbsMin64) < 0 {
 			return fmt.Errorf("const %v underflows float64", cRepString(b))
 		}
@@ -689,26 +624,13 @@ func convertTypedRat(b *big.Rat, kind vdl.Kind) (*big.Rat, error) {
 		return nil, err
 	}
 	switch f64, _ := b.Float64(); kind {
-	case vdl.Float32, vdl.Complex64:
+	case vdl.Float32:
 		return new(big.Rat).SetFloat64(float64(float32(f64))), nil
-	case vdl.Float64, vdl.Complex128:
+	case vdl.Float64:
 		return new(big.Rat).SetFloat64(f64), nil
 	default:
 		panic(fmt.Errorf("val: convertTypedRat unhandled kind %v", kind))
 	}
-}
-
-// convertTypedComplex converts b to the typed complex, rounding as necessary.
-func convertTypedComplex(b *bigComplex, kind vdl.Kind) (*bigComplex, error) {
-	re, err := convertTypedRat(&b.re, kind)
-	if err != nil {
-		return nil, err
-	}
-	im, err := convertTypedRat(&b.im, kind)
-	if err != nil {
-		return nil, err
-	}
-	return newComplex(re, im), nil
 }
 
 // coerceConsts performs implicit conversion of cl and cr based on their
@@ -759,9 +681,6 @@ func coerceConsts(cl, cr Const) (interface{}, interface{}, *vdl.Type, error) {
 		case *big.Rat:
 			// Promote lhs to rat
 			return new(big.Rat).SetInt(vl), vr, nil, nil
-		case *bigComplex:
-			// Promote lhs to complex
-			return realComplex(new(big.Rat).SetInt(vl)), vr, nil, nil
 		}
 	case *big.Rat:
 		switch vr := cr.rep.(type) {
@@ -769,20 +688,6 @@ func coerceConsts(cl, cr Const) (interface{}, interface{}, *vdl.Type, error) {
 			// Promote rhs to rat
 			return vl, new(big.Rat).SetInt(vr), nil, nil
 		case *big.Rat:
-			return vl, vr, nil, nil
-		case *bigComplex:
-			// Promote lhs to complex
-			return realComplex(vl), vr, nil, nil
-		}
-	case *bigComplex:
-		switch vr := cr.rep.(type) {
-		case *big.Int:
-			// Promote rhs to complex
-			return vl, realComplex(new(big.Rat).SetInt(vr)), nil, nil
-		case *big.Rat:
-			// Promote rhs to complex
-			return vl, realComplex(vr), nil, nil
-		case *bigComplex:
 			return vl, vr, nil, nil
 		}
 	}
@@ -870,21 +775,6 @@ func arithBigRat(op BinaryOp, l, r *big.Rat) (*big.Rat, error) {
 		}
 		inv := new(big.Rat).Inv(r)
 		return inv.Mul(inv, l), nil
-	default:
-		panic(fmt.Errorf("val: unhandled op %q", op))
-	}
-}
-
-func arithBigComplex(op BinaryOp, l, r *bigComplex) (*bigComplex, error) {
-	switch op {
-	case Add:
-		return new(bigComplex).Add(l, r), nil
-	case Sub:
-		return new(bigComplex).Sub(l, r), nil
-	case Mul:
-		return new(bigComplex).Mul(l, r), nil
-	case Div:
-		return new(bigComplex).Div(l, r)
 	default:
 		panic(fmt.Errorf("val: unhandled op %q", op))
 	}

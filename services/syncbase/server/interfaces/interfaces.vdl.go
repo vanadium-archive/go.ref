@@ -661,16 +661,6 @@ func (t *GroupIdTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *GroupIdTarget) FromComplex(src complex128, tt *vdl.Type) error {
-
-	val, err := vdlconv.Complex128ToUint64(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = GroupId(val)
-
-	return nil
-}
 
 // Possible states for a syncgroup.
 type SyncgroupStatus int

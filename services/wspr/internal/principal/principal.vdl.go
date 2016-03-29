@@ -73,16 +73,6 @@ func (t *BlessingsIdTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *BlessingsIdTarget) FromComplex(src complex128, tt *vdl.Type) error {
-
-	val, err := vdlconv.Complex128ToUint32(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = BlessingsId(val)
-
-	return nil
-}
 
 type BlessingsCacheAddMessage struct {
 	CacheId   BlessingsId

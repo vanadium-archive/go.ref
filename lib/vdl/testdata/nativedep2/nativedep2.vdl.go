@@ -72,16 +72,6 @@ func (t *MyTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *MyTimeTarget) FromComplex(src complex128, tt *vdl.Type) error {
-
-	val, err := vdlconv.Complex128ToInt32(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = MyTime(val)
-
-	return nil
-}
 
 // Create zero values for each type.
 var (

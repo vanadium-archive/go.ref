@@ -73,16 +73,6 @@ func (t *TermTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *TermTarget) FromComplex(src complex128, tt *vdl.Type) error {
-
-	val, err := vdlconv.Complex128ToUint64(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = Term(val)
-
-	return nil
-}
 
 // Index is an index into the log.  The log entries are numbered sequentially.  At the moment
 // the entries RaftClient.Apply()ed should be sequential but that will change if we introduce
@@ -130,16 +120,6 @@ func (t *IndexTarget) FromInt(src int64, tt *vdl.Type) error {
 func (t *IndexTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	val, err := vdlconv.Float64ToUint64(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = Index(val)
-
-	return nil
-}
-func (t *IndexTarget) FromComplex(src complex128, tt *vdl.Type) error {
-
-	val, err := vdlconv.Complex128ToUint64(src)
 	if err != nil {
 		return err
 	}

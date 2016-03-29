@@ -83,11 +83,9 @@ type Scalars struct {
 	F uint64
 	G float32
 	H float64
-	I complex64
-	J complex128
-	K string
-	L error
-	M any
+	I string
+	J error
+	K any
 }
 
 type KeyScalars struct {
@@ -99,9 +97,7 @@ type KeyScalars struct {
 	F uint64
 	G float32
 	H float64
-	I complex64
-	J complex128
-	K string
+	I string
 }
 
 type CompComp struct {
@@ -119,8 +115,6 @@ const (
 	Cuint64 = uint64(5)
 	Cfloat32 = float32(6)
 	Cfloat64 = float64(7)
-	Ccomplex64 = complex64(8+9i)
-	Ccomplex128 = complex128(10+11i)
 	Cstring = "foo"
 	Cany = Cbool
 
@@ -143,7 +137,7 @@ type Composites struct {
 	A Scalars
 	B []Scalars
 	C map[string]Scalars
-	D map[KeyScalars][]map[string]complex128
+	D map[KeyScalars][]map[string]int32
 }
 
 const (

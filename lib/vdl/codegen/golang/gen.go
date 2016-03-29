@@ -162,9 +162,11 @@ func Generate(pkg *compile.Package, env *compile.Env) []byte {
 //
 // Restrict the feature to these whitelisted VDL packages for now.
 var nativeTypePackageWhitelist = map[string]bool{
+	"math": true,
 	"time": true,
 	"v.io/x/ref/lib/vdl/testdata/nativetest": true,
 	"v.io/v23/security":                      true,
+	"v.io/vdlroot/math":                      true,
 }
 
 func validateGoConfig(pkg *compile.Package, env *compile.Env) {

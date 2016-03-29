@@ -95,7 +95,7 @@ func getJustification(val *vom.RawBytes) Justification {
 	switch val.Type.Kind() {
 	// TODO(kash): Floating point numbers should have the decimal point line up.
 	case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64,
-		vdl.Float32, vdl.Float64, vdl.Complex64, vdl.Complex128:
+		vdl.Float32, vdl.Float64:
 		return Right
 	// TODO(kash): Leave nil values as unknown.
 	default:
@@ -197,9 +197,6 @@ func toString(val *vdl.Value, nested bool) string {
 		return fmt.Sprint(val.Int())
 	case vdl.Float32, vdl.Float64:
 		return fmt.Sprint(val.Float())
-	case vdl.Complex64, vdl.Complex128:
-		c := val.Complex()
-		return fmt.Sprintf("%v+%vi", real(c), imag(c))
 	case vdl.String:
 		s := val.RawString()
 		if nested {
@@ -311,10 +308,6 @@ func toJsonFriendly(val *vdl.Value) interface{} {
 		return val.Int()
 	case vdl.Float32, vdl.Float64:
 		return val.Float()
-	case vdl.Complex64, vdl.Complex128:
-		// Go doesn't support marshalling complex values, we need to stringify.
-		c := val.Complex()
-		return fmt.Sprintf("%v+%vi", real(c), imag(c))
 	case vdl.String:
 		return val.RawString()
 	case vdl.Enum:

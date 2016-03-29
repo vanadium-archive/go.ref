@@ -27,14 +27,10 @@ type ConstExpr interface {
 //   string     - Represents all string constants.
 //   *big.Int   - Represents all integer constants.
 //   *big.Rat   - Represents all rational constants.
-//   *BigImag   - Represents all imaginary constants.
 type ConstLit struct {
 	Lit interface{}
 	P   Pos
 }
-
-// BigImag represents a literal imaginary number.
-type BigImag big.Rat
 
 // ConstCompositeLit represents composite literals in const expressions.
 type ConstCompositeLit struct {
@@ -103,8 +99,6 @@ func cvString(val interface{}) string {
 		}
 		fv, _ := tv.Float64()
 		return strconv.FormatFloat(fv, 'g', -1, 64)
-	case *BigImag:
-		return cvString((*big.Rat)(tv)) + "i"
 	default:
 		panic(fmt.Errorf("vdl: unhandled const type %T value %v", val, val))
 	}

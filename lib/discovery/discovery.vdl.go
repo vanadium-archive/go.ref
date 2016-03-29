@@ -78,16 +78,6 @@ func (t *EncryptionAlgorithmTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *EncryptionAlgorithmTarget) FromComplex(src complex128, tt *vdl.Type) error {
-
-	val, err := vdlconv.Complex128ToInt32(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = EncryptionAlgorithm(val)
-
-	return nil
-}
 
 type EncryptionKey []byte
 

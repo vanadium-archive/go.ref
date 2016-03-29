@@ -26,7 +26,7 @@ func javaConstVal(v *vdl.Value, env *compile.Env) (ret string) {
 
 	ret = javaVal(v, env)
 	switch v.Type().Kind() {
-	case vdl.Complex64, vdl.Complex128, vdl.Enum, vdl.Union, vdl.Int8, vdl.Uint16, vdl.Uint32, vdl.Uint64:
+	case vdl.Enum, vdl.Union, vdl.Int8, vdl.Uint16, vdl.Uint32, vdl.Uint64:
 		return
 	}
 	if def := env.FindTypeDef(v.Type()); def != nil && def.File != compile.BuiltInFile { // User-defined type.
@@ -85,14 +85,6 @@ func javaVal(v *vdl.Value, env *compile.Env) string {
 			return c + floatSuffix
 		}
 		return c
-	case vdl.Complex64, vdl.Complex128:
-		r := strconv.FormatFloat(real(v.Complex()), 'g', -1, bitlen(v.Kind()))
-		i := strconv.FormatFloat(imag(v.Complex()), 'g', -1, bitlen(v.Kind()))
-		if v.Kind() == vdl.Complex64 {
-			r = r + "f"
-			i = i + "f"
-		}
-		return fmt.Sprintf("new %s(%s, %s)", javaType(v.Type(), true, env), r, i)
 	case vdl.String:
 		in := v.RawString()
 		if len(in) < javaMaxStringLen {
@@ -202,7 +194,7 @@ func javaZeroValue(t *vdl.Type, env *compile.Env) string {
 		return "0.0f"
 	case vdl.Float64:
 		return "0.0"
-	case vdl.Any, vdl.Complex64, vdl.Complex128, vdl.TypeObject, vdl.Int8, vdl.Uint16, vdl.Uint32, vdl.Uint64:
+	case vdl.Any, vdl.TypeObject, vdl.Int8, vdl.Uint16, vdl.Uint32, vdl.Uint64:
 		return fmt.Sprintf("new %s()", javaType(t, false, env))
 	case vdl.String:
 		return "\"\""

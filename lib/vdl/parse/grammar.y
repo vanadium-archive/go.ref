@@ -34,11 +34,6 @@ type ratPos struct {
   pos Pos
 }
 
-type imagPos struct {
-  imag *BigImag
-  pos  Pos
-}
-
 // typeListToStrList converts a slice of Type to a slice of StringPos.  Each
 // type must be a TypeNamed with an empty PackageName, otherwise errors are
 // reported, and ok=false is returned.
@@ -69,7 +64,6 @@ func typeListToStrList(yylex yyLexer, typeList []Type) (strList []StringPos, ok 
   strpos     StringPos
   intpos     intPos
   ratpos     ratPos
-  imagpos    imagPos
   namepos    NamePos
   nameposes  []NamePos
   typeexpr   Type
@@ -97,7 +91,6 @@ func typeListToStrList(yylex yyLexer, typeList []Type) (strList []StringPos, ok 
 %token <strpos>   tIDENT tSTRLIT
 %token <intpos>   tINTLIT
 %token <ratpos>   tRATLIT
-%token <imagpos>  tIMAGLIT
 
 // Labeled rules holding typed values.
 %type <strpos>     nameref dotnameref
@@ -522,7 +515,6 @@ unary_expr:
   { $$ = &ConstTypeConv{$1, $3, $1.Pos()} }
 | tTYPEOBJECT '(' type ')'
   { $$ = &ConstTypeObject{$3, $1} }
-// TODO(bprosnitz) Add .real() and .imag() for complex.
 
 operand:
   tSTRLIT
@@ -531,8 +523,6 @@ operand:
   { $$ = &ConstLit{$1.int, $1.pos} }
 | tRATLIT
   { $$ = &ConstLit{$1.rat, $1.pos} }
-| tIMAGLIT
-  { $$ = &ConstLit{$1.imag, $1.pos} }
 | nameref
   { $$ = &ConstNamed{$1.String, $1.Pos} }
 | comp_lit

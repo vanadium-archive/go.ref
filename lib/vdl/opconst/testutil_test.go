@@ -58,25 +58,23 @@ func expectMismatchedKind(t *testing.T, f func()) {
 // Define a bunch of regular Go types used in tests.
 type (
 	// Scalars
-	nInterface  interface{}
-	nType       *vdl.Type
-	nBool       bool
-	nUint8      uint8
-	nUint16     uint16
-	nUint32     uint32
-	nUint64     uint64
-	nUint       uint
-	nUintptr    uintptr
-	nInt8       int8
-	nInt16      int16
-	nInt32      int32
-	nInt64      int64
-	nInt        int
-	nFloat32    float32
-	nFloat64    float64
-	nComplex64  complex64
-	nComplex128 complex128
-	nString     string
+	nInterface interface{}
+	nType      *vdl.Type
+	nBool      bool
+	nUint8     uint8
+	nUint16    uint16
+	nUint32    uint32
+	nUint64    uint64
+	nUint      uint
+	nUintptr   uintptr
+	nInt8      int8
+	nInt16     int16
+	nInt32     int32
+	nInt64     int64
+	nInt       int
+	nFloat32   float32
+	nFloat64   float64
+	nString    string
 	// Arrays
 	nArray3Interface  [3]nInterface
 	nArray3TypeObject [3]*vdl.Type
@@ -94,8 +92,6 @@ type (
 	nArray3Int        [3]int
 	nArray3Float32    [3]float32
 	nArray3Float64    [3]float64
-	nArray3Complex64  [3]complex64
-	nArray3Complex128 [3]complex128
 	nArray3String     [3]string
 	// Structs
 	nStructInterface  struct{ X nInterface }
@@ -114,8 +110,6 @@ type (
 	nStructInt        struct{ X int }
 	nStructFloat32    struct{ X float32 }
 	nStructFloat64    struct{ X float64 }
-	nStructComplex64  struct{ X complex64 }
-	nStructComplex128 struct{ X complex128 }
 	nStructString     struct{ X string }
 	// Slices
 	nSliceInterface  []nInterface
@@ -134,8 +128,6 @@ type (
 	nSliceInt        []int
 	nSliceFloat32    []float32
 	nSliceFloat64    []float64
-	nSliceComplex64  []complex64
-	nSliceComplex128 []complex128
 	nSliceString     []string
 	// Sets
 	nSetInterface  map[nInterface]struct{}
@@ -154,8 +146,6 @@ type (
 	nSetInt        map[int]struct{}
 	nSetFloat32    map[float32]struct{}
 	nSetFloat64    map[float64]struct{}
-	nSetComplex64  map[complex64]struct{}
-	nSetComplex128 map[complex128]struct{}
 	nSetString     map[string]struct{}
 	// Maps
 	nMapInterface  map[nInterface]nInterface
@@ -174,8 +164,6 @@ type (
 	nMapInt        map[int]int
 	nMapFloat32    map[float32]float32
 	nMapFloat64    map[float64]float64
-	nMapComplex64  map[complex64]complex64
-	nMapComplex128 map[complex128]complex128
 	nMapString     map[string]string
 	// Recursive types
 	nRecurseSelf struct{ X []nRecurseSelf }
@@ -183,32 +171,27 @@ type (
 	nRecurseB    struct{ A []nRecurseA }
 
 	// Composite types representing sets of numbers.
-	nMapUint64Empty    map[nUint64]struct{}
-	nMapInt64Empty     map[nUint64]struct{}
-	nMapFloat64Empty   map[nUint64]struct{}
-	nMapComplex64Empty map[nUint64]struct{}
-	nMapUint64Bool     map[nUint64]nBool
-	nMapInt64Bool      map[nInt64]nBool
-	nMapFloat64Bool    map[nFloat64]nBool
-	nMapComplex64Bool  map[nComplex64]nBool
+	nMapUint64Empty  map[nUint64]struct{}
+	nMapInt64Empty   map[nUint64]struct{}
+	nMapFloat64Empty map[nUint64]struct{}
+	nMapUint64Bool   map[nUint64]nBool
+	nMapInt64Bool    map[nInt64]nBool
+	nMapFloat64Bool  map[nFloat64]nBool
 	// Composite types representing sets of strings.
 	nMapStringEmpty map[nString]struct{}
 	nMapStringBool  map[nString]nBool
 	nStructXYZBool  struct{ X, Y, Z nBool }
 	nStructWXBool   struct{ W, X nBool }
 	// Composite types representing maps of strings to numbers.
-	nMapStringUint64    map[nString]nUint64
-	nMapStringInt64     map[nString]nInt64
-	nMapStringFloat64   map[nString]nFloat64
-	nMapStringComplex64 map[nString]nComplex64
-	nStructVWXUint64    struct{ V, W, X nUint64 }
-	nStructVWXInt64     struct{ V, W, X nInt64 }
-	nStructVWXFloat64   struct{ V, W, X nFloat64 }
-	nStructVWXComplex64 struct{ V, W, X nComplex64 }
-	nStructUVUint64     struct{ U, V nUint64 }
-	nStructUVInt64      struct{ U, V nInt64 }
-	nStructUVFloat64    struct{ U, V nFloat64 }
-	nStructUVComplex64  struct{ U, V nComplex64 }
+	nMapStringUint64  map[nString]nUint64
+	nMapStringInt64   map[nString]nInt64
+	nMapStringFloat64 map[nString]nFloat64
+	nStructVWXUint64  struct{ V, W, X nUint64 }
+	nStructVWXInt64   struct{ V, W, X nInt64 }
+	nStructVWXFloat64 struct{ V, W, X nFloat64 }
+	nStructUVUint64   struct{ U, V nUint64 }
+	nStructUVInt64    struct{ U, V nInt64 }
+	nStructUVFloat64  struct{ U, V nFloat64 }
 	// Types that cannot be converted to sets.  We represent sets as
 	// map[key]struct{} on the Go side, but don't allow map[key]nEmpty.
 	nEmpty           struct{}
@@ -253,19 +236,17 @@ func recurseBType() *vdl.Type { return recurseABTypes()[1] }
 // Define a bunch of *Type types used in tests.
 var (
 	// Named scalar types
-	boolTypeN       = vdl.NamedType("nBool", vdl.BoolType)
-	nByteType       = vdl.NamedType("nByte", vdl.ByteType)
-	uint16TypeN     = vdl.NamedType("nUint16", vdl.Uint16Type)
-	uint32TypeN     = vdl.NamedType("nUint32", vdl.Uint32Type)
-	uint64TypeN     = vdl.NamedType("nUint64", vdl.Uint64Type)
-	int16TypeN      = vdl.NamedType("nInt16", vdl.Int16Type)
-	int32TypeN      = vdl.NamedType("nInt32", vdl.Int32Type)
-	int64TypeN      = vdl.NamedType("nInt64", vdl.Int64Type)
-	float32TypeN    = vdl.NamedType("nFloat32", vdl.Float32Type)
-	float64TypeN    = vdl.NamedType("nFloat64", vdl.Float64Type)
-	complex64TypeN  = vdl.NamedType("nComplex64", vdl.Complex64Type)
-	complex128TypeN = vdl.NamedType("nComplex128", vdl.Complex128Type)
-	stringTypeN     = vdl.NamedType("nString", vdl.StringType)
+	boolTypeN    = vdl.NamedType("nBool", vdl.BoolType)
+	nByteType    = vdl.NamedType("nByte", vdl.ByteType)
+	uint16TypeN  = vdl.NamedType("nUint16", vdl.Uint16Type)
+	uint32TypeN  = vdl.NamedType("nUint32", vdl.Uint32Type)
+	uint64TypeN  = vdl.NamedType("nUint64", vdl.Uint64Type)
+	int16TypeN   = vdl.NamedType("nInt16", vdl.Int16Type)
+	int32TypeN   = vdl.NamedType("nInt32", vdl.Int32Type)
+	int64TypeN   = vdl.NamedType("nInt64", vdl.Int64Type)
+	float32TypeN = vdl.NamedType("nFloat32", vdl.Float32Type)
+	float64TypeN = vdl.NamedType("nFloat64", vdl.Float64Type)
+	stringTypeN  = vdl.NamedType("nString", vdl.StringType)
 
 	// Composite types representing strings and bytes.
 	bytesType   = vdl.ListType(vdl.ByteType)
@@ -273,39 +254,31 @@ var (
 	bytes3Type  = vdl.ArrayType(3, vdl.ByteType)
 	bytes3TypeN = vdl.NamedType("nBytes3", bytes3Type)
 	// Composite types representing sequences of numbers.
-	array3Uint64Type     = vdl.ArrayType(3, vdl.Uint64Type)
-	array3Uint64TypeN    = vdl.NamedType("nArray3Uint64", vdl.ArrayType(3, uint64TypeN))
-	array3Int64Type      = vdl.ArrayType(3, vdl.Int64Type)
-	array3Int64TypeN     = vdl.NamedType("nArray3Int64", vdl.ArrayType(3, int64TypeN))
-	array3Float64Type    = vdl.ArrayType(3, vdl.Float64Type)
-	array3Float64TypeN   = vdl.NamedType("nArray3Float64", vdl.ArrayType(3, float64TypeN))
-	array3Complex64Type  = vdl.ArrayType(3, vdl.Complex64Type)
-	array3Complex64TypeN = vdl.NamedType("nArray3Complex64", vdl.ArrayType(3, complex64TypeN))
-	listUint64Type       = vdl.ListType(vdl.Uint64Type)
-	listUint64TypeN      = vdl.NamedType("nListUint64", vdl.ListType(uint64TypeN))
-	listInt64Type        = vdl.ListType(vdl.Int64Type)
-	listInt64TypeN       = vdl.NamedType("nListInt64", vdl.ListType(int64TypeN))
-	listFloat64Type      = vdl.ListType(vdl.Float64Type)
-	listFloat64TypeN     = vdl.NamedType("nListFloat64", vdl.ListType(float64TypeN))
-	listComplex64Type    = vdl.ListType(vdl.Complex64Type)
-	listComplex64TypeN   = vdl.NamedType("nListComplex64", vdl.ListType(complex64TypeN))
+	array3Uint64Type   = vdl.ArrayType(3, vdl.Uint64Type)
+	array3Uint64TypeN  = vdl.NamedType("nArray3Uint64", vdl.ArrayType(3, uint64TypeN))
+	array3Int64Type    = vdl.ArrayType(3, vdl.Int64Type)
+	array3Int64TypeN   = vdl.NamedType("nArray3Int64", vdl.ArrayType(3, int64TypeN))
+	array3Float64Type  = vdl.ArrayType(3, vdl.Float64Type)
+	array3Float64TypeN = vdl.NamedType("nArray3Float64", vdl.ArrayType(3, float64TypeN))
+	listUint64Type     = vdl.ListType(vdl.Uint64Type)
+	listUint64TypeN    = vdl.NamedType("nListUint64", vdl.ListType(uint64TypeN))
+	listInt64Type      = vdl.ListType(vdl.Int64Type)
+	listInt64TypeN     = vdl.NamedType("nListInt64", vdl.ListType(int64TypeN))
+	listFloat64Type    = vdl.ListType(vdl.Float64Type)
+	listFloat64TypeN   = vdl.NamedType("nListFloat64", vdl.ListType(float64TypeN))
 	// Composite types representing sets of numbers.
-	setUint64Type         = vdl.SetType(vdl.Uint64Type)
-	setUint64TypeN        = vdl.NamedType("nSetUint64", vdl.SetType(uint64TypeN))
-	setInt64Type          = vdl.SetType(vdl.Int64Type)
-	setInt64TypeN         = vdl.NamedType("nSetInt64", vdl.SetType(int64TypeN))
-	setFloat64Type        = vdl.SetType(vdl.Float64Type)
-	setFloat64TypeN       = vdl.NamedType("nSetFloat64", vdl.SetType(float64TypeN))
-	setComplex64Type      = vdl.SetType(vdl.Complex64Type)
-	setComplex64TypeN     = vdl.NamedType("nSetComplex64", vdl.SetType(complex64TypeN))
-	mapUint64BoolType     = vdl.MapType(vdl.Uint64Type, vdl.BoolType)
-	mapUint64BoolTypeN    = vdl.NamedType("nMapUint64Bool", vdl.MapType(uint64TypeN, boolTypeN))
-	mapInt64BoolType      = vdl.MapType(vdl.Int64Type, vdl.BoolType)
-	mapInt64BoolTypeN     = vdl.NamedType("nMapInt64Bool", vdl.MapType(int64TypeN, boolTypeN))
-	mapFloat64BoolType    = vdl.MapType(vdl.Float64Type, vdl.BoolType)
-	mapFloat64BoolTypeN   = vdl.NamedType("nMapFloat64Bool", vdl.MapType(float64TypeN, boolTypeN))
-	mapComplex64BoolType  = vdl.MapType(vdl.Complex64Type, vdl.BoolType)
-	mapComplex64BoolTypeN = vdl.NamedType("nMapComplex64Bool", vdl.MapType(complex64TypeN, boolTypeN))
+	setUint64Type       = vdl.SetType(vdl.Uint64Type)
+	setUint64TypeN      = vdl.NamedType("nSetUint64", vdl.SetType(uint64TypeN))
+	setInt64Type        = vdl.SetType(vdl.Int64Type)
+	setInt64TypeN       = vdl.NamedType("nSetInt64", vdl.SetType(int64TypeN))
+	setFloat64Type      = vdl.SetType(vdl.Float64Type)
+	setFloat64TypeN     = vdl.NamedType("nSetFloat64", vdl.SetType(float64TypeN))
+	mapUint64BoolType   = vdl.MapType(vdl.Uint64Type, vdl.BoolType)
+	mapUint64BoolTypeN  = vdl.NamedType("nMapUint64Bool", vdl.MapType(uint64TypeN, boolTypeN))
+	mapInt64BoolType    = vdl.MapType(vdl.Int64Type, vdl.BoolType)
+	mapInt64BoolTypeN   = vdl.NamedType("nMapInt64Bool", vdl.MapType(int64TypeN, boolTypeN))
+	mapFloat64BoolType  = vdl.MapType(vdl.Float64Type, vdl.BoolType)
+	mapFloat64BoolTypeN = vdl.NamedType("nMapFloat64Bool", vdl.MapType(float64TypeN, boolTypeN))
 	// Composite types representing sets of strings.
 	setStringType      = vdl.SetType(vdl.StringType)
 	setStringTypeN     = vdl.NamedType("nSetString", vdl.SetType(stringTypeN))
@@ -316,30 +289,24 @@ var (
 	structWXBoolType   = vdl.StructType(vdl.Field{Name: "W", Type: vdl.BoolType}, vdl.Field{Name: "X", Type: vdl.BoolType})
 	structWXBoolTypeN  = vdl.NamedType("nStructWXBool", vdl.StructType(vdl.Field{Name: "W", Type: boolTypeN}, vdl.Field{Name: "X", Type: boolTypeN}))
 	// Composite types representing maps of strings to numbers.
-	mapStringUint64Type     = vdl.MapType(vdl.StringType, vdl.Uint64Type)
-	mapStringUint64TypeN    = vdl.NamedType("nMapStringUint64", vdl.MapType(stringTypeN, uint64TypeN))
-	mapStringInt64Type      = vdl.MapType(vdl.StringType, vdl.Int64Type)
-	mapStringInt64TypeN     = vdl.NamedType("nMapStringInt64", vdl.MapType(stringTypeN, int64TypeN))
-	mapStringFloat64Type    = vdl.MapType(vdl.StringType, vdl.Float64Type)
-	mapStringFloat64TypeN   = vdl.NamedType("nMapStringFloat64", vdl.MapType(stringTypeN, float64TypeN))
-	mapStringComplex64Type  = vdl.MapType(vdl.StringType, vdl.Complex64Type)
-	mapStringComplex64TypeN = vdl.NamedType("nMapStringComplex64", vdl.MapType(stringTypeN, complex64TypeN))
-	structVWXUint64Type     = vdl.StructType(vdl.Field{Name: "V", Type: vdl.Uint64Type}, vdl.Field{Name: "W", Type: vdl.Uint64Type}, vdl.Field{Name: "X", Type: vdl.Uint64Type})
-	structVWXUint64TypeN    = vdl.NamedType("nStructVWXUint64", vdl.StructType(vdl.Field{Name: "V", Type: uint64TypeN}, vdl.Field{Name: "W", Type: uint64TypeN}, vdl.Field{Name: "X", Type: uint64TypeN}))
-	structVWXInt64Type      = vdl.StructType(vdl.Field{Name: "V", Type: vdl.Int64Type}, vdl.Field{Name: "W", Type: vdl.Int64Type}, vdl.Field{Name: "X", Type: vdl.Int64Type})
-	structVWXInt64TypeN     = vdl.NamedType("nStructVWXInt64", vdl.StructType(vdl.Field{Name: "V", Type: int64TypeN}, vdl.Field{Name: "W", Type: int64TypeN}, vdl.Field{Name: "X", Type: int64TypeN}))
-	structVWXFloat64Type    = vdl.StructType(vdl.Field{Name: "V", Type: vdl.Float64Type}, vdl.Field{Name: "W", Type: vdl.Float64Type}, vdl.Field{Name: "X", Type: vdl.Float64Type})
-	structVWXFloat64TypeN   = vdl.NamedType("nStructVWXFloat64", vdl.StructType(vdl.Field{Name: "V", Type: float64TypeN}, vdl.Field{Name: "W", Type: float64TypeN}, vdl.Field{Name: "X", Type: float64TypeN}))
-	structVWXComplex64Type  = vdl.StructType(vdl.Field{Name: "V", Type: vdl.Complex64Type}, vdl.Field{Name: "W", Type: vdl.Complex64Type}, vdl.Field{Name: "X", Type: vdl.Complex64Type})
-	structVWXComplex64TypeN = vdl.NamedType("nStructVWXComplex64", vdl.StructType(vdl.Field{Name: "V", Type: complex64TypeN}, vdl.Field{Name: "W", Type: complex64TypeN}, vdl.Field{Name: "X", Type: complex64TypeN}))
-	structUVUint64Type      = vdl.StructType(vdl.Field{Name: "U", Type: vdl.Uint64Type}, vdl.Field{Name: "V", Type: vdl.Uint64Type})
-	structUVUint64TypeN     = vdl.NamedType("nStructUVUint64", vdl.StructType(vdl.Field{Name: "U", Type: uint64TypeN}, vdl.Field{Name: "V", Type: uint64TypeN}))
-	structUVInt64Type       = vdl.StructType(vdl.Field{Name: "U", Type: vdl.Int64Type}, vdl.Field{Name: "V", Type: vdl.Int64Type})
-	structUVInt64TypeN      = vdl.NamedType("nStructUVInt64", vdl.StructType(vdl.Field{Name: "U", Type: int64TypeN}, vdl.Field{Name: "V", Type: int64TypeN}))
-	structUVFloat64Type     = vdl.StructType(vdl.Field{Name: "U", Type: vdl.Float64Type}, vdl.Field{Name: "V", Type: vdl.Float64Type})
-	structUVFloat64TypeN    = vdl.NamedType("nStructUVFloat64", vdl.StructType(vdl.Field{Name: "U", Type: float64TypeN}, vdl.Field{Name: "V", Type: float64TypeN}))
-	structUVComplex64Type   = vdl.StructType(vdl.Field{Name: "U", Type: vdl.Complex64Type}, vdl.Field{Name: "V", Type: vdl.Complex64Type})
-	structUVComplex64TypeN  = vdl.NamedType("nStructUVComplex64", vdl.StructType(vdl.Field{Name: "U", Type: complex64TypeN}, vdl.Field{Name: "V", Type: complex64TypeN}))
+	mapStringUint64Type   = vdl.MapType(vdl.StringType, vdl.Uint64Type)
+	mapStringUint64TypeN  = vdl.NamedType("nMapStringUint64", vdl.MapType(stringTypeN, uint64TypeN))
+	mapStringInt64Type    = vdl.MapType(vdl.StringType, vdl.Int64Type)
+	mapStringInt64TypeN   = vdl.NamedType("nMapStringInt64", vdl.MapType(stringTypeN, int64TypeN))
+	mapStringFloat64Type  = vdl.MapType(vdl.StringType, vdl.Float64Type)
+	mapStringFloat64TypeN = vdl.NamedType("nMapStringFloat64", vdl.MapType(stringTypeN, float64TypeN))
+	structVWXUint64Type   = vdl.StructType(vdl.Field{Name: "V", Type: vdl.Uint64Type}, vdl.Field{Name: "W", Type: vdl.Uint64Type}, vdl.Field{Name: "X", Type: vdl.Uint64Type})
+	structVWXUint64TypeN  = vdl.NamedType("nStructVWXUint64", vdl.StructType(vdl.Field{Name: "V", Type: uint64TypeN}, vdl.Field{Name: "W", Type: uint64TypeN}, vdl.Field{Name: "X", Type: uint64TypeN}))
+	structVWXInt64Type    = vdl.StructType(vdl.Field{Name: "V", Type: vdl.Int64Type}, vdl.Field{Name: "W", Type: vdl.Int64Type}, vdl.Field{Name: "X", Type: vdl.Int64Type})
+	structVWXInt64TypeN   = vdl.NamedType("nStructVWXInt64", vdl.StructType(vdl.Field{Name: "V", Type: int64TypeN}, vdl.Field{Name: "W", Type: int64TypeN}, vdl.Field{Name: "X", Type: int64TypeN}))
+	structVWXFloat64Type  = vdl.StructType(vdl.Field{Name: "V", Type: vdl.Float64Type}, vdl.Field{Name: "W", Type: vdl.Float64Type}, vdl.Field{Name: "X", Type: vdl.Float64Type})
+	structVWXFloat64TypeN = vdl.NamedType("nStructVWXFloat64", vdl.StructType(vdl.Field{Name: "V", Type: float64TypeN}, vdl.Field{Name: "W", Type: float64TypeN}, vdl.Field{Name: "X", Type: float64TypeN}))
+	structUVUint64Type    = vdl.StructType(vdl.Field{Name: "U", Type: vdl.Uint64Type}, vdl.Field{Name: "V", Type: vdl.Uint64Type})
+	structUVUint64TypeN   = vdl.NamedType("nStructUVUint64", vdl.StructType(vdl.Field{Name: "U", Type: uint64TypeN}, vdl.Field{Name: "V", Type: uint64TypeN}))
+	structUVInt64Type     = vdl.StructType(vdl.Field{Name: "U", Type: vdl.Int64Type}, vdl.Field{Name: "V", Type: vdl.Int64Type})
+	structUVInt64TypeN    = vdl.NamedType("nStructUVInt64", vdl.StructType(vdl.Field{Name: "U", Type: int64TypeN}, vdl.Field{Name: "V", Type: int64TypeN}))
+	structUVFloat64Type   = vdl.StructType(vdl.Field{Name: "U", Type: vdl.Float64Type}, vdl.Field{Name: "V", Type: vdl.Float64Type})
+	structUVFloat64TypeN  = vdl.NamedType("nStructUVFloat64", vdl.StructType(vdl.Field{Name: "U", Type: float64TypeN}, vdl.Field{Name: "V", Type: float64TypeN}))
 
 	structAIntType  = vdl.StructType(vdl.Field{Name: "A", Type: vdl.Int64Type})
 	structAIntTypeN = vdl.NamedType("nStructA", structAIntType)
@@ -355,15 +322,14 @@ var (
 	structXYZEmptyTypeN = vdl.NamedType("nStructXYZEmpty", vdl.StructType(vdl.Field{Name: "X", Type: emptyTypeN}, vdl.Field{Name: "Y", Type: emptyTypeN}, vdl.Field{Name: "Z", Type: emptyTypeN}))
 )
 
-func anyValue(x *vdl.Value) *vdl.Value                  { return vdl.ZeroValue(vdl.AnyType).Assign(x) }
-func boolValue(t *vdl.Type, x bool) *vdl.Value          { return vdl.ZeroValue(t).AssignBool(x) }
-func uintValue(t *vdl.Type, x uint64) *vdl.Value        { return vdl.ZeroValue(t).AssignUint(x) }
-func intValue(t *vdl.Type, x int64) *vdl.Value          { return vdl.ZeroValue(t).AssignInt(x) }
-func floatValue(t *vdl.Type, x float64) *vdl.Value      { return vdl.ZeroValue(t).AssignFloat(x) }
-func complexValue(t *vdl.Type, x complex128) *vdl.Value { return vdl.ZeroValue(t).AssignComplex(x) }
-func stringValue(t *vdl.Type, x string) *vdl.Value      { return vdl.ZeroValue(t).AssignString(x) }
-func bytesValue(t *vdl.Type, x string) *vdl.Value       { return vdl.ZeroValue(t).AssignBytes([]byte(x)) }
-func bytes3Value(t *vdl.Type, x string) *vdl.Value      { return vdl.ZeroValue(t).CopyBytes([]byte(x)) }
+func anyValue(x *vdl.Value) *vdl.Value             { return vdl.ZeroValue(vdl.AnyType).Assign(x) }
+func boolValue(t *vdl.Type, x bool) *vdl.Value     { return vdl.ZeroValue(t).AssignBool(x) }
+func uintValue(t *vdl.Type, x uint64) *vdl.Value   { return vdl.ZeroValue(t).AssignUint(x) }
+func intValue(t *vdl.Type, x int64) *vdl.Value     { return vdl.ZeroValue(t).AssignInt(x) }
+func floatValue(t *vdl.Type, x float64) *vdl.Value { return vdl.ZeroValue(t).AssignFloat(x) }
+func stringValue(t *vdl.Type, x string) *vdl.Value { return vdl.ZeroValue(t).AssignString(x) }
+func bytesValue(t *vdl.Type, x string) *vdl.Value  { return vdl.ZeroValue(t).AssignBytes([]byte(x)) }
+func bytes3Value(t *vdl.Type, x string) *vdl.Value { return vdl.ZeroValue(t).CopyBytes([]byte(x)) }
 
 func setStringValue(t *vdl.Type, x ...string) *vdl.Value {
 	res := vdl.ZeroValue(t)
@@ -416,8 +382,6 @@ func assignNum(v *vdl.Value, num float64) *vdl.Value {
 		v.AssignInt(int64(num))
 	case vdl.Float32, vdl.Float64:
 		v.AssignFloat(num)
-	case vdl.Complex64, vdl.Complex128:
-		v.AssignComplex(complex(num, 0))
 	default:
 		panic(fmt.Errorf("val: assignNum unhandled %v", v.Type()))
 	}

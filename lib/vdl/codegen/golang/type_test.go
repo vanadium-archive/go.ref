@@ -33,8 +33,6 @@ func TestType(t *testing.T) {
 		{vdl.Int64Type, `int64`},
 		{vdl.Float32Type, `float32`},
 		{vdl.Float64Type, `float64`},
-		{vdl.Complex64Type, `complex64`},
-		{vdl.Complex128Type, `complex128`},
 		{tArray, `[3]string`},
 		{tList, `[]string`},
 		{tSet, `map[string]struct{}`},

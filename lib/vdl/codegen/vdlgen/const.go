@@ -71,15 +71,6 @@ func UntypedConst(v *vdl.Value, pkgPath string, imports codegen.Imports) string 
 		return strconv.FormatInt(v.Int(), 10)
 	case vdl.Float32, vdl.Float64:
 		return formatFloat(v.Float(), k)
-	case vdl.Complex64, vdl.Complex128:
-		switch re, im := real(v.Complex()), imag(v.Complex()); {
-		case im > 0:
-			return formatFloat(re, k) + "+" + formatFloat(im, k) + "i"
-		case im < 0:
-			return formatFloat(re, k) + formatFloat(im, k) + "i"
-		default:
-			return formatFloat(re, k)
-		}
 	case vdl.String:
 		return strconv.Quote(v.RawString())
 	case vdl.Array, vdl.List:
@@ -139,9 +130,9 @@ func UntypedConst(v *vdl.Value, pkgPath string, imports codegen.Imports) string 
 func formatFloat(x float64, kind vdl.Kind) string {
 	var bitSize int
 	switch kind {
-	case vdl.Float32, vdl.Complex64:
+	case vdl.Float32:
 		bitSize = 32
-	case vdl.Float64, vdl.Complex128:
+	case vdl.Float64:
 		bitSize = 64
 	default:
 		panic(fmt.Errorf("formatFloat unhandled kind: %v", kind))

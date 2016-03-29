@@ -114,10 +114,6 @@ func javaBuiltInType(typ *vdl.Type, forceClass bool) (string, bool) {
 		} else {
 			return "double", false
 		}
-	case vdl.Complex64:
-		return "io.v.v23.vdl.VdlComplex64", true
-	case vdl.Complex128:
-		return "io.v.v23.vdl.VdlComplex128", true
 	case vdl.String:
 		return "java.lang.String", true
 	case vdl.TypeObject:
@@ -186,7 +182,7 @@ func javaType(t *vdl.Type, forceClass bool, env *compile.Env) string {
 
 func javaVdlPrimitiveType(kind vdl.Kind) string {
 	switch kind {
-	case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.Complex128, vdl.Complex64, vdl.String:
+	case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.String:
 		return "io.v.v23.vdl.Vdl" + vdlutil.FirstRuneToUpper(kind.String())
 	}
 	log.Fatalf("val: unhandled kind: %v", kind)
@@ -239,9 +235,9 @@ func isJavaNativeArray(t *vdl.Type, env *compile.Env) bool {
 
 func bitlen(kind vdl.Kind) int {
 	switch kind {
-	case vdl.Float32, vdl.Complex64:
+	case vdl.Float32:
 		return 32
-	case vdl.Float64, vdl.Complex128:
+	case vdl.Float64:
 		return 64
 	}
 	panic(fmt.Errorf("vdl: bitLen unhandled kind %v", kind))

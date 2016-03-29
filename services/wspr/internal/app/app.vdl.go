@@ -85,16 +85,6 @@ func (t *GranterHandleTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *GranterHandleTarget) FromComplex(src complex128, tt *vdl.Type) error {
-
-	val, err := vdlconv.Complex128ToInt32(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = GranterHandle(val)
-
-	return nil
-}
 
 type (
 	// RpcCallOption represents any single field of the RpcCallOption union type.

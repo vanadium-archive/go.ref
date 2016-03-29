@@ -42,7 +42,6 @@ type %[1]s struct {
 	s += genNumberFromX(data, t, vdl.Uint64, valueAssn)
 	s += genNumberFromX(data, t, vdl.Int64, valueAssn)
 	s += genNumberFromX(data, t, vdl.Float64, valueAssn)
-	s += genNumberFromX(data, t, vdl.Complex128, valueAssn)
 	return s
 }
 
@@ -60,9 +59,6 @@ func genNumberFromX(data *goData, targetType *vdl.Type, sourceKind vdl.Kind, val
 	case vdl.Float64:
 		X = "Float"
 		fromType = "float64"
-	case vdl.Complex128:
-		X = "Complex"
-		fromType = "complex128"
 	default:
 		panic("invalid source kind")
 	}
@@ -514,7 +510,7 @@ func genTargetDef(data *goData, t *vdl.Type) string {
 			return genBasicTargetDef(data, t, "Bool", "bool")
 		case vdl.String:
 			return genBasicTargetDef(data, t, "String", "string")
-		case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.Complex64, vdl.Complex128:
+		case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64:
 			return genNumberTargetDef(data, t)
 		}
 	}
@@ -565,7 +561,7 @@ func externalTargetTypeName(data *goData, t *vdl.Type) string {
 	}
 	if anon {
 		switch t.Kind() {
-		case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.Complex64, vdl.Complex128, vdl.String, vdl.TypeObject:
+		case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.String, vdl.TypeObject:
 			return data.Pkg("v.io/v23/vdl") + kindVarName(t.Kind()) + "Target"
 		}
 	}

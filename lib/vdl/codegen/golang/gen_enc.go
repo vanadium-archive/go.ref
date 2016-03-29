@@ -373,9 +373,6 @@ func genFromScalar(data *goData, t *vdl.Type, instName, targetName, ttSuffix str
 	case vdl.Float32, vdl.Float64:
 		methodName = "FromFloat"
 		castType = "float64"
-	case vdl.Complex64, vdl.Complex128:
-		methodName = "FromComplex"
-		castType = "complex128"
 	case vdl.String:
 		methodName = "FromString"
 		castType = "string"

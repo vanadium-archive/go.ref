@@ -1074,8 +1074,6 @@ type Numbers struct {
 	I64  int64
 	F32  float32
 	F64  float64
-	C64  complex64
-	C128 complex128
 }
 
 func (Numbers) __VDLReflect(struct {
@@ -1197,30 +1195,6 @@ func (m *Numbers) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			return err
 		}
 	}
-	keyTarget20, fieldTarget21, err := fieldsTarget1.StartField("C64")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget21.FromComplex(complex128(m.C64), tt.NonOptional().Field(9).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget20, fieldTarget21); err != nil {
-			return err
-		}
-	}
-	keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("C128")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget23.FromComplex(complex128(m.C128), tt.NonOptional().Field(10).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
-			return err
-		}
-	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
 		return err
 	}
@@ -1242,8 +1216,6 @@ type NumbersTarget struct {
 	i64Target  vdl.Int64Target
 	f32Target  vdl.Float32Target
 	f64Target  vdl.Float64Target
-	c64Target  vdl.Complex64Target
-	c128Target vdl.Complex128Target
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1292,14 +1264,6 @@ func (t *NumbersTarget) StartField(name string) (key, field vdl.Target, _ error)
 	case "F64":
 		t.f64Target.Value = &t.Value.F64
 		target, err := &t.f64Target, error(nil)
-		return nil, target, err
-	case "C64":
-		t.c64Target.Value = &t.Value.C64
-		target, err := &t.c64Target, error(nil)
-		return nil, target, err
-	case "C128":
-		t.c128Target.Value = &t.Value.C128
-		target, err := &t.c128Target, error(nil)
 		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/cmd/sb/internal/demodb.Numbers", name)
