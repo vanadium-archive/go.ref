@@ -431,6 +431,12 @@ func (b *bleNeighborhood) startBLEService() error {
 	return nil
 }
 
+func (b *bleNeighborhood) stopBLEService() {
+	// TODO(jhahn): There is no way to close the underlying device for now.
+	b.device.StopScanning()
+	b.device.StopAdvertising()
+}
+
 func (b *bleNeighborhood) saveDevice(stamp string, id string, services map[string]*bleAd) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

@@ -157,6 +157,8 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscover
 	return nil
 }
 
+func (p *plugin) Close() {}
+
 func (p *plugin) subscribeToService(serviceName string) {
 	p.subscriptionMu.Lock()
 	sub := p.subscription[serviceName]

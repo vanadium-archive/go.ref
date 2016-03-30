@@ -107,6 +107,8 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscover
 	return nil
 }
 
+func (p *plugin) Close() {}
+
 // RegisterAd registers an advertisement to the plugin. If there is already an
 // advertisement with the same id, it will be updated with the given advertisement.
 func (p *plugin) RegisterAd(adinfo *idiscovery.AdInfo) {

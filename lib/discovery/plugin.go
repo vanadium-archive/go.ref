@@ -29,10 +29,15 @@ type Plugin interface {
 	//
 	// An empty interface name means any advertisements.
 	//
-	// Advertisements that are returned through the channel can be changed. The plugin
-	// should not reuse the returned advertisement.
+	// Advertisements that are returned through the channel can be changed.
+	// The plugin should not reuse the returned advertisement.
 	//
 	// Scanning should continue until the context is canceled or exceeds its
 	// deadline. done should be called once when scanning is done or canceled.
 	Scan(ctx *context.T, interfaceName string, ch chan<- *AdInfo, done func()) error
+
+	// Close closes the plugin.
+	//
+	// This will be called after all active tasks have been cancelled.
+	Close()
 }

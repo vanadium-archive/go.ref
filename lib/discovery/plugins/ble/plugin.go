@@ -56,6 +56,10 @@ func (b *blePlugin) Scan(ctx *context.T, interfaceName string, scan chan<- *idis
 	return nil
 }
 
+func (b *blePlugin) Close() {
+	b.b.stopBLEService()
+}
+
 func New(_ *context.T, name string) (idiscovery.Plugin, error) {
 	b, err := newBleNeighborhood(name)
 	if err != nil {

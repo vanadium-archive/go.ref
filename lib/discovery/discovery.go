@@ -36,6 +36,10 @@ func (d *idiscovery) shutdown() {
 	d.closed = true
 	d.mu.Unlock()
 	d.wg.Wait()
+
+	for _, plugin := range d.plugins {
+		plugin.Close()
+	}
 }
 
 func (d *idiscovery) addTask(ctx *context.T) (*context.T, func(), error) {
