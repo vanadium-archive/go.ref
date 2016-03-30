@@ -78,6 +78,10 @@ func (t *EncryptionAlgorithmTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
+func (t *EncryptionAlgorithmTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = EncryptionAlgorithm(0)
+	return nil
+}
 
 type EncryptionKey []byte
 
@@ -114,6 +118,10 @@ func (t *EncryptionKeyTarget) FromBytes(src []byte, tt *vdl.Type) error {
 		copy(*t.Value, src)
 	}
 
+	return nil
+}
+func (t *EncryptionKeyTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = EncryptionKey(nil)
 	return nil
 }
 
@@ -154,6 +162,10 @@ func (t *UuidTarget) FromBytes(src []byte, tt *vdl.Type) error {
 
 	return nil
 }
+func (t *UuidTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Uuid(nil)
+	return nil
+}
 
 // An AdHash is a hash of an advertisement.
 type AdHash [8]byte
@@ -188,6 +200,10 @@ func (t *AdHashTarget) FromBytes(src []byte, tt *vdl.Type) error {
 
 	return nil
 }
+func (t *AdHashTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = AdHash{}
+	return nil
+}
 
 // AdInfo represents advertisement information for discovery.
 type AdInfo struct {
@@ -218,114 +234,186 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Ad")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Ad.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var4 := true
+		var5 := (m.Ad.Id == discovery.AdId{})
+		var4 = var4 && var5
+		var6 := (m.Ad.InterfaceName == "")
+		var4 = var4 && var6
+		var var7 bool
+		if len(m.Ad.Addresses) == 0 {
+			var7 = true
+		}
+		var4 = var4 && var7
+		var var8 bool
+		if len(m.Ad.Attributes) == 0 {
+			var8 = true
+		}
+		var4 = var4 && var8
+		var var9 bool
+		if len(m.Ad.Attachments) == 0 {
+			var9 = true
+		}
+		var4 = var4 && var9
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Ad.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("EncryptionAlgorithm")
+	keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("EncryptionAlgorithm")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.EncryptionAlgorithm.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var12 := (m.EncryptionAlgorithm == EncryptionAlgorithm(0))
+		if var12 {
+			if err := fieldTarget11.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.EncryptionAlgorithm.FillVDLTarget(fieldTarget11, tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
 			return err
 		}
 	}
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("EncryptionKeys")
+	keyTarget13, fieldTarget14, err := fieldsTarget1.StartField("EncryptionKeys")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget8, err := fieldTarget7.StartList(tt.NonOptional().Field(2).Type, len(m.EncryptionKeys))
-		if err != nil {
-			return err
+		var var15 bool
+		if len(m.EncryptionKeys) == 0 {
+			var15 = true
 		}
-		for i, elem10 := range m.EncryptionKeys {
-			elemTarget9, err := listTarget8.StartElem(i)
+		if var15 {
+			if err := fieldTarget14.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget16, err := fieldTarget14.StartList(tt.NonOptional().Field(2).Type, len(m.EncryptionKeys))
 			if err != nil {
 				return err
 			}
+			for i, elem18 := range m.EncryptionKeys {
+				elemTarget17, err := listTarget16.StartElem(i)
+				if err != nil {
+					return err
+				}
 
-			if err := elem10.FillVDLTarget(elemTarget9, tt.NonOptional().Field(2).Type.Elem()); err != nil {
+				if err := elem18.FillVDLTarget(elemTarget17, tt.NonOptional().Field(2).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget16.FinishElem(elemTarget17); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget14.FinishList(listTarget16); err != nil {
 				return err
 			}
-			if err := listTarget8.FinishElem(elemTarget9); err != nil {
-				return err
-			}
-		}
-		if err := fieldTarget7.FinishList(listTarget8); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
-			return err
-		}
-	}
-	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("Hash")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		if err := m.Hash.FillVDLTarget(fieldTarget12, tt.NonOptional().Field(3).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
-			return err
-		}
-	}
-	keyTarget13, fieldTarget14, err := fieldsTarget1.StartField("DirAddrs")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		listTarget15, err := fieldTarget14.StartList(tt.NonOptional().Field(4).Type, len(m.DirAddrs))
-		if err != nil {
-			return err
-		}
-		for i, elem17 := range m.DirAddrs {
-			elemTarget16, err := listTarget15.StartElem(i)
-			if err != nil {
-				return err
-			}
-			if err := elemTarget16.FromString(string(elem17), tt.NonOptional().Field(4).Type.Elem()); err != nil {
-				return err
-			}
-			if err := listTarget15.FinishElem(elemTarget16); err != nil {
-				return err
-			}
-		}
-		if err := fieldTarget14.FinishList(listTarget15); err != nil {
-			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget13, fieldTarget14); err != nil {
 			return err
 		}
 	}
-	keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("Lost")
+	keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("Hash")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget19.FromBool(bool(m.Lost), tt.NonOptional().Field(5).Type); err != nil {
+
+		var21 := (m.Hash == AdHash{})
+		if var21 {
+			if err := fieldTarget20.FromZero(tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Hash.FillVDLTarget(fieldTarget20, tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
 			return err
 		}
-		if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
+	}
+	keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("DirAddrs")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var var24 bool
+		if len(m.DirAddrs) == 0 {
+			var24 = true
+		}
+		if var24 {
+			if err := fieldTarget23.FromZero(tt.NonOptional().Field(4).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget25, err := fieldTarget23.StartList(tt.NonOptional().Field(4).Type, len(m.DirAddrs))
+			if err != nil {
+				return err
+			}
+			for i, elem27 := range m.DirAddrs {
+				elemTarget26, err := listTarget25.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget26.FromString(string(elem27), tt.NonOptional().Field(4).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget25.FinishElem(elemTarget26); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget23.FinishList(listTarget25); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
+			return err
+		}
+	}
+	keyTarget28, fieldTarget29, err := fieldsTarget1.StartField("Lost")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var30 := (m.Lost == false)
+		if var30 {
+			if err := fieldTarget29.FromZero(tt.NonOptional().Field(5).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget29.FromBool(bool(m.Lost), tt.NonOptional().Field(5).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
 			return err
 		}
 	}
@@ -395,6 +483,10 @@ func (t *AdInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *AdInfoTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = AdInfo{}
+	return nil
+}
 
 // []EncryptionKey
 type __VDLTarget1_list struct {
@@ -428,15 +520,10 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroEncryptionAlgorithm = EncryptionAlgorithm(0)
-	__VDLZeroEncryptionKey       = EncryptionKey(nil)
-	__VDLZeroUuid                = Uuid(nil)
-	__VDLZeroAdHash              = AdHash{}
-	__VDLZeroAdInfo              = AdInfo{}
-)
+func (t *__VDLTarget1_list) FromZero(tt *vdl.Type) error {
+	*t.Value = []EncryptionKey(nil)
+	return nil
+}
 
 //////////////////////////////////////////////////
 // Const definitions
@@ -610,6 +697,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*EncryptionAlgorithm)(nil))

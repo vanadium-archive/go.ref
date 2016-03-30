@@ -45,6 +45,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Set error format strings.
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrLargerThan3ByteUInt.ID), "{1:}{2:} integer too large to represent in 3 bytes")

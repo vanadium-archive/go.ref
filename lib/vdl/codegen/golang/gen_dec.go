@@ -27,7 +27,11 @@ func (t *%[1]s) From%[6]s(src %[7]s, tt *%[4]sType) error {
 	%[9]s = %[2]s(src)
 	%[10]s
 	return nil
-}`, targetTypeName(data, t), typeGo(data, t), genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), X, fromType, valueFieldDef, valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t))
+}
+func (t *%[1]s) FromZero(tt *%[4]sType) error {
+	*t.Value = %[12]s
+	return nil
+}`, targetTypeName(data, t), typeGo(data, t), genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), X, fromType, valueFieldDef, valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
 }
 
 // genNumberTargetDef generates a Target that assigns to a number and
@@ -42,6 +46,11 @@ type %[1]s struct {
 	s += genNumberFromX(data, t, vdl.Uint64, valueAssn)
 	s += genNumberFromX(data, t, vdl.Int64, valueAssn)
 	s += genNumberFromX(data, t, vdl.Float64, valueAssn)
+	s += fmt.Sprintf(`
+func (t *%[1]s) FromZero(tt *%[2]sType) error {
+	*t.Value = %[3]s
+	return nil
+}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), typedConst(data, vdl.ZeroValue(t)))
 	return s
 }
 
@@ -102,7 +111,7 @@ type %[1]s struct {
 	%[5]s
 }
 func (t *%[1]s) FromBytes(src []byte, tt *%[4]sType) error {
-	%[7]s
+	%[8]s
 	%[3]s
 	if len(src) == 0 {
 		%[6]s = nil
@@ -112,7 +121,11 @@ func (t *%[1]s) FromBytes(src []byte, tt *%[4]sType) error {
 	}
 	%[7]s
 	return nil
-}`, targetTypeName(data, t), valueFieldDef, genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t))
+}
+func (t *%[1]s) FromZero(tt *%[4]sType) error {
+	*t.Value = %[9]s
+	return nil
+}`, targetTypeName(data, t), valueFieldDef, genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
 	} else {
 		return fmt.Sprintf(`
 type %[1]s struct {
@@ -120,12 +133,16 @@ type %[1]s struct {
 	%[5]s
 }
 func (t *%[1]s) FromBytes(src []byte, tt *%[4]sType) error {
-	%[7]s
+	%[8]s
 	%[3]s
 	copy((%[6]s)[:], src)
 	%[7]s
 	return nil
-}`, targetTypeName(data, t), typeGo(data, t), genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t))
+}
+func (t *%[1]s) FromZero(tt *%[4]sType) error {
+	*t.Value = %[9]s
+	return nil
+}`, targetTypeName(data, t), typeGo(data, t), genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
 	}
 }
 
@@ -134,7 +151,7 @@ func genStructTargetDef(data *goData, t *vdl.Type) string {
 	if t.Name() == "" {
 		panic("only named structs supported in generator")
 	}
-	_, valueReg, valueFieldDef := genValueField(data, t)
+	valueAssn, valueReg, valueFieldDef := genValueField(data, t)
 	var additionalBodies string
 	s := fmt.Sprintf(`
 type %[1]s struct {
@@ -173,15 +190,19 @@ func (t *%[1]s) FinishField(_, _ %[2]sTarget) error {
 	return nil
 }
 func (t *%[1]s) FinishFields(_ %[2]sFieldsTarget) error {
-	%[3]s
+	%[5]s
 	return nil
-}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), genWireToNativeConversion(data, t))
+}
+func (t *%[1]s) FromZero(tt *%[2]sType) error {
+	*t.Value = %[4]s
+	return nil
+}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), valueAssn, typedConst(data, vdl.ZeroValue(t)), genWireToNativeConversion(data, t))
 	s += additionalBodies
 	return s
 }
 
 // genOptionalStructTargetDef generates a Target that assigns to an optional
-// struct - that is either calls FromNil or StartFields.
+// struct - that is either calls FromZero or StartFields.
 func genOptionalStructTargetDef(data *goData, t *vdl.Type) string {
 	valueAssn, _, valueFieldDef := genValueField(data, t)
 	call, body := createTargetCall(data, t.Elem(), t, "t.elemTarget", valueAssn)
@@ -208,12 +229,10 @@ func (t *%[1]s) FinishFields(_ %[5]sFieldsTarget) error {
 	%[9]s
 	return nil
 }
-func (t *%[1]s) FromNil(tt *vdl.Type) error {
-	%[12]s
-	%[8]s = nil
-	%[9]s
+func (t *%[1]s) FromZero(tt *%[5]sType) error {
+	*t.Value = %[13]s
 	return nil
-}`, targetTypeName(data, t), valueFieldDef, targetBaseRef(data, "Target"), targetBaseRef(data, "FieldsTarget"), data.Pkg("v.io/v23/vdl"), call, typedConst(data, vdl.ZeroValue(t.Elem())), valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Elem(), t, "elemTarget"), typeGo(data, t.Elem()), genResetWire(data, t))
+}`, targetTypeName(data, t), valueFieldDef, targetBaseRef(data, "Target"), targetBaseRef(data, "FieldsTarget"), data.Pkg("v.io/v23/vdl"), call, typedConst(data, vdl.ZeroValue(t.Elem())), valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Elem(), t, "elemTarget"), typeGo(data, t.Elem()), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
 	s += body
 	return s
 }
@@ -304,6 +323,10 @@ func (t *%[1]s) FinishFields(_ %[3]sFieldsTarget) error {
 	%[2]s
 	return nil
 }
+func (t *%[1]s) FromZero(tt *%[3]sType) error {
+	*t.Value = %[7]s
+	return nil
+}
 
 type %[6]sFactory struct{}
 
@@ -312,12 +335,12 @@ func (t %[6]sFactory) VDLMakeUnionTarget(union interface{}) (%[3]sTarget, error)
 		return &%[1]s{Value: typedUnion}, nil
 	}
 	return nil, %[5]sErrorf("got %%T, want *%[4]s", union)
-}`, targetTypeName(data, t), genWireToNativeConversion(data, t), data.Pkg("v.io/v23/vdl"), typeGo(data, t), data.Pkg("fmt"), vdlutil.FirstRuneToLower(targetTypeName(data, t)))
+}`, targetTypeName(data, t), genWireToNativeConversion(data, t), data.Pkg("v.io/v23/vdl"), typeGo(data, t), data.Pkg("fmt"), vdlutil.FirstRuneToLower(targetTypeName(data, t)), typedConst(data, vdl.ZeroValue(t)))
 	s += additionalBodies
 	return s
 }
 
-// genListTargetDef generates a Target that assigns to a list.
+// genListTargetDef generates a Target that assigns to a list or array
 func genListTargetDef(data *goData, t *vdl.Type) string {
 	valueAssn, _, valueFieldDef := genValueField(data, t)
 	s := fmt.Sprintf(`
@@ -353,7 +376,11 @@ func (t *%[1]s) FinishElem(elem %[2]sTarget) error {
 func (t *%[1]s) FinishList(elem %[2]sListTarget) error {
 	%[4]s
 	return nil
-}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), call, genWireToNativeConversion(data, t))
+}
+func (t *%[1]s) FromZero(tt *%[2]sType) error {
+	*t.Value = %[6]s
+	return nil
+}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), call, genWireToNativeConversion(data, t), valueAssn, typedConst(data, vdl.ZeroValue(t)))
 	s += body
 	return s
 }
@@ -395,7 +422,11 @@ func (t *%[1]s) FinishSet(list %[6]sSetTarget) error {
 	}
 	%[12]s
 	return nil
-}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), targetBaseRef(data, "Target"), targetBaseRef(data, "SetTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), call, genResetValue(data, t.Key(), "t.currKey"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Key(), t, "keyTarget"), genResetWire(data, t))
+}
+func (t *%[1]s) FromZero(tt *%[6]sType) error {
+	*t.Value = %[15]s
+	return nil
+}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), targetBaseRef(data, "Target"), targetBaseRef(data, "SetTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), call, genResetValue(data, t.Key(), "t.currKey"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Key(), t, "keyTarget"), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
 	s += body
 	return s
 }
@@ -445,7 +476,11 @@ func (t *%[1]s) FinishMap(elem %[7]sMapTarget) error {
 	}
 	%[15]s
 	return nil
-}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), typeGo(data, t.Elem()), targetBaseRef(data, "Target"), targetBaseRef(data, "MapTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), keyCall, elemCall, genResetValue(data, t.Key(), "t.currKey"), genResetValue(data, t.Elem(), "t.currElem"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Key(), t, "keyTarget"), inlineTargetField(data, t.Elem(), t, "elemTarget"), genResetWire(data, t))
+}
+func (t *%[1]s) FromZero(tt *%[7]sType) error {
+	*t.Value = %[19]s
+	return nil
+}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), typeGo(data, t.Elem()), targetBaseRef(data, "Target"), targetBaseRef(data, "MapTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), keyCall, elemCall, genResetValue(data, t.Key(), "t.currKey"), genResetValue(data, t.Elem(), "t.currElem"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Key(), t, "keyTarget"), inlineTargetField(data, t.Elem(), t, "elemTarget"), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
 	s += keyBody
 	s += elemBody
 	return s
@@ -454,6 +489,7 @@ func (t *%[1]s) FinishMap(elem %[7]sMapTarget) error {
 // genEnumTargetDef generates a Target that assigns to an enum,
 func genEnumTargetDef(data *goData, t *vdl.Type) string {
 	valueAssn, _, valueFieldDef := genValueField(data, t)
+	def := data.Env.FindTypeDef(t)
 	s := fmt.Sprintf(`
 type %[1]s struct {
 	%[2]s
@@ -470,19 +506,20 @@ func (t *%[1]s) FromEnumLabel(src string, tt *%[4]sType) error {
 	}
 	s += fmt.Sprintf(`
 	default:
-		return %sErrorf("label %%s not in enum %s", src)
+		return %[5]sErrorf("label %%s not in enum %[6]s", src)
 	}
-	%s
+	%[1]s
 	return nil
-}`, data.Pkg("fmt"), t.Name(), genWireToNativeConversion(data, t))
+}
+func (t *%[2]s) FromZero(tt *%[3]sType) error {
+	*t.Value = %[4]s
+	return nil
+}`, genWireToNativeConversion(data, t), targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), typedConst(data, vdl.ZeroValue(t)), data.Pkg("fmt"), def.Name)
 	return s
 }
 
 // genTargetDef calls the appropriate Target generator based on type t.
 func genTargetDef(data *goData, t *vdl.Type) string {
-	if def := data.Env.FindTypeDef(t); def != nil && def.File.Package != data.Package {
-		return ""
-	}
 	if !data.createdTargets[t] {
 		data.createdTargets[t] = true
 		if t.IsBytes() {
@@ -575,7 +612,7 @@ func externalTargetTypeName(data *goData, t *vdl.Type) string {
 }
 
 func inlineTargetField(data *goData, t, parentType *vdl.Type, name string) string {
-	if t.Kind() == vdl.Any {
+	if t.Kind() == vdl.Any || data.Package.Path == "vdltool" {
 		return ""
 	}
 	if isRecursiveReference(parentType, t) {
@@ -602,7 +639,7 @@ func createTargetCall(data *goData, t, parentType *vdl.Type, targetName, input s
 	// t.Value.Attributes = Attributes(val)
 	// return nil, &TargetMapStringString{&val}, nil
 	// Where TargetMapStringString is a standard target. Consider doing so in the future.
-	if t.Kind() == vdl.Any {
+	if t.Kind() == vdl.Any || data.Package.Path == "vdltool" {
 		return fmt.Sprintf("target, err := %sReflectTarget(%sValueOf(%s))", data.Pkg("v.io/v23/vdl"), data.Pkg("reflect"), input), ""
 	}
 	ref, body := genTargetRef(data, t)

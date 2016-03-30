@@ -36,28 +36,43 @@ func (m *Struct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("X")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromInt(int64(m.X), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.X == int32(0))
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromInt(int64(m.X), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Y")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Y")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromInt(int64(m.Y), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+
+		var7 := (m.Y == int32(0))
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget6.FromInt(int64(m.Y), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -105,6 +120,10 @@ func (t *StructTarget) FinishField(_, _ vdl.Target) error {
 }
 func (t *StructTarget) FinishFields(_ vdl.FieldsTarget) error {
 
+	return nil
+}
+func (t *StructTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Struct{}
 	return nil
 }
 
@@ -169,12 +188,10 @@ func (t *Array2IntTarget) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroStruct    = Struct{}
-	__VDLZeroArray2Int = Array2Int{}
-)
+func (t *Array2IntTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Array2Int{}
+	return nil
+}
 
 //////////////////////////////////////////////////
 // Interface definitions
@@ -767,6 +784,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*Struct)(nil))

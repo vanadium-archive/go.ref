@@ -38,41 +38,67 @@ func (m *SumArg) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("ABool")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromBool(bool(m.ABool), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.ABool == false)
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromBool(bool(m.ABool), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("AInt64")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromInt(int64(m.AInt64), tt.NonOptional().Field(1).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
-			return err
-		}
-	}
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("AListOfBytes")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("AInt64")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget7.FromBytes([]byte(m.AListOfBytes), tt.NonOptional().Field(2).Type); err != nil {
+		var7 := (m.AInt64 == int64(0))
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget6.FromInt(int64(m.AInt64), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+	}
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("AListOfBytes")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var var10 bool
+		if len(m.AListOfBytes) == 0 {
+			var10 = true
+		}
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := fieldTarget9.FromBytes([]byte(m.AListOfBytes), tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 			return err
 		}
 	}
@@ -127,6 +153,10 @@ func (t *SumArgTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *SumArgTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = SumArg{}
+	return nil
+}
 
 type SumStats struct {
 	SumCount       uint64
@@ -145,52 +175,83 @@ func (m *SumStats) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("SumCount")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromUint(uint64(m.SumCount), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.SumCount == uint64(0))
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromUint(uint64(m.SumCount), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("SumStreamCount")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("SumStreamCount")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromUint(uint64(m.SumStreamCount), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+
+		var7 := (m.SumStreamCount == uint64(0))
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget6.FromUint(uint64(m.SumStreamCount), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("BytesRecv")
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("BytesRecv")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget7.FromUint(uint64(m.BytesRecv), tt.NonOptional().Field(2).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
-			return err
-		}
-	}
-	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("BytesSent")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget9.FromUint(uint64(m.BytesSent), tt.NonOptional().Field(3).Type); err != nil {
-			return err
+
+		var10 := (m.BytesRecv == uint64(0))
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget9.FromUint(uint64(m.BytesRecv), tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+			return err
+		}
+	}
+	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("BytesSent")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var13 := (m.BytesSent == uint64(0))
+		if var13 {
+			if err := fieldTarget12.FromZero(tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget12.FromUint(uint64(m.BytesSent), tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
 			return err
 		}
 	}
@@ -250,12 +311,10 @@ func (t *SumStatsTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroSumArg   = SumArg{}
-	__VDLZeroSumStats = SumStats{}
-)
+func (t *SumStatsTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = SumStats{}
+	return nil
+}
 
 //////////////////////////////////////////////////
 // Interface definitions
@@ -665,6 +724,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*SumArg)(nil))

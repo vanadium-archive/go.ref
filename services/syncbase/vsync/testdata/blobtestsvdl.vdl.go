@@ -35,29 +35,44 @@ func (m *BlobInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Info")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Info), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.Info == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.Info), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Br")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Br")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Br.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var7 := (m.Br == syncbase.BlobRef(""))
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Br.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -105,6 +120,10 @@ func (t *BlobInfoTarget) FinishField(_, _ vdl.Target) error {
 }
 func (t *BlobInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 
+	return nil
+}
+func (t *BlobInfoTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlobInfo{}
 	return nil
 }
 
@@ -241,6 +260,10 @@ func (t *BlobUnionTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *BlobUnionTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlobUnion(BlobUnionNum{})
+	return nil
+}
 
 type blobUnionTargetFactory struct{}
 
@@ -266,46 +289,64 @@ func (m *BlobSet) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Info")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Info), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.Info == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.Info), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Bs")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Bs")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		setTarget6, err := fieldTarget5.StartSet(tt.NonOptional().Field(1).Type, len(m.Bs))
-		if err != nil {
-			return err
+		var var7 bool
+		if len(m.Bs) == 0 {
+			var7 = true
 		}
-		for key8 := range m.Bs {
-			keyTarget7, err := setTarget6.StartKey()
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			setTarget8, err := fieldTarget6.StartSet(tt.NonOptional().Field(1).Type, len(m.Bs))
 			if err != nil {
 				return err
 			}
+			for key10 := range m.Bs {
+				keyTarget9, err := setTarget8.StartKey()
+				if err != nil {
+					return err
+				}
 
-			if err := key8.FillVDLTarget(keyTarget7, tt.NonOptional().Field(1).Type.Key()); err != nil {
-				return err
+				if err := key10.FillVDLTarget(keyTarget9, tt.NonOptional().Field(1).Type.Key()); err != nil {
+					return err
+				}
+				if err := setTarget8.FinishKey(keyTarget9); err != nil {
+					return err
+				}
 			}
-			if err := setTarget6.FinishKey(keyTarget7); err != nil {
+			if err := fieldTarget6.FinishSet(setTarget8); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget5.FinishSet(setTarget6); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -355,6 +396,10 @@ func (t *BlobSetTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *BlobSetTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlobSet{}
+	return nil
+}
 
 // map[syncbase.BlobRef]struct{}
 type __VDLTarget1_set struct {
@@ -390,6 +435,10 @@ func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 
 	return nil
 }
+func (t *__VDLTarget1_set) FromZero(tt *vdl.Type) error {
+	*t.Value = map[syncbase.BlobRef]struct{}(nil)
+	return nil
+}
 
 type BlobAny struct {
 	Info string
@@ -406,52 +455,70 @@ func (m *BlobAny) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Info")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Info), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.Info == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.Info), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Baa")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Baa")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget6, err := fieldTarget5.StartList(tt.NonOptional().Field(1).Type, len(m.Baa))
-		if err != nil {
-			return err
+		var var7 bool
+		if len(m.Baa) == 0 {
+			var7 = true
 		}
-		for i, elem8 := range m.Baa {
-			elemTarget7, err := listTarget6.StartElem(i)
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget8, err := fieldTarget6.StartList(tt.NonOptional().Field(1).Type, len(m.Baa))
 			if err != nil {
 				return err
 			}
-
-			if elem8 == nil {
-				if err := elemTarget7.FromNil(tt.NonOptional().Field(1).Type.Elem()); err != nil {
+			for i, elem10 := range m.Baa {
+				elemTarget9, err := listTarget8.StartElem(i)
+				if err != nil {
 					return err
 				}
-			} else {
-				if err := elem8.FillVDLTarget(elemTarget7, tt.NonOptional().Field(1).Type.Elem()); err != nil {
+
+				if elem10 == nil {
+					if err := elemTarget9.FromZero(tt.NonOptional().Field(1).Type.Elem()); err != nil {
+						return err
+					}
+				} else {
+					if err := elem10.FillVDLTarget(elemTarget9, tt.NonOptional().Field(1).Type.Elem()); err != nil {
+						return err
+					}
+				}
+				if err := listTarget8.FinishElem(elemTarget9); err != nil {
 					return err
 				}
 			}
-			if err := listTarget6.FinishElem(elemTarget7); err != nil {
+			if err := fieldTarget6.FinishList(listTarget8); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget5.FinishList(listTarget6); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -501,6 +568,10 @@ func (t *BlobAnyTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *BlobAnyTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlobAny{}
+	return nil
+}
 
 // []*vom.RawBytes
 type __VDLTarget2_list struct {
@@ -533,6 +604,10 @@ func (t *__VDLTarget2_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
+func (t *__VDLTarget2_list) FromZero(tt *vdl.Type) error {
+	*t.Value = []*vom.RawBytes(nil)
+	return nil
+}
 
 type NonBlobSet struct {
 	Info string
@@ -549,45 +624,63 @@ func (m *NonBlobSet) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Info")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Info), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.Info == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.Info), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("S")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("S")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		setTarget6, err := fieldTarget5.StartSet(tt.NonOptional().Field(1).Type, len(m.S))
-		if err != nil {
-			return err
+		var var7 bool
+		if len(m.S) == 0 {
+			var7 = true
 		}
-		for key8 := range m.S {
-			keyTarget7, err := setTarget6.StartKey()
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			setTarget8, err := fieldTarget6.StartSet(tt.NonOptional().Field(1).Type, len(m.S))
 			if err != nil {
 				return err
 			}
-			if err := keyTarget7.FromString(string(key8), tt.NonOptional().Field(1).Type.Key()); err != nil {
-				return err
+			for key10 := range m.S {
+				keyTarget9, err := setTarget8.StartKey()
+				if err != nil {
+					return err
+				}
+				if err := keyTarget9.FromString(string(key10), tt.NonOptional().Field(1).Type.Key()); err != nil {
+					return err
+				}
+				if err := setTarget8.FinishKey(keyTarget9); err != nil {
+					return err
+				}
 			}
-			if err := setTarget6.FinishKey(keyTarget7); err != nil {
+			if err := fieldTarget6.FinishSet(setTarget8); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget5.FinishSet(setTarget6); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -637,6 +730,10 @@ func (t *NonBlobSetTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *NonBlobSetTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = NonBlobSet{}
+	return nil
+}
 
 // map[string]struct{}
 type __VDLTarget3_set struct {
@@ -672,6 +769,10 @@ func (t *__VDLTarget3_set) FinishSet(list vdl.SetTarget) error {
 
 	return nil
 }
+func (t *__VDLTarget3_set) FromZero(tt *vdl.Type) error {
+	*t.Value = map[string]struct{}(nil)
+	return nil
+}
 
 type BlobOpt struct {
 	Info string
@@ -688,35 +789,44 @@ func (m *BlobOpt) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Info")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Info), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.Info == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.Info), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Bo")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Bo")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if m.Bo == nil {
-			if err := fieldTarget5.FromNil(tt.NonOptional().Field(1).Type); err != nil {
+		var7 := (m.Bo == (*BlobInfo)(nil))
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
 		} else {
-			if err := m.Bo.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
+
+			if err := m.Bo.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -766,6 +876,10 @@ func (t *BlobOptTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *BlobOptTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlobOpt{}
+	return nil
+}
 
 // Optional BlobInfo
 type __VDLTarget4_optional struct {
@@ -791,22 +905,10 @@ func (t *__VDLTarget4_optional) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-func (t *__VDLTarget4_optional) FromNil(tt *vdl.Type) error {
-
-	*t.Value = nil
-
+func (t *__VDLTarget4_optional) FromZero(tt *vdl.Type) error {
+	*t.Value = (*BlobInfo)(nil)
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroBlobInfo   = BlobInfo{}
-	__VDLZeroBlobUnion  = BlobUnion(BlobUnionNum{})
-	__VDLZeroBlobSet    = BlobSet{}
-	__VDLZeroBlobAny    = BlobAny{}
-	__VDLZeroNonBlobSet = NonBlobSet{}
-	__VDLZeroBlobOpt    = BlobOpt{}
-)
 
 var __VDLInitCalled bool
 
@@ -827,6 +929,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*BlobInfo)(nil))

@@ -164,6 +164,10 @@ func (t *ItemTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *ItemTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Item(ItemData{})
+	return nil
+}
 
 type itemTargetFactory struct{}
 
@@ -224,102 +228,192 @@ func (m *DataWithSignature) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Data")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Data))
-		if err != nil {
-			return err
+		var var4 bool
+		if len(m.Data) == 0 {
+			var4 = true
 		}
-		for i, elem6 := range m.Data {
-			elemTarget5, err := listTarget4.StartElem(i)
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget5, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Data))
 			if err != nil {
 				return err
 			}
+			for i, elem7 := range m.Data {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
 
-			unionValue7 := elem6
-			if unionValue7 == nil {
-				unionValue7 = ItemData{}
+				unionValue8 := elem7
+				if unionValue8 == nil {
+					unionValue8 = ItemData{}
+				}
+				if err := unionValue8.FillVDLTarget(elemTarget6, tt.NonOptional().Field(0).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
 			}
-			if err := unionValue7.FillVDLTarget(elemTarget5, tt.NonOptional().Field(0).Type.Elem()); err != nil {
+			if err := fieldTarget3.FinishList(listTarget5); err != nil {
 				return err
 			}
-			if err := listTarget4.FinishElem(elemTarget5); err != nil {
-				return err
-			}
-		}
-		if err := fieldTarget3.FinishList(listTarget4); err != nil {
-			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("BlessingsHash")
+	keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("BlessingsHash")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget9.FromBytes([]byte(m.BlessingsHash), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var var11 bool
+		if len(m.BlessingsHash) == 0 {
+			var11 = true
 		}
-		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+		if var11 {
+			if err := fieldTarget10.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := fieldTarget10.FromBytes([]byte(m.BlessingsHash), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
 			return err
 		}
 	}
-	keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("AuthorSigned")
+	keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("AuthorSigned")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.AuthorSigned.FillVDLTarget(fieldTarget11, tt.NonOptional().Field(2).Type); err != nil {
-			return err
+		var14 := true
+		var var15 bool
+		if len(m.AuthorSigned.Purpose) == 0 {
+			var15 = true
 		}
-		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
-			return err
+		var14 = var14 && var15
+		var16 := (m.AuthorSigned.Hash == security.Hash(""))
+		var14 = var14 && var16
+		var var17 bool
+		if len(m.AuthorSigned.R) == 0 {
+			var17 = true
 		}
-	}
-	keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("IsValidated")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget13.FromBool(bool(m.IsValidated), tt.NonOptional().Field(3).Type); err != nil {
-			return err
+		var14 = var14 && var17
+		var var18 bool
+		if len(m.AuthorSigned.S) == 0 {
+			var18 = true
+		}
+		var14 = var14 && var18
+		if var14 {
+			if err := fieldTarget13.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.AuthorSigned.FillVDLTarget(fieldTarget13, tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
 			return err
 		}
 	}
-	keyTarget14, fieldTarget15, err := fieldsTarget1.StartField("ValidatorDataHash")
+	keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("IsValidated")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget15.FromBytes([]byte(m.ValidatorDataHash), tt.NonOptional().Field(4).Type); err != nil {
-			return err
+		var21 := (m.IsValidated == false)
+		if var21 {
+			if err := fieldTarget20.FromZero(tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget20.FromBool(bool(m.IsValidated), tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
 			return err
 		}
 	}
-	keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("ValidatorSigned")
+	keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("ValidatorDataHash")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.ValidatorSigned.FillVDLTarget(fieldTarget17, tt.NonOptional().Field(5).Type); err != nil {
+		var var24 bool
+		if len(m.ValidatorDataHash) == 0 {
+			var24 = true
+		}
+		if var24 {
+			if err := fieldTarget23.FromZero(tt.NonOptional().Field(4).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := fieldTarget23.FromBytes([]byte(m.ValidatorDataHash), tt.NonOptional().Field(4).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
 			return err
 		}
-		if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
+	}
+	keyTarget25, fieldTarget26, err := fieldsTarget1.StartField("ValidatorSigned")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var27 := true
+		var var28 bool
+		if len(m.ValidatorSigned.Purpose) == 0 {
+			var28 = true
+		}
+		var27 = var27 && var28
+		var29 := (m.ValidatorSigned.Hash == security.Hash(""))
+		var27 = var27 && var29
+		var var30 bool
+		if len(m.ValidatorSigned.R) == 0 {
+			var30 = true
+		}
+		var27 = var27 && var30
+		var var31 bool
+		if len(m.ValidatorSigned.S) == 0 {
+			var31 = true
+		}
+		var27 = var27 && var31
+		if var27 {
+			if err := fieldTarget26.FromZero(tt.NonOptional().Field(5).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.ValidatorSigned.FillVDLTarget(fieldTarget26, tt.NonOptional().Field(5).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget25, fieldTarget26); err != nil {
 			return err
 		}
 	}
@@ -389,6 +483,10 @@ func (t *DataWithSignatureTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *DataWithSignatureTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = DataWithSignature{}
+	return nil
+}
 
 // []Item
 type __VDLTarget1_list struct {
@@ -422,6 +520,10 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
+func (t *__VDLTarget1_list) FromZero(tt *vdl.Type) error {
+	*t.Value = []Item(nil)
+	return nil
+}
 
 // WireValidatorData is the wire form of ValidatorData.
 // It excludes the unmarshalled form of the public key.
@@ -440,46 +542,67 @@ func (m *WireValidatorData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Names")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Names))
-		if err != nil {
-			return err
+		var var4 bool
+		if len(m.Names) == 0 {
+			var4 = true
 		}
-		for i, elem6 := range m.Names {
-			elemTarget5, err := listTarget4.StartElem(i)
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget5, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Names))
 			if err != nil {
 				return err
 			}
-			if err := elemTarget5.FromString(string(elem6), tt.NonOptional().Field(0).Type.Elem()); err != nil {
+			for i, elem7 := range m.Names {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget6.FromString(string(elem7), tt.NonOptional().Field(0).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget3.FinishList(listTarget5); err != nil {
 				return err
 			}
-			if err := listTarget4.FinishElem(elemTarget5); err != nil {
-				return err
-			}
-		}
-		if err := fieldTarget3.FinishList(listTarget4); err != nil {
-			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("MarshalledPublicKey")
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("MarshalledPublicKey")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget8.FromBytes([]byte(m.MarshalledPublicKey), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var var10 bool
+		if len(m.MarshalledPublicKey) == 0 {
+			var10 = true
 		}
-		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := fieldTarget9.FromBytes([]byte(m.MarshalledPublicKey), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 			return err
 		}
 	}
@@ -529,13 +652,10 @@ func (t *WireValidatorDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroItem              = Item(ItemData{})
-	__VDLZeroDataWithSignature = DataWithSignature{}
-	__VDLZeroWireValidatorData = WireValidatorData{}
-)
+func (t *WireValidatorDataTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = WireValidatorData{}
+	return nil
+}
 
 var __VDLInitCalled bool
 
@@ -556,6 +676,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*Item)(nil))

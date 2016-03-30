@@ -167,6 +167,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Set error format strings.
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNotAThirdPartyCaveat.ID), "{1:}{2:} discharges are not required for non-third-party caveats (id: {c.id})")

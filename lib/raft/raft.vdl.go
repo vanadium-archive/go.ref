@@ -73,6 +73,10 @@ func (t *TermTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
+func (t *TermTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Term(0)
+	return nil
+}
 
 // Index is an index into the log.  The log entries are numbered sequentially.  At the moment
 // the entries RaftClient.Apply()ed should be sequential but that will change if we introduce
@@ -127,6 +131,10 @@ func (t *IndexTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
+func (t *IndexTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Index(0)
+	return nil
+}
 
 // The LogEntry is what the log consists of.  'error' starts nil and is never written to stable
 // storage.  It represents the result of RaftClient.Apply(Cmd, Index).  This is a hack but I
@@ -148,55 +156,89 @@ func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Term")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Term.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var4 := (m.Term == Term(0))
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Term.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Index")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Index")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Index.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var7 := (m.Index == Index(0))
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Index.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Cmd")
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Cmd")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget7.FromBytes([]byte(m.Cmd), tt.NonOptional().Field(2).Type); err != nil {
-			return err
+		var var10 bool
+		if len(m.Cmd) == 0 {
+			var10 = true
 		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
-			return err
-		}
-	}
-	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Type")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget9.FromUint(uint64(m.Type), tt.NonOptional().Field(3).Type); err != nil {
-			return err
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := fieldTarget9.FromBytes([]byte(m.Cmd), tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+			return err
+		}
+	}
+	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("Type")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var13 := (m.Type == byte(0))
+		if var13 {
+			if err := fieldTarget12.FromZero(tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget12.FromUint(uint64(m.Type), tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
 			return err
 		}
 	}
@@ -256,13 +298,10 @@ func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroTerm     = Term(0)
-	__VDLZeroIndex    = Index(0)
-	__VDLZeroLogEntry = LogEntry{}
-)
+func (t *LogEntryTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = LogEntry{}
+	return nil
+}
 
 //////////////////////////////////////////////////
 // Const definitions
@@ -736,6 +775,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*Term)(nil))

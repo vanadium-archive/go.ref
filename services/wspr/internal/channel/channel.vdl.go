@@ -35,47 +35,70 @@ func (m *Request) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Type")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Type), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.Type == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.Type), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Seq")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromUint(uint64(m.Seq), tt.NonOptional().Field(1).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
-			return err
-		}
-	}
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Body")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Seq")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if m.Body == nil {
-			if err := fieldTarget7.FromNil(tt.NonOptional().Field(2).Type); err != nil {
+		var7 := (m.Seq == uint32(0))
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
 		} else {
-			if err := m.Body.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(2).Type); err != nil {
+			if err := fieldTarget6.FromUint(uint64(m.Seq), tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+			return err
+		}
+	}
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Body")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var10 := (m.Body == vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)))
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if m.Body == nil {
+				if err := fieldTarget9.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+					return err
+				}
+			} else {
+				if err := m.Body.FillVDLTarget(fieldTarget9, tt.NonOptional().Field(2).Type); err != nil {
+					return err
+				}
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 			return err
 		}
 	}
@@ -129,6 +152,12 @@ func (t *RequestTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *RequestTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Request{
+		Body: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+	}
+	return nil
+}
 
 type Response struct {
 	ReqSeq uint32
@@ -146,47 +175,70 @@ func (m *Response) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("ReqSeq")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromUint(uint64(m.ReqSeq), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.ReqSeq == uint32(0))
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromUint(uint64(m.ReqSeq), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Err")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Err), tt.NonOptional().Field(1).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
-			return err
-		}
-	}
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Body")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Err")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if m.Body == nil {
-			if err := fieldTarget7.FromNil(tt.NonOptional().Field(2).Type); err != nil {
+		var7 := (m.Err == "")
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
 		} else {
-			if err := m.Body.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(2).Type); err != nil {
+			if err := fieldTarget6.FromString(string(m.Err), tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+			return err
+		}
+	}
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Body")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var10 := (m.Body == vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)))
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if m.Body == nil {
+				if err := fieldTarget9.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+					return err
+				}
+			} else {
+				if err := m.Body.FillVDLTarget(fieldTarget9, tt.NonOptional().Field(2).Type); err != nil {
+					return err
+				}
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 			return err
 		}
 	}
@@ -238,6 +290,12 @@ func (t *ResponseTarget) FinishField(_, _ vdl.Target) error {
 }
 func (t *ResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 
+	return nil
+}
+func (t *ResponseTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Response{
+		Body: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+	}
 	return nil
 }
 
@@ -353,10 +411,14 @@ func (t *MessageTarget) StartField(name string) (key, field vdl.Target, _ error)
 	t.fieldName = name
 	switch name {
 	case "Request":
-		val := Request{}
+		val := Request{
+			Body: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+		}
 		return nil, &RequestTarget{Value: &val}, nil
 	case "Response":
-		val := Response{}
+		val := Response{
+			Body: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+		}
 		return nil, &ResponseTarget{Value: &val}, nil
 	default:
 		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/services/wspr/internal/channel.Message", name)
@@ -375,6 +437,12 @@ func (t *MessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *MessageTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Message(MessageRequest{Request{
+		Body: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+	}})
+	return nil
+}
 
 type messageTargetFactory struct{}
 
@@ -384,13 +452,6 @@ func (t messageTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target,
 	}
 	return nil, fmt.Errorf("got %T, want *Message", union)
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroRequest  = Request{}
-	__VDLZeroResponse = Response{}
-	__VDLZeroMessage  = Message(MessageRequest{})
-)
 
 var __VDLInitCalled bool
 
@@ -411,6 +472,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*Request)(nil))

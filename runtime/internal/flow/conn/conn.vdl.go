@@ -41,7 +41,6 @@ func (m *Blessings) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	var wireValue2 security.WireBlessings
 	if err := security.WireBlessingsFromNative(&wireValue2, m.Blessings); err != nil {
 		return err
@@ -53,22 +52,43 @@ func (m *Blessings) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue2.FillVDLTarget(fieldTarget4, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var5 := true
+		var var6 bool
+		if len(wireValue2.CertificateChains) == 0 {
+			var6 = true
+		}
+		var5 = var5 && var6
+		if var5 {
+			if err := fieldTarget4.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue2.FillVDLTarget(fieldTarget4, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
 			return err
 		}
 	}
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("BKey")
+	keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("BKey")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget6.FromUint(uint64(m.BKey), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+
+		var9 := (m.BKey == uint64(0))
+		if var9 {
+			if err := fieldTarget8.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget8.FromUint(uint64(m.BKey), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
 			return err
 		}
 	}
@@ -118,6 +138,10 @@ func (t *BlessingsTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *BlessingsTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Blessings{}
+	return nil
+}
 
 // EncryptedBlessings is used to transport encrypted blessings between the
 // two ends of a Conn. The encryption is with respect to a set of blessing
@@ -140,46 +164,64 @@ func (m *EncryptedBlessings) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Ciphertexts")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Ciphertexts))
-		if err != nil {
-			return err
+		var var4 bool
+		if len(m.Ciphertexts) == 0 {
+			var4 = true
 		}
-		for i, elem6 := range m.Ciphertexts {
-			elemTarget5, err := listTarget4.StartElem(i)
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget5, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Ciphertexts))
 			if err != nil {
 				return err
 			}
+			for i, elem7 := range m.Ciphertexts {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
 
-			if err := elem6.FillVDLTarget(elemTarget5, tt.NonOptional().Field(0).Type.Elem()); err != nil {
+				if err := elem7.FillVDLTarget(elemTarget6, tt.NonOptional().Field(0).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget3.FinishList(listTarget5); err != nil {
 				return err
 			}
-			if err := listTarget4.FinishElem(elemTarget5); err != nil {
-				return err
-			}
-		}
-		if err := fieldTarget3.FinishList(listTarget4); err != nil {
-			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("BKey")
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("BKey")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget8.FromUint(uint64(m.BKey), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+
+		var10 := (m.BKey == uint64(0))
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget9.FromUint(uint64(m.BKey), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 			return err
 		}
 	}
@@ -229,6 +271,10 @@ func (t *EncryptedBlessingsTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *EncryptedBlessingsTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = EncryptedBlessings{}
+	return nil
+}
 
 // []bcrypter.WireCiphertext
 type __VDLTarget1_list struct {
@@ -262,6 +308,10 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
+func (t *__VDLTarget1_list) FromZero(tt *vdl.Type) error {
+	*t.Value = []bcrypter.WireCiphertext(nil)
+	return nil
+}
 
 // Discharges is used to transport discharges between the two ends of a Conn.
 // Since discharges can be large, we try not to send them more than once by
@@ -285,67 +335,93 @@ func (m *Discharges) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Discharges")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Discharges))
-		if err != nil {
-			return err
+		var var4 bool
+		if len(m.Discharges) == 0 {
+			var4 = true
 		}
-		for i, elem6 := range m.Discharges {
-			elemTarget5, err := listTarget4.StartElem(i)
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget5, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Discharges))
 			if err != nil {
 				return err
 			}
+			for i, elem7 := range m.Discharges {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
 
-			var wireValue7 security.WireDischarge
-			if err := security.WireDischargeFromNative(&wireValue7, elem6); err != nil {
-				return err
-			}
+				var wireValue8 security.WireDischarge
+				if err := security.WireDischargeFromNative(&wireValue8, elem7); err != nil {
+					return err
+				}
 
-			unionValue8 := wireValue7
-			if unionValue8 == nil {
-				unionValue8 = security.WireDischargePublicKey{}
+				unionValue9 := wireValue8
+				if unionValue9 == nil {
+					unionValue9 = security.WireDischargePublicKey{}
+				}
+				if err := unionValue9.FillVDLTarget(elemTarget6, tt.NonOptional().Field(0).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
 			}
-			if err := unionValue8.FillVDLTarget(elemTarget5, tt.NonOptional().Field(0).Type.Elem()); err != nil {
+			if err := fieldTarget3.FinishList(listTarget5); err != nil {
 				return err
 			}
-			if err := listTarget4.FinishElem(elemTarget5); err != nil {
-				return err
-			}
-		}
-		if err := fieldTarget3.FinishList(listTarget4); err != nil {
-			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("DKey")
+	keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("DKey")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget10.FromUint(uint64(m.DKey), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+
+		var12 := (m.DKey == uint64(0))
+		if var12 {
+			if err := fieldTarget11.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget11.FromUint(uint64(m.DKey), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
 			return err
 		}
 	}
-	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("BKey")
+	keyTarget13, fieldTarget14, err := fieldsTarget1.StartField("BKey")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget12.FromUint(uint64(m.BKey), tt.NonOptional().Field(2).Type); err != nil {
-			return err
+
+		var15 := (m.BKey == uint64(0))
+		if var15 {
+			if err := fieldTarget14.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget14.FromUint(uint64(m.BKey), tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget13, fieldTarget14); err != nil {
 			return err
 		}
 	}
@@ -400,6 +476,10 @@ func (t *DischargesTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *DischargesTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Discharges{}
+	return nil
+}
 
 // []security.Discharge
 type __VDLTarget2_list struct {
@@ -433,6 +513,10 @@ func (t *__VDLTarget2_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
+func (t *__VDLTarget2_list) FromZero(tt *vdl.Type) error {
+	*t.Value = []security.Discharge(nil)
+	return nil
+}
 
 // EncryptedDischarges is used to transport encrypted discharges between the
 // two ends of a Conn. The encryption is with respect to a set of blessing
@@ -458,58 +542,84 @@ func (m *EncryptedDischarges) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Ciphertexts")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Ciphertexts))
-		if err != nil {
-			return err
+		var var4 bool
+		if len(m.Ciphertexts) == 0 {
+			var4 = true
 		}
-		for i, elem6 := range m.Ciphertexts {
-			elemTarget5, err := listTarget4.StartElem(i)
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget5, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Ciphertexts))
 			if err != nil {
 				return err
 			}
+			for i, elem7 := range m.Ciphertexts {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
 
-			if err := elem6.FillVDLTarget(elemTarget5, tt.NonOptional().Field(0).Type.Elem()); err != nil {
+				if err := elem7.FillVDLTarget(elemTarget6, tt.NonOptional().Field(0).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget3.FinishList(listTarget5); err != nil {
 				return err
 			}
-			if err := listTarget4.FinishElem(elemTarget5); err != nil {
-				return err
-			}
-		}
-		if err := fieldTarget3.FinishList(listTarget4); err != nil {
-			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("DKey")
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("DKey")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget8.FromUint(uint64(m.DKey), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+
+		var10 := (m.DKey == uint64(0))
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget9.FromUint(uint64(m.DKey), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 			return err
 		}
 	}
-	keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("BKey")
+	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("BKey")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget10.FromUint(uint64(m.BKey), tt.NonOptional().Field(2).Type); err != nil {
-			return err
+
+		var13 := (m.BKey == uint64(0))
+		if var13 {
+			if err := fieldTarget12.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget12.FromUint(uint64(m.BKey), tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
 			return err
 		}
 	}
@@ -562,6 +672,10 @@ func (t *EncryptedDischargesTarget) FinishField(_, _ vdl.Target) error {
 }
 func (t *EncryptedDischargesTarget) FinishFields(_ vdl.FieldsTarget) error {
 
+	return nil
+}
+func (t *EncryptedDischargesTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = EncryptedDischarges{}
 	return nil
 }
 
@@ -782,6 +896,10 @@ func (t *BlessingsFlowMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *BlessingsFlowMessageTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlessingsFlowMessage(BlessingsFlowMessageBlessings{})
+	return nil
+}
 
 type blessingsFlowMessageTargetFactory struct{}
 
@@ -791,15 +909,6 @@ func (t blessingsFlowMessageTargetFactory) VDLMakeUnionTarget(union interface{})
 	}
 	return nil, fmt.Errorf("got %T, want *BlessingsFlowMessage", union)
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroBlessings            = Blessings{}
-	__VDLZeroEncryptedBlessings   = EncryptedBlessings{}
-	__VDLZeroDischarges           = Discharges{}
-	__VDLZeroEncryptedDischarges  = EncryptedDischarges{}
-	__VDLZeroBlessingsFlowMessage = BlessingsFlowMessage(BlessingsFlowMessageBlessings{})
-)
 
 //////////////////////////////////////////////////
 // Error definitions
@@ -957,6 +1066,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*Blessings)(nil))

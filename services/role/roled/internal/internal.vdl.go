@@ -57,129 +57,185 @@ func (m *Config) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("ImportMembers")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.ImportMembers))
-		if err != nil {
-			return err
+		var var4 bool
+		if len(m.ImportMembers) == 0 {
+			var4 = true
 		}
-		for i, elem6 := range m.ImportMembers {
-			elemTarget5, err := listTarget4.StartElem(i)
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget5, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.ImportMembers))
 			if err != nil {
 				return err
 			}
-			if err := elemTarget5.FromString(string(elem6), tt.NonOptional().Field(0).Type.Elem()); err != nil {
+			for i, elem7 := range m.ImportMembers {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget6.FromString(string(elem7), tt.NonOptional().Field(0).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget3.FinishList(listTarget5); err != nil {
 				return err
 			}
-			if err := listTarget4.FinishElem(elemTarget5); err != nil {
-				return err
-			}
-		}
-		if err := fieldTarget3.FinishList(listTarget4); err != nil {
-			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("Members")
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Members")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget9, err := fieldTarget8.StartList(tt.NonOptional().Field(1).Type, len(m.Members))
-		if err != nil {
-			return err
+		var var10 bool
+		if len(m.Members) == 0 {
+			var10 = true
 		}
-		for i, elem11 := range m.Members {
-			elemTarget10, err := listTarget9.StartElem(i)
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget11, err := fieldTarget9.StartList(tt.NonOptional().Field(1).Type, len(m.Members))
 			if err != nil {
 				return err
 			}
+			for i, elem13 := range m.Members {
+				elemTarget12, err := listTarget11.StartElem(i)
+				if err != nil {
+					return err
+				}
 
-			if err := elem11.FillVDLTarget(elemTarget10, tt.NonOptional().Field(1).Type.Elem()); err != nil {
-				return err
+				if err := elem13.FillVDLTarget(elemTarget12, tt.NonOptional().Field(1).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget11.FinishElem(elemTarget12); err != nil {
+					return err
+				}
 			}
-			if err := listTarget9.FinishElem(elemTarget10); err != nil {
+			if err := fieldTarget9.FinishList(listTarget11); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget8.FinishList(listTarget9); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 			return err
 		}
 	}
-	keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("Extend")
+	keyTarget14, fieldTarget15, err := fieldsTarget1.StartField("Extend")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget13.FromBool(bool(m.Extend), tt.NonOptional().Field(2).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
-			return err
-		}
-	}
-	keyTarget14, fieldTarget15, err := fieldsTarget1.StartField("Audit")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget15.FromBool(bool(m.Audit), tt.NonOptional().Field(3).Type); err != nil {
-			return err
+
+		var16 := (m.Extend == false)
+		if var16 {
+			if err := fieldTarget15.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget15.FromBool(bool(m.Extend), tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
 			return err
 		}
 	}
-	keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("Expiry")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget17.FromString(string(m.Expiry), tt.NonOptional().Field(4).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
-			return err
-		}
-	}
-	keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("Peers")
+	keyTarget17, fieldTarget18, err := fieldsTarget1.StartField("Audit")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget20, err := fieldTarget19.StartList(tt.NonOptional().Field(5).Type, len(m.Peers))
-		if err != nil {
+		var19 := (m.Audit == false)
+		if var19 {
+			if err := fieldTarget18.FromZero(tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget18.FromBool(bool(m.Audit), tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget17, fieldTarget18); err != nil {
 			return err
 		}
-		for i, elem22 := range m.Peers {
-			elemTarget21, err := listTarget20.StartElem(i)
+	}
+	keyTarget20, fieldTarget21, err := fieldsTarget1.StartField("Expiry")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var22 := (m.Expiry == "")
+		if var22 {
+			if err := fieldTarget21.FromZero(tt.NonOptional().Field(4).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget21.FromString(string(m.Expiry), tt.NonOptional().Field(4).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget20, fieldTarget21); err != nil {
+			return err
+		}
+	}
+	keyTarget23, fieldTarget24, err := fieldsTarget1.StartField("Peers")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var var25 bool
+		if len(m.Peers) == 0 {
+			var25 = true
+		}
+		if var25 {
+			if err := fieldTarget24.FromZero(tt.NonOptional().Field(5).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget26, err := fieldTarget24.StartList(tt.NonOptional().Field(5).Type, len(m.Peers))
 			if err != nil {
 				return err
 			}
+			for i, elem28 := range m.Peers {
+				elemTarget27, err := listTarget26.StartElem(i)
+				if err != nil {
+					return err
+				}
 
-			if err := elem22.FillVDLTarget(elemTarget21, tt.NonOptional().Field(5).Type.Elem()); err != nil {
-				return err
+				if err := elem28.FillVDLTarget(elemTarget27, tt.NonOptional().Field(5).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget26.FinishElem(elemTarget27); err != nil {
+					return err
+				}
 			}
-			if err := listTarget20.FinishElem(elemTarget21); err != nil {
+			if err := fieldTarget24.FinishList(listTarget26); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget19.FinishList(listTarget20); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget23, fieldTarget24); err != nil {
 			return err
 		}
 	}
@@ -249,6 +305,10 @@ func (t *ConfigTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *ConfigTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Config{}
+	return nil
+}
 
 // []security.BlessingPattern
 type __VDLTarget1_list struct {
@@ -282,11 +342,10 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroConfig = Config{}
-)
+func (t *__VDLTarget1_list) FromZero(tt *vdl.Type) error {
+	*t.Value = []security.BlessingPattern(nil)
+	return nil
+}
 
 //////////////////////////////////////////////////
 // Const definitions
@@ -333,6 +392,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*Config)(nil))

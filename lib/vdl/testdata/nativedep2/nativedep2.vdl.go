@@ -72,11 +72,10 @@ func (t *MyTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroMyTime = MyTime(0)
-)
+func (t *MyTimeTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = MyTime(0)
+	return nil
+}
 
 var __VDLInitCalled bool
 
@@ -97,6 +96,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*MyTime)(nil))

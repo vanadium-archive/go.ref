@@ -37,54 +37,109 @@ func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("AdInfo")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.AdInfo.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var4 := true
+		var5 := true
+		var6 := (m.AdInfo.Ad.Id == discovery.AdId{})
+		var5 = var5 && var6
+		var7 := (m.AdInfo.Ad.InterfaceName == "")
+		var5 = var5 && var7
+		var var8 bool
+		if len(m.AdInfo.Ad.Addresses) == 0 {
+			var8 = true
+		}
+		var5 = var5 && var8
+		var var9 bool
+		if len(m.AdInfo.Ad.Attributes) == 0 {
+			var9 = true
+		}
+		var5 = var5 && var9
+		var var10 bool
+		if len(m.AdInfo.Ad.Attachments) == 0 {
+			var10 = true
+		}
+		var5 = var5 && var10
+		var4 = var4 && var5
+		var11 := (m.AdInfo.EncryptionAlgorithm == discovery_2.EncryptionAlgorithm(0))
+		var4 = var4 && var11
+		var var12 bool
+		if len(m.AdInfo.EncryptionKeys) == 0 {
+			var12 = true
+		}
+		var4 = var4 && var12
+		var13 := (m.AdInfo.Hash == discovery_2.AdHash{})
+		var4 = var4 && var13
+		var var14 bool
+		if len(m.AdInfo.DirAddrs) == 0 {
+			var14 = true
+		}
+		var4 = var4 && var14
+		var15 := (m.AdInfo.Lost == false)
+		var4 = var4 && var15
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.AdInfo.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("GattAttrs")
+	keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("GattAttrs")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		mapTarget6, err := fieldTarget5.StartMap(tt.NonOptional().Field(1).Type, len(m.GattAttrs))
-		if err != nil {
-			return err
+		var var18 bool
+		if len(m.GattAttrs) == 0 {
+			var18 = true
 		}
-		for key8, value10 := range m.GattAttrs {
-			keyTarget7, err := mapTarget6.StartKey()
-			if err != nil {
+		if var18 {
+			if err := fieldTarget17.FromZero(tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-			if err := keyTarget7.FromString(string(key8), tt.NonOptional().Field(1).Type.Key()); err != nil {
-				return err
-			}
-			valueTarget9, err := mapTarget6.FinishKeyStartField(keyTarget7)
-			if err != nil {
-				return err
-			}
+		} else {
 
-			if err := valueTarget9.FromBytes([]byte(value10), tt.NonOptional().Field(1).Type.Elem()); err != nil {
+			mapTarget19, err := fieldTarget17.StartMap(tt.NonOptional().Field(1).Type, len(m.GattAttrs))
+			if err != nil {
 				return err
 			}
-			if err := mapTarget6.FinishField(keyTarget7, valueTarget9); err != nil {
+			for key21, value23 := range m.GattAttrs {
+				keyTarget20, err := mapTarget19.StartKey()
+				if err != nil {
+					return err
+				}
+				if err := keyTarget20.FromString(string(key21), tt.NonOptional().Field(1).Type.Key()); err != nil {
+					return err
+				}
+				valueTarget22, err := mapTarget19.FinishKeyStartField(keyTarget20)
+				if err != nil {
+					return err
+				}
+
+				if err := valueTarget22.FromBytes([]byte(value23), tt.NonOptional().Field(1).Type.Elem()); err != nil {
+					return err
+				}
+				if err := mapTarget19.FinishField(keyTarget20, valueTarget22); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget17.FinishMap(mapTarget19); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget5.FinishMap(mapTarget6); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
 			return err
 		}
 	}
@@ -134,6 +189,10 @@ func (t *AdConversionTestCaseTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *AdConversionTestCaseTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = AdConversionTestCase{}
+	return nil
+}
 
 // map[string][]byte
 type __VDLTarget1_map struct {
@@ -177,11 +236,10 @@ func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroAdConversionTestCase = AdConversionTestCase{}
-)
+func (t *__VDLTarget1_map) FromZero(tt *vdl.Type) error {
+	*t.Value = map[string][]byte(nil)
+	return nil
+}
 
 //////////////////////////////////////////////////
 // Const definitions
@@ -366,6 +424,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*AdConversionTestCase)(nil))

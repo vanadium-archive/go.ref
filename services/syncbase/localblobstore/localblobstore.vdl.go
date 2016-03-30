@@ -42,53 +42,79 @@ func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("OwnerShares")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.OwnerShares.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var var4 bool
+		if len(m.OwnerShares) == 0 {
+			var4 = true
+		}
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.OwnerShares.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	var wireValue4 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue4, m.Referenced); err != nil {
+	var wireValue5 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue5, m.Referenced); err != nil {
 		return err
 	}
 
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Referenced")
+	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Referenced")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue4.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var8 := (wireValue5 == time_2.Time{})
+		if var8 {
+			if err := fieldTarget7.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue5.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
 			return err
 		}
 	}
-	var wireValue7 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue7, m.Accessed); err != nil {
+	var wireValue9 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue9, m.Accessed); err != nil {
 		return err
 	}
 
-	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Accessed")
+	keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("Accessed")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue7.FillVDLTarget(fieldTarget9, tt.NonOptional().Field(2).Type); err != nil {
-			return err
+		var12 := (wireValue9 == time_2.Time{})
+		if var12 {
+			if err := fieldTarget11.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue9.FillVDLTarget(fieldTarget11, tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
 			return err
 		}
 	}
@@ -143,6 +169,10 @@ func (t *BlobMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *BlobMetadataTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlobMetadata{}
+	return nil
+}
 
 // A PerSyncgroup is blob-related data stored per syncgroup.
 // It includes information that helps syncgroup members decide whether
@@ -161,15 +191,22 @@ func (m *PerSyncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Priority")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Priority.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var4 := (m.Priority == interfaces.SgPriority{})
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Priority.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
@@ -216,12 +253,10 @@ func (t *PerSyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroBlobMetadata = BlobMetadata{}
-	__VDLZeroPerSyncgroup = PerSyncgroup{}
-)
+func (t *PerSyncgroupTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = PerSyncgroup{}
+	return nil
+}
 
 var __VDLInitCalled bool
 
@@ -242,6 +277,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*BlobMetadata)(nil))

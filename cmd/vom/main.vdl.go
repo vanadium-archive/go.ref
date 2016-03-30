@@ -91,16 +91,15 @@ func (t *dataRepTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	case "Binary":
 		*t.Value = 1
 	default:
-		return fmt.Errorf("label %s not in enum v.io/x/ref/cmd/vom.dataRep", src)
+		return fmt.Errorf("label %s not in enum dataRep", src)
 	}
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZerodataRep = dataRepHex
-)
+func (t *dataRepTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = dataRepHex
+	return nil
+}
 
 var __VDLInitCalled bool
 
@@ -121,6 +120,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*dataRep)(nil))

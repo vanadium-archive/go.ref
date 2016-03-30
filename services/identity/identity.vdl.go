@@ -41,45 +41,63 @@ func (m *BlessingRootResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Names")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Names))
-		if err != nil {
-			return err
+		var var4 bool
+		if len(m.Names) == 0 {
+			var4 = true
 		}
-		for i, elem6 := range m.Names {
-			elemTarget5, err := listTarget4.StartElem(i)
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget5, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Names))
 			if err != nil {
 				return err
 			}
-			if err := elemTarget5.FromString(string(elem6), tt.NonOptional().Field(0).Type.Elem()); err != nil {
+			for i, elem7 := range m.Names {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget6.FromString(string(elem7), tt.NonOptional().Field(0).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget3.FinishList(listTarget5); err != nil {
 				return err
 			}
-			if err := listTarget4.FinishElem(elemTarget5); err != nil {
-				return err
-			}
-		}
-		if err := fieldTarget3.FinishList(listTarget4); err != nil {
-			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("PublicKey")
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("PublicKey")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget8.FromString(string(m.PublicKey), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+
+		var10 := (m.PublicKey == "")
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget9.FromString(string(m.PublicKey), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 			return err
 		}
 	}
@@ -129,11 +147,10 @@ func (t *BlessingRootResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroBlessingRootResponse = BlessingRootResponse{}
-)
+func (t *BlessingRootResponseTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlessingRootResponse{}
+	return nil
+}
 
 //////////////////////////////////////////////////
 // Interface definitions
@@ -428,6 +445,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*BlessingRootResponse)(nil))

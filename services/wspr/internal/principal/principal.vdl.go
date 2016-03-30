@@ -73,6 +73,10 @@ func (t *BlessingsIdTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
+func (t *BlessingsIdTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlessingsId(0)
+	return nil
+}
 
 type BlessingsCacheAddMessage struct {
 	CacheId   BlessingsId
@@ -89,35 +93,55 @@ func (m *BlessingsCacheAddMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) err
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("CacheId")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.CacheId.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var4 := (m.CacheId == BlessingsId(0))
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.CacheId.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	var wireValue4 security.WireBlessings
-	if err := security.WireBlessingsFromNative(&wireValue4, m.Blessings); err != nil {
+	var wireValue5 security.WireBlessings
+	if err := security.WireBlessingsFromNative(&wireValue5, m.Blessings); err != nil {
 		return err
 	}
 
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Blessings")
+	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Blessings")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue4.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var8 := true
+		var var9 bool
+		if len(wireValue5.CertificateChains) == 0 {
+			var9 = true
 		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+		var8 = var8 && var9
+		if var8 {
+			if err := fieldTarget7.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue5.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
 			return err
 		}
 	}
@@ -167,6 +191,10 @@ func (t *BlessingsCacheAddMessageTarget) FinishFields(_ vdl.FieldsTarget) error 
 
 	return nil
 }
+func (t *BlessingsCacheAddMessageTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlessingsCacheAddMessage{}
+	return nil
+}
 
 // Message from Blessings Cache GC to delete a cache entry in Javascript.
 type BlessingsCacheDeleteMessage struct {
@@ -187,29 +215,44 @@ func (m *BlessingsCacheDeleteMessage) FillVDLTarget(t vdl.Target, tt *vdl.Type) 
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("CacheId")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.CacheId.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var4 := (m.CacheId == BlessingsId(0))
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.CacheId.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("DeleteAfter")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("DeleteAfter")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromUint(uint64(m.DeleteAfter), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+
+		var7 := (m.DeleteAfter == uint32(0))
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget6.FromUint(uint64(m.DeleteAfter), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -257,6 +300,10 @@ func (t *BlessingsCacheDeleteMessageTarget) FinishField(_, _ vdl.Target) error {
 }
 func (t *BlessingsCacheDeleteMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 
+	return nil
+}
+func (t *BlessingsCacheDeleteMessageTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlessingsCacheDeleteMessage{}
 	return nil
 }
 
@@ -394,6 +441,10 @@ func (t *BlessingsCacheMessageTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *BlessingsCacheMessageTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = BlessingsCacheMessage(BlessingsCacheMessageAdd{})
+	return nil
+}
 
 type blessingsCacheMessageTargetFactory struct{}
 
@@ -403,14 +454,6 @@ func (t blessingsCacheMessageTargetFactory) VDLMakeUnionTarget(union interface{}
 	}
 	return nil, fmt.Errorf("got %T, want *BlessingsCacheMessage", union)
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroBlessingsId                 = BlessingsId(0)
-	__VDLZeroBlessingsCacheAddMessage    = BlessingsCacheAddMessage{}
-	__VDLZeroBlessingsCacheDeleteMessage = BlessingsCacheDeleteMessage{}
-	__VDLZeroBlessingsCacheMessage       = BlessingsCacheMessage(BlessingsCacheMessageAdd{})
-)
 
 var __VDLInitCalled bool
 
@@ -431,6 +474,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*BlessingsId)(nil))

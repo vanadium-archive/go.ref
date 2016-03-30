@@ -58,7 +58,7 @@ func genEncDefInternal(data *goData, t *vdl.Type, instName, targetName, unionFie
 		if shouldUseVdlValueForAny(data.Package) {
 			return fmt.Sprintf(`
 		if %[2]s == nil {
-			if err := %[1]s.FromNil(%[4]s); err != nil {
+			if err := %[1]s.FromZero(%[4]s); err != nil {
 				return err
 			}
 		} else {
@@ -69,7 +69,7 @@ func genEncDefInternal(data *goData, t *vdl.Type, instName, targetName, unionFie
 		} else {
 			return fmt.Sprintf(`
 		if %[2]s == nil {
-			if err := %[1]s.FromNil(%[3]s); err != nil {
+			if err := %[1]s.FromZero(%[3]s); err != nil {
 				return err
 			}
 		} else {
@@ -192,30 +192,39 @@ func genEncDefInternal(data *goData, t *vdl.Type, instName, targetName, unionFie
 	%[1]s, err := %[2]s.StartFields(%[3]s)
 	if err != nil {
 	return err
-	}
-	`, fieldsTargetName, targetName, ttVar)
+	}`, fieldsTargetName, targetName, ttVar)
 		for ix := 0; ix < t.NumField(); ix++ {
 			f := t.Field(ix)
 			fieldInstName := fmt.Sprintf("%s.%s", instName, f.Name)
 			fieldInstName, nativeConvBody := encWiretypeInstName(data, f.Type, fieldInstName, varCount)
 			s += nativeConvBody
-			// TODO(toddw): Add native IsZero check here?
 			keyTargetName := createUniqueName("keyTarget", varCount)
 			fieldTargetName := createUniqueName("fieldTarget", varCount)
-			ttSuffixF := ttSuffix + fmt.Sprintf(".Field(%d).Type", ix)
 			s += fmt.Sprintf(`
 		%[1]s, %[2]s, err := %[3]s.StartField(%[4]q)
 		if err != %[5]sErrFieldNoExist && err != nil {
 			return err
 		}
 		if err != %[5]sErrFieldNoExist {
-			%[6]s
-			if err := %[3]s.FinishField(%[1]s, %[2]s); err != nil {
+`, keyTargetName, fieldTargetName, fieldsTargetName, f.Name,
+				data.Pkg("v.io/v23/vdl"))
+			outName, isZeroRefBody := genIsZeroBlockWiretype(data, f.Type, fieldInstName, varCount)
+			s += isZeroRefBody
+			ttSuffixF := ttSuffix + fmt.Sprintf(".Field(%d).Type", ix)
+			s += fmt.Sprintf(`
+		if %[1]s {
+			if err := %[2]s.FromZero(%[3]s); err != nil {
 				return err
 			}
-		}`, keyTargetName, fieldTargetName, fieldsTargetName, f.Name,
-				data.Pkg("v.io/v23/vdl"),
-				genEncRefForWiretype(data, f.Type, fieldInstName, fieldTargetName, ttSuffixF, varCount))
+		} else {
+			%[4]s
+		}
+		if err := %[6]s.FinishField(%[5]s, %[2]s); err != nil {
+			return err
+		}
+	}`, outName, fieldTargetName, ttVar+fmt.Sprintf(".NonOptional().Field(%d).Type", ix),
+				genEncRefForWiretype(data, f.Type, fieldInstName, fieldTargetName, ttSuffixF, varCount),
+				keyTargetName, fieldsTargetName)
 		}
 		s += fmt.Sprintf(`
 	if err := %[1]s.FinishFields(%[2]s); err != nil {
@@ -268,14 +277,7 @@ func genEncRefForWiretype(data *goData, t *vdl.Type, wireInstName, targetName, t
 	origType, ttVar := t, ttVarName(ttSuffix)
 	var s string
 
-	// If this is an optional, add the nil case.
 	if origType.Kind() == vdl.Optional {
-		s += fmt.Sprintf(`
-	if %[1]s == nil {
-		if err := %[2]s.FromNil(%[3]s); err != nil {
-			return err
-		}
-	} else {`, wireInstName, targetName, ttVar)
 		t = t.Elem()
 	}
 
@@ -291,10 +293,6 @@ func genEncRefForWiretype(data *goData, t *vdl.Type, wireInstName, targetName, t
 		return err
 	}
 	`, wireErrorName, data.Pkg("v.io/v23/verror"), data.Pkg("v.io/v23/vdl"), wireInstName, targetName)
-		if origType.Kind() == vdl.Optional {
-			s += `
-	}`
-		}
 		return s
 	}
 
@@ -318,11 +316,6 @@ func genEncRefForWiretype(data *goData, t *vdl.Type, wireInstName, targetName, t
 	} else {
 		// Generate an inline encoder
 		s += genEncDefInternal(data, t, wireInstName, targetName, "", ttSuffix, varCount)
-	}
-
-	if origType.Kind() == vdl.Optional {
-		s += `
-	}`
 	}
 
 	return s

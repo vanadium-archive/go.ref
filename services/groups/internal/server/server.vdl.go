@@ -36,47 +36,68 @@ func (m *groupData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Perms")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Perms.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var var4 bool
+		if len(m.Perms) == 0 {
+			var4 = true
+		}
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Perms.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Entries")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Entries")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		setTarget6, err := fieldTarget5.StartSet(tt.NonOptional().Field(1).Type, len(m.Entries))
-		if err != nil {
-			return err
+		var var7 bool
+		if len(m.Entries) == 0 {
+			var7 = true
 		}
-		for key8 := range m.Entries {
-			keyTarget7, err := setTarget6.StartKey()
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			setTarget8, err := fieldTarget6.StartSet(tt.NonOptional().Field(1).Type, len(m.Entries))
 			if err != nil {
 				return err
 			}
+			for key10 := range m.Entries {
+				keyTarget9, err := setTarget8.StartKey()
+				if err != nil {
+					return err
+				}
 
-			if err := key8.FillVDLTarget(keyTarget7, tt.NonOptional().Field(1).Type.Key()); err != nil {
-				return err
+				if err := key10.FillVDLTarget(keyTarget9, tt.NonOptional().Field(1).Type.Key()); err != nil {
+					return err
+				}
+				if err := setTarget8.FinishKey(keyTarget9); err != nil {
+					return err
+				}
 			}
-			if err := setTarget6.FinishKey(keyTarget7); err != nil {
+			if err := fieldTarget6.FinishSet(setTarget8); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget5.FinishSet(setTarget6); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -126,6 +147,10 @@ func (t *groupDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *groupDataTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = groupData{}
+	return nil
+}
 
 // map[groups.BlessingPatternChunk]struct{}
 type __VDLTarget1_set struct {
@@ -161,11 +186,10 @@ func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZerogroupData = groupData{}
-)
+func (t *__VDLTarget1_set) FromZero(tt *vdl.Type) error {
+	*t.Value = map[groups.BlessingPatternChunk]struct{}(nil)
+	return nil
+}
 
 var __VDLInitCalled bool
 
@@ -186,6 +210,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*groupData)(nil))

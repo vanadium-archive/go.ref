@@ -38,6 +38,8 @@ func TestConst(t *testing.T) {
 		{"EmptySet", vEmptySet, "map[string]struct{}(nil)"},
 		{"EmptyMap", vEmptyMap, "map[string]int64(nil)"},
 		{"EmptyStruct", vEmptyStruct, "TestStruct{}"},
+		{"NilOptionalStruct", vNilOptional, "(*TestStruct)(nil)"},
+		{"NonNilOptionalStruct", vNonNilOptional, "&TestStruct{}"},
 		{"Array", vArray, `[3]string{
 "A",
 "B",
@@ -106,6 +108,8 @@ var (
 	vSet            = vdl.ZeroValue(tSet)
 	vMap            = vdl.ZeroValue(tMap)
 	vStruct         = vdl.ZeroValue(tStruct)
+	vNilOptional    = vdl.ZeroValue(vdl.OptionalType(tStruct))
+	vNonNilOptional = vdl.NonNilZeroValue(vdl.OptionalType(tStruct))
 	vUnionABC       = vdl.ZeroValue(tUnion)
 	vUnion123       = vdl.ZeroValue(tUnion)
 	vAnyABC         = vdl.ZeroValue(vdl.AnyType)

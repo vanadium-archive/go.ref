@@ -56,14 +56,21 @@ func (m *GameId) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Id")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Id), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.Id == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.Id), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
@@ -108,6 +115,10 @@ func (t *GameIdTarget) FinishField(_, _ vdl.Target) error {
 }
 func (t *GameIdTarget) FinishFields(_ vdl.FieldsTarget) error {
 
+	return nil
+}
+func (t *GameIdTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = GameId{}
 	return nil
 }
 
@@ -164,6 +175,10 @@ func (t *GameTypeTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
+func (t *GameTypeTagTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = GameTypeTag(0)
+	return nil
+}
 
 // GameOptions specifies the parameters of a game.
 type GameOptions struct {
@@ -181,29 +196,44 @@ func (m *GameOptions) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("NumRounds")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromInt(int64(m.NumRounds), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.NumRounds == int32(0))
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromInt(int64(m.NumRounds), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("GameType")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("GameType")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.GameType.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var7 := (m.GameType == GameTypeTag(0))
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.GameType.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -253,6 +283,10 @@ func (t *GameOptionsTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *GameOptionsTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = GameOptions{}
+	return nil
+}
 
 type unused struct {
 }
@@ -267,7 +301,6 @@ func (m *unused) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	if err := t.FinishFields(fieldsTarget1); err != nil {
 		return err
 	}
@@ -302,6 +335,10 @@ func (t *unusedTarget) FinishField(_, _ vdl.Target) error {
 }
 func (t *unusedTarget) FinishFields(_ vdl.FieldsTarget) error {
 
+	return nil
+}
+func (t *unusedTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = unused{}
 	return nil
 }
 
@@ -438,6 +475,10 @@ func (t *PlayerActionTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *PlayerActionTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = PlayerAction(PlayerActionMove{})
+	return nil
+}
 
 type playerActionTargetFactory struct{}
 
@@ -509,6 +550,10 @@ func (t *PlayersMovesTarget) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
+func (t *PlayersMovesTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = PlayersMoves{}
+	return nil
+}
 
 // WinnerTag is a type used to indicate whether a round or a game was a draw,
 // was won by player 1 or was won by player 2.
@@ -565,6 +610,10 @@ func (t *WinnerTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
+func (t *WinnerTagTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = WinnerTag(0)
+	return nil
+}
 
 // Round represents the state of a round.
 type Round struct {
@@ -585,78 +634,117 @@ func (m *Round) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Moves")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Moves.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var4 := (m.Moves == PlayersMoves{})
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Moves.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Comment")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Comment), tt.NonOptional().Field(1).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
-			return err
-		}
-	}
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Winner")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Comment")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Winner.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(2).Type); err != nil {
-			return err
+		var7 := (m.Comment == "")
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget6.FromString(string(m.Comment), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
-	var wireValue8 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue8, m.StartTime); err != nil {
-		return err
-	}
-
-	keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("StartTime")
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Winner")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue8.FillVDLTarget(fieldTarget10, tt.NonOptional().Field(3).Type); err != nil {
-			return err
+		var10 := (m.Winner == WinnerTag(0))
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Winner.FillVDLTarget(fieldTarget9, tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 			return err
 		}
 	}
 	var wireValue11 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue11, m.EndTime); err != nil {
+	if err := time_2.TimeFromNative(&wireValue11, m.StartTime); err != nil {
 		return err
 	}
 
-	keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("EndTime")
+	keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("StartTime")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue11.FillVDLTarget(fieldTarget13, tt.NonOptional().Field(4).Type); err != nil {
-			return err
+		var14 := (wireValue11 == time_2.Time{})
+		if var14 {
+			if err := fieldTarget13.FromZero(tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue11.FillVDLTarget(fieldTarget13, tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
+			return err
+		}
+	}
+	var wireValue15 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue15, m.EndTime); err != nil {
+		return err
+	}
+
+	keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("EndTime")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var18 := (wireValue15 == time_2.Time{})
+		if var18 {
+			if err := fieldTarget17.FromZero(tt.NonOptional().Field(4).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue15.FillVDLTarget(fieldTarget17, tt.NonOptional().Field(4).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
 			return err
 		}
 	}
@@ -721,6 +809,10 @@ func (t *RoundTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *RoundTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Round{}
+	return nil
+}
 
 type ScoreCard struct {
 	Opts      GameOptions // The game options.
@@ -742,137 +834,198 @@ func (m *ScoreCard) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Opts")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Opts.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var4 := (m.Opts == GameOptions{})
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Opts.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Judge")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Judge), tt.NonOptional().Field(1).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
-			return err
-		}
-	}
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Players")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Judge")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget8, err := fieldTarget7.StartList(tt.NonOptional().Field(2).Type, len(m.Players))
-		if err != nil {
+		var7 := (m.Judge == "")
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget6.FromString(string(m.Judge), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
-		for i, elem10 := range m.Players {
-			elemTarget9, err := listTarget8.StartElem(i)
+	}
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Players")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var var10 bool
+		if len(m.Players) == 0 {
+			var10 = true
+		}
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget11, err := fieldTarget9.StartList(tt.NonOptional().Field(2).Type, len(m.Players))
 			if err != nil {
 				return err
 			}
-			if err := elemTarget9.FromString(string(elem10), tt.NonOptional().Field(2).Type.Elem()); err != nil {
-				return err
+			for i, elem13 := range m.Players {
+				elemTarget12, err := listTarget11.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget12.FromString(string(elem13), tt.NonOptional().Field(2).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget11.FinishElem(elemTarget12); err != nil {
+					return err
+				}
 			}
-			if err := listTarget8.FinishElem(elemTarget9); err != nil {
+			if err := fieldTarget9.FinishList(listTarget11); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget7.FinishList(listTarget8); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 			return err
 		}
 	}
-	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("Rounds")
+	keyTarget14, fieldTarget15, err := fieldsTarget1.StartField("Rounds")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget13, err := fieldTarget12.StartList(tt.NonOptional().Field(3).Type, len(m.Rounds))
-		if err != nil {
-			return err
+		var var16 bool
+		if len(m.Rounds) == 0 {
+			var16 = true
 		}
-		for i, elem15 := range m.Rounds {
-			elemTarget14, err := listTarget13.StartElem(i)
+		if var16 {
+			if err := fieldTarget15.FromZero(tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget17, err := fieldTarget15.StartList(tt.NonOptional().Field(3).Type, len(m.Rounds))
 			if err != nil {
 				return err
 			}
+			for i, elem19 := range m.Rounds {
+				elemTarget18, err := listTarget17.StartElem(i)
+				if err != nil {
+					return err
+				}
 
-			if err := elem15.FillVDLTarget(elemTarget14, tt.NonOptional().Field(3).Type.Elem()); err != nil {
+				if err := elem19.FillVDLTarget(elemTarget18, tt.NonOptional().Field(3).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget17.FinishElem(elemTarget18); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget15.FinishList(listTarget17); err != nil {
 				return err
 			}
-			if err := listTarget13.FinishElem(elemTarget14); err != nil {
+		}
+		if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
+			return err
+		}
+	}
+	var wireValue20 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue20, m.StartTime); err != nil {
+		return err
+	}
+
+	keyTarget21, fieldTarget22, err := fieldsTarget1.StartField("StartTime")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var23 := (wireValue20 == time_2.Time{})
+		if var23 {
+			if err := fieldTarget22.FromZero(tt.NonOptional().Field(4).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue20.FillVDLTarget(fieldTarget22, tt.NonOptional().Field(4).Type); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget12.FinishList(listTarget13); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget21, fieldTarget22); err != nil {
 			return err
 		}
 	}
-	var wireValue16 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue16, m.StartTime); err != nil {
+	var wireValue24 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue24, m.EndTime); err != nil {
 		return err
 	}
 
-	keyTarget17, fieldTarget18, err := fieldsTarget1.StartField("StartTime")
+	keyTarget25, fieldTarget26, err := fieldsTarget1.StartField("EndTime")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue16.FillVDLTarget(fieldTarget18, tt.NonOptional().Field(4).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget17, fieldTarget18); err != nil {
-			return err
-		}
-	}
-	var wireValue19 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue19, m.EndTime); err != nil {
-		return err
-	}
+		var27 := (wireValue24 == time_2.Time{})
+		if var27 {
+			if err := fieldTarget26.FromZero(tt.NonOptional().Field(5).Type); err != nil {
+				return err
+			}
+		} else {
 
-	keyTarget20, fieldTarget21, err := fieldsTarget1.StartField("EndTime")
+			if err := wireValue24.FillVDLTarget(fieldTarget26, tt.NonOptional().Field(5).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget25, fieldTarget26); err != nil {
+			return err
+		}
+	}
+	keyTarget28, fieldTarget29, err := fieldsTarget1.StartField("Winner")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue19.FillVDLTarget(fieldTarget21, tt.NonOptional().Field(5).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget20, fieldTarget21); err != nil {
-			return err
-		}
-	}
-	keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("Winner")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
+		var30 := (m.Winner == WinnerTag(0))
+		if var30 {
+			if err := fieldTarget29.FromZero(tt.NonOptional().Field(6).Type); err != nil {
+				return err
+			}
+		} else {
 
-		if err := m.Winner.FillVDLTarget(fieldTarget23, tt.NonOptional().Field(6).Type); err != nil {
-			return err
+			if err := m.Winner.FillVDLTarget(fieldTarget29, tt.NonOptional().Field(6).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
 			return err
 		}
 	}
@@ -947,6 +1100,10 @@ func (t *ScoreCardTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *ScoreCardTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = ScoreCard{}
+	return nil
+}
 
 // []Round
 type __VDLTarget1_list struct {
@@ -978,6 +1135,10 @@ func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 }
 func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
+	return nil
+}
+func (t *__VDLTarget1_list) FromZero(tt *vdl.Type) error {
+	*t.Value = []Round(nil)
 	return nil
 }
 
@@ -1249,6 +1410,10 @@ func (t *JudgeActionTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *JudgeActionTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = JudgeAction(JudgeActionPlayerNum{})
+	return nil
+}
 
 type judgeActionTargetFactory struct{}
 
@@ -1274,14 +1439,21 @@ func (m *PlayResult) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("YouWon")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromBool(bool(m.YouWon), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.YouWon == false)
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromBool(bool(m.YouWon), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
@@ -1328,21 +1500,10 @@ func (t *PlayResultTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroGameId       = GameId{}
-	__VDLZeroGameTypeTag  = GameTypeTag(0)
-	__VDLZeroGameOptions  = GameOptions{}
-	__VDLZerounused       = unused{}
-	__VDLZeroPlayerAction = PlayerAction(PlayerActionMove{})
-	__VDLZeroPlayersMoves = PlayersMoves{}
-	__VDLZeroWinnerTag    = WinnerTag(0)
-	__VDLZeroRound        = Round{}
-	__VDLZeroScoreCard    = ScoreCard{}
-	__VDLZeroJudgeAction  = JudgeAction(JudgeActionPlayerNum{})
-	__VDLZeroPlayResult   = PlayResult{}
-)
+func (t *PlayResultTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = PlayResult{}
+	return nil
+}
 
 //////////////////////////////////////////////////
 // Const definitions
@@ -2019,6 +2180,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*GameId)(nil))

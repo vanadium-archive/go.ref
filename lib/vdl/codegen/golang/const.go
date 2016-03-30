@@ -116,9 +116,10 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 			}
 		}
 		if shouldUseVdlValueForAny(data.Package) {
-			return "(*" + data.Pkg("v.io/v23/vdl") + "Value)(nil)"
+			return data.Pkg("v.io/v23/vdl") + "ZeroValue(vdl.AnyType)"
 		} else {
-			return "(*" + data.Pkg("v.io/v23/vom") + "RawBytes)(nil)"
+			// TODO(bprosnitz) Can this just be vom.RawBytesOf(nil)
+			return data.Pkg("v.io/v23/vom") + "RawBytesOf(" + data.Pkg("v.io/v23/vdl") + "ZeroValue(vdl.AnyType)" + ")"
 		}
 	case vdl.Optional:
 		if elem := v.Elem(); elem != nil {
@@ -201,7 +202,7 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 		hasFields := false
 		for ix := 0; ix < t.NumField(); ix++ {
 			vf := v.StructField(ix)
-			if !vf.IsZero() || vf.Type().ContainsKind(vdl.WalkInline, vdl.TypeObject, vdl.Union) {
+			if !vf.IsZero() || vf.Type().ContainsKind(vdl.WalkInline, vdl.TypeObject, vdl.Any, vdl.Union) {
 				// We can't rely on the golang zero-value for this field, even if it's a
 				// vdl zero value, if the field contains inline typeobject or union,
 				// since the golang zero-value for these types is different from the vdl
@@ -217,7 +218,7 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 	case vdl.Union:
 		ix, vf := v.UnionField()
 		var inner string
-		if !vf.IsZero() || vf.Type().ContainsKind(vdl.WalkInline, vdl.TypeObject, vdl.Union) {
+		if !vf.IsZero() || vf.Type().ContainsKind(vdl.WalkInline, vdl.TypeObject, vdl.Any, vdl.Union) {
 			// We can't rely on the golang zero-value array if t contains inline
 			// typeobject or union, since the golang zero-value for these types is
 			// different from the vdl zero-value for these types.

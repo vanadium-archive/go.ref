@@ -278,6 +278,14 @@ func typeDefGo(data *goData, def *compile.TypeDef) string {
 			"\n\treturn nil" +
 			"\n}"
 		s += genTargetDef(data, def.Type)
+	case data.Package.Path == "vdltool":
+		// Use reflect for loading vdl.Config, because changes to the generator can break the ability to
+		// load the config making it not possible to build the generator itself.
+		s += fmt.Sprintf("\n"+
+			"\nfunc (m *%[1]s) MakeVDLTarget() %[2]sTarget {", def.Name, data.Pkg("v.io/v23/vdl")) +
+			"\n\treturn nil" +
+			"\n}"
+		s += genTargetDef(data, def.Type)
 	default:
 		ref, body := genTargetRef(data, def.Type)
 		s += fmt.Sprintf("\n"+

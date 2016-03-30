@@ -46,53 +46,71 @@ func (m *WireCiphertext) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("PatternId")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.PatternId), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.PatternId == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.PatternId), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Bytes")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Bytes")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		mapTarget6, err := fieldTarget5.StartMap(tt.NonOptional().Field(1).Type, len(m.Bytes))
-		if err != nil {
-			return err
+		var var7 bool
+		if len(m.Bytes) == 0 {
+			var7 = true
 		}
-		for key8, value10 := range m.Bytes {
-			keyTarget7, err := mapTarget6.StartKey()
-			if err != nil {
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-			if err := keyTarget7.FromString(string(key8), tt.NonOptional().Field(1).Type.Key()); err != nil {
-				return err
-			}
-			valueTarget9, err := mapTarget6.FinishKeyStartField(keyTarget7)
-			if err != nil {
-				return err
-			}
+		} else {
 
-			if err := valueTarget9.FromBytes([]byte(value10), tt.NonOptional().Field(1).Type.Elem()); err != nil {
+			mapTarget8, err := fieldTarget6.StartMap(tt.NonOptional().Field(1).Type, len(m.Bytes))
+			if err != nil {
 				return err
 			}
-			if err := mapTarget6.FinishField(keyTarget7, valueTarget9); err != nil {
+			for key10, value12 := range m.Bytes {
+				keyTarget9, err := mapTarget8.StartKey()
+				if err != nil {
+					return err
+				}
+				if err := keyTarget9.FromString(string(key10), tt.NonOptional().Field(1).Type.Key()); err != nil {
+					return err
+				}
+				valueTarget11, err := mapTarget8.FinishKeyStartField(keyTarget9)
+				if err != nil {
+					return err
+				}
+
+				if err := valueTarget11.FromBytes([]byte(value12), tt.NonOptional().Field(1).Type.Elem()); err != nil {
+					return err
+				}
+				if err := mapTarget8.FinishField(keyTarget9, valueTarget11); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget6.FinishMap(mapTarget8); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget5.FinishMap(mapTarget6); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -142,6 +160,10 @@ func (t *WireCiphertextTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *WireCiphertextTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = WireCiphertext{}
+	return nil
+}
 
 // map[string][]byte
 type __VDLTarget1_map struct {
@@ -185,6 +207,10 @@ func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 
 	return nil
 }
+func (t *__VDLTarget1_map) FromZero(tt *vdl.Type) error {
+	*t.Value = map[string][]byte(nil)
+	return nil
+}
 
 // WireParams represents the wire format of the public parameters
 // of an identity provider (aka Root).
@@ -208,29 +234,47 @@ func (m *WireParams) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Blessing")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Blessing), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.Blessing == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.Blessing), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Params")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Params")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget5.FromBytes([]byte(m.Params), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var var7 bool
+		if len(m.Params) == 0 {
+			var7 = true
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := fieldTarget6.FromBytes([]byte(m.Params), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -280,6 +324,10 @@ func (t *WireParamsTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *WireParamsTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = WireParams{}
+	return nil
+}
 
 // WirePrivateKey represents the wire format of the private key corresponding
 // to a blessing.
@@ -316,59 +364,92 @@ func (m *WirePrivateKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Blessing")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Blessing), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.Blessing == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.Blessing), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Params")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Params")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Params.FillVDLTarget(fieldTarget5, tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var7 := true
+		var8 := (m.Params.Blessing == "")
+		var7 = var7 && var8
+		var var9 bool
+		if len(m.Params.Params) == 0 {
+			var9 = true
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		var7 = var7 && var9
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Params.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Keys")
+	keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("Keys")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget8, err := fieldTarget7.StartList(tt.NonOptional().Field(2).Type, len(m.Keys))
-		if err != nil {
-			return err
+		var var12 bool
+		if len(m.Keys) == 0 {
+			var12 = true
 		}
-		for i, elem10 := range m.Keys {
-			elemTarget9, err := listTarget8.StartElem(i)
+		if var12 {
+			if err := fieldTarget11.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget13, err := fieldTarget11.StartList(tt.NonOptional().Field(2).Type, len(m.Keys))
 			if err != nil {
 				return err
 			}
+			for i, elem15 := range m.Keys {
+				elemTarget14, err := listTarget13.StartElem(i)
+				if err != nil {
+					return err
+				}
 
-			if err := elemTarget9.FromBytes([]byte(elem10), tt.NonOptional().Field(2).Type.Elem()); err != nil {
-				return err
+				if err := elemTarget14.FromBytes([]byte(elem15), tt.NonOptional().Field(2).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget13.FinishElem(elemTarget14); err != nil {
+					return err
+				}
 			}
-			if err := listTarget8.FinishElem(elemTarget9); err != nil {
+			if err := fieldTarget11.FinishList(listTarget13); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget7.FinishList(listTarget8); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
 			return err
 		}
 	}
@@ -423,6 +504,10 @@ func (t *WirePrivateKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *WirePrivateKeyTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = WirePrivateKey{}
+	return nil
+}
 
 // [][]byte
 type __VDLTarget2_list struct {
@@ -456,13 +541,10 @@ func (t *__VDLTarget2_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroWireCiphertext = WireCiphertext{}
-	__VDLZeroWireParams     = WireParams{}
-	__VDLZeroWirePrivateKey = WirePrivateKey{}
-)
+func (t *__VDLTarget2_list) FromZero(tt *vdl.Type) error {
+	*t.Value = [][]byte(nil)
+	return nil
+}
 
 //////////////////////////////////////////////////
 // Error definitions
@@ -512,6 +594,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*WireCiphertext)(nil))

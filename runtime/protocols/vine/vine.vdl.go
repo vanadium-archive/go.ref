@@ -38,28 +38,43 @@ func (m *ConnKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Dialer")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.Dialer), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.Dialer == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.Dialer), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Acceptor")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Acceptor")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Acceptor), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+
+		var7 := (m.Acceptor == "")
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget6.FromString(string(m.Acceptor), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -109,6 +124,10 @@ func (t *ConnKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *ConnKeyTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = ConnKey{}
+	return nil
+}
 
 // ConnBehavior specifies characteristics of a connection.
 type ConnBehavior struct {
@@ -128,14 +147,21 @@ func (m *ConnBehavior) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Reachable")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromBool(bool(m.Reachable), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.Reachable == false)
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromBool(bool(m.Reachable), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
@@ -182,12 +208,10 @@ func (t *ConnBehaviorTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroConnKey      = ConnKey{}
-	__VDLZeroConnBehavior = ConnBehavior{}
-)
+func (t *ConnBehaviorTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = ConnBehavior{}
+	return nil
+}
 
 //////////////////////////////////////////////////
 // Error definitions
@@ -356,6 +380,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*ConnKey)(nil))

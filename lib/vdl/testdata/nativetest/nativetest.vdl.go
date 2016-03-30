@@ -84,6 +84,16 @@ func (t *WireStringTarget) FromFloat(src float64, tt *vdl.Type) error {
 	}
 	return nil
 }
+func (t *WireStringTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = func() string {
+		var native string
+		if err := vdl.Convert(&native, WireString(0)); err != nil {
+			panic(err)
+		}
+		return native
+	}()
+	return nil
+}
 
 type WireMapStringInt int32
 
@@ -146,6 +156,16 @@ func (t *WireMapStringIntTarget) FromFloat(src float64, tt *vdl.Type) error {
 	if err := WireMapStringIntToNative(t.wireValue, t.Value); err != nil {
 		return err
 	}
+	return nil
+}
+func (t *WireMapStringIntTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = func() map[string]int {
+		var native map[string]int
+		if err := vdl.Convert(&native, WireMapStringInt(0)); err != nil {
+			panic(err)
+		}
+		return native
+	}()
 	return nil
 }
 
@@ -212,6 +232,16 @@ func (t *WireTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 	}
 	return nil
 }
+func (t *WireTimeTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = func() time.Time {
+		var native time.Time
+		if err := vdl.Convert(&native, WireTime(0)); err != nil {
+			panic(err)
+		}
+		return native
+	}()
+	return nil
+}
 
 type WireSamePkg int32
 
@@ -274,6 +304,16 @@ func (t *WireSamePkgTarget) FromFloat(src float64, tt *vdl.Type) error {
 	if err := WireSamePkgToNative(t.wireValue, t.Value); err != nil {
 		return err
 	}
+	return nil
+}
+func (t *WireSamePkgTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = func() nativetest.NativeSamePkg {
+		var native nativetest.NativeSamePkg
+		if err := vdl.Convert(&native, WireSamePkg(0)); err != nil {
+			panic(err)
+		}
+		return native
+	}()
 	return nil
 }
 
@@ -340,6 +380,16 @@ func (t *WireMultiImportTarget) FromFloat(src float64, tt *vdl.Type) error {
 	}
 	return nil
 }
+func (t *WireMultiImportTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = func() map[nativetest.NativeSamePkg]time.Time {
+		var native map[nativetest.NativeSamePkg]time.Time
+		if err := vdl.Convert(&native, WireMultiImport(0)); err != nil {
+			panic(err)
+		}
+		return native
+	}()
+	return nil
+}
 
 type WireRenameMe int32
 
@@ -394,6 +444,10 @@ func (t *WireRenameMeTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
+func (t *WireRenameMeTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = WireRenameMe(0)
+	return nil
+}
 
 type WireAll struct {
 	A string
@@ -414,7 +468,6 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	var wireValue2 WireString
 	if err := WireStringFromNative(&wireValue2, m.A); err != nil {
 		return err
@@ -426,95 +479,143 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue2.FillVDLTarget(fieldTarget4, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var5 := (wireValue2 == WireString(0))
+		if var5 {
+			if err := fieldTarget4.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue2.FillVDLTarget(fieldTarget4, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
 			return err
 		}
 	}
-	var wireValue5 WireMapStringInt
-	if err := WireMapStringIntFromNative(&wireValue5, m.B); err != nil {
+	var wireValue6 WireMapStringInt
+	if err := WireMapStringIntFromNative(&wireValue6, m.B); err != nil {
 		return err
 	}
 
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("B")
+	keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("B")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue5.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var9 := (wireValue6 == WireMapStringInt(0))
+		if var9 {
+			if err := fieldTarget8.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue6.FillVDLTarget(fieldTarget8, tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
 			return err
 		}
 	}
-	var wireValue8 WireTime
-	if err := WireTimeFromNative(&wireValue8, m.C); err != nil {
+	var wireValue10 WireTime
+	if err := WireTimeFromNative(&wireValue10, m.C); err != nil {
 		return err
 	}
 
-	keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("C")
+	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("C")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue8.FillVDLTarget(fieldTarget10, tt.NonOptional().Field(2).Type); err != nil {
-			return err
+		var13 := (wireValue10 == WireTime(0))
+		if var13 {
+			if err := fieldTarget12.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue10.FillVDLTarget(fieldTarget12, tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
 			return err
 		}
 	}
-	var wireValue11 WireSamePkg
-	if err := WireSamePkgFromNative(&wireValue11, m.D); err != nil {
+	var wireValue14 WireSamePkg
+	if err := WireSamePkgFromNative(&wireValue14, m.D); err != nil {
 		return err
 	}
 
-	keyTarget12, fieldTarget13, err := fieldsTarget1.StartField("D")
+	keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("D")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := wireValue11.FillVDLTarget(fieldTarget13, tt.NonOptional().Field(3).Type); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget12, fieldTarget13); err != nil {
-			return err
-		}
-	}
-	var wireValue14 WireMultiImport
-	if err := WireMultiImportFromNative(&wireValue14, m.E); err != nil {
-		return err
-	}
+		var17 := (wireValue14 == WireSamePkg(0))
+		if var17 {
+			if err := fieldTarget16.FromZero(tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
+		} else {
 
-	keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("E")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		if err := wireValue14.FillVDLTarget(fieldTarget16, tt.NonOptional().Field(4).Type); err != nil {
-			return err
+			if err := wireValue14.FillVDLTarget(fieldTarget16, tt.NonOptional().Field(3).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
 			return err
 		}
 	}
-	keyTarget17, fieldTarget18, err := fieldsTarget1.StartField("F")
+	var wireValue18 WireMultiImport
+	if err := WireMultiImportFromNative(&wireValue18, m.E); err != nil {
+		return err
+	}
+
+	keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("E")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.F.FillVDLTarget(fieldTarget18, tt.NonOptional().Field(5).Type); err != nil {
+		var21 := (wireValue18 == WireMultiImport(0))
+		if var21 {
+			if err := fieldTarget20.FromZero(tt.NonOptional().Field(4).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue18.FillVDLTarget(fieldTarget20, tt.NonOptional().Field(4).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
 			return err
 		}
-		if err := fieldsTarget1.FinishField(keyTarget17, fieldTarget18); err != nil {
+	}
+	keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("F")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var24 := (m.F == WireRenameMe(0))
+		if var24 {
+			if err := fieldTarget23.FromZero(tt.NonOptional().Field(5).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.F.FillVDLTarget(fieldTarget23, tt.NonOptional().Field(5).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
 			return err
 		}
 	}
@@ -584,6 +685,10 @@ func (t *WireAllTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *WireAllTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = WireAll{}
+	return nil
+}
 
 type ignoreme string
 
@@ -617,48 +722,10 @@ func (t *ignoremeTarget) FromString(src string, tt *vdl.Type) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroWireString = func() string {
-		var native string
-		if err := vdl.Convert(&native, WireString(0)); err != nil {
-			panic(err)
-		}
-		return native
-	}()
-	__VDLZeroWireMapStringInt = func() map[string]int {
-		var native map[string]int
-		if err := vdl.Convert(&native, WireMapStringInt(0)); err != nil {
-			panic(err)
-		}
-		return native
-	}()
-	__VDLZeroWireTime = func() time.Time {
-		var native time.Time
-		if err := vdl.Convert(&native, WireTime(0)); err != nil {
-			panic(err)
-		}
-		return native
-	}()
-	__VDLZeroWireSamePkg = func() nativetest.NativeSamePkg {
-		var native nativetest.NativeSamePkg
-		if err := vdl.Convert(&native, WireSamePkg(0)); err != nil {
-			panic(err)
-		}
-		return native
-	}()
-	__VDLZeroWireMultiImport = func() map[nativetest.NativeSamePkg]time.Time {
-		var native map[nativetest.NativeSamePkg]time.Time
-		if err := vdl.Convert(&native, WireMultiImport(0)); err != nil {
-			panic(err)
-		}
-		return native
-	}()
-	__VDLZeroWireRenameMe = WireRenameMe(0)
-	__VDLZeroWireAll      = WireAll{}
-	__VDLZeroignoreme     = ignoreme("")
-)
+func (t *ignoremeTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = ignoreme("")
+	return nil
+}
 
 // Type-check native conversion functions.
 var (
@@ -693,6 +760,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register native type conversions first, so that vdl.TypeOf works.
 	vdl.RegisterNative(WireMapStringIntToNative, WireMapStringIntFromNative)

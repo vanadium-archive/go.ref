@@ -36,46 +36,67 @@ func (m *PackAddressTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("In")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget4, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.In))
-		if err != nil {
-			return err
+		var var4 bool
+		if len(m.In) == 0 {
+			var4 = true
 		}
-		for i, elem6 := range m.In {
-			elemTarget5, err := listTarget4.StartElem(i)
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget5, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.In))
 			if err != nil {
 				return err
 			}
-			if err := elemTarget5.FromString(string(elem6), tt.NonOptional().Field(0).Type.Elem()); err != nil {
+			for i, elem7 := range m.In {
+				elemTarget6, err := listTarget5.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget6.FromString(string(elem7), tt.NonOptional().Field(0).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget5.FinishElem(elemTarget6); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget3.FinishList(listTarget5); err != nil {
 				return err
 			}
-			if err := listTarget4.FinishElem(elemTarget5); err != nil {
-				return err
-			}
-		}
-		if err := fieldTarget3.FinishList(listTarget4); err != nil {
-			return err
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("Packed")
+	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Packed")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget8.FromBytes([]byte(m.Packed), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+		var var10 bool
+		if len(m.Packed) == 0 {
+			var10 = true
 		}
-		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+		if var10 {
+			if err := fieldTarget9.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := fieldTarget9.FromBytes([]byte(m.Packed), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 			return err
 		}
 	}
@@ -125,6 +146,10 @@ func (t *PackAddressTestTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *PackAddressTestTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = PackAddressTest{}
+	return nil
+}
 
 // PackEncryptionKeysTest represents a test case for PackEncryptionKeys
 type PackEncryptionKeysTest struct {
@@ -148,60 +173,89 @@ func (m *PackEncryptionKeysTest) FillVDLTarget(t vdl.Target, tt *vdl.Type) error
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Algo")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := m.Algo.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-			return err
+		var4 := (m.Algo == discovery.EncryptionAlgorithm(0))
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := m.Algo.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Keys")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Keys")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		listTarget6, err := fieldTarget5.StartList(tt.NonOptional().Field(1).Type, len(m.Keys))
-		if err != nil {
-			return err
+		var var7 bool
+		if len(m.Keys) == 0 {
+			var7 = true
 		}
-		for i, elem8 := range m.Keys {
-			elemTarget7, err := listTarget6.StartElem(i)
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+
+			listTarget8, err := fieldTarget6.StartList(tt.NonOptional().Field(1).Type, len(m.Keys))
 			if err != nil {
 				return err
 			}
+			for i, elem10 := range m.Keys {
+				elemTarget9, err := listTarget8.StartElem(i)
+				if err != nil {
+					return err
+				}
 
-			if err := elem8.FillVDLTarget(elemTarget7, tt.NonOptional().Field(1).Type.Elem()); err != nil {
-				return err
+				if err := elem10.FillVDLTarget(elemTarget9, tt.NonOptional().Field(1).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget8.FinishElem(elemTarget9); err != nil {
+					return err
+				}
 			}
-			if err := listTarget6.FinishElem(elemTarget7); err != nil {
+			if err := fieldTarget6.FinishList(listTarget8); err != nil {
 				return err
 			}
 		}
-		if err := fieldTarget5.FinishList(listTarget6); err != nil {
-			return err
-		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
-	keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("Packed")
+	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("Packed")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		if err := fieldTarget10.FromBytes([]byte(m.Packed), tt.NonOptional().Field(2).Type); err != nil {
-			return err
+		var var13 bool
+		if len(m.Packed) == 0 {
+			var13 = true
 		}
-		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+		if var13 {
+			if err := fieldTarget12.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := fieldTarget12.FromBytes([]byte(m.Packed), tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
 			return err
 		}
 	}
@@ -256,6 +310,10 @@ func (t *PackEncryptionKeysTestTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *PackEncryptionKeysTestTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = PackEncryptionKeysTest{}
+	return nil
+}
 
 // []discovery.EncryptionKey
 type __VDLTarget1_list struct {
@@ -289,6 +347,10 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
 }
+func (t *__VDLTarget1_list) FromZero(tt *vdl.Type) error {
+	*t.Value = []discovery.EncryptionKey(nil)
+	return nil
+}
 
 // UuidTestData represents the inputs and outputs for a uuid test.
 type UuidTestData struct {
@@ -308,28 +370,43 @@ func (m *UuidTestData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("In")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromString(string(m.In), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.In == "")
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromString(string(m.In), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
 		}
 	}
-	keyTarget4, fieldTarget5, err := fieldsTarget1.StartField("Want")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Want")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget5.FromString(string(m.Want), tt.NonOptional().Field(1).Type); err != nil {
-			return err
+
+		var7 := (m.Want == "")
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget6.FromString(string(m.Want), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget4, fieldTarget5); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -379,13 +456,10 @@ func (t *UuidTestDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroPackAddressTest        = PackAddressTest{}
-	__VDLZeroPackEncryptionKeysTest = PackEncryptionKeysTest{}
-	__VDLZeroUuidTestData           = UuidTestData{}
-)
+func (t *UuidTestDataTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = UuidTestData{}
+	return nil
+}
 
 //////////////////////////////////////////////////
 // Const definitions
@@ -476,6 +550,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*PackAddressTest)(nil))

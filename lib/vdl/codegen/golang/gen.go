@@ -503,12 +503,6 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 {{typeDefGo $data $tdef}}
 {{end}}
 
-// Create zero values for each type.
-var (
-{{range $tdef := $pkg.TypeDefs}}
-	__VDLZero{{$tdef.Name}} = {{typedConst $data (vdlZeroValue $tdef.Type)}}{{end}}
-)
-
 {{if $pkg.Config.Go.WireToNativeTypes}}
 // Type-check native conversion functions.
 var (
@@ -895,6 +889,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 {{if $pkg.Config.Go.WireToNativeTypes}}
 	// Register native type conversions first, so that vdl.TypeOf works.{{range $wire, $native := $pkg.Config.Go.WireToNativeTypes}}
 	{{$data.Pkg "v.io/v23/vdl"}}RegisterNative({{$wire}}ToNative, {{$wire}}FromNative){{end}}

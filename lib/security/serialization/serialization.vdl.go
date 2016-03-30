@@ -32,14 +32,21 @@ func (m *SignedHeader) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-
 	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("ChunkSizeBytes")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
-		if err := fieldTarget3.FromInt(int64(m.ChunkSizeBytes), tt.NonOptional().Field(0).Type); err != nil {
-			return err
+
+		var4 := (m.ChunkSizeBytes == int64(0))
+		if var4 {
+			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget3.FromInt(int64(m.ChunkSizeBytes), tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 			return err
@@ -86,6 +93,10 @@ func (t *SignedHeaderTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *SignedHeaderTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = SignedHeader{}
+	return nil
+}
 
 type HashCode [32]byte
 
@@ -117,6 +128,10 @@ func (t *HashCodeTarget) FromBytes(src []byte, tt *vdl.Type) error {
 	}
 	copy((*t.Value)[:], src)
 
+	return nil
+}
+func (t *HashCodeTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = HashCode{}
 	return nil
 }
 
@@ -256,6 +271,10 @@ func (t *SignedDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
+func (t *SignedDataTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = SignedData(SignedDataSignature{})
+	return nil
+}
 
 type signedDataTargetFactory struct{}
 
@@ -265,13 +284,6 @@ func (t signedDataTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Targ
 	}
 	return nil, fmt.Errorf("got %T, want *SignedData", union)
 }
-
-// Create zero values for each type.
-var (
-	__VDLZeroSignedHeader = SignedHeader{}
-	__VDLZeroHashCode     = HashCode{}
-	__VDLZeroSignedData   = SignedData(SignedDataSignature{})
-)
 
 var __VDLInitCalled bool
 
@@ -292,6 +304,7 @@ func __VDLInit() struct{} {
 	if __VDLInitCalled {
 		return struct{}{}
 	}
+	__VDLInitCalled = true
 
 	// Register types.
 	vdl.Register((*SignedHeader)(nil))
