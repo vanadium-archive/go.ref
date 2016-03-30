@@ -250,7 +250,7 @@ func findClusterAgent(config *vkubeConfig, includeBlessings bool) (string, error
 	if len(ports) == 0 {
 		return "", fmt.Errorf("service %q has no ports", clusterAgentServiceName)
 	}
-	port := ports[0].getInt("port")
+	port := ports[0].getInt("port", -1)
 	if port < 0 {
 		return "", fmt.Errorf("service %q has no valid port: %v", clusterAgentServiceName, port)
 	}

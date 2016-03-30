@@ -57,7 +57,7 @@ func TestObjectJSON(t *testing.T) {
 	if got, expected := o.getString("foo"), "bar"; got != expected {
 		t.Errorf("Unexpected value. Got %#v, expected %#v", got, expected)
 	}
-	if got, expected := o.getInt("bar"), 10; got != expected {
+	if got, expected := o.getInt("bar", -1), 10; got != expected {
 		t.Errorf("Unexpected value. Got %#v, expected %#v", got, expected)
 	}
 	if got, expected := o.getString("notthere"), ""; got != expected {

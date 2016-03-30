@@ -106,14 +106,14 @@ func (c object) getString(name string) string {
 }
 
 // getString retrieves a integer object.
-func (c object) getInt(name string) int {
+func (c object) getInt(name string, defaultValue int) int {
 	switch v := c.get(name).(type) {
 	case int:
 		return v
 	case float64:
 		return int(v)
 	default:
-		return -1
+		return defaultValue
 	}
 }
 

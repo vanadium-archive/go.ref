@@ -35,6 +35,7 @@ var (
 	flagVerbose           bool
 	flagTag               string
 	flagWait              bool
+	flagWaitTimeout       time.Duration
 	flagClusterAgentImage string
 	flagPodAgentImage     string
 )
@@ -73,15 +74,20 @@ func main() {
 
 	cmdStart.Flags.BoolVar(&flagNoBlessings, "noblessings", false, "Do not pass blessings to the application.")
 	cmdStart.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to create the kubernetes resource.")
-	cmdStart.Flags.BoolVar(&flagWait, "wait", false, "Wait for at least one replica to be ready.")
+	cmdStart.Flags.BoolVar(&flagWait, "wait", false, "Wait for all the replicas to be ready.")
+	cmdStart.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 5*time.Minute, "How long to wait for the start to make progress.")
 
 	cmdUpdate.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to update the kubernetes resource.")
-	cmdUpdate.Flags.BoolVar(&flagWait, "wait", false, "Wait for at least one replica to be ready after the update.")
+	cmdUpdate.Flags.BoolVar(&flagWait, "wait", false, "Wait for the update to finish.")
+	cmdUpdate.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 5*time.Minute, "How long to wait for the update to make progress.")
 
 	cmdStop.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to stop the kubernetes resource.")
 
 	cmdStartClusterAgent.Flags.BoolVar(&flagWait, "wait", false, "Wait for the cluster agent to be ready.")
+	cmdStartClusterAgent.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 5*time.Minute, "How long to wait for the cluster agent to be ready.")
+
 	cmdUpdateClusterAgent.Flags.BoolVar(&flagWait, "wait", false, "Wait for the cluster agent to be ready.")
+	cmdUpdateClusterAgent.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 5*time.Minute, "How long to wait for the cluster agent to be ready.")
 
 	cmdUpdateConfig.Flags.StringVar(&flagClusterAgentImage, "cluster-agent-image", "", "The new cluster agent image. If the name starts with ':', only the image tag is updated.")
 	cmdUpdateConfig.Flags.StringVar(&flagPodAgentImage, "pod-agent-image", "", "The new pod agent image. If the name starts with ':', only the image tag is updated.")
@@ -207,7 +213,8 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 		needToDeleteSecret = false
 	}
 	if flagWait {
-		if err := waitForReadyPods(appName, namespace); err != nil {
+		numReplicas := rc.getInt("spec.replicas", 1)
+		if err := waitForReadyPods(numReplicas, flagWaitTimeout, appName, namespace); err != nil {
 			return err
 		}
 		fmt.Fprintln(env.Stdout, "Application is running.")
@@ -235,24 +242,32 @@ func runCmdUpdate(ctx *context.T, env *cmdline.Env, args []string, config *vkube
 		if err := updateReplicationController(ctx, config, rc, env.Stdout, env.Stderr); err != nil {
 			return err
 		}
+		if flagWait {
+			namespace := rc.getString("metadata.namespace")
+			appName := rc.getString("spec.template.metadata.labels.application")
+			numReplicas := rc.getInt("spec.replicas", 1)
+			if err := waitForReadyPods(numReplicas, flagWaitTimeout, appName, namespace); err != nil {
+				return err
+			}
+			fmt.Fprintln(env.Stdout, "Application is running.")
+		}
 		fmt.Fprintln(env.Stdout, "Updated replication controller successfully.")
 	case Deployment:
 		if err := updateDeployment(ctx, config, rc, env.Stdout, env.Stderr); err != nil {
 			return err
+		}
+		if flagWait {
+			name := rc.getString("metadata.name")
+			namespace := rc.getString("metadata.namespace")
+			if err := watchDeploymentRollout(name, namespace, flagWaitTimeout, env.Stdout); err != nil {
+				return err
+			}
 		}
 		fmt.Fprintln(env.Stdout, "Updated deployment successfully.")
 	default:
 		return fmt.Errorf("unexpected kind: %q", kind)
 	}
 
-	if flagWait {
-		namespace := rc.getString("metadata.namespace")
-		appName := rc.getString("spec.template.metadata.labels.application")
-		if err := waitForReadyPods(appName, namespace); err != nil {
-			return err
-		}
-		fmt.Fprintln(env.Stdout, "Application is running.")
-	}
 	return nil
 }
 
@@ -316,7 +331,7 @@ func runCmdStartClusterAgent(ctx *context.T, env *cmdline.Env, args []string, co
 	}
 	fmt.Fprintln(env.Stdout, "Starting cluster agent.")
 	if flagWait {
-		if err := waitForReadyPods(clusterAgentApplicationName, config.ClusterAgent.Namespace); err != nil {
+		if err := waitForReadyPods(1, flagWaitTimeout, clusterAgentApplicationName, config.ClusterAgent.Namespace); err != nil {
 			return err
 		}
 		for {
@@ -358,7 +373,7 @@ func runCmdUpdateClusterAgent(ctx *context.T, env *cmdline.Env, args []string, c
 	}
 	fmt.Fprintln(env.Stdout, "Updating cluster agent.")
 	if flagWait {
-		if err := waitForReadyPods(clusterAgentApplicationName, config.ClusterAgent.Namespace); err != nil {
+		if err := waitForReadyPods(1, flagWaitTimeout, clusterAgentApplicationName, config.ClusterAgent.Namespace); err != nil {
 			return err
 		}
 		for {

@@ -9,6 +9,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -245,8 +246,53 @@ func updateDeployment(ctx *context.T, config *vkubeConfig, rc object, stdout, st
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to update deployment %q: %v\n", name, err)
 	}
-	// TODO(rthellend): Watch the rollout and make sure it succeeeds. Roll back otherwise.
 	return nil
+}
+
+// watchDeploymentRollout watches the given deployment and makes sure that it
+// succeeds. If the rollout gets stuck, it gets rolled back.
+func watchDeploymentRollout(name, namespace string, timeout time.Duration, stdout io.Writer) error {
+	fmt.Fprintf(stdout, "Rollout progress of %s:\n", name)
+	type progress struct {
+		current, updated, available int
+	}
+	var last progress
+	changeTime := time.Now()
+	for time.Since(changeTime) < timeout {
+		data, err := kubectl("--namespace="+namespace, "get", "deployment", name, "-o", "json")
+		if err != nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		var deployment object
+		if err := deployment.importJSON(data); err != nil {
+			return fmt.Errorf("failed to parse kubectl output: %v", err)
+		}
+		// DeploymentSpec is defined at
+		// http://kubernetes.io/docs/api-reference/extensions/v1beta1/definitions/#_v1beta1_deploymentspec
+		desired := deployment.getInt("spec.replicas", 1)
+		now := progress{
+			// DeploymentStatus is defined at
+			// http://kubernetes.io/docs/api-reference/extensions/v1beta1/definitions/#_v1beta1_deploymentstatus
+			deployment.getInt("status.replicas", 0),
+			deployment.getInt("status.updatedReplicas", 0),
+			deployment.getInt("status.availableReplicas", 0),
+		}
+
+		if now != last {
+			changeTime, last = time.Now(), now
+			fmt.Fprintf(stdout, "Desired: %d Current: %d Up-to-date: %d Available: %d\n", desired, now.current, now.updated, now.available)
+		}
+		if desired == now.current && desired == now.updated && desired == now.available {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	fmt.Fprintf(stdout, "Something went wrong. Rolling back.\n")
+	if _, err := kubectl("--namespace="+namespace, "rollout", "undo", "deployment", name); err != nil {
+		return err
+	}
+	return errors.New("deployment rollout failed, rolled back.")
 }
 
 // updateReplicationController takes a ReplicationController object, adds a
@@ -422,7 +468,7 @@ func readyPods(appName, namespace string) ([]string, error) {
 			}
 		}
 		for _, status := range item.getObjectArray("status.containerStatuses") {
-			if status.get("ready") == false && status.getInt("restartCount") >= 5 {
+			if status.get("ready") == false && status.getInt("restartCount", 0) >= 5 {
 				return nil, fmt.Errorf("application is failing: %#v", item)
 			}
 		}
@@ -430,15 +476,26 @@ func readyPods(appName, namespace string) ([]string, error) {
 	return names, nil
 }
 
-func waitForReadyPods(appName, namespace string) error {
-	for {
-		if n, err := readyPods(appName, namespace); err != nil {
-			return err
-		} else if len(n) > 0 {
+func waitForReadyPods(numReplicas int, timeout time.Duration, appName, namespace string) error {
+	lastChange := time.Now()
+	var previousCount int
+	for time.Since(lastChange) < timeout {
+		n, err := readyPods(appName, namespace)
+		if err != nil {
+			time.Sleep(time.Second)
+			continue
+		}
+		count := len(n)
+		if count >= numReplicas {
 			return nil
+		}
+		if count != previousCount {
+			lastChange = time.Now()
+			previousCount = count
 		}
 		time.Sleep(time.Second)
 	}
+	return errors.New("timeout waiting for pods to become ready")
 }
 
 // kubectlCreate runs 'kubectl create -f' on the given object and returns the

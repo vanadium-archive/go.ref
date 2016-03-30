@@ -108,23 +108,38 @@ func TestV23Vkube(t *testing.T) {
 		t.Fatal(err)
 	}
 	appImage := "b.gcr.io/" + id + "/tunneld:latest"
+	badImage := "b.gcr.io/" + id + "/not-found"
 	docker("build", "-t", appImage, dockerDir)
 	gcloud("docker", "push", appImage)
-	appConf1 := filepath.Join(workdir, "app1.json")
-	if err := createAppConfig(appConf1, id, appImage, "1"); err != nil {
-		t.Fatal(err)
-	}
-	appConf2 := filepath.Join(workdir, "app2.json")
-	if err := createAppConfig(appConf2, id, appImage, "2"); err != nil {
-		t.Fatal(err)
-	}
-	bbConf1 := filepath.Join(workdir, "busybox1.json")
-	if err := createBusyboxConfig(bbConf1, id, "1"); err != nil {
-		t.Fatal(err)
-	}
-	bbConf2 := filepath.Join(workdir, "busybox2.json")
-	if err := createBusyboxConfig(bbConf2, id, "2"); err != nil {
-		t.Fatal(err)
+
+	conf := make(map[string]string)
+	for _, c := range []struct{ name, version, kind string }{
+		{"app-rc1", "1", "rc"},
+		{"app-rc2", "2", "rc"},
+		{"app-dep1", "1", "deploy"},
+		{"app-dep2", "2", "deploy"},
+		{"app-dep-bad", "bad", "deploy-bad"},
+		{"bb-rc1", "1", "busybox"},
+		{"bb-rc2", "2", "busybox"},
+	} {
+		file := filepath.Join(workdir, c.name+".json")
+		conf[c.name] = file
+		var err error
+		switch c.kind {
+		case "rc":
+			err = createAppReplicationControllerConfig(file, id, appImage, c.version)
+		case "deploy":
+			err = createAppDeploymentConfig(file, id, appImage, c.version)
+		case "deploy-bad":
+			err = createAppDeploymentConfig(file, id, badImage, c.version)
+		case "busybox":
+			err = createBusyboxConfig(file, id, c.version)
+		default:
+			err = fmt.Errorf("%s?", c.kind)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	vkubeOK("build-docker-images", "-v", "-tag=1")
@@ -154,35 +169,73 @@ func TestV23Vkube(t *testing.T) {
 	vkubeOK("claim-cluster-agent")
 	vkubeFail("claim-cluster-agent") // Already claimed
 
-	vkubeOK("start", "-f", appConf1, "--wait", "my-app")
+	// App that uses ReplicationController
+	vkubeOK("start", "-f", conf["app-rc1"], "--wait", "my-app")
 	kubectlOK("get", "rc", "tunneld-1")
-	vkubeFail("start", "-f", appConf1, "my-app") // Already running
+	vkubeFail("start", "-f", conf["app-rc1"], "my-app") // Already running
 
-	vkubeOK("update", "-f", appConf2, "--wait")
+	vkubeOK("update", "-f", conf["app-rc2"], "--wait")
 	kubectlOK("get", "rc", "tunneld-2")
 
 	// Find the pod running tunneld, get the server's addr from its stdout.
 	podName := kubectlOK("get", "pod", "-l", "application=tunneld,version=2", "--template={{range .items}}{{.metadata.name}}{{end}}")
-	var addr string
-	for _, log := range strings.Split(kubectlOK("logs", podName, "-c", "tunneld"), "\n") {
-		if strings.HasPrefix(log, "NAME=") {
-			addr = strings.TrimPrefix(log, "NAME=")
-			break
+	if podName == "" {
+		t.Errorf("Failed to get pod name of tunneld")
+	} else {
+		var addr string
+		for _, log := range strings.Split(kubectlOK("logs", podName, "-c", "tunneld"), "\n") {
+			if strings.HasPrefix(log, "NAME=") {
+				addr = strings.TrimPrefix(log, "NAME=")
+				break
+			}
+		}
+		if got, expected := vshOK(addr, "echo", "hello", "world"), "hello world\n"; got != expected {
+			t.Errorf("Unexpected output. Got %q, expected %q", got, expected)
 		}
 	}
-	if got, expected := vshOK(addr, "echo", "hello", "world"), "hello world\n"; got != expected {
-		t.Errorf("Unexpected output. Got %q, expected %q", got, expected)
+
+	vkubeOK("stop", "-f", conf["app-rc2"])
+	kubectlFail("get", "rc", "tunneld-2")    // No longer running
+	vkubeFail("stop", "-f", conf["app-rc2"]) // No longer running
+
+	// App that uses Deployment
+	vkubeOK("start", "-f", conf["app-dep1"], "--wait", "my-app")
+	kubectlOK("get", "deployment", "tunneld")
+	vkubeFail("start", "-f", conf["app-dep1"], "my-app") // Already running
+
+	vkubeOK("update", "-f", conf["app-dep2"], "--wait")
+
+	// Find the pod running tunneld, get the server's addr from its stdout.
+	podName = kubectlOK("get", "pod", "-l", "application=tunneld,version=2", "--template={{range .items}}{{.metadata.name}}{{end}}")
+	if podName == "" {
+		t.Errorf("Failed to get pod name of tunneld")
+	} else {
+		var addr string
+		for _, log := range strings.Split(kubectlOK("logs", podName, "-c", "tunneld"), "\n") {
+			if strings.HasPrefix(log, "NAME=") {
+				addr = strings.TrimPrefix(log, "NAME=")
+				break
+			}
+		}
+		if got, expected := vshOK(addr, "echo", "hello", "world"), "hello world\n"; got != expected {
+			t.Errorf("Unexpected output. Got %q, expected %q", got, expected)
+		}
+	}
+	vkubeFail("update", "-f", conf["app-dep-bad"], "--wait", "--wait-timeout=30s")
+	if out := kubectlOK("describe", "deployment", "tunneld"); !strings.Contains(out, "DeploymentRollback") {
+		t.Error("expected a rollback in the deployment events")
 	}
 
-	vkubeOK("stop", "-f", appConf2)
-	kubectlFail("get", "rc", "tunneld-2") // No longer running
-	vkubeFail("stop", "-f", appConf2)     // No longer running
+	vkubeOK("stop", "-f", conf["app-dep2"])
+	kubectlFail("get", "deployment", "tunneld") // No longer running
+	vkubeFail("stop", "-f", conf["app-dep2"])   // No longer running
 
-	vkubeOK("start", "-f", bbConf1, "--noblessings", "--wait")
-	vkubeFail("start", "-f", bbConf1, "--noblessings") // Already running
-	vkubeOK("update", "-f", bbConf2, "--wait")
-	vkubeOK("stop", "-f", bbConf2)
-	vkubeFail("stop", "-f", bbConf2) // No longer running
+	// App that uses Replication Controller, and no blessings.
+	vkubeOK("start", "-f", conf["bb-rc1"], "--noblessings", "--wait")
+	vkubeFail("start", "-f", conf["bb-rc1"], "--noblessings") // Already running
+	vkubeOK("update", "-f", conf["bb-rc2"], "--wait")
+	vkubeOK("stop", "-f", conf["bb-rc2"])
+	vkubeFail("stop", "-f", conf["bb-rc2"]) // No longer running
 
 	vkubeOK("stop-cluster-agent")
 	kubectlFail("get", "service", "cluster-agent")
@@ -237,7 +290,7 @@ func setupDockerDirectory(workdir string) (string, error) {
 	return dockerDir, nil
 }
 
-func createAppConfig(path, id, image, version string) error {
+func createAppReplicationControllerConfig(path, id, image, version string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return err
@@ -257,6 +310,63 @@ func createAppConfig(path, id, image, version string) error {
   },
   "spec": {
     "replicas": 1,
+    "template": {
+      "metadata": {
+        "labels": {
+          "application": "tunneld",
+          "version": "{{.Version}}"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "tunneld",
+            "image": "{{.Image}}",
+            "command": [
+              "tunneld",
+              "--v23.tcp.address=:8193",
+              "--v23.permissions.literal={\"Admin\":{\"In\":[\"root:alice\"]}}",
+	      "--alsologtostderr=false"
+            ],
+            "ports": [
+              { "containerPort": 8193, "hostPort": 8193 }
+            ],
+            "resources": {
+              "limits": { "cpu": "0.1", "memory": "100M" }
+            }
+          }
+        ]
+      }
+    }
+  }
+}`)).Execute(f, params)
+}
+
+func createAppDeploymentConfig(path, id, image, version string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	params := struct{ ID, Image, Version string }{id, image, version}
+	return template.Must(template.New("appcfg").Parse(`{
+  "apiVersion": "extensions/v1beta1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "tunneld",
+    "namespace": "{{.ID}}",
+    "labels": {
+      "application": "tunneld"
+    }
+  },
+  "spec": {
+    "replicas": 1,
+    "selector": {
+      "matchLabels": {
+        "application": "tunneld"
+      }
+    },
     "template": {
       "metadata": {
         "labels": {
