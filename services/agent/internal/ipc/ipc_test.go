@@ -226,7 +226,7 @@ func TestEcho(t *testing.T) {
 
 	ipc2 := NewIPC()
 	defer ipc2.Close()
-	client, err := ipc2.Connect(path)
+	client, err := ipc2.Connect(path, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func TestOutOfOrder(t *testing.T) {
 
 	ipc2 := NewIPC()
 	defer ipc2.Close()
-	client, err := ipc2.Connect(path)
+	client, err := ipc2.Connect(path, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +284,7 @@ func TestErrorReturn(t *testing.T) {
 
 	ipc2 := NewIPC()
 	defer ipc2.Close()
-	client, err := ipc2.Connect(path)
+	client, err := ipc2.Connect(path, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +310,7 @@ func TestBidi(t *testing.T) {
 
 	var e echo
 	ipc2.Serve(e)
-	client, err := ipc2.Connect(path)
+	client, err := ipc2.Connect(path, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

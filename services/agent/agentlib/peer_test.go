@@ -9,5 +9,5 @@ import (
 )
 
 func NewUncachedPrincipalX(path string) (security.Principal, error) {
-	return newUncachedPrincipalX(path)
+	return newUncachedPrincipalX(path, 0)
 }

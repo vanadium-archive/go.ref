@@ -22,7 +22,10 @@ import (
 	"v.io/x/ref/services/agent/internal/ipc"
 )
 
-const pkgPath = "v.io/x/ref/services/agent/agentlib"
+const (
+	pkgPath               = "v.io/x/ref/services/agent/agentlib"
+	defaultConnectTimeout = 10 * time.Second
+)
 
 // Errors
 var (
@@ -73,11 +76,11 @@ func results(inputs ...interface{}) []interface{} {
 	return inputs
 }
 
-func newUncachedPrincipalX(path string) (*client, error) {
+func newUncachedPrincipalX(path string, timeout time.Duration) (*client, error) {
 	caller := new(ipcCaller)
 	i := ipc.NewIPC()
 	i.Serve(caller)
-	conn, err := i.Connect(path)
+	conn, err := i.Connect(path, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -96,13 +99,19 @@ func newUncachedPrincipalX(path string) (*client, error) {
 	return agent, nil
 }
 
-// NewAgentPrincipal returns a security.Pricipal using the PrivateKey held in a remote agent process.
+// NewAgentPrincipal returns a security.Pricipal using the PrivateKey held in a
+// remote agent process.
+//
 // 'path' is the path to the agent socket, typically obtained from
 // os.GetEnv(envvar.AgentAddress).
+//
+// 'timeout' specifies how long to retry connecting to the socket if it's not
+// ready.
+//
 // The caller should call Close on the returned Principal once it's no longer
 // used, in order to free up resources.
-func NewAgentPrincipalX(path string) (agent.Principal, error) {
-	p, err := newUncachedPrincipalX(path)
+func NewAgentPrincipal(path string, timeout time.Duration) (agent.Principal, error) {
+	p, err := newUncachedPrincipalX(path, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +124,21 @@ func NewAgentPrincipalX(path string) (agent.Principal, error) {
 	caller.flush = flush
 	caller.mu.Unlock()
 	return cached, nil
+}
+
+// TODO(caprita): Deprecate.
+
+// NewAgentPrincipalX returns a security.Pricipal using the PrivateKey held in a
+// remote agent process.
+//
+// 'path' is the path to the agent socket, typically obtained from
+// os.GetEnv(envvar.AgentAddress).  If the socket is not ready,
+// NewAgentPrincipalX retries for a minute before giving up.
+//
+// The caller should call Close on the returned Principal once it's no longer
+// used, in order to free up resources.
+func NewAgentPrincipalX(path string) (agent.Principal, error) {
+	return NewAgentPrincipal(path, defaultConnectTimeout)
 }
 
 func (c *client) Close() error {

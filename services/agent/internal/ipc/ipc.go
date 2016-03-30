@@ -20,10 +20,7 @@ import (
 	"v.io/x/ref/services/agent"
 )
 
-const (
-	currentVersion    = 1
-	connectTimeoutSec = 60
-)
+const currentVersion = 1
 
 var zeroTime time.Time
 
@@ -113,32 +110,36 @@ func (ipc *IPC) Listen(path string) error {
 	return err
 }
 
-// Connect to a listening socket at 'path'.
-func (ipc *IPC) Connect(path string) (*IPCConn, error) {
-	var (
-		conn net.Conn
-		err  error
-	)
-	for retry := 0; retry < connectTimeoutSec; retry++ {
-		conn, err = net.Dial("unix", path)
-		// It's possible the agent isn't ready yet, in which case, the
-		// underlying connect() call returns ENOENT. Retry.
-		if opErr, ok := err.(*net.OpError); ok {
-			if sysErr, ok := opErr.Err.(*os.SyscallError); ok && sysErr.Err == syscall.ENOENT {
-				time.Sleep(time.Second)
-				continue
-			}
+// Connect to a listening socket at 'path'.  If timeout is non-zero and the
+// initial connection fails because the socket is not ready, Connect will retry
+// once per second until the timeout expires.
+func (ipc *IPC) Connect(path string, timeout time.Duration) (*IPCConn, error) {
+	timeoutExpired := time.After(timeout)
+	// It's possible the agent isn't ready yet, in which case, the
+	// underlying connect() call returns ENOENT.
+	retryable := func(err error) bool {
+		opErr, ok := err.(*net.OpError)
+		if !ok {
+			return false
 		}
-		break
+		sysErr, ok := opErr.Err.(*os.SyscallError)
+		return ok && sysErr.Err == syscall.ENOENT
 	}
-	if err != nil {
-		return nil, err
+	for {
+		conn, err := net.Dial("unix", path)
+		switch {
+		case err == nil:
+			return ipc.newConn(conn), nil
+		case !retryable(err):
+			return nil, err
+		}
+		// Retry.
+		select {
+		case <-time.After(time.Second):
+		case <-timeoutExpired:
+			return nil, err
+		}
 	}
-	ipc.mu.Lock()
-	ic := ipc.newConnLocked(conn)
-	ipc.mu.Unlock()
-	go ipc.readLoop(ic)
-	return ic, nil
 }
 
 // Connections returns all the current connections in this IPC.
@@ -148,6 +149,15 @@ func (ipc *IPC) Connections() []*IPCConn {
 	conns := make([]*IPCConn, len(ipc.conns))
 	copy(conns, ipc.conns)
 	return conns
+}
+
+// Must be called while not holding ipc.mu
+func (ipc *IPC) newConn(conn net.Conn) *IPCConn {
+	ipc.mu.Lock()
+	defer ipc.mu.Unlock()
+	ic := ipc.newConnLocked(conn)
+	go ipc.readLoop(ic)
+	return ic
 }
 
 // Must be called while holding ipc.mu

@@ -30,7 +30,7 @@ type keyManager struct {
 // NewKeyManager returns a client connected to the specified KeyManager.
 func NewKeyManager(path string) (agent.KeyManager, error) {
 	i := ipc.NewIPC()
-	conn, err := i.Connect(path)
+	conn, err := i.Connect(path, 0)
 	var m *keyManager
 	if err == nil {
 		m = &keyManager{conn}

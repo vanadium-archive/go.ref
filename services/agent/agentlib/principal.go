@@ -95,7 +95,7 @@ func LoadPrincipal(credsDir string) (agent.Principal, error) {
 	sockPath = filepath.Clean(sockPath)
 
 	// Since we don't hold a lock between launchAgent and
-	// NewAgentPrincipalX, the agent could go away by the time we try to
+	// NewAgentPrincipal, the agent could go away by the time we try to
 	// connect to it (e.g. it decides there are no clients and exits
 	// voluntarily); even if we held a lock, the agent could still crash in
 	// the meantime.  Therefore, we retry a few times before giving up.
@@ -110,7 +110,7 @@ func LoadPrincipal(credsDir string) (agent.Principal, error) {
 		// the client only has access to the socket but no write access
 		// to the credentials dir or agent dir required in order to
 		// launch an agent.
-		if p, err := NewAgentPrincipalX(sockPath); err == nil {
+		if p, err := NewAgentPrincipal(sockPath, 0); err == nil {
 			return p, nil
 		} else if tries == maxTries {
 			return nil, err
