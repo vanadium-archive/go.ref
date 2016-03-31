@@ -28,6 +28,7 @@ func init() {
 	cmdBrowse.Flags.BoolVar(&flagBrowseLog, "log", true, "If true, log debug data obtained so that if a subsequent refresh from the browser fails, previously obtained information is available from the log file")
 	cmdBrowse.Flags.StringVar(&flagBrowseBlessings, "blessings", "", "If non-empty, points to the blessings required to debug the process. This is typically obtained via 'debug delegate' run by the owner of the remote process")
 	cmdBrowse.Flags.StringVar(&flagBrowsePrivateKey, "key", "", "If non-empty, must be accompanied with --blessings with a value obtained via 'debug delegate' run by the owner of the remote process")
+	cmdBrowse.Flags.StringVar(&flagBrowseAssets, "assets", "", "If non-empty, load assets from this directory.")
 }
 
 var (
@@ -35,6 +36,7 @@ var (
 	flagBrowseLog        bool
 	flagBrowseBlessings  string
 	flagBrowsePrivateKey string
+	flagBrowseAssets     string
 	cmdBrowse            = &cmdline.Command{
 		Runner: v23cmd.RunnerFunc(runBrowse),
 		Name:   "browse",
@@ -168,7 +170,7 @@ func runBrowse(ctx *context.T, env *cmdline.Env, args []string) error {
 		<-signals.ShutdownOnSignals(ctx)
 		cancel()
 	}()
-	return browseserver.Serve(ctx, flagBrowseAddr, name, timeout, flagBrowseLog)
+	return browseserver.Serve(ctx, flagBrowseAddr, name, timeout, flagBrowseLog, flagBrowseAssets)
 }
 
 func selectName(ctx *context.T, options []string) (string, error) {

@@ -306,6 +306,8 @@ The debug browse flags are:
  -addr=
    Address on which the interactive HTTP server will listen. For example,
    localhost:14141. If empty, defaults to localhost:<some random port>
+ -assets=
+   If non-empty, load assets from this directory.
  -blessings=
    If non-empty, points to the blessings required to debug the process. This is
    typically obtained via 'debug delegate' run by the owner of the remote

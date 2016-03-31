@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// package browseserver provides a web interface that can be used to interact with the
+// Package browseserver provides a web interface that can be used to interact with the
 // vanadium debug interface.
 package browseserver
 
@@ -11,10 +11,12 @@ import (
 	"fmt"
 	"html"
 	"html/template"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -34,15 +36,32 @@ import (
 	"v.io/x/ref/services/internal/pproflib"
 )
 
+//go:generate ./gen_assets.sh
+
 const browseProfilesPath = "/profiles"
+
+const (
+	allTraceTmpl  = "alltrace.html"
+	blessingsTmpl = "blessings.html"
+	chromeTmpl    = "chrome.html"
+	globTmpl      = "glob.html"
+	logsTmpl      = "logs.html"
+	profilesTmpl  = "profiles.html"
+	resolveTmpl   = "resolve.html"
+	statsTmpl     = "stats.html"
+	vtraceTmpl    = "vtrace.html"
+)
 
 // Serve serves the debug interface over http.  An HTTP server is started (serving at httpAddr), its
 // various handlers make rpc calls to the given name to gather debug information.  If log is true
 // we additionally log debug information for these rpc requests.  Timeout defines the timeout for the
 // rpc calls.  The HTTPServer will run until the passed context is canceled.
-func Serve(ctx *context.T, httpAddr, name string, timeout time.Duration, log bool) error {
+func Serve(ctx *context.T, httpAddr, name string, timeout time.Duration, log bool, assetDir string) error {
 	mux := http.NewServeMux()
-	h := &handler{ctx, timeout, log}
+	h, err := newHandler(ctx, timeout, log, assetDir)
+	if err != nil {
+		return err
+	}
 	mux.Handle("/", &resolveHandler{h})
 	mux.Handle("/stats", &statsHandler{h})
 	mux.Handle("/blessings", &blessingsHandler{h})
@@ -78,18 +97,102 @@ func Serve(ctx *context.T, httpAddr, name string, timeout time.Duration, log boo
 }
 
 type handler struct {
-	ctx     *context.T
-	timeout time.Duration
-	log     bool
+	ctx      *context.T
+	timeout  time.Duration
+	log      bool
+	file     func(name string) ([]byte, error)
+	cacheMap map[string]*template.Template
+	funcs    template.FuncMap
 }
 
-func (h *handler) execute(ctx *context.T, w http.ResponseWriter, r *http.Request, tmpl *template.Template, args interface{}) {
+func newHandler(ctx *context.T, timeout time.Duration, log bool, assetDir string) (*handler, error) {
+	h := &handler{
+		ctx:     ctx,
+		timeout: timeout,
+		log:     log,
+	}
+	colors := []string{"red", "blue", "green"}
+	pos := 0
+	h.funcs = template.FuncMap{
+		"verrorID":           verror.ErrorID,
+		"unmarshalPublicKey": security.UnmarshalPublicKey,
+		"endpoint": func(n string) (naming.Endpoint, error) {
+			if naming.Rooted(n) {
+				n, _ = naming.SplitAddressName(n)
+			}
+			return v23.NewEndpoint(n)
+		},
+		"endpointName": func(ep naming.Endpoint) string { return ep.Name() },
+		"goValueFromVOM": func(v *vom.RawBytes) interface{} {
+			var ret interface{}
+			if err := v.ToValue(&ret); err != nil {
+				panic(err)
+			}
+			return ret
+		},
+		"nextColor": func() string {
+			c := colors[pos]
+			pos = (pos + 1) % len(colors)
+			return c
+		},
+	}
+
+	if assetDir == "" {
+		h.file = Asset
+		h.cacheMap = make(map[string]*template.Template)
+		all := []string{chromeTmpl, allTraceTmpl, blessingsTmpl, globTmpl,
+			logsTmpl, profilesTmpl, resolveTmpl, statsTmpl, vtraceTmpl}
+		for _, tmpl := range all {
+			if _, err := h.template(ctx, tmpl); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		h.file = func(name string) ([]byte, error) {
+			return ioutil.ReadFile(filepath.Join(assetDir, name))
+		}
+	}
+	return h, nil
+}
+
+func (h *handler) template(ctx *context.T, name string) (t *template.Template, err error) {
+	if t = h.cacheMap[name]; t != nil {
+		return t, nil
+	}
+	if name == chromeTmpl {
+		t = template.New(name).Funcs(h.funcs)
+	} else {
+		if t, err = h.template(ctx, chromeTmpl); err != nil {
+			return nil, err
+		}
+		if t, err = t.Clone(); err != nil {
+			return nil, err
+		}
+	}
+	src, err := h.file(name)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = t.Parse(string(src)); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+func (h *handler) execute(ctx *context.T, w http.ResponseWriter, r *http.Request, tmplName string, args interface{}) {
 	if h.log {
 		ctx.Infof("DEBUG: %q -- %+v", r.URL, args)
 	}
-	if err := tmpl.Execute(w, args); err != nil {
+	t, err := h.template(ctx, tmplName)
+	if err != nil {
 		fmt.Fprintf(w, "ERROR:%v", err)
-		ctx.Errorf("Error executing template %q: %v", tmpl.Name(), err)
+		ctx.Errorf("Error parsing template %q: %v", tmplName, err)
+		return
+	}
+	if err := t.Execute(w, args); err != nil {
+		fmt.Fprintf(w, "ERROR:%v", err)
+		ctx.Errorf("Error executing template %q: %v", tmplName, err)
+		return
 	}
 }
 
@@ -121,7 +224,7 @@ func (h *resolveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		MountEntry:  m,
 		Error:       err,
 	}
-	h.execute(h.ctx, w, r, tmplBrowseResolve, args)
+	h.execute(h.ctx, w, r, "resolve.html", args)
 }
 
 type blessingsHandler struct{ *handler }
@@ -150,7 +253,7 @@ func (h *blessingsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Don't actually care about the RPC, so don't bother waiting on the Finish.
 		defer func() { go call.Finish() }()
 	}
-	h.execute(h.ctx, w, r, tmplBrowseBlessings, args)
+	h.execute(h.ctx, w, r, "blessings.html", args)
 }
 
 type statsHandler struct{ *handler }
@@ -222,7 +325,7 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		args.CommandLine = fmt.Sprintf("debug glob %q", naming.Join(name, "*"))
 	}
-	h.execute(h.ctx, w, r, tmplBrowseStats, args)
+	h.execute(h.ctx, w, r, "stats.html", args)
 }
 
 type logsHandler struct{ *handler }
@@ -285,7 +388,7 @@ func (h *logsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			ServerName:  server,
 			CommandLine: fmt.Sprintf("debug glob %q", naming.Join(name, "*")),
 		}
-		h.execute(h.ctx, w, r, tmplBrowseLogsList, args)
+		h.execute(h.ctx, w, r, "logs.html", args)
 		return
 	}
 	w.Header().Add("Content-Type", "text/plain")
@@ -380,7 +483,7 @@ func (h *globHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Pattern:     pattern,
 		Entries:     entries,
 	}
-	h.execute(h.ctx, w, r, tmplBrowseGlob, args)
+	h.execute(h.ctx, w, r, "glob.html", args)
 }
 
 type profilesHandler struct{ *handler }
@@ -407,7 +510,7 @@ func (h *profilesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			CommandLine: fmt.Sprintf("debug pprof run %q", name),
 			URLPrefix:   urlPrefix,
 		}
-		h.execute(h.ctx, w, r, tmplBrowseProfiles, args)
+		h.execute(h.ctx, w, r, "profiles.html", args)
 		return
 	}
 	pproflib.PprofProxy(h.ctx, browseProfilesPath, name).ServeHTTP(w, r)
@@ -525,7 +628,7 @@ func (a *allTracesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ServerName:   server,
 		Vtrace:       tracer,
 	}
-	a.execute(a.ctx, w, r, tmplBrowseAllTraces, data)
+	a.execute(a.ctx, w, r, "alltrace.html", data)
 }
 
 type divTree struct {
@@ -705,7 +808,7 @@ func (v *vtraceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Vtrace:      tracer,
 		DebugTrace:  buf.String(),
 	}
-	v.execute(v.ctx, w, r, tmplBrowseVtrace, data)
+	v.execute(v.ctx, w, r, "vtrace.html", data)
 }
 
 func writeEvent(w http.ResponseWriter, data string) {
@@ -715,39 +818,6 @@ func writeEvent(w http.ResponseWriter, data string) {
 func writeErrorEvent(w http.ResponseWriter, err error) {
 	id := fmt.Sprintf("%v", verror.ErrorID(err))
 	writeEvent(w, fmt.Sprintf("ERROR(%v): %v", html.EscapeString(id), html.EscapeString(err.Error())))
-}
-
-func makeTemplate(name, content string) *template.Template {
-	content = "{{template `.header` .}}" + content + "{{template `.footer` .}}"
-	t := template.Must(tmplBrowseHeader.Clone())
-	t = template.Must(t.AddParseTree(tmplBrowseFooter.Name(), tmplBrowseFooter.Tree))
-	colors := []string{"red", "blue", "green"}
-	pos := 0
-	t = t.Funcs(template.FuncMap{
-		"verrorID":           verror.ErrorID,
-		"unmarshalPublicKey": security.UnmarshalPublicKey,
-		"endpoint": func(n string) (naming.Endpoint, error) {
-			if naming.Rooted(n) {
-				n, _ = naming.SplitAddressName(n)
-			}
-			return v23.NewEndpoint(n)
-		},
-		"endpointName": func(ep naming.Endpoint) string { return ep.Name() },
-		"goValueFromVOM": func(v *vom.RawBytes) interface{} {
-			var ret interface{}
-			if err := v.ToValue(&ret); err != nil {
-				panic(err)
-			}
-			return ret
-		},
-		"nextColor": func() string {
-			c := colors[pos]
-			pos = (pos + 1) % len(colors)
-			return c
-		},
-	})
-	t = template.Must(t.New(name).Parse(content))
-	return t
 }
 
 // Tracer forces collection of a trace rooted at the call to newTracer.
@@ -777,426 +847,3 @@ func (t *Tracer) String() string {
 	vtrace.FormatTrace(&buf, vtrace.GetStore(t.ctx).TraceRecord(t.span.Trace()), nil)
 	return buf.String()
 }
-
-var (
-	tmplBrowseResolve = makeTemplate("resolve", `
-<section class="section--center mdl-grid">
-  <h5>Name resolution</h5>
-  <div class="mdl-cell mdl-cell--12-col">
-{{with .MountEntry}}
-    <ul>
-    {{with .Name}}<li>Suffix: {{.}}</li>{{end}}
-    {{with .ServesMountTable}}<li>This server is a mounttable</li>{{end}}
-    {{with .IsLeaf}}<li>This is a leaf server</li>{{end}}
-    </ul>
-  {{range .Servers}}
-    <div class="mdl-cell mdl-cell--12-col">
-    <table class="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp">
-    <tbody>
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">Endpoint</td>
-      <td class="mdl-data-table__cell--non-numeric"><a href="/?n={{endpoint .Server | endpointName | urlquery}}">{{.Server}}</a></td>
-    </tr>
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">Expires</td>
-      <td class="mdl-data-table__cell--non-numeric">{{.Deadline}}</td>
-    </tr>
-    {{with $ep := endpoint .Server}}
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">Network</td>
-      <td class="mdl-data-table__cell--non-numeric">{{.Addr.Network}}</td>
-    </tr>
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">Address</td>
-      <td class="mdl-data-table__cell--non-numeric">{{.Addr}}</td>
-    </tr>
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">RoutingID</td>
-      <td class="mdl-data-table__cell--non-numeric">{{.RoutingID}}</td>
-    </tr>
-    {{with .BlessingNames}}
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">Blessings ({{len .}})</td>
-      <td class="mdl-data-table__cell--non-numeric">{{.}}</td>
-    </tr>
-    {{end}}
-    {{with .Routes}}
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">Routes ({{len .}})</td>
-      <td class="mdl-data-table__cell--non-numeric">{{.}}</td>
-    </tr>
-    {{end}}
-    {{end}}
-    </tbody>
-    </table>
-    </div>
-    {{end}}
-{{else}}
-  Name resolution came up empty
-{{end}}
-</div>
-</section>
-
-{{with .Error}}
-<section class="section--center mdl-grid">
-  <h5><i class="material-icons">info</i>ERROR({{verrorID .}})</h5>
-  <div class="mdl-cell mdl-cell--12-col fixed-width">{{.}}</div>
-</section>
-{{end}}
-`)
-
-	tmplBrowseBlessings = makeTemplate("blessings", `
-<section class="section--center mdl-grid">
-  <h5>Claimed</h5>
-  <div class="mdl-cell mdl-cell--12-col">
-  {{.Blessings}}
-  </div>
-</section>
-
-{{with .Recognized}}
-<section class="section--center mdl-grid">
-  <h5>Recognized</h5>
-  <div class="mdl-cell mdl-cell--12-col">
-  <ul>
-  {{range .}}
-  <li>{{.}}</li>
-  {{end}}
-  </ul>
-  </div>
-</section>
-{{end}}
-
-<section class="section--center mdl-grid">
-  <h5>PublicKey</h5>
-  <div class="mdl-cell mdl-cell--12-col fixed-width">
-  {{.Blessings.PublicKey}}
-  </div>
-</section>
-
-{{with .CertificateChains}}
-<section class="section--center mdl-grid">
-  <h5>Certificate Chains (Total: {{len .}})</h5>
-  <div class="mdl-cell mdl-cell--12-col">
-  {{range $chainidx, $chain := .}}
-  <section class="section--center mdl-grid">
-    <h6>Chain #{{$chainidx}}</h6>
-    <div class="mdl-cell mdl-cell--12-col">
-    <table class="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp">
-    <thead>
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">Certificate</td>
-      <td class="mdl-data-table__cell--non-numeric">Extension</td>
-      <td class="mdl-data-table__cell--non-numeric">Blessed Public Key</td>
-      <td class="mdl-data-table__cell--non-numeric">Caveats</td>
-    </tr>
-    </thead>
-    <tbody>
-    {{range $certidx, $cert := $chain}}
-    <tr>
-      <td>{{$certidx}}</td>
-      <td class="mdl-data-table__cell--non-numeric">{{$cert.Extension}}</td>
-      <td class="mdl-data-table__cell--non-numeric fixed-width">{{unmarshalPublicKey $cert.PublicKey}}</td>
-      <td class="mdl-data-table__cell--non-numeric">{{len $cert.Caveats}}
-      {{range $cavidx, $cav := $cert.Caveats}}
-      <br/>#{{$cavidx}}: {{$cav}}
-      {{end}}
-      </td>
-    </tr>
-    {{end}}
-    </tbody>
-    </table>
-    </div>
-  </section>
-  {{end}}
-  </div>
-</section>
-{{end}}
-
-{{with .Error}}
-<section class="section--center mdl-grid">
-  <h5><i class="material-icons">info</i>ERROR({{verrorID .}})</h5>
-  <div class="mdl-cell mdl-cell--12-col fixed-width">{{.}}</div>
-</section>
-{{end}}
-`)
-
-	tmplBrowseStats = makeTemplate("stats", `
-{{if .Value}}
-<section class="section--center mdl-grid">
-  <div class="mdl-cell mdl-cell--12-col">
-    <table class="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp">
-    <tbody>
-    {{with $goVal := goValueFromVOM .Value}}
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">Value (Go)</td>
-      <td class="mdl-data-table__cell--non-numeric"><pre>{{$goVal}}</pre></td>
-    </tr>
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">Type (Go)</td>
-      <td class="mdl-data-table__cell--non-numeric fixed-width">{{printf "%T" $goVal}}</td>
-    </tr>
-    {{else}}
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">Value (VDL)</td>
-      <td class="mdl-data-table__cell--non-numeric fixed-width">{{.Value}}</td>
-    </tr>
-    {{end}}
-    <tr>
-      <td class="mdl-data-table__cell--non-numeric">Type (VDL)</td>
-      <td class="mdl-data-table__cell--non-numeric fixed-width">{{.Value.Type}}</td>
-    </tr>
-    </tbody>
-    </table>
-  </div>
-</section>
-{{end}}
-{{if .Globbed}}
-<section class="section--center mdl-grid">
-  <h5>Glob</h5>
-  <div class="mdl-cell mdl-cell--12-col">
-  <ul>
-  {{range .Children}}
-  <li><a href="/stats?n={{urlquery $.ServerName}}&s={{urlquery .}}">{{.}}</a></li>
-  {{end}}
-  {{range .ChildrenErrors}}
-  <li>ERROR({{verrorID .}}): {{.}}</li>
-  {{end}}
-  </ul>
-  </div>
-</section>
-{{else}}
-{{with .Error}}
-<section class="section--center mdl-grid">
-  <h5><i class="material-icons">info</i>ERROR({{verrorID .}})</h5>
-  <div class="mdl-cell mdl-cell--12-col fixed-width">{{.}}</div>
-</section>
-{{end}}
-{{end}}
-`)
-
-	tmplBrowseLogsList = makeTemplate("logs", `
-<section class="section--center mdl-grid">
-  <h5>List of log files</h5>
-  <div id="parent" class="mdl-cell mdl-cell--12-col">
-  <script>
-  var source = new EventSource("/logs?n={{urlquery .ServerName}}");
-  source.onmessage = function(event) {
-    var ol = document.getElementById("logfiles");
-    var li = document.createElement("li");
-    li.innerHTML = event.data;
-    ol.appendChild(li);
-  }
-  source.onerror = function() {
-    source.close();
-    document.getElementById("parent").removeChild(document.getElementById("progress"));
-  }
-  </script>
-  <div id="progress" class="mdl-progress mdl-js-progress mdl-progress__indeterminate"></div>
-  <ol id="logfiles">
-  </ol>
-  </div>
-</section>
-`)
-
-	tmplBrowseGlob = makeTemplate("glob", `
-<section class="section--center mdl-grid">
-  <h5>{{.Pattern}}</h5>
-  <div id="parent" class="mdl-cell mdl-cell--12-col">
-  <ol>
-  {{range .Entries}}
-    {{with .Suffix}}
-    <li><a href="/glob?n={{urlquery $.ServerName}}&s={{urlquery .}}">{{.}}</a></li>
-    {{end}}
-    {{with .Error}}
-    <li>ERROR({{verrorID .}}): {{.}}</li>
-    {{end}}
-  {{end}}
-  </ol>
-  </div>
-</section>
-`)
-
-	tmplBrowseProfiles = makeTemplate("profiles", `
-<section class="section--center mdl-grid">
-  <h5>Profiling</h5>
-  <div id="parent" class="mdl-cell mdl-cell--12-col">
-  <ul>
-  <li>CPU
-  <div class="fixed-width">go tool pprof {{.URLPrefix}}/profile?n={{urlquery .ServerName}}</div>
-  </li>
-  <li><a href="{{.URLPrefix}}/heap?n={{urlquery .ServerName}}&debug=1">Heap</a>
-  <div class="fixed-width">go tool pprof {{.URLPrefix}}/heap?n={{urlquery .ServerName}}</div>
-  </li>
-  <li><a href="{{.URLPrefix}}/block?n={{urlquery .ServerName}}&debug=1">Block</a>
-  <div class="fixed-width">go tool pprof {{.URLPrefix}}/block?n={{urlquery .ServerName}}</div>
-  </li>
-  <li><a href="{{.URLPrefix}}/threadcreate?n={{urlquery .ServerName}}&debug=1">Threadcreate</a>
-  <div class="fixed-width">go tool pprof {{.URLPrefix}}/threadcreate?n={{urlquery .ServerName}}</div>
-  </li>
-  <li>Goroutines:
-  <a href="{{.URLPrefix}}/goroutine?n={{urlquery .ServerName}}&debug=1">(compact)</a>
-  <a href="{{.URLPrefix}}/goroutine?n={{urlquery .ServerName}}&debug=2">(full)</a>
-  </li>
-  </ul>
-  <div id="parent" class="mdl-cell mdl-cell--12-col">
-    <i class="material-icons">info</i>The commands above may not work if the
-    remote process isn't written in Go. Support for profiling code in other
-    languages is in the wishlist.
-  </div>
-  </div>
-</section>
-`)
-	tmplBrowseAllTraces = makeTemplate("alltraces", `
-<script language='javascript'>
-function showIdsForLabel(label) {
-    var nodes = document.getElementsByClassName('label-container');
-    for (var i = 0; i < nodes.length; i++) {
-      var node = nodes[i];
-      if (node.dataset.label === label) {
-         node.style.display = 'block';
-      } else {
-        node.style.display = 'none';
-      }
-    };
-}
-</script>
-<section class="section-center mdl-grid">
-  {{$buckets := .Buckets}}
-  <p>{{range $label := .SortedLabels}}
-  {{$ids := index $buckets $label}}
-  {{if len $ids | lt 0}}<a href="javascript:showIdsForLabel('{{$label}}')">{{$label}}</a>{{else}}{{$label}}{{end}}
-  {{end}}</p>
-</section>
-<section class="section-center mdl-grid">
-  <h5>Traces</h5>
-  {{$name := .ServerName}}
-  {{range $l, $ids := .Buckets}}<div data-label="{{$l}}" style='display:none;position:relative' class='mdl-cell mdl-cell--12-col label-container'>
-     {{$l}}
-     <ul>
-       {{range $id := $ids}}<li><a href='/vtrace?n={{$name}}&t={{$id.Id}}'>{{$id.Id}}</a></li>
-       {{end}}
-     </ul>
-   </div>{{end}}
- </section>
-`)
-	tmplBrowseVtrace = makeTemplate("vtrace", `
-{{define ".span"}}
-<div style="position:relative;left:{{.Start}}%;width:{{.Width}}%;margin:0px;padding-top:2px;" id="div-{{.Id}}">
-  <!-- Root span -->
-  <div id="root" title="{{.Name}}" style="position:relative;width:100%;background:{{nextColor}};height:15px;display:block;margin:0px;padding:0px"></div>
-  {{range $i, $child := .Children}}
-  {{template ".span" $child}}
-  {{end}}
-</div>
-{{end}}
-{{define ".collapse-nav"}}
-<div id="tree-{{.Id}}" style="position:relative;left:5px">
-<div id='root' style="position:relative;height:15px;font:10pt" onclick='javascript:toggleTrace("{{.Id}}")'>{{if len .Children | lt 0}}{{len .Children}}{{end}}</div>
-{{range .Children}}
-{{template ".collapse-nav" .}}
-{{end}}
-</div>
-{{end}}
-<style type="text/css">
-.hide-children > :not(#root) {
-  display:none;
-}
-</style>
-<script language="javascript">
-function toggleTrace(id) {
-  var treeRoot = document.getElementById("tree-" + id);
-  treeRoot.classList.toggle('hide-children');
-  var divRoot = document.getElementById('div-' + id);
-  divRoot.classList.toggle('hide-children');
-}
-</script>
-<section class="section--center mdl-grid">
-  <h5>Vtrace for {{.Id}}</h5>
-  <pre>{{.DebugTrace}}</pre>
-  <div class="mdl-cell mdl-cell--12-col">
-  <div style="display:flex;flex-direction:row">
-  <div style="min-width:10%">
-  {{template ".collapse-nav" .Root}}
-  </div>
-  <div id="parent" style="width:80%">
-  {{template ".span" .Root}}
-  </div>
-  </div>
-  </div>
-</section>
-`)
-
-	tmplBrowseHeader = template.Must(template.New(".header").Parse(`
-{{define ".header"}}
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-    <title>Debugging {{.ServerName}}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://storage.googleapis.com/code.getmdl.io/1.0.6/material.teal-blue.min.css">
-    <script src="https://storage.googleapis.com/code.getmdl.io/1.0.6/material.min.js"></script>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    <style>
-    .fixed-width { font-family: monospace; }
-    </style>
-</head>
-<body>
-  <!-- Always shows a header, even in smaller screens. -->
-  <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
-    <header class="mdl-layout__header">
-      <div class="mdl-layout__header-row">
-        <!-- Title -->
-        <span class="mdl-layout-title">Debug</span>
-        <!-- Add spacer, to align navigation to the right -->
-        <div class="mdl-layout-spacer"></div>
-        <!-- Navigation. We hide it in small screens. -->
-        <nav class="mdl-navigation mdl-layout--large-screen-only">
-          <a class="mdl-navigation__link" href="/?n={{.ServerName}}">Name</a>
-          <a class="mdl-navigation__link" href="/blessings?n={{.ServerName}}">Blessings</a>
-          <a class="mdl-navigation__link" href="/stats?n={{.ServerName}}">Stats</a>
-          <a class="mdl-navigation__link" href="/logs?n={{.ServerName}}">Logs</a>
-          <a class="mdl-navigation__link" href="/glob?n={{.ServerName}}">Glob</a>
-          <a class="mdl-navigation__link" href="/profiles?n={{.ServerName}}">Profiles</a>
-          <a class="mdl-navigation__link" href="/vtraces?n={{.ServerName}}">Traces</a>
-        </nav>
-      </div>
-    </header>
-    <div class="mdl-layout__drawer">
-      <nav class="mdl-navigation">
-        <a class="mdl-navigation__link" href="/?n={{.ServerName}}">Name</a>
-        <a class="mdl-navigation__link" href="/blessings?n={{.ServerName}}">Blessings</a>
-        <a class="mdl-navigation__link" href="/stats?n={{.ServerName}}">Stats</a>
-        <a class="mdl-navigation__link" href="/logs?n={{.ServerName}}">Logs</a>
-        <a class="mdl-navigation__link" href="/glob?n={{.ServerName}}">Glob</a>
-        <a class="mdl-navigation__link" href="/profiles?n={{.ServerName}}">Profiles</a>
-        <a class="mdl-navigation__link" href="/vtraces?n={{.ServerName}}">Traces</a>
-      </nav>
-    </div>
-    <main class="mdl-layout__content">
-    <section class="section--center mdl-grid">
-    <h5 class="fixed-width">{{.ServerName}}</h5>
-    </section>
-{{end}}
-`))
-	tmplBrowseFooter = template.Must(template.New(".footer").Parse(`
-{{define ".footer"}}
-    <hr/>
-    {{with .CommandLine}}
-    <section class="section--center mdl-grid">
-    <h5>CommandLine</h5>
-    <div class="mdl-cell mdl-cell--12-col fixed-width">{{.}}</div>
-    </section>
-    {{end}}
-    {{with printf "%v" .Vtrace}}
-    <section class="section--center mdl-grid">
-    <h5>Trace</h5>
-    <div class="mdl-cell mdl-cell--12-col"><pre>{{.}}</pre></div>
-    </section>
-    {{end}}
-    </main>
-  </div>
-</body>
-</html>
-{{end}}
-`))
-)

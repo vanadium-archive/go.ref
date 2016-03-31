@@ -1,0 +1,74 @@
+{{/*
+    Copyright 2016 The Vanadium Authors. All rights reserved.
+    Use of this source code is governed by a BSD-style
+    license that can be found in the LICENSE file.
+*/}}
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <title>Debugging {{.ServerName}}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://storage.googleapis.com/code.getmdl.io/1.0.6/material.teal-blue.min.css">
+    <script src="https://storage.googleapis.com/code.getmdl.io/1.0.6/material.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <style>
+        .fixed-width {
+            font-family: monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Always shows a header, even in smaller screens. -->
+    <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+        <header class="mdl-layout__header">
+            <div class="mdl-layout__header-row">
+                <!-- Title -->
+                <span class="mdl-layout-title">Debug</span>
+                <!-- Add spacer, to align navigation to the right -->
+                <div class="mdl-layout-spacer"></div>
+                <!-- Navigation. We hide it in small screens. -->
+                <nav class="mdl-navigation mdl-layout--large-screen-only">
+                    <a class="mdl-navigation__link" href="/?n={{.ServerName}}">Name</a>
+                    <a class="mdl-navigation__link" href="/blessings?n={{.ServerName}}">Blessings</a>
+                    <a class="mdl-navigation__link" href="/stats?n={{.ServerName}}">Stats</a>
+                    <a class="mdl-navigation__link" href="/logs?n={{.ServerName}}">Logs</a>
+                    <a class="mdl-navigation__link" href="/glob?n={{.ServerName}}">Glob</a>
+                    <a class="mdl-navigation__link" href="/profiles?n={{.ServerName}}">Profiles</a>
+                    <a class="mdl-navigation__link" href="/vtraces?n={{.ServerName}}">Traces</a>
+                </nav>
+            </div>
+        </header>
+        <div class="mdl-layout__drawer">
+            <nav class="mdl-navigation">
+                <a class="mdl-navigation__link" href="/?n={{.ServerName}}">Name</a>
+                <a class="mdl-navigation__link" href="/blessings?n={{.ServerName}}">Blessings</a>
+                <a class="mdl-navigation__link" href="/stats?n={{.ServerName}}">Stats</a>
+                <a class="mdl-navigation__link" href="/logs?n={{.ServerName}}">Logs</a>
+                <a class="mdl-navigation__link" href="/glob?n={{.ServerName}}">Glob</a>
+                <a class="mdl-navigation__link" href="/profiles?n={{.ServerName}}">Profiles</a>
+                <a class="mdl-navigation__link" href="/vtraces?n={{.ServerName}}">Traces</a>
+            </nav>
+        </div>
+        <main class="mdl-layout__content">
+            <section class="section--center mdl-grid">
+                <h5 class="fixed-width">{{.ServerName}}</h5>
+            </section>
+            {{block "content" .}}Main Content Here{{end}}
+            <hr/> {{with .CommandLine}}
+            <section class="section--center mdl-grid">
+                <h5>CommandLine</h5>
+                <div class="mdl-cell mdl-cell--12-col fixed-width">{{.}}</div>
+            </section>
+            {{end}} {{with printf "%v" .Vtrace}}
+            <section class="section--center mdl-grid">
+                <h5>Trace</h5>
+                <div class="mdl-cell mdl-cell--12-col"><pre>{{.}}</pre></div>
+            </section>
+            {{end}}
+        </main>
+    </div>
+</body>
+</html>
