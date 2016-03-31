@@ -268,6 +268,12 @@ func watchDeploymentRollout(name, namespace string, timeout time.Duration, stdou
 		if err := deployment.importJSON(data); err != nil {
 			return fmt.Errorf("failed to parse kubectl output: %v", err)
 		}
+		// http://kubernetes.io/docs/user-guide/deployments/#the-status-of-a-deployment
+		if deployment.getInt("status.observedGeneration", -2) < deployment.getInt("metadada.generation", -1) {
+			// The last change hasn't made it to the Deployment controller yet.
+			time.Sleep(time.Second)
+			continue
+		}
 		// DeploymentSpec is defined at
 		// http://kubernetes.io/docs/api-reference/extensions/v1beta1/definitions/#_v1beta1_deploymentspec
 		desired := deployment.getInt("spec.replicas", 1)
