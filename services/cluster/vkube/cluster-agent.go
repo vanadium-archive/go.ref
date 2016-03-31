@@ -63,6 +63,15 @@ func makeClusterAgentObject(config *vkubeConfig, rootBlessings string) object {
 								"initialDelaySeconds": 5,
 								"timeoutSeconds":      1,
 							},
+							"readinessProbe": object{
+								"exec": object{
+									"command": []string{
+										"vrpc", "identify", fmt.Sprintf("/localhost:%d", clusterAgentServicePort),
+									},
+								},
+								"initialDelaySeconds": 5,
+								"timeoutSeconds":      1,
+							},
 							"resources": object{
 								"limits": object{
 									"cpu":    config.ClusterAgent.CPU,

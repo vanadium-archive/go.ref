@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"text/template"
 	"time"
@@ -27,6 +28,8 @@ var (
 	flagZone           = flag.String("zone", "", "The name of the GCE zone to use.")
 	flagCluster        = flag.String("cluster", "", "The name of the kubernetes cluster to use.")
 	flagGetCredentials = flag.Bool("get-credentials", true, "This flag is passed to vkube.")
+	flagDockerRegistry = flag.String("docker-registry", "", "The docker registry to use. If empty, a temporary bucket in <project> is used.")
+	flagRebuildProb    = flag.Float64("rebuild-probability", 0.05, "A number between 0 and 1 to control how often the docker images are rebuilt. A value of 0 means never. A value of 1 means always. This flag is only meaningful when --docker-registry is set.")
 )
 
 // TestV23Vkube is an end-to-end test for the vkube command. It operates on a
@@ -49,8 +52,13 @@ func TestV23Vkube(t *testing.T) {
 
 	id := fmt.Sprintf("vkube-test-%08x", rand.Uint32())
 
+	dockerRegistry := *flagDockerRegistry
+	if dockerRegistry == "" {
+		dockerRegistry = "b.gcr.io/" + id
+	}
+
 	vkubeCfgPath := filepath.Join(workdir, "vkube.cfg")
-	if err := createVkubeConfig(vkubeCfgPath, id); err != nil {
+	if err := createVkubeConfig(vkubeCfgPath, id, dockerRegistry); err != nil {
 		t.Fatal(err)
 	}
 
@@ -80,6 +88,30 @@ func TestV23Vkube(t *testing.T) {
 				return output
 			}
 		}
+		timedCmd = func(name string, d time.Duration, baseArgs ...string) func(args ...string) (string, error) {
+			return func(args ...string) (string, error) {
+				args = append(baseArgs, args...)
+				fmt.Printf("Running: %s %s\n", name, strings.Join(args, " "))
+				// Note, creds do not affect non-Vanadium commands.
+				c := sh.Cmd(name, args...).WithCredentials(creds)
+				c.ExitErrorIsOk = true
+				plw := textutil.PrefixLineWriter(os.Stdout, fmt.Sprintf("%s(%s)> ", filepath.Base(name), d))
+				c.AddStdoutWriter(plw)
+				c.AddStderrWriter(plw)
+				exit := make(chan struct{})
+				go func() {
+					select {
+					case <-exit:
+					case <-time.After(d):
+						c.Terminate(syscall.SIGALRM)
+					}
+				}()
+				output := c.CombinedOutput()
+				close(exit)
+				plw.Flush()
+				return output, c.Err
+			}
+		}
 		gsutil      = cmd("gsutil", true)
 		gcloud      = cmd("gcloud", true, "--project="+*flagProject)
 		docker      = cmd("docker", true)
@@ -88,6 +120,7 @@ func TestV23Vkube(t *testing.T) {
 		vkubeFail   = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds, "--no-headers")
 		kubectlOK   = cmd(vkubeBin, true, "--config="+vkubeCfgPath, getCreds, "--no-headers", "kubectl", "--", "--namespace="+id)
 		kubectlFail = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds, "--no-headers", "kubectl", "--", "--namespace="+id)
+		kubectl5s   = timedCmd(vkubeBin, 5*time.Second, "--config="+vkubeCfgPath, getCreds, "--no-headers", "kubectl", "--", "--namespace="+id)
 		vshOK       = cmd(vshBin, true)
 	)
 
@@ -96,23 +129,26 @@ func TestV23Vkube(t *testing.T) {
 		t.Fatalf("Failed to get cluster information: %v", out)
 	}
 
-	// Create a bucket to store the docker images.
-	gsutil("mb", "-p", *flagProject, "gs://"+id)
+	if *flagDockerRegistry == "" {
+		// Use a temporary bucket as docker registry.
+		gsutil("mb", "-p", *flagProject, "gs://"+id)
+		defer func() {
+			gsutil("-m", "rm", "-r", "gs://"+id)
+		}()
+	}
+
 	defer func() {
 		kubectlOK("delete", "namespace", id)
-		gsutil("-m", "rm", "-r", "gs://"+id)
 	}()
 
 	// Create app's docker image and configs.
+	appImage := dockerRegistry + "/tunneld:latest"
+	badImage := dockerRegistry + "/not-found"
+
 	dockerDir, err := setupDockerDirectory(workdir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	appImage := "b.gcr.io/" + id + "/tunneld:latest"
-	badImage := "b.gcr.io/" + id + "/not-found"
-	docker("build", "-t", appImage, dockerDir)
-	gcloud("docker", "push", appImage)
-
 	conf := make(map[string]string)
 	for _, c := range []struct{ name, version, kind string }{
 		{"app-rc1", "1", "rc"},
@@ -143,24 +179,31 @@ func TestV23Vkube(t *testing.T) {
 		}
 	}
 
-	vkubeOK("build-docker-images", "-v", "-tag=1")
-	vkubeOK("build-docker-images", "-v", "-tag=2")
-	// Clean up local docker images.
-	docker(
-		"rmi",
-		"b.gcr.io/"+id+"/cluster-agent",
-		"b.gcr.io/"+id+"/cluster-agent:1",
-		"b.gcr.io/"+id+"/cluster-agent:2",
-		"b.gcr.io/"+id+"/pod-agent",
-		"b.gcr.io/"+id+"/pod-agent:1",
-		"b.gcr.io/"+id+"/pod-agent:2",
-		"b.gcr.io/"+id+"/tunneld",
-	)
+	if *flagDockerRegistry == "" || rand.Float64() < *flagRebuildProb {
+		t.Log("Rebuilding docker images")
+		docker("build", "-t", appImage, dockerDir)
+		gcloud("docker", "push", appImage)
+
+		vkubeOK("build-docker-images", "-v", "-tag=1")
+		vkubeOK("build-docker-images", "-v", "-tag=2")
+
+		// Clean up local docker images.
+		docker(
+			"rmi",
+			dockerRegistry+"/cluster-agent",
+			dockerRegistry+"/cluster-agent:1",
+			dockerRegistry+"/cluster-agent:2",
+			dockerRegistry+"/pod-agent",
+			dockerRegistry+"/pod-agent:1",
+			dockerRegistry+"/pod-agent:2",
+			dockerRegistry+"/tunneld",
+		)
+	}
 
 	// Run the actual tests.
 	vkubeOK("update-config",
-		"--cluster-agent-image=b.gcr.io/"+id+"/cluster-agent:1",
-		"--pod-agent-image=b.gcr.io/"+id+"/pod-agent:1")
+		"--cluster-agent-image="+dockerRegistry+"/cluster-agent:1",
+		"--pod-agent-image="+dockerRegistry+"/pod-agent:1")
 	vkubeOK("start-cluster-agent", "--wait")
 	vkubeOK("update-config", "--cluster-agent-image=:2", "--pod-agent-image=:2")
 	vkubeOK("update-cluster-agent", "--wait")
@@ -186,7 +229,12 @@ func TestV23Vkube(t *testing.T) {
 		var addr string
 		for addr == "" {
 			time.Sleep(100 * time.Millisecond)
-			for _, log := range strings.Split(kubectlOK("logs", podName, "-c", "tunneld"), "\n") {
+			logs, err := kubectl5s("logs", podName, "-c", "tunneld")
+			if err != nil {
+				t.Logf("kubectl logs failed: %v", err)
+				continue
+			}
+			for _, log := range strings.Split(logs, "\n") {
 				if strings.HasPrefix(log, "NAME=") {
 					addr = strings.TrimPrefix(log, "NAME=")
 					break
@@ -219,7 +267,12 @@ func TestV23Vkube(t *testing.T) {
 		var addr string
 		for addr == "" {
 			time.Sleep(100 * time.Millisecond)
-			for _, log := range strings.Split(kubectlOK("logs", podName, "-c", "tunneld"), "\n") {
+			logs, err := kubectl5s("logs", podName, "-c", "tunneld")
+			if err != nil {
+				t.Logf("kubectl logs failed: %v", err)
+				continue
+			}
+			for _, log := range strings.Split(logs, "\n") {
 				if strings.HasPrefix(log, "NAME=") {
 					addr = strings.TrimPrefix(log, "NAME=")
 					break
@@ -252,28 +305,28 @@ func TestV23Vkube(t *testing.T) {
 	kubectlFail("get", "rc", "cluster-agentd-2")
 }
 
-func createVkubeConfig(path, id string) error {
+func createVkubeConfig(path, id, dockerRegistry string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	params := struct{ Project, Zone, Cluster, ID string }{*flagProject, *flagZone, *flagCluster, id}
+	params := struct{ Project, Zone, Cluster, Registry, ID string }{*flagProject, *flagZone, *flagCluster, dockerRegistry, id}
 	return template.Must(template.New("cfg").Parse(`{
   "project": "{{.Project}}",
   "zone": "{{.Zone}}",
   "cluster": "{{.Cluster}}",
   "clusterAgent": {
     "namespace": "{{.ID}}",
-    "image": "b.gcr.io/{{.ID}}/cluster-agent:xxx",
+    "image": "{{.Registry}}/cluster-agent:xxx",
     "blessing": "root:alice:cluster-agent",
     "admin": "root:alice",
     "cpu": "0.1",
     "memory": "100M"
   },
   "podAgent": {
-    "image": "b.gcr.io/{{.ID}}/pod-agent:xxx"
+    "image": "{{.Registry}}/pod-agent:xxx"
   }
 }`)).Execute(f, params)
 }
