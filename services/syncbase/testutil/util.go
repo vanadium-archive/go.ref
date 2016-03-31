@@ -5,6 +5,7 @@
 package testutil
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -148,9 +149,15 @@ func CheckExec(t testing.TB, ctx *context.T, db syncbase.DatabaseHandle, q strin
 	if !reflect.DeepEqual(gotHeaders, wantHeaders) {
 		t.Errorf("query %q: got %v, want %v", q, gotHeaders, wantHeaders)
 	}
-	gotResults := [][]*vom.RawBytes{}
+	gotResults := [][]interface{}{}
 	for it.Advance() {
-		gotResult := it.Result()
+		n := it.ResultCount()
+		gotResult := make([]interface{}, n)
+		for i := 0; i != n; i++ {
+			if err := it.Result(i, &gotResult[i]); err != nil {
+				t.Errorf("error decoding result: %v", err)
+			}
+		}
 		gotResults = append(gotResults, gotResult)
 	}
 	if it.Err() != nil {
@@ -175,14 +182,44 @@ func CheckExecError(t testing.TB, ctx *context.T, db syncbase.DatabaseHandle, q 
 	}
 }
 
+// A WatchChangeTest is a syncbase.WatchChange that has a public ValueBytes field, to allow
+// tests to set it.
+type WatchChangeTest struct {
+	syncbase.WatchChange
+	ValueBytes *vom.RawBytes
+}
+
+// WatchChangeEq returns whether *want and *got represent the same value.
+func WatchChangeEq(got *syncbase.WatchChange, want *WatchChangeTest) (eq bool) {
+	if want.Collection == got.Collection &&
+		want.Row == got.Row &&
+		want.ChangeType == got.ChangeType &&
+		bytes.Equal(want.ResumeMarker, got.ResumeMarker) &&
+		want.FromSync == got.FromSync &&
+		want.Continued == got.Continued {
+
+		if want.ChangeType == syncbase.DeleteChange {
+			eq = true
+		} else {
+			var wantValue interface{}
+			var gotValue interface{}
+			gotErr := got.Value(gotValue)
+			wantErr := want.ValueBytes.ToValue(wantValue)
+			eq = ((gotErr == nil) == (wantErr == nil)) &&
+				reflect.DeepEqual(gotValue, wantValue)
+		}
+	}
+	return eq
+}
+
 // CheckWatch checks that the sequence of elements from the watch stream starts
 // with the given slice of watch changes.
-func CheckWatch(t testing.TB, wstream syncbase.WatchStream, changes []syncbase.WatchChange) {
+func CheckWatch(t testing.TB, wstream syncbase.WatchStream, changes []WatchChangeTest) {
 	for _, want := range changes {
 		if !wstream.Advance() {
 			Fatalf(t, "wstream.Advance() reached the end: %v", wstream.Err())
 		}
-		if got := wstream.Change(); !reflect.DeepEqual(got, want) {
+		if got := wstream.Change(); !WatchChangeEq(&got, &want) {
 			Fatalf(t, "unexpected watch change: got %v, want %v", got, want)
 		}
 	}

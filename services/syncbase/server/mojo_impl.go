@@ -598,8 +598,8 @@ func (s *watchGlobStreamImpl) Send(item interface{}) error {
 	vc := nosql.ToWatchChange(c)
 
 	var value []byte
-	if vc.ValueBytes != nil {
-		if err := vom.Decode(vc.ValueBytes, &value); err != nil {
+	if vc.ChangeType != DeleteChange {
+		if err := vc.Value(&value); err != nil {
 			return err
 		}
 	}

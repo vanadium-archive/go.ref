@@ -7,6 +7,7 @@ package writer_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -18,7 +19,7 @@ import (
 )
 
 type fakeResultStream struct {
-	rows [][]*vom.RawBytes
+	rows [][]interface{}
 	curr int
 }
 
@@ -57,11 +58,11 @@ func array2String(s1, s2 string) db.Array2String {
 }
 
 func newResultStream(iRows [][]interface{}) syncbase.ResultStream {
-	vRows := make([][]*vom.RawBytes, len(iRows))
+	vRows := make([][]interface{}, len(iRows))
 	for i, iRow := range iRows {
-		vRow := make([]*vom.RawBytes, len(iRow))
+		vRow := make([]interface{}, len(iRow))
 		for j, iCol := range iRow {
-			vRow[j] = vom.RawBytesOf(iCol)
+			vRow[j] = iCol
 		}
 		vRows[i] = vRow
 	}
@@ -76,11 +77,24 @@ func (f *fakeResultStream) Advance() bool {
 	return f.curr < len(f.rows)
 }
 
-func (f *fakeResultStream) Result() []*vom.RawBytes {
+func (f *fakeResultStream) ResultCount() int {
 	if f.curr == -1 {
 		panic("call advance first")
 	}
-	return f.rows[f.curr]
+	return len(f.rows[f.curr])
+}
+
+func (f *fakeResultStream) Result(i int, value interface{}) (err error) {
+	if f.curr == -1 {
+		panic("call advance first")
+	}
+	switch intf := value.(type) {
+	case *interface{}:
+		*intf = f.rows[f.curr][i]
+	default:
+		err = fmt.Errorf("unsupported value type: %t", value)
+	}
+	return err
 }
 
 func (f *fakeResultStream) Err() error {

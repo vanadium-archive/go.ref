@@ -104,11 +104,16 @@ func (t *collectionReq) scanInitialState(ctx *context.T, call watch.GlobWatcherW
 				return nil, err
 			}
 		}
+		var valueAsRawBytes *vom.RawBytes
+		if err := vom.Decode(value, &valueAsRawBytes); err != nil {
+			it.Cancel()
+			return nil, err
+		}
 		if err := sender.addChange(
 			naming.Join(t.name, externalKey),
 			watch.Exists,
 			vom.RawBytesOf(wire.StoreChange{
-				Value: value,
+				Value: valueAsRawBytes,
 				// Note: FromSync cannot be reconstructed from scan.
 				FromSync: false,
 			})); err != nil {
@@ -214,10 +219,14 @@ func (t *collectionReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWa
 			if err != nil {
 				return err
 			}
+			var rowValueAsRawBytes *vom.RawBytes
+			if err := vom.Decode(rowValue, &rowValueAsRawBytes); err != nil {
+				return err
+			}
 			if err := sender.addChange(naming.Join(collection, row),
 				watch.Exists,
 				vom.RawBytesOf(wire.StoreChange{
-					Value:    rowValue,
+					Value:    rowValueAsRawBytes,
 					FromSync: logEntry.FromSync,
 				})); err != nil {
 				return err
