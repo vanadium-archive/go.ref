@@ -546,8 +546,9 @@ func syncable(appdb string, logEnt *watchable.LogEntry) bool {
 	}
 
 	// The key starts with one of the store's reserved prefixes for managed
-	// namespaces (e.g. "$row", "$perms"). Remove that prefix before comparing it
-	// with the syncgroup prefixes which are defined by the application.
+	// namespaces (e.g. "r" for row, "c" for collection perms). Remove that
+	// prefix before comparing it with the syncgroup prefixes which are defined
+	// by the application.
 	key = common.StripFirstKeyPartOrDie(key)
 
 	for prefix := range watchPrefixes[appdb] {

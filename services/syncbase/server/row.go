@@ -96,18 +96,10 @@ func (r *rowReq) stKeyPart() string {
 	return common.JoinKeyParts(r.c.stKeyPart(), r.key)
 }
 
-// checkAccess checks that this row's collection exists in the database, and
-// performs an authorization check.
-// checkAccess returns the longest prefix of the given key that has associated
-// permissions if the access is granted.
-func (r *rowReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) (string, error) {
-	return r.c.checkAccess(ctx, call, sntx, r.key)
-}
-
 // get reads data from the storage engine.
 // Performs authorization check.
 func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) ([]byte, error) {
-	if _, err := r.checkAccess(ctx, call, sntx); err != nil {
+	if err := r.c.checkAccess(ctx, call, sntx); err != nil {
 		return nil, err
 	}
 	value, err := sntx.Get([]byte(r.stKey()), nil)
@@ -123,14 +115,10 @@ func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrT
 // put writes data to the storage engine.
 // Performs authorization check.
 func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx *watchable.Transaction, value []byte) error {
-	permsPrefix, err := r.checkAccess(ctx, call, tx)
-	if err != nil {
+	if err := r.c.checkAccess(ctx, call, tx); err != nil {
 		return err
 	}
-	// TODO(rogulenko): Avoid the redundant lookups since in theory we have all
-	// we need from the checkAccess.
-	permsKey := r.c.prefixPermsKey(permsPrefix)
-	if err := watchable.PutWithPerms(tx, []byte(r.stKey()), value, permsKey); err != nil {
+	if err := watchable.PutWithPerms(tx, []byte(r.stKey()), value, r.c.permsKey()); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
@@ -139,14 +127,10 @@ func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx *watchable.Transact
 // delete deletes data from the storage engine.
 // Performs authorization check.
 func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, tx *watchable.Transaction) error {
-	permsPrefix, err := r.checkAccess(ctx, call, tx)
-	if err != nil {
+	if err := r.c.checkAccess(ctx, call, tx); err != nil {
 		return err
 	}
-	// TODO(rogulenko): Avoid the redundant lookups since in theory we have all
-	// we need from the checkAccess.
-	permsKey := r.c.prefixPermsKey(permsPrefix)
-	if err := watchable.DeleteWithPerms(tx, []byte(r.stKey()), permsKey); err != nil {
+	if err := watchable.DeleteWithPerms(tx, []byte(r.stKey()), r.c.permsKey()); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil

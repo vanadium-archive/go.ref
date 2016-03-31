@@ -19,7 +19,7 @@ var (
 	a = makeRowKeyFromParts("collection2", "a")
 	b = makeRowKeyFromParts("collection2", "b")
 	c = makeRowKeyFromParts("collection2", "c")
-	d = makePermsKeyFromParts("collection1", "d")
+	d = makeCollectionPermsKey("collection1")
 
 	e = makeRowKeyFromParts("collection1", "e")
 	f = makeRowKeyFromParts("collection1", "f")

@@ -12,8 +12,8 @@ import (
 Test setup:
 
 iSt.updObjects contains oids: x, y, z, d
-x, y, z are data keys ($row)
-d is a perm key ($perm)
+x, y, z are data keys ("r")
+d is a collection perms key ("c")
 z is not under conflict.
 
 Result:

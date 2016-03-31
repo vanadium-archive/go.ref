@@ -7,6 +7,7 @@ package server
 import (
 	"math/rand"
 	"path"
+	"sort"
 	"sync"
 	"time"
 
@@ -92,7 +93,10 @@ func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOp
 		return nil, err
 	}
 	wst, err := watchable.Wrap(st, a.Service().Clock(), &watchable.Options{
-		ManagedPrefixes: []string{common.RowPrefix, common.PermsPrefix},
+		// TODO(ivanpi): Since ManagedPrefixes control what gets synced, they
+		// should be moved to a more visible place (e.g. constants). Also consider
+		// decoupling managed and synced prefixes.
+		ManagedPrefixes: []string{common.RowPrefix, common.CollectionPermsPrefix},
 	})
 	if err != nil {
 		return nil, err
@@ -367,7 +371,7 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServer
 		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
 			return err
 		}
-		return util.GlobChildren(ctx, call, matcher, sntx, common.CollectionPrefix)
+		return util.GlobChildren(ctx, call, matcher, sntx, common.CollectionPermsPrefix)
 	}
 	if d.batchId != nil {
 		return impl(d.batchReader())
@@ -389,18 +393,21 @@ func (d *databaseReq) ListCollections(ctx *context.T, call rpc.ServerCall) ([]st
 		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
 			return nil, err
 		}
-		it := sntx.Scan(common.ScanPrefixArgs(common.CollectionPrefix, ""))
+		it := sntx.Scan(common.ScanPrefixArgs(common.CollectionPermsPrefix, ""))
 		keyBytes := []byte{}
 		res := []string{}
 		for it.Advance() {
 			keyBytes = it.Key(keyBytes)
-			parts := common.SplitNKeyParts(string(keyBytes), 2)
+			parts := common.SplitNKeyParts(string(keyBytes), 3)
 			// For explanation of Escape(), see comment in dispatcher.go.
 			res = append(res, pubutil.Escape(parts[1]))
 		}
 		if err := it.Err(); err != nil {
 			return nil, err
 		}
+		// TODO(rdaoud,ivanpi): Sort is necessary because of hack in
+		// collectionReq.permsKey().
+		sort.Sort(sort.StringSlice(res))
 		return res, nil
 	}
 	if d.batchId != nil {
@@ -442,13 +449,6 @@ func (d *database) St() *watchable.Store {
 
 func (d *database) App() interfaces.App {
 	return d.a
-}
-
-func (d *database) Collection(ctx *context.T, collectionName string) interfaces.Collection {
-	return &collectionReq{
-		name: collectionName,
-		d:    &databaseReq{database: d},
-	}
 }
 
 func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
@@ -549,7 +549,7 @@ func (qdb *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error)
 		}
 	}
 	// Now that we have a collection, we need to check permissions.
-	if err := util.GetWithAuth(qdb.ctx, qdb.call, qdb.sntx, qt.cReq.stKey(), &CollectionData{}); err != nil {
+	if err := qt.cReq.checkAccess(qdb.ctx, qdb.call, qdb.sntx); err != nil {
 		return nil, err
 	}
 	return qt, nil

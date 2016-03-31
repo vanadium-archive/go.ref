@@ -21,9 +21,6 @@ type Database interface {
 	// App returns the app handle for this database.
 	App() App
 
-	// Collection returns the Collection with the specified name.
-	Collection(ctx *context.T, collectionName string) Collection
-
 	// CheckPermsInternal checks whether the given RPC (ctx, call) is allowed per
 	// the database perms.
 	// Designed for use from within App.DestroyDatabase.

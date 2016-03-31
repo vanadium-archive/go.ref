@@ -39,8 +39,13 @@ type DatabaseData struct {
 	SchemaMetadata ?wire.SchemaMetadata
 }
 
-// CollectionData represents the persistent state of a Collection.
-type CollectionData struct {
-	Name  string
-	Perms access.Permissions
-}
+// CollectionPerms represent the persistent, synced permissions of a Collection.
+// Existence of CollectionPerms in the store determines existence of the
+// Collection.
+// Note: Since CollectionPerms is synced and conflict resolved, the sync
+// protocol needs to be aware of it. Any potential additions to synced
+// Collection metadata should be written to a separate, synced key prefix,
+// written in the same transaction with CollectionPerms and incorporated into
+// the sync protocol. All persistent Collection metadata should be synced;
+// local-only metadata is acceptable only if optional (e.g. stats).
+type CollectionPerms access.Permissions

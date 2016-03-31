@@ -93,7 +93,8 @@ func (t *collectionReq) scanInitialState(ctx *context.T, call watch.GlobWatcherW
 		// See comment in util/constants.go for why we use SplitNKeyParts.
 		parts := common.SplitNKeyParts(string(key), 3)
 		externalKey := parts[2]
-		if _, err := t.checkAccess(ctx, call, sntx, externalKey); err != nil {
+		// TODO(ivanpi): Check only once per collection.
+		if err := t.checkAccess(ctx, call, sntx); err != nil {
 			// TODO(ivanpi): Inaccessible rows are skipped. Figure out how to signal
 			// this to caller.
 			if verror.ErrorID(err) == verror.ErrNoAccess.ID {
@@ -195,12 +196,13 @@ func (t *collectionReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWa
 		if !common.IsRowKey(opKey) {
 			continue
 		}
-		collection, row := common.ParseCollectionAndRowOrDie(opKey)
+		collection, row := common.ParseRowKeyOrDie(opKey)
 		// Filter out unnecessary rows and rows that we can't access.
 		if collection != t.name || !strings.HasPrefix(row, prefix) {
 			continue
 		}
-		if _, err := t.checkAccess(ctx, call, sn, row); err != nil {
+		// TODO(ivanpi): Check only once per collection per batch.
+		if err := t.checkAccess(ctx, call, sn); err != nil {
 			if verror.ErrorID(err) != verror.ErrNoAccess.ID {
 				return err
 			}

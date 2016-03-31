@@ -988,21 +988,6 @@ func (iSt *initiationState) updateDbAndSyncSt(ctx *context.T) error {
 				return err
 			}
 		}
-
-		// If this is a perms key, update the local store index.
-		if common.IsPermsKey(objid) {
-			collection, row := common.ParseCollectionAndRowOrDie(objid)
-			c := iSt.config.db.Collection(ctx, collection)
-			var err error
-			if !newVersDeleted {
-				err = c.UpdatePrefixPermsIndexForSet(ctx, iSt.tx, row)
-			} else {
-				err = c.UpdatePrefixPermsIndexForDelete(ctx, iSt.tx, row)
-			}
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	// End the started batches if any.

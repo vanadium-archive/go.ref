@@ -105,9 +105,9 @@ func TestIsRowKey(t *testing.T) {
 		{common.RowPrefix, true},
 		{common.RowPrefix + "\xfe", true},
 		{common.RowPrefix + "\xfeb", true},
-		{common.PermsPrefix, false},
-		{common.PermsPrefix + "\xfe", false},
-		{common.PermsPrefix + "\xfeb", false},
+		{common.CollectionPermsPrefix, false},
+		{common.CollectionPermsPrefix + "\xfe", false},
+		{common.CollectionPermsPrefix + "\xfeb", false},
 	}
 	for _, test := range tests {
 		got, want := common.IsRowKey(test.in), test.out
@@ -117,31 +117,7 @@ func TestIsRowKey(t *testing.T) {
 	}
 }
 
-func TestIsPermsKey(t *testing.T) {
-	tests := []struct {
-		in  string
-		out bool
-	}{
-		{"", false},
-		{"a", false},
-		{"a\xfe", false},
-		{"a\xfeb", false},
-		{common.RowPrefix, false},
-		{common.RowPrefix + "\xfe", false},
-		{common.RowPrefix + "\xfeb", false},
-		{common.PermsPrefix, true},
-		{common.PermsPrefix + "\xfe", true},
-		{common.PermsPrefix + "\xfeb", true},
-	}
-	for _, test := range tests {
-		got, want := common.IsPermsKey(test.in), test.out
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("%q: got %v, want %v", test.in, got, want)
-		}
-	}
-}
-
-func TestParseCollectionAndRow(t *testing.T) {
+func TestParseRowKey(t *testing.T) {
 	tests := []struct {
 		key        string
 		collection string
@@ -152,10 +128,10 @@ func TestParseCollectionAndRow(t *testing.T) {
 		{common.RowPrefix + "\xfec\xfe", "c", "", false},
 		{common.RowPrefix + "\xfe\xferow", "", "row", false},
 		{common.RowPrefix + "\xfe\xfe", "", "", false},
-		{common.PermsPrefix + "\xfec\xferow", "c", "row", false},
-		{common.PermsPrefix + "\xfec\xfe", "c", "", false},
-		{common.PermsPrefix + "\xfe\xferow", "", "row", false},
-		{common.PermsPrefix + "\xfe\xfe", "", "", false},
+		{common.CollectionPermsPrefix + "\xfec\xferow", "", "", true},
+		{common.CollectionPermsPrefix + "\xfec\xfe", "", "", true},
+		{common.CollectionPermsPrefix + "\xfe\xferow", "", "", true},
+		{common.CollectionPermsPrefix + "\xfe\xfe", "", "", true},
 		{"pfx\xfec\xferow", "", "", true},
 		{"pfx\xfec\xfe", "", "", true},
 		{"pfx\xfe\xferow", "", "", true},
@@ -169,7 +145,7 @@ func TestParseCollectionAndRow(t *testing.T) {
 		{common.RowPrefix + "\xfe", "", "", true},
 	}
 	for _, test := range tests {
-		collection, row, err := common.ParseCollectionAndRow(test.key)
+		collection, row, err := common.ParseRowKey(test.key)
 		if !reflect.DeepEqual(collection, test.collection) {
 			t.Errorf("%q: got %v, want %v", test.key, collection, test.collection)
 		}

@@ -531,9 +531,9 @@ func getNextLogRec(ctx *context.T, st store.Store, pfx string, dev uint64, r *ge
 // Note: initPfxs is sorted.
 func filterLogRec(rec *LocalLogRec, initVecs interfaces.Knowledge, initPfxs []string) bool {
 	// The key (objid) starts with one of the store's reserved prefixes for
-	// managed namespaces (e.g. "$row", "$perms"). Remove that prefix before
-	// comparing it with the syncgroup prefixes which are defined by the
-	// application.
+	// managed namespaces (e.g. "r" for row, "c" for collection perms). Remove
+	// that prefix before comparing it with the syncgroup prefixes which are
+	// defined by the application.
 	key := common.StripFirstKeyPartOrDie(rec.Metadata.ObjId)
 
 	filter := true
@@ -565,8 +565,8 @@ func filterLogRec(rec *LocalLogRec, initVecs interfaces.Knowledge, initPfxs []st
 func (rSt *responderState) sendValue(ctx *context.T, rec *LocalLogRec) bool {
 	key := rec.Metadata.ObjId
 
-	// All permissions objects are always readable by everyone.
-	if common.FirstKeyPart(key) == common.PermsPrefix {
+	// All collection permissions objects are always readable by everyone.
+	if common.FirstKeyPart(key) == common.CollectionPermsPrefix {
 		return true
 	}
 

@@ -595,114 +595,100 @@ func (t *__VDLTarget1_optional) FromZero(tt *vdl.Type) error {
 	return nil
 }
 
-// CollectionData represents the persistent state of a Collection.
-type CollectionData struct {
-	Name  string
-	Perms access.Permissions
-}
+// CollectionPerms represent the persistent, synced permissions of a Collection.
+// Existence of CollectionPerms in the store determines existence of the
+// Collection.
+// Note: Since CollectionPerms is synced and conflict resolved, the sync
+// protocol needs to be aware of it. Any potential additions to synced
+// Collection metadata should be written to a separate, synced key prefix,
+// written in the same transaction with CollectionPerms and incorporated into
+// the sync protocol. All persistent Collection metadata should be synced;
+// local-only metadata is acceptable only if optional (e.g. stats).
+type CollectionPerms access.Permissions
 
-func (CollectionData) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/server.CollectionData"`
+func (CollectionPerms) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server.CollectionPerms"`
 }) {
 }
 
-func (m *CollectionData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(tt)
+func (m *CollectionPerms) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	mapTarget1, err := t.StartMap(tt, len((*m)))
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Name")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := (m.Name == "")
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
-				return err
-			}
-		} else {
-			if err := fieldTarget3.FromString(string(m.Name), tt.NonOptional().Field(0).Type); err != nil {
-				return err
-			}
+	for key3, value5 := range *m {
+		keyTarget2, err := mapTarget1.StartKey()
+		if err != nil {
+			return err
 		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+		if err := keyTarget2.FromString(string(key3), tt.NonOptional().Key()); err != nil {
+			return err
+		}
+		valueTarget4, err := mapTarget1.FinishKeyStartField(keyTarget2)
+		if err != nil {
+			return err
+		}
+
+		if err := value5.FillVDLTarget(valueTarget4, tt.NonOptional().Elem()); err != nil {
+			return err
+		}
+		if err := mapTarget1.FinishField(keyTarget2, valueTarget4); err != nil {
 			return err
 		}
 	}
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Perms")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var var7 bool
-		if len(m.Perms) == 0 {
-			var7 = true
-		}
-		if var7 {
-			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
-				return err
-			}
-		} else {
-
-			if err := m.Perms.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
-				return err
-			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-			return err
-		}
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
+	if err := t.FinishMap(mapTarget1); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *CollectionData) MakeVDLTarget() vdl.Target {
-	return &CollectionDataTarget{Value: m}
+func (m *CollectionPerms) MakeVDLTarget() vdl.Target {
+	return &CollectionPermsTarget{Value: m}
 }
 
-type CollectionDataTarget struct {
-	Value       *CollectionData
-	nameTarget  vdl.StringTarget
-	permsTarget access.PermissionsTarget
+type CollectionPermsTarget struct {
+	Value      *CollectionPerms
+	currKey    string
+	currElem   access.AccessList
+	keyTarget  vdl.StringTarget
+	elemTarget access.AccessListTarget
 	vdl.TargetBase
-	vdl.FieldsTargetBase
+	vdl.MapTargetBase
 }
 
-func (t *CollectionDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+func (t *CollectionPermsTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
 
-	if ttWant := vdl.TypeOf((*CollectionData)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+	if ttWant := vdl.TypeOf((*CollectionPerms)(nil)); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
+	*t.Value = make(CollectionPerms)
 	return t, nil
 }
-func (t *CollectionDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
-	switch name {
-	case "Name":
-		t.nameTarget.Value = &t.Value.Name
-		target, err := &t.nameTarget, error(nil)
-		return nil, target, err
-	case "Perms":
-		t.permsTarget.Value = &t.Value.Perms
-		target, err := &t.permsTarget, error(nil)
-		return nil, target, err
-	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.CollectionData", name)
-	}
+func (t *CollectionPermsTarget) StartKey() (key vdl.Target, _ error) {
+	t.currKey = ""
+	t.keyTarget.Value = &t.currKey
+	target, err := &t.keyTarget, error(nil)
+	return target, err
 }
-func (t *CollectionDataTarget) FinishField(_, _ vdl.Target) error {
+func (t *CollectionPermsTarget) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+	t.currElem = access.AccessList{}
+	t.elemTarget.Value = &t.currElem
+	target, err := &t.elemTarget, error(nil)
+	return target, err
+}
+func (t *CollectionPermsTarget) FinishField(key, field vdl.Target) error {
+	(*t.Value)[t.currKey] = t.currElem
 	return nil
 }
-func (t *CollectionDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+func (t *CollectionPermsTarget) FinishMap(elem vdl.MapTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
 
 	return nil
 }
-func (t *CollectionDataTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = CollectionData{}
+func (t *CollectionPermsTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = CollectionPerms(nil)
 	return nil
 }
 
@@ -732,7 +718,7 @@ func __VDLInit() struct{} {
 	vdl.Register((*AppData)(nil))
 	vdl.Register((*DbInfo)(nil))
 	vdl.Register((*DatabaseData)(nil))
-	vdl.Register((*CollectionData)(nil))
+	vdl.Register((*CollectionPerms)(nil))
 
 	return struct{}{}
 }

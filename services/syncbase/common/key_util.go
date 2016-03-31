@@ -52,26 +52,21 @@ func IsRowKey(key string) bool {
 	return FirstKeyPart(key) == RowPrefix
 }
 
-// IsPermsKey returns true iff 'key' is a storage engine key for perms.
-func IsPermsKey(key string) bool {
-	return FirstKeyPart(key) == PermsPrefix
-}
-
-// ParseCollectionAndRow extracts collection and row parts from the given
-// storage engine key for a row or perms. Returns an error if the given key is
-// not a storage engine key for a row or perms.
-func ParseCollectionAndRow(key string) (collection string, row string, err error) {
+// ParseRowKey extracts collection and row parts from the given storage engine
+// key for a data row. Returns an error if the given key is not a storage engine
+// key for a data row.
+func ParseRowKey(key string) (collection string, row string, err error) {
 	parts := SplitNKeyParts(key, 3)
 	pfx := parts[0]
-	if len(parts) < 3 || (pfx != RowPrefix && pfx != PermsPrefix) {
-		return "", "", fmt.Errorf("ParseCollectionAndRow: invalid key %q", key)
+	if len(parts) < 3 || pfx != RowPrefix {
+		return "", "", fmt.Errorf("ParseRowKey: invalid key %q", key)
 	}
 	return parts[1], parts[2], nil
 }
 
-// ParseCollectionAndRowOrDie calls ParseCollectionAndRow and panics on error.
-func ParseCollectionAndRowOrDie(key string) (collection string, row string) {
-	collection, row, err := ParseCollectionAndRow(key)
+// ParseRowKeyOrDie calls ParseRowKey and panics on error.
+func ParseRowKeyOrDie(key string) (collection string, row string) {
+	collection, row, err := ParseRowKey(key)
 	if err != nil {
 		vlog.Fatal(err)
 	}

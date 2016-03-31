@@ -435,14 +435,11 @@ func (r *row) Destroy(ctx *context.T) error {
 	return r.Delete(ctx)
 }
 func (r *row) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
-	return r.c.SetPrefixPermissions(ctx, syncbase.Prefix(r.Key()), perms)
+	// no-op (cannot panic since it is called from collection layer tests)
+	return nil
 }
 func (r *row) GetPermissions(ctx *context.T) (perms access.Permissions, version string, err error) {
-	prefixPerms, err := r.c.GetPrefixPermissions(ctx, r.Key())
-	if err != nil {
-		return nil, "", err
-	}
-	return prefixPerms[0].Perms, "", nil
+	panic(notAvailable)
 }
 func (r *row) ListChildren(ctx *context.T) ([]string, error) {
 	panic(notAvailable)

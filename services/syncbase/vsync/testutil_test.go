@@ -69,7 +69,7 @@ type mockApp struct {
 
 func (a *mockApp) Database(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
 	wst, err := watchable.Wrap(a.s.st, a.s.vclock, &watchable.Options{
-		ManagedPrefixes: []string{common.RowPrefix, common.PermsPrefix},
+		ManagedPrefixes: []string{common.RowPrefix, common.CollectionPermsPrefix},
 	})
 	return &mockDatabase{st: wst}, err
 }
@@ -121,10 +121,6 @@ func (d *mockDatabase) Name() string {
 }
 
 func (d *mockDatabase) App() interfaces.App {
-	return nil
-}
-
-func (d *mockDatabase) Collection(ctx *context.T, collectionName string) interfaces.Collection {
 	return nil
 }
 
@@ -208,8 +204,8 @@ func makeRowKeyFromParts(collection, row string) string {
 	return common.JoinKeyParts(common.RowPrefix, collection, row)
 }
 
-func makePermsKeyFromParts(collection, row string) string {
-	return common.JoinKeyParts(common.PermsPrefix, collection, row)
+func makeCollectionPermsKey(collection string) string {
+	return common.JoinKeyParts(common.CollectionPermsPrefix, collection)
 }
 
 // conflictResolverStream mock for testing.

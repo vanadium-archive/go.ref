@@ -26,7 +26,7 @@ func CheckVersion(ctx *context.T, presented string, actual uint64) error {
 }
 
 // TODO(sadovsky): Perhaps these functions should strip key prefixes such as
-// "$collection:" from the error messages they return.
+// "c:" from the error messages they return.
 
 type Permser interface {
 	// GetPerms returns the Permissions for this Layer.

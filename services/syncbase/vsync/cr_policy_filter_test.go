@@ -110,7 +110,7 @@ func TestGetResolutionType(t *testing.T) {
 		testResType{oid: makeRowKeyFromParts("t1", "foobar"), result: wire.ResolverTypeDefer},
 		testResType{oid: makeRowKeyFromParts("t1", "bar"), result: wire.ResolverTypeAppResolves},
 		testResType{oid: makeRowKeyFromParts("t2", "abc"), result: wire.ResolverTypeAppResolves},
-		testResType{oid: makePermsKeyFromParts("t2", "abc"), result: wire.ResolverTypeLastWins},
+		testResType{oid: makeCollectionPermsKey("t2"), result: wire.ResolverTypeLastWins},
 		testResType{oid: makeRowKeyFromParts("t3", "abc"), result: wire.ResolverTypeLastWins},
 	}
 	for _, test := range testCases {

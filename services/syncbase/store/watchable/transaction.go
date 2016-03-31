@@ -267,7 +267,7 @@ func PutVersion(ctx *context.T, tx *Transaction, key, version []byte) error {
 }
 
 // PutWithPerms puts a value for the managed key, recording the key and version
-// of the prefix permissions object that granted access to this put operation.
+// of the permissions object that granted access to this put operation.
 func PutWithPerms(tx *Transaction, key, value []byte, permsKey string) error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()
@@ -299,8 +299,8 @@ func PutWithPerms(tx *Transaction, key, value []byte, permsKey string) error {
 }
 
 // PutVomWithPerms puts a VOM-encoded value for the managed key, recording
-// the key and the version of the prefix permissions object that granted access
-// to this put operation.
+// the key and the version of the permissions object that granted access to
+// this put operation.
 func PutVomWithPerms(ctx *context.T, tx *Transaction, k string, v interface{}, permsKey string) error {
 	bytes, err := vom.Encode(v)
 	if err != nil {
@@ -313,7 +313,7 @@ func PutVomWithPerms(ctx *context.T, tx *Transaction, k string, v interface{}, p
 }
 
 // DeleteWithPerms deletes a value for the managed key, recording the key and version
-// of the prefix permissions object that granted access to this delete operation.
+// of the permissions object that granted access to this delete operation.
 func DeleteWithPerms(tx *Transaction, key []byte, permsKey string) error {
 	tx.mu.Lock()
 	defer tx.mu.Unlock()

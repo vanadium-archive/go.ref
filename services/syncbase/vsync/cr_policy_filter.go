@@ -46,8 +46,8 @@ func (iSt *initiationState) groupConflictsByType(schema *wire.SchemaMetadata) ma
 //  3. Else, the two matches are identical; take the last one in the Rules array.
 func getResolutionType(oid string, schema *wire.SchemaMetadata) wire.ResolverType {
 	if !common.IsRowKey(oid) {
-		// This is a perms object key. Handle perms using LastWins policy till a
-		// better policy is available.
+		// This is a collection perms object key. Handle collection perms using
+		// LastWins policy till a better policy is available.
 		return wire.ResolverTypeLastWins
 	}
 	var selectedRule *wire.CrRule
@@ -70,7 +70,7 @@ func getResolutionType(oid string, schema *wire.SchemaMetadata) wire.ResolverTyp
 // applies to the given oid.
 // TODO(jlodhia): Implement Type based matching.
 func isRuleApplicable(oid string, rule *wire.CrRule) bool {
-	collectionName, rowKey := common.ParseCollectionAndRowOrDie(oid)
+	collectionName, rowKey := common.ParseRowKeyOrDie(oid)
 	if rule.CollectionName != "" && collectionName != rule.CollectionName {
 		return false
 	}

@@ -7,19 +7,17 @@ package common
 // Constants related to storage engine keys.
 // Note, these are persisted and therefore must not be modified.
 const (
-	AppPrefix        = "a"
-	VClockPrefix     = "c"
-	DatabasePrefix   = "d"
-	DbInfoPrefix     = "i"
-	DbGCPrefix       = "iw"
-	LogPrefix        = "l"
-	PermsPrefix      = "p"
-	RowPrefix        = "r"
-	ServicePrefix    = "s"
-	CollectionPrefix = "t"
-	VersionPrefix    = "v"
-	PermsIndexPrefix = "x"
-	SyncPrefix       = "y"
+	AppPrefix             = "a"
+	CollectionPermsPrefix = "c"
+	DatabasePrefix        = "d"
+	DbGCPrefix            = "g"
+	DbInfoPrefix          = "i"
+	LogPrefix             = "l"
+	VClockPrefix          = "q"
+	RowPrefix             = "r"
+	ServicePrefix         = "s"
+	VersionPrefix         = "v"
+	SyncPrefix            = "y"
 
 	// KeyPartSep is a separator for parts of storage engine keys, e.g. separating
 	// collection name from row key.

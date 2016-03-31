@@ -16,7 +16,7 @@ import (
 
 // TestWatchLogBatch tests fetching a batch of log records.
 func TestWatchLogBatch(t *testing.T) {
-	runTest(t, []string{common.RowPrefix, common.PermsPrefix}, runWatchLogBatchTest)
+	runTest(t, []string{common.RowPrefix, common.CollectionPermsPrefix}, runWatchLogBatchTest)
 }
 
 // runWatchLogBatchTest tests fetching a batch of log records.
