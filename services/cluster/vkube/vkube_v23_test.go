@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 	"text/template"
+	"time"
 
 	"v.io/x/lib/textutil"
 	"v.io/x/ref/test/testutil"
@@ -183,10 +184,13 @@ func TestV23Vkube(t *testing.T) {
 		t.Errorf("Failed to get pod name of tunneld")
 	} else {
 		var addr string
-		for _, log := range strings.Split(kubectlOK("logs", podName, "-c", "tunneld"), "\n") {
-			if strings.HasPrefix(log, "NAME=") {
-				addr = strings.TrimPrefix(log, "NAME=")
-				break
+		for addr == "" {
+			time.Sleep(100 * time.Millisecond)
+			for _, log := range strings.Split(kubectlOK("logs", podName, "-c", "tunneld"), "\n") {
+				if strings.HasPrefix(log, "NAME=") {
+					addr = strings.TrimPrefix(log, "NAME=")
+					break
+				}
 			}
 		}
 		if got, expected := vshOK(addr, "echo", "hello", "world"), "hello world\n"; got != expected {
@@ -204,6 +208,8 @@ func TestV23Vkube(t *testing.T) {
 	vkubeFail("start", "-f", conf["app-dep1"], "my-app") // Already running
 
 	vkubeOK("update", "-f", conf["app-dep2"], "--wait")
+	kubectlOK("describe", "deployment", "tunneld")
+	kubectlOK("get", "pod", "--show-labels")
 
 	// Find the pod running tunneld, get the server's addr from its stdout.
 	podName = kubectlOK("get", "pod", "-l", "application=tunneld,version=2", "--template={{range .items}}{{.metadata.name}}{{end}}")
@@ -211,10 +217,13 @@ func TestV23Vkube(t *testing.T) {
 		t.Errorf("Failed to get pod name of tunneld")
 	} else {
 		var addr string
-		for _, log := range strings.Split(kubectlOK("logs", podName, "-c", "tunneld"), "\n") {
-			if strings.HasPrefix(log, "NAME=") {
-				addr = strings.TrimPrefix(log, "NAME=")
-				break
+		for addr == "" {
+			time.Sleep(100 * time.Millisecond)
+			for _, log := range strings.Split(kubectlOK("logs", podName, "-c", "tunneld"), "\n") {
+				if strings.HasPrefix(log, "NAME=") {
+					addr = strings.TrimPrefix(log, "NAME=")
+					break
+				}
 			}
 		}
 		if got, expected := vshOK(addr, "echo", "hello", "world"), "hello world\n"; got != expected {
@@ -367,6 +376,7 @@ func createAppDeploymentConfig(path, id, image, version string) error {
         "application": "tunneld"
       }
     },
+    "minReadySeconds": 5,
     "template": {
       "metadata": {
         "labels": {
@@ -388,6 +398,11 @@ func createAppDeploymentConfig(path, id, image, version string) error {
             "ports": [
               { "containerPort": 8193, "hostPort": 8193 }
             ],
+            "readinessProbe": {
+              "tcpSocket": { "port": 8193 },
+              "initialDelaySeconds": 5,
+              "timeoutSeconds": 1
+            },
             "resources": {
               "limits": { "cpu": "0.1", "memory": "100M" }
             }
