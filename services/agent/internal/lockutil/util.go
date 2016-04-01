@@ -7,62 +7,66 @@ package lockutil
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
-	"regexp"
 	"strconv"
-	"syscall"
 )
 
-func makePsCommand(pid int) *exec.Cmd {
-	return exec.Command("ps", "-o", "pid,lstart,user,comm", "-p", strconv.Itoa(pid))
-}
+const (
+	// Should be incremented each time there is a change to the contents of
+	// the lock file.
+	currentVersion uint32 = 0
+	// Should not change across versions.
+	versionLabel = "VERSION"
+)
 
-// CreatePIDFile writes information about the current process (like its PID) to
-// the specified file in the specified directory.
-func CreatePIDFile(dir, file string) (string, error) {
+func CreateLockFile(dir, file string) (string, error) {
 	f, err := ioutil.TempFile(dir, file)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
-	cmd := makePsCommand(os.Getpid())
-	cmd.Stdout = f
-	cmd.Stderr = nil
-	if err = cmd.Run(); err != nil {
+	if _, err := f.WriteString(fmt.Sprintf("%s:%d\n", versionLabel, currentVersion)); err != nil {
+		return "", err
+	}
+	switch currentVersion {
+	case 0:
+		err = createV0(f)
+	case 1:
+		err = createV1(f)
+	default:
+		return "", fmt.Errorf("unknown version: %d", currentVersion)
+	}
+	if err != nil {
 		os.Remove(f.Name())
 		return "", err
 	}
 	return f.Name(), nil
 }
 
-var pidRegex = regexp.MustCompile("\n\\s*(\\d+)")
-
-// StillRunning verifies if the given information corresponds to a running
-// process.  The information should come from CreatePIDFile.
-func StillRunning(info []byte) (bool, error) {
-	match := pidRegex.FindSubmatch(info)
-	if match == nil {
-		// Corrupt/invalid lockfile. Assume stale.
-		return false, nil
+// StillHeld verifies if the given lock information corresponds to a running
+// process.
+func StillHeld(info []byte) (bool, error) {
+	eol := bytes.IndexByte(info, '\n')
+	if eol == -1 {
+		return false, fmt.Errorf("couldn't parse version from %s", string(info))
 	}
-	pid, err := strconv.Atoi(string(match[1]))
+	prefix := []byte(versionLabel + ":")
+	if !bytes.HasPrefix(info, prefix) {
+		return false, fmt.Errorf("couldn't parse version from %s", string(info))
+	}
+	version, err := strconv.ParseUint(string(bytes.TrimPrefix(info[:eol], prefix)), 10, 32)
 	if err != nil {
-		// Corrupt/invalid lockfile. Assume stale.
-		return false, nil
+		return false, fmt.Errorf("couldn't parse version from %s: %v", string(info), err)
 	}
-	// Go's os turns the standard errors into indecipherable ones,
-	// so use syscall directly.
-	if err := syscall.Kill(pid, syscall.Signal(0)); err != nil {
-		if errno, ok := err.(syscall.Errno); ok && errno == syscall.ESRCH {
-			return false, nil
-		}
+	info = info[eol+1:]
+	switch version {
+	case 0:
+		return stillHeldV0(info)
+	case 1:
+		return stillHeldV1(info)
+	default:
+		return false, fmt.Errorf("unknown version: %d", version)
 	}
-	cmd := makePsCommand(pid)
-	out, err := cmd.Output()
-	if err != nil {
-		return false, err
-	}
-	return bytes.Equal(info, out), nil
 }

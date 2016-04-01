@@ -104,8 +104,8 @@ func verifyHeldLock(t *testing.T, l *dirLock, index int) {
 	if err != nil {
 		t.Fatalf("readLockInfo failed: %v", err)
 	}
-	if running, err := lockutil.StillRunning(lockInfo); err != nil || !running {
-		t.Fatalf("Expected (true, <nil>) got (%t, %v) instead from StillRunning for:\n%v", running, err, string(lockInfo))
+	if running, err := lockutil.StillHeld(lockInfo); err != nil || !running {
+		t.Fatalf("Expected (true, <nil>) got (%t, %v) instead from StillHeld for:\n%v", running, err, string(lockInfo))
 	}
 }
 
@@ -114,8 +114,8 @@ func verifyStaleLock(t *testing.T, l *dirLock, index int) {
 	if err != nil {
 		t.Fatalf("readLockInfo failed: %v", err)
 	}
-	if running, err := lockutil.StillRunning(lockInfo); err != nil || running {
-		t.Fatalf("Expected (false, <nil>) got (%t, %v) instead from StillRunning for:\n%v", running, err, string(lockInfo))
+	if running, err := lockutil.StillHeld(lockInfo); err != nil || running {
+		t.Fatalf("Expected (false, <nil>) got (%t, %v) instead from StillHeld for:\n%v", running, err, string(lockInfo))
 	}
 }
 

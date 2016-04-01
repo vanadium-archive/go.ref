@@ -143,7 +143,7 @@ func (l *dirLock) tryLock(index int) lockOutcome {
 	if l.tryLockHook != nil {
 		defer l.tryLockHook()
 	}
-	tmpFile, err := lockutil.CreatePIDFile(l.dir, tempFileName)
+	tmpFile, err := lockutil.CreateLockFile(l.dir, tempFileName)
 	if err != nil {
 		return failedLock{err}
 	}
@@ -165,7 +165,7 @@ func (l *dirLock) tryLock(index int) lockOutcome {
 		}
 		return failedLock{err}
 	}
-	if running, err := lockutil.StillRunning(lockInfo); err != nil {
+	if running, err := lockutil.StillHeld(lockInfo); err != nil {
 		return failedLock{err}
 	} else if running {
 		// Lock is held by someone else.
@@ -178,7 +178,7 @@ func (l *dirLock) tryLock(index int) lockOutcome {
 // poachLock grabs lock level #index forcefully.  Meant to be called when we're
 // entitled to own the lock.
 func (l *dirLock) poachLock(index int) error {
-	tmpFile, err := lockutil.CreatePIDFile(l.dir, tempFileName)
+	tmpFile, err := lockutil.CreateLockFile(l.dir, tempFileName)
 	if err != nil {
 		return nil
 	}

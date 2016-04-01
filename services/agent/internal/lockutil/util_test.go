@@ -17,15 +17,15 @@ import (
 	"v.io/x/ref/services/agent/internal/lockutil"
 )
 
-// TestCreatePIDFile ensures that CreatePIDFile writes the file it's supposed
+// TestCreateLockFile ensures that CreateLockFile writes the file it's supposed
 // to.
-func TestCreatePIDFile(t *testing.T) {
+func TestCreateLockFile(t *testing.T) {
 	d, err := ioutil.TempDir("", "lockutiltest")
 	if err != nil {
 		t.Fatalf("TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(d)
-	f, err := lockutil.CreatePIDFile(d, "foo")
+	f, err := lockutil.CreateLockFile(d, "foo")
 	if err != nil {
 		t.Fatalf("createPIDFile failed: %v", err)
 	}
@@ -41,8 +41,8 @@ func TestCreatePIDFile(t *testing.T) {
 	}
 }
 
-var goshCreatePIDFile = gosh.RegisterFunc("CreatePIDFile", func(dir string) error {
-	f, err := lockutil.CreatePIDFile(dir, "foo")
+var goshCreateLockFile = gosh.RegisterFunc("CreateLockFile", func(dir string) error {
+	f, err := lockutil.CreateLockFile(dir, "foo")
 	if err != nil {
 		return err
 	}
@@ -50,36 +50,57 @@ var goshCreatePIDFile = gosh.RegisterFunc("CreatePIDFile", func(dir string) erro
 	return nil
 })
 
-// TestStillRunning verifies StillRunning returns the appropriate boolean when
+// TestStillHeld verifies StillHeld returns the appropriate boolean when
 // presented with either a running or a dead process' information.
-func TestStillRunning(t *testing.T) {
+func TestStillHeld(t *testing.T) {
 	d, err := ioutil.TempDir("", "lockutiltest")
 	if err != nil {
 		t.Fatalf("TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(d)
 
-	f, err := lockutil.CreatePIDFile(d, "foo")
+	f, err := lockutil.CreateLockFile(d, "foo")
 	if err != nil {
 		t.Fatalf("createPIDFile failed: %v", err)
 	}
 	if info, err := ioutil.ReadFile(f); err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", f, err)
-	} else if running, err := lockutil.StillRunning(info); err != nil || !running {
-		t.Fatalf("Expected (true, <nil>) got (%t, %v) instead from StillRunning for:\n%v", running, err, string(info))
+	} else if running, err := lockutil.StillHeld(info); err != nil || !running {
+		t.Fatalf("Expected (true, <nil>) got (%t, %v) instead from StillHeld for:\n%v", running, err, string(info))
 	}
 
 	sh := gosh.NewShell(t)
 	defer sh.Cleanup()
-	if out := sh.FuncCmd(goshCreatePIDFile, d).Stdout(); filepath.Dir(out) != d {
+	if out := sh.FuncCmd(goshCreateLockFile, d).Stdout(); filepath.Dir(out) != d {
 		t.Fatalf("Unexpected output: %s", out)
 	} else {
 		f = strings.TrimSuffix(out, "\n")
 	}
 	if info, err := ioutil.ReadFile(f); err != nil {
 		t.Fatalf("ReadFile(%v) failed: %v", f, err)
-	} else if running, err := lockutil.StillRunning(info); err != nil || running {
-		t.Fatalf("Expected (false, <nil>) got (%t, %v) instead from StillRunning for:\n%v", running, err, string(info))
+	} else if running, err := lockutil.StillHeld(info); err != nil || running {
+		t.Fatalf("Expected (false, <nil>) got (%t, %v) instead from StillHeld for:\n%v", running, err, string(info))
+	}
+}
+
+func TestInvalidVersion(t *testing.T) {
+	for i, c := range []struct {
+		info, error string
+	}{
+		{
+			"VERSION:1000000\nBLAH\n",
+			"unknown version: 1000000",
+		},
+		{
+			"VERSION:1\nBLAH\n",
+			"failed to parse",
+		},
+	} {
+		if _, err := lockutil.StillHeld([]byte(c.info)); err == nil {
+			t.Fatalf("case %d: expected to fail\n", i)
+		} else if !strings.Contains(err.Error(), c.error) {
+			t.Fatalf("case %d: expected error \"...%s...\", got \"%s\" instead", i, c.error, err.Error())
+		}
 	}
 }
 

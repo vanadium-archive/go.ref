@@ -30,7 +30,7 @@ const (
 // another active process is currently associated with file, then
 // CreateLockfile will return an error.
 func CreateLockfile(file string) error {
-	tmpFile, err := lockutil.CreatePIDFile(filepath.Dir(file), filepath.Base(file)+"-"+tempSuffix)
+	tmpFile, err := lockutil.CreateLockFile(filepath.Dir(file), filepath.Base(file)+"-"+tempSuffix)
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func CreateLockfile(file string) error {
 	if err != nil {
 		return err
 	}
-	if running, err := lockutil.StillRunning(lockProcessInfo); running {
+	if running, err := lockutil.StillHeld(lockProcessInfo); running {
 		return fmt.Errorf("process is already running:\n%s", lockProcessInfo)
 	} else if err != nil {
 		return err

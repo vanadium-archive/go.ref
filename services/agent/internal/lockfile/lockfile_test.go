@@ -43,12 +43,12 @@ func TestLockFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	running, err := lockutil.StillRunning(bytes)
+	running, err := lockutil.StillHeld(bytes)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !running {
-		t.Fatal("expected StillRunning() = true")
+		t.Fatal("expected StillHeld() = true")
 	}
 
 	if err = lockfile.CreateLockfile(file); err == nil {
@@ -85,7 +85,7 @@ func TestOtherProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 	// And that we know the lockfile is invalid.
-	running, err := lockutil.StillRunning(bytes)
+	running, err := lockutil.StillHeld(bytes)
 	if err != nil {
 		t.Fatal(err)
 	}
