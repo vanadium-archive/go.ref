@@ -27,7 +27,6 @@ func TestOutgoingReachable(t *testing.T) {
 	}
 	// Create reachable and unreachable server, ensure they have corresponding tags set.
 	ctx, cancel := context.WithCancel(ctx)
-	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"vine", "tcp/127.0.0.1:0"}}})
 	rctx := vine.WithLocalTag(ctx, "reachable")
 	uctx := vine.WithLocalTag(ctx, "unreachable")
 	_, reachServer, err := v23.WithNewServer(rctx, "reachable", &testService{}, security.AllowEveryone())
@@ -96,7 +95,6 @@ func TestIncomingReachable(t *testing.T) {
 
 	sctx := vine.WithLocalTag(ctx, "server")
 	sctx, cancel := context.WithCancel(sctx)
-	sctx = v23.WithListenSpec(sctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"vine", "tcp/127.0.0.1:0"}}})
 	_, server, err := v23.WithNewServer(sctx, "server", &testService{}, security.AllowEveryone())
 	if err != nil {
 		t.Error(err)

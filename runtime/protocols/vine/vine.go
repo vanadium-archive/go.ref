@@ -33,12 +33,23 @@ func init() {
 
 // Init initializes the vine server mounted under name using auth as its
 // authorization policy and registers the vine protocol.
-// The ctx returned from Init will have localTag as the default localTag for
-// dialers and acceptors.
+// The ctx returned from Init:
+// (1) has localTag as the default localTag for dialers and acceptors.
+// (2) has all addresses in the listenspec altered to listen on the vine protocol.
 func Init(ctx *context.T, name string, auth security.Authorizer, localTag string) (*context.T, error) {
 	v, _ := flow.RegisteredProtocol("vine")
 	_, _, err := v23.WithNewServer(ctx, name, VineServer(v.(*vine)), auth)
-	return WithLocalTag(ctx, localTag), err
+	if err != nil {
+		return nil, err
+	}
+	lspec := v23.GetListenSpec(ctx)
+	for i, addr := range lspec.Addrs {
+		lspec.Addrs[i].Protocol = "vine"
+		lspec.Addrs[i].Address = createListeningAddress(addr.Protocol, addr.Address)
+	}
+	ctx = v23.WithListenSpec(ctx, lspec)
+	ctx = WithLocalTag(ctx, localTag)
+	return ctx, nil
 }
 
 // WithLocalTag returns a ctx that will have localTag as the default localTag for
@@ -286,6 +297,11 @@ func readRemoteTag(ctx *context.T, c flow.Conn) (string, error) {
 // createDialingAddress creates a vine address of the form "network/address/tag".
 func createDialingAddress(network, address, tag string) string {
 	return strings.Join([]string{network, address, tag}, "/")
+}
+
+// createListeningAddress creates a vine address of the form "network/address".
+func createListeningAddress(network, address string) string {
+	return strings.Join([]string{network, address}, "/")
 }
 
 // parseDialingAddress takes vine addresses of the form "network/address/tag" and
