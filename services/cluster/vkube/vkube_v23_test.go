@@ -83,7 +83,7 @@ func TestV23Vkube(t *testing.T) {
 				if expectSuccess && c.Err != nil {
 					t.Error(testutil.FormatLogLine(2, "Unexpected failure: %s %s :%v", name, strings.Join(args, " "), c.Err))
 				} else if !expectSuccess && c.Err == nil {
-					t.Error(testutil.FormatLogLine(2, "Unexpected success %d: %s", name, strings.Join(args, " ")))
+					t.Error(testutil.FormatLogLine(2, "Unexpected success %s: %s", name, strings.Join(args, " ")))
 				}
 				return output
 			}
@@ -99,13 +99,16 @@ func TestV23Vkube(t *testing.T) {
 				c.AddStdoutWriter(plw)
 				c.AddStderrWriter(plw)
 				exit := make(chan struct{})
-				go func() {
+				go func(pid int) {
 					select {
 					case <-exit:
 					case <-time.After(d):
-						c.Terminate(syscall.SIGALRM)
+						// gosh isn't thread-safe. We can't use c.Signal() here.
+						syscall.Kill(-pid, syscall.SIGINT)
+						time.Sleep(time.Second)
+						syscall.Kill(-pid, syscall.SIGKILL)
 					}
-				}()
+				}(c.Pid())
 				output := c.CombinedOutput()
 				close(exit)
 				plw.Flush()
@@ -209,6 +212,7 @@ func TestV23Vkube(t *testing.T) {
 	vkubeOK("update-cluster-agent", "--wait")
 	kubectlOK("get", "service", "cluster-agent")
 	kubectlOK("get", "rc", "cluster-agentd-2")
+	kubectlOK("get", "rc,pods")
 	vkubeFail("start-cluster-agent") // Already running
 	vkubeOK("claim-cluster-agent")
 	vkubeFail("claim-cluster-agent") // Already claimed

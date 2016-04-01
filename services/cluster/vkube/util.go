@@ -254,7 +254,7 @@ func updateDeployment(ctx *context.T, config *vkubeConfig, rc object, stdout, st
 func watchDeploymentRollout(name, namespace string, timeout time.Duration, stdout io.Writer) error {
 	fmt.Fprintf(stdout, "Rollout progress of %s:\n", name)
 	type progress struct {
-		current, updated, available int
+		obsGeneration, current, updated, available int
 	}
 	var last progress
 	changeTime := time.Now()
@@ -268,28 +268,29 @@ func watchDeploymentRollout(name, namespace string, timeout time.Duration, stdou
 		if err := deployment.importJSON(data); err != nil {
 			return fmt.Errorf("failed to parse kubectl output: %v", err)
 		}
-		// http://kubernetes.io/docs/user-guide/deployments/#the-status-of-a-deployment
-		if deployment.getInt("status.observedGeneration", -2) < deployment.getInt("metadada.generation", -1) {
-			// The last change hasn't made it to the Deployment controller yet.
-			time.Sleep(time.Second)
-			continue
-		}
 		// DeploymentSpec is defined at
 		// http://kubernetes.io/docs/api-reference/extensions/v1beta1/definitions/#_v1beta1_deploymentspec
 		desired := deployment.getInt("spec.replicas", 1)
+		generation := deployment.getInt("metadata.generation", -1)
+
 		now := progress{
 			// DeploymentStatus is defined at
 			// http://kubernetes.io/docs/api-reference/extensions/v1beta1/definitions/#_v1beta1_deploymentstatus
+			deployment.getInt("status.observedGeneration", -1),
 			deployment.getInt("status.replicas", 0),
 			deployment.getInt("status.updatedReplicas", 0),
 			deployment.getInt("status.availableReplicas", 0),
 		}
-
 		if now != last {
 			changeTime, last = time.Now(), now
-			fmt.Fprintf(stdout, "Desired: %d Current: %d Up-to-date: %d Available: %d\n", desired, now.current, now.updated, now.available)
+			if now.obsGeneration < 0 || generation < 0 || now.obsGeneration < generation {
+				fmt.Fprintf(stdout, "Not started (Gen: %d vs %d)\n", now.obsGeneration, generation)
+			} else {
+				fmt.Fprintf(stdout, "Desired: %d Current: %d Up-to-date: %d Available: %d\n", desired, now.current, now.updated, now.available)
+			}
 		}
-		if desired == now.current && desired == now.updated && desired == now.available {
+		// http://kubernetes.io/docs/user-guide/deployments/#the-status-of-a-deployment
+		if now.obsGeneration >= generation && desired == now.current && desired == now.updated && desired == now.available {
 			return nil
 		}
 		time.Sleep(time.Second)
@@ -463,19 +464,23 @@ func readyPods(appName, namespace string) ([]string, error) {
 		return nil, fmt.Errorf("failed to parse kubectl output: %v", err)
 	}
 	names := []string{}
+L:
 	for _, item := range list.getObjectArray("items") {
 		if item.get("status.phase") != "Running" {
 			continue
+		}
+		for _, status := range item.getObjectArray("status.containerStatuses") {
+			if status.get("ready") == false {
+				if status.getInt("restartCount", 0) >= 5 {
+					return nil, fmt.Errorf("application is failing: %#v", item)
+				}
+				continue L
+			}
 		}
 		for _, cond := range item.getObjectArray("status.conditions") {
 			if cond.get("type") == "Ready" && cond.get("status") == "True" {
 				names = append(names, item.getString("metadata.name"))
 				break
-			}
-		}
-		for _, status := range item.getObjectArray("status.containerStatuses") {
-			if status.get("ready") == false && status.getInt("restartCount", 0) >= 5 {
-				return nil, fmt.Errorf("application is failing: %#v", item)
 			}
 		}
 	}

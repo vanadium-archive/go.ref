@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/security"
@@ -230,6 +231,16 @@ func updateClusterAgent(config *vkubeConfig, stderr io.Writer) error {
 
 	if out, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "delete", "rc", "-l", "application="+clusterAgentApplicationName); err != nil {
 		return fmt.Errorf("failed to delete %s: %v: %s", clusterAgentApplicationName, err, out)
+	}
+	for {
+		n, err := readyPods(clusterAgentApplicationName, config.ClusterAgent.Namespace)
+		if err != nil {
+			return err
+		}
+		if len(n) == 0 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	if out, err := kubectlCreate(newCA); err != nil {
