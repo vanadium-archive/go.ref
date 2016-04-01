@@ -17,13 +17,13 @@ type Barrier struct {
 }
 
 // Add increments the barrier. Each closure returned by Add() should eventually
-// be run once, otherwise 'done' will never be run. It returns nil if the done
-// closure has been already called.
+// be run once, otherwise 'done' will never be run. It returns no-op function
+// if the done closure has been already called.
 func (b *Barrier) Add() func() {
 	b.mu.Lock()
 	if b.done == nil {
 		b.mu.Unlock()
-		return nil
+		return func() {}
 	}
 	b.n++
 	b.mu.Unlock()

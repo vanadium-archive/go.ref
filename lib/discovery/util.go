@@ -10,10 +10,12 @@ import (
 	"encoding/binary"
 	"io"
 	"sort"
+
+	"v.io/v23/naming"
 )
 
-// Hash hashes the advertisement.
-func HashAd(adinfo *AdInfo) {
+// hashAd hashes the advertisement.
+func hashAd(adinfo *AdInfo) {
 	w := func(w io.Writer, data []byte) {
 		sum := sha256.Sum256(data)
 		w.Write(sum[:])
@@ -67,12 +69,28 @@ func HashAd(adinfo *AdInfo) {
 	}
 	hasher.Write(field.Sum(nil))
 
-	field.Reset()
-	for _, addr := range adinfo.DirAddrs {
-		w(field, []byte(addr))
-	}
-	hasher.Write(field.Sum(nil))
-
 	// We use the first 8 bytes to reduce the advertise packet size.
 	copy(adinfo.Hash[:], hasher.Sum(nil))
+}
+
+func sortedNames(eps []naming.Endpoint) []string {
+	names := make([]string, len(eps))
+	for i, ep := range eps {
+		names[i] = ep.Name()
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sortedStringsEqual(a, b []string) bool {
+	// We want to make a nil and an empty slices equal to avoid unnecessary inequality by that.
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }

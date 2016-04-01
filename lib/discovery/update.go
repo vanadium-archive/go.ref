@@ -16,6 +16,7 @@ type update struct {
 	ad       discovery.Advertisement
 	hash     AdHash
 	dirAddrs []string
+	status   AdStatus
 	lost     bool
 }
 
@@ -32,16 +33,35 @@ func (u *update) Addresses() []string {
 func (u *update) Attribute(name string) string { return u.ad.Attributes[name] }
 
 func (u *update) Attachment(ctx *context.T, name string) <-chan discovery.DataOrError {
-	// TODO(jhahn): Handle lazy fetching.
-	var r discovery.DataOrError
-	if data := u.ad.Attachments[name]; len(data) > 0 {
+	ch := make(chan discovery.DataOrError, 1)
+	if data, ok := u.ad.Attachments[name]; ok {
+		var r discovery.DataOrError
 		r.Data = make([]byte, len(data))
 		copy(r.Data, data)
+		ch <- r
+		close(ch)
+	} else if u.status == AdPartiallyReady {
+		go u.fetchAttachment(ctx, name, ch)
+	} else {
+		close(ch)
 	}
-	ch := make(chan discovery.DataOrError, 1)
-	ch <- r
-	close(ch)
 	return ch
+}
+
+func (u *update) fetchAttachment(ctx *context.T, name string, ch chan<- discovery.DataOrError) {
+	defer close(ch)
+
+	dir := newDirClient(u.dirAddrs)
+	data, err := dir.GetAttachment(ctx, u.ad.Id, name)
+	if err != nil {
+		select {
+		case <-ctx.Done():
+		default:
+			ctx.Error(err)
+		}
+		return
+	}
+	ch <- discovery.DataOrError{Data: data}
 }
 
 func (u *update) Advertisement() discovery.Advertisement {
@@ -76,6 +96,7 @@ func NewUpdate(adinfo *AdInfo) discovery.Update {
 		ad:       adinfo.Ad,
 		hash:     adinfo.Hash,
 		dirAddrs: adinfo.DirAddrs,
+		status:   adinfo.Status,
 		lost:     adinfo.Lost,
 	}
 }

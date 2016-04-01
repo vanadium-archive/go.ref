@@ -5,13 +5,11 @@
 package discovery_test
 
 import (
-	"sync"
 	"testing"
 
 	"v.io/v23"
 	"v.io/v23/discovery"
 	"v.io/v23/naming"
-	"v.io/v23/rpc"
 
 	idiscovery "v.io/x/ref/lib/discovery"
 	fdiscovery "v.io/x/ref/lib/discovery/factory"
@@ -20,47 +18,6 @@ import (
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/test"
 )
-
-type mockServer struct {
-	mu    sync.Mutex
-	eps   []naming.Endpoint
-	dirty chan struct{}
-}
-
-func (s *mockServer) AddName(string) error    { return nil }
-func (s *mockServer) RemoveName(string)       {}
-func (s *mockServer) Closed() <-chan struct{} { return nil }
-func (s *mockServer) Status() rpc.ServerStatus {
-	defer s.mu.Unlock()
-	s.mu.Lock()
-	return rpc.ServerStatus{
-		Endpoints: s.eps,
-		Dirty:     s.dirty,
-	}
-}
-
-func (s *mockServer) updateNetwork(eps []naming.Endpoint) {
-	defer s.mu.Unlock()
-	s.mu.Lock()
-	s.eps = eps
-	close(s.dirty)
-	s.dirty = make(chan struct{})
-}
-
-func newMockServer(eps []naming.Endpoint) *mockServer {
-	return &mockServer{
-		eps:   eps,
-		dirty: make(chan struct{}),
-	}
-}
-
-func newEndpoints(addrs ...string) []naming.Endpoint {
-	eps := make([]naming.Endpoint, len(addrs))
-	for i, a := range addrs {
-		eps[i], _ = v23.NewEndpoint(a)
-	}
-	return eps
-}
 
 func withNewAddresses(ad *discovery.Advertisement, eps []naming.Endpoint, suffix string) discovery.Advertisement {
 	newAd := *ad
@@ -80,15 +37,15 @@ func TestAdvertiseServer(t *testing.T) {
 
 	const suffix = "test"
 
-	eps := newEndpoints("addr1:123")
-	mock := newMockServer(eps)
+	eps := testutil.ToEndpoints("addr1:123")
+	mockServer := testutil.NewMockServer(eps)
 
 	ad := discovery.Advertisement{
 		InterfaceName: "v.io/v23/a",
 		Attributes:    map[string]string{"a1": "v1"},
 	}
 
-	_, err := idiscovery.AdvertiseServer(ctx, nil, mock, suffix, &ad, nil)
+	_, err := idiscovery.AdvertiseServer(ctx, nil, mockServer, suffix, &ad, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,12 +58,12 @@ func TestAdvertiseServer(t *testing.T) {
 	}
 
 	tests := [][]naming.Endpoint{
-		newEndpoints("addr2:123", "addr3:456"),
-		newEndpoints("addr4:123"),
-		newEndpoints("addr5:123", "addr6:456"),
+		testutil.ToEndpoints("addr2:123", "addr3:456"),
+		testutil.ToEndpoints("addr4:123"),
+		testutil.ToEndpoints("addr5:123", "addr6:456"),
 	}
 	for _, eps := range tests {
-		mock.updateNetwork(eps)
+		mockServer.UpdateNetwork(eps)
 
 		newAd = withNewAddresses(&ad, eps, suffix)
 		if err := testutil.ScanAndMatch(ctx, d, "", newAd); err != nil {

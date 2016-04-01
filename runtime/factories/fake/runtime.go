@@ -28,6 +28,7 @@ const (
 
 	clientFactoryKey
 	flowFactoryKey
+	serverFactoryKey
 )
 
 type Runtime struct {

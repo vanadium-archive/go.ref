@@ -66,9 +66,21 @@ func (r *Runtime) NewFlowManager(ctx *context.T, channelTimeout time.Duration) (
 	return factory(ctx, channelTimeout), nil
 }
 
+// SetServerFactory can be used to inject a mock Server implementation into the context.
+// When v23.WithNewServer is called the passed function will be invoked.
+func SetServerFactory(ctx *context.T, factory func(*context.T, string, interface{}, security.Authorizer, ...rpc.ServerOpt) (*context.T, rpc.Server)) *context.T {
+	return context.WithValue(ctx, serverFactoryKey, factory)
+}
+
 func (r *Runtime) WithNewServer(ctx *context.T, name string, object interface{}, auth security.Authorizer, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {
 	defer apilog.LogCall(ctx)(ctx) // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	panic("unimplemented")
+
+	factory, ok := ctx.Value(serverFactoryKey).(func(*context.T, string, interface{}, security.Authorizer, ...rpc.ServerOpt) (*context.T, rpc.Server))
+	if !ok {
+		panic("Calling WithNewServer on the fake runtime, but no factory has been set.")
+	}
+	ctx, server := factory(ctx, name, object, auth, opts...)
+	return ctx, server, nil
 }
 
 func (r *Runtime) WithNewDispatchingServer(ctx *context.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (*context.T, rpc.Server, error) {

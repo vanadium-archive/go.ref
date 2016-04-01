@@ -64,25 +64,24 @@ func ScanAndMatch(ctx *context.T, p idiscovery.Plugin, interfaceName string, wan
 	return fmt.Errorf("Match failed; got %v, but wanted %v", adinfos, wants)
 }
 
-func doScan(ctx *context.T, p idiscovery.Plugin, interfaceName string, expectedAds int) ([]idiscovery.AdInfo, error) {
+func doScan(ctx *context.T, p idiscovery.Plugin, interfaceName string, expectedAdInfos int) ([]idiscovery.AdInfo, error) {
 	scanCh, stop, err := Scan(ctx, p, interfaceName)
 	if err != nil {
 		return nil, err
 	}
 	defer stop()
 
-	adinfos := make([]idiscovery.AdInfo, 0, expectedAds)
+	adinfos := make([]idiscovery.AdInfo, 0, expectedAdInfos)
 	for {
-		timeout := 5 * time.Millisecond
-		if len(adinfos) < expectedAds {
-			// Increase the timeout if we do not receive enough updates
-			// to avoid flakiness in unit tests.
-			timeout = 5 * time.Second
+		var timer <-chan time.Time
+		if len(adinfos) >= expectedAdInfos {
+			timer = time.After(5 * time.Millisecond)
 		}
+
 		select {
 		case adinfo := <-scanCh:
 			adinfos = append(adinfos, *adinfo)
-		case <-time.After(timeout):
+		case <-timer:
 			return adinfos, nil
 		}
 	}

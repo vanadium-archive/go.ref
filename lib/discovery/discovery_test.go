@@ -5,6 +5,8 @@
 package discovery_test
 
 import (
+	"bytes"
+	"reflect"
 	"testing"
 	"time"
 
@@ -261,6 +263,116 @@ func TestMerge(t *testing.T) {
 	case update = <-scanCh:
 		t.Errorf("unexpected scan: %v", update)
 	case <-time.After(5 * time.Millisecond):
+	}
+}
+
+func TestLargeAdvertisement(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	df, err := idiscovery.NewFactory(ctx, mock.NewWithAdStatus(idiscovery.AdNotReady))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer df.Shutdown()
+
+	ads := []discovery.Advertisement{
+		{
+			InterfaceName: "v.io/a",
+			Addresses:     []string{"/h1:123/x"},
+			Attributes:    discovery.Attributes{"a": "v"},
+		},
+		{
+			InterfaceName: "v.io/b",
+			Addresses:     []string{"/h1:123/y"},
+			Attachments: discovery.Attachments{
+				"a1": bytes.Repeat([]byte{1}, 2048),
+				"a2": bytes.Repeat([]byte{2}, 4096),
+				"a3": bytes.Repeat([]byte{3}, 1024),
+				"a4": bytes.Repeat([]byte{4}, 2048),
+			},
+		},
+	}
+
+	d1, err := df.New(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, _ := range ads {
+		stop, err := testutil.Advertise(ctx, d1, nil, &ads[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer stop()
+	}
+
+	d2, err := df.New(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := testutil.ScanAndMatch(ctx, d2, `v.InterfaceName="v.io/a"`, ads[0]); err != nil {
+		t.Error(err)
+	}
+	if err := testutil.ScanAndMatch(ctx, d2, `v.Attributes["a"]="v"`, ads[0]); err != nil {
+		t.Error(err)
+	}
+
+	scanCh, scanStop, err := testutil.Scan(ctx, d2, `v.InterfaceName="v.io/b"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer scanStop()
+	update := <-scanCh
+
+	// Make sure that the directory server does not return all of the attachments if they are too large.
+	if reflect.DeepEqual(update.Advertisement().Attachments, ads[1].Attachments) {
+		t.Errorf("did not expect all of attachments, but got all: %v", update.Advertisement())
+	}
+	// But we should be able to fetch them lazily.
+	if !testutil.UpdateEqual(ctx, update, ads[1]) {
+		t.Errorf("Match failed; got %v, but wanted %v", update, ads[1])
+	}
+}
+
+func TestLargeAttachments(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	df, err := idiscovery.NewFactory(ctx, mock.NewWithAdStatus(idiscovery.AdPartiallyReady))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer df.Shutdown()
+
+	ad := discovery.Advertisement{
+		InterfaceName: "v.io/a",
+		Addresses:     []string{"/h1:123/x", "/h2:123/y"},
+		Attachments: discovery.Attachments{
+			"a1": []byte{1, 2, 3},
+			"a2": []byte{4, 5, 6},
+		},
+	}
+
+	d1, err := df.New(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stop, err := testutil.Advertise(ctx, d1, nil, &ad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stop()
+
+	d2, err := df.New(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := testutil.ScanAndMatch(ctx, d2, ``, ad); err != nil {
+		t.Error(err)
 	}
 }
 

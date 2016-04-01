@@ -33,39 +33,48 @@ func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix st
 		}
 	}
 
-	eps, updateCh := getEndpoints(server)
-	stop, err := advertiseServer(ctx, d, ad, eps, suffix, visibility)
+	status := server.Status()
+	curAddrs := sortedNames(status.Endpoints)
+	stop, err := advertiseServer(ctx, d, ad, curAddrs, suffix, visibility)
 	if err != nil {
 		return nil, err
 	}
 
 	done := make(chan struct{})
 	go func() {
+		defer close(done)
+
 		for {
 			select {
-			case <-updateCh:
-				if stop != nil {
-					stop() // Stop the previous advertisement.
+			case <-status.Dirty:
+				status = server.Status()
+				if status.State != rpc.ServerActive {
+					return
 				}
-				eps, updateCh = getEndpoints(server)
-				stop, err = advertiseServer(ctx, d, ad, eps, suffix, visibility)
+				newAddrs := sortedNames(status.Endpoints)
+				if sortedStringsEqual(curAddrs, newAddrs) {
+					continue
+				}
+
+				stop() // Stop the previous advertisement.
+				stop, err = advertiseServer(ctx, d, ad, newAddrs, suffix, visibility)
 				if err != nil {
 					ctx.Error(err)
+					return
 				}
+				curAddrs = newAddrs
 			case <-ctx.Done():
-				close(done)
 				return
 			}
 		}
 	}()
-
 	return done, nil
 }
 
-func advertiseServer(ctx *context.T, d discovery.T, ad *discovery.Advertisement, eps []naming.Endpoint, suffix string, visibility []security.BlessingPattern) (func(), error) {
-	ad.Addresses = make([]string, len(eps))
-	for i, ep := range eps {
-		ad.Addresses[i] = naming.JoinAddressName(ep.Name(), suffix)
+func advertiseServer(ctx *context.T, d discovery.T, ad *discovery.Advertisement, addrs []string, suffix string, visibility []security.BlessingPattern) (func(), error) {
+	ad.Addresses = make([]string, len(addrs))
+	for i, addr := range addrs {
+		ad.Addresses[i] = naming.JoinAddressName(addr, suffix)
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	done, err := d.Advertise(ctx, ad, visibility)
@@ -78,9 +87,4 @@ func advertiseServer(ctx *context.T, d discovery.T, ad *discovery.Advertisement,
 		<-done
 	}
 	return stop, nil
-}
-
-func getEndpoints(server rpc.Server) ([]naming.Endpoint, <-chan struct{}) {
-	status := server.Status()
-	return status.Endpoints, status.Dirty
 }

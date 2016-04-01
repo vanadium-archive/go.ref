@@ -12,5 +12,13 @@ import (
 // Directory is the interface for advertisement directory service.
 type Directory interface {
 	// Lookup returns the advertisement of the given service instance.
+	//
+	// The returned advertisement may not include all attachments.
 	Lookup(id discovery.AdId) (AdInfo | error) {access.Read}
+
+	// GetAttachment returns the named attachment. Accessing non-existent attachment
+	// is not an error - nil data is returned if not found.
+	//
+	// TODO(jhahn): Consider to return an error if not found.
+	GetAttachment(id discovery.AdId, name string) ([]byte | error) {access.Read}
 }

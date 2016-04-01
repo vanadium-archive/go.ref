@@ -25,6 +25,48 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 //////////////////////////////////////////////////
 // Type definitions
 
+type Uuid []byte
+
+func (Uuid) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/lib/discovery.Uuid"`
+}) {
+}
+
+func (m *Uuid) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromBytes([]byte((*m)), tt); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Uuid) MakeVDLTarget() vdl.Target {
+	return &UuidTarget{Value: m}
+}
+
+type UuidTarget struct {
+	Value *Uuid
+	vdl.TargetBase
+}
+
+func (t *UuidTarget) FromBytes(src []byte, tt *vdl.Type) error {
+
+	if ttWant := vdl.TypeOf((*Uuid)(nil)); !vdl.Compatible(tt, ttWant) {
+		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+	if len(src) == 0 {
+		*t.Value = nil
+	} else {
+		*t.Value = make([]byte, len(src))
+		copy(*t.Value, src)
+	}
+
+	return nil
+}
+func (t *UuidTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = Uuid(nil)
+	return nil
+}
+
 type EncryptionAlgorithm int32
 
 func (EncryptionAlgorithm) __VDLReflect(struct {
@@ -125,45 +167,61 @@ func (t *EncryptionKeyTarget) FromZero(tt *vdl.Type) error {
 	return nil
 }
 
-type Uuid []byte
+type AdStatus byte
 
-func (Uuid) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/lib/discovery.Uuid"`
+func (AdStatus) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/lib/discovery.AdStatus"`
 }) {
 }
 
-func (m *Uuid) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromBytes([]byte((*m)), tt); err != nil {
+func (m *AdStatus) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	if err := t.FromUint(uint64((*m)), tt); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *Uuid) MakeVDLTarget() vdl.Target {
-	return &UuidTarget{Value: m}
+func (m *AdStatus) MakeVDLTarget() vdl.Target {
+	return &AdStatusTarget{Value: m}
 }
 
-type UuidTarget struct {
-	Value *Uuid
+type AdStatusTarget struct {
+	Value *AdStatus
 	vdl.TargetBase
 }
 
-func (t *UuidTarget) FromBytes(src []byte, tt *vdl.Type) error {
+func (t *AdStatusTarget) FromUint(src uint64, tt *vdl.Type) error {
 
-	if ttWant := vdl.TypeOf((*Uuid)(nil)); !vdl.Compatible(tt, ttWant) {
-		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	val, err := vdlconv.Uint64ToUint8(src)
+	if err != nil {
+		return err
 	}
-	if len(src) == 0 {
-		*t.Value = nil
-	} else {
-		*t.Value = make([]byte, len(src))
-		copy(*t.Value, src)
-	}
+	*t.Value = AdStatus(val)
 
 	return nil
 }
-func (t *UuidTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = Uuid(nil)
+func (t *AdStatusTarget) FromInt(src int64, tt *vdl.Type) error {
+
+	val, err := vdlconv.Int64ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = AdStatus(val)
+
+	return nil
+}
+func (t *AdStatusTarget) FromFloat(src float64, tt *vdl.Type) error {
+
+	val, err := vdlconv.Float64ToUint8(src)
+	if err != nil {
+		return err
+	}
+	*t.Value = AdStatus(val)
+
+	return nil
+}
+func (t *AdStatusTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = AdStatus(0)
 	return nil
 }
 
@@ -214,11 +272,13 @@ type AdInfo struct {
 	// If the advertisement is encrypted, then the data required to
 	// decrypt it. The format of this data is a function of the algorithm.
 	EncryptionKeys []EncryptionKey
-	// Hash of the current advertisement.
+	// Hash of the current advertisement. This does not include the fields below.
 	Hash AdHash
 	// The addresses (vanadium object names) that the advertisement directory service
 	// is served on. See directory.vdl.
 	DirAddrs []string
+	// Status of the current advertisement. Valid for scanned advertisements.
+	Status AdStatus
 	// TODO(jhahn): Add proximity.
 	// TODO(jhahn): Use proximity for Lost.
 	Lost bool
@@ -397,23 +457,44 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			return err
 		}
 	}
-	keyTarget28, fieldTarget29, err := fieldsTarget1.StartField("Lost")
+	keyTarget28, fieldTarget29, err := fieldsTarget1.StartField("Status")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		var30 := (m.Lost == false)
+		var30 := (m.Status == AdStatus(0))
 		if var30 {
 			if err := fieldTarget29.FromZero(tt.NonOptional().Field(5).Type); err != nil {
 				return err
 			}
 		} else {
-			if err := fieldTarget29.FromBool(bool(m.Lost), tt.NonOptional().Field(5).Type); err != nil {
+
+			if err := m.Status.FillVDLTarget(fieldTarget29, tt.NonOptional().Field(5).Type); err != nil {
 				return err
 			}
 		}
 		if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
+			return err
+		}
+	}
+	keyTarget31, fieldTarget32, err := fieldsTarget1.StartField("Lost")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var33 := (m.Lost == false)
+		if var33 {
+			if err := fieldTarget32.FromZero(tt.NonOptional().Field(6).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget32.FromBool(bool(m.Lost), tt.NonOptional().Field(6).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget31, fieldTarget32); err != nil {
 			return err
 		}
 	}
@@ -434,6 +515,7 @@ type AdInfoTarget struct {
 	encryptionKeysTarget      __VDLTarget1_list
 	hashTarget                AdHashTarget
 	dirAddrsTarget            vdl.StringSliceTarget
+	statusTarget              AdStatusTarget
 	lostTarget                vdl.BoolTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
@@ -467,6 +549,10 @@ func (t *AdInfoTarget) StartField(name string) (key, field vdl.Target, _ error) 
 	case "DirAddrs":
 		t.dirAddrsTarget.Value = &t.Value.DirAddrs
 		target, err := &t.dirAddrsTarget, error(nil)
+		return nil, target, err
+	case "Status":
+		t.statusTarget.Value = &t.Value.Status
+		target, err := &t.statusTarget, error(nil)
 		return nil, target, err
 	case "Lost":
 		t.lostTarget.Value = &t.Value.Lost
@@ -531,16 +617,25 @@ func (t *__VDLTarget1_list) FromZero(tt *vdl.Type) error {
 const NoEncryption = EncryptionAlgorithm(0)
 const TestEncryption = EncryptionAlgorithm(1)
 const IbeEncryption = EncryptionAlgorithm(2)
+const AdReady = AdStatus(0)          // All information is available
+const AdNotReady = AdStatus(1)       // Not all information is available for querying against it
+const AdPartiallyReady = AdStatus(2) // All information except attachments is available
 
 //////////////////////////////////////////////////
 // Error definitions
 var (
+	ErrAdvertisementNotFound  = verror.Register("v.io/x/ref/lib/discovery.AdvertisementNotFound", verror.NoRetry, "{1:}{2:} advertisement not found: {3}")
 	ErrAlreadyBeingAdvertised = verror.Register("v.io/x/ref/lib/discovery.AlreadyBeingAdvertised", verror.NoRetry, "{1:}{2:} already being advertised: {3}")
 	ErrBadAdvertisement       = verror.Register("v.io/x/ref/lib/discovery.BadAdvertisement", verror.NoRetry, "{1:}{2:} invalid advertisement: {3}")
 	ErrBadQuery               = verror.Register("v.io/x/ref/lib/discovery.BadQuery", verror.NoRetry, "{1:}{2:} invalid query: {3}")
 	ErrDiscoveryClosed        = verror.Register("v.io/x/ref/lib/discovery.DiscoveryClosed", verror.NoRetry, "{1:}{2:} discovery closed")
 	ErrNoDiscoveryPlugin      = verror.Register("v.io/x/ref/lib/discovery.NoDiscoveryPlugin", verror.NoRetry, "{1:}{2:} no discovery plugin")
 )
+
+// NewErrAdvertisementNotFound returns an error with the ErrAdvertisementNotFound ID.
+func NewErrAdvertisementNotFound(ctx *context.T, id discovery.AdId) error {
+	return verror.New(ErrAdvertisementNotFound, ctx, id)
+}
 
 // NewErrAlreadyBeingAdvertised returns an error with the ErrAlreadyBeingAdvertised ID.
 func NewErrAlreadyBeingAdvertised(ctx *context.T, id discovery.AdId) error {
@@ -576,7 +671,14 @@ func NewErrNoDiscoveryPlugin(ctx *context.T) error {
 // Directory is the interface for advertisement directory service.
 type DirectoryClientMethods interface {
 	// Lookup returns the advertisement of the given service instance.
+	//
+	// The returned advertisement may not include all attachments.
 	Lookup(_ *context.T, id discovery.AdId, _ ...rpc.CallOpt) (AdInfo, error)
+	// GetAttachment returns the named attachment. Accessing non-existent attachment
+	// is not an error - nil data is returned if not found.
+	//
+	// TODO(jhahn): Consider to return an error if not found.
+	GetAttachment(_ *context.T, id discovery.AdId, name string, _ ...rpc.CallOpt) ([]byte, error)
 }
 
 // DirectoryClientStub adds universal methods to DirectoryClientMethods.
@@ -599,13 +701,25 @@ func (c implDirectoryClientStub) Lookup(ctx *context.T, i0 discovery.AdId, opts 
 	return
 }
 
+func (c implDirectoryClientStub) GetAttachment(ctx *context.T, i0 discovery.AdId, i1 string, opts ...rpc.CallOpt) (o0 []byte, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "GetAttachment", []interface{}{i0, i1}, []interface{}{&o0}, opts...)
+	return
+}
+
 // DirectoryServerMethods is the interface a server writer
 // implements for Directory.
 //
 // Directory is the interface for advertisement directory service.
 type DirectoryServerMethods interface {
 	// Lookup returns the advertisement of the given service instance.
+	//
+	// The returned advertisement may not include all attachments.
 	Lookup(_ *context.T, _ rpc.ServerCall, id discovery.AdId) (AdInfo, error)
+	// GetAttachment returns the named attachment. Accessing non-existent attachment
+	// is not an error - nil data is returned if not found.
+	//
+	// TODO(jhahn): Consider to return an error if not found.
+	GetAttachment(_ *context.T, _ rpc.ServerCall, id discovery.AdId, name string) ([]byte, error)
 }
 
 // DirectoryServerStubMethods is the server interface containing
@@ -647,6 +761,10 @@ func (s implDirectoryServerStub) Lookup(ctx *context.T, call rpc.ServerCall, i0 
 	return s.impl.Lookup(ctx, call, i0)
 }
 
+func (s implDirectoryServerStub) GetAttachment(ctx *context.T, call rpc.ServerCall, i0 discovery.AdId, i1 string) ([]byte, error) {
+	return s.impl.GetAttachment(ctx, call, i0, i1)
+}
+
 func (s implDirectoryServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
@@ -666,12 +784,24 @@ var descDirectory = rpc.InterfaceDesc{
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "Lookup",
-			Doc:  "// Lookup returns the advertisement of the given service instance.",
+			Doc:  "// Lookup returns the advertisement of the given service instance.\n//\n// The returned advertisement may not include all attachments.",
 			InArgs: []rpc.ArgDesc{
 				{"id", ``}, // discovery.AdId
 			},
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // AdInfo
+			},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
+		},
+		{
+			Name: "GetAttachment",
+			Doc:  "// GetAttachment returns the named attachment. Accessing non-existent attachment\n// is not an error - nil data is returned if not found.\n//\n// TODO(jhahn): Consider to return an error if not found.",
+			InArgs: []rpc.ArgDesc{
+				{"id", ``},   // discovery.AdId
+				{"name", ``}, // string
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // []byte
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
@@ -700,13 +830,15 @@ func __VDLInit() struct{} {
 	__VDLInitCalled = true
 
 	// Register types.
+	vdl.Register((*Uuid)(nil))
 	vdl.Register((*EncryptionAlgorithm)(nil))
 	vdl.Register((*EncryptionKey)(nil))
-	vdl.Register((*Uuid)(nil))
+	vdl.Register((*AdStatus)(nil))
 	vdl.Register((*AdHash)(nil))
 	vdl.Register((*AdInfo)(nil))
 
 	// Set error format strings.
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAdvertisementNotFound.ID), "{1:}{2:} advertisement not found: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAlreadyBeingAdvertised.ID), "{1:}{2:} already being advertised: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBadAdvertisement.ID), "{1:}{2:} invalid advertisement: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBadQuery.ID), "{1:}{2:} invalid query: {3}")

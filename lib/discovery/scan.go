@@ -5,6 +5,9 @@
 package discovery
 
 import (
+	"sort"
+	"sync"
+
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 )
@@ -24,8 +27,11 @@ func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-ch
 
 	// TODO(jhahn): Revisit the buffer size.
 	scanCh := make(chan *AdInfo, 10)
+	updateCh := make(chan discovery.Update, 10)
+
 	barrier := NewBarrier(func() {
 		close(scanCh)
+		close(updateCh)
 		d.removeTask(ctx)
 	})
 	for _, plugin := range d.plugins {
@@ -34,26 +40,57 @@ func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-ch
 			return nil, err
 		}
 	}
-	// TODO(jhahn): Revisit the buffer size.
-	updateCh := make(chan discovery.Update, 10)
-	go d.doScan(ctx, session, matcher, scanCh, updateCh)
+	go d.doScan(ctx, session, matcher, scanCh, updateCh, barrier.Add())
 	return updateCh, nil
 }
 
-func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher Matcher, scanCh <-chan *AdInfo, updateCh chan<- discovery.Update) {
-	defer close(updateCh)
-
+func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher Matcher, scanCh chan *AdInfo, updateCh chan<- discovery.Update, done func()) {
 	// Some plugins may not return a full advertisement information when it is lost.
 	// So we keep the advertisements that we've seen so that we can provide the
 	// full advertisement information when it is lost. Note that plugins will not
 	// include attachments unless they're tiny enough.
 	seen := make(map[discovery.AdId]*AdInfo)
+
+	var wg sync.WaitGroup
+	defer func() {
+		wg.Wait()
+		done()
+	}()
+
 	for {
 		select {
-		case adinfo, ok := <-scanCh:
-			if !ok {
-				return
+		case adinfo := <-scanCh:
+			if !adinfo.Lost {
+				// Filter out advertisements from the same session.
+				if d.getAdSession(adinfo.Ad.Id) == session {
+					continue
+				}
+				// Filter out already seen advertisements.
+				if prev := seen[adinfo.Ad.Id]; prev != nil && prev.Status == AdReady && prev.Hash == adinfo.Hash {
+					continue
+				}
+
+				if adinfo.Status == AdReady {
+					// Clear the unnecessary directory addresses.
+					adinfo.DirAddrs = nil
+				} else {
+					if len(adinfo.DirAddrs) == 0 {
+						ctx.Errorf("no directory address available for partial advertisement %v - ignored", adinfo.Ad.Id)
+						continue
+					}
+
+					// Fetch not-ready-to-serve advertisements from the directory server.
+					if adinfo.Status == AdNotReady {
+						wg.Add(1)
+						go fetchAd(ctx, adinfo.DirAddrs, adinfo.Ad.Id, scanCh, wg.Done)
+						continue
+					}
+
+					// Sort the directory addresses to make it easy to compare.
+					sort.Strings(adinfo.DirAddrs)
+				}
 			}
+
 			if err := decrypt(ctx, adinfo); err != nil {
 				// Couldn't decrypt it. Ignore it.
 				if err != errNoPermission {
@@ -61,13 +98,9 @@ func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher Matcher, 
 				}
 				continue
 			}
-			// Filter out advertisements from the same session.
-			if d.getAdSession(adinfo) == session {
-				continue
-			}
-			// Note that 'Lost' advertisement may not have full service information.
-			// Thus we do not match the query against it. newUpdates() will ignore it
-			// if it has not been scanned.
+
+			// Note that 'Lost' advertisement may not have full information. Thus we do not match
+			// the query against it. newUpdates() will ignore it if it has not been scanned.
 			if !adinfo.Lost {
 				matched, err := matcher.Match(&adinfo.Ad)
 				if err != nil {
@@ -78,6 +111,7 @@ func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher Matcher, 
 					continue
 				}
 			}
+
 			for _, update := range newUpdates(seen, adinfo) {
 				select {
 				case updateCh <- update:
@@ -85,17 +119,30 @@ func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher Matcher, 
 					return
 				}
 			}
+
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (d *idiscovery) getAdSession(adinfo *AdInfo) sessionId {
-	d.mu.Lock()
-	session := d.ads[adinfo.Ad.Id]
-	d.mu.Unlock()
-	return session
+func fetchAd(ctx *context.T, dirAddrs []string, id discovery.AdId, scanCh chan<- *AdInfo, done func()) {
+	defer done()
+
+	dir := newDirClient(dirAddrs)
+	adinfo, err := dir.Lookup(ctx, id)
+	if err != nil {
+		select {
+		case <-ctx.Done():
+		default:
+			ctx.Error(err)
+		}
+		return
+	}
+	select {
+	case scanCh <- adinfo:
+	case <-ctx.Done():
+	}
 }
 
 func newUpdates(seen map[discovery.AdId]*AdInfo, adinfo *AdInfo) []discovery.Update {
@@ -118,7 +165,7 @@ func newUpdates(seen map[discovery.AdId]*AdInfo, adinfo *AdInfo) []discovery.Upd
 		case prev == nil:
 			updates = []discovery.Update{NewUpdate(adinfo)}
 			seen[adinfo.Ad.Id] = adinfo
-		case prev.Hash != adinfo.Hash:
+		case prev.Hash != adinfo.Hash || !sortedStringsEqual(prev.DirAddrs, adinfo.DirAddrs):
 			prev.Lost = true
 			updates = []discovery.Update{NewUpdate(prev), NewUpdate(adinfo)}
 			seen[adinfo.Ad.Id] = adinfo

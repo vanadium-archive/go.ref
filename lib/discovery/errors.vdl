@@ -9,6 +9,10 @@ import (
 )
 
 error (
+	AdvertisementNotFound(id discovery.AdId) {
+		"en": "advertisement not found: {id}",
+	}
+
 	AlreadyBeingAdvertised(id discovery.AdId) {
 		"en": "already being advertised: {id}",
 	}

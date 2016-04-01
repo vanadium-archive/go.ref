@@ -8,6 +8,8 @@ import (
 	"v.io/v23/discovery"
 )
 
+type Uuid []byte
+
 type EncryptionAlgorithm int32
 type EncryptionKey []byte
 
@@ -17,7 +19,13 @@ const (
 	IbeEncryption  = EncryptionAlgorithm(2)
 )
 
-type Uuid []byte
+type AdStatus byte
+
+const (
+	AdReady          = AdStatus(0) // All information is available
+	AdNotReady       = AdStatus(1) // Not all information is available for querying against it
+	AdPartiallyReady = AdStatus(2) // All information except attachments is available
+)
 
 // AdInfo represents advertisement information for discovery.
 type AdInfo struct {
@@ -30,12 +38,15 @@ type AdInfo struct {
 	// decrypt it. The format of this data is a function of the algorithm.
 	EncryptionKeys []EncryptionKey
 
-	// Hash of the current advertisement.
+	// Hash of the current advertisement. This does not include the fields below.
 	Hash AdHash
 
 	// The addresses (vanadium object names) that the advertisement directory service
 	// is served on. See directory.vdl.
 	DirAddrs []string
+
+	// Status of the current advertisement. Valid for scanned advertisements.
+	Status AdStatus
 
 	// TODO(jhahn): Add proximity.
 	// TODO(jhahn): Use proximity for Lost.

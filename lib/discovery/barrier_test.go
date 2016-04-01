@@ -2,11 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package discovery
+package discovery_test
 
 import (
 	"testing"
 	"time"
+
+	"v.io/x/ref/lib/discovery"
 )
 
 func TestBarrier(t *testing.T) {
@@ -16,7 +18,7 @@ func TestBarrier(t *testing.T) {
 	done := func() { ch <- struct{}{} }
 
 	// A new barrier; Shouldn't call done.
-	br := NewBarrier(done)
+	br := discovery.NewBarrier(done)
 	if waitDone(ch, timeout) {
 		t.Error("unexpected done call")
 	}
@@ -29,12 +31,13 @@ func TestBarrier(t *testing.T) {
 	}
 	// Try to add a sub-closure, but done has been already called.
 	cb = br.Add()
-	if cb != nil {
-		t.Error("expect nil closure, but got non-nil")
+	cb()
+	if waitDone(ch, timeout) {
+		t.Error("unexpected done call")
 	}
 
 	// Make sure the barrier works with multiple sub-closures.
-	br = NewBarrier(done)
+	br = discovery.NewBarrier(done)
 	cb1 := br.Add()
 	cb2 := br.Add()
 	cb1()

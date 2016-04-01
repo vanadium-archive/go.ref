@@ -29,27 +29,27 @@ func TestHashAd(t *testing.T) {
 
 	// Shouldn't be changed by hashing.
 	a2 := a1
-	HashAd(&a2)
+	hashAd(&a2)
 	a2.Hash = AdHash{}
 	if !reflect.DeepEqual(a1, a2) {
 		t.Errorf("shouldn't be changed by hash: %v, %v", a1, a2)
 	}
 
 	// Should have the same hash for the same advertisements.
-	HashAd(&a1)
-	HashAd(&a2)
+	hashAd(&a1)
+	hashAd(&a2)
 	if a1.Hash != a2.Hash {
 		t.Errorf("expected same hash, but got different: %v, %v", a1.Hash, a2.Hash)
 	}
 
 	// Should be idempotent.
-	HashAd(&a2)
+	hashAd(&a2)
 	if a1.Hash != a2.Hash {
 		t.Errorf("expected same hash, but got different: %v, %v", a1.Hash, a2.Hash)
 	}
 
 	a2.Ad.Id = discovery.AdId{4, 5, 6}
-	HashAd(&a2)
+	hashAd(&a2)
 	if a1.Hash == a2.Hash {
 		t.Errorf("expected different hashes, but got same: %v, %v", a1.Hash, a2.Hash)
 	}
@@ -61,7 +61,7 @@ func TestHashAd(t *testing.T) {
 	for k, v := range a1.Ad.Attributes {
 		a2.Ad.Attachments[k] = []byte(v)
 	}
-	HashAd(&a2)
+	hashAd(&a2)
 	if a1.Hash == a2.Hash {
 		t.Errorf("expected different hashes, but got same: %v, %v", a1.Hash, a2.Hash)
 	}
@@ -76,7 +76,7 @@ func TestHashAd(t *testing.T) {
 	for i := len(keys) - 1; i >= 0; i-- {
 		a2.Ad.Attributes[keys[i]] = a1.Ad.Attributes[keys[i]]
 	}
-	HashAd(&a2)
+	hashAd(&a2)
 	if a1.Hash != a2.Hash {
 		t.Errorf("expected same hash, but got different: %v, %v", a1.Hash, a2.Hash)
 	}
@@ -84,7 +84,7 @@ func TestHashAd(t *testing.T) {
 	// Shouldn't distinguish between nil and empty.
 	a2 = a1
 	a2.Ad.Attachments = make(discovery.Attachments)
-	HashAd(&a2)
+	hashAd(&a2)
 	if a1.Hash != a2.Hash {
 		t.Errorf("expected same hash, but got different: %v, %v", a1.Hash, a2.Hash)
 	}
@@ -114,7 +114,7 @@ func TestHashAdCoverage(t *testing.T) {
 
 	// Ensure that every single field of advertisement is hashed.
 	ad := AdInfo{}
-	HashAd(&ad)
+	hashAd(&ad)
 
 	for ty, i := reflect.TypeOf(ad.Ad), 0; i < ty.NumField(); i++ {
 		oldAd := ad
@@ -122,7 +122,7 @@ func TestHashAdCoverage(t *testing.T) {
 		fieldName := reflect.TypeOf(ad.Ad).Field(i).Name
 
 		gen(reflect.ValueOf(&ad.Ad).Elem().FieldByName(fieldName))
-		HashAd(&ad)
+		hashAd(&ad)
 
 		if oldAd.Hash == ad.Hash {
 			t.Errorf("Ad.%s: expected different hashes, but got same: %v, %v", fieldName, oldAd.Hash, ad.Hash)
@@ -135,12 +135,12 @@ func TestHashAdCoverage(t *testing.T) {
 		fieldName := reflect.TypeOf(ad).Field(i).Name
 
 		switch fieldName {
-		case "Ad", "Hash", "Lost":
+		case "Ad", "Hash", "DirAddrs", "Status", "Lost":
 			continue
 		}
 
 		gen(reflect.ValueOf(&ad).Elem().FieldByName(fieldName))
-		HashAd(&ad)
+		hashAd(&ad)
 
 		if oldAd.Hash == ad.Hash {
 			t.Errorf("AdInfo.%s: expected different hashes, but got same: %v, %v", fieldName, oldAd.Hash, ad.Hash)

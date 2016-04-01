@@ -11,8 +11,6 @@ import (
 	"v.io/v23/discovery"
 )
 
-type sessionId uint64
-
 type idiscovery struct {
 	plugins []Plugin
 
@@ -21,7 +19,21 @@ type idiscovery struct {
 	tasks  map[*context.T]func() // GUARDED_BY(mu)
 	wg     sync.WaitGroup
 
-	ads map[discovery.AdId]sessionId // GUARDED_BY(mu)
+	adMu          sync.Mutex
+	adSessions    map[discovery.AdId]sessionId  // GUARDED_BY(adMu)
+	adSubtasks    map[discovery.AdId]*adSubtask // GUARDED_BY(adMu)
+	adStopTrigger *Trigger
+
+	dirServer *dirServer
+}
+
+type sessionId uint64
+
+type adSubtask struct {
+	parent *context.T
+
+	mu   sync.Mutex
+	stop func() // GUARDED_BY(mu)
 }
 
 func (d *idiscovery) shutdown() {
@@ -30,6 +42,7 @@ func (d *idiscovery) shutdown() {
 		d.mu.Unlock()
 		return
 	}
+	d.dirServer.shutdown()
 	for _, cancel := range d.tasks {
 		cancel()
 	}
@@ -64,15 +77,33 @@ func (d *idiscovery) removeTask(ctx *context.T) {
 	d.mu.Unlock()
 }
 
+func (d *idiscovery) cancelTask(ctx *context.T) {
+	d.mu.Lock()
+	cancel := d.tasks[ctx]
+	d.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+}
+
 func newDiscovery(ctx *context.T, plugins []Plugin) (*idiscovery, error) {
 	if len(plugins) == 0 {
 		return nil, NewErrNoDiscoveryPlugin(ctx)
 	}
 	d := &idiscovery{
-		plugins: make([]Plugin, len(plugins)),
-		tasks:   make(map[*context.T]func()),
-		ads:     make(map[discovery.AdId]sessionId),
+		plugins:       make([]Plugin, len(plugins)),
+		tasks:         make(map[*context.T]func()),
+		adSessions:    make(map[discovery.AdId]sessionId),
+		adSubtasks:    make(map[discovery.AdId]*adSubtask),
+		adStopTrigger: NewTrigger(),
 	}
 	copy(d.plugins, plugins)
+
+	// TODO(jhahn): Consider to start a directory server when it is required.
+	// For example, scan-only applications would not need it.
+	var err error
+	if d.dirServer, err = newDirServer(ctx, d); err != nil {
+		return nil, err
+	}
 	return d, nil
 }

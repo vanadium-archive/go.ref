@@ -149,7 +149,7 @@ func match(ctx *context.T, updates []discovery.Update, lost bool, wants ...disco
 		if update.IsLost() != lost {
 			return false
 		}
-		if !updateEqual(ctx, update, want) {
+		if !UpdateEqual(ctx, update, want) {
 			return false
 		}
 		delete(updateMap, update.Id())
@@ -157,7 +157,7 @@ func match(ctx *context.T, updates []discovery.Update, lost bool, wants ...disco
 	return len(updateMap) == 0
 }
 
-func updateEqual(ctx *context.T, update discovery.Update, ad discovery.Advertisement) bool {
+func UpdateEqual(ctx *context.T, update discovery.Update, ad discovery.Advertisement) bool {
 	if update.Id() != ad.Id {
 		return false
 	}
@@ -178,7 +178,10 @@ func updateEqual(ctx *context.T, update discovery.Update, ad discovery.Advertise
 		}
 	}
 	for k, v := range ad.Attachments {
-		r := <-update.Attachment(ctx, k)
+		r, ok := <-update.Attachment(ctx, k)
+		if !ok {
+			return false
+		}
 		if r.Error != nil {
 			return false
 		}

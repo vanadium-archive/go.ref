@@ -20,6 +20,7 @@ type plugin struct {
 	updated   *sync.Cond
 	updateSeq int // GUARDED_BY(mu)
 
+	adStatus  idiscovery.AdStatus
 	adinfoMap map[string]map[discovery.AdId]*idiscovery.AdInfo // GUARDED_BY(mu)
 }
 
@@ -66,7 +67,7 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscover
 					continue
 				}
 				for id, adinfo := range adinfos {
-					current[id] = *adinfo
+					current[id] = copyAd(adinfo, p.adStatus)
 				}
 			}
 			p.mu.Unlock()
@@ -80,6 +81,7 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscover
 			}
 			for id, adinfo := range seen {
 				if _, ok := current[id]; !ok {
+					adinfo.Status = idiscovery.AdReady
 					adinfo.Lost = true
 					changed = append(changed, adinfo)
 				}
@@ -108,6 +110,20 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscover
 }
 
 func (p *plugin) Close() {}
+
+func copyAd(adinfo *idiscovery.AdInfo, status idiscovery.AdStatus) idiscovery.AdInfo {
+	copied := *adinfo
+	copied.Status = status
+	switch copied.Status {
+	case idiscovery.AdReady:
+		copied.DirAddrs = nil
+	case idiscovery.AdNotReady:
+		copied.Ad = discovery.Advertisement{Id: adinfo.Ad.Id}
+	case idiscovery.AdPartiallyReady:
+		copied.Ad.Attachments = nil
+	}
+	return copied
+}
 
 // RegisterAd registers an advertisement to the plugin. If there is already an
 // advertisement with the same id, it will be updated with the given advertisement.
@@ -138,7 +154,11 @@ func (p *plugin) UnregisterAd(adinfo *idiscovery.AdInfo) {
 }
 
 func New() *plugin {
-	p := &plugin{adinfoMap: make(map[string]map[discovery.AdId]*idiscovery.AdInfo)}
+	return NewWithAdStatus(idiscovery.AdReady)
+}
+
+func NewWithAdStatus(status idiscovery.AdStatus) *plugin {
+	p := &plugin{adStatus: status, adinfoMap: make(map[string]map[discovery.AdId]*idiscovery.AdInfo)}
 	p.updated = sync.NewCond(&p.mu)
 	return p
 }
