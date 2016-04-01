@@ -6,7 +6,7 @@ var tables = document.getElementsByClassName('mdl-data-table-sortable');
 [].forEach.call(tables, makeTableSortable)
 
 function makeTableSortable(tb) {
-    var data = extractData();
+    data = extractData();
     var headers = tb.getElementsByClassName('mdl-data-table__header-sortable');
     [].forEach.call(headers, makeColumnSortable)
 
@@ -54,23 +54,24 @@ function makeTableSortable(tb) {
         return data;
     }
 
-    function extractData() {
-        var data = [];
-        for(var i = 1; i < tb.rows.length; i++ ) {
-            var row = tb.rows[i];
-            data[i-1] = {row: row, data: []};
-            for(var j = 0; j < row.cells.length; j++ ) {
-              var cell = row.cells[j];
-              var target = cell.getElementsByClassName('mdl-data-table__cell-data')[0] || cell;
-              data[i-1].data[j] = target.textContent;
-            }
-        }
-        return data;
-    }
-
     function appendSortIcon(th) {
         var icon = document.createElement('span');
         icon.className = 'mdl-data-table__sorticon';
         th.appendChild(icon);
     }
+}
+
+function extractData() {
+  var rows = Array.prototype.slice.call(tables[0].rows);
+  var data = [];
+  for(var i = 1; i < rows.length; i++ ) {
+      var row = rows[i];
+      data[i-1] = {row: row, data: []};
+      for(var j = 0; j < row.cells.length; j++ ) {
+        var cell = row.cells[j];
+        var target = cell.getElementsByClassName('mdl-data-table__cell-data')[0] || cell;
+        data[i-1].data[j] = target.textContent;
+      }
+  }
+  return data;
 }

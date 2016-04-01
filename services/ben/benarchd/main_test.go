@@ -96,7 +96,7 @@ ok  	path/to/some/package	4.728s
 		"path/to/some/package.BenchmarkThroughput",
 		"android (5.1.1 (build lmy48i release 2074855 sdk 22))",
 		"root:benupuser",
-		"11ns</div></td>", // ns/op
+		"11</span>ns</div></td>", // ns/op
 		"<td>12.13</td>",
 		"<td>6666666666</td>"); err != nil {
 		t.Error(err)

@@ -6,7 +6,11 @@
     <link rel="stylesheet" href="sortable.css">
     <style>
     .fixed-width { font-family: monospace; }
+    .mdl-data-table { display: inline-block; }
+    #chart_div { display: inline-block; }
     </style>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript" src="chart.js"></script>
 </head>
 <body class="mdl-demo mdl-color--grey-100 mdl-color-text--grey-700 mdl-base">
   <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
@@ -44,6 +48,7 @@
               {{end}}
             </tbody>
           </table>
+          <div id="chart_div"></div>
         </div>
       </div>
       </section>
@@ -69,7 +74,7 @@
             <tbody>
               {{range .Items}}
               <tr>
-                <td><div id="run_{{.Index}}">{{.Run.PrettyTime}}</div><div class="mdl-tooltip mdl-data-table__cell-data" for="run_{{.Index}}">{{.Run.NanoSecsPerOp}}ns</div></td>
+                <td><div id="run_{{.Index}}">{{.Run.PrettyTime}}</div><div class="mdl-tooltip" for="run_{{.Index}}"><span class="mdl-data-table__cell-data">{{.Run.NanoSecsPerOp}}</span>ns</div></td>
                 <td>{{if .Run.AllocsPerOp}}{{.Run.AllocsPerOp}}{{end}}</td>
                 <td>{{if .Run.AllocedBytesPerOp}}{{.Run.AllocedBytesPerOp}}{{end}}</td>
                 <td>{{if .Run.MegaBytesPerSec}}{{.Run.MegaBytesPerSec}}{{end}}</td>
@@ -89,6 +94,14 @@
       </section>
     </main>
     <script src="/sortable.js"></script>
+    <script type="text/javascript">
+      google.charts.setOnLoadCallback(function() {
+        var items = extractData().map(function(d) {
+          return [new Date(d.data[4]), Number.parseInt(d.data[0])];
+        });
+        drawChart(items, document.getElementById('chart_div'));
+      });
+    </script>
     {{template "footer"}}
   </div>
 </body>
