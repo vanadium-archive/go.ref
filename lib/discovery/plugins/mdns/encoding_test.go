@@ -35,7 +35,7 @@ func TestEncodeAdId(t *testing.T) {
 	}
 }
 
-func TestSplitLargeTxt(t *testing.T) {
+func TestEncodeLargeTxt(t *testing.T) {
 	tests := [][]string{
 		[]string{randTxt(maxTxtRecordLen / 2)},
 		[]string{randTxt(maxTxtRecordLen / 2), randTxt(maxTxtRecordLen / 3)},
@@ -45,27 +45,35 @@ func TestSplitLargeTxt(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		splitted, err := maybeSplitLargeTXT(test)
-		if err != nil {
-			t.Errorf("[%d]: encodeLargeTxt failed: %v", i, err)
-			continue
+		var splitted []string
+		for i, txt := range test {
+			xseq := i*3 + 1 // To test non-sequential index.
+			txts, nxseq := maybeSplitTxtRecord(txt, xseq)
+			if len(txts) > 1 {
+				xseq++
+			}
+			if nxseq != xseq {
+				t.Errorf("[%d]: got xseq %d; but wanted %d", nxseq, xseq)
+			}
+			splitted = append(splitted, txts...)
 		}
+
 		for _, v := range splitted {
 			if len(v) > maxTxtRecordLen {
 				t.Errorf("[%d]: too large encoded txt %d - %v", i, len(v), v)
 			}
 		}
 
-		txt, err := maybeJoinLargeTXT(splitted)
+		txts, err := maybeJoinTxtRecords(splitted)
 		if err != nil {
 			t.Errorf("[%d]: decodeLargeTxt failed: %v", i, err)
 			continue
 		}
 
-		sort.Strings(txt)
+		sort.Strings(txts)
 		sort.Strings(test)
-		if !reflect.DeepEqual(txt, test) {
-			t.Errorf("[%d]: decoded to %#v, but want %#v", i, txt, test)
+		if !reflect.DeepEqual(txts, test) {
+			t.Errorf("[%d]: decoded to %v, but want %v", i, txts, test)
 		}
 	}
 }

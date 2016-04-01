@@ -42,6 +42,16 @@ func encryptionKeys(key string) []idiscovery.EncryptionKey {
 	return []idiscovery.EncryptionKey{idiscovery.EncryptionKey(fmt.Sprintf("key:%x", key))}
 }
 
+func withAdReady(adinfos ...idiscovery.AdInfo) []idiscovery.AdInfo {
+	r := make([]idiscovery.AdInfo, len(adinfos))
+	for i, adinfo := range adinfos {
+		adinfo.Status = idiscovery.AdReady
+		adinfo.DirAddrs = nil
+		r[i] = adinfo
+	}
+	return r
+}
+
 func TestBasic(t *testing.T) {
 	ctx, shutdown := test.TestContext()
 	defer shutdown()
@@ -126,8 +136,8 @@ func TestBasic(t *testing.T) {
 	}
 
 	var stops []func()
-	for _, adinfo := range adinfos {
-		stop, err := testutil.Advertise(ctx, p1, &adinfo)
+	for i, _ := range adinfos {
+		stop, err := testutil.Advertise(ctx, p1, &adinfos[i])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -140,13 +150,13 @@ func TestBasic(t *testing.T) {
 	}
 
 	// Make sure all advertisements are discovered.
-	if err := testutil.ScanAndMatch(ctx, p2, "v.io/x", adinfos[0], adinfos[1]); err != nil {
+	if err := testutil.ScanAndMatch(ctx, p2, "v.io/x", withAdReady(adinfos[0], adinfos[1])...); err != nil {
 		t.Error(err)
 	}
-	if err := testutil.ScanAndMatch(ctx, p2, "v.io/y", adinfos[2]); err != nil {
+	if err := testutil.ScanAndMatch(ctx, p2, "v.io/y", withAdReady(adinfos[2])...); err != nil {
 		t.Error(err)
 	}
-	if err := testutil.ScanAndMatch(ctx, p2, "", adinfos...); err != nil {
+	if err := testutil.ScanAndMatch(ctx, p2, "", withAdReady(adinfos...)...); err != nil {
 		t.Error(err)
 	}
 	if err := testutil.ScanAndMatch(ctx, p2, "v.io/z"); err != nil {
@@ -155,10 +165,10 @@ func TestBasic(t *testing.T) {
 
 	// Make sure it is not discovered when advertising is stopped.
 	stops[0]()
-	if err := testutil.ScanAndMatch(ctx, p2, "v.io/x", adinfos[1]); err != nil {
+	if err := testutil.ScanAndMatch(ctx, p2, "v.io/x", withAdReady(adinfos[1])...); err != nil {
 		t.Error(err)
 	}
-	if err := testutil.ScanAndMatch(ctx, p2, "", adinfos[1], adinfos[2]); err != nil {
+	if err := testutil.ScanAndMatch(ctx, p2, "", withAdReady(adinfos[1], adinfos[2])...); err != nil {
 		t.Error(err)
 	}
 
@@ -170,7 +180,7 @@ func TestBasic(t *testing.T) {
 	defer scanStop()
 
 	adinfo := *<-scanCh
-	if !testutil.MatchFound([]idiscovery.AdInfo{adinfo}, adinfos[2]) {
+	if !testutil.MatchFound([]idiscovery.AdInfo{adinfo}, withAdReady(adinfos[2])...) {
 		t.Errorf("Unexpected scan: %v, but want %v", adinfo, adinfos[2])
 	}
 
@@ -189,7 +199,176 @@ func TestBasic(t *testing.T) {
 	}
 }
 
-func TestLargeTxt(t *testing.T) {
+func TestLargeAdvertisements(t *testing.T) {
+	ctx, shutdown := test.TestContext()
+	defer shutdown()
+
+	tests := []struct{ adinfo, want idiscovery.AdInfo }{
+		{
+			idiscovery.AdInfo{ // Fit at the maximum size.
+				Ad: discovery.Advertisement{
+					Id:            discovery.AdId{1},
+					InterfaceName: "v.io/i",
+					Addresses:     []string{"/@6@wsh@foo.com:1234@@/s"},
+					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 576)},
+					Attachments:   discovery.Attachments{"b": bytes.Repeat([]byte{1}, 513)},
+				},
+				EncryptionAlgorithm: idiscovery.TestEncryption,
+				EncryptionKeys:      encryptionKeys("k"),
+				Hash:                idiscovery.AdHash{9},
+				DirAddrs:            []string{"/@6@wsh@foo.com:1234@@/d"},
+			},
+			idiscovery.AdInfo{
+				Ad: discovery.Advertisement{
+					Id:            discovery.AdId{1},
+					InterfaceName: "v.io/i",
+					Addresses:     []string{"/@6@wsh@foo.com:1234@@/s"},
+					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 576)},
+					Attachments:   discovery.Attachments{"b": bytes.Repeat([]byte{1}, 513)},
+				},
+				EncryptionAlgorithm: idiscovery.TestEncryption,
+				EncryptionKeys:      encryptionKeys("k"),
+				Hash:                idiscovery.AdHash{9},
+				Status:              idiscovery.AdReady,
+			},
+		},
+		{
+			idiscovery.AdInfo{ // Not all required fields can fit.
+				Ad: discovery.Advertisement{
+					Id:            discovery.AdId{1},
+					InterfaceName: "v.io/i",
+					Addresses:     []string{"/@6@wsh@foo.com:1234@@/s"},
+					Attributes: discovery.Attributes{
+						"a1": strings.Repeat("v1", 256),
+						"a2": strings.Repeat("v2", 292),
+					},
+					Attachments: discovery.Attachments{"b": []byte{1}},
+				},
+				Hash:     idiscovery.AdHash{9},
+				DirAddrs: []string{"/@6@wsh@foo.com:1234@@/d"},
+			},
+			idiscovery.AdInfo{
+				Ad: discovery.Advertisement{
+					Id:            discovery.AdId{1},
+					InterfaceName: "v.io/i",
+					Attributes:    discovery.Attributes{},
+					Attachments:   discovery.Attachments{},
+				},
+				Hash:     idiscovery.AdHash{9},
+				DirAddrs: []string{"/@6@wsh@foo.com:1234@@/d"},
+				Status:   idiscovery.AdNotReady,
+			},
+		},
+		{
+			idiscovery.AdInfo{ // Not all required fields can fit.
+				Ad: discovery.Advertisement{
+					Id:            discovery.AdId{1},
+					InterfaceName: "v.io/i",
+					Addresses: []string{
+						strings.Repeat("a1", 235),
+						strings.Repeat("a2", 200),
+					},
+					Attributes:  discovery.Attributes{"a": strings.Repeat("v", 256)},
+					Attachments: discovery.Attachments{"b": []byte{1}},
+				},
+				Hash:     idiscovery.AdHash{9},
+				DirAddrs: []string{"/@6@wsh@foo.com:1234@@/d"},
+			},
+			idiscovery.AdInfo{
+				Ad: discovery.Advertisement{
+					Id:            discovery.AdId{1},
+					InterfaceName: "v.io/i",
+					Attributes:    discovery.Attributes{},
+					Attachments:   discovery.Attachments{},
+				},
+				Hash:     idiscovery.AdHash{9},
+				DirAddrs: []string{"/@6@wsh@foo.com:1234@@/d"},
+				Status:   idiscovery.AdNotReady,
+			},
+		},
+		{
+			idiscovery.AdInfo{ // None of optional fields can fit.
+				Ad: discovery.Advertisement{
+					Id:            discovery.AdId{1},
+					InterfaceName: "v.io/i",
+					Addresses:     []string{"/@6@wsh@foo.com:1234@@/s"},
+					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 1077)},
+					Attachments:   discovery.Attachments{"b": bytes.Repeat([]byte{1}, 100)},
+				},
+				Hash:     idiscovery.AdHash{9},
+				DirAddrs: []string{"/@6@wsh@foo.com:1234@@/d"},
+			},
+			idiscovery.AdInfo{
+				Ad: discovery.Advertisement{
+					Id:            discovery.AdId{1},
+					InterfaceName: "v.io/i",
+					Addresses:     []string{"/@6@wsh@foo.com:1234@@/s"},
+					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 1077)},
+					Attachments:   discovery.Attachments{},
+				},
+				Hash:     idiscovery.AdHash{9},
+				DirAddrs: []string{"/@6@wsh@foo.com:1234@@/d"},
+				Status:   idiscovery.AdPartiallyReady,
+			},
+		},
+		{
+			idiscovery.AdInfo{ // Not all optional fields can fit.
+				Ad: discovery.Advertisement{
+					Id:            discovery.AdId{1},
+					InterfaceName: "v.io/i",
+					Addresses:     []string{"/@6@wsh@foo.com:1234@@/s"},
+					Attributes:    discovery.Attributes{"a": "v"},
+					Attachments: discovery.Attachments{
+						"a1": bytes.Repeat([]byte{1}, 400),
+						"a2": bytes.Repeat([]byte{2}, 600),
+						"a3": bytes.Repeat([]byte{3}, 200),
+						"a4": bytes.Repeat([]byte{4}, 4000),
+						"a5": bytes.Repeat([]byte{5}, 800),
+					},
+				},
+				Hash:     idiscovery.AdHash{9},
+				DirAddrs: []string{"/@6@wsh@foo.com:1234@@/d"},
+			},
+			idiscovery.AdInfo{
+				Ad: discovery.Advertisement{
+					Id:            discovery.AdId{1},
+					InterfaceName: "v.io/i",
+					Addresses:     []string{"/@6@wsh@foo.com:1234@@/s"},
+					Attributes:    discovery.Attributes{"a": "v"},
+					Attachments: discovery.Attachments{
+						"a1": bytes.Repeat([]byte{1}, 400),
+						"a3": bytes.Repeat([]byte{3}, 200),
+					},
+				},
+				Hash:     idiscovery.AdHash{9},
+				DirAddrs: []string{"/@6@wsh@foo.com:1234@@/d"},
+				Status:   idiscovery.AdPartiallyReady,
+			},
+		},
+	}
+
+	p1, err := newMDNS("m1")
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+	p2, err := newMDNS("m2")
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+
+	for i, test := range tests {
+		stop, err := testutil.Advertise(ctx, p1, &test.adinfo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := testutil.ScanAndMatch(ctx, p2, "", test.want); err != nil {
+			t.Errorf("[%d]: %v", i, err)
+		}
+		stop()
+	}
+}
+
+func TestMultipleLargeAdvertisements(t *testing.T) {
 	ctx, shutdown := test.TestContext()
 	defer shutdown()
 
@@ -227,6 +406,8 @@ func TestLargeTxt(t *testing.T) {
 		},
 	}
 
+	// Advertise multiple large advertisements, where each advertisement fits in one packet
+	// but they do not fit all together, and make sure all advertisements are discovered.
 	p1, err := newMDNS("m1")
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
@@ -245,7 +426,7 @@ func TestLargeTxt(t *testing.T) {
 		t.Fatalf("New() failed: %v", err)
 	}
 
-	if err := testutil.ScanAndMatch(ctx, p2, "", adinfos...); err != nil {
+	if err := testutil.ScanAndMatch(ctx, p2, "", withAdReady(adinfos...)...); err != nil {
 		t.Error(err)
 	}
 }

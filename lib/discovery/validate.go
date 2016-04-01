@@ -16,6 +16,8 @@ import (
 const (
 	maxAdvertisementSize = 512
 	maxAttachmentSize    = 4096
+	maxNumAttributes     = 32
+	maxNumAttachments    = 32
 )
 
 // validateKey returns an error if the key is not suitable for advertising.
@@ -39,6 +41,9 @@ func validateKey(key string) error {
 
 // validateAttributes returns an error if the attributes are not suitable for advertising.
 func validateAttributes(attributes discovery.Attributes) error {
+	if len(attributes) > maxNumAttributes {
+		return errors.New("too many")
+	}
 	for k, v := range attributes {
 		if err := validateKey(k); err != nil {
 			return err
@@ -52,6 +57,9 @@ func validateAttributes(attributes discovery.Attributes) error {
 
 // validateAttachments returns an error if the attachments are not suitable for advertising.
 func validateAttachments(attachments discovery.Attachments) error {
+	if len(attachments) > maxNumAttachments {
+		return errors.New("too many")
+	}
 	for k, v := range attachments {
 		if err := validateKey(k); err != nil {
 			return err

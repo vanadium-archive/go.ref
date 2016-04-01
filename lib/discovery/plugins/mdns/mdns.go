@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +43,7 @@ const (
 	attrEncryption = "_e"
 	attrHash       = "_h"
 	attrDirAddrs   = "_d"
+	attrStatus     = "_s"
 
 	// The prefix for attribute names for encoded attachments.
 	attrAttachmentPrefix = "__"
@@ -49,11 +52,10 @@ const (
 	attrLargeTxtPrefix = "_x"
 
 	// RFC 6763 limits each DNS txt record to 255 bytes and recommends to not have
-	// the cumulative size be larger than 1300 bytes.
-	//
-	// TODO(jhahn): Figure out how to overcome this limit.
+	// the cumulative size be larger than 1300 bytes. We limit the total size further
+	// since the underlying mdns package allows records smaller than that.
 	maxTxtRecordLen       = 255
-	maxTotalTxtRecordsLen = 1300
+	maxTotalTxtRecordsLen = 1184
 )
 
 var (
@@ -199,40 +201,26 @@ func (p *plugin) refreshSubscription(serviceName string) {
 	p.subscriptionMu.Unlock()
 }
 
-func newTxtRecords(adinfo *idiscovery.AdInfo) ([]string, error) {
-	// Prepare a txt record for the advertisement to announce.
-	txt := appendTxtRecord(nil, attrInterface, adinfo.Ad.InterfaceName)
-	txt = appendTxtRecord(txt, attrAddresses, idiscovery.PackAddresses(adinfo.Ad.Addresses))
-	for k, v := range adinfo.Ad.Attributes {
-		txt = appendTxtRecord(txt, k, v)
-	}
-	for k, v := range adinfo.Ad.Attachments {
-		txt = appendTxtRecord(txt, attrAttachmentPrefix+k, v)
-	}
-	if adinfo.EncryptionAlgorithm != idiscovery.NoEncryption {
-		enc := idiscovery.PackEncryptionKeys(adinfo.EncryptionAlgorithm, adinfo.EncryptionKeys)
-		txt = appendTxtRecord(txt, attrEncryption, enc)
-	}
-	txt = appendTxtRecord(txt, attrHash, adinfo.Hash[:])
-	if len(adinfo.DirAddrs) > 0 {
-		addrs := idiscovery.PackAddresses(adinfo.DirAddrs)
-		txt = appendTxtRecord(txt, attrDirAddrs, addrs)
-	}
-	txt, err := maybeSplitLargeTXT(txt)
-	if err != nil {
-		return nil, err
-	}
-	n := 0
-	for _, v := range txt {
-		n += len(v)
-		if n > maxTotalTxtRecordsLen {
-			return nil, errMaxTxtRecordLenExceeded
-		}
-	}
-	return txt, nil
+type txtRecords struct {
+	size int
+	txts []string
 }
 
-func appendTxtRecord(txt []string, k string, v interface{}) []string {
+type byTxtSize []txtRecords
+
+func (r byTxtSize) Len() int           { return len(r) }
+func (r byTxtSize) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r byTxtSize) Less(i, j int) bool { return r[i].size < r[j].size }
+
+func sizeOfTxtRecords(txts []string) int {
+	n := 0
+	for _, txt := range txts {
+		n += len(txt)
+	}
+	return n
+}
+
+func appendTxtRecord(txts []string, k string, v interface{}, xseq int) ([]string, int) {
 	var buf bytes.Buffer
 	buf.WriteString(k)
 	buf.WriteByte('=')
@@ -241,9 +229,94 @@ func appendTxtRecord(txt []string, k string, v interface{}) []string {
 	} else {
 		buf.Write(v.([]byte))
 	}
-	kv := buf.String()
-	txt = append(txt, kv)
-	return txt
+	kvTxts, xseq := maybeSplitTxtRecord(buf.String(), xseq)
+	return append(txts, kvTxts...), xseq
+}
+
+func packTxtRecords(status idiscovery.AdStatus, vtxts ...[]string) ([]string, error) {
+	var packed []string
+	if status != idiscovery.AdReady {
+		packed, _ = appendTxtRecord(packed, attrStatus, strconv.Itoa(int(status)), 0)
+	}
+	for _, txts := range vtxts {
+		packed = append(packed, txts...)
+	}
+	if sizeOfTxtRecords(packed) > maxTotalTxtRecordsLen {
+		return nil, errMaxTxtRecordLenExceeded
+	}
+	return packed, nil
+}
+
+func newTxtRecords(adinfo *idiscovery.AdInfo) ([]string, error) {
+	core, xseq := appendTxtRecord(nil, attrInterface, adinfo.Ad.InterfaceName, 0)
+	core, xseq = appendTxtRecord(core, attrHash, adinfo.Hash[:], xseq)
+	coreLen := sizeOfTxtRecords(core)
+
+	dir, xseq := appendTxtRecord(nil, attrDirAddrs, idiscovery.PackAddresses(adinfo.DirAddrs), xseq)
+	dirLen := sizeOfTxtRecords(dir)
+
+	required, xseq := appendTxtRecord(nil, attrAddresses, idiscovery.PackAddresses(adinfo.Ad.Addresses), xseq)
+	for k, v := range adinfo.Ad.Attributes {
+		required, xseq = appendTxtRecord(required, k, v, xseq)
+	}
+	if adinfo.EncryptionAlgorithm != idiscovery.NoEncryption {
+		enc := idiscovery.PackEncryptionKeys(adinfo.EncryptionAlgorithm, adinfo.EncryptionKeys)
+		required, xseq = appendTxtRecord(required, attrEncryption, enc, xseq)
+	}
+	requiredLen := sizeOfTxtRecords(required)
+
+	remainingLen := maxTotalTxtRecordsLen - coreLen - requiredLen
+
+	// Short-cut for a very large advertisement.
+	if remainingLen < 0 {
+		return packTxtRecords(idiscovery.AdNotReady, core, dir)
+	}
+
+	extra := make([]txtRecords, 0, len(adinfo.Ad.Attachments))
+	extraLen := 0
+	for k, v := range adinfo.Ad.Attachments {
+		if xseq >= maxNumLargeTxtRecords {
+			break
+		}
+		if len(v) > remainingLen {
+			continue
+		}
+		var txts []string
+		txts, xseq = appendTxtRecord(nil, attrAttachmentPrefix+k, v, xseq)
+		n := sizeOfTxtRecords(txts)
+		extra = append(extra, txtRecords{n, txts})
+		extraLen += n
+	}
+
+	if len(extra) == len(adinfo.Ad.Attachments) && extraLen <= remainingLen {
+		// The advertisement can fit in a packet.
+		full := make([]string, 0, len(extra))
+		for _, r := range extra {
+			full = append(full, r.txts...)
+		}
+		return packTxtRecords(idiscovery.AdReady, core, required, full)
+	}
+
+	const statusTxtRecordLen = 4 // _s=<s>, where <s> is one byte.
+	remainingLen -= dirLen + statusTxtRecordLen
+	if remainingLen < 0 {
+		// Not all required fields can fit in a packet.
+		return packTxtRecords(idiscovery.AdNotReady, core, dir)
+	}
+
+	sort.Sort(byTxtSize(extra))
+
+	selected := make([]string, 0, len(extra))
+	for _, r := range extra {
+		if remainingLen >= r.size {
+			selected = append(selected, r.txts...)
+			remainingLen -= r.size
+		}
+		if remainingLen <= 0 {
+			break
+		}
+	}
+	return packTxtRecords(idiscovery.AdPartiallyReady, core, dir, required, selected)
 }
 
 func newAdInfo(service mdns.ServiceInstance) (*idiscovery.AdInfo, error) {
@@ -266,17 +339,17 @@ func newAdInfo(service mdns.ServiceInstance) (*idiscovery.AdInfo, error) {
 	adinfo.Ad.Attributes = make(discovery.Attributes)
 	adinfo.Ad.Attachments = make(discovery.Attachments)
 	for _, rr := range service.TxtRRs {
-		txt, err := maybeJoinLargeTXT(rr.Txt)
+		txts, err := maybeJoinTxtRecords(rr.Txt)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, kv := range txt {
-			p := strings.SplitN(kv, "=", 2)
-			if len(p) != 2 {
+		for _, txt := range txts {
+			kv := strings.SplitN(txt, "=", 2)
+			if len(kv) != 2 {
 				return nil, fmt.Errorf("invalid txt record: %s", txt)
 			}
-			switch k, v := p[0], p[1]; k {
+			switch k, v := kv[0], kv[1]; k {
 			case attrInterface:
 				adinfo.Ad.InterfaceName = v
 			case attrAddresses:
@@ -293,6 +366,12 @@ func newAdInfo(service mdns.ServiceInstance) (*idiscovery.AdInfo, error) {
 				if adinfo.DirAddrs, err = idiscovery.UnpackAddresses([]byte(v)); err != nil {
 					return nil, err
 				}
+			case attrStatus:
+				status, err := strconv.Atoi(v)
+				if err != nil {
+					return nil, err
+				}
+				adinfo.Status = idiscovery.AdStatus(status)
 			default:
 				if strings.HasPrefix(k, attrAttachmentPrefix) {
 					adinfo.Ad.Attachments[k[len(attrAttachmentPrefix):]] = []byte(v)

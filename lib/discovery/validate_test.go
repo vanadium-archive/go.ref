@@ -6,6 +6,7 @@ package discovery
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -139,10 +140,28 @@ func TestValidateAd(t *testing.T) {
 				Id:            discovery.AdId{1, 2, 3},
 				InterfaceName: "v.io/v23/a",
 				Addresses:     []string{"/h:123/x"},
+				Attributes:    genAttributes(33), // Too many.
+			},
+			false,
+		},
+		{
+			discovery.Advertisement{
+				Id:            discovery.AdId{1, 2, 3},
+				InterfaceName: "v.io/v23/a",
+				Addresses:     []string{"/h:123/x"},
 				Attachments: discovery.Attachments{
 					"k1": bytes.Repeat([]byte{1}, 100),
 					"k2": bytes.Repeat([]byte{1}, 4097), // Too large.
 				},
+			},
+			false,
+		},
+		{
+			discovery.Advertisement{
+				Id:            discovery.AdId{1, 2, 3},
+				InterfaceName: "v.io/v23/a",
+				Addresses:     []string{"/h:123/x"},
+				Attachments:   genAttachments(33), // Too many.
 			},
 			false,
 		},
@@ -160,4 +179,20 @@ func TestValidateAd(t *testing.T) {
 			}
 		}
 	}
+}
+
+func genAttributes(n int) discovery.Attributes {
+	attributes := make(discovery.Attributes, n)
+	for i := 0; i < n; i++ {
+		attributes[strconv.Itoa(i)] = ""
+	}
+	return attributes
+}
+
+func genAttachments(n int) discovery.Attachments {
+	attachments := make(discovery.Attachments, n)
+	for i := 0; i < n; i++ {
+		attachments[strconv.Itoa(i)] = nil
+	}
+	return attachments
 }
