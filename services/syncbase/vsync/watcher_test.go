@@ -21,6 +21,31 @@ import (
 	sbwatchable "v.io/x/ref/services/syncbase/watchable"
 )
 
+// signpostApproxEq() returns whether Signpost objects *a and *b are approximately equal,
+// differing by no more than 60s in their timestamps.
+func signpostApproxEq(a *interfaces.Signpost, b *interfaces.Signpost) bool {
+	// We avoid reflect.DeepEqual() because LocationData contains a
+	// time.Time which is routinely given a different time zone
+	// (time.Location).
+	if len(a.Locations) != len(b.Locations) || len(a.SgIds) != len(b.SgIds) {
+		return false
+	}
+	for sg := range a.SgIds {
+		if _, exists := b.SgIds[sg]; !exists {
+			return false
+		}
+	}
+	for peer, aLocData := range a.Locations {
+		bLocData, exists := b.Locations[peer]
+		if !exists ||
+			aLocData.WhenSeen.After(bLocData.WhenSeen.Add(time.Minute)) ||
+			bLocData.WhenSeen.After(aLocData.WhenSeen.Add(time.Minute)) {
+			return false
+		}
+	}
+	return true
+}
+
 // TestSetResmark tests setting and getting a resume marker.
 func TestSetResmark(t *testing.T) {
 	svc := createService(t)
@@ -332,21 +357,31 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 
 	// Verify the blob ref metadata.
-	expBlobDir := make(map[wire.BlobRef]*blobLocInfo)
-	info := &blobLocInfo{
-		peer:   s.name,
-		source: s.name,
-		sgIds:  sgSet{gid: struct{}{}},
+	expBlobDir := make(map[wire.BlobRef]*interfaces.Signpost)
+	expSp := &interfaces.Signpost{
+		Locations: interfaces.PeerToLocationDataMap{s.name: interfaces.LocationData{WhenSeen: time.Now()}},
+		SgIds:     sgSet{gid: struct{}{}},
 	}
-	expBlobDir[wire.BlobRef("br_"+fooKey+"_333")] = info
-	expBlobDir[wire.BlobRef("br_"+fooxyzKey+"_444")] = info
-	expBlobDir[wire.BlobRef("br_"+fooKey+"_1")] = info
+	expBlobDir[wire.BlobRef("br_"+fooKey+"_333")] = expSp
+	expBlobDir[wire.BlobRef("br_"+fooxyzKey+"_444")] = expSp
+	expBlobDir[wire.BlobRef("br_"+fooKey+"_1")] = expSp
 
-	s.blobDirLock.Lock()
-	if !reflect.DeepEqual(s.blobDirectory, expBlobDir) {
-		t.Errorf("invalid blob dir: got %v instead of %v", s.blobDirectory, expBlobDir)
+	sps := s.bst.NewSignpostStream(svc.sync.ctx)
+	spsCount := 0
+	for sps.Advance() {
+		spsCount++
+		if expSp, ok := expBlobDir[sps.BlobId()]; !ok {
+			t.Errorf("unexpectedly got unexpected signpost for blob %v", sps.BlobId())
+		} else if sp := sps.Signpost(); !signpostApproxEq(&sp, expSp) {
+			t.Errorf("signpost for blob %v: got %v, want %v", sps.BlobId(), sps.Signpost(), *expSp)
+		}
 	}
-	s.blobDirLock.Unlock()
+	if err := sps.Err(); err != nil {
+		t.Errorf("NewSignpostStream yielded error  %v\n", err)
+	}
+	if spsCount != len(expBlobDir) {
+		t.Errorf("got %d signposts, expected %d", spsCount, len(expBlobDir))
+	}
 
 	// Scan the batch records and verify that there is only 1 DAG batch
 	// stored, with a total count of 3 and a map of 2 syncable entries.

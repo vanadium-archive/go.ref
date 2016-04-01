@@ -22,15 +22,24 @@ import (
 )
 
 // GetDeltas implements the responder side of the GetDeltas RPC.
-func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasServerCall, req interfaces.DeltaReq, initiator string) error {
+func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasServerCall,
+	req interfaces.DeltaReq, initiator string) (interfaces.DeltaFinalResp, error) {
+
 	vlog.VI(2).Infof("sync: GetDeltas: begin: from initiator %s", initiator)
 	defer vlog.VI(2).Infof("sync: GetDeltas: end: from initiator %s", initiator)
 
+	var finalResp interfaces.DeltaFinalResp
 	rSt, err := newResponderState(ctx, call, s, req, initiator)
 	if err != nil {
-		return err
+		return finalResp, err
 	}
-	return rSt.sendDeltasPerDatabase(ctx)
+	err = rSt.sendDeltasPerDatabase(ctx)
+	if !rSt.sg {
+		// TODO(m3b): It is unclear what to do if this call returns an error.  We would not wish the GetDeltas call to fail.
+		finalResp.SgPriorities = make(interfaces.SgPriorities)
+		addSyncgroupPriorities(ctx, s.bst, rSt.sgIds, finalResp.SgPriorities)
+	}
+	return finalResp, err
 }
 
 // responderState is state accumulated per Database by the responder during an

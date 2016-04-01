@@ -24,7 +24,6 @@ import (
 	"v.io/v23/discovery"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	idiscovery "v.io/x/ref/lib/discovery"
@@ -126,9 +125,7 @@ type syncService struct {
 	batches     batchSet
 
 	// Metadata related to blob handling.
-	bst           blob.BlobStore                // local blob store associated with this Syncbase.
-	blobDirectory map[wire.BlobRef]*blobLocInfo // directory structure containing blob location information.
-	blobDirLock   sync.RWMutex                  // lock to synchronize access to the blob directory information.
+	bst blob.BlobStore // local blob store associated with this Syncbase.
 
 	// Syncbase vclock related variables.
 	vclock *vclock.VClock
@@ -211,7 +208,6 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 	if err != nil {
 		return nil, err
 	}
-	s.blobDirectory = make(map[wire.BlobRef]*blobLocInfo)
 
 	// Channel to propagate close event to all threads.
 	s.closed = make(chan struct{})

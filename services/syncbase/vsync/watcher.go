@@ -333,7 +333,7 @@ func (s *syncService) processWatchBlobRefs(ctx *context.T, appdb string, st stor
 			return err
 		}
 
-		if err = s.processBlobRefs(ctx, s.name, sgPfxs, m, buf); err != nil {
+		if err = s.processBlobRefs(ctx, appdb, st, s.name, true, sgPfxs, nil, m, buf); err != nil {
 			return err
 		}
 	}

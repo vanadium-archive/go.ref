@@ -17,6 +17,8 @@ func (fscabs *FsCaBlobStore) SetBlobMetadata(ctx *context.T, blobID wire.BlobRef
 }
 
 // GetBlobMetadata() yields in *bmd the BlobMetadata associated with a blob.
+// If there is an error, *bmd is set to a canonical empty BlobMetadata.
+// On return, it is guaranteed that any maps in *bmd are non-nil.
 func (fscabs *FsCaBlobStore) GetBlobMetadata(ctx *context.T, blobID wire.BlobRef, bmd *localblobstore.BlobMetadata) (err error) {
 	return fscabs.bm.GetBlobMetadata(ctx, blobID, bmd)
 }

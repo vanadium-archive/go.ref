@@ -54,4 +54,25 @@ var (
 	// TODO(rdaoud): add a channel between store and watch to get change
 	// notifications instead of using a polling solution.
 	watchPollInterval = 100 * time.Millisecond
+
+	// maxLocationsInSignpost is the maximum number of Locations that
+	// mergeSignposts() will permit in a Signpost.  Locations with more
+	// recent WhenSeen values are kept preferentially.  Also, locateBlob
+	// considers only the first maxLocationsInSignpost entries in a
+	// Signpost's Locations.
+	maxLocationsInSignpost = 4
+
+	// blobRecencyTimeSlop:  Otherwise equivalent devices that last
+	// synchronized with a server within blobRecencyTimeSlop are considered
+	// to have equal sync time for the purposes of blob priority.
+	blobRecencyTimeSlop = 2 * time.Minute
+
+	// blobSyncDistanceDecay is used as the decay constant when computing
+	// the mean sync hops from a server to the device, when computing blob priority.
+	// Higher values mean more inertia.
+	blobSyncDistanceDecay = float32(5)
+
+	// initialBlobOwnerShares is the initial number of ownership shares that
+	// a device gives itself when it introduces a BlobRef to a syncgroup.
+	initialBlobOwnerShares = int32(2)
 )

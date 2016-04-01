@@ -280,10 +280,10 @@ func TestDeleteSyncgroup(t *testing.T) {
 	// Delete non-existing syncgroups.
 
 	tx := st.NewWatchableTransaction()
-	if err := delSyncgroupById(nil, tx, sgId); err == nil {
+	if err := delSyncgroupById(nil, nil, tx, sgId); err == nil {
 		t.Errorf("deleting a non-existing syncgroup ID did not fail")
 	}
-	if err := delSyncgroupByName(nil, tx, sgName); err == nil {
+	if err := delSyncgroupByName(nil, nil, tx, sgName); err == nil {
 		t.Errorf("deleting a non-existing syncgroup name did not fail")
 	}
 	tx.Abort()
@@ -322,7 +322,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 	// Delete it by ID.
 
 	tx = st.NewWatchableTransaction()
-	if err := delSyncgroupById(nil, tx, sgId); err != nil {
+	if err := delSyncgroupById(nil, nil, tx, sgId); err != nil {
 		t.Errorf("deleting syncgroup ID %d failed: %v", sgId, err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -352,7 +352,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 	checkSGStats(t, svc, "del-4", 1, 3)
 
 	tx = st.NewWatchableTransaction()
-	if err := delSyncgroupByName(nil, tx, sgName); err != nil {
+	if err := delSyncgroupByName(nil, nil, tx, sgName); err != nil {
 		t.Errorf("deleting syncgroup name %s failed: %v", sgName, err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -508,7 +508,7 @@ func TestMultiSyncgroups(t *testing.T) {
 	// Delete the 1st syncgroup.
 
 	tx = st.NewWatchableTransaction()
-	if err := delSyncgroupById(nil, tx, sgId1); err != nil {
+	if err := delSyncgroupById(nil, nil, tx, sgId1); err != nil {
 		t.Errorf("deleting syncgroup ID %d failed: %v", sgId1, err)
 	}
 	if err := tx.Commit(); err != nil {

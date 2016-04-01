@@ -17,6 +17,8 @@ func (fscabs *FsCaBlobStore) SetPerSyncgroup(ctx *context.T, sgId interfaces.Gro
 }
 
 // GetPerSyncgroup() yields in *psg the PerSyncgroup associated with a syncgroup.
+// If there is an error, *psg is set to a canonical empty PerSyncgroup.
+// On return, it is guaranteed that any maps in *psg are non-nil.
 func (fscabs *FsCaBlobStore) GetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg *localblobstore.PerSyncgroup) error {
 	return fscabs.bm.GetPerSyncgroup(ctx, sgId, psg)
 }

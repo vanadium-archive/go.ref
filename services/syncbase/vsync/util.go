@@ -11,7 +11,9 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -103,4 +105,40 @@ func toCollectionRowPrefixStr(p wire.CollectionRow) string {
 // collection name and row key as separate fields in a "CollectionRow" struct.
 func toRowKey(collectionRow string) string {
 	return common.JoinKeyParts(common.RowPrefix, collectionRow)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Internal helpers for authorization during the two sync rounds, and during
+// blob transfers.
+
+// namesAuthorizer authorizes the remote peer only if it presents all the names
+// in the expNames set.
+type namesAuthorizer struct {
+	expNames []string
+}
+
+// Authorize allows namesAuthorizer to implement the
+// security.Authorizer interface.  It tests that the peer server
+// has at least the blessings namesAuthorizer.expNames.
+func (na namesAuthorizer) Authorize(ctx *context.T, securityCall security.Call) (err error) {
+	var peerBlessingNames []string
+	peerBlessingNames, _ = security.RemoteBlessingNames(ctx, securityCall)
+	vlog.VI(4).Infof("sync: Authorize: names %v", peerBlessingNames)
+	// Put the peerBlessingNames in a set, to make it easy to test whether
+	// na.expectedBlessingNames is a subset.
+	peerBlessingNamesMap := make(map[string]bool)
+	for i := 0; i != len(peerBlessingNames); i++ {
+		peerBlessingNamesMap[peerBlessingNames[i]] = true
+	}
+	// isSubset = na.expectedBlessingNames is_subset_of peerBlessingNames.
+	isSubset := true
+	for i := 0; i != len(na.expNames) && isSubset; i++ {
+		isSubset = peerBlessingNamesMap[na.expNames[i]]
+	}
+	if !isSubset {
+		err = verror.New(verror.ErrInternal, ctx, "server blessings changed")
+	} else {
+		vlog.VI(4).Infof("sync: Authorize: remote peer allowed")
+	}
+	return err
 }

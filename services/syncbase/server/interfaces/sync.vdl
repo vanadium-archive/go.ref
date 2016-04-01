@@ -19,7 +19,9 @@ type Sync interface {
 	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
 	// vectors for one Database for either syncgroup metadata or data.
-	GetDeltas(req DeltaReq, initiator string) stream<_, DeltaResp> error {access.Read}
+	// The final result (in DeltaFinalResp) currently includes the
+	// syncgroup priorities for blob ownership for the server.
+	GetDeltas(req DeltaReq, initiator string) stream<_, DeltaResp> (DeltaFinalResp | error) {access.Read}
 
 	// Syncgroup-related methods.
 
@@ -57,11 +59,30 @@ type Sync interface {
 	// BlobSync methods.
 
 	// HaveBlob verifies that the peer has the requested blob, and if
-	// present, returns its size.
-	HaveBlob(br wire.BlobRef) (int64 | error)
+	// present, returns its size.  Otherwise, it returns -1, and the location
+	// hints (the Signpost) that the peer has for the blob, filtered to
+	// include only data the caller is permitted to see:
+	// + Device D reveals a syncgroup SG to the caller C iff
+	//   - D is in SG, and
+	//   - SG is in the Signpost, and
+	//   - at least one of:
+	//     - SG is not private, or
+	//     - C has permission to join SG.
+	// + Device D reveals a location hint L to caller C iff
+	//   there is a syncgroup SG such that
+	//   - D is in SG, and
+	//   - SG is in the Signpost, and
+	//   - L is in SG, and
+	//   - at least one of:
+	//     - SG is not private, or
+	//     - C has permission to join SG, or
+	//     - L is a blob server in SG.
+	HaveBlob(br wire.BlobRef) (size int64, signpost Signpost | error)
 
 	// FetchBlob fetches the requested blob.
-	FetchBlob(br wire.BlobRef) stream<_, []byte> error
+	// It returns a number of blob ownership shares that the server hopes
+	// the client will accept using the AcceptedBlobOwnership() call.
+	FetchBlob(br wire.BlobRef, mySgPriorities SgPriorities) stream<_, []byte> (shares BlobSharesBySyncgroup | error)
 
 	// Methods for incremental blob transfer. The transfer starts with the
 	// receiver making a FetchBlobRecipe call to the sender for a given
@@ -72,8 +93,30 @@ type Sync interface {
 	// FetchChunks call from the sender. Finally, the receiver finishes the
 	// blob fetch by combining the chunks obtained over the network with the
 	// already available local chunks as per the blob recipe.
-	FetchBlobRecipe(br wire.BlobRef) stream<_, ChunkHash> error
+	// callerName is the syncbase Id of the caller, expressed as a string.
+	// FetchBlobRecipe returns a number of blob ownership shares that the
+	// server hopes the client will accept for each syncgroup using the
+	// AcceptedBlobOwnership() call.
+	FetchBlobRecipe(br wire.BlobRef, callerName string, mySgPriorities SgPriorities) stream<_, ChunkHash> (shares BlobSharesBySyncgroup | error)
 	FetchChunks() stream<ChunkHash, ChunkData> error
+
+	// RequestTakeBlob indicates that the caller wishes the server to take
+	// some blob ownership shares for various syncgroups for the specified blob.
+	// If the server chooses to act on the request, it may call FetchBlob/FetchBlobRecipe,
+	// and ultimately AcceptedBlobOwnership().
+	// callerName is the syncbase Id of the caller, expressed as a string.
+	RequestTakeBlob(br wire.BlobRef, callerName string, shares BlobSharesBySyncgroup) error
+
+	// AcceptedBlobOwnership tells the server that the client callerName (a
+	// syncbase Id expressed as a string) has accepted blob ownership of a
+	// specified number of shares for blob br.  The server may decrement
+	// its share count by up to this number.  It is safe for the server to
+	// decrement its share count by fewer than the number of shares another
+	// device has taken responsibility for, but unsafe to decrement it by
+	// more than that that number.  It returns a hint as to whether the
+	// server is likely to keep the blob itself, plus its syncbase Id
+	// expressed as a string.
+	AcceptedBlobOwnership(br wire.BlobRef, callerName string, shares BlobSharesBySyncgroup) (serverName string, keepingBlob bool | error)
 }
 
 error (

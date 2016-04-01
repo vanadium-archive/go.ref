@@ -42,6 +42,8 @@ func (bm *BlobMap) SetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg 
 }
 
 // GetPerSyncgroup() yields in *psg the PerSyncgroup associated with a syncgroup.
+// If there is an error, *psg is set to a canonical empty PerSyncgroup.
+// On return, it is guaranteed that any maps in *psg are non-nil.
 func (bm *BlobMap) GetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg *localblobstore.PerSyncgroup) (err error) {
 	var keyBuf [16]byte
 	var valBuf [maxPerSyncgroupLen]byte
@@ -51,7 +53,9 @@ func (bm *BlobMap) GetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg 
 	if err == nil {
 		err = vom.Decode(val, psg)
 	}
-
+	if err != nil {
+		*psg = localblobstore.PerSyncgroup{}
+	}
 	return err
 }
 

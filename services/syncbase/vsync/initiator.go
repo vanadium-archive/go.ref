@@ -10,7 +10,6 @@ package vsync
 // suitably updates the local Databases.
 
 import (
-	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -157,6 +156,19 @@ func (s *syncService) identifyPeer(ctx *context.T, peer connInfo) []string {
 	return blessingNames
 }
 
+// addPrefixesToMap adds to map m the prefixes of syncgroup *sg.
+func addPrefixesToMap(m map[string]sgSet, sg *interfaces.Syncgroup) {
+	for _, p := range sg.Spec.Prefixes {
+		pfxStr := toCollectionRowPrefixStr(p)
+		sgs, ok := m[pfxStr]
+		if !ok {
+			sgs = make(sgSet)
+			m[pfxStr] = sgs
+		}
+		sgs[sg.Id] = struct{}{}
+	}
+}
+
 // filterSyncgroups uses the remote peer's blessings to obtain the set of
 // syncgroups that are allowed to be synced with it based on its current
 // syncgroup acls.
@@ -173,11 +185,21 @@ func (s *syncService) filterSyncgroups(ctx *context.T, c *initiationConfig, bles
 
 	remSgIds := make(sgSet)
 
-	// Prepare the syncgroup prefixes since we are going through each
+	// Prepare the list of syncgroup prefixes known by this syncbase.
+	c.allSgPfxs = make(map[string]sgSet)
+	// Fetch the syncgroup data entries in the current database by scanning their
+	// prefix range.  Use a database snapshot for the scan.
+	snapshot := c.st.NewSnapshot()
+	defer snapshot.Abort()
+	forEachSyncgroup(snapshot, func(sg *interfaces.Syncgroup) bool {
+		addPrefixesToMap(c.allSgPfxs, sg) // Add syncgroups prefixes to allSgPfxs.
+		return false                      // from forEachSyncgroup closure
+	})
+
+	// Prepare the syncgroup prefixes shared with the caller since we are going through each
 	// syncgroup. This is an optimization done to avoid looping and reading
 	// syncgroup data another time.
-	c.sgPfxs = make(map[string]sgSet)
-
+	c.sharedSgPfxs = make(map[string]sgSet)
 	for gid := range c.sgIds {
 		var sg *interfaces.Syncgroup
 		sg, err := getSyncgroupById(ctx, c.st, gid)
@@ -194,21 +216,13 @@ func (s *syncService) filterSyncgroups(ctx *context.T, c *initiationConfig, bles
 		// peer ok? The thinking here is that the peer uses the read tag
 		// on the GetDeltas RPC to authorize the initiator and this
 		// makes it symmetric.
-		if err := authorizeForTag(ctx, sg.Spec.Perms, access.Read, blessingNames); err != nil {
+		if !isAuthorizedForTag(sg.Spec.Perms, access.Read, blessingNames) {
 			vlog.VI(4).Infof("sync: filterSyncGroups: skipping sg %v", gid)
 			continue
 		}
 
 		remSgIds[gid] = struct{}{}
-		for _, p := range sg.Spec.Prefixes {
-			pfxStr := toCollectionRowPrefixStr(p)
-			sgs, ok := c.sgPfxs[pfxStr]
-			if !ok {
-				sgs = make(sgSet)
-				c.sgPfxs[pfxStr] = sgs
-			}
-			sgs[gid] = struct{}{}
-		}
+		addPrefixesToMap(c.sharedSgPfxs, sg) // Add syncgroups prefixes to sharedSgPfxs.
 	}
 
 	c.sgIds = remSgIds
@@ -217,7 +231,7 @@ func (s *syncService) filterSyncgroups(ctx *context.T, c *initiationConfig, bles
 		return verror.New(verror.ErrInternal, ctx, "no syncgroups found after filtering", c.peer.relName, c.appName, c.dbName)
 	}
 
-	if len(c.sgPfxs) == 0 {
+	if len(c.sharedSgPfxs) == 0 {
 		return verror.New(verror.ErrInternal, ctx, "no syncgroup prefixes found", c.peer.relName, c.appName, c.dbName)
 	}
 
@@ -287,8 +301,14 @@ func (s *syncService) getDeltas(ctxIn *context.T, c *initiationConfig, sg bool) 
 		return err
 	}
 
-	if err := iSt.stream.Finish(); err != nil {
+	deltaFinalResp, err := iSt.stream.Finish()
+	if err != nil {
 		return err
+	}
+
+	if !iSt.sg {
+		// TODO(m3b): It is unclear what to do if this call returns an error.  We would not wish the GetDeltas call to fail.
+		updateAllSyncgroupPriorities(ctx, s.bst, deltaFinalResp.SgPriorities)
 	}
 
 	vlog.VI(4).Infof("sync: getDeltas: got reply: %v", iSt.remote)
@@ -312,13 +332,14 @@ type initiationConfig struct {
 	// where the peer was successfully reached the last time.
 	peer connInfo
 
-	sgIds   sgSet            // Syncgroups being requested in the initiation round.
-	sgPfxs  map[string]sgSet // Syncgroup prefixes and their ids being requested in the initiation round.
-	sync    *syncService
-	appName string
-	dbName  string
-	db      interfaces.Database // handle to the Database.
-	st      *watchable.Store    // Store handle to the Database.
+	sgIds        sgSet            // Syncgroups being requested in the initiation round.
+	sharedSgPfxs map[string]sgSet // Syncgroup prefixes and their ids being requested in the initiation round.
+	allSgPfxs    map[string]sgSet // Syncgroup prefixes and their ids, for all syncgroups known to this device.
+	sync         *syncService
+	appName      string
+	dbName       string
+	db           interfaces.Database // handle to the Database.
+	st           *watchable.Store    // Store handle to the Database.
 
 	// Authorizer created during the filtering of syncgroups phase. This is
 	// to be used during getDeltas to authorize the peer being synced with.
@@ -337,7 +358,7 @@ func newInitiationConfig(ctx *context.T, s *syncService, name string, info sgMem
 	if len(c.sgIds) == 0 {
 		return nil, verror.New(verror.ErrInternal, ctx, "no syncgroups found", peer.relName, name)
 	}
-	// Note: sgPfxs will be inited during syncgroup filtering.
+	// Note: allSgPfxs and sharedSgPfxs will be inited during syncgroup filtering.
 	c.sync = s
 
 	// TODO(hpucha): Would be nice to standardize on the combined "app:db"
@@ -358,32 +379,6 @@ func newInitiationConfig(ctx *context.T, s *syncService, name string, info sgMem
 	c.st = c.db.St()
 
 	return c, nil
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Internal helpers for authorization during the two sync rounds.
-
-// namesAuthorizer authorizes the remote peer only if it presents all the names
-// in the expNames set. namesAuthorizer is created during authorizeDeltas and
-// used during getDeltas.
-type namesAuthorizer struct {
-	expNames []string
-}
-
-func (a *namesAuthorizer) Authorize(ctx *context.T, call security.Call) error {
-	names, _ := security.RemoteBlessingNames(ctx, call)
-	vlog.VI(4).Infof("sync: Authorize: names %v", names)
-	if len(names) == 0 {
-		return verror.New(verror.ErrNoAccess, ctx)
-	}
-	sort.Strings(names)
-
-	if !reflect.DeepEqual(a.expNames, names) {
-		return verror.New(verror.ErrNoAccess, ctx)
-	}
-
-	vlog.VI(4).Infof("sync: Authorize: remote peer allowed")
-	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -492,9 +487,9 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 
 	localPfxs := extractAndSortPrefixes(local)
 
-	sgPfxs := make([]string, len(iSt.config.sgPfxs))
+	sgPfxs := make([]string, len(iSt.config.sharedSgPfxs))
 	i := 0
-	for p := range iSt.config.sgPfxs {
+	for p := range iSt.config.sharedSgPfxs {
 		sgPfxs[i] = p
 		i++
 	}
@@ -662,7 +657,9 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 					return err
 				}
 				// Check for BlobRefs, and process them.
-				if err := iSt.config.sync.processBlobRefs(ctx, iSt.config.peer.relName, iSt.config.sgPfxs, &rec.Metadata, v.Value.Value); err != nil {
+				if err := iSt.config.sync.processBlobRefs(ctx, appDbName(iSt.config.appName, iSt.config.dbName), tx,
+					iSt.config.peer.relName, false, iSt.config.allSgPfxs, iSt.config.sharedSgPfxs, &rec.Metadata, v.Value.Value); err != nil {
+
 					return err
 				}
 			}

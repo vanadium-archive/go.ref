@@ -144,6 +144,8 @@ type BlobStore interface {
 	SetBlobMetadata(ctx *context.T, blobID wire.BlobRef, bmd *BlobMetadata) error
 
 	// GetBlobMetadata() yields in *bmd the BlobMetadata associated with a blob.
+	// If there is an error, *bmd is set to a canonical empty BlobMetadata.
+	// On return, it is guaranteed that any maps in *bmd are non-nil.
 	GetBlobMetadata(ctx *context.T, blobID wire.BlobRef, bmd *BlobMetadata) error
 
 	// DeleteBlobMetadata() deletes the BlobMetadata for the specified blob.
@@ -160,6 +162,8 @@ type BlobStore interface {
 	SetSignpost(ctx *context.T, blobID wire.BlobRef, sp *interfaces.Signpost) error
 
 	// GetSignpost() yields in *sp the Signpost associated with a blob.
+	// If there is an error, *sp is set to a canonical empty Signpost.
+	// On return, it is guaranteed that any maps in *sp are non-nil.
 	GetSignpost(ctx *context.T, blobID wire.BlobRef, sp *interfaces.Signpost) error
 
 	// DeleteSignpost() deletes the Signpost for the specified blob.
@@ -176,6 +180,8 @@ type BlobStore interface {
 	SetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg *PerSyncgroup) error
 
 	// GetPerSyncgroup() yields in *psg the PerSyncgroup associated with a syncgroup.
+	// If there is an error, *psg is set to a canonical empty PerSyncgroup.
+	// On return, it is guaranteed that any maps in *psg are non-nil.
 	GetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg *PerSyncgroup) error
 
 	// DeletePerSyncgroup() deletes the PerSyncgroup for the specified syncgroup.

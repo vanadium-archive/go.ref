@@ -10,6 +10,7 @@ import "v.io/v23/context"
 import wire "v.io/v23/services/syncbase"
 import "v.io/v23/vom"
 import "v.io/x/ref/services/syncbase/localblobstore"
+import "v.io/x/ref/services/syncbase/server/interfaces"
 import "v.io/x/ref/services/syncbase/store"
 
 // metadataKey() returns the key used in the store to reference the metadata
@@ -30,6 +31,8 @@ func (bm *BlobMap) SetBlobMetadata(ctx *context.T, blobId wire.BlobRef, bmd *loc
 }
 
 // GetBlobMetadata() yields in *bmd the BlobMetadata associated with a blob.
+// If there is an error, *bmd is set to a canonical empty BlobMetadata.
+// On return, it is guaranteed that any maps in *bmd are non-nil.
 func (bm *BlobMap) GetBlobMetadata(ctx *context.T, blobId wire.BlobRef, bmd *localblobstore.BlobMetadata) (err error) {
 	var valBuf [maxBlobMetadataLen]byte
 	var val []byte
@@ -37,6 +40,12 @@ func (bm *BlobMap) GetBlobMetadata(ctx *context.T, blobId wire.BlobRef, bmd *loc
 	val, err = bm.st.Get(metadataKey(blobId), valBuf[:])
 	if err == nil {
 		err = vom.Decode(val, bmd)
+	}
+	if err != nil {
+		*bmd = localblobstore.BlobMetadata{}
+	}
+	if bmd.OwnerShares == nil {
+		bmd.OwnerShares = make(interfaces.BlobSharesBySyncgroup)
 	}
 	return err
 }

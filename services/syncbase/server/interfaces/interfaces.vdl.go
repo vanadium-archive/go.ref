@@ -1986,7 +1986,8 @@ func (t deltaRespTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Targe
 // A SgPriority represents data used to decide whether to transfer blob ownership
 // between two devices.
 type SgPriority struct {
-	Distance   int32     // number of hops from a server-quality member of the syncgroup
+	DevType    int32     // device type (BlobDevTypeServer, BlobDevTypeNormal, BlobDevTypeLeaf)
+	Distance   float32   // mean number of hops from a server-quality member of the syncgroup
 	ServerTime time.Time // when data from a server-quality member reached this device
 }
 
@@ -2000,19 +2001,19 @@ func (m *SgPriority) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Distance")
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("DevType")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		var4 := (m.Distance == int32(0))
+		var4 := (m.DevType == int32(0))
 		if var4 {
 			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
 		} else {
-			if err := fieldTarget3.FromInt(int64(m.Distance), tt.NonOptional().Field(0).Type); err != nil {
+			if err := fieldTarget3.FromInt(int64(m.DevType), tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
 		}
@@ -2020,29 +2021,49 @@ func (m *SgPriority) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			return err
 		}
 	}
-	var wireValue5 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue5, m.ServerTime); err != nil {
-		return err
-	}
-
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("ServerTime")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Distance")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		var8 := (wireValue5 == time_2.Time{})
-		if var8 {
-			if err := fieldTarget7.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+		var7 := (m.Distance == float32(0))
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget6.FromFloat(float64(m.Distance), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+			return err
+		}
+	}
+	var wireValue8 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue8, m.ServerTime); err != nil {
+		return err
+	}
+
+	keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("ServerTime")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var11 := (wireValue8 == time_2.Time{})
+		if var11 {
+			if err := fieldTarget10.FromZero(tt.NonOptional().Field(2).Type); err != nil {
 				return err
 			}
 		} else {
 
-			if err := wireValue5.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(1).Type); err != nil {
+			if err := wireValue8.FillVDLTarget(fieldTarget10, tt.NonOptional().Field(2).Type); err != nil {
 				return err
 			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
 			return err
 		}
 	}
@@ -2058,7 +2079,8 @@ func (m *SgPriority) MakeVDLTarget() vdl.Target {
 
 type SgPriorityTarget struct {
 	Value            *SgPriority
-	distanceTarget   vdl.Int32Target
+	devTypeTarget    vdl.Int32Target
+	distanceTarget   vdl.Float32Target
 	serverTimeTarget time_2.TimeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
@@ -2073,6 +2095,10 @@ func (t *SgPriorityTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 }
 func (t *SgPriorityTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
+	case "DevType":
+		t.devTypeTarget.Value = &t.Value.DevType
+		target, err := &t.devTypeTarget, error(nil)
+		return nil, target, err
 	case "Distance":
 		t.distanceTarget.Value = &t.Value.Distance
 		target, err := &t.distanceTarget, error(nil)
@@ -2863,13 +2889,241 @@ func (t *BlobSharesBySyncgroupTarget) FromZero(tt *vdl.Type) error {
 	return nil
 }
 
+// A LocationData is the information known about a particular location in a Signpost.
+// TODO(m3b): Include mount table information to allow the location to be found.
+type LocationData struct {
+	WhenSeen time.Time // most recent time when blob thought to have been at location
+	IsProxy  bool      // whether the location is a likely proxy to another syncgroup
+	IsServer bool      // whether the location is a server that may be revealed outside its syncgroup
+}
+
+func (LocationData) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.LocationData"`
+}) {
+}
+
+func (m *LocationData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	fieldsTarget1, err := t.StartFields(tt)
+	if err != nil {
+		return err
+	}
+	var wireValue2 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue2, m.WhenSeen); err != nil {
+		return err
+	}
+
+	keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("WhenSeen")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var5 := (wireValue2 == time_2.Time{})
+		if var5 {
+			if err := fieldTarget4.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		} else {
+
+			if err := wireValue2.FillVDLTarget(fieldTarget4, tt.NonOptional().Field(0).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+			return err
+		}
+	}
+	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("IsProxy")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var8 := (m.IsProxy == false)
+		if var8 {
+			if err := fieldTarget7.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget7.FromBool(bool(m.IsProxy), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+			return err
+		}
+	}
+	keyTarget9, fieldTarget10, err := fieldsTarget1.StartField("IsServer")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var11 := (m.IsServer == false)
+		if var11 {
+			if err := fieldTarget10.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget10.FromBool(bool(m.IsServer), tt.NonOptional().Field(2).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget9, fieldTarget10); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishFields(fieldsTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *LocationData) MakeVDLTarget() vdl.Target {
+	return &LocationDataTarget{Value: m}
+}
+
+type LocationDataTarget struct {
+	Value          *LocationData
+	whenSeenTarget time_2.TimeTarget
+	isProxyTarget  vdl.BoolTarget
+	isServerTarget vdl.BoolTarget
+	vdl.TargetBase
+	vdl.FieldsTargetBase
+}
+
+func (t *LocationDataTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+
+	if ttWant := vdl.TypeOf((*LocationData)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+	return t, nil
+}
+func (t *LocationDataTarget) StartField(name string) (key, field vdl.Target, _ error) {
+	switch name {
+	case "WhenSeen":
+		t.whenSeenTarget.Value = &t.Value.WhenSeen
+		target, err := &t.whenSeenTarget, error(nil)
+		return nil, target, err
+	case "IsProxy":
+		t.isProxyTarget.Value = &t.Value.IsProxy
+		target, err := &t.isProxyTarget, error(nil)
+		return nil, target, err
+	case "IsServer":
+		t.isServerTarget.Value = &t.Value.IsServer
+		target, err := &t.isServerTarget, error(nil)
+		return nil, target, err
+	default:
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.LocationData", name)
+	}
+}
+func (t *LocationDataTarget) FinishField(_, _ vdl.Target) error {
+	return nil
+}
+func (t *LocationDataTarget) FinishFields(_ vdl.FieldsTarget) error {
+
+	return nil
+}
+func (t *LocationDataTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = LocationData{}
+	return nil
+}
+
+// A PeerToLocationDataMap is a map from syncbase peer names to LocationData structures.
+type PeerToLocationDataMap map[string]LocationData
+
+func (PeerToLocationDataMap) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.PeerToLocationDataMap"`
+}) {
+}
+
+func (m *PeerToLocationDataMap) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+	mapTarget1, err := t.StartMap(tt, len((*m)))
+	if err != nil {
+		return err
+	}
+	for key3, value5 := range *m {
+		keyTarget2, err := mapTarget1.StartKey()
+		if err != nil {
+			return err
+		}
+		if err := keyTarget2.FromString(string(key3), tt.NonOptional().Key()); err != nil {
+			return err
+		}
+		valueTarget4, err := mapTarget1.FinishKeyStartField(keyTarget2)
+		if err != nil {
+			return err
+		}
+
+		if err := value5.FillVDLTarget(valueTarget4, tt.NonOptional().Elem()); err != nil {
+			return err
+		}
+		if err := mapTarget1.FinishField(keyTarget2, valueTarget4); err != nil {
+			return err
+		}
+	}
+	if err := t.FinishMap(mapTarget1); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *PeerToLocationDataMap) MakeVDLTarget() vdl.Target {
+	return &PeerToLocationDataMapTarget{Value: m}
+}
+
+type PeerToLocationDataMapTarget struct {
+	Value      *PeerToLocationDataMap
+	currKey    string
+	currElem   LocationData
+	keyTarget  vdl.StringTarget
+	elemTarget LocationDataTarget
+	vdl.TargetBase
+	vdl.MapTargetBase
+}
+
+func (t *PeerToLocationDataMapTarget) StartMap(tt *vdl.Type, len int) (vdl.MapTarget, error) {
+
+	if ttWant := vdl.TypeOf((*PeerToLocationDataMap)(nil)); !vdl.Compatible(tt, ttWant) {
+		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
+	}
+	*t.Value = make(PeerToLocationDataMap)
+	return t, nil
+}
+func (t *PeerToLocationDataMapTarget) StartKey() (key vdl.Target, _ error) {
+	t.currKey = ""
+	t.keyTarget.Value = &t.currKey
+	target, err := &t.keyTarget, error(nil)
+	return target, err
+}
+func (t *PeerToLocationDataMapTarget) FinishKeyStartField(key vdl.Target) (field vdl.Target, _ error) {
+	t.currElem = reflect.Zero(reflect.TypeOf(t.currElem)).Interface().(LocationData)
+	t.elemTarget.Value = &t.currElem
+	target, err := &t.elemTarget, error(nil)
+	return target, err
+}
+func (t *PeerToLocationDataMapTarget) FinishField(key, field vdl.Target) error {
+	(*t.Value)[t.currKey] = t.currElem
+	return nil
+}
+func (t *PeerToLocationDataMapTarget) FinishMap(elem vdl.MapTarget) error {
+	if len(*t.Value) == 0 {
+		*t.Value = nil
+	}
+
+	return nil
+}
+func (t *PeerToLocationDataMapTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = PeerToLocationDataMap(nil)
+	return nil
+}
+
 // A Signpost is a hint to syncbase of the device on which a blob may be found.
 // It represents the data known about a blob even when the blob itself is not
 // present on the device.
 type Signpost struct {
-	Peer   string               // Syncbase from which the presence of this BlobRef was first learned.
-	Source string               // Syncbase that originated this blob.
-	SgIds  map[GroupId]struct{} // SyncGroups through which the BlobRef was learned.
+	Locations PeerToLocationDataMap // Maps name of syncbase that probably has the blob to a LocationData
+	SgIds     map[GroupId]struct{}  // SyncGroups through which the BlobRef was learned.
 }
 
 func (Signpost) __VDLReflect(struct {
@@ -2882,19 +3136,23 @@ func (m *Signpost) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Peer")
+	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Locations")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		var4 := (m.Peer == "")
+		var var4 bool
+		if len(m.Locations) == 0 {
+			var4 = true
+		}
 		if var4 {
 			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
 		} else {
-			if err := fieldTarget3.FromString(string(m.Peer), tt.NonOptional().Field(0).Type); err != nil {
+
+			if err := m.Locations.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
 		}
@@ -2902,64 +3160,44 @@ func (m *Signpost) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			return err
 		}
 	}
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Source")
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("SgIds")
 	if err != vdl.ErrFieldNoExist && err != nil {
 		return err
 	}
 	if err != vdl.ErrFieldNoExist {
 
-		var7 := (m.Source == "")
+		var var7 bool
+		if len(m.SgIds) == 0 {
+			var7 = true
+		}
 		if var7 {
 			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
 		} else {
-			if err := fieldTarget6.FromString(string(m.Source), tt.NonOptional().Field(1).Type); err != nil {
-				return err
-			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-			return err
-		}
-	}
-	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("SgIds")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
 
-		var var10 bool
-		if len(m.SgIds) == 0 {
-			var10 = true
-		}
-		if var10 {
-			if err := fieldTarget9.FromZero(tt.NonOptional().Field(2).Type); err != nil {
-				return err
-			}
-		} else {
-
-			setTarget11, err := fieldTarget9.StartSet(tt.NonOptional().Field(2).Type, len(m.SgIds))
+			setTarget8, err := fieldTarget6.StartSet(tt.NonOptional().Field(1).Type, len(m.SgIds))
 			if err != nil {
 				return err
 			}
-			for key13 := range m.SgIds {
-				keyTarget12, err := setTarget11.StartKey()
+			for key10 := range m.SgIds {
+				keyTarget9, err := setTarget8.StartKey()
 				if err != nil {
 					return err
 				}
 
-				if err := key13.FillVDLTarget(keyTarget12, tt.NonOptional().Field(2).Type.Key()); err != nil {
+				if err := key10.FillVDLTarget(keyTarget9, tt.NonOptional().Field(1).Type.Key()); err != nil {
 					return err
 				}
-				if err := setTarget11.FinishKey(keyTarget12); err != nil {
+				if err := setTarget8.FinishKey(keyTarget9); err != nil {
 					return err
 				}
 			}
-			if err := fieldTarget9.FinishSet(setTarget11); err != nil {
+			if err := fieldTarget6.FinishSet(setTarget8); err != nil {
 				return err
 			}
 		}
-		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 			return err
 		}
 	}
@@ -2974,10 +3212,9 @@ func (m *Signpost) MakeVDLTarget() vdl.Target {
 }
 
 type SignpostTarget struct {
-	Value        *Signpost
-	peerTarget   vdl.StringTarget
-	sourceTarget vdl.StringTarget
-	sgIdsTarget  __VDLTarget2_set
+	Value           *Signpost
+	locationsTarget PeerToLocationDataMapTarget
+	sgIdsTarget     __VDLTarget2_set
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -2991,13 +3228,9 @@ func (t *SignpostTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 }
 func (t *SignpostTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
-	case "Peer":
-		t.peerTarget.Value = &t.Value.Peer
-		target, err := &t.peerTarget, error(nil)
-		return nil, target, err
-	case "Source":
-		t.sourceTarget.Value = &t.Value.Source
-		target, err := &t.sourceTarget, error(nil)
+	case "Locations":
+		t.locationsTarget.Value = &t.Value.Locations
+		target, err := &t.locationsTarget, error(nil)
 		return nil, target, err
 	case "SgIds":
 		t.sgIdsTarget.Value = &t.Value.SgIds
@@ -3089,6 +3322,8 @@ type SyncClientMethods interface {
 	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
 	// vectors for one Database for either syncgroup metadata or data.
+	// The final result (in DeltaFinalResp) currently includes the
+	// syncgroup priorities for blob ownership for the server.
 	GetDeltas(_ *context.T, req DeltaReq, initiator string, _ ...rpc.CallOpt) (SyncGetDeltasClientCall, error)
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
@@ -3120,10 +3355,29 @@ type SyncClientMethods interface {
 	// on the syncgroup history through p2p sync.
 	JoinSyncgroupAtAdmin(_ *context.T, sgName string, joinerName string, myInfo syncbase.SyncgroupMemberInfo, _ ...rpc.CallOpt) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
-	// present, returns its size.
-	HaveBlob(_ *context.T, br syncbase.BlobRef, _ ...rpc.CallOpt) (int64, error)
+	// present, returns its size.  Otherwise, it returns -1, and the location
+	// hints (the Signpost) that the peer has for the blob, filtered to
+	// include only data the caller is permitted to see:
+	// + Device D reveals a syncgroup SG to the caller C iff
+	//   - D is in SG, and
+	//   - SG is in the Signpost, and
+	//   - at least one of:
+	//     - SG is not private, or
+	//     - C has permission to join SG.
+	// + Device D reveals a location hint L to caller C iff
+	//   there is a syncgroup SG such that
+	//   - D is in SG, and
+	//   - SG is in the Signpost, and
+	//   - L is in SG, and
+	//   - at least one of:
+	//     - SG is not private, or
+	//     - C has permission to join SG, or
+	//     - L is a blob server in SG.
+	HaveBlob(_ *context.T, br syncbase.BlobRef, _ ...rpc.CallOpt) (size int64, signpost Signpost, _ error)
 	// FetchBlob fetches the requested blob.
-	FetchBlob(_ *context.T, br syncbase.BlobRef, _ ...rpc.CallOpt) (SyncFetchBlobClientCall, error)
+	// It returns a number of blob ownership shares that the server hopes
+	// the client will accept using the AcceptedBlobOwnership() call.
+	FetchBlob(_ *context.T, br syncbase.BlobRef, mySgPriorities SgPriorities, _ ...rpc.CallOpt) (SyncFetchBlobClientCall, error)
 	// Methods for incremental blob transfer. The transfer starts with the
 	// receiver making a FetchBlobRecipe call to the sender for a given
 	// BlobRef. The sender, in turn, sends the chunk hashes of all the
@@ -3133,8 +3387,28 @@ type SyncClientMethods interface {
 	// FetchChunks call from the sender. Finally, the receiver finishes the
 	// blob fetch by combining the chunks obtained over the network with the
 	// already available local chunks as per the blob recipe.
-	FetchBlobRecipe(_ *context.T, br syncbase.BlobRef, _ ...rpc.CallOpt) (SyncFetchBlobRecipeClientCall, error)
+	// callerName is the syncbase Id of the caller, expressed as a string.
+	// FetchBlobRecipe returns a number of blob ownership shares that the
+	// server hopes the client will accept for each syncgroup using the
+	// AcceptedBlobOwnership() call.
+	FetchBlobRecipe(_ *context.T, br syncbase.BlobRef, callerName string, mySgPriorities SgPriorities, _ ...rpc.CallOpt) (SyncFetchBlobRecipeClientCall, error)
 	FetchChunks(*context.T, ...rpc.CallOpt) (SyncFetchChunksClientCall, error)
+	// RequestTakeBlob indicates that the caller wishes the server to take
+	// some blob ownership shares for various syncgroups for the specified blob.
+	// If the server chooses to act on the request, it may call FetchBlob/FetchBlobRecipe,
+	// and ultimately AcceptedBlobOwnership().
+	// callerName is the syncbase Id of the caller, expressed as a string.
+	RequestTakeBlob(_ *context.T, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup, _ ...rpc.CallOpt) error
+	// AcceptedBlobOwnership tells the server that the client callerName (a
+	// syncbase Id expressed as a string) has accepted blob ownership of a
+	// specified number of shares for blob br.  The server may decrement
+	// its share count by up to this number.  It is safe for the server to
+	// decrement its share count by fewer than the number of shares another
+	// device has taken responsibility for, but unsafe to decrement it by
+	// more than that that number.  It returns a hint as to whether the
+	// server is likely to keep the blob itself, plus its syncbase Id
+	// expressed as a string.
+	AcceptedBlobOwnership(_ *context.T, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup, _ ...rpc.CallOpt) (serverName string, keepingBlob bool, _ error)
 }
 
 // SyncClientStub adds universal methods to SyncClientMethods.
@@ -3176,23 +3450,23 @@ func (c implSyncClientStub) JoinSyncgroupAtAdmin(ctx *context.T, i0 string, i1 s
 	return
 }
 
-func (c implSyncClientStub) HaveBlob(ctx *context.T, i0 syncbase.BlobRef, opts ...rpc.CallOpt) (o0 int64, err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "HaveBlob", []interface{}{i0}, []interface{}{&o0}, opts...)
+func (c implSyncClientStub) HaveBlob(ctx *context.T, i0 syncbase.BlobRef, opts ...rpc.CallOpt) (o0 int64, o1 Signpost, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "HaveBlob", []interface{}{i0}, []interface{}{&o0, &o1}, opts...)
 	return
 }
 
-func (c implSyncClientStub) FetchBlob(ctx *context.T, i0 syncbase.BlobRef, opts ...rpc.CallOpt) (ocall SyncFetchBlobClientCall, err error) {
+func (c implSyncClientStub) FetchBlob(ctx *context.T, i0 syncbase.BlobRef, i1 SgPriorities, opts ...rpc.CallOpt) (ocall SyncFetchBlobClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "FetchBlob", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "FetchBlob", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	ocall = &implSyncFetchBlobClientCall{ClientCall: call}
 	return
 }
 
-func (c implSyncClientStub) FetchBlobRecipe(ctx *context.T, i0 syncbase.BlobRef, opts ...rpc.CallOpt) (ocall SyncFetchBlobRecipeClientCall, err error) {
+func (c implSyncClientStub) FetchBlobRecipe(ctx *context.T, i0 syncbase.BlobRef, i1 string, i2 SgPriorities, opts ...rpc.CallOpt) (ocall SyncFetchBlobRecipeClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "FetchBlobRecipe", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "FetchBlobRecipe", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
 	}
 	ocall = &implSyncFetchBlobRecipeClientCall{ClientCall: call}
@@ -3205,6 +3479,16 @@ func (c implSyncClientStub) FetchChunks(ctx *context.T, opts ...rpc.CallOpt) (oc
 		return
 	}
 	ocall = &implSyncFetchChunksClientCall{ClientCall: call}
+	return
+}
+
+func (c implSyncClientStub) RequestTakeBlob(ctx *context.T, i0 syncbase.BlobRef, i1 string, i2 BlobSharesBySyncgroup, opts ...rpc.CallOpt) (err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "RequestTakeBlob", []interface{}{i0, i1, i2}, nil, opts...)
+	return
+}
+
+func (c implSyncClientStub) AcceptedBlobOwnership(ctx *context.T, i0 syncbase.BlobRef, i1 string, i2 BlobSharesBySyncgroup, opts ...rpc.CallOpt) (o0 string, o1 bool, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "AcceptedBlobOwnership", []interface{}{i0, i1, i2}, []interface{}{&o0, &o1}, opts...)
 	return
 }
 
@@ -3237,7 +3521,7 @@ type SyncGetDeltasClientCall interface {
 	// Calling Finish is mandatory for releasing stream resources, unless the call
 	// has been canceled or any of the other methods return an error.  Finish should
 	// be called at most once.
-	Finish() error
+	Finish() (DeltaFinalResp, error)
 }
 
 type implSyncGetDeltasClientCall struct {
@@ -3271,8 +3555,8 @@ func (c implSyncGetDeltasClientCallRecv) Err() error {
 	}
 	return c.c.errRecv
 }
-func (c *implSyncGetDeltasClientCall) Finish() (err error) {
-	err = c.ClientCall.Finish()
+func (c *implSyncGetDeltasClientCall) Finish() (o0 DeltaFinalResp, err error) {
+	err = c.ClientCall.Finish(&o0)
 	return
 }
 
@@ -3305,7 +3589,7 @@ type SyncFetchBlobClientCall interface {
 	// Calling Finish is mandatory for releasing stream resources, unless the call
 	// has been canceled or any of the other methods return an error.  Finish should
 	// be called at most once.
-	Finish() error
+	Finish() (shares BlobSharesBySyncgroup, _ error)
 }
 
 type implSyncFetchBlobClientCall struct {
@@ -3339,8 +3623,8 @@ func (c implSyncFetchBlobClientCallRecv) Err() error {
 	}
 	return c.c.errRecv
 }
-func (c *implSyncFetchBlobClientCall) Finish() (err error) {
-	err = c.ClientCall.Finish()
+func (c *implSyncFetchBlobClientCall) Finish() (o0 BlobSharesBySyncgroup, err error) {
+	err = c.ClientCall.Finish(&o0)
 	return
 }
 
@@ -3373,7 +3657,7 @@ type SyncFetchBlobRecipeClientCall interface {
 	// Calling Finish is mandatory for releasing stream resources, unless the call
 	// has been canceled or any of the other methods return an error.  Finish should
 	// be called at most once.
-	Finish() error
+	Finish() (shares BlobSharesBySyncgroup, _ error)
 }
 
 type implSyncFetchBlobRecipeClientCall struct {
@@ -3408,8 +3692,8 @@ func (c implSyncFetchBlobRecipeClientCallRecv) Err() error {
 	}
 	return c.c.errRecv
 }
-func (c *implSyncFetchBlobRecipeClientCall) Finish() (err error) {
-	err = c.ClientCall.Finish()
+func (c *implSyncFetchBlobRecipeClientCall) Finish() (o0 BlobSharesBySyncgroup, err error) {
+	err = c.ClientCall.Finish(&o0)
 	return
 }
 
@@ -3528,7 +3812,9 @@ type SyncServerMethods interface {
 	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
 	// vectors for one Database for either syncgroup metadata or data.
-	GetDeltas(_ *context.T, _ SyncGetDeltasServerCall, req DeltaReq, initiator string) error
+	// The final result (in DeltaFinalResp) currently includes the
+	// syncgroup priorities for blob ownership for the server.
+	GetDeltas(_ *context.T, _ SyncGetDeltasServerCall, req DeltaReq, initiator string) (DeltaFinalResp, error)
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
 	// Syncbase doing the publishing (the publisher) and returns the name
@@ -3559,10 +3845,29 @@ type SyncServerMethods interface {
 	// on the syncgroup history through p2p sync.
 	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, sgName string, joinerName string, myInfo syncbase.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
-	// present, returns its size.
-	HaveBlob(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef) (int64, error)
+	// present, returns its size.  Otherwise, it returns -1, and the location
+	// hints (the Signpost) that the peer has for the blob, filtered to
+	// include only data the caller is permitted to see:
+	// + Device D reveals a syncgroup SG to the caller C iff
+	//   - D is in SG, and
+	//   - SG is in the Signpost, and
+	//   - at least one of:
+	//     - SG is not private, or
+	//     - C has permission to join SG.
+	// + Device D reveals a location hint L to caller C iff
+	//   there is a syncgroup SG such that
+	//   - D is in SG, and
+	//   - SG is in the Signpost, and
+	//   - L is in SG, and
+	//   - at least one of:
+	//     - SG is not private, or
+	//     - C has permission to join SG, or
+	//     - L is a blob server in SG.
+	HaveBlob(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef) (size int64, signpost Signpost, _ error)
 	// FetchBlob fetches the requested blob.
-	FetchBlob(_ *context.T, _ SyncFetchBlobServerCall, br syncbase.BlobRef) error
+	// It returns a number of blob ownership shares that the server hopes
+	// the client will accept using the AcceptedBlobOwnership() call.
+	FetchBlob(_ *context.T, _ SyncFetchBlobServerCall, br syncbase.BlobRef, mySgPriorities SgPriorities) (shares BlobSharesBySyncgroup, _ error)
 	// Methods for incremental blob transfer. The transfer starts with the
 	// receiver making a FetchBlobRecipe call to the sender for a given
 	// BlobRef. The sender, in turn, sends the chunk hashes of all the
@@ -3572,8 +3877,28 @@ type SyncServerMethods interface {
 	// FetchChunks call from the sender. Finally, the receiver finishes the
 	// blob fetch by combining the chunks obtained over the network with the
 	// already available local chunks as per the blob recipe.
-	FetchBlobRecipe(_ *context.T, _ SyncFetchBlobRecipeServerCall, br syncbase.BlobRef) error
+	// callerName is the syncbase Id of the caller, expressed as a string.
+	// FetchBlobRecipe returns a number of blob ownership shares that the
+	// server hopes the client will accept for each syncgroup using the
+	// AcceptedBlobOwnership() call.
+	FetchBlobRecipe(_ *context.T, _ SyncFetchBlobRecipeServerCall, br syncbase.BlobRef, callerName string, mySgPriorities SgPriorities) (shares BlobSharesBySyncgroup, _ error)
 	FetchChunks(*context.T, SyncFetchChunksServerCall) error
+	// RequestTakeBlob indicates that the caller wishes the server to take
+	// some blob ownership shares for various syncgroups for the specified blob.
+	// If the server chooses to act on the request, it may call FetchBlob/FetchBlobRecipe,
+	// and ultimately AcceptedBlobOwnership().
+	// callerName is the syncbase Id of the caller, expressed as a string.
+	RequestTakeBlob(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup) error
+	// AcceptedBlobOwnership tells the server that the client callerName (a
+	// syncbase Id expressed as a string) has accepted blob ownership of a
+	// specified number of shares for blob br.  The server may decrement
+	// its share count by up to this number.  It is safe for the server to
+	// decrement its share count by fewer than the number of shares another
+	// device has taken responsibility for, but unsafe to decrement it by
+	// more than that that number.  It returns a hint as to whether the
+	// server is likely to keep the blob itself, plus its syncbase Id
+	// expressed as a string.
+	AcceptedBlobOwnership(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup) (serverName string, keepingBlob bool, _ error)
 }
 
 // SyncServerStubMethods is the server interface containing
@@ -3587,7 +3912,9 @@ type SyncServerStubMethods interface {
 	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
 	// vectors for one Database for either syncgroup metadata or data.
-	GetDeltas(_ *context.T, _ *SyncGetDeltasServerCallStub, req DeltaReq, initiator string) error
+	// The final result (in DeltaFinalResp) currently includes the
+	// syncgroup priorities for blob ownership for the server.
+	GetDeltas(_ *context.T, _ *SyncGetDeltasServerCallStub, req DeltaReq, initiator string) (DeltaFinalResp, error)
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
 	// Syncbase doing the publishing (the publisher) and returns the name
@@ -3618,10 +3945,29 @@ type SyncServerStubMethods interface {
 	// on the syncgroup history through p2p sync.
 	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, sgName string, joinerName string, myInfo syncbase.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
-	// present, returns its size.
-	HaveBlob(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef) (int64, error)
+	// present, returns its size.  Otherwise, it returns -1, and the location
+	// hints (the Signpost) that the peer has for the blob, filtered to
+	// include only data the caller is permitted to see:
+	// + Device D reveals a syncgroup SG to the caller C iff
+	//   - D is in SG, and
+	//   - SG is in the Signpost, and
+	//   - at least one of:
+	//     - SG is not private, or
+	//     - C has permission to join SG.
+	// + Device D reveals a location hint L to caller C iff
+	//   there is a syncgroup SG such that
+	//   - D is in SG, and
+	//   - SG is in the Signpost, and
+	//   - L is in SG, and
+	//   - at least one of:
+	//     - SG is not private, or
+	//     - C has permission to join SG, or
+	//     - L is a blob server in SG.
+	HaveBlob(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef) (size int64, signpost Signpost, _ error)
 	// FetchBlob fetches the requested blob.
-	FetchBlob(_ *context.T, _ *SyncFetchBlobServerCallStub, br syncbase.BlobRef) error
+	// It returns a number of blob ownership shares that the server hopes
+	// the client will accept using the AcceptedBlobOwnership() call.
+	FetchBlob(_ *context.T, _ *SyncFetchBlobServerCallStub, br syncbase.BlobRef, mySgPriorities SgPriorities) (shares BlobSharesBySyncgroup, _ error)
 	// Methods for incremental blob transfer. The transfer starts with the
 	// receiver making a FetchBlobRecipe call to the sender for a given
 	// BlobRef. The sender, in turn, sends the chunk hashes of all the
@@ -3631,8 +3977,28 @@ type SyncServerStubMethods interface {
 	// FetchChunks call from the sender. Finally, the receiver finishes the
 	// blob fetch by combining the chunks obtained over the network with the
 	// already available local chunks as per the blob recipe.
-	FetchBlobRecipe(_ *context.T, _ *SyncFetchBlobRecipeServerCallStub, br syncbase.BlobRef) error
+	// callerName is the syncbase Id of the caller, expressed as a string.
+	// FetchBlobRecipe returns a number of blob ownership shares that the
+	// server hopes the client will accept for each syncgroup using the
+	// AcceptedBlobOwnership() call.
+	FetchBlobRecipe(_ *context.T, _ *SyncFetchBlobRecipeServerCallStub, br syncbase.BlobRef, callerName string, mySgPriorities SgPriorities) (shares BlobSharesBySyncgroup, _ error)
 	FetchChunks(*context.T, *SyncFetchChunksServerCallStub) error
+	// RequestTakeBlob indicates that the caller wishes the server to take
+	// some blob ownership shares for various syncgroups for the specified blob.
+	// If the server chooses to act on the request, it may call FetchBlob/FetchBlobRecipe,
+	// and ultimately AcceptedBlobOwnership().
+	// callerName is the syncbase Id of the caller, expressed as a string.
+	RequestTakeBlob(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup) error
+	// AcceptedBlobOwnership tells the server that the client callerName (a
+	// syncbase Id expressed as a string) has accepted blob ownership of a
+	// specified number of shares for blob br.  The server may decrement
+	// its share count by up to this number.  It is safe for the server to
+	// decrement its share count by fewer than the number of shares another
+	// device has taken responsibility for, but unsafe to decrement it by
+	// more than that that number.  It returns a hint as to whether the
+	// server is likely to keep the blob itself, plus its syncbase Id
+	// expressed as a string.
+	AcceptedBlobOwnership(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup) (serverName string, keepingBlob bool, _ error)
 }
 
 // SyncServerStub adds universal methods to SyncServerStubMethods.
@@ -3668,7 +4034,7 @@ func (s implSyncServerStub) GetTime(ctx *context.T, call rpc.ServerCall, i0 Time
 	return s.impl.GetTime(ctx, call, i0, i1)
 }
 
-func (s implSyncServerStub) GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, i0 DeltaReq, i1 string) error {
+func (s implSyncServerStub) GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, i0 DeltaReq, i1 string) (DeltaFinalResp, error) {
 	return s.impl.GetDeltas(ctx, call, i0, i1)
 }
 
@@ -3680,20 +4046,28 @@ func (s implSyncServerStub) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.Server
 	return s.impl.JoinSyncgroupAtAdmin(ctx, call, i0, i1, i2)
 }
 
-func (s implSyncServerStub) HaveBlob(ctx *context.T, call rpc.ServerCall, i0 syncbase.BlobRef) (int64, error) {
+func (s implSyncServerStub) HaveBlob(ctx *context.T, call rpc.ServerCall, i0 syncbase.BlobRef) (int64, Signpost, error) {
 	return s.impl.HaveBlob(ctx, call, i0)
 }
 
-func (s implSyncServerStub) FetchBlob(ctx *context.T, call *SyncFetchBlobServerCallStub, i0 syncbase.BlobRef) error {
-	return s.impl.FetchBlob(ctx, call, i0)
+func (s implSyncServerStub) FetchBlob(ctx *context.T, call *SyncFetchBlobServerCallStub, i0 syncbase.BlobRef, i1 SgPriorities) (BlobSharesBySyncgroup, error) {
+	return s.impl.FetchBlob(ctx, call, i0, i1)
 }
 
-func (s implSyncServerStub) FetchBlobRecipe(ctx *context.T, call *SyncFetchBlobRecipeServerCallStub, i0 syncbase.BlobRef) error {
-	return s.impl.FetchBlobRecipe(ctx, call, i0)
+func (s implSyncServerStub) FetchBlobRecipe(ctx *context.T, call *SyncFetchBlobRecipeServerCallStub, i0 syncbase.BlobRef, i1 string, i2 SgPriorities) (BlobSharesBySyncgroup, error) {
+	return s.impl.FetchBlobRecipe(ctx, call, i0, i1, i2)
 }
 
 func (s implSyncServerStub) FetchChunks(ctx *context.T, call *SyncFetchChunksServerCallStub) error {
 	return s.impl.FetchChunks(ctx, call)
+}
+
+func (s implSyncServerStub) RequestTakeBlob(ctx *context.T, call rpc.ServerCall, i0 syncbase.BlobRef, i1 string, i2 BlobSharesBySyncgroup) error {
+	return s.impl.RequestTakeBlob(ctx, call, i0, i1, i2)
+}
+
+func (s implSyncServerStub) AcceptedBlobOwnership(ctx *context.T, call rpc.ServerCall, i0 syncbase.BlobRef, i1 string, i2 BlobSharesBySyncgroup) (string, bool, error) {
+	return s.impl.AcceptedBlobOwnership(ctx, call, i0, i1, i2)
 }
 
 func (s implSyncServerStub) Globber() *rpc.GlobState {
@@ -3726,10 +4100,13 @@ var descSync = rpc.InterfaceDesc{
 		},
 		{
 			Name: "GetDeltas",
-			Doc:  "// GetDeltas returns the responder's current generation vectors and all\n// the missing log records when compared to the initiator's generation\n// vectors for one Database for either syncgroup metadata or data.",
+			Doc:  "// GetDeltas returns the responder's current generation vectors and all\n// the missing log records when compared to the initiator's generation\n// vectors for one Database for either syncgroup metadata or data.\n// The final result (in DeltaFinalResp) currently includes the\n// syncgroup priorities for blob ownership for the server.",
 			InArgs: []rpc.ArgDesc{
 				{"req", ``},       // DeltaReq
 				{"initiator", ``}, // string
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // DeltaFinalResp
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
@@ -3764,30 +4141,62 @@ var descSync = rpc.InterfaceDesc{
 		},
 		{
 			Name: "HaveBlob",
-			Doc:  "// HaveBlob verifies that the peer has the requested blob, and if\n// present, returns its size.",
+			Doc:  "// HaveBlob verifies that the peer has the requested blob, and if\n// present, returns its size.  Otherwise, it returns -1, and the location\n// hints (the Signpost) that the peer has for the blob, filtered to\n// include only data the caller is permitted to see:\n// + Device D reveals a syncgroup SG to the caller C iff\n//   - D is in SG, and\n//   - SG is in the Signpost, and\n//   - at least one of:\n//     - SG is not private, or\n//     - C has permission to join SG.\n// + Device D reveals a location hint L to caller C iff\n//   there is a syncgroup SG such that\n//   - D is in SG, and\n//   - SG is in the Signpost, and\n//   - L is in SG, and\n//   - at least one of:\n//     - SG is not private, or\n//     - C has permission to join SG, or\n//     - L is a blob server in SG.",
 			InArgs: []rpc.ArgDesc{
 				{"br", ``}, // syncbase.BlobRef
 			},
 			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // int64
+				{"size", ``},     // int64
+				{"signpost", ``}, // Signpost
 			},
 		},
 		{
 			Name: "FetchBlob",
-			Doc:  "// FetchBlob fetches the requested blob.",
+			Doc:  "// FetchBlob fetches the requested blob.\n// It returns a number of blob ownership shares that the server hopes\n// the client will accept using the AcceptedBlobOwnership() call.",
 			InArgs: []rpc.ArgDesc{
-				{"br", ``}, // syncbase.BlobRef
+				{"br", ``},             // syncbase.BlobRef
+				{"mySgPriorities", ``}, // SgPriorities
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"shares", ``}, // BlobSharesBySyncgroup
 			},
 		},
 		{
 			Name: "FetchBlobRecipe",
-			Doc:  "// Methods for incremental blob transfer. The transfer starts with the\n// receiver making a FetchBlobRecipe call to the sender for a given\n// BlobRef. The sender, in turn, sends the chunk hashes of all the\n// chunks that make up the requested blob (blob recipe). The receiver\n// looks up the chunk hashes in its local blob store, and identifies the\n// missing ones. The receiver then fetches the missing chunks using a\n// FetchChunks call from the sender. Finally, the receiver finishes the\n// blob fetch by combining the chunks obtained over the network with the\n// already available local chunks as per the blob recipe.",
+			Doc:  "// Methods for incremental blob transfer. The transfer starts with the\n// receiver making a FetchBlobRecipe call to the sender for a given\n// BlobRef. The sender, in turn, sends the chunk hashes of all the\n// chunks that make up the requested blob (blob recipe). The receiver\n// looks up the chunk hashes in its local blob store, and identifies the\n// missing ones. The receiver then fetches the missing chunks using a\n// FetchChunks call from the sender. Finally, the receiver finishes the\n// blob fetch by combining the chunks obtained over the network with the\n// already available local chunks as per the blob recipe.\n// callerName is the syncbase Id of the caller, expressed as a string.\n// FetchBlobRecipe returns a number of blob ownership shares that the\n// server hopes the client will accept for each syncgroup using the\n// AcceptedBlobOwnership() call.",
 			InArgs: []rpc.ArgDesc{
-				{"br", ``}, // syncbase.BlobRef
+				{"br", ``},             // syncbase.BlobRef
+				{"callerName", ``},     // string
+				{"mySgPriorities", ``}, // SgPriorities
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"shares", ``}, // BlobSharesBySyncgroup
 			},
 		},
 		{
 			Name: "FetchChunks",
+		},
+		{
+			Name: "RequestTakeBlob",
+			Doc:  "// RequestTakeBlob indicates that the caller wishes the server to take\n// some blob ownership shares for various syncgroups for the specified blob.\n// If the server chooses to act on the request, it may call FetchBlob/FetchBlobRecipe,\n// and ultimately AcceptedBlobOwnership().\n// callerName is the syncbase Id of the caller, expressed as a string.",
+			InArgs: []rpc.ArgDesc{
+				{"br", ``},         // syncbase.BlobRef
+				{"callerName", ``}, // string
+				{"shares", ``},     // BlobSharesBySyncgroup
+			},
+		},
+		{
+			Name: "AcceptedBlobOwnership",
+			Doc:  "// AcceptedBlobOwnership tells the server that the client callerName (a\n// syncbase Id expressed as a string) has accepted blob ownership of a\n// specified number of shares for blob br.  The server may decrement\n// its share count by up to this number.  It is safe for the server to\n// decrement its share count by fewer than the number of shares another\n// device has taken responsibility for, but unsafe to decrement it by\n// more than that that number.  It returns a hint as to whether the\n// server is likely to keep the blob itself, plus its syncbase Id\n// expressed as a string.",
+			InArgs: []rpc.ArgDesc{
+				{"br", ``},         // syncbase.BlobRef
+				{"callerName", ``}, // string
+				{"shares", ``},     // BlobSharesBySyncgroup
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"serverName", ``},  // string
+				{"keepingBlob", ``}, // bool
+			},
 		},
 	},
 }
@@ -4047,6 +4456,8 @@ func __VDLInit() struct{} {
 	vdl.Register((*TimeReq)(nil))
 	vdl.Register((*TimeResp)(nil))
 	vdl.Register((*BlobSharesBySyncgroup)(nil))
+	vdl.Register((*LocationData)(nil))
+	vdl.Register((*PeerToLocationDataMap)(nil))
 	vdl.Register((*Signpost)(nil))
 
 	// Set error format strings.

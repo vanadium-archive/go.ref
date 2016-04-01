@@ -282,8 +282,8 @@ func (ds *dummyStream) RecvStream() interface {
 
 func (*dummyStream) Err() error { return nil }
 
-func (ds *dummyStream) Finish() error {
-	return nil
+func (ds *dummyStream) Finish() (interfaces.DeltaFinalResp, error) {
+	return interfaces.DeltaFinalResp{}, nil
 }
 
 func (ds *dummyStream) Cancel() {

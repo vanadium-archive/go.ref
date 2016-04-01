@@ -31,6 +31,7 @@ import (
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
+	blob "v.io/x/ref/services/syncbase/localblobstore"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/watchable"
@@ -178,6 +179,17 @@ func (s *syncService) addSyncgroup(ctx *context.T, tx *watchable.Transaction, ve
 		return verror.New(verror.ErrExist, ctx, "group id already exists")
 	}
 
+	// By default, the priority of this device with respect to blobs is
+	// low, so the "Distance" metric is non-zero.
+	psg := blob.PerSyncgroup{Priority: interfaces.SgPriority{DevType: wire.BlobDevTypeNormal, Distance: 1}}
+	if myInfo, ok := sg.Joiners[s.name]; ok {
+		psg.Priority.DevType = int32(myInfo.BlobDevType)
+		psg.Priority.Distance = float32(myInfo.BlobDevType)
+	}
+	if err := s.bst.SetPerSyncgroup(ctx, sg.Id, &psg); err != nil {
+		return err
+	}
+
 	state := SgLocalState{
 		RemotePublisher: remotePublisher,
 		SyncPending:     !creator,
@@ -303,16 +315,18 @@ func getSyncgroupByName(ctx *context.T, st store.StoreReader, name string) (*int
 }
 
 // delSyncgroupById deletes the syncgroup given its ID.
-func delSyncgroupById(ctx *context.T, tx *watchable.Transaction, gid interfaces.GroupId) error {
+// bst may be nil.
+func delSyncgroupById(ctx *context.T, bst blob.BlobStore, tx *watchable.Transaction, gid interfaces.GroupId) error {
 	sg, err := getSyncgroupById(ctx, tx, gid)
 	if err != nil {
 		return err
 	}
-	return delSyncgroupByName(ctx, tx, sg.Name)
+	return delSyncgroupByName(ctx, bst, tx, sg.Name)
 }
 
 // delSyncgroupByName deletes the syncgroup given its name.
-func delSyncgroupByName(ctx *context.T, tx *watchable.Transaction, name string) error {
+// bst may be nil.
+func delSyncgroupByName(ctx *context.T, bst blob.BlobStore, tx *watchable.Transaction, name string) error {
 	// Get the syncgroup ID and current version.
 	gid, err := getSyncgroupId(ctx, tx, name)
 	if err != nil {
@@ -329,6 +343,12 @@ func delSyncgroupByName(ctx *context.T, tx *watchable.Transaction, name string) 
 	}
 	if err := delSGIdEntry(ctx, tx, gid); err != nil {
 		return err
+	}
+
+	// Delete the blob-related per-syncgroup information; ignore errors
+	// from this call.
+	if bst != nil {
+		bst.DeletePerSyncgroup(ctx, gid)
 	}
 
 	// Delete all versioned syncgroup data entries (same versions as DAG
@@ -495,6 +515,81 @@ func (s *syncService) copyMemberInfo(ctx *context.T, member string) *memberInfo 
 	}
 
 	return infoCopy
+}
+
+// sgPriorityLowerThan returns whether *a is a lower priority than *b.
+func sgPriorityLowerThan(a *interfaces.SgPriority, b *interfaces.SgPriority) bool {
+	if a.DevType == wire.BlobDevTypeServer {
+		// Nothing has higher priority than a server.
+		return false
+	} else if a.DevType != b.DevType {
+		// Different device types have priority defined by the type.
+		return b.DevType < a.DevType
+	} else if b.ServerTime.After(a.ServerTime.Add(blobRecencyTimeSlop)) {
+		// Devices with substantially fresher data from a server have higher priority.
+		return true
+	} else {
+		// If the devices have equally fresh data, prefer the shorter sync distance.
+		return b.ServerTime.After(a.ServerTime.Add(-blobRecencyTimeSlop)) && (b.Distance < a.Distance)
+	}
+}
+
+// updateSyncgroupPriority updates the local syncgroup priority for blob
+// ownership in *local, using *remote, the corresponding priority from a remote
+// peer with which this device has recently communicated.  Returns whether
+// *local was modified.
+func updateSyncgroupPriority(ctx *context.T, local *interfaces.SgPriority, remote *interfaces.SgPriority) (modified bool) {
+	if sgPriorityLowerThan(local, remote) { // Never returns true if "local" is a server.
+		// The local device is not a "server" for the syncgroup, and
+		// has less-recent communication than the remote device.
+
+		// Derive priority from this remote peer.
+		local.Distance = (local.Distance*(blobSyncDistanceDecay-1) + (remote.Distance + 1)) / blobSyncDistanceDecay
+		if remote.DevType == wire.BlobDevTypeServer {
+			local.ServerTime = time.Now()
+		} else {
+			local.ServerTime = remote.ServerTime
+		}
+		modified = true
+	}
+	return modified
+}
+
+// updateAllSyncgroupPriorities updates local syncgroup blob-ownership
+// priorities, based on priority data from a peer.
+func updateAllSyncgroupPriorities(ctx *context.T, bst blob.BlobStore, remoteSgPriorities interfaces.SgPriorities) (anyErr error) {
+	for sgId, remoteSgPriority := range remoteSgPriorities {
+		var perSyncgroup blob.PerSyncgroup
+		err := bst.GetPerSyncgroup(ctx, sgId, &perSyncgroup)
+		if err == nil && updateSyncgroupPriority(ctx, &perSyncgroup.Priority, &remoteSgPriority) {
+			err = bst.SetPerSyncgroup(ctx, sgId, &perSyncgroup)
+		}
+		// Keep going even if there was an error, but return the first
+		// error encountered.  Higher levels might wish to log the
+		// error, but might not wish to consider the syncing operation
+		// as failing merely because the priorities could not be
+		// updated.
+		if err != nil && anyErr == nil {
+			anyErr = err
+		}
+	}
+	return anyErr
+}
+
+// addSyncgroupPriorities inserts into map sgPriMap the syncgroups in sgIds,
+// together with their local blob-ownership priorities.
+func addSyncgroupPriorities(ctx *context.T, bst blob.BlobStore, sgIds sgSet, sgPriMap interfaces.SgPriorities) error {
+	var firstErr error
+	for sgId := range sgIds {
+		var perSyncgroup blob.PerSyncgroup
+		err := bst.GetPerSyncgroup(ctx, sgId, &perSyncgroup)
+		if err == nil {
+			sgPriMap[sgId] = perSyncgroup.Priority
+		} else if firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }
 
 // Low-level utility functions to access DB entries without tracking their
@@ -966,8 +1061,8 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 		// Check if this peer is allowed to change the spec.
 		// blessingNames, _ := security.RemoteBlessingNames(ctx, call.Security())
 		// vlog.VI(4).Infof("sync: SetSyncgroupSpec: authorizing blessings %v against permissions %v", blessingNames, sg.Spec.Perms)
-		// if err := authorizeForTag(ctx, sg.Spec.Perms, access.Admin, blessingNames); err != nil {
-		// return err
+		// if !isAuthorizedForTag(sg.Spec.Perms, access.Admin, blessingNames) {
+		//   return verror.New(verror.ErrNoAccess, ctx)
 		// }
 
 		// TODO(hpucha): Check syncgroup ACL for sanity checking.
@@ -1227,12 +1322,11 @@ func authorize(ctx *context.T, call security.Call, sg *interfaces.Syncgroup) err
 	return nil
 }
 
-func authorizeForTag(ctx *context.T, perms access.Permissions, tag access.Tag, blessingNames []string) error {
+// isAuthorizedForTag returns whether at least one of the blessingNames is
+// authorized via the specified tag in perms.
+func isAuthorizedForTag(perms access.Permissions, tag access.Tag, blessingNames []string) bool {
 	acl, exists := perms[string(tag)]
-	if exists && acl.Includes(blessingNames...) {
-		return nil
-	}
-	return verror.New(verror.ErrNoAccess, ctx)
+	return exists && acl.Includes(blessingNames...)
 }
 
 // Check the acl against all known blessings.
@@ -1246,10 +1340,7 @@ func syncgroupAdmin(ctx *context.T, perms access.Permissions) bool {
 		blessingNames = append(blessingNames, security.BlessingNames(p, blessings)...)
 	}
 
-	if err := authorizeForTag(ctx, perms, access.Admin, blessingNames); err != nil {
-		return false
-	}
-	return true
+	return isAuthorizedForTag(perms, access.Admin, blessingNames)
 }
 
 ////////////////////////////////////////////////////////////

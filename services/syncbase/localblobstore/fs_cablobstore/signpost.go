@@ -18,6 +18,8 @@ func (fscabs *FsCaBlobStore) SetSignpost(ctx *context.T, blobID wire.BlobRef, sp
 }
 
 // GetSignpost() yields in *sp the Signpost associated with a blob.
+// If there is an error, *sp is set to a canonical empty Signpost.
+// On return, it is guaranteed that any maps in *sp are non-nil.
 func (fscabs *FsCaBlobStore) GetSignpost(ctx *context.T, blobID wire.BlobRef, sp *interfaces.Signpost) error {
 	return fscabs.bm.GetSignpost(ctx, blobID, sp)
 }

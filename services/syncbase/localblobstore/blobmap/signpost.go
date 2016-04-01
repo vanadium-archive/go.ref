@@ -30,6 +30,8 @@ func (bm *BlobMap) SetSignpost(ctx *context.T, blobId wire.BlobRef, sp *interfac
 }
 
 // GetSignpost() yields in *sp the Signpost associated with a blob.
+// If there is an error, *sp is set to a canonical empty Signpost.
+// On return, it is guaranteed that any maps in *sp are non-nil.
 func (bm *BlobMap) GetSignpost(ctx *context.T, blobId wire.BlobRef, sp *interfaces.Signpost) (err error) {
 	var valBuf [maxSignpostLen]byte
 	var val []byte
@@ -37,7 +39,15 @@ func (bm *BlobMap) GetSignpost(ctx *context.T, blobId wire.BlobRef, sp *interfac
 	if err == nil {
 		err = vom.Decode(val, sp)
 	}
-
+	if err != nil {
+		*sp = interfaces.Signpost{}
+	}
+	if sp.Locations == nil {
+		sp.Locations = make(interfaces.PeerToLocationDataMap)
+	}
+	if sp.SgIds == nil {
+		sp.SgIds = make(map[interfaces.GroupId]struct{})
+	}
 	return err
 }
 

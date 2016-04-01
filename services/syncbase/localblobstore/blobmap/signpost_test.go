@@ -9,8 +9,8 @@ package blobmap_test
 import "fmt"
 import "io/ioutil"
 import "os"
-import "reflect"
 import "testing"
+import "time"
 
 import wire "v.io/v23/services/syncbase"
 import "v.io/v23/verror"
@@ -19,6 +19,27 @@ import "v.io/x/ref/services/syncbase/server/interfaces"
 import "v.io/x/ref/services/syncbase/store"
 import "v.io/x/ref/test"
 import _ "v.io/x/ref/runtime/factories/generic"
+
+// signpostEq() returns whether Signpost objects *a and *b are equal.
+func signpostEq(a *interfaces.Signpost, b *interfaces.Signpost) bool {
+	// We avoid reflect.DeepEqual() because LocationData contains a
+	// time.Time which is routinely given a different time zone
+	// (time.Location).
+	if len(a.Locations) != len(b.Locations) || len(a.SgIds) != len(b.SgIds) {
+		return false
+	}
+	for sg := range a.SgIds {
+		if _, exists := b.SgIds[sg]; !exists {
+			return false
+		}
+	}
+	for peer, aLocData := range a.Locations {
+		if bLocData, exists := b.Locations[peer]; !exists || !aLocData.WhenSeen.Equal(bLocData.WhenSeen) {
+			return false
+		}
+	}
+	return true
+}
 
 // TestAddRetrieveAndDeleteSignpost() tests insertion, retrieval, and deletion
 // of Signpost entries from a BlobMap.  It's all done in one test case, because
@@ -46,17 +67,20 @@ func TestAddRetrieveAndDeleteSignpost(t *testing.T) {
 	// Two blob Ids: b[0] and b[1].
 	b := []wire.BlobRef{"foo", "bar"}
 
-	var sp interfaces.Signpost
 	var spList []interfaces.Signpost
 	for i := range b {
+		var sp interfaces.Signpost
 		err = bm.GetSignpost(ctx, b[i], &sp)
 		if err == nil {
 			t.Errorf("blobmap_test: blob: %v already has a Signpost", b[i])
 		}
 	}
+	locationData := interfaces.LocationData{WhenSeen: time.Now()}
 	for i := range b {
-		sp.Peer = fmt.Sprintf("peer of blob %d", i)
-		sp.Source = fmt.Sprintf("source of blob %d", i)
+		var sp interfaces.Signpost
+		sp.Locations = make(interfaces.PeerToLocationDataMap)
+		sp.Locations[fmt.Sprintf("peer of blob %d", i)] = locationData
+		sp.Locations[fmt.Sprintf("source of blob %d", i)] = locationData
 		spList = append(spList, sp)
 		err = bm.SetSignpost(ctx, b[i], &sp)
 		if err != nil {
@@ -64,11 +88,12 @@ func TestAddRetrieveAndDeleteSignpost(t *testing.T) {
 		}
 	}
 	for i := range b {
+		var sp interfaces.Signpost
 		err = bm.GetSignpost(ctx, b[i], &sp)
 		if err != nil {
 			t.Errorf("blobmap_test: GetSignpost(%v) got error: %v", b[i], err)
-		} else if !reflect.DeepEqual(&sp, &spList[i]) {
-			t.Errorf("blobmap_test: GetSignpost(%v) got wrong content: %v, want %v", b[i], sp, spList[i])
+		} else if !signpostEq(&sp, &spList[i]) {
+			t.Errorf("blobmap_test: GetSignpost(%v) got wrong content: %#v, want %#v", b[i], sp, spList[i])
 		}
 	}
 
@@ -77,14 +102,14 @@ func TestAddRetrieveAndDeleteSignpost(t *testing.T) {
 	ss := bm.NewSignpostStream(ctx)
 	for ss.Advance() {
 		blob := ss.BlobId()
-		sp = ss.Signpost()
+		var sp interfaces.Signpost = ss.Signpost()
 		// Find the blob in the list.
 		var i int
 		for i = 0; i != len(b) && blob != b[i]; i++ {
 		}
 		if i == len(b) {
 			t.Errorf("blobmap_test: SignpostStream iteration %d, got blob Id %v, which is not in %v", count, blob, b)
-		} else if !reflect.DeepEqual(&sp, &spList[i]) {
+		} else if !signpostEq(&sp, &spList[i]) {
 			t.Errorf("blobmap_test: SignpostStream iteration %d, blob[%d]=%v, got Signpost %v, want %v", count, i, blob, sp, spList[i])
 		}
 		count++
@@ -117,6 +142,7 @@ func TestAddRetrieveAndDeleteSignpost(t *testing.T) {
 
 	// Check that we can no longer get the first element, and we can get the others.
 	for i := range b {
+		var sp interfaces.Signpost
 		err = bm.GetSignpost(ctx, b[i], &sp)
 		if i == 0 {
 			if err == nil {
@@ -124,7 +150,7 @@ func TestAddRetrieveAndDeleteSignpost(t *testing.T) {
 			}
 		} else if err != nil {
 			t.Errorf("blobmap_test: GetSignpost(%v) got error: %v", b[i], err)
-		} else if !reflect.DeepEqual(&sp, &spList[i]) {
+		} else if !signpostEq(&sp, &spList[i]) {
 			t.Errorf("blobmap_test: GetSignpost(%v) got wrong content: %v, want %v", b[i], sp, spList[i])
 		}
 	}
@@ -134,14 +160,14 @@ func TestAddRetrieveAndDeleteSignpost(t *testing.T) {
 	ss = bm.NewSignpostStream(ctx)
 	for ss.Advance() {
 		blob := ss.BlobId()
-		sp = ss.Signpost()
+		var sp interfaces.Signpost = ss.Signpost()
 		// Find the blob in the list, ignoring the first.
 		var i int
 		for i = 1; i != len(b) && blob != b[i]; i++ {
 		}
 		if i == len(b) {
 			t.Errorf("blobmap_test: SignpostStream iteration %d, got blob Id %v, which is not in %v", count, blob, b[1:])
-		} else if !reflect.DeepEqual(&sp, &spList[i]) {
+		} else if !signpostEq(&sp, &spList[i]) {
 			t.Errorf("blobmap_test: SignpostStream iteration %d, blob[%d]=%v, got Signpost %v, want %v", count, i, blob, sp, spList[i])
 		}
 		count++
@@ -162,6 +188,7 @@ func TestAddRetrieveAndDeleteSignpost(t *testing.T) {
 
 	// Check that all the elements are no longer there.
 	for i := range b {
+		var sp interfaces.Signpost
 		err = bm.GetSignpost(ctx, b[i], &sp)
 		if err == nil {
 			t.Errorf("blobmap_test: GetSignpost(%v) unexpectedly failed to get error on deleted blob, returned %v", b[i], sp)

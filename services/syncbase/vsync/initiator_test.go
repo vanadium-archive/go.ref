@@ -392,7 +392,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 
 	sgs := make(sgSet)
 	sgs[sgId1] = struct{}{}
-	iSt.config.sgPfxs = map[string]sgSet{
+	iSt.config.sharedSgPfxs = map[string]sgSet{
 		toCollectionRowPrefixStr(sg1.Spec.Prefixes[0]): sgs,
 		toCollectionRowPrefixStr(sg1.Spec.Prefixes[1]): sgs,
 	}

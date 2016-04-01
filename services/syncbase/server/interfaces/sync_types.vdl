@@ -179,7 +179,8 @@ type TimeResp struct {
 // A SgPriority represents data used to decide whether to transfer blob ownership
 // between two devices.
 type SgPriority struct {
-	Distance   int32     // number of hops from a server-quality member of the syncgroup
+	DevType    int32     // device type (BlobDevTypeServer, BlobDevTypeNormal, BlobDevTypeLeaf)
+	Distance   float32   // mean number of hops from a server-quality member of the syncgroup
 	ServerTime time.Time // when data from a server-quality member reached this device
 }
 
@@ -192,11 +193,21 @@ type SgPriorities map[GroupId]SgPriority
 // syncbase instance may have for a blob.
 type BlobSharesBySyncgroup map[GroupId]int32
 
+// A LocationData is the information known about a particular location in a Signpost.
+// TODO(m3b): Include mount table information to allow the location to be found.
+type LocationData struct {
+	WhenSeen time.Time // most recent time when blob thought to have been at location
+	IsProxy  bool      // whether the location is a likely proxy to another syncgroup
+	IsServer bool      // whether the location is a server that may be revealed outside its syncgroup
+}
+
+// A PeerToLocationDataMap is a map from syncbase peer names to LocationData structures.
+type PeerToLocationDataMap map[string]LocationData
+
 // A Signpost is a hint to syncbase of the device on which a blob may be found.
 // It represents the data known about a blob even when the blob itself is not
 // present on the device.
 type Signpost struct {
-        Peer         string       // Syncbase from which the presence of this BlobRef was first learned.
-        Source       string       // Syncbase that originated this blob.
-        SgIds        set[GroupId] // SyncGroups through which the BlobRef was learned.
+	Locations    PeerToLocationDataMap   // Maps name of syncbase that probably has the blob to a LocationData
+        SgIds        set[GroupId]            // SyncGroups through which the BlobRef was learned.
 }
