@@ -6,7 +6,7 @@ var tables = document.getElementsByClassName('mdl-data-table-sortable');
 [].forEach.call(tables, makeTableSortable)
 
 function makeTableSortable(tb) {
-    data = extractData();
+    var data = extractData();
     var headers = tb.getElementsByClassName('mdl-data-table__header-sortable');
     [].forEach.call(headers, makeColumnSortable)
 

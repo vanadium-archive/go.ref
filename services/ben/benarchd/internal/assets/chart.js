@@ -22,6 +22,10 @@ function drawChart(items, elem) {
     backgroundColor: '#f1f8e9',
     width: '500',
     height: '190',
+    explorer: {
+      actions: ['dragToZoom', 'rightClickToReset'],
+      keepInBounds: true
+    },
   };
 
   var chart = new google.visualization.LineChart(elem);

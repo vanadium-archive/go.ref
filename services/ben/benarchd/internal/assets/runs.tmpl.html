@@ -6,8 +6,8 @@
     <link rel="stylesheet" href="sortable.css">
     <style>
     .fixed-width { font-family: monospace; }
-    .mdl-data-table { display: inline-block; }
-    #chart_div { display: inline-block; }
+    .inline { display: inline-block; }
+    .align-center { text-align: center; }
     </style>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/javascript" src="chart.js"></script>
@@ -20,7 +20,7 @@
       <div class="mdl-card mdl-cell mdl-cell--12-col">
         <div class="mdl-card__supporting-text">
           <h4><a href="?q={{.Name | urlquery}}">{{.Name}}</a></h4>
-          <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp">
+          <table class="mdl-data-table mdl-js-data-table mdl-shadow--2dp inline">
             <tbody>
               <tr>
                 <td class="mdl-data-table__cell--non-numeric">OS</td>
@@ -48,7 +48,10 @@
               {{end}}
             </tbody>
           </table>
-          <div id="chart_div"></div>
+	  <div class="inline">
+            <div id="chart_div"></div>
+	    <div class="align-center">(Select area to zoom, right click to reset)</div>
+	  </div>
         </div>
       </div>
       </section>
@@ -97,7 +100,7 @@
     <script type="text/javascript">
       google.charts.setOnLoadCallback(function() {
         var items = extractData().map(function(d) {
-          return [new Date(d.data[4]), Number.parseInt(d.data[0])];
+          return [new Date(d.data[4]), Number.parseFloat(d.data[0])];
         });
         drawChart(items, document.getElementById('chart_div'));
       });
