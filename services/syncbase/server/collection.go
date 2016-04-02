@@ -31,12 +31,9 @@ var (
 ////////////////////////////////////////
 // RPC methods
 
-func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersion int32, perms access.Permissions) error {
+func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, perms access.Permissions) error {
 	if c.d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
-	}
-	if err := c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-		return err
 	}
 	return store.RunInTransaction(c.d.st, func(tx store.Transaction) error {
 		// Check DatabaseData perms.
@@ -63,12 +60,9 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, schemaVersio
 // TODO(ivanpi): Decouple collection key prefix from collection name to allow
 // collection data deletion to be deferred, making deletion faster (reference
 // removal). Same for database deletion.
-func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
+func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall) error {
 	if c.d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
-	}
-	if err := c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-		return err
 	}
 	return store.RunInTransaction(c.d.st, func(tx store.Transaction) error {
 		// Read-check-delete CollectionPerms.
@@ -103,18 +97,12 @@ func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersi
 	})
 }
 
-func (c *collectionReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (bool, error) {
-	if err := c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-		return false, err
-	}
+func (c *collectionReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
 	return util.ErrorToExists(util.GetWithAuth(ctx, call, c.d.st, c.permsKey(), &CollectionPerms{}))
 }
 
-func (c *collectionReq) GetPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (perms access.Permissions, err error) {
+func (c *collectionReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, err error) {
 	impl := func(sntx store.SnapshotOrTransaction) (perms access.Permissions, err error) {
-		if err := c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-			return nil, err
-		}
 		var storedPerms CollectionPerms
 		if err := util.GetWithAuth(ctx, call, sntx, c.permsKey(), &storedPerms); err != nil {
 			return nil, err
@@ -130,11 +118,8 @@ func (c *collectionReq) GetPermissions(ctx *context.T, call rpc.ServerCall, sche
 	}
 }
 
-func (c *collectionReq) SetPermissions(ctx *context.T, call rpc.ServerCall, schemaVersion int32, perms access.Permissions) error {
+func (c *collectionReq) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions) error {
 	impl := func(tx *watchable.Transaction) error {
-		if err := c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-			return err
-		}
 		if err := c.checkAccess(ctx, call, tx); err != nil {
 			return err
 		}
@@ -152,15 +137,10 @@ func (c *collectionReq) SetPermissions(ctx *context.T, call rpc.ServerCall, sche
 	}
 }
 
-func (c *collectionReq) DeleteRange(ctx *context.T, call rpc.ServerCall, schemaVersion int32, start, limit []byte) error {
+func (c *collectionReq) DeleteRange(ctx *context.T, call rpc.ServerCall, start, limit []byte) error {
 	impl := func(tx *watchable.Transaction) error {
 		// Check for collection-level access before doing a scan.
 		if err := c.checkAccess(ctx, call, tx); err != nil {
-			return err
-		}
-		// Check if the db schema version and the version provided by client
-		// matches.
-		if err := c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
 		it := tx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, c.name), string(start), string(limit)))
@@ -188,13 +168,10 @@ func (c *collectionReq) DeleteRange(ctx *context.T, call rpc.ServerCall, schemaV
 	}
 }
 
-func (c *collectionReq) Scan(ctx *context.T, call wire.CollectionScanServerCall, schemaVersion int32, start, limit []byte) error {
+func (c *collectionReq) Scan(ctx *context.T, call wire.CollectionScanServerCall, start, limit []byte) error {
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check for collection-level access before doing a scan.
 		if err := c.checkAccess(ctx, call, sntx); err != nil {
-			return err
-		}
-		if err := c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
 			return err
 		}
 		it := sntx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, c.name), string(start), string(limit)))

@@ -148,39 +148,29 @@ func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, metadata *wire
 	return d.a.CreateDatabase(ctx, call, d.name, perms, metadata)
 }
 
-func (d *databaseReq) Destroy(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
+func (d *databaseReq) Destroy(ctx *context.T, call rpc.ServerCall) error {
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
-	}
-	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-		return err
 	}
 	return d.a.DestroyDatabase(ctx, call, d.name)
 }
 
-func (d *databaseReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (bool, error) {
+func (d *databaseReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
 	if !d.exists {
 		return false, nil
-	}
-	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-		return false, err
 	}
 	return util.ErrorToExists(util.GetWithAuth(ctx, call, d.st, d.stKey(), &DatabaseData{}))
 }
 
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
-func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, schemaVersion int32, bo wire.BatchOptions) (string, error) {
+func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.BatchOptions) (string, error) {
 	if !d.exists {
 		return "", verror.New(verror.ErrNoExist, ctx, d.name)
 	}
 	if d.batchId != nil {
 		return "", wire.NewErrBoundToBatch(ctx)
 	}
-	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-		return "", err
-	}
-
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	var id uint64
@@ -204,7 +194,7 @@ func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, schemaVers
 	return common.BatchSep + common.JoinBatchInfo(batchType, id), nil
 }
 
-func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
+func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.name)
 	}
@@ -213,9 +203,6 @@ func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall, schemaVersion 
 	}
 	if d.tx == nil {
 		return wire.NewErrReadOnlyBatch(ctx)
-	}
-	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-		return err
 	}
 	var err error
 	if err = d.tx.Commit(); err == nil {
@@ -229,15 +216,12 @@ func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall, schemaVersion 
 	return err
 }
 
-func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
+func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.name)
 	}
 	if d.batchId == nil {
 		return wire.NewErrNotBoundToBatch(ctx)
-	}
-	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-		return err
 	}
 	var err error
 	if d.tx != nil {
@@ -256,7 +240,7 @@ func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall, schemaVersion i
 	return err
 }
 
-func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, schemaVersion int32, q string, params []*vom.RawBytes) error {
+func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, q string, params []*vom.RawBytes) error {
 	// RunInTransaction() cannot be used here because we may or may not be
 	// creating a transaction. qe.Exec must be called and the statement must be
 	// parsed before we know if a snapshot or a transaction should be created. To
@@ -265,7 +249,7 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 	maxAttempts := 100
 	attempt := 0
 	for {
-		err := d.execInternal(ctx, call, schemaVersion, q, params)
+		err := d.execInternal(ctx, call, q, params)
 		if attempt >= maxAttempts || verror.ErrorID(err) != store.ErrConcurrentTransaction.ID {
 			return err
 		}
@@ -273,12 +257,9 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, sch
 	}
 }
 
-func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerCall, schemaVersion int32, q string, params []*vom.RawBytes) error {
+func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerCall, q string, params []*vom.RawBytes) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.name)
-	}
-	if err := d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-		return err
 	}
 	impl := func() error {
 		db := &queryDb{
@@ -697,26 +678,4 @@ func (d *databaseReq) batchTransaction() (*watchable.Transaction, error) {
 	} else {
 		return nil, wire.NewErrReadOnlyBatch(nil)
 	}
-}
-
-// TODO(jlodhia): Schema check should happen within a transaction for each
-// operation in database, collection and row. Do schema check along with
-// permissions check when fully-specified permission model is implemented.
-func (d *databaseReq) checkSchemaVersion(ctx *context.T, schemaVersion int32) error {
-	if !d.exists {
-		// database does not exist yet and hence there is no schema to check.
-		// This can happen if delete is called twice on the same database.
-		return nil
-	}
-	schemaMetadata, err := d.GetSchemaMetadataInternal(ctx)
-	if err != nil {
-		if verror.ErrorID(err) == verror.ErrNoExist.ID {
-			return nil
-		}
-		return err
-	}
-	if schemaMetadata.Version == schemaVersion {
-		return nil
-	}
-	return wire.NewErrSchemaVersionMismatch(ctx)
 }

@@ -71,18 +71,18 @@ func TestWatchLogPerms(t *testing.T) {
 	// Generate Put/Delete events.
 	for i := 0; i < 5; i++ {
 		// Set initial collection permissions.
-		if err := c.SetPermissions(ctx, call, 0, perms); err != nil {
+		if err := c.SetPermissions(ctx, call, perms); err != nil {
 			t.Fatalf("c.SetPermissions failed: %v", err)
 		}
 		// Put.
 		row := &rowReq{key: "foo", c: c}
-		if err := row.Put(ctx, call, 0, []byte("value")); err != nil {
+		if err := row.Put(ctx, call, []byte("value")); err != nil {
 			t.Fatalf("row.Put failed: %v", err)
 		}
 		permVersion, _ := watchable.GetVersion(ctx, st, []byte(c.permsKey()))
 		expected = append(expected, putOp(st, row.stKey(), c.permsKey(), permVersion))
 		// Delete.
-		if err := row.Delete(ctx, call, 0); err != nil {
+		if err := row.Delete(ctx, call); err != nil {
 			t.Fatalf("row.Delete failed: %v", err)
 		}
 		deleteOp := &watchable.DeleteOp{
@@ -92,21 +92,21 @@ func TestWatchLogPerms(t *testing.T) {
 		}
 		expected = append(expected, deleteOp)
 		// DeleteRange.
-		if err := row.Put(ctx, call, 0, []byte("value")); err != nil {
+		if err := row.Put(ctx, call, []byte("value")); err != nil {
 			t.Fatalf("row.Put failed: %v", err)
 		}
-		if err := c.DeleteRange(ctx, call, 0, []byte("foo"), nil); err != nil {
+		if err := c.DeleteRange(ctx, call, []byte("foo"), nil); err != nil {
 			t.Fatalf("c.DeleteRange failed: %v", err)
 		}
 		expected = append(expected, deleteOp)
 		// SetPermissions.
-		if err := c.SetPermissions(ctx, call, 0, perms); err != nil {
+		if err := c.SetPermissions(ctx, call, perms); err != nil {
 			t.Fatalf("c.SetPermissions failed: %v", err)
 		}
 		expected = append(expected, putOp(st, c.permsKey(), c.permsKey(), permVersion))
 		// SetPermissions again.
 		permVersion, _ = watchable.GetVersion(ctx, st, []byte(c.permsKey()))
-		if err := c.SetPermissions(ctx, call, 0, perms); err != nil {
+		if err := c.SetPermissions(ctx, call, perms); err != nil {
 			t.Fatalf("c.SetPermissions failed: %v", err)
 		}
 		expected = append(expected, putOp(st, c.permsKey(), c.permsKey(), permVersion))

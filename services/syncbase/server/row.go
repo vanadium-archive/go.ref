@@ -28,16 +28,13 @@ var (
 ////////////////////////////////////////
 // RPC methods
 
-func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (bool, error) {
-	_, err := r.Get(ctx, call, schemaVersion)
+func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
+	_, err := r.Get(ctx, call)
 	return util.ErrorToExists(err)
 }
 
-func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, schemaVersion int32) ([]byte, error) {
+func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
 	impl := func(sntx store.SnapshotOrTransaction) ([]byte, error) {
-		if err := r.c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-			return []byte{}, err
-		}
 		return r.get(ctx, call, sntx)
 	}
 	if r.c.d.batchId != nil {
@@ -49,11 +46,8 @@ func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, schemaVersion int32) (
 	}
 }
 
-func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, schemaVersion int32, value []byte) error {
+func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, value []byte) error {
 	impl := func(tx *watchable.Transaction) error {
-		if err := r.c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-			return err
-		}
 		return r.put(ctx, call, tx, value)
 	}
 	if r.c.d.batchId != nil {
@@ -67,11 +61,8 @@ func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, schemaVersion int32, v
 	}
 }
 
-func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, schemaVersion int32) error {
+func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall) error {
 	impl := func(tx *watchable.Transaction) error {
-		if err := r.c.d.checkSchemaVersion(ctx, schemaVersion); err != nil {
-			return err
-		}
 		return r.delete(ctx, call, tx)
 	}
 	if r.c.d.batchId != nil {
