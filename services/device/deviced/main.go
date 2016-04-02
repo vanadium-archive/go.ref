@@ -8,8 +8,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"runtime"
+	"syscall"
 
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
@@ -20,6 +22,10 @@ func main() {
 	// environment variable persistently for device manager.
 	if os.Getenv("GOMAXPROCS") == "" {
 		runtime.GOMAXPROCS(runtime.NumCPU())
+	}
+	// Make deviced the leader of a new process group.
+	if err := syscall.Setpgid(0, 0); err != nil {
+		fmt.Fprintf(os.Stderr, "Setpgid failed: %v\n", err)
 	}
 
 	rootCmd := &cmdline.Command{
