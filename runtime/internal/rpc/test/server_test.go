@@ -274,3 +274,86 @@ func TestLameDuck(t *testing.T) {
 		<-server.Closed()
 	}
 }
+
+type dummyService struct{}
+
+func (dummyService) Do(ctx *context.T, call rpc.ServerCall) error {
+	return nil
+}
+
+func mountedBlessings(ctx *context.T, name string) ([]string, error) {
+	me, err := v23.GetNamespace(ctx).Resolve(ctx, "server")
+	if err != nil {
+		return nil, err
+	}
+	for _, ms := range me.Servers {
+		ep, err := v23.NewEndpoint(ms.Server)
+		if err != nil {
+			return nil, err
+		}
+		return ep.BlessingNames(), nil
+	}
+	return nil, nil
+}
+
+func TestUpdateServerBlessings(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	idp := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
+
+	serverp := testutil.NewPrincipal()
+	idp.Bless(serverp, "b1")
+	sctx, err := v23.WithPrincipal(ctx, serverp)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if _, _, err = v23.WithNewServer(sctx, "server", dummyService{}, security.AllowEveryone()); err != nil {
+		t.Error(err)
+	}
+
+	want := "test-blessing:b1"
+	for {
+		bs, err := mountedBlessings(ctx, "server")
+		if err == nil && len(bs) == 1 && bs[0] == want {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	pcon, err := v23.GetClient(ctx).PinConnection(ctx, "server")
+	if err != nil {
+		t.Error(err)
+	}
+	defer pcon.Unpin()
+	conn := pcon.Conn()
+	names, _ := security.RemoteBlessingNames(ctx, security.NewCall(&security.CallParams{
+		LocalPrincipal:  v23.GetPrincipal(ctx),
+		RemoteBlessings: conn.RemoteBlessings(),
+	}))
+	if len(names) != 1 || names[0] != want {
+		t.Errorf("got %v, wanted %q", names, want)
+	}
+
+	// Now we bless the server with a new blessing (which will change its default
+	// blessing).  Then we wait for the new value to propogate to the remote end.
+	idp.Bless(serverp, "b2")
+	want = "test-blessing:b2"
+	for {
+		bs, err := mountedBlessings(ctx, "server")
+		if err == nil && len(bs) == 1 && bs[0] == want {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	for {
+		names, _ := security.RemoteBlessingNames(ctx, security.NewCall(&security.CallParams{
+			LocalPrincipal:  v23.GetPrincipal(ctx),
+			RemoteBlessings: conn.RemoteBlessings(),
+		}))
+		if len(names) == 1 || names[0] == want {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}

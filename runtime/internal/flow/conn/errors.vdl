@@ -25,6 +25,7 @@ error (
   NoPublicKey() {"en": "No public key was received by the remote end."}
   DialingNonServer() {"en": "You are attempting to dial on a connection with no remote server."}
   AcceptorBlessingsMissing() {"en": "The acceptor did not send blessings."}
+  DialerBlessingsMissing() {"en": "The dialer did not send blessings."}
   BlessingsNotBound() {"en": "blessings not bound to connection remote public key"}
   InvalidPeerFlow() {"en": "peer has chosen flow id from local domain."}
   ChannelTimeout() {"en": "the channel has become unresponsive."}

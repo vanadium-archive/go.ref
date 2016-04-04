@@ -61,7 +61,6 @@ type server struct {
 	flowMgr           flow.Manager
 	settingsPublisher *pubsub.Publisher // pubsub publisher for dhcp
 	dirty             chan struct{}
-	blessings         security.Blessings
 	typeCache         *typeCache
 	state             rpc.ServerState // the current state of the server.
 	stopProxy         context.CancelFunc
@@ -112,11 +111,9 @@ func WithNewDispatchingServer(ctx *context.T,
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	statsPrefix := naming.Join("rpc", "server", "routing-id", rid.String())
-	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	s := &server{
 		ctx:               ctx,
 		cancel:            cancel,
-		blessings:         blessings,
 		stats:             newRPCStats(statsPrefix),
 		settingsPublisher: settingsPublisher,
 		dirty:             make(chan struct{}),
@@ -186,11 +183,6 @@ func WithNewDispatchingServer(ctx *context.T,
 	s.active.Add(1)
 	go s.monitorPubStatus(ctx)
 
-	// TODO(caprita): revist printing the blessings with string, and
-	// instead expose them as a list.
-	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
-	stats.NewString(blessingsStatsName).Set(s.blessings.String())
-
 	s.listen(s.ctx, v23.GetListenSpec(s.ctx))
 	if len(name) > 0 {
 		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
@@ -198,7 +190,23 @@ func WithNewDispatchingServer(ctx *context.T,
 	}
 
 	go func() {
-		<-ctx.Done()
+		blessingsStat := stats.NewString(naming.Join(statsPrefix, "security", "blessings"))
+		for {
+			blessings, valid := v23.GetPrincipal(ctx).BlessingStore().Default()
+			// TODO(caprita): revist printing the blessings with string, and
+			// instead expose them as a list.
+			blessingsStat.Set(blessings.String())
+			done := false
+			select {
+			case <-ctx.Done():
+				done = true
+			case <-valid:
+			}
+			if done {
+				break
+			}
+		}
+
 		s.Lock()
 		s.state = rpc.ServerStopping
 		s.Unlock()

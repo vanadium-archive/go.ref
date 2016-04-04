@@ -17,16 +17,16 @@ import (
 
 type flw struct {
 	// These variables are all set during flow construction.
-	id             uint64
-	dialed         bool
-	conn           *Conn
-	q              *readq
-	bkey, dkey     uint64
-	noEncrypt      bool
-	writeCh        chan struct{}
-	remote         naming.Endpoint
-	channelTimeout time.Duration
-	sideChannel    bool
+	id                                uint64
+	conn                              *Conn
+	q                                 *readq
+	localBlessings, remoteBlessings   security.Blessings
+	localDischarges, remoteDischarges map[string]security.Discharge
+	noEncrypt                         bool
+	writeCh                           chan struct{}
+	remote                            naming.Endpoint
+	channelTimeout                    time.Duration
+	sideChannel                       bool
 
 	// NOTE: The remaining variables are actually protected by conn.mu.
 
@@ -56,17 +56,25 @@ type flw struct {
 // Ensure that *flw implements flow.Flow.
 var _ flow.Flow = &flw{}
 
-func (c *Conn) newFlowLocked(ctx *context.T, id uint64, bkey, dkey uint64, remote naming.Endpoint,
-	dialed, preopen bool, channelTimeout time.Duration, sideChannel bool) *flw {
+func (c *Conn) newFlowLocked(
+	ctx *context.T,
+	id uint64,
+	localBlessings, remoteBlessings security.Blessings,
+	localDischarges, remoteDischarges map[string]security.Discharge,
+	remote naming.Endpoint,
+	dialed, preopen bool,
+	channelTimeout time.Duration,
+	sideChannel bool) *flw {
 	f := &flw{
-		id:        id,
-		dialed:    dialed,
-		conn:      c,
-		q:         newReadQ(c, id),
-		bkey:      bkey,
-		dkey:      dkey,
-		opened:    preopen,
-		borrowing: dialed,
+		id:               id,
+		conn:             c,
+		q:                newReadQ(c, id),
+		localBlessings:   localBlessings,
+		localDischarges:  localDischarges,
+		remoteBlessings:  remoteBlessings,
+		remoteDischarges: remoteDischarges,
+		opened:           preopen,
+		borrowing:        dialed,
 		// It's important that this channel has a non-zero buffer.  Sometimes this
 		// flow will be notifying itself, so if there's no buffer a deadlock will
 		// occur.
@@ -101,9 +109,6 @@ func (f *flw) Read(p []byte) (n int, err error) {
 	f.conn.mu.Lock()
 	ctx := f.ctx
 	f.conn.mu.Unlock()
-	if err = f.checkBlessings(ctx); err != nil {
-		return
-	}
 	f.markUsed()
 	if n, err = f.q.read(ctx, p); err != nil {
 		f.close(ctx, false, err)
@@ -119,9 +124,6 @@ func (f *flw) ReadMsg() (buf []byte, err error) {
 	f.conn.mu.Lock()
 	ctx := f.ctx
 	f.conn.mu.Unlock()
-	if err = f.checkBlessings(ctx); err != nil {
-		return
-	}
 	f.markUsed()
 	// TODO(mattr): Currently we only ever release counters when some flow
 	// reads.  We may need to do it more or less often.  Currently
@@ -209,9 +211,12 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 	f.conn.mu.Lock()
 	ctx := f.ctx
 	f.conn.mu.Unlock()
-	if err = f.checkBlessings(ctx); err != nil {
+
+	bkey, dkey, err := f.conn.blessingsFlow.send(ctx, f.localBlessings, f.localDischarges, nil)
+	if err != nil {
 		return 0, err
 	}
+
 	debug := f.ctx.V(2)
 	if debug {
 		ctx.Infof("starting write on flow %d(%p)", f.id, f)
@@ -284,8 +289,8 @@ func (f *flw) writeMsg(alsoClose bool, parts ...[]byte) (sent int, err error) {
 			err = f.conn.mp.writeMsg(ctx, &message.OpenFlow{
 				ID:              f.id,
 				InitialCounters: DefaultBytesBufferedPerFlow,
-				BlessingsKey:    f.bkey,
-				DischargeKey:    f.dkey,
+				BlessingsKey:    bkey,
+				DischargeKey:    dkey,
 				Flags:           d.Flags,
 				Payload:         d.Payload,
 			})
@@ -335,14 +340,6 @@ func (f *flw) WriteMsgAndClose(parts ...[]byte) (int, error) {
 	return f.writeMsg(true, parts...)
 }
 
-func (f *flw) checkBlessings(ctx *context.T) error {
-	var err error
-	if !f.dialed && f.bkey != 0 {
-		_, _, err = f.conn.blessingsFlow.getRemote(ctx, f.bkey, f.dkey)
-	}
-	return err
-}
-
 // SetContext sets the context associated with the flow.  Typically this is
 // used to set state that is only available after the flow is connected, such
 // as a more restricted flow timeout, or the language of the request.
@@ -376,42 +373,19 @@ func (f *flw) LocalEndpoint() naming.Endpoint {
 
 // RemoteEndpoint returns the remote vanadium endpoint.
 func (f *flw) RemoteEndpoint() naming.Endpoint {
-	if f.remote != nil {
-		return f.remote
-	}
-	return f.conn.remote
+	return f.remote
 }
 
 // LocalBlessings returns the blessings presented by the local end of the flow
 // during authentication.
 func (f *flw) LocalBlessings() security.Blessings {
-	f.conn.mu.Lock()
-	ctx := f.ctx
-	f.conn.mu.Unlock()
-	if f.dialed {
-		blessings, _ := f.conn.blessingsFlow.getLocal(ctx, f.bkey, 0)
-		return blessings
-	}
-	return f.conn.lBlessings
+	return f.localBlessings
 }
 
 // RemoteBlessings returns the blessings presented by the remote end of the
 // flow during authentication.
 func (f *flw) RemoteBlessings() security.Blessings {
-	f.conn.mu.Lock()
-	ctx := f.ctx
-	f.conn.mu.Unlock()
-	var blessings security.Blessings
-	var err error
-	if !f.dialed {
-		blessings, _, err = f.conn.blessingsFlow.getRemote(ctx, f.bkey, 0)
-	} else {
-		blessings, _, err = f.conn.blessingsFlow.getLatestRemote(ctx, f.conn.rBKey)
-	}
-	if err != nil {
-		f.conn.Close(ctx, err)
-	}
-	return blessings
+	return f.remoteBlessings
 }
 
 // LocalDischarges returns the discharges presented by the local end of the
@@ -419,14 +393,7 @@ func (f *flw) RemoteBlessings() security.Blessings {
 //
 // Discharges are organized in a map keyed by the discharge-identifier.
 func (f *flw) LocalDischarges() map[string]security.Discharge {
-	f.conn.mu.Lock()
-	ctx := f.ctx
-	f.conn.mu.Unlock()
-	if f.dialed {
-		_, discharges := f.conn.blessingsFlow.getLocal(ctx, f.bkey, f.dkey)
-		return discharges
-	}
-	return f.conn.blessingsFlow.getLatestLocal(ctx, f.conn.lBlessings)
+	return f.localDischarges
 }
 
 // RemoteDischarges returns the discharges presented by the remote end of the
@@ -434,20 +401,7 @@ func (f *flw) LocalDischarges() map[string]security.Discharge {
 //
 // Discharges are organized in a map keyed by the discharge-identifier.
 func (f *flw) RemoteDischarges() map[string]security.Discharge {
-	f.conn.mu.Lock()
-	ctx := f.ctx
-	f.conn.mu.Unlock()
-	var discharges map[string]security.Discharge
-	var err error
-	if !f.dialed {
-		_, discharges, err = f.conn.blessingsFlow.getRemote(ctx, f.bkey, f.dkey)
-	} else {
-		_, discharges, err = f.conn.blessingsFlow.getLatestRemote(ctx, f.conn.rBKey)
-	}
-	if err != nil {
-		f.conn.Close(ctx, err)
-	}
-	return discharges
+	return f.remoteDischarges
 }
 
 // Conn returns the connection the flow is multiplexed on.

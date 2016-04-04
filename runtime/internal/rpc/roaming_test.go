@@ -71,7 +71,7 @@ func TestRoaming(t *testing.T) {
 	sctx, _ = v23.WithPrincipal(sctx, testutil.NewPrincipal("test"))
 	sctx, server, err := WithNewServer(sctx, "foo", &testServer{}, nil, publisher)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	status := server.Status()
 	prevEps := status.Endpoints
@@ -85,10 +85,10 @@ func TestRoaming(t *testing.T) {
 	eps := status.Endpoints
 	// We expect the added networks to be in the new endpoints.
 	if got, want := len(filterEndpointsByHost(eps, "1.1.1.1")), 2; got != want {
-		t.Errorf("got %v, wanted %v endpoints with host 1.1.1.1")
+		t.Errorf("got %v, wanted %v endpoints with host 1.1.1.1", got, want)
 	}
 	if got, want := len(filterEndpointsByHost(eps, "2.2.2.2")), 2; got != want {
-		t.Errorf("got %v, wanted %v endpoints with host 2.2.2.2")
+		t.Errorf("got %v, wanted %v endpoints with host 2.2.2.2", got, want)
 	}
 	prevEps = eps
 
@@ -98,7 +98,7 @@ func TestRoaming(t *testing.T) {
 	eps = status.Endpoints
 	// We expect the removed network to not be in the new endpoints.
 	if got, want := len(filterEndpointsByHost(eps, "1.1.1.1")), 0; got != want {
-		t.Errorf("got %v, wanted %v endpoints with host 1.1.1.1")
+		t.Errorf("got %v, wanted %v endpoints with host 1.1.1.1", got, want)
 	}
 	prevEps = eps
 
@@ -121,7 +121,7 @@ func TestRoaming(t *testing.T) {
 	}
 	// We expect the removed network to not be in the new endpoints.
 	if got, want := len(filterEndpointsByHost(eps, "1.1.1.1")), 2; got != want {
-		t.Errorf("got %v, wanted %v endpoints with host 1.1.1.1")
+		t.Errorf("got %v, wanted %v endpoints with host 1.1.1.1", got, want)
 	}
 }
 

@@ -18,6 +18,7 @@ import (
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	slib "v.io/x/ref/lib/security"
 	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
@@ -43,7 +44,7 @@ const (
 	proxyOverhead               = 32
 )
 
-// FlowHandlers process accepted flows.
+// A FlowHandler processes accepted flows.
 type FlowHandler interface {
 	// HandleFlow processes an accepted flow.
 	HandleFlow(flow.Flow) error
@@ -51,11 +52,11 @@ type FlowHandler interface {
 
 type Status int
 
+// Note that this is a progression of states that can only
+// go in one direction.  We use inequality operators to see
+// how far along in the progression we are, so the order of
+// these is important.
 const (
-	// Note that this is a progression of states that can only
-	// go in one direction.  We use inequality operators to see
-	// how far along in the progression we are, so the order of
-	// these is important.
 	Active Status = iota
 	EnteringLameDuck
 	LameDuckAcknowledged
@@ -73,14 +74,12 @@ type healthCheckState struct {
 	closeDeadline time.Time
 }
 
-// Conns are a multiplexing encrypted channels that can host Flows.
+// A Conn acts as a multiplexing encrypted channel that can host Flows.
 type Conn struct {
 	// All the variables here are set before the constructor returns
 	// and never changed after that.
 	mp            *messagePipe
 	version       version.RPCVersion
-	lBlessings    security.Blessings
-	rBKey         uint64
 	local, remote naming.Endpoint
 	closed        chan struct{}
 	lameDucked    chan struct{}
@@ -93,15 +92,16 @@ type Conn struct {
 
 	mu sync.Mutex // All the variables below here are protected by mu.
 
-	rPublicKey           security.PublicKey
-	status               Status
-	remoteLameDuck       bool
-	nextFid              uint64
-	dischargeTimer       *time.Timer
-	lastUsedTime         time.Time
-	flows                map[uint64]*flw
-	hcstate              *healthCheckState
-	acceptChannelTimeout time.Duration
+	localBlessings, remoteBlessings   security.Blessings
+	localDischarges, remoteDischarges map[string]security.Discharge
+	rPublicKey                        security.PublicKey
+	status                            Status
+	remoteLameDuck                    bool
+	nextFid                           uint64
+	lastUsedTime                      time.Time
+	flows                             map[uint64]*flw
+	hcstate                           *healthCheckState
+	acceptChannelTimeout              time.Duration
 
 	// TODO(mattr): Integrate these maps back into the flows themselves as
 	// has been done with the sending counts.
@@ -146,7 +146,6 @@ var _ flow.ManagedConn = &Conn{}
 // NewDialed dials a new Conn on the given conn.
 func NewDialed(
 	ctx *context.T,
-	lBlessings security.Blessings,
 	conn flow.MsgReadWriteCloser,
 	local, remote naming.Endpoint,
 	versions version.RPCVersionRange,
@@ -168,7 +167,6 @@ func NewDialed(
 	c = &Conn{
 		mp:                   newMessagePipe(conn),
 		handler:              handler,
-		lBlessings:           lBlessings,
 		local:                endpointCopy(local),
 		remote:               endpointCopy(remote),
 		closed:               make(chan struct{}),
@@ -185,11 +183,20 @@ func NewDialed(
 	}
 	done := make(chan struct{})
 	var rtt time.Duration
+	var valid <-chan struct{}
 	c.loopWG.Add(1)
 	go func() {
+		defer c.loopWG.Done()
+		defer close(done)
+		// We only send our real blessings if we are a server in addition to being a client.
+		// Otherwise, we only send our public key through a nameless blessings object.
+		// TODO(suharshs): Should we reveal server blessings if we are connecting to proxy here.
+		if handler != nil {
+			c.localBlessings, valid = v23.GetPrincipal(ctx).BlessingStore().Default()
+		} else {
+			c.localBlessings, _ = security.NamelessBlessing(v23.GetPrincipal(ctx).PublicKey())
+		}
 		names, rejected, rtt, err = c.dialHandshake(ctx, versions, auth)
-		close(done)
-		c.loopWG.Done()
 	}()
 	timer := time.NewTimer(handshakeTimeout)
 	var ferr error
@@ -214,11 +221,11 @@ func NewDialed(
 	// will try to fetch discharges to send to the mounttable, leading to a
 	// Resolve of the discharge server name.  The two resolve calls may be to
 	// the same mounttable.
-	c.loopWG.Add(2)
-	go func() {
-		c.refreshDischarges(ctx, true, nil)
-		c.loopWG.Done()
-	}()
+	if handler != nil {
+		c.loopWG.Add(1)
+		go c.blessingsLoop(ctx, valid, time.Now(), nil)
+	}
+	c.loopWG.Add(1)
 	go c.readLoop(ctx)
 	return c, names, rejected, nil
 }
@@ -226,7 +233,6 @@ func NewDialed(
 // NewAccepted accepts a new Conn on the given conn.
 func NewAccepted(
 	ctx *context.T,
-	lBlessings security.Blessings,
 	lAuthorizedPeers []security.BlessingPattern,
 	conn flow.MsgReadWriteCloser,
 	local naming.Endpoint,
@@ -238,17 +244,9 @@ func NewAccepted(
 	if channelTimeout == 0 {
 		channelTimeout = defaultChannelTimeout
 	}
-	if lBlessings.IsZero() {
-		lb, err := security.NamelessBlessing(v23.GetPrincipal(ctx).PublicKey())
-		if err != nil {
-			return nil, err
-		}
-		lBlessings = lb
-	}
 	c := &Conn{
 		mp:                   newMessagePipe(conn),
 		handler:              handler,
-		lBlessings:           lBlessings,
 		local:                endpointCopy(local),
 		closed:               make(chan struct{}),
 		lameDucked:           make(chan struct{}),
@@ -265,11 +263,20 @@ func NewAccepted(
 	done := make(chan struct{}, 1)
 	var rtt time.Duration
 	var err error
+	var valid <-chan struct{}
+	var refreshTime time.Time
 	c.loopWG.Add(1)
 	go func() {
+		defer c.loopWG.Done()
+		defer close(done)
+		principal := v23.GetPrincipal(ctx)
+		c.localBlessings, valid = principal.BlessingStore().Default()
+		if c.localBlessings.IsZero() {
+			c.localBlessings, _ = security.NamelessBlessing(principal.PublicKey())
+		}
+		c.localDischarges, refreshTime = slib.PrepareDischarges(
+			ctx, c.localBlessings, nil, "", nil)
 		rtt, err = c.acceptHandshake(ctx, versions, lAuthorizedPeers)
-		close(done)
-		c.loopWG.Done()
 	}()
 	timer := time.NewTimer(handshakeTimeout)
 	var ferr error
@@ -287,12 +294,61 @@ func NewAccepted(
 		return nil, ferr
 	}
 	c.initializeHealthChecks(ctx, rtt)
-	c.refreshDischarges(ctx, true, lAuthorizedPeers)
-	c.loopWG.Add(1)
+	c.loopWG.Add(2)
+	go c.blessingsLoop(ctx, valid, refreshTime, lAuthorizedPeers)
 	go c.readLoop(ctx)
 	return c, nil
 }
 
+func (c *Conn) blessingsLoop(
+	ctx *context.T,
+	valid <-chan struct{},
+	refreshTime time.Time,
+	authorizedPeers []security.BlessingPattern) {
+	defer c.loopWG.Done()
+	for {
+		if refreshTime.IsZero() {
+			select {
+			case <-valid:
+			case <-ctx.Done():
+				return
+			}
+		} else {
+			timer := time.NewTimer(refreshTime.Sub(time.Now()))
+			select {
+			case <-timer.C:
+			case <-valid:
+			case <-ctx.Done():
+				timer.Stop()
+				return
+			}
+			timer.Stop()
+		}
+		var blessings security.Blessings
+		var dis map[string]security.Discharge
+		blessings, valid = v23.GetPrincipal(ctx).BlessingStore().Default()
+		dis, refreshTime = slib.PrepareDischarges(ctx, blessings, nil, "", nil)
+		bkey, dkey, err := c.blessingsFlow.send(ctx, blessings, dis, authorizedPeers)
+		if err != nil {
+			c.internalClose(ctx, false, err)
+			return
+		}
+		c.mu.Lock()
+		c.localBlessings = blessings
+		c.localDischarges = dis
+		err = c.sendMessageLocked(ctx, true, expressPriority, &message.Auth{
+			BlessingsKey: bkey,
+			DischargeKey: dkey,
+		})
+		c.mu.Unlock()
+		if err != nil {
+			c.internalClose(ctx, false, err)
+			return
+		}
+	}
+}
+
+// MTU Returns the maximum transimission unit for the connection in bytes.
 func (c *Conn) MTU() uint64 {
 	return c.mtu
 }
@@ -363,8 +419,8 @@ func (c *Conn) healthCheckNewFlowLocked(ctx *context.T, timeout time.Duration) {
 	}
 }
 
-// Enter LameDuck mode, the returned channel will be closed when the remote
-// end has ack'd or the Conn is closed.
+// EnterLameDuck enters lame duck mode, the returned channel will be closed when
+// the remote end has ack'd or the Conn is closed.
 func (c *Conn) EnterLameDuck(ctx *context.T) chan struct{} {
 	var err error
 	c.mu.Lock()
@@ -385,15 +441,10 @@ func (c *Conn) Dial(ctx *context.T, blessings security.Blessings, discharges map
 	if c.remote.RoutingID() == naming.NullRoutingID {
 		return nil, NewErrDialingNonServer(ctx)
 	}
-	var bkey, dkey uint64
-	var err error
 	if blessings.IsZero() {
 		// its safe to ignore this error since c.lBlessings must be valid, so the
 		// encoding of the publicKey can never error out.
-		blessings, _ = security.NamelessBlessing(c.lBlessings.PublicKey())
-	}
-	if bkey, dkey, err = c.blessingsFlow.send(ctx, blessings, discharges, nil); err != nil {
-		return nil, err
+		blessings, _ = security.NamelessBlessing(v23.GetPrincipal(ctx).PublicKey())
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
@@ -404,7 +455,19 @@ func (c *Conn) Dial(ctx *context.T, blessings security.Blessings, discharges map
 	c.nextFid += 2
 	remote = endpointCopy(c.remote)
 	remote.(*inaming.Endpoint).Blessings = c.remote.BlessingNames()
-	return c.newFlowLocked(ctx, id, bkey, dkey, remote, true, false, channelTimeout, sideChannel), nil
+	flw := c.newFlowLocked(
+		ctx,
+		id,
+		blessings,
+		c.remoteBlessings,
+		discharges,
+		c.remoteDischarges,
+		remote,
+		true,
+		false,
+		channelTimeout,
+		sideChannel)
+	return flw, nil
 }
 
 // LocalEndpoint returns the local vanadium Endpoint
@@ -414,23 +477,37 @@ func (c *Conn) LocalEndpoint() naming.Endpoint { return c.local }
 func (c *Conn) RemoteEndpoint() naming.Endpoint { return c.remote }
 
 // LocalBlessings returns the local blessings.
-func (c *Conn) LocalBlessings() security.Blessings { return c.lBlessings }
+func (c *Conn) LocalBlessings() security.Blessings {
+	c.mu.Lock()
+	localBlessings := c.localBlessings
+	c.mu.Unlock()
+	return localBlessings
+}
 
 // RemoteBlessings returns the remote blessings.
 func (c *Conn) RemoteBlessings() security.Blessings {
-	// Its safe to ignore this error. It means that this conn is closed.
-	blessings, _, _ := c.blessingsFlow.getLatestRemote(nil, c.rBKey)
-	return blessings
+	c.mu.Lock()
+	remoteBlessings := c.remoteBlessings
+	c.mu.Unlock()
+	return remoteBlessings
 }
 
+// LocalDischarges fetches the most recently sent discharges for the local
+// ends blessings.
 func (c *Conn) LocalDischarges() map[string]security.Discharge {
-	return c.blessingsFlow.getLatestLocal(nil, c.lBlessings)
+	c.mu.Lock()
+	localDischarges := c.localDischarges
+	c.mu.Unlock()
+	return localDischarges
 }
 
+// RemoteDischarges fetches the most recently received discharges for the remote
+// ends blessings.
 func (c *Conn) RemoteDischarges() map[string]security.Discharge {
-	// Its safe to ignore this error. It means that this conn is closed.
-	_, discharges, _ := c.blessingsFlow.getLatestRemote(nil, c.rBKey)
-	return discharges
+	c.mu.Lock()
+	remoteDischarges := c.remoteDischarges
+	c.mu.Unlock()
+	return remoteDischarges
 }
 
 // CommonVersion returns the RPCVersion negotiated between the local and remote endpoints.
@@ -524,12 +601,6 @@ func (c *Conn) internalCloseLocked(ctx *context.T, closedRemotely bool, err erro
 	flows := make([]*flw, 0, len(c.flows))
 	for _, f := range c.flows {
 		flows = append(flows, f)
-	}
-	if c.dischargeTimer != nil {
-		if c.dischargeTimer.Stop() {
-			c.loopWG.Done()
-		}
-		c.dischargeTimer = nil
 	}
 	if c.status >= Closing {
 		// This conn is already being torn down.
@@ -670,6 +741,11 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		c.handleHealthCheckResponse(ctx)
 
 	case *message.OpenFlow:
+		remoteBlessings, remoteDischarges, err := c.blessingsFlow.getRemote(
+			ctx, msg.BlessingsKey, msg.DischargeKey)
+		if err != nil {
+			return err
+		}
 		c.mu.Lock()
 		if c.nextFid%2 == msg.ID%2 {
 			c.mu.Unlock()
@@ -683,7 +759,18 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 			return nil // Conn is already being closed.
 		}
 		sideChannel := msg.Flags&message.SideChannelFlag != 0
-		f := c.newFlowLocked(ctx, msg.ID, msg.BlessingsKey, msg.DischargeKey, nil, false, true, c.acceptChannelTimeout, sideChannel)
+		f := c.newFlowLocked(
+			ctx,
+			msg.ID,
+			c.localBlessings,
+			remoteBlessings,
+			c.localDischarges,
+			remoteDischarges,
+			c.remote,
+			false,
+			true,
+			c.acceptChannelTimeout,
+			sideChannel)
 		f.releaseLocked(msg.InitialCounters)
 		c.toRelease[msg.ID] = DefaultBytesBufferedPerFlow
 		c.borrowing[msg.ID] = true
@@ -729,6 +816,17 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		if msg.Flags&message.CloseFlag != 0 {
 			f.close(ctx, true, nil)
 		}
+
+	case *message.Auth:
+		blessings, discharges, err := c.blessingsFlow.getRemote(
+			ctx, msg.BlessingsKey, msg.DischargeKey)
+		if err != nil {
+			return err
+		}
+		c.mu.Lock()
+		c.remoteBlessings = blessings
+		c.remoteDischarges = discharges
+		c.mu.Unlock()
 
 	default:
 		return NewErrUnexpectedMsg(ctx, reflect.TypeOf(msg).String())

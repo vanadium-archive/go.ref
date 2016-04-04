@@ -27,6 +27,10 @@ func checkBlessings(t *testing.T, got, want security.Blessings, gotd map[string]
 	if !got.Equivalent(want) {
 		t.Errorf("got: %v wanted %v", got, want)
 	}
+	tpcav := got.ThirdPartyCaveats()
+	if len(tpcav) != 1 {
+		t.Errorf("got %#v, wanted one caveat.", tpcav)
+	}
 	tpid := got.ThirdPartyCaveats()[0].ThirdPartyDetails().ID()
 	if _, has := gotd[tpid]; !has {
 		t.Errorf("got: %#v wanted %s", gotd, tpid)

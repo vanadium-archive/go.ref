@@ -39,33 +39,33 @@ const (
 )
 
 type manager struct {
-	rid                   naming.RoutingID
-	closed                chan struct{}
-	cache                 *ConnCache
-	ls                    *listenState
-	ctx                   *context.T
-	serverBlessings       security.Blessings
-	serverAuthorizedPeers []security.BlessingPattern // empty list implies all peers are authorized to see the server's blessings.
-	serverNames           []string
-	acceptChannelTimeout  time.Duration
-	idleExpiry            time.Duration // time after which idle connections will be closed.
-	cacheTicker           *time.Ticker
+	rid                  naming.RoutingID
+	closed               chan struct{}
+	cache                *ConnCache
+	ls                   *listenState
+	ctx                  *context.T
+	acceptChannelTimeout time.Duration
+	idleExpiry           time.Duration // time after which idle connections will be closed.
+	cacheTicker          *time.Ticker
 }
 
 type listenState struct {
-	q             *upcqueue.T
-	listenLoops   sync.WaitGroup
-	dhcpPublisher *pubsub.Publisher
+	q                     *upcqueue.T
+	listenLoops           sync.WaitGroup
+	dhcpPublisher         *pubsub.Publisher
+	serverAuthorizedPeers []security.BlessingPattern // empty list implies all peers are authorized to see the server's blessings.
 
-	mu             sync.Mutex
-	listeners      []flow.Listener
-	endpoints      []*endpointState
-	proxyEndpoints []naming.Endpoint
-	proxyErrors    map[string]error
-	netChange      chan struct{}
-	roaming        bool
-	stopRoaming    func()
-	proxyFlows     map[string]flow.Flow // keyed by ep.String()
+	mu              sync.Mutex
+	serverBlessings security.Blessings
+	serverNames     []string
+	listeners       []flow.Listener
+	endpoints       []*endpointState
+	proxyEndpoints  []naming.Endpoint
+	proxyErrors     map[string]error
+	netChange       chan struct{}
+	roaming         bool
+	stopRoaming     func()
+	proxyFlows      map[string]flow.Flow // keyed by ep.String()
 }
 
 type endpointState struct {
@@ -82,12 +82,6 @@ func New(
 	channelTimeout time.Duration,
 	idleExpiry time.Duration,
 	authorizedPeers []security.BlessingPattern) flow.Manager {
-	var serverBlessings security.Blessings
-	if rid != naming.NullRoutingID {
-		// TODO(mattr,ashankar): Have the server listen on this channel of
-		// changing default blessings and update itself.
-		serverBlessings, _ = v23.GetPrincipal(ctx).BlessingStore().Default()
-	}
 	m := &manager{
 		rid:                  rid,
 		closed:               make(chan struct{}),
@@ -96,18 +90,20 @@ func New(
 		acceptChannelTimeout: channelTimeout,
 		idleExpiry:           idleExpiry,
 	}
+	var valid <-chan struct{}
 	if rid != naming.NullRoutingID {
-		m.serverBlessings = serverBlessings
-		m.serverAuthorizedPeers = authorizedPeers
-		m.serverNames = security.BlessingNames(v23.GetPrincipal(ctx), serverBlessings)
 		m.ls = &listenState{
-			q:             upcqueue.New(),
-			listeners:     []flow.Listener{},
-			netChange:     make(chan struct{}),
-			dhcpPublisher: dhcpPublisher,
-			proxyFlows:    make(map[string]flow.Flow),
-			proxyErrors:   make(map[string]error),
+			q:                     upcqueue.New(),
+			listeners:             []flow.Listener{},
+			netChange:             make(chan struct{}),
+			dhcpPublisher:         dhcpPublisher,
+			proxyFlows:            make(map[string]flow.Flow),
+			proxyErrors:           make(map[string]error),
+			serverAuthorizedPeers: authorizedPeers,
 		}
+		p := v23.GetPrincipal(ctx)
+		m.ls.serverBlessings, valid = p.BlessingStore().Default()
+		m.ls.serverNames = security.BlessingNames(p, m.ls.serverBlessings)
 	}
 	// Pick a interval that is the minimum of the idleExpiry and the reapCacheInterval.
 	cacheInterval := reapCacheInterval
@@ -121,6 +117,13 @@ func New(
 	go func() {
 		for {
 			select {
+			case <-valid:
+				m.ls.mu.Lock()
+				p := v23.GetPrincipal(ctx)
+				m.ls.serverBlessings, valid = p.BlessingStore().Default()
+				m.ls.serverNames = security.BlessingNames(p, m.ls.serverBlessings)
+				m.updateEndpointBlessingsLocked(m.ls.serverNames)
+				m.ls.mu.Unlock()
 			case <-ctx.Done():
 				m.stopListening()
 				m.cache.Close(ctx)
@@ -186,12 +189,6 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 	if err != nil {
 		return iflow.MaybeWrapError(flow.ErrNetwork, ctx, err)
 	}
-	local := &inaming.Endpoint{
-		Protocol:  protocol,
-		Address:   ln.Addr().String(),
-		RID:       m.rid,
-		Blessings: m.serverNames,
-	}
 	defer m.ls.mu.Unlock()
 	m.ls.mu.Lock()
 	if m.ls.listeners == nil {
@@ -199,6 +196,13 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 		return flow.NewErrBadState(ctx, NewErrManagerClosed(ctx))
 	}
 	m.ls.listeners = append(m.ls.listeners, ln)
+
+	local := &inaming.Endpoint{
+		Protocol:  protocol,
+		Address:   ln.Addr().String(),
+		RID:       m.rid,
+		Blessings: m.ls.serverNames,
+	}
 	leps, roam, err := m.createEndpoints(ctx, local)
 	if err != nil {
 		return iflow.MaybeWrapError(flow.ErrBadArg, ctx, err)
@@ -309,6 +313,19 @@ func (m *manager) rmAddrs(addrs []net.Addr) {
 	}
 }
 
+func (m *manager) updateEndpointBlessingsLocked(names []string) {
+	for _, eps := range m.ls.endpoints {
+		eps.tmplEndpoint.Blessings = names
+		for _, ep := range eps.leps {
+			ep.Blessings = names
+		}
+	}
+	if m.ls.netChange != nil {
+		close(m.ls.netChange)
+		m.ls.netChange = make(chan struct{})
+	}
+}
+
 func getHostPort(address net.Addr) (string, string) {
 	host, port, err := net.SplitHostPort(address.String())
 	if err == nil {
@@ -336,6 +353,7 @@ func (m *manager) ProxyListen(ctx *context.T, name string, ep naming.Endpoint) (
 	k := ep.String()
 	m.ls.mu.Lock()
 	m.ls.proxyFlows[k] = f
+	serverNames := m.ls.serverNames
 	m.ls.mu.Unlock()
 	w, err := message.Append(ctx, &message.ProxyServerRequest{}, nil)
 	if err != nil {
@@ -347,7 +365,7 @@ func (m *manager) ProxyListen(ctx *context.T, name string, ep naming.Endpoint) (
 		return nil, err
 	}
 	// We connect to the proxy once before we loop.
-	if err := m.readAndUpdateProxyEndpoints(ctx, name, f, k); err != nil {
+	if err := m.readAndUpdateProxyEndpoints(ctx, name, f, k, serverNames); err != nil {
 		return nil, err
 	}
 	// We do exponential backoff unless the proxy closes the flow cleanly, in which
@@ -357,7 +375,7 @@ func (m *manager) ProxyListen(ctx *context.T, name string, ep naming.Endpoint) (
 		for {
 			// we keep reading updates until we encounter an error, usually because the
 			// flow has been closed.
-			if err := m.readAndUpdateProxyEndpoints(ctx, name, f, k); err != nil {
+			if err := m.readAndUpdateProxyEndpoints(ctx, name, f, k, serverNames); err != nil {
 				ctx.VI(2).Info(err)
 				close(done)
 				return
@@ -367,11 +385,11 @@ func (m *manager) ProxyListen(ctx *context.T, name string, ep naming.Endpoint) (
 	return done, nil
 }
 
-func (m *manager) readAndUpdateProxyEndpoints(ctx *context.T, name string, f flow.Flow, flowKey string) error {
+func (m *manager) readAndUpdateProxyEndpoints(ctx *context.T, name string, f flow.Flow, flowKey string, serverNames []string) error {
 	eps, err := m.readProxyResponse(ctx, f)
 	if err == nil {
 		for i := range eps {
-			eps[i].(*inaming.Endpoint).Blessings = m.serverNames
+			eps[i].(*inaming.Endpoint).Blessings = serverNames
 		}
 	}
 	m.updateProxyEndpoints(eps, name, err, flowKey)
@@ -502,8 +520,7 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			defer m.ls.listenLoops.Done()
 			c, err := conn.NewAccepted(
 				m.ctx,
-				m.serverBlessings,
-				m.serverAuthorizedPeers,
+				m.ls.serverAuthorizedPeers,
 				flowConn,
 				local,
 				version.Supported,
@@ -582,8 +599,7 @@ func (h *proxyFlowHandler) HandleFlow(f flow.Flow) error {
 		h.m.ls.mu.Unlock()
 		c, err := conn.NewAccepted(
 			h.m.ctx,
-			h.m.serverBlessings,
-			h.m.serverAuthorizedPeers,
+			h.m.ls.serverAuthorizedPeers,
 			f,
 			f.LocalEndpoint(),
 			version.Supported,
@@ -712,16 +728,20 @@ func (m *manager) DialCached(ctx *context.T, remote naming.Endpoint, auth flow.P
 	return dialFlow(ctx, c, remote, names, rejected, channelTimeout, auth, false)
 }
 
-func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer,
-	channelTimeout time.Duration, proxy bool, sideChannel bool) (flow.Flow, error) {
+func (m *manager) internalDial(
+	ctx *context.T,
+	remote naming.Endpoint,
+	auth flow.PeerAuthorizer,
+	channelTimeout time.Duration,
+	proxy, sideChannel bool) (flow.Flow, error) {
 	// Fast path, look for the conn based on unresolved network, address, and routingId first.
 	var (
 		addr                       = remote.Addr()
 		unresNetwork, unresAddress = addr.Network(), addr.String()
 		protocol, _                = flow.RegisteredProtocol(unresNetwork)
 	)
-	if len(m.serverAuthorizedPeers) > 0 {
-		auth = &peerAuthorizer{auth, m.serverAuthorizedPeers}
+	if m.ls != nil && len(m.ls.serverAuthorizedPeers) > 0 {
+		auth = &peerAuthorizer{auth, m.ls.serverAuthorizedPeers}
 	}
 	c, names, rejected, err := m.cache.Find(ctx, remote, unresNetwork, unresAddress, auth, protocol)
 	if err != nil {
@@ -752,7 +772,6 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		}
 		c, names, rejected, err = conn.NewDialed(
 			ctx,
-			m.serverBlessings,
 			flowConn,
 			localEndpoint(flowConn, m.rid),
 			remote,
@@ -794,7 +813,6 @@ func (m *manager) internalDial(ctx *context.T, remote naming.Endpoint, auth flow
 		}
 		c, names, rejected, err = conn.NewDialed(
 			ctx,
-			m.serverBlessings,
 			f,
 			proxyConn.LocalEndpoint(),
 			remote,
