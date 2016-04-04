@@ -211,8 +211,8 @@ func TestV23Vkube(t *testing.T) {
 	vkubeOK("update-config", "--cluster-agent-image=:2", "--pod-agent-image=:2")
 	vkubeOK("update-cluster-agent", "--wait")
 	kubectlOK("get", "service", "cluster-agent")
-	kubectlOK("get", "rc", "cluster-agentd-2")
-	kubectlOK("get", "rc,pods")
+	kubectlOK("get", "deployment", "cluster-agentd")
+	kubectlOK("get", "rs,pods", "-Lversion")
 	vkubeFail("start-cluster-agent") // Already running
 	vkubeOK("claim-cluster-agent")
 	vkubeFail("claim-cluster-agent") // Already claimed
@@ -305,8 +305,7 @@ func TestV23Vkube(t *testing.T) {
 
 	vkubeOK("stop-cluster-agent")
 	kubectlFail("get", "service", "cluster-agent")
-	kubectlFail("get", "rc", "cluster-agentd-1")
-	kubectlFail("get", "rc", "cluster-agentd-2")
+	kubectlFail("get", "deployment", "cluster-agentd")
 }
 
 func createVkubeConfig(path, id, dockerRegistry string) error {

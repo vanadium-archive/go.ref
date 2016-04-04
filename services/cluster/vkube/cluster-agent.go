@@ -5,10 +5,11 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"os/exec"
 	"strings"
-	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/security"
@@ -27,10 +28,10 @@ func makeClusterAgentObject(config *vkubeConfig, rootBlessings string) object {
 		version = p[1]
 	}
 	ca := object{
-		"apiVersion": "v1",
-		"kind":       "ReplicationController",
+		"apiVersion": "extensions/v1beta1",
+		"kind":       "Deployment",
 		"metadata": object{
-			"name": clusterAgentApplicationName + "-" + version,
+			"name": clusterAgentApplicationName,
 			"labels": object{
 				"application": clusterAgentApplicationName,
 			},
@@ -38,6 +39,16 @@ func makeClusterAgentObject(config *vkubeConfig, rootBlessings string) object {
 		},
 		"spec": object{
 			"replicas": 1,
+			"selector": object{
+				"matchLabels": object{
+					"application": clusterAgentApplicationName,
+				},
+			},
+			"minReadySeconds":      60,
+			"revisionHistoryLimit": 10,
+			"strategy": object{
+				"type": "Recreate",
+			},
 			"template": object{
 				"metadata": object{
 					"labels": object{
@@ -141,15 +152,15 @@ func makeClusterAgentObject(config *vkubeConfig, rootBlessings string) object {
 	return ca
 }
 
-// createClusterAgent creates a ReplicationController and a Service to run the
-// cluster agent.
+// createClusterAgent creates a Deployment and a Service to run the cluster
+// agent.
 func createClusterAgent(ctx *context.T, config *vkubeConfig) error {
 	if err := createNamespaceIfNotExist(config.ClusterAgent.Namespace); err != nil {
 		return err
 	}
 	ca := makeClusterAgentObject(config, rootBlessings(ctx))
-	if out, err := kubectlCreate(ca); err != nil {
-		return fmt.Errorf("failed to create replication controller: %v\n%s\n", err, string(out))
+	if out, err := kubectlCreate(ca, "--record"); err != nil {
+		return fmt.Errorf("failed to create deployment: %v\n%s\n", err, string(out))
 	}
 
 	svc := object{
@@ -181,10 +192,9 @@ func createClusterAgent(ctx *context.T, config *vkubeConfig) error {
 	return nil
 }
 
-// stopClusterAgent stops the cluster agent ReplicationController and deletes
-// its Service.
+// stopClusterAgent stops the cluster agent Deployment and deletes its Service.
 func stopClusterAgent(config *vkubeConfig) error {
-	if out, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "delete", "rc", "-l", "application="+clusterAgentApplicationName); err != nil {
+	if out, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "delete", "deployment", clusterAgentApplicationName); err != nil {
 		return fmt.Errorf("failed to stop %s: %v: %s", clusterAgentApplicationName, err, out)
 	}
 	if out, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "delete", "service", clusterAgentServiceName); err != nil {
@@ -193,25 +203,19 @@ func stopClusterAgent(config *vkubeConfig) error {
 	return nil
 }
 
-// updateClusterAgent updates the ReplicationController of an existing cluster
-// agent.
-func updateClusterAgent(config *vkubeConfig, stderr io.Writer) error {
-	data, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "get", "rc", "-l", "application="+clusterAgentApplicationName, "-o", "json")
+// updateClusterAgent updates the Deployment of an existing cluster agent.
+func updateClusterAgent(config *vkubeConfig, stdout, stderr io.Writer) error {
+	data, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "get", "deployment", clusterAgentApplicationName, "-o", "json")
 	if err != nil {
-		return fmt.Errorf("failed to get replication controller %q: %v\n%s\n", clusterAgentApplicationName, err, string(data))
+		return fmt.Errorf("failed to get deployment %q: %v\n%s\n", clusterAgentApplicationName, err, string(data))
 	}
-	var list object
-	if err := list.importJSON(data); err != nil {
+	var deployment object
+	if err := deployment.importJSON(data); err != nil {
 		return fmt.Errorf("failed to parse kubectl output: %v", err)
 	}
-	items := list.getObjectArray("items")
-	if len(items) != 1 {
-		return fmt.Errorf("unexpected number of items: %d", len(items))
-	}
-	rc := items[0]
 
 	// Find root blessings.
-	containers := rc.getObjectArray("spec.template.spec.containers")
+	containers := deployment.getObjectArray("spec.template.spec.containers")
 	if len(containers) != 1 {
 		return fmt.Errorf("unexpected number of containers in cluster agent: %d", len(containers))
 	}
@@ -223,28 +227,16 @@ func updateClusterAgent(config *vkubeConfig, stderr io.Writer) error {
 		}
 	}
 
-	newCA := makeClusterAgentObject(config, root)
-	if name := newCA.get("metadata.name"); name == rc.get("metadata.name") {
-		fmt.Fprintf(stderr, "Cluster agent %q already running\n", name)
-		return nil
+	json, err := makeClusterAgentObject(config, root).json()
+	if err != nil {
+		return err
 	}
-
-	if out, err := kubectl("--namespace="+config.ClusterAgent.Namespace, "delete", "rc", "-l", "application="+clusterAgentApplicationName); err != nil {
-		return fmt.Errorf("failed to delete %s: %v: %s", clusterAgentApplicationName, err, out)
-	}
-	for {
-		n, err := readyPods(clusterAgentApplicationName, config.ClusterAgent.Namespace)
-		if err != nil {
-			return err
-		}
-		if len(n) == 0 {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	if out, err := kubectlCreate(newCA); err != nil {
-		return fmt.Errorf("failed to create replication controller: %v\n%s\n", err, string(out))
+	cmd := exec.Command(flagKubectlBin, "apply", "-f", "-", "--namespace="+config.ClusterAgent.Namespace)
+	cmd.Stdin = bytes.NewBuffer(json)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to update deployment %q: %v\n", clusterAgentApplicationName, err)
 	}
 	return nil
 }

@@ -184,6 +184,8 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 		if err := createSecret(ctx, secretName, namespace, agentAddr, extension); err != nil {
 			return err
 		}
+		fmt.Fprintln(env.Stdout, "Created secret successfully.")
+
 		// Delete Secret if we encounter an error while creating the Deployment
 		// or Replication Controller.
 		needToDeleteSecret := true
@@ -192,14 +194,19 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 				if err := deleteSecret(ctx, config, secretName, rootBlessings(ctx), namespace); err != nil {
 					fmt.Fprintf(env.Stderr, "Error deleting secret: %v\n", err)
 				}
+				fmt.Fprintln(env.Stdout, "Deleting secret.")
 			}
 		}()
-		fmt.Fprintln(env.Stdout, "Created secret successfully.")
 
 		switch kind {
 		case Deployment:
 			if err := createDeployment(ctx, config, rc, secretName); err != nil {
 				return err
+			}
+			if flagWait {
+				if err := watchDeploymentRollout(appName, namespace, flagWaitTimeout, env.Stdout); err != nil {
+					return err
+				}
 			}
 			fmt.Fprintln(env.Stdout, "Created deployment successfully.")
 		case ReplicationController:
@@ -207,17 +214,17 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 				return err
 			}
 			fmt.Fprintln(env.Stdout, "Created replication controller successfully.")
+			if flagWait {
+				numReplicas := rc.getInt("spec.replicas", 1)
+				if err := waitForReadyPods(numReplicas, flagWaitTimeout, appName, namespace); err != nil {
+					return err
+				}
+				fmt.Fprintln(env.Stdout, "Application is ready.")
+			}
 		default:
 			return fmt.Errorf("unexpected kind: %q", kind)
 		}
 		needToDeleteSecret = false
-	}
-	if flagWait {
-		numReplicas := rc.getInt("spec.replicas", 1)
-		if err := waitForReadyPods(numReplicas, flagWaitTimeout, appName, namespace); err != nil {
-			return err
-		}
-		fmt.Fprintln(env.Stdout, "Application is running.")
 	}
 	return nil
 }
@@ -249,7 +256,7 @@ func runCmdUpdate(ctx *context.T, env *cmdline.Env, args []string, config *vkube
 			if err := waitForReadyPods(numReplicas, flagWaitTimeout, appName, namespace); err != nil {
 				return err
 			}
-			fmt.Fprintln(env.Stdout, "Application is running.")
+			fmt.Fprintln(env.Stdout, "Application is ready.")
 		}
 		fmt.Fprintln(env.Stdout, "Updated replication controller successfully.")
 	case Deployment:
@@ -329,19 +336,20 @@ func runCmdStartClusterAgent(ctx *context.T, env *cmdline.Env, args []string, co
 	if err := createClusterAgent(ctx, config); err != nil {
 		return err
 	}
-	fmt.Fprintln(env.Stdout, "Starting cluster agent.")
-	if flagWait {
-		if err := waitForReadyPods(1, flagWaitTimeout, clusterAgentApplicationName, config.ClusterAgent.Namespace); err != nil {
-			return err
-		}
-		for {
-			if _, err := findClusterAgent(config, true); err == nil {
-				break
-			}
-			time.Sleep(time.Second)
-		}
-		fmt.Fprintf(env.Stdout, "Cluster agent is ready.\n")
+	if !flagWait {
+		fmt.Fprintln(env.Stdout, "Starting cluster agent.")
+		return nil
 	}
+	if err := watchDeploymentRollout(clusterAgentApplicationName, config.ClusterAgent.Namespace, flagWaitTimeout, env.Stdout); err != nil {
+		return err
+	}
+	for {
+		if _, err := findClusterAgent(config, true); err == nil {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	fmt.Fprintf(env.Stdout, "Cluster agent is ready.\n")
 	return nil
 }
 
@@ -368,22 +376,46 @@ var cmdUpdateClusterAgent = &cmdline.Command{
 }
 
 func runCmdUpdateClusterAgent(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
-	if err := updateClusterAgent(config, env.Stderr); err != nil {
+	if err := updateClusterAgent(config, env.Stdout, env.Stderr); err != nil {
 		return err
 	}
-	fmt.Fprintln(env.Stdout, "Updating cluster agent.")
-	if flagWait {
-		if err := waitForReadyPods(1, flagWaitTimeout, clusterAgentApplicationName, config.ClusterAgent.Namespace); err != nil {
-			return err
-		}
-		for {
-			if _, err := findClusterAgent(config, true); err == nil {
-				break
-			}
-			time.Sleep(time.Second)
-		}
-		fmt.Fprintf(env.Stdout, "Cluster agent is ready.\n")
+	if !flagWait {
+		fmt.Fprintln(env.Stdout, "Updating cluster agent.")
 	}
+	if err := watchDeploymentRollout(clusterAgentApplicationName, config.ClusterAgent.Namespace, flagWaitTimeout, env.Stdout); err != nil {
+		return err
+	}
+	for {
+		if _, err := findClusterAgent(config, true); err == nil {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	fmt.Fprintf(env.Stdout, "Updated cluster agent is ready.\n")
+	return nil
+}
+
+var cmdClaimClusterAgent = &cmdline.Command{
+	Runner: kubeCmdRunner(runCmdClaimClusterAgent),
+	Name:   "claim-cluster-agent",
+	Short:  "Claims the cluster agent.",
+	Long:   "Claims the cluster agent.",
+}
+
+func runCmdClaimClusterAgent(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
+	myBlessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	claimer := clusterAgentClaimer(config)
+	if !myBlessings.CouldHaveNames([]string{claimer}) {
+		return fmt.Errorf("principal isn't the expected claimer: got %q, expected %q", myBlessings, claimer)
+	}
+	extension := strings.TrimPrefix(config.ClusterAgent.Blessing, claimer+security.ChainSeparator)
+	if err := claimClusterAgent(ctx, config, extension); err != nil {
+		if verror.ErrorID(err) == verror.ErrUnknownMethod.ID {
+			return fmt.Errorf("already claimed")
+		}
+		return err
+	}
+	fmt.Fprintln(env.Stdout, "Claimed cluster agent successfully.")
 	return nil
 }
 
@@ -413,30 +445,6 @@ func runCmdUpdateConfig(ctx *context.T, env *cmdline.Env, args []string, config 
 		return err
 	}
 	fmt.Fprintf(env.Stdout, "Updated %q.\n", flagConfigFile)
-	return nil
-}
-
-var cmdClaimClusterAgent = &cmdline.Command{
-	Runner: kubeCmdRunner(runCmdClaimClusterAgent),
-	Name:   "claim-cluster-agent",
-	Short:  "Claims the cluster agent.",
-	Long:   "Claims the cluster agent.",
-}
-
-func runCmdClaimClusterAgent(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
-	myBlessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
-	claimer := clusterAgentClaimer(config)
-	if !myBlessings.CouldHaveNames([]string{claimer}) {
-		return fmt.Errorf("principal isn't the expected claimer: got %q, expected %q", myBlessings, claimer)
-	}
-	extension := strings.TrimPrefix(config.ClusterAgent.Blessing, claimer+security.ChainSeparator)
-	if err := claimClusterAgent(ctx, config, extension); err != nil {
-		if verror.ErrorID(err) == verror.ErrUnknownMethod.ID {
-			return fmt.Errorf("already claimed")
-		}
-		return err
-	}
-	fmt.Fprintln(env.Stdout, "Claimed cluster agent successfully.")
 	return nil
 }
 
