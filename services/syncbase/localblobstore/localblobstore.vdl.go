@@ -42,28 +42,27 @@ func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("OwnerShares")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
+	var var4 bool
+	if len(m.OwnerShares) == 0 {
+		var4 = true
 	}
-	if err != vdl.ErrFieldNoExist {
-
-		var var4 bool
-		if len(m.OwnerShares) == 0 {
-			var4 = true
+	if var4 {
+		if err := fieldsTarget1.ZeroField("OwnerShares"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
 		}
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("OwnerShares")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			if err := m.OwnerShares.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+				return err
+			}
 		}
 	}
 	var wireValue5 time_2.Time
@@ -71,25 +70,24 @@ func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Referenced")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var8 := (wireValue5 == time_2.Time{})
-		if var8 {
-			if err := fieldTarget7.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+	var8 := (wireValue5 == time_2.Time{})
+	if var8 {
+		if err := fieldsTarget1.ZeroField("Referenced"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget6, fieldTarget7, err := fieldsTarget1.StartField("Referenced")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			if err := wireValue5.FillVDLTarget(fieldTarget7, tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget6, fieldTarget7); err != nil {
+				return err
+			}
 		}
 	}
 	var wireValue9 time_2.Time
@@ -97,25 +95,24 @@ func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("Accessed")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var12 := (wireValue9 == time_2.Time{})
-		if var12 {
-			if err := fieldTarget11.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+	var12 := (wireValue9 == time_2.Time{})
+	if var12 {
+		if err := fieldsTarget1.ZeroField("Accessed"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("Accessed")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			if err := wireValue9.FillVDLTarget(fieldTarget11, tt.NonOptional().Field(2).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -165,12 +162,35 @@ func (t *BlobMetadataTarget) StartField(name string) (key, field vdl.Target, _ e
 func (t *BlobMetadataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *BlobMetadataTarget) ZeroField(name string) error {
+	switch name {
+	case "OwnerShares":
+		t.Value.OwnerShares = interfaces.BlobSharesBySyncgroup(nil)
+		return nil
+	case "Referenced":
+		t.Value.Referenced = func() time.Time {
+			var native time.Time
+			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
+				panic(err)
+			}
+			return native
+		}()
+		return nil
+	case "Accessed":
+		t.Value.Accessed = func() time.Time {
+			var native time.Time
+			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
+				panic(err)
+			}
+			return native
+		}()
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/localblobstore.BlobMetadata", name)
+	}
+}
 func (t *BlobMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *BlobMetadataTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = BlobMetadata{}
 	return nil
 }
 
@@ -191,25 +211,24 @@ func (m *PerSyncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Priority")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := (m.Priority == interfaces.SgPriority{})
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	var4 := (m.Priority == interfaces.SgPriority{})
+	if var4 {
+		if err := fieldsTarget1.ZeroField("Priority"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Priority")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			if err := m.Priority.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -249,12 +268,17 @@ func (t *PerSyncgroupTarget) StartField(name string) (key, field vdl.Target, _ e
 func (t *PerSyncgroupTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *PerSyncgroupTarget) ZeroField(name string) error {
+	switch name {
+	case "Priority":
+		t.Value.Priority = interfaces.SgPriority{}
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/localblobstore.PerSyncgroup", name)
+	}
+}
 func (t *PerSyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *PerSyncgroupTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = PerSyncgroup{}
 	return nil
 }
 

@@ -27,10 +27,6 @@ func (t *%[1]s) From%[6]s(src %[7]s, tt *%[4]sType) error {
 	%[9]s = %[2]s(src)
 	%[10]s
 	return nil
-}
-func (t *%[1]s) FromZero(tt *%[4]sType) error {
-	*t.Value = %[12]s
-	return nil
 }`, targetTypeName(data, t), typeGo(data, t), genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), X, fromType, valueFieldDef, valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
 }
 
@@ -46,11 +42,6 @@ type %[1]s struct {
 	s += genNumberFromX(data, t, vdl.Uint64, valueAssn)
 	s += genNumberFromX(data, t, vdl.Int64, valueAssn)
 	s += genNumberFromX(data, t, vdl.Float64, valueAssn)
-	s += fmt.Sprintf(`
-func (t *%[1]s) FromZero(tt *%[2]sType) error {
-	*t.Value = %[3]s
-	return nil
-}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), typedConst(data, vdl.ZeroValue(t)))
 	return s
 }
 
@@ -121,11 +112,7 @@ func (t *%[1]s) FromBytes(src []byte, tt *%[4]sType) error {
 	}
 	%[7]s
 	return nil
-}
-func (t *%[1]s) FromZero(tt *%[4]sType) error {
-	*t.Value = %[9]s
-	return nil
-}`, targetTypeName(data, t), valueFieldDef, genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
+}`, targetTypeName(data, t), valueFieldDef, genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t))
 	} else {
 		return fmt.Sprintf(`
 type %[1]s struct {
@@ -138,11 +125,7 @@ func (t *%[1]s) FromBytes(src []byte, tt *%[4]sType) error {
 	copy((%[6]s)[:], src)
 	%[7]s
 	return nil
-}
-func (t *%[1]s) FromZero(tt *%[4]sType) error {
-	*t.Value = %[9]s
-	return nil
-}`, targetTypeName(data, t), typeGo(data, t), genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
+}`, targetTypeName(data, t), typeGo(data, t), genIncompatibleTypeCheck(data, t, 0), data.Pkg("v.io/v23/vdl"), targetBaseRef(data, "Target"), valueAssn, genWireToNativeConversion(data, t), genResetWire(data, t))
 	}
 }
 
@@ -189,20 +172,30 @@ func (t *%[1]s) StartField(name string) (key, field %[4]sTarget, _ error) {
 func (t *%[1]s) FinishField(_, _ %[2]sTarget) error {
 	return nil
 }
-func (t *%[1]s) FinishFields(_ %[2]sFieldsTarget) error {
-	%[5]s
-	return nil
+func (t *%[1]s) ZeroField(name string) error {
+	switch name {`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"))
+	for i := 0; i < t.NumField(); i++ {
+		fld := t.Field(i)
+		s += fmt.Sprintf(`
+	case %[1]q:
+		%[2]s.%[1]s = %[3]s
+		return nil`, fld.Name, valueReg, typedConst(data, vdl.ZeroValue(fld.Type)))
+	}
+	s += fmt.Sprintf(`
+	default:
+		return %[5]sErrorf("field %%s not in struct %[6]s", name)
+	}
 }
-func (t *%[1]s) FromZero(tt *%[2]sType) error {
-	*t.Value = %[4]s
+func (t *%[1]s) FinishFields(_ %[2]sFieldsTarget) error {
+	%[4]s
 	return nil
-}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), valueAssn, typedConst(data, vdl.ZeroValue(t)), genWireToNativeConversion(data, t))
+}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), valueAssn, genWireToNativeConversion(data, t), data.Pkg("fmt"), t.Name())
 	s += additionalBodies
 	return s
 }
 
 // genOptionalStructTargetDef generates a Target that assigns to an optional
-// struct - that is either calls FromZero or StartFields.
+// struct - that is either calls FromNil or StartFields.
 func genOptionalStructTargetDef(data *goData, t *vdl.Type) string {
 	valueAssn, _, valueFieldDef := genValueField(data, t)
 	call, body := createTargetCall(data, t.Elem(), t, "t.elemTarget", valueAssn)
@@ -229,7 +222,7 @@ func (t *%[1]s) FinishFields(_ %[5]sFieldsTarget) error {
 	%[9]s
 	return nil
 }
-func (t *%[1]s) FromZero(tt *%[5]sType) error {
+func (t *%[1]s) FromNil(tt *%[5]sType) error {
 	*t.Value = %[13]s
 	return nil
 }`, targetTypeName(data, t), valueFieldDef, targetBaseRef(data, "Target"), targetBaseRef(data, "FieldsTarget"), data.Pkg("v.io/v23/vdl"), call, typedConst(data, vdl.ZeroValue(t.Elem())), valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Elem(), t, "elemTarget"), typeGo(data, t.Elem()), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
@@ -323,10 +316,6 @@ func (t *%[1]s) FinishFields(_ %[3]sFieldsTarget) error {
 	%[2]s
 	return nil
 }
-func (t *%[1]s) FromZero(tt *%[3]sType) error {
-	*t.Value = %[7]s
-	return nil
-}
 
 type %[6]sFactory struct{}
 
@@ -335,7 +324,7 @@ func (t %[6]sFactory) VDLMakeUnionTarget(union interface{}) (%[3]sTarget, error)
 		return &%[1]s{Value: typedUnion}, nil
 	}
 	return nil, %[5]sErrorf("got %%T, want *%[4]s", union)
-}`, targetTypeName(data, t), genWireToNativeConversion(data, t), data.Pkg("v.io/v23/vdl"), typeGo(data, t), data.Pkg("fmt"), vdlutil.FirstRuneToLower(targetTypeName(data, t)), typedConst(data, vdl.ZeroValue(t)))
+}`, targetTypeName(data, t), genWireToNativeConversion(data, t), data.Pkg("v.io/v23/vdl"), typeGo(data, t), data.Pkg("fmt"), vdlutil.FirstRuneToLower(targetTypeName(data, t)))
 	s += additionalBodies
 	return s
 }
@@ -376,11 +365,7 @@ func (t *%[1]s) FinishElem(elem %[2]sTarget) error {
 func (t *%[1]s) FinishList(elem %[2]sListTarget) error {
 	%[4]s
 	return nil
-}
-func (t *%[1]s) FromZero(tt *%[2]sType) error {
-	*t.Value = %[6]s
-	return nil
-}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), call, genWireToNativeConversion(data, t), valueAssn, typedConst(data, vdl.ZeroValue(t)))
+}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), call, genWireToNativeConversion(data, t), valueAssn)
 	s += body
 	return s
 }
@@ -422,11 +407,7 @@ func (t *%[1]s) FinishSet(list %[6]sSetTarget) error {
 	}
 	%[12]s
 	return nil
-}
-func (t *%[1]s) FromZero(tt *%[6]sType) error {
-	*t.Value = %[15]s
-	return nil
-}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), targetBaseRef(data, "Target"), targetBaseRef(data, "SetTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), call, genResetValue(data, t.Key(), "t.currKey"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Key(), t, "keyTarget"), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
+}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), targetBaseRef(data, "Target"), targetBaseRef(data, "SetTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), call, genResetValue(data, t.Key(), "t.currKey"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Key(), t, "keyTarget"), genResetWire(data, t))
 	s += body
 	return s
 }
@@ -476,11 +457,7 @@ func (t *%[1]s) FinishMap(elem %[7]sMapTarget) error {
 	}
 	%[15]s
 	return nil
-}
-func (t *%[1]s) FromZero(tt *%[7]sType) error {
-	*t.Value = %[19]s
-	return nil
-}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), typeGo(data, t.Elem()), targetBaseRef(data, "Target"), targetBaseRef(data, "MapTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), keyCall, elemCall, genResetValue(data, t.Key(), "t.currKey"), genResetValue(data, t.Elem(), "t.currElem"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Key(), t, "keyTarget"), inlineTargetField(data, t.Elem(), t, "elemTarget"), genResetWire(data, t), typedConst(data, vdl.ZeroValue(t)))
+}`, targetTypeName(data, t), typeGo(data, t), typeGo(data, t.Key()), typeGo(data, t.Elem()), targetBaseRef(data, "Target"), targetBaseRef(data, "MapTarget"), data.Pkg("v.io/v23/vdl"), genIncompatibleTypeCheck(data, t, 1), keyCall, elemCall, genResetValue(data, t.Key(), "t.currKey"), genResetValue(data, t.Elem(), "t.currElem"), valueFieldDef, valueAssn, genWireToNativeConversion(data, t), inlineTargetField(data, t.Key(), t, "keyTarget"), inlineTargetField(data, t.Elem(), t, "elemTarget"), genResetWire(data, t))
 	s += keyBody
 	s += elemBody
 	return s
@@ -506,15 +483,11 @@ func (t *%[1]s) FromEnumLabel(src string, tt *%[4]sType) error {
 	}
 	s += fmt.Sprintf(`
 	default:
-		return %[5]sErrorf("label %%s not in enum %[6]s", src)
+		return %[2]sErrorf("label %%s not in enum %[3]s", src)
 	}
 	%[1]s
 	return nil
-}
-func (t *%[2]s) FromZero(tt *%[3]sType) error {
-	*t.Value = %[4]s
-	return nil
-}`, genWireToNativeConversion(data, t), targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), typedConst(data, vdl.ZeroValue(t)), data.Pkg("fmt"), def.Name)
+}`, genWireToNativeConversion(data, t), data.Pkg("fmt"), def.Name)
 	return s
 }
 

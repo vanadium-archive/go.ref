@@ -39,44 +39,42 @@ func (m *WindowSize) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Rows")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := (m.Rows == uint16(0))
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	var4 := (m.Rows == uint16(0))
+	if var4 {
+		if err := fieldsTarget1.ZeroField("Rows"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Rows")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 			if err := fieldTarget3.FromUint(uint64(m.Rows), tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Cols")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var7 := (m.Cols == uint16(0))
-		if var7 {
-			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var7 := (m.Cols == uint16(0))
+	if var7 {
+		if err := fieldsTarget1.ZeroField("Cols"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Cols")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget6.FromUint(uint64(m.Cols), tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -121,12 +119,20 @@ func (t *WindowSizeTarget) StartField(name string) (key, field vdl.Target, _ err
 func (t *WindowSizeTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *WindowSizeTarget) ZeroField(name string) error {
+	switch name {
+	case "Rows":
+		t.Value.Rows = uint16(0)
+		return nil
+	case "Cols":
+		t.Value.Cols = uint16(0)
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.WindowSize", name)
+	}
+}
 func (t *WindowSizeTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *WindowSizeTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = WindowSize{}
 	return nil
 }
 
@@ -146,41 +152,39 @@ func (m *ShellOpts) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("UsePty")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := (m.UsePty == false)
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	var4 := (m.UsePty == false)
+	if var4 {
+		if err := fieldsTarget1.ZeroField("UsePty"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("UsePty")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 			if err := fieldTarget3.FromBool(bool(m.UsePty), tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Environment")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var var7 bool
-		if len(m.Environment) == 0 {
-			var7 = true
-		}
-		if var7 {
-			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var var7 bool
+	if len(m.Environment) == 0 {
+		var7 = true
+	}
+	if var7 {
+		if err := fieldsTarget1.ZeroField("Environment"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Environment")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 
 			listTarget8, err := fieldTarget6.StartList(tt.NonOptional().Field(1).Type, len(m.Environment))
 			if err != nil {
@@ -201,30 +205,29 @@ func (m *ShellOpts) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err := fieldTarget6.FinishList(listTarget8); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-			return err
-		}
-	}
-	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("WinSize")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var13 := (m.WinSize == WindowSize{})
-		if var13 {
-			if err := fieldTarget12.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var13 := (m.WinSize == WindowSize{})
+	if var13 {
+		if err := fieldsTarget1.ZeroField("WinSize"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("WinSize")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 
 			if err := m.WinSize.FillVDLTarget(fieldTarget12, tt.NonOptional().Field(2).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -274,12 +277,23 @@ func (t *ShellOptsTarget) StartField(name string) (key, field vdl.Target, _ erro
 func (t *ShellOptsTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *ShellOptsTarget) ZeroField(name string) error {
+	switch name {
+	case "UsePty":
+		t.Value.UsePty = false
+		return nil
+	case "Environment":
+		t.Value.Environment = []string(nil)
+		return nil
+	case "WinSize":
+		t.Value.WinSize = WindowSize{}
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.ShellOpts", name)
+	}
+}
 func (t *ShellOptsTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *ShellOptsTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = ShellOpts{}
 	return nil
 }
 
@@ -328,12 +342,14 @@ func (t *unusedTarget) StartField(name string) (key, field vdl.Target, _ error) 
 func (t *unusedTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *unusedTarget) ZeroField(name string) error {
+	switch name {
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.unused", name)
+	}
+}
 func (t *unusedTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *unusedTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = unused{}
 	return nil
 }
 
@@ -518,10 +534,6 @@ func (t *ClientShellPacketTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-func (t *ClientShellPacketTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = ClientShellPacket(ClientShellPacketStdin{})
-	return nil
-}
 
 type clientShellPacketTargetFactory struct{}
 
@@ -668,10 +680,6 @@ func (t *ServerShellPacketTarget) FinishField(_, fieldTarget vdl.Target) error {
 }
 func (t *ServerShellPacketTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *ServerShellPacketTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = ServerShellPacket(ServerShellPacketStdout{})
 	return nil
 }
 

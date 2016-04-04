@@ -36,44 +36,42 @@ func (m *Struct) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("X")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := (m.X == int32(0))
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	var4 := (m.X == int32(0))
+	if var4 {
+		if err := fieldsTarget1.ZeroField("X"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("X")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 			if err := fieldTarget3.FromInt(int64(m.X), tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Y")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var7 := (m.Y == int32(0))
-		if var7 {
-			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var7 := (m.Y == int32(0))
+	if var7 {
+		if err := fieldsTarget1.ZeroField("Y"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Y")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget6.FromInt(int64(m.Y), tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -118,12 +116,20 @@ func (t *StructTarget) StartField(name string) (key, field vdl.Target, _ error) 
 func (t *StructTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *StructTarget) ZeroField(name string) error {
+	switch name {
+	case "X":
+		t.Value.X = int32(0)
+		return nil
+	case "Y":
+		t.Value.Y = int32(0)
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/cmd/vrpc/internal.Struct", name)
+	}
+}
 func (t *StructTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *StructTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = Struct{}
 	return nil
 }
 
@@ -186,10 +192,6 @@ func (t *Array2IntTarget) FinishElem(elem vdl.Target) error {
 }
 func (t *Array2IntTarget) FinishList(elem vdl.ListTarget) error {
 
-	return nil
-}
-func (t *Array2IntTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = Array2Int{}
 	return nil
 }
 

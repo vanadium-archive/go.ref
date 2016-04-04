@@ -36,45 +36,43 @@ func (m *groupData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Perms")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
+	var var4 bool
+	if len(m.Perms) == 0 {
+		var4 = true
 	}
-	if err != vdl.ErrFieldNoExist {
-
-		var var4 bool
-		if len(m.Perms) == 0 {
-			var4 = true
+	if var4 {
+		if err := fieldsTarget1.ZeroField("Perms"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
 		}
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Perms")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			if err := m.Perms.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Entries")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var var7 bool
-		if len(m.Entries) == 0 {
-			var7 = true
-		}
-		if var7 {
-			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var var7 bool
+	if len(m.Entries) == 0 {
+		var7 = true
+	}
+	if var7 {
+		if err := fieldsTarget1.ZeroField("Entries"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Entries")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 
 			setTarget8, err := fieldTarget6.StartSet(tt.NonOptional().Field(1).Type, len(m.Entries))
 			if err != nil {
@@ -96,9 +94,9 @@ func (m *groupData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err := fieldTarget6.FinishSet(setTarget8); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -143,12 +141,20 @@ func (t *groupDataTarget) StartField(name string) (key, field vdl.Target, _ erro
 func (t *groupDataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *groupDataTarget) ZeroField(name string) error {
+	switch name {
+	case "Perms":
+		t.Value.Perms = access.Permissions(nil)
+		return nil
+	case "Entries":
+		t.Value.Entries = map[groups.BlessingPatternChunk]struct{}(nil)
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/services/groups/internal/server.groupData", name)
+	}
+}
 func (t *groupDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *groupDataTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = groupData{}
 	return nil
 }
 
@@ -184,10 +190,6 @@ func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 		*t.Value = nil
 	}
 
-	return nil
-}
-func (t *__VDLTarget1_set) FromZero(tt *vdl.Type) error {
-	*t.Value = map[groups.BlessingPatternChunk]struct{}(nil)
 	return nil
 }
 

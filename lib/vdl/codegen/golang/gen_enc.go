@@ -57,25 +57,13 @@ func genEncDefInternal(data *goData, t *vdl.Type, instName, targetName, unionFie
 	case vdl.Any:
 		if shouldUseVdlValueForAny(data.Package) {
 			return fmt.Sprintf(`
-		if %[2]s == nil {
-			if err := %[1]s.FromZero(%[4]s); err != nil {
-				return err
-			}
-		} else {
-			if err := %[3]sFromValue(%[1]s, %[2]s); err != nil {
-				return err
-			}
-		}`, targetName, instName, data.Pkg("v.io/v23/vdl"), ttVar)
+		if err := %[3]sFromValue(%[1]s, %[2]s); err != nil {
+			return err
+		}`, targetName, instName, data.Pkg("v.io/v23/vdl"))
 		} else {
 			return fmt.Sprintf(`
-		if %[2]s == nil {
-			if err := %[1]s.FromZero(%[3]s); err != nil {
-				return err
-			}
-		} else {
-			if err := %[2]s.FillVDLTarget(%[1]s, %[3]s); err != nil {
-				return err
-			}
+		if err := %[2]s.FillVDLTarget(%[1]s, %[3]s); err != nil {
+			return err
 		}`, targetName, instName, ttVar)
 		}
 
@@ -200,31 +188,26 @@ func genEncDefInternal(data *goData, t *vdl.Type, instName, targetName, unionFie
 			s += nativeConvBody
 			keyTargetName := createUniqueName("keyTarget", varCount)
 			fieldTargetName := createUniqueName("fieldTarget", varCount)
-			s += fmt.Sprintf(`
-		%[1]s, %[2]s, err := %[3]s.StartField(%[4]q)
-		if err != %[5]sErrFieldNoExist && err != nil {
-			return err
-		}
-		if err != %[5]sErrFieldNoExist {
-`, keyTargetName, fieldTargetName, fieldsTargetName, f.Name,
-				data.Pkg("v.io/v23/vdl"))
 			outName, isZeroRefBody := genIsZeroBlockWiretype(data, f.Type, fieldInstName, varCount)
 			s += isZeroRefBody
 			ttSuffixF := ttSuffix + fmt.Sprintf(".Field(%d).Type", ix)
 			s += fmt.Sprintf(`
-		if %[1]s {
-			if err := %[2]s.FromZero(%[3]s); err != nil {
+		if %[4]s {
+			if err := %[1]s.ZeroField(%[5]q); err != nil && err != %[6]sErrFieldNoExist {
 				return err
 			}
 		} else {
-			%[4]s
-		}
-		if err := %[6]s.FinishField(%[5]s, %[2]s); err != nil {
-			return err
-		}
-	}`, outName, fieldTargetName, ttVar+fmt.Sprintf(".NonOptional().Field(%d).Type", ix),
-				genEncRefForWiretype(data, f.Type, fieldInstName, fieldTargetName, ttSuffixF, varCount),
-				keyTargetName, fieldsTargetName)
+			%[2]s, %[3]s, err := %[1]s.StartField(%[5]q)
+			if err != %[6]sErrFieldNoExist {
+				if err != nil {
+					return err
+				}
+				%[7]s
+				if err := %[1]s.FinishField(%[2]s, %[3]s); err != nil {
+					return err
+				}
+			}
+		}`, fieldsTargetName, keyTargetName, fieldTargetName, outName, f.Name, data.Pkg("v.io/v23/vdl"), genEncRefForWiretype(data, f.Type, fieldInstName, fieldTargetName, ttSuffixF, varCount))
 		}
 		s += fmt.Sprintf(`
 	if err := %[1]s.FinishFields(%[2]s); err != nil {

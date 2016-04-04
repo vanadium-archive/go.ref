@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"sort"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
@@ -208,11 +209,16 @@ const Tests = []%s.TestCase {`, typesPkgName)
 		return nil, fmt.Errorf("got encodeDecodeTests type %v, want %v", got, want)
 	}
 
-	for _, minVersion := range allEncodeDecodeTests.Keys() {
-		if version < vom.Version(minVersion.Uint()) {
+	var minVersions []int
+	for _, key := range allEncodeDecodeTests.Keys() {
+		minVersions = append(minVersions, int(key.Uint()))
+	}
+	sort.Ints(minVersions)
+	for _, minVersion := range minVersions {
+		if version < vom.Version(minVersion) {
 			continue
 		}
-		encodeDecodeTests := allEncodeDecodeTests.MapIndex(minVersion)
+		encodeDecodeTests := allEncodeDecodeTests.MapIndex(vdl.ValueOf(byte(minVersion)))
 		for ix := 0; ix < encodeDecodeTests.Len(); ix++ {
 			value := encodeDecodeTests.Index(ix)
 			if !value.IsNil() {
@@ -332,7 +338,7 @@ func toVomHex(version vom.Version, value *vdl.Value) (string, string, string, st
 	if version <= vom.Version81 {
 		d, err := vom.Dump(vombytes)
 		if err != nil {
-			return "", "", "", "", fmt.Errorf("vom.Dump: %v", err)
+			return "", "", "", "", fmt.Errorf("vom.Dump(%v): %v Bytes %x", value, err, vombytes)
 		}
 		vomdump = pre + strings.Replace(d, "\n", "\n"+pre, -1)
 	}

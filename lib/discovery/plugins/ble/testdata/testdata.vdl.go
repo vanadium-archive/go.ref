@@ -37,81 +37,79 @@ func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("AdInfo")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
+	var4 := true
+	var5 := true
+	var6 := (m.AdInfo.Ad.Id == discovery.AdId{})
+	var5 = var5 && var6
+	var7 := (m.AdInfo.Ad.InterfaceName == "")
+	var5 = var5 && var7
+	var var8 bool
+	if len(m.AdInfo.Ad.Addresses) == 0 {
+		var8 = true
 	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := true
-		var5 := true
-		var6 := (m.AdInfo.Ad.Id == discovery.AdId{})
-		var5 = var5 && var6
-		var7 := (m.AdInfo.Ad.InterfaceName == "")
-		var5 = var5 && var7
-		var var8 bool
-		if len(m.AdInfo.Ad.Addresses) == 0 {
-			var8 = true
+	var5 = var5 && var8
+	var var9 bool
+	if len(m.AdInfo.Ad.Attributes) == 0 {
+		var9 = true
+	}
+	var5 = var5 && var9
+	var var10 bool
+	if len(m.AdInfo.Ad.Attachments) == 0 {
+		var10 = true
+	}
+	var5 = var5 && var10
+	var4 = var4 && var5
+	var11 := (m.AdInfo.EncryptionAlgorithm == discovery_2.EncryptionAlgorithm(0))
+	var4 = var4 && var11
+	var var12 bool
+	if len(m.AdInfo.EncryptionKeys) == 0 {
+		var12 = true
+	}
+	var4 = var4 && var12
+	var13 := (m.AdInfo.Hash == discovery_2.AdHash{})
+	var4 = var4 && var13
+	var var14 bool
+	if len(m.AdInfo.DirAddrs) == 0 {
+		var14 = true
+	}
+	var4 = var4 && var14
+	var15 := (m.AdInfo.Status == discovery_2.AdStatus(0))
+	var4 = var4 && var15
+	var16 := (m.AdInfo.Lost == false)
+	var4 = var4 && var16
+	if var4 {
+		if err := fieldsTarget1.ZeroField("AdInfo"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
 		}
-		var5 = var5 && var8
-		var var9 bool
-		if len(m.AdInfo.Ad.Attributes) == 0 {
-			var9 = true
-		}
-		var5 = var5 && var9
-		var var10 bool
-		if len(m.AdInfo.Ad.Attachments) == 0 {
-			var10 = true
-		}
-		var5 = var5 && var10
-		var4 = var4 && var5
-		var11 := (m.AdInfo.EncryptionAlgorithm == discovery_2.EncryptionAlgorithm(0))
-		var4 = var4 && var11
-		var var12 bool
-		if len(m.AdInfo.EncryptionKeys) == 0 {
-			var12 = true
-		}
-		var4 = var4 && var12
-		var13 := (m.AdInfo.Hash == discovery_2.AdHash{})
-		var4 = var4 && var13
-		var var14 bool
-		if len(m.AdInfo.DirAddrs) == 0 {
-			var14 = true
-		}
-		var4 = var4 && var14
-		var15 := (m.AdInfo.Status == discovery_2.AdStatus(0))
-		var4 = var4 && var15
-		var16 := (m.AdInfo.Lost == false)
-		var4 = var4 && var16
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("AdInfo")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			if err := m.AdInfo.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget17, fieldTarget18, err := fieldsTarget1.StartField("GattAttrs")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var var19 bool
-		if len(m.GattAttrs) == 0 {
-			var19 = true
-		}
-		if var19 {
-			if err := fieldTarget18.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var var19 bool
+	if len(m.GattAttrs) == 0 {
+		var19 = true
+	}
+	if var19 {
+		if err := fieldsTarget1.ZeroField("GattAttrs"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget17, fieldTarget18, err := fieldsTarget1.StartField("GattAttrs")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 
 			mapTarget20, err := fieldTarget18.StartMap(tt.NonOptional().Field(1).Type, len(m.GattAttrs))
 			if err != nil {
@@ -140,9 +138,9 @@ func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err := fieldTarget18.FinishMap(mapTarget20); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget17, fieldTarget18); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget17, fieldTarget18); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -187,12 +185,20 @@ func (t *AdConversionTestCaseTarget) StartField(name string) (key, field vdl.Tar
 func (t *AdConversionTestCaseTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *AdConversionTestCaseTarget) ZeroField(name string) error {
+	switch name {
+	case "AdInfo":
+		t.Value.AdInfo = discovery_2.AdInfo{}
+		return nil
+	case "GattAttrs":
+		t.Value.GattAttrs = map[string][]byte(nil)
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/plugins/ble/testdata.AdConversionTestCase", name)
+	}
+}
 func (t *AdConversionTestCaseTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *AdConversionTestCaseTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = AdConversionTestCase{}
 	return nil
 }
 
@@ -236,10 +242,6 @@ func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 		*t.Value = nil
 	}
 
-	return nil
-}
-func (t *__VDLTarget1_map) FromZero(tt *vdl.Type) error {
-	*t.Value = map[string][]byte(nil)
 	return nil
 }
 

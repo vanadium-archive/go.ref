@@ -62,10 +62,6 @@ func (t *UuidTarget) FromBytes(src []byte, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *UuidTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = Uuid(nil)
-	return nil
-}
 
 type EncryptionAlgorithm int32
 
@@ -120,10 +116,6 @@ func (t *EncryptionAlgorithmTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *EncryptionAlgorithmTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = EncryptionAlgorithm(0)
-	return nil
-}
 
 type EncryptionKey []byte
 
@@ -160,10 +152,6 @@ func (t *EncryptionKeyTarget) FromBytes(src []byte, tt *vdl.Type) error {
 		copy(*t.Value, src)
 	}
 
-	return nil
-}
-func (t *EncryptionKeyTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = EncryptionKey(nil)
 	return nil
 }
 
@@ -220,10 +208,6 @@ func (t *AdStatusTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *AdStatusTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = AdStatus(0)
-	return nil
-}
 
 // An AdHash is a hash of an advertisement.
 type AdHash [8]byte
@@ -258,10 +242,6 @@ func (t *AdHashTarget) FromBytes(src []byte, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *AdHashTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = AdHash{}
-	return nil
-}
 
 // AdInfo represents advertisement information for discovery.
 type AdInfo struct {
@@ -294,82 +274,79 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Ad")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
+	var4 := true
+	var5 := (m.Ad.Id == discovery.AdId{})
+	var4 = var4 && var5
+	var6 := (m.Ad.InterfaceName == "")
+	var4 = var4 && var6
+	var var7 bool
+	if len(m.Ad.Addresses) == 0 {
+		var7 = true
 	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := true
-		var5 := (m.Ad.Id == discovery.AdId{})
-		var4 = var4 && var5
-		var6 := (m.Ad.InterfaceName == "")
-		var4 = var4 && var6
-		var var7 bool
-		if len(m.Ad.Addresses) == 0 {
-			var7 = true
+	var4 = var4 && var7
+	var var8 bool
+	if len(m.Ad.Attributes) == 0 {
+		var8 = true
+	}
+	var4 = var4 && var8
+	var var9 bool
+	if len(m.Ad.Attachments) == 0 {
+		var9 = true
+	}
+	var4 = var4 && var9
+	if var4 {
+		if err := fieldsTarget1.ZeroField("Ad"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
 		}
-		var4 = var4 && var7
-		var var8 bool
-		if len(m.Ad.Attributes) == 0 {
-			var8 = true
-		}
-		var4 = var4 && var8
-		var var9 bool
-		if len(m.Ad.Attachments) == 0 {
-			var9 = true
-		}
-		var4 = var4 && var9
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Ad")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			if err := m.Ad.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("EncryptionAlgorithm")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var12 := (m.EncryptionAlgorithm == EncryptionAlgorithm(0))
-		if var12 {
-			if err := fieldTarget11.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var12 := (m.EncryptionAlgorithm == EncryptionAlgorithm(0))
+	if var12 {
+		if err := fieldsTarget1.ZeroField("EncryptionAlgorithm"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget10, fieldTarget11, err := fieldsTarget1.StartField("EncryptionAlgorithm")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 
 			if err := m.EncryptionAlgorithm.FillVDLTarget(fieldTarget11, tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
-			return err
-		}
-	}
-	keyTarget13, fieldTarget14, err := fieldsTarget1.StartField("EncryptionKeys")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var var15 bool
-		if len(m.EncryptionKeys) == 0 {
-			var15 = true
-		}
-		if var15 {
-			if err := fieldTarget14.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget10, fieldTarget11); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var var15 bool
+	if len(m.EncryptionKeys) == 0 {
+		var15 = true
+	}
+	if var15 {
+		if err := fieldsTarget1.ZeroField("EncryptionKeys"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget13, fieldTarget14, err := fieldsTarget1.StartField("EncryptionKeys")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 
 			listTarget16, err := fieldTarget14.StartList(tt.NonOptional().Field(2).Type, len(m.EncryptionKeys))
 			if err != nil {
@@ -391,47 +368,45 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err := fieldTarget14.FinishList(listTarget16); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget13, fieldTarget14); err != nil {
-			return err
-		}
-	}
-	keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("Hash")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var21 := (m.Hash == AdHash{})
-		if var21 {
-			if err := fieldTarget20.FromZero(tt.NonOptional().Field(3).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget13, fieldTarget14); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var21 := (m.Hash == AdHash{})
+	if var21 {
+		if err := fieldsTarget1.ZeroField("Hash"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("Hash")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 
 			if err := m.Hash.FillVDLTarget(fieldTarget20, tt.NonOptional().Field(3).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
-			return err
-		}
-	}
-	keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("DirAddrs")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var var24 bool
-		if len(m.DirAddrs) == 0 {
-			var24 = true
-		}
-		if var24 {
-			if err := fieldTarget23.FromZero(tt.NonOptional().Field(4).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var var24 bool
+	if len(m.DirAddrs) == 0 {
+		var24 = true
+	}
+	if var24 {
+		if err := fieldsTarget1.ZeroField("DirAddrs"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("DirAddrs")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 
 			listTarget25, err := fieldTarget23.StartList(tt.NonOptional().Field(4).Type, len(m.DirAddrs))
 			if err != nil {
@@ -452,50 +427,48 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err := fieldTarget23.FinishList(listTarget25); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
-			return err
-		}
-	}
-	keyTarget28, fieldTarget29, err := fieldsTarget1.StartField("Status")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var30 := (m.Status == AdStatus(0))
-		if var30 {
-			if err := fieldTarget29.FromZero(tt.NonOptional().Field(5).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var30 := (m.Status == AdStatus(0))
+	if var30 {
+		if err := fieldsTarget1.ZeroField("Status"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget28, fieldTarget29, err := fieldsTarget1.StartField("Status")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 
 			if err := m.Status.FillVDLTarget(fieldTarget29, tt.NonOptional().Field(5).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
-			return err
-		}
-	}
-	keyTarget31, fieldTarget32, err := fieldsTarget1.StartField("Lost")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var33 := (m.Lost == false)
-		if var33 {
-			if err := fieldTarget32.FromZero(tt.NonOptional().Field(6).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var33 := (m.Lost == false)
+	if var33 {
+		if err := fieldsTarget1.ZeroField("Lost"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget31, fieldTarget32, err := fieldsTarget1.StartField("Lost")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget32.FromBool(bool(m.Lost), tt.NonOptional().Field(6).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget31, fieldTarget32); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget31, fieldTarget32); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -565,12 +538,35 @@ func (t *AdInfoTarget) StartField(name string) (key, field vdl.Target, _ error) 
 func (t *AdInfoTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *AdInfoTarget) ZeroField(name string) error {
+	switch name {
+	case "Ad":
+		t.Value.Ad = discovery.Advertisement{}
+		return nil
+	case "EncryptionAlgorithm":
+		t.Value.EncryptionAlgorithm = EncryptionAlgorithm(0)
+		return nil
+	case "EncryptionKeys":
+		t.Value.EncryptionKeys = []EncryptionKey(nil)
+		return nil
+	case "Hash":
+		t.Value.Hash = AdHash{}
+		return nil
+	case "DirAddrs":
+		t.Value.DirAddrs = []string(nil)
+		return nil
+	case "Status":
+		t.Value.Status = AdStatus(0)
+		return nil
+	case "Lost":
+		t.Value.Lost = false
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery.AdInfo", name)
+	}
+}
 func (t *AdInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *AdInfoTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = AdInfo{}
 	return nil
 }
 
@@ -604,10 +600,6 @@ func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 }
 func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
-	return nil
-}
-func (t *__VDLTarget1_list) FromZero(tt *vdl.Type) error {
-	*t.Value = []EncryptionKey(nil)
 	return nil
 }
 

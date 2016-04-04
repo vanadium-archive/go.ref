@@ -23,7 +23,15 @@ func genIsZeroBlock(data *goData, t *vdl.Type, inName string, varCount *int) (ou
 // to a wiretype value.
 func genIsZeroBlockWiretype(data *goData, t *vdl.Type, inName string, varCount *int) (outName, body string) {
 	outName = createUniqueName("var", varCount)
-	if isDirectComparable(t) && t.Kind() != vdl.Union {
+	if t.Kind() == vdl.Any {
+		if shouldUseVdlValueForAny(data.Package) {
+			body = fmt.Sprintf("\n%[1]s := %[2]s == nil || (%[2]s.Kind() == %[3]sAny && %[2]s.IsZero())", outName, inName, data.Pkg("v.io/v23/vdl"))
+		} else {
+			body = fmt.Sprintf("\n%[1]s := %[2]s == nil || %[2]s.IsNilAny()", outName, inName)
+		}
+		return
+	}
+	if isDirectComparable(t) {
 		body = fmt.Sprintf("\n%s := (%s == %s)", outName, inName, typedConstWire(data, vdl.ZeroValue(t)))
 		return
 	}
@@ -67,6 +75,9 @@ func genIsZeroBlockWiretype(data *goData, t *vdl.Type, inName string, varCount *
 		%[5]s
 		%[1]s = %[6]s
 	}`, outName, inName, def.Name, t.Field(0).Name, fBody, fOutName, data.Pkg(def.File.Package.GenPath))
+	case vdl.TypeObject:
+		body = fmt.Sprintf("\n%[1]s := (%[2]s == nil || %[2]s == %[3]s)", outName, inName, typedConstWire(data, vdl.ZeroValue(t)))
+		return
 	default:
 		panic(fmt.Sprintf("unexpected type: %v", t))
 	}
@@ -76,8 +87,11 @@ func genIsZeroBlockWiretype(data *goData, t *vdl.Type, inName string, varCount *
 // isDirectComparable determines if it is possible to directly apply go's == operator
 // to determine equality.
 func isDirectComparable(t *vdl.Type) bool {
-	if t.Kind() == vdl.Any || t.Kind() == vdl.Optional {
+	switch t.Kind() {
+	case vdl.Optional:
 		return true
+	case vdl.TypeObject, vdl.Union:
+		return false
 	}
 	return !t.ContainsKind(vdl.WalkAll, vdl.List, vdl.Map, vdl.Set)
 }

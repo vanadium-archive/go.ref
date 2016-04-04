@@ -41,21 +41,20 @@ func (m *BlessingRootResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Names")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
+	var var4 bool
+	if len(m.Names) == 0 {
+		var4 = true
 	}
-	if err != vdl.ErrFieldNoExist {
-
-		var var4 bool
-		if len(m.Names) == 0 {
-			var4 = true
+	if var4 {
+		if err := fieldsTarget1.ZeroField("Names"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
 		}
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Names")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			listTarget5, err := fieldTarget3.StartList(tt.NonOptional().Field(0).Type, len(m.Names))
 			if err != nil {
@@ -76,29 +75,28 @@ func (m *BlessingRootResponse) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err := fieldTarget3.FinishList(listTarget5); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("PublicKey")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var10 := (m.PublicKey == "")
-		if var10 {
-			if err := fieldTarget9.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var10 := (m.PublicKey == "")
+	if var10 {
+		if err := fieldsTarget1.ZeroField("PublicKey"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("PublicKey")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget9.FromString(string(m.PublicKey), tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -143,12 +141,20 @@ func (t *BlessingRootResponseTarget) StartField(name string) (key, field vdl.Tar
 func (t *BlessingRootResponseTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *BlessingRootResponseTarget) ZeroField(name string) error {
+	switch name {
+	case "Names":
+		t.Value.Names = []string(nil)
+		return nil
+	case "PublicKey":
+		t.Value.PublicKey = ""
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/services/identity.BlessingRootResponse", name)
+	}
+}
 func (t *BlessingRootResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *BlessingRootResponseTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = BlessingRootResponse{}
 	return nil
 }
 

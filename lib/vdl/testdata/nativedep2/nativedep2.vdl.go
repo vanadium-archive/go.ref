@@ -72,10 +72,6 @@ func (t *MyTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *MyTimeTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = MyTime(0)
-	return nil
-}
 
 var __VDLInitCalled bool
 

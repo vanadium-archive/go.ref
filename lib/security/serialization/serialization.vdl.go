@@ -32,24 +32,23 @@ func (m *SignedHeader) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("ChunkSizeBytes")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := (m.ChunkSizeBytes == int64(0))
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	var4 := (m.ChunkSizeBytes == int64(0))
+	if var4 {
+		if err := fieldsTarget1.ZeroField("ChunkSizeBytes"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("ChunkSizeBytes")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 			if err := fieldTarget3.FromInt(int64(m.ChunkSizeBytes), tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -89,12 +88,17 @@ func (t *SignedHeaderTarget) StartField(name string) (key, field vdl.Target, _ e
 func (t *SignedHeaderTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *SignedHeaderTarget) ZeroField(name string) error {
+	switch name {
+	case "ChunkSizeBytes":
+		t.Value.ChunkSizeBytes = int64(0)
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/security/serialization.SignedHeader", name)
+	}
+}
 func (t *SignedHeaderTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *SignedHeaderTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = SignedHeader{}
 	return nil
 }
 
@@ -128,10 +132,6 @@ func (t *HashCodeTarget) FromBytes(src []byte, tt *vdl.Type) error {
 	}
 	copy((*t.Value)[:], src)
 
-	return nil
-}
-func (t *HashCodeTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = HashCode{}
 	return nil
 }
 
@@ -269,10 +269,6 @@ func (t *SignedDataTarget) FinishField(_, fieldTarget vdl.Target) error {
 }
 func (t *SignedDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *SignedDataTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = SignedData(SignedDataSignature{})
 	return nil
 }
 

@@ -36,44 +36,42 @@ func (m *HistogramBucket) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("LowBound")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := (m.LowBound == int64(0))
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	var4 := (m.LowBound == int64(0))
+	if var4 {
+		if err := fieldsTarget1.ZeroField("LowBound"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("LowBound")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 			if err := fieldTarget3.FromInt(int64(m.LowBound), tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Count")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var7 := (m.Count == int64(0))
-		if var7 {
-			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var7 := (m.Count == int64(0))
+	if var7 {
+		if err := fieldsTarget1.ZeroField("Count"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Count")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget6.FromInt(int64(m.Count), tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -118,12 +116,20 @@ func (t *HistogramBucketTarget) StartField(name string) (key, field vdl.Target, 
 func (t *HistogramBucketTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *HistogramBucketTarget) ZeroField(name string) error {
+	switch name {
+	case "LowBound":
+		t.Value.LowBound = int64(0)
+		return nil
+	case "Count":
+		t.Value.Count = int64(0)
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/services/stats.HistogramBucket", name)
+	}
+}
 func (t *HistogramBucketTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *HistogramBucketTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = HistogramBucket{}
 	return nil
 }
 
@@ -151,101 +157,96 @@ func (m *HistogramValue) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Count")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := (m.Count == int64(0))
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	var4 := (m.Count == int64(0))
+	if var4 {
+		if err := fieldsTarget1.ZeroField("Count"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Count")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 			if err := fieldTarget3.FromInt(int64(m.Count), tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Sum")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var7 := (m.Sum == int64(0))
-		if var7 {
-			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var7 := (m.Sum == int64(0))
+	if var7 {
+		if err := fieldsTarget1.ZeroField("Sum"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Sum")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget6.FromInt(int64(m.Sum), tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-			return err
-		}
-	}
-	keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Min")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var10 := (m.Min == int64(0))
-		if var10 {
-			if err := fieldTarget9.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var10 := (m.Min == int64(0))
+	if var10 {
+		if err := fieldsTarget1.ZeroField("Min"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Min")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget9.FromInt(int64(m.Min), tt.NonOptional().Field(2).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
-			return err
-		}
-	}
-	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("Max")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var13 := (m.Max == int64(0))
-		if var13 {
-			if err := fieldTarget12.FromZero(tt.NonOptional().Field(3).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var13 := (m.Max == int64(0))
+	if var13 {
+		if err := fieldsTarget1.ZeroField("Max"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("Max")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget12.FromInt(int64(m.Max), tt.NonOptional().Field(3).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
-			return err
-		}
-	}
-	keyTarget14, fieldTarget15, err := fieldsTarget1.StartField("Buckets")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var var16 bool
-		if len(m.Buckets) == 0 {
-			var16 = true
-		}
-		if var16 {
-			if err := fieldTarget15.FromZero(tt.NonOptional().Field(4).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var var16 bool
+	if len(m.Buckets) == 0 {
+		var16 = true
+	}
+	if var16 {
+		if err := fieldsTarget1.ZeroField("Buckets"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget14, fieldTarget15, err := fieldsTarget1.StartField("Buckets")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 
 			listTarget17, err := fieldTarget15.StartList(tt.NonOptional().Field(4).Type, len(m.Buckets))
 			if err != nil {
@@ -267,9 +268,9 @@ func (m *HistogramValue) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			if err := fieldTarget15.FinishList(listTarget17); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -329,12 +330,29 @@ func (t *HistogramValueTarget) StartField(name string) (key, field vdl.Target, _
 func (t *HistogramValueTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *HistogramValueTarget) ZeroField(name string) error {
+	switch name {
+	case "Count":
+		t.Value.Count = int64(0)
+		return nil
+	case "Sum":
+		t.Value.Sum = int64(0)
+		return nil
+	case "Min":
+		t.Value.Min = int64(0)
+		return nil
+	case "Max":
+		t.Value.Max = int64(0)
+		return nil
+	case "Buckets":
+		t.Value.Buckets = []HistogramBucket(nil)
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/services/stats.HistogramValue", name)
+	}
+}
 func (t *HistogramValueTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *HistogramValueTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = HistogramValue{}
 	return nil
 }
 
@@ -368,10 +386,6 @@ func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 }
 func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
-	return nil
-}
-func (t *__VDLTarget1_list) FromZero(tt *vdl.Type) error {
-	*t.Value = []HistogramBucket(nil)
 	return nil
 }
 

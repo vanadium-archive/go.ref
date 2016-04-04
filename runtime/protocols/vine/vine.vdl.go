@@ -38,44 +38,42 @@ func (m *PeerKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Dialer")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := (m.Dialer == "")
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	var4 := (m.Dialer == "")
+	if var4 {
+		if err := fieldsTarget1.ZeroField("Dialer"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Dialer")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 			if err := fieldTarget3.FromString(string(m.Dialer), tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Acceptor")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var7 := (m.Acceptor == "")
-		if var7 {
-			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var7 := (m.Acceptor == "")
+	if var7 {
+		if err := fieldsTarget1.ZeroField("Acceptor"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Acceptor")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget6.FromString(string(m.Acceptor), tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -120,12 +118,20 @@ func (t *PeerKeyTarget) StartField(name string) (key, field vdl.Target, _ error)
 func (t *PeerKeyTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *PeerKeyTarget) ZeroField(name string) error {
+	switch name {
+	case "Dialer":
+		t.Value.Dialer = ""
+		return nil
+	case "Acceptor":
+		t.Value.Acceptor = ""
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.PeerKey", name)
+	}
+}
 func (t *PeerKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *PeerKeyTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = PeerKey{}
 	return nil
 }
 
@@ -152,44 +158,42 @@ func (m *PeerBehavior) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Reachable")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var4 := (m.Reachable == false)
-		if var4 {
-			if err := fieldTarget3.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	var4 := (m.Reachable == false)
+	if var4 {
+		if err := fieldsTarget1.ZeroField("Reachable"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Reachable")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 			if err := fieldTarget3.FromBool(bool(m.Reachable), tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-			return err
-		}
-	}
-	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Discoverable")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var7 := (m.Discoverable == false)
-		if var7 {
-			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var7 := (m.Discoverable == false)
+	if var7 {
+		if err := fieldsTarget1.ZeroField("Discoverable"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Discoverable")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget6.FromBool(bool(m.Discoverable), tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -234,12 +238,20 @@ func (t *PeerBehaviorTarget) StartField(name string) (key, field vdl.Target, _ e
 func (t *PeerBehaviorTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *PeerBehaviorTarget) ZeroField(name string) error {
+	switch name {
+	case "Reachable":
+		t.Value.Reachable = false
+		return nil
+	case "Discoverable":
+		t.Value.Discoverable = false
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.PeerBehavior", name)
+	}
+}
 func (t *PeerBehaviorTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *PeerBehaviorTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = PeerBehavior{}
 	return nil
 }
 

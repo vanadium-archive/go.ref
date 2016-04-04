@@ -55,25 +55,24 @@ func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("SystemTimeAtBoot")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var5 := (wireValue2 == time_2.Time{})
-		if var5 {
-			if err := fieldTarget4.FromZero(tt.NonOptional().Field(0).Type); err != nil {
+	var5 := (wireValue2 == time_2.Time{})
+	if var5 {
+		if err := fieldsTarget1.ZeroField("SystemTimeAtBoot"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget3, fieldTarget4, err := fieldsTarget1.StartField("SystemTimeAtBoot")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			if err := wireValue2.FillVDLTarget(fieldTarget4, tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget3, fieldTarget4); err != nil {
+				return err
+			}
 		}
 	}
 	var wireValue6 time_2.Duration
@@ -81,25 +80,24 @@ func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("Skew")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var9 := (wireValue6 == time_2.Duration{})
-		if var9 {
-			if err := fieldTarget8.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+	var9 := (wireValue6 == time_2.Duration{})
+	if var9 {
+		if err := fieldsTarget1.ZeroField("Skew"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget7, fieldTarget8, err := fieldsTarget1.StartField("Skew")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			if err := wireValue6.FillVDLTarget(fieldTarget8, tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget7, fieldTarget8); err != nil {
+				return err
+			}
 		}
 	}
 	var wireValue10 time_2.Duration
@@ -107,25 +105,24 @@ func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("ElapsedTimeSinceBoot")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var13 := (wireValue10 == time_2.Duration{})
-		if var13 {
-			if err := fieldTarget12.FromZero(tt.NonOptional().Field(2).Type); err != nil {
+	var13 := (wireValue10 == time_2.Duration{})
+	if var13 {
+		if err := fieldsTarget1.ZeroField("ElapsedTimeSinceBoot"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("ElapsedTimeSinceBoot")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			if err := wireValue10.FillVDLTarget(fieldTarget12, tt.NonOptional().Field(2).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
+				return err
+			}
 		}
 	}
 	var wireValue14 time_2.Time
@@ -133,65 +130,62 @@ func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		return err
 	}
 
-	keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("LastNtpTs")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var17 := (wireValue14 == time_2.Time{})
-		if var17 {
-			if err := fieldTarget16.FromZero(tt.NonOptional().Field(3).Type); err != nil {
+	var17 := (wireValue14 == time_2.Time{})
+	if var17 {
+		if err := fieldsTarget1.ZeroField("LastNtpTs"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget15, fieldTarget16, err := fieldsTarget1.StartField("LastNtpTs")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
 				return err
 			}
-		} else {
 
 			if err := wireValue14.FillVDLTarget(fieldTarget16, tt.NonOptional().Field(3).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
-			return err
-		}
-	}
-	keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("NumReboots")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var20 := (m.NumReboots == uint16(0))
-		if var20 {
-			if err := fieldTarget19.FromZero(tt.NonOptional().Field(4).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget15, fieldTarget16); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var20 := (m.NumReboots == uint16(0))
+	if var20 {
+		if err := fieldsTarget1.ZeroField("NumReboots"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("NumReboots")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget19.FromUint(uint64(m.NumReboots), tt.NonOptional().Field(4).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
-			return err
-		}
-	}
-	keyTarget21, fieldTarget22, err := fieldsTarget1.StartField("NumHops")
-	if err != vdl.ErrFieldNoExist && err != nil {
-		return err
-	}
-	if err != vdl.ErrFieldNoExist {
-
-		var23 := (m.NumHops == uint16(0))
-		if var23 {
-			if err := fieldTarget22.FromZero(tt.NonOptional().Field(5).Type); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
 				return err
 			}
-		} else {
+		}
+	}
+	var23 := (m.NumHops == uint16(0))
+	if var23 {
+		if err := fieldsTarget1.ZeroField("NumHops"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget21, fieldTarget22, err := fieldsTarget1.StartField("NumHops")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
 			if err := fieldTarget22.FromUint(uint64(m.NumHops), tt.NonOptional().Field(5).Type); err != nil {
 				return err
 			}
-		}
-		if err := fieldsTarget1.FinishField(keyTarget21, fieldTarget22); err != nil {
-			return err
+			if err := fieldsTarget1.FinishField(keyTarget21, fieldTarget22); err != nil {
+				return err
+			}
 		}
 	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
@@ -256,12 +250,56 @@ func (t *VClockDataTarget) StartField(name string) (key, field vdl.Target, _ err
 func (t *VClockDataTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
+func (t *VClockDataTarget) ZeroField(name string) error {
+	switch name {
+	case "SystemTimeAtBoot":
+		t.Value.SystemTimeAtBoot = func() time.Time {
+			var native time.Time
+			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
+				panic(err)
+			}
+			return native
+		}()
+		return nil
+	case "Skew":
+		t.Value.Skew = func() time.Duration {
+			var native time.Duration
+			if err := vdl.Convert(&native, time_2.Duration{}); err != nil {
+				panic(err)
+			}
+			return native
+		}()
+		return nil
+	case "ElapsedTimeSinceBoot":
+		t.Value.ElapsedTimeSinceBoot = func() time.Duration {
+			var native time.Duration
+			if err := vdl.Convert(&native, time_2.Duration{}); err != nil {
+				panic(err)
+			}
+			return native
+		}()
+		return nil
+	case "LastNtpTs":
+		t.Value.LastNtpTs = func() time.Time {
+			var native time.Time
+			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
+				panic(err)
+			}
+			return native
+		}()
+		return nil
+	case "NumReboots":
+		t.Value.NumReboots = uint16(0)
+		return nil
+	case "NumHops":
+		t.Value.NumHops = uint16(0)
+		return nil
+	default:
+		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vclock.VClockData", name)
+	}
+}
 func (t *VClockDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
-	return nil
-}
-func (t *VClockDataTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = VClockData{}
 	return nil
 }
 

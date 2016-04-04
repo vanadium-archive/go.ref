@@ -96,10 +96,6 @@ func (t *dataRepTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 
 	return nil
 }
-func (t *dataRepTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = dataRepHex
-	return nil
-}
 
 var __VDLInitCalled bool
 
