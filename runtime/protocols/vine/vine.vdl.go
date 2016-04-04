@@ -22,18 +22,18 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 //////////////////////////////////////////////////
 // Type definitions
 
-// ConnKey is a key that represents a connection from a Dialer tag to an Acceptor tag.
-type ConnKey struct {
+// PeerKey is a key that represents a connection from a Dialer tag to an Acceptor tag.
+type PeerKey struct {
 	Dialer   string
 	Acceptor string
 }
 
-func (ConnKey) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/runtime/protocols/vine.ConnKey"`
+func (PeerKey) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/runtime/protocols/vine.PeerKey"`
 }) {
 }
 
-func (m *ConnKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+func (m *PeerKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -84,26 +84,26 @@ func (m *ConnKey) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	return nil
 }
 
-func (m *ConnKey) MakeVDLTarget() vdl.Target {
-	return &ConnKeyTarget{Value: m}
+func (m *PeerKey) MakeVDLTarget() vdl.Target {
+	return &PeerKeyTarget{Value: m}
 }
 
-type ConnKeyTarget struct {
-	Value          *ConnKey
+type PeerKeyTarget struct {
+	Value          *PeerKey
 	dialerTarget   vdl.StringTarget
 	acceptorTarget vdl.StringTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
 
-func (t *ConnKeyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+func (t *PeerKeyTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if ttWant := vdl.TypeOf((*ConnKey)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+	if ttWant := vdl.TypeOf((*PeerKey)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
-func (t *ConnKeyTarget) StartField(name string) (key, field vdl.Target, _ error) {
+func (t *PeerKeyTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Dialer":
 		t.dialerTarget.Value = &t.Value.Dialer
@@ -114,35 +114,40 @@ func (t *ConnKeyTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.acceptorTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.ConnKey", name)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.PeerKey", name)
 	}
 }
-func (t *ConnKeyTarget) FinishField(_, _ vdl.Target) error {
+func (t *PeerKeyTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
-func (t *ConnKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
+func (t *PeerKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-func (t *ConnKeyTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = ConnKey{}
+func (t *PeerKeyTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = PeerKey{}
 	return nil
 }
 
-// ConnBehavior specifies characteristics of a connection.
-type ConnBehavior struct {
+// PeerBehavior specifies characteristics of a connection.
+type PeerBehavior struct {
 	// Reachable specifies whether the outgoing or incoming connection can be
 	// dialed or accepted.
 	// TODO(suharshs): Make this a user defined error which vine will return instead of a bool.
 	Reachable bool
+	// Discoverable specifies whether the Dialer can advertise a discovery packet
+	// to the Acceptor. This is useful for emulating neighborhoods.
+	// TODO(suharshs): Discoverable should always be bidirectional. It is unrealistic for
+	// A to discover B, but not vice versa.
+	Discoverable bool
 }
 
-func (ConnBehavior) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/runtime/protocols/vine.ConnBehavior"`
+func (PeerBehavior) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/runtime/protocols/vine.PeerBehavior"`
 }) {
 }
 
-func (m *ConnBehavior) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+func (m *PeerBehavior) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -167,49 +172,74 @@ func (m *ConnBehavior) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			return err
 		}
 	}
+	keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Discoverable")
+	if err != vdl.ErrFieldNoExist && err != nil {
+		return err
+	}
+	if err != vdl.ErrFieldNoExist {
+
+		var7 := (m.Discoverable == false)
+		if var7 {
+			if err := fieldTarget6.FromZero(tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		} else {
+			if err := fieldTarget6.FromBool(bool(m.Discoverable), tt.NonOptional().Field(1).Type); err != nil {
+				return err
+			}
+		}
+		if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
+			return err
+		}
+	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *ConnBehavior) MakeVDLTarget() vdl.Target {
-	return &ConnBehaviorTarget{Value: m}
+func (m *PeerBehavior) MakeVDLTarget() vdl.Target {
+	return &PeerBehaviorTarget{Value: m}
 }
 
-type ConnBehaviorTarget struct {
-	Value           *ConnBehavior
-	reachableTarget vdl.BoolTarget
+type PeerBehaviorTarget struct {
+	Value              *PeerBehavior
+	reachableTarget    vdl.BoolTarget
+	discoverableTarget vdl.BoolTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
 
-func (t *ConnBehaviorTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+func (t *PeerBehaviorTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if ttWant := vdl.TypeOf((*ConnBehavior)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+	if ttWant := vdl.TypeOf((*PeerBehavior)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
-func (t *ConnBehaviorTarget) StartField(name string) (key, field vdl.Target, _ error) {
+func (t *PeerBehaviorTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	case "Reachable":
 		t.reachableTarget.Value = &t.Value.Reachable
 		target, err := &t.reachableTarget, error(nil)
 		return nil, target, err
+	case "Discoverable":
+		t.discoverableTarget.Value = &t.Value.Discoverable
+		target, err := &t.discoverableTarget, error(nil)
+		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.ConnBehavior", name)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.PeerBehavior", name)
 	}
 }
-func (t *ConnBehaviorTarget) FinishField(_, _ vdl.Target) error {
+func (t *PeerBehaviorTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
-func (t *ConnBehaviorTarget) FinishFields(_ vdl.FieldsTarget) error {
+func (t *PeerBehaviorTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
-func (t *ConnBehaviorTarget) FromZero(tt *vdl.Type) error {
-	*t.Value = ConnBehavior{}
+func (t *PeerBehaviorTarget) FromZero(tt *vdl.Type) error {
+	*t.Value = PeerBehavior{}
 	return nil
 }
 
@@ -255,9 +285,9 @@ type VineClientMethods interface {
 	// will use on connections.
 	// behaviors is a map from server tag to the desired connection behavior.
 	// For example,
-	//   client.SetBehaviors(map[ConnKey]ConnBehavior{ConnKey{"foo", "bar"}, ConnBehavior{Reachable: false}})
+	//   client.SetBehaviors(map[PeerKey]PeerBehavior{PeerKey{"foo", "bar"}, PeerBehavior{Reachable: false}})
 	// will cause all vine protocol dial calls from "foo" to "bar" to fail.
-	SetBehaviors(_ *context.T, behaviors map[ConnKey]ConnBehavior, _ ...rpc.CallOpt) error
+	SetBehaviors(_ *context.T, behaviors map[PeerKey]PeerBehavior, _ ...rpc.CallOpt) error
 }
 
 // VineClientStub adds universal methods to VineClientMethods.
@@ -275,7 +305,7 @@ type implVineClientStub struct {
 	name string
 }
 
-func (c implVineClientStub) SetBehaviors(ctx *context.T, i0 map[ConnKey]ConnBehavior, opts ...rpc.CallOpt) (err error) {
+func (c implVineClientStub) SetBehaviors(ctx *context.T, i0 map[PeerKey]PeerBehavior, opts ...rpc.CallOpt) (err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "SetBehaviors", []interface{}{i0}, nil, opts...)
 	return
 }
@@ -290,9 +320,9 @@ type VineServerMethods interface {
 	// will use on connections.
 	// behaviors is a map from server tag to the desired connection behavior.
 	// For example,
-	//   client.SetBehaviors(map[ConnKey]ConnBehavior{ConnKey{"foo", "bar"}, ConnBehavior{Reachable: false}})
+	//   client.SetBehaviors(map[PeerKey]PeerBehavior{PeerKey{"foo", "bar"}, PeerBehavior{Reachable: false}})
 	// will cause all vine protocol dial calls from "foo" to "bar" to fail.
-	SetBehaviors(_ *context.T, _ rpc.ServerCall, behaviors map[ConnKey]ConnBehavior) error
+	SetBehaviors(_ *context.T, _ rpc.ServerCall, behaviors map[PeerKey]PeerBehavior) error
 }
 
 // VineServerStubMethods is the server interface containing
@@ -330,7 +360,7 @@ type implVineServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implVineServerStub) SetBehaviors(ctx *context.T, call rpc.ServerCall, i0 map[ConnKey]ConnBehavior) error {
+func (s implVineServerStub) SetBehaviors(ctx *context.T, call rpc.ServerCall, i0 map[PeerKey]PeerBehavior) error {
 	return s.impl.SetBehaviors(ctx, call, i0)
 }
 
@@ -353,9 +383,9 @@ var descVine = rpc.InterfaceDesc{
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "SetBehaviors",
-			Doc:  "// SetBehaviors sets the policy that the accepting vine service's process\n// will use on connections.\n// behaviors is a map from server tag to the desired connection behavior.\n// For example,\n//   client.SetBehaviors(map[ConnKey]ConnBehavior{ConnKey{\"foo\", \"bar\"}, ConnBehavior{Reachable: false}})\n// will cause all vine protocol dial calls from \"foo\" to \"bar\" to fail.",
+			Doc:  "// SetBehaviors sets the policy that the accepting vine service's process\n// will use on connections.\n// behaviors is a map from server tag to the desired connection behavior.\n// For example,\n//   client.SetBehaviors(map[PeerKey]PeerBehavior{PeerKey{\"foo\", \"bar\"}, PeerBehavior{Reachable: false}})\n// will cause all vine protocol dial calls from \"foo\" to \"bar\" to fail.",
 			InArgs: []rpc.ArgDesc{
-				{"behaviors", ``}, // map[ConnKey]ConnBehavior
+				{"behaviors", ``}, // map[PeerKey]PeerBehavior
 			},
 		},
 	},
@@ -383,8 +413,8 @@ func __VDLInit() struct{} {
 	__VDLInitCalled = true
 
 	// Register types.
-	vdl.Register((*ConnKey)(nil))
-	vdl.Register((*ConnBehavior)(nil))
+	vdl.Register((*PeerKey)(nil))
+	vdl.Register((*PeerBehavior)(nil))
 
 	// Set error format strings.
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidAddress.ID), "{1:}{2:} invalid vine address {3}, address must be of the form 'network/address/tag'")

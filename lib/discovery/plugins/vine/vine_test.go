@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/discovery"
 
 	idiscovery "v.io/x/ref/lib/discovery"
@@ -50,7 +51,6 @@ func TestBasic(t *testing.T) {
 		},
 	}
 
-	// TODO(suharshs): Use a vine configuration.
 	configs := []struct {
 		name  string
 		peers []string
@@ -63,7 +63,8 @@ func TestBasic(t *testing.T) {
 	plugins := make([]idiscovery.Plugin, len(configs))
 	for i, config := range configs {
 		var err error
-		plugins[i], err = New(ctx, config.name, config.peers)
+		peers := config.peers
+		plugins[i], err = New(ctx, config.name, func(*context.T) []string { return peers })
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -163,8 +164,6 @@ func TestExpired(t *testing.T) {
 		},
 	}
 
-	// TODO(suharshs): Use a vine configuration.
-	// TODO(suharshs): Use vine to simulate a broken network and one manual clock for all plugins.
 	configs := []struct {
 		name  string
 		peers []string
@@ -179,7 +178,8 @@ func TestExpired(t *testing.T) {
 	plugins := make([]idiscovery.Plugin, len(configs))
 	for i, config := range configs {
 		var err error
-		plugins[i], err = newWithClock(ctx, config.name, config.peers, config.ttl, config.clock)
+		peers := config.peers
+		plugins[i], err = newWithClock(ctx, config.name, func(*context.T) []string { return peers }, config.ttl, config.clock)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -231,7 +231,6 @@ func TestRefresh(t *testing.T) {
 		Hash: idiscovery.AdHash{1, 2, 3},
 	}
 
-	// TODO(suharshs): Use a vine configuration.
 	configs := []struct {
 		name  string
 		peers []string
@@ -247,7 +246,8 @@ func TestRefresh(t *testing.T) {
 	plugins := make([]idiscovery.Plugin, len(configs))
 	for i, config := range configs {
 		var err error
-		plugins[i], err = newWithClock(ctx, config.name, config.peers, TTL, clock)
+		peers := config.peers
+		plugins[i], err = newWithClock(ctx, config.name, func(*context.T) []string { return peers }, TTL, clock)
 		if err != nil {
 			t.Fatal(err)
 		}

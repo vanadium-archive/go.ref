@@ -45,7 +45,7 @@ const (
 )
 
 type plugin struct {
-	peers []string
+	peers func(*context.T) []string
 	store *store
 
 	clock timekeeper.TimeKeeper
@@ -128,7 +128,7 @@ func (p *plugin) publish(ctx *context.T, adinfo idiscovery.AdInfo) {
 	adinfo.DirAddrs = nil
 
 	var wg sync.WaitGroup
-	for _, peer := range p.peers {
+	for _, peer := range p.peers(ctx) {
 		wg.Add(1)
 		go func(peer string) {
 			defer wg.Done()
@@ -142,7 +142,7 @@ func (p *plugin) publish(ctx *context.T, adinfo idiscovery.AdInfo) {
 
 func (p *plugin) unpublish(ctx *context.T, id discovery.AdId) {
 	var wg sync.WaitGroup
-	for _, peer := range p.peers {
+	for _, peer := range p.peers(ctx) {
 		wg.Add(1)
 		go func(peer string) {
 			defer wg.Done()
@@ -155,19 +155,16 @@ func (p *plugin) unpublish(ctx *context.T, id discovery.AdId) {
 }
 
 // New returns a new vine plugin instance with default ttl (90s).
-//
-// TODO(suharshs): Get name from vine configuration.
-// TODO(suharshs): Neighborhoods may change dynamically. Get peers from vine configuration dynamically.
-func New(ctx *context.T, name string, peers []string) (idiscovery.Plugin, error) {
+func New(ctx *context.T, name string, peers func(*context.T) []string) (idiscovery.Plugin, error) {
 	return NewWithTTL(ctx, name, peers, defaultTTL)
 }
 
 // New returns a new vine plugin instance. If ttl is zero, the default values will be used.
-func NewWithTTL(ctx *context.T, name string, peers []string, ttl time.Duration) (idiscovery.Plugin, error) {
+func NewWithTTL(ctx *context.T, name string, peers func(*context.T) []string, ttl time.Duration) (idiscovery.Plugin, error) {
 	return newWithClock(ctx, name, peers, ttl, timekeeper.RealTime())
 }
 
-func newWithClock(ctx *context.T, name string, peers []string, ttl time.Duration, clock timekeeper.TimeKeeper) (idiscovery.Plugin, error) {
+func newWithClock(ctx *context.T, name string, peers func(*context.T) []string, ttl time.Duration, clock timekeeper.TimeKeeper) (idiscovery.Plugin, error) {
 	store, err := newStore(ctx, name, clock)
 	if err != nil {
 		return nil, err

@@ -6,12 +6,15 @@ package vine_test
 
 import (
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/discovery"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/x/ref/lib/discovery/testutil"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/protocols/vine"
 	"v.io/x/ref/test"
@@ -21,7 +24,7 @@ func TestOutgoingReachable(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	ctx, err := vine.Init(ctx, "vineserver", security.AllowEveryone(), "client")
+	ctx, err := vine.Init(ctx, "vineserver", security.AllowEveryone(), "client", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,9 +58,9 @@ func TestOutgoingReachable(t *testing.T) {
 	// Now, we set connection behaviors that say that "client" can reach "reachable"
 	// but cannot reach unreachable.
 	vineClient := vine.VineClient("vineserver")
-	if err := vineClient.SetBehaviors(ctx, map[vine.ConnKey]vine.ConnBehavior{
-		vine.ConnKey{"client", "reachable"}:   {Reachable: true},
-		vine.ConnKey{"client", "unreachable"}: {Reachable: false},
+	if err := vineClient.SetBehaviors(ctx, map[vine.PeerKey]vine.PeerBehavior{
+		vine.PeerKey{"client", "reachable"}:   {Reachable: true},
+		vine.PeerKey{"client", "unreachable"}: {Reachable: false},
 	}); err != nil {
 		t.Error(err)
 	}
@@ -84,7 +87,7 @@ func TestIncomingReachable(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	ctx, err := vine.Init(ctx, "vineserver", security.AllowEveryone(), "client")
+	ctx, err := vine.Init(ctx, "vineserver", security.AllowEveryone(), "client", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,9 +118,9 @@ func TestIncomingReachable(t *testing.T) {
 	// Set a policy that allows "server" to accept connections from "client" but
 	// denies all connections from "denyClient".
 	vineClient := vine.VineClient("vineserver")
-	if err := vineClient.SetBehaviors(ctx, map[vine.ConnKey]vine.ConnBehavior{
-		vine.ConnKey{"client", "server"}:     {Reachable: true},
-		vine.ConnKey{"denyClient", "server"}: {Reachable: false},
+	if err := vineClient.SetBehaviors(ctx, map[vine.PeerKey]vine.PeerBehavior{
+		vine.PeerKey{"client", "server"}:     {Reachable: true},
+		vine.PeerKey{"denyClient", "server"}: {Reachable: false},
 	}); err != nil {
 		t.Error(err)
 	}
@@ -137,6 +140,66 @@ func TestIncomingReachable(t *testing.T) {
 	}
 	// Now, a call with "client" should still work even without a cached connection.
 	if err := v23.GetClient(ctx).Call(ctx, "server", "Foo", nil, nil); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestDiscovery(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	actx, err := vine.Init(ctx, "advertiser", security.AllowEveryone(), "advertiser", 20*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dctx, err := vine.Init(ctx, "scanner", security.AllowEveryone(), "scanner", 20*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := v23.NewDiscovery(actx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, err := v23.NewDiscovery(dctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ad := &discovery.Advertisement{
+		Id:            discovery.AdId{1, 2, 3},
+		InterfaceName: "v.io/x",
+		Addresses:     []string{"/@6@wsh@v1.com@@/x"},
+	}
+	astop, err := testutil.Advertise(actx, a, nil, ad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer astop()
+	// Before setting any behaviors scanner should not be able to discover advertiser.
+	if err := testutil.ScanAndMatch(dctx, d, ""); err != nil {
+		t.Error(err)
+	}
+
+	// Set a policy that says scanner can find advertiser.
+	vineClient := vine.VineClient("advertiser")
+	if err := vineClient.SetBehaviors(ctx, map[vine.PeerKey]vine.PeerBehavior{
+		vine.PeerKey{"advertiser", "scanner"}: {Discoverable: true},
+	}); err != nil {
+		t.Error(err)
+	}
+	// we should find discAd when scanning.
+	if err := testutil.ScanAndMatch(dctx, d, "", *ad); err != nil {
+		t.Error(err)
+	}
+
+	// Set a policy that says scanner can't find advertiser anymore.
+	if err := vineClient.SetBehaviors(ctx, map[vine.PeerKey]vine.PeerBehavior{
+		vine.PeerKey{"advertiser", "scanner"}: {Discoverable: false},
+	}); err != nil {
+		t.Error(err)
+	}
+	// nothing should be found when scanning.
+	if err := testutil.ScanAndMatch(dctx, d, ""); err != nil {
 		t.Error(err)
 	}
 }

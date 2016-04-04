@@ -21,27 +21,39 @@ import (
 	"v.io/v23/flow"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/x/ref/lib/discovery"
+	"v.io/x/ref/lib/discovery/factory"
+	vineplugin "v.io/x/ref/lib/discovery/plugins/vine"
 )
 
 func init() {
 	v := &vine{
-		behaviors: make(map[ConnKey]ConnBehavior),
-		conns:     make(map[ConnKey]map[*conn]bool),
+		behaviors: make(map[PeerKey]PeerBehavior),
+		conns:     make(map[PeerKey]map[*conn]bool),
 	}
 	flow.RegisterProtocol("vine", v)
 }
 
 // Init initializes the vine server mounted under name using auth as its
 // authorization policy and registers the vine protocol.
+// discoveryTTL specifies the ttl of scanned advertisings for the vine discovery plugin.
 // The ctx returned from Init:
 // (1) has localTag as the default localTag for dialers and acceptors.
 // (2) has all addresses in the listenspec altered to listen on the vine protocol.
-func Init(ctx *context.T, name string, auth security.Authorizer, localTag string) (*context.T, error) {
-	v, _ := flow.RegisteredProtocol("vine")
-	_, _, err := v23.WithNewServer(ctx, name, VineServer(v.(*vine)), auth)
+func Init(ctx *context.T, name string, auth security.Authorizer, localTag string, discoveryTTL time.Duration) (*context.T, error) {
+	protocol, _ := flow.RegisteredProtocol("vine")
+	v := protocol.(*vine)
+	_, _, err := v23.WithNewServer(ctx, name, VineServer(v), auth)
+	// Nodes are not discoverable until the test controller sets nodes as discoverable.
+	plugin, err := vineplugin.NewWithTTL(ctx, discoveryServerName(localTag), v.discPeers, discoveryTTL)
 	if err != nil {
 		return nil, err
 	}
+	df, err := discovery.NewFactory(ctx, plugin)
+	if err != nil {
+		return nil, err
+	}
+	factory.InjectFactory(df)
 	lspec := v23.GetListenSpec(ctx)
 	for i, addr := range lspec.Addrs {
 		lspec.Addrs[i].Protocol = "vine"
@@ -49,7 +61,7 @@ func Init(ctx *context.T, name string, auth security.Authorizer, localTag string
 	}
 	ctx = v23.WithListenSpec(ctx, lspec)
 	ctx = WithLocalTag(ctx, localTag)
-	return ctx, nil
+	return ctx, err
 }
 
 // WithLocalTag returns a ctx that will have localTag as the default localTag for
@@ -68,22 +80,23 @@ type localTagKey struct{}
 
 type vine struct {
 	mu sync.Mutex
-	// behaviors maps ConnKeys to the corresponding connection's behavior.
-	// If a ConnKey isn't in the map, the connection will be created under normal
+	// behaviors maps PeerKeys to the corresponding connection's behavior.
+	// If a PeerKey isn't in the map, the connection will be created under normal
 	// network characteristics.
-	behaviors map[ConnKey]ConnBehavior
+	behaviors map[PeerKey]PeerBehavior
 	// conns stores all the vine connections. Sets of *conns are keyed by their
-	// corresponding ConnKey
-	conns map[ConnKey]map[*conn]bool
+	// corresponding PeerKey
+	conns map[PeerKey]map[*conn]bool
 }
 
 // SetBehaviors sets the policy that the accepting vine service's process
 // will use on connections.
 // behaviors is a map from server tag to the desired connection behavior.
 // For example,
-//   client.SetBehaviors(map[ConnKey]ConnBehavior{ConnKey{"foo", "bar"}, ConnBehavior{Reachable: false}})
+//   client.SetBehaviors(map[PeerKey]PeerBehavior{PeerKey{"foo", "bar"}, PeerBehavior{Reachable: false}})
 // will cause all vine protocol dial calls from "foo" to "bar" to fail.
-func (v *vine) SetBehaviors(ctx *context.T, call rpc.ServerCall, behaviors map[ConnKey]ConnBehavior) error {
+// New calls to SetBehaviors completely override previous calls.
+func (v *vine) SetBehaviors(ctx *context.T, call rpc.ServerCall, behaviors map[PeerKey]PeerBehavior) error {
 	var toKill []flow.Conn
 	v.mu.Lock()
 	v.behaviors = behaviors
@@ -101,6 +114,19 @@ func (v *vine) SetBehaviors(ctx *context.T, call rpc.ServerCall, behaviors map[C
 	return nil
 }
 
+func (v *vine) discPeers(ctx *context.T) []string {
+	defer v.mu.Unlock()
+	v.mu.Lock()
+	var discoveryPeers []string
+	localTag := getLocalTag(ctx)
+	for key, behavior := range v.behaviors {
+		if key.Dialer == localTag && behavior.Discoverable {
+			discoveryPeers = append(discoveryPeers, discoveryServerName(key.Acceptor))
+		}
+	}
+	return discoveryPeers
+}
+
 // Dial returns a flow.Conn to the specified address.
 // protocol should always be "vine".
 // address is of the form "network/ipaddress/tag". (i.e. A tcp server named
@@ -114,7 +140,7 @@ func (v *vine) Dial(ctx *context.T, protocol, address string, timeout time.Durat
 		return nil, err
 	}
 	localTag := getLocalTag(ctx)
-	key := ConnKey{localTag, remoteTag}
+	key := PeerKey{localTag, remoteTag}
 	v.mu.Lock()
 	behavior, ok := v.behaviors[key]
 	v.mu.Unlock()
@@ -209,7 +235,7 @@ func (v *vine) removeConn(c *conn) {
 type conn struct {
 	base flow.Conn
 	addr addr
-	key  ConnKey
+	key  PeerKey
 	vine *vine
 }
 
@@ -250,7 +276,7 @@ func (l *listener) Accept(ctx *context.T) (flow.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	key := ConnKey{remoteTag, l.localTag}
+	key := PeerKey{remoteTag, l.localTag}
 	l.vine.mu.Lock()
 	behavior, ok := l.vine.behaviors[key]
 	l.vine.mu.Unlock()
@@ -332,4 +358,8 @@ func parseListeningAddress(ctx *context.T, laddress string) (network string, add
 		return "", "", nil, NewErrNoRegisteredProtocol(ctx, parts[0])
 	}
 	return parts[0], parts[1], p, nil
+}
+
+func discoveryServerName(tag string) string {
+	return "vine/discovery/" + tag
 }
