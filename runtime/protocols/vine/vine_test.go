@@ -45,14 +45,14 @@ func TestOutgoingReachable(t *testing.T) {
 		<-reachServer.Closed()
 		<-unreachServer.Closed()
 	}()
-	// Before we set any connection behaviors, a client should be able to talk to
-	// either of the servers.
+	// Before we set any connection behaviors, a client should not be able to talk
+	// to either of the servers.
 	client := v23.GetClient(ctx)
-	if err := client.Call(ctx, "reachable", "Foo", nil, nil); err != nil {
-		t.Error(err)
+	if err := client.Call(ctx, "reachable", "Foo", nil, nil, options.NoRetry{}); err == nil {
+		t.Errorf("wanted call to fail")
 	}
-	if err := client.Call(ctx, "unreachable", "Foo", nil, nil); err != nil {
-		t.Error(err)
+	if err := client.Call(ctx, "unreachable", "Foo", nil, nil, options.NoRetry{}); err == nil {
+		t.Errorf("wanted call to fail")
 	}
 
 	// Now, we set connection behaviors that say that "client" can reach "reachable"
@@ -107,12 +107,12 @@ func TestIncomingReachable(t *testing.T) {
 		<-server.Closed()
 	}()
 
-	// Before setting a policy all calls should succeed.
-	if err := v23.GetClient(ctx).Call(ctx, "server", "Foo", nil, nil); err != nil {
-		t.Error(err)
+	// Before setting a policy all calls should fail.
+	if err := v23.GetClient(ctx).Call(ctx, "server", "Foo", nil, nil, options.NoRetry{}); err == nil {
+		t.Errorf("wanted call to fail")
 	}
-	if err := v23.GetClient(denyCtx).Call(denyCtx, "server", "Foo", nil, nil); err != nil {
-		t.Error(err)
+	if err := v23.GetClient(denyCtx).Call(denyCtx, "server", "Foo", nil, nil, options.NoRetry{}); err == nil {
+		t.Errorf("wanted call to fail")
 	}
 
 	// Set a policy that allows "server" to accept connections from "client" but
@@ -187,7 +187,7 @@ func TestDiscovery(t *testing.T) {
 	}); err != nil {
 		t.Error(err)
 	}
-	// we should find discAd when scanning.
+	// we should find ad when scanning.
 	if err := testutil.ScanAndMatch(dctx, d, "", *ad); err != nil {
 		t.Error(err)
 	}

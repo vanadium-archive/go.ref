@@ -54,7 +54,7 @@ func Init(ctx *context.T, name string, auth security.Authorizer, localTag string
 		return nil, err
 	}
 	factory.InjectFactory(df)
-	lspec := v23.GetListenSpec(ctx)
+	lspec := v23.GetListenSpec(ctx).Copy()
 	for i, addr := range lspec.Addrs {
 		lspec.Addrs[i].Protocol = "vine"
 		lspec.Addrs[i].Address = createListeningAddress(addr.Protocol, addr.Address)
@@ -81,8 +81,7 @@ type localTagKey struct{}
 type vine struct {
 	mu sync.Mutex
 	// behaviors maps PeerKeys to the corresponding connection's behavior.
-	// If a PeerKey isn't in the map, the connection will be created under normal
-	// network characteristics.
+	// If a PeerKey isn't in the map, the connection will not be Reachable.
 	behaviors map[PeerKey]PeerBehavior
 	// conns stores all the vine connections. Sets of *conns are keyed by their
 	// corresponding PeerKey
@@ -142,10 +141,10 @@ func (v *vine) Dial(ctx *context.T, protocol, address string, timeout time.Durat
 	localTag := getLocalTag(ctx)
 	key := PeerKey{localTag, remoteTag}
 	v.mu.Lock()
-	behavior, ok := v.behaviors[key]
+	behavior := v.behaviors[key]
 	v.mu.Unlock()
 	// If the tag has been marked as not reachable, we can't create the connection.
-	if ok && !behavior.Reachable {
+	if !behavior.Reachable {
 		return nil, NewErrAddressNotReachable(ctx, a)
 	}
 	c, err := baseProtocol.Dial(ctx, n, a, timeout)
