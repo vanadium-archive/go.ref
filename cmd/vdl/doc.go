@@ -84,16 +84,29 @@ The vdl generate flags are:
    If a VDL package has a prefix src, the prefix will be replaced with dst.  Use
    commas to separate multiple rules; the first rule matching src is used, and
    if there are no matching rules, the package remains unchanged.  The special
-   dst SKIP indicates matching packages are skipped.
+   dst SKIP indicates those packages containing the string are skipped. Note
+   this skip behavior is slightly different than the -out-dir semantics which is
+   prefix-based.
  -js-out-dir=release/go/src->release/javascript/core/src,roadmap/go/src->release/javascript/core/src,third_party/go/src->SKIP,tools/go/src->SKIP,release/go/src/v.io/v23/vdlroot->SKIP
    Same semantics as --go-out-dir but applies to js code generation.
  -js-relative-path-to-core=
    If set, this is the relative path from js-out-dir to the root of the JS core
  -lang=Go
    Comma-separated list of languages to generate, currently supporting
-   Go,Java,Javascript
+   Go,Java,Javascript,Swift
  -status=true
    Show package names as they are updated
+ -swift-out-dir=release/go/src->release/swift/lib/generated-src/vdl,roadmap/go/src->release/swift/lib/generated-src/vdl
+   Same semantics as --go-out-dir but applies to Swift code generation.
+ -swift-out-pkg=v.io/x->SKIP,/internal->SKIP,/testdata->SKIP,v.io/v23->
+   Swift output package translation rules.  Must be of the form:
+      "src->dst[,s2->d2...]"
+   If a VDL package has a prefix src, the prefix will be replaced with dst.  Use
+   commas to separate multiple rules; the first rule matching src is used, and
+   if there are no matching rules, the package remains unchanged.  The special
+   dst SKIP indicates those packages containing the string are skipped. Note
+   this skip behavior is slightly different than the -out-dir semantics which is
+   prefix-based.
 
  -ignore_unknown=false
    Ignore unknown packages provided on the command line.
@@ -172,16 +185,29 @@ The vdl audit flags are:
    If a VDL package has a prefix src, the prefix will be replaced with dst.  Use
    commas to separate multiple rules; the first rule matching src is used, and
    if there are no matching rules, the package remains unchanged.  The special
-   dst SKIP indicates matching packages are skipped.
+   dst SKIP indicates those packages containing the string are skipped. Note
+   this skip behavior is slightly different than the -out-dir semantics which is
+   prefix-based.
  -js-out-dir=release/go/src->release/javascript/core/src,roadmap/go/src->release/javascript/core/src,third_party/go/src->SKIP,tools/go/src->SKIP,release/go/src/v.io/v23/vdlroot->SKIP
    Same semantics as --go-out-dir but applies to js code generation.
  -js-relative-path-to-core=
    If set, this is the relative path from js-out-dir to the root of the JS core
  -lang=Go
    Comma-separated list of languages to generate, currently supporting
-   Go,Java,Javascript
+   Go,Java,Javascript,Swift
  -status=true
    Show package names as they are updated
+ -swift-out-dir=release/go/src->release/swift/lib/generated-src/vdl,roadmap/go/src->release/swift/lib/generated-src/vdl
+   Same semantics as --go-out-dir but applies to Swift code generation.
+ -swift-out-pkg=v.io/x->SKIP,/internal->SKIP,/testdata->SKIP,v.io/v23->
+   Swift output package translation rules.  Must be of the form:
+      "src->dst[,s2->d2...]"
+   If a VDL package has a prefix src, the prefix will be replaced with dst.  Use
+   commas to separate multiple rules; the first rule matching src is used, and
+   if there are no matching rules, the package remains unchanged.  The special
+   dst SKIP indicates those packages containing the string are skipped. Note
+   this skip behavior is slightly different than the -out-dir semantics which is
+   prefix-based.
 
  -ignore_unknown=false
    Ignore unknown packages provided on the command line.

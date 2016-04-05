@@ -24,6 +24,7 @@ import (
 	"v.io/x/ref/lib/vdl/codegen/golang"
 	"v.io/x/ref/lib/vdl/codegen/java"
 	"v.io/x/ref/lib/vdl/codegen/javascript"
+	"v.io/x/ref/lib/vdl/codegen/swift"
 	"v.io/x/ref/lib/vdl/compile"
 	"v.io/x/ref/lib/vdl/vdlutil"
 )
@@ -273,7 +274,7 @@ type genOutDir struct {
 // xlateSrcDst specifies a translation rule, where src must match the suffix of
 // the path just before the package path, and dst is the replacement for src.
 // If dst is the special string "SKIP" we'll skip generation of packages
-// matching the src.
+// where the path CONTAINS src.
 type xlateSrcDst struct {
 	src, dst string
 }
@@ -354,6 +355,18 @@ var (
 	optGenJavaOutPkg = xlateRules{
 		{"v.io", "io/v"},
 	}
+	optGenSwiftOutDir = genOutDir{
+		rules: xlateRules{
+			{"release/go/src", "release/swift/lib/generated-src/vdl"},
+			{"roadmap/go/src", "release/swift/lib/generated-src/vdl"},
+		},
+	}
+	optGenSwiftOutPkg = xlateRules{
+		{"v.io/x", "SKIP"},
+		{"/internal", "SKIP"},
+		{"/testdata", "SKIP"},
+		{"v.io/v23", ""},
+	}
 	optPathToJSCore string
 	// Default to just running the go lang; other langs need special setup.
 	optGenLangs = genLangs{vdltool.GenLanguageGo}
@@ -417,12 +430,22 @@ Java output package translation rules.  Must be of the form:
 If a VDL package has a prefix src, the prefix will be replaced with dst.  Use
 commas to separate multiple rules; the first rule matching src is used, and if
 there are no matching rules, the package remains unchanged.  The special dst
-SKIP indicates matching packages are skipped.`)
+SKIP indicates those packages containing the string are skipped. Note this skip
+behavior is slightly different than the -out-dir semantics which is prefix-based.`)
 	cmdGenerate.Flags.Var(&optGenJavascriptOutDir, "js-out-dir",
 		"Same semantics as --go-out-dir but applies to js code generation.")
 	cmdGenerate.Flags.StringVar(&optPathToJSCore, "js-relative-path-to-core", "",
 		"If set, this is the relative path from js-out-dir to the root of the JS core")
-
+	cmdGenerate.Flags.Var(&optGenSwiftOutDir, "swift-out-dir",
+		"Same semantics as --go-out-dir but applies to Swift code generation.")
+	cmdGenerate.Flags.Var(&optGenSwiftOutPkg, "swift-out-pkg", `
+Swift output package translation rules.  Must be of the form:
+   "src->dst[,s2->d2...]"
+If a VDL package has a prefix src, the prefix will be replaced with dst.  Use
+commas to separate multiple rules; the first rule matching src is used, and if
+there are no matching rules, the package remains unchanged.  The special dst
+SKIP indicates those packages containing the string are skipped. Note this skip
+behavior is slightly different than the -out-dir semantics which is prefix-based.`)
 	// Options for audit are identical to generate.
 	cmdAudit.Flags = cmdGenerate.Flags
 }
@@ -454,12 +477,23 @@ func shouldGenerate(config vdltool.Config, lang vdltool.GenLanguage) bool {
 	return len(config.GenLanguages) == 0 || ok
 }
 
+// builtPackage is a temp struct used in gen for storing the built packages
+// and their associated targets
+type builtPackage struct {
+	target *build.Package
+	pkg    *compile.Package
+}
+
 // gen generates the given targets with env.  If audit is true, only checks
 // whether any packages are stale; otherwise files will actually be written out.
 // Returns true if any packages are stale.
 func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 	anychanged := false
+	// Cache original file-system directories for Swift codegen (which needs to
+	// traverse the filesystem to find declarations of SwiftModule in vdl.config)
+	genPathToDir := map[string]string{}
 	for _, target := range targets {
+		genPathToDir[target.GenPath] = target.Dir
 		pkg := build.BuildPackage(target, env)
 		if pkg == nil {
 			// Stop at the first package that fails to compile.
@@ -535,6 +569,32 @@ func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 				data := javascript.Generate(pkg, env, path, optPathToJSCore)
 				if writeFile(audit, data, dir, "index.js", env, nil) {
 					pkgchanged = true
+				}
+			case vdltool.GenLanguageSwift:
+				if !shouldGenerate(pkg.Config, vdltool.GenLanguageSwift) {
+					continue
+				}
+				pkgPath, err := xlatePkgPath(pkg.GenPath, optGenSwiftOutPkg)
+				if handleErrorOrSkip("--swift-out-pkg", err, env) {
+					continue
+				}
+				dir, err := xlateOutDir(target.Dir, target.GenPath, optGenSwiftOutDir, pkgPath)
+				if handleErrorOrSkip("--swift-out-dir", err, env) {
+					continue
+				}
+				swift.SetPkgPathXlator(func(pkgPath string) string {
+					result, _ := xlatePkgPath(pkgPath, optGenSwiftOutPkg)
+					return result
+				})
+				for _, file := range swift.Generate(pkg, env, genPathToDir) {
+					if optGenSwiftOutDir.dir == "" {
+						panic("optGenSwiftOurDir.Dir must be defined")
+					}
+					relativeDir := strings.TrimPrefix(dir, optGenSwiftOutDir.dir)
+					fileDir := filepath.Join(optGenSwiftOutDir.dir, file.Module, relativeDir, file.Dir)
+					if writeFile(audit, file.Data, fileDir, file.Name, env, nil) {
+						pkgchanged = true
+					}
 				}
 			default:
 				env.Errors.Errorf("Generating code for language %v isn't supported", gl)
@@ -640,11 +700,11 @@ func xlateOutDir(dir, path string, outdir genOutDir, outPkgPath string) (string,
 
 func xlatePkgPath(pkgPath string, rules xlateRules) (string, error) {
 	for _, xlate := range rules {
+		if xlate.dst == "SKIP" && strings.Contains(pkgPath, xlate.src) {
+			return pkgPath, errSkip
+		}
 		if !strings.HasPrefix(pkgPath, xlate.src) {
 			continue
-		}
-		if xlate.dst == "SKIP" {
-			return pkgPath, errSkip
 		}
 		return xlate.dst + pkgPath[len(xlate.src):], nil
 	}
