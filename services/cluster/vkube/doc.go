@@ -21,6 +21,7 @@ The vkube commands are:
    update-config        Updates vkube.cfg.
    claim-cluster-agent  Claims the cluster agent.
    build-docker-images  Builds the docker images for the cluster and pod agents.
+   create-secrets       Creates secrets
    kubectl              Runs kubectl on the cluster defined in vkube.cfg.
    help                 Display help for commands or topics
 
@@ -311,6 +312,58 @@ The vkube build-docker-images flags are:
    The tag to add to the docker images. If empty, the current timestamp is used.
  -v=false
    When true, the output is more verbose.
+
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
+
+Vkube create-secrets - Creates secrets
+
+Creates kubernetes secrets from the template files passed as arguments.
+
+The --secrets flag points to an encrypted TAR file that contains the actual
+secrets.
+
+Each template file represents a kubernetes Secret object to be created by
+substituting the template fields with the content of the files from the
+encrypted TAR file.
+
+Templates look like:
+
+{
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "metadata": {
+    "name": "secret-name"
+  },
+  "type": "Opaque",
+  "data": {
+    "file1": "{{base64 "path/file1"}}",
+    "file2": "{{base64 "path/file2"}}"
+  }
+}
+
+where path/file1 and path/file2 are files from the TAR file.
+
+Usage:
+   vkube create-secrets [flags] <template> ...
+
+<template> A file containing the template for the secret object.
+
+The vkube create-secrets flags are:
+ -gpg=gpg
+   The gpg binary to use.
+ -secrets=
+   The file containing the encrypted secrets.
 
  -config=vkube.cfg
    The 'vkube.cfg' file to use.

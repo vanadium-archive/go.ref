@@ -28,6 +28,7 @@ var (
 	flagConfigFile        string
 	flagKubectlBin        string
 	flagGcloudBin         string
+	flagGpg               string
 	flagGetCredentials    bool
 	flagNoBlessings       bool
 	flagNoHeaders         bool
@@ -38,6 +39,7 @@ var (
 	flagWaitTimeout       time.Duration
 	flagClusterAgentImage string
 	flagPodAgentImage     string
+	flagSecrets           string
 )
 
 const (
@@ -63,6 +65,7 @@ func main() {
 			cmdUpdateConfig,
 			cmdClaimClusterAgent,
 			cmdBuildDockerImages,
+			cmdCreateSecrets,
 			cmdKubectl,
 		},
 	}
@@ -94,6 +97,9 @@ func main() {
 
 	cmdBuildDockerImages.Flags.BoolVar(&flagVerbose, "v", false, "When true, the output is more verbose.")
 	cmdBuildDockerImages.Flags.StringVar(&flagTag, "tag", "", "The tag to add to the docker images. If empty, the current timestamp is used.")
+
+	cmdCreateSecrets.Flags.StringVar(&flagSecrets, "secrets", "", "The file containing the encrypted secrets.")
+	cmdCreateSecrets.Flags.StringVar(&flagGpg, "gpg", "gpg", "The gpg binary to use.")
 
 	cmdline.Main(cmd)
 }
@@ -144,7 +150,7 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 		return env.UsageErrorf("start: expected one argument, got %d", len(args))
 	}
 	if flagResourceFile == "" {
-		return fmt.Errorf("-f must be specified.")
+		return env.UsageErrorf("-f must be specified.")
 	}
 	kind, rc, err := readResourceConfig(flagResourceFile)
 	if err != nil {
@@ -238,7 +244,7 @@ var cmdUpdate = &cmdline.Command{
 
 func runCmdUpdate(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
 	if flagResourceFile == "" {
-		return fmt.Errorf("-f must be specified.")
+		return env.UsageErrorf("-f must be specified.")
 	}
 	kind, rc, err := readResourceConfig(flagResourceFile)
 	if err != nil {
@@ -287,7 +293,7 @@ var cmdStop = &cmdline.Command{
 
 func runCmdStop(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
 	if flagResourceFile == "" {
-		return fmt.Errorf("-f must be specified.")
+		return env.UsageErrorf("-f must be specified.")
 	}
 	kind, rc, err := readResourceConfig(flagResourceFile)
 	if err != nil {
@@ -457,6 +463,51 @@ var cmdBuildDockerImages = &cmdline.Command{
 
 func runCmdBuildDockerImages(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
 	return buildDockerImages(config, flagTag, flagVerbose, env.Stdout)
+}
+
+var cmdCreateSecrets = &cmdline.Command{
+	Runner: kubeCmdRunner(runCreateSecrets),
+	Name:   "create-secrets",
+	Short:  "Creates secrets",
+	Long: `
+Creates kubernetes secrets from the template files passed as arguments.
+
+The --secrets flag points to an encrypted TAR file that contains the actual
+secrets.
+
+Each template file represents a kubernetes Secret object to be created by
+substituting the template fields with the content of the files from the
+encrypted TAR file.
+
+Templates look like:
+
+{
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "metadata": {
+    "name": "secret-name"
+  },
+  "type": "Opaque",
+  "data": {
+    "file1": "{{base64 "path/file1"}}",
+    "file2": "{{base64 "path/file2"}}"
+  }
+}
+
+where path/file1 and path/file2 are files from the TAR file.
+`,
+	ArgsName: "<template> ...",
+	ArgsLong: "<template> A file containing the template for the secret object.",
+}
+
+func runCreateSecrets(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
+	if len(args) == 0 {
+		return env.UsageErrorf("must specify at least one template file")
+	}
+	if flagSecrets == "" {
+		return env.UsageErrorf("must specify --secrets")
+	}
+	return createSecrets(flagSecrets, args)
 }
 
 var cmdKubectl = &cmdline.Command{
