@@ -7,6 +7,7 @@ package server
 import (
 	"v.io/v23/context"
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
 
@@ -14,6 +15,10 @@ import (
 // ConflictManager RPC methods
 
 func (d *databaseReq) StartConflictResolver(ctx *context.T, call wire.ConflictManagerStartConflictResolverServerCall) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
+
 	// Store the conflict resolver connection in the per-app, per-database
 	// singleton so that sync can access it.
 	vlog.VI(2).Infof("cr: StartConflictResolver: resolution stream established")
@@ -22,15 +27,14 @@ func (d *databaseReq) StartConflictResolver(ctx *context.T, call wire.ConflictMa
 	d.database.crStream = call
 	d.database.crMu.Unlock()
 
-	// To keep the CrStream alive we cant finish this rpc. Wait till the
-	// context for this rpc is canceled/closed.
+	// In order to keep the CrStream alive, we must block here until the context
+	// for this RPC is cancelled or closed.
 	<-ctx.Done()
 
-	// When the above blocking call returns it means that the channel is no more
-	// live. Remove the crStream instance from cache.
-	// NOTE: any code that accesses crStream must make a copy of the pointer
-	// before using it to make sure that the value does not suddenly become
-	// nil midway through their processing.
+	// The channel is closed. Remove the crStream instance from cache.
+	// NOTE: Any code that accesses crStream must make a copy of the pointer
+	// before using it to make sure that the value does not suddenly become nil
+	// during their processing.
 	d.database.crMu.Lock()
 	d.database.crStream = nil
 	d.database.crMu.Unlock()

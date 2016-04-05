@@ -13,31 +13,31 @@ import (
 	"v.io/x/ref/services/syncbase/store"
 )
 
+// TODO(sadovsky): These methods should check that we're not in a batch. Better
+// yet, hopefully we can just delete all the schema-related code, and add it
+// back later.
+
 ////////////////////////////////////////
 // SchemaManager RPC methods
 
 func (d *databaseReq) GetSchemaMetadata(ctx *context.T, call rpc.ServerCall) (wire.SchemaMetadata, error) {
-	metadata := wire.SchemaMetadata{}
-
 	if !d.exists {
-		return metadata, verror.New(verror.ErrNoExist, ctx, d.Name())
+		return wire.SchemaMetadata{}, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-
 	// Check permissions on Database and retrieve schema metadata.
 	dbData := DatabaseData{}
 	if err := util.GetWithAuth(ctx, call, d.st, d.stKey(), &dbData); err != nil {
-		return metadata, err
+		return wire.SchemaMetadata{}, err
 	}
 	if dbData.SchemaMetadata == nil {
-		return metadata, verror.New(verror.ErrNoExist, ctx, "Schema does not exist for the db")
+		return wire.SchemaMetadata{}, verror.New(verror.ErrNoExist, ctx, "Schema does not exist for the db")
 	}
 	return *dbData.SchemaMetadata, nil
 }
 
 func (d *databaseReq) SetSchemaMetadata(ctx *context.T, call rpc.ServerCall, metadata wire.SchemaMetadata) error {
-	// Check if database exists.
 	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.Name())
+		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	// Check permissions on Database and store schema metadata.
 	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
@@ -53,7 +53,7 @@ func (d *databaseReq) SetSchemaMetadata(ctx *context.T, call rpc.ServerCall, met
 
 func (d *database) GetSchemaMetadataInternal(ctx *context.T) (*wire.SchemaMetadata, error) {
 	if !d.exists {
-		return nil, verror.New(verror.ErrNoExist, ctx, d.Name())
+		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	dbData := DatabaseData{}
 	if err := store.Get(ctx, d.st, d.stKey(), &dbData); err != nil {

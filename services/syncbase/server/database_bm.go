@@ -8,6 +8,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/vsync"
 )
 
@@ -15,6 +16,9 @@ import (
 // RPCs for managing blobs between Syncbase and its clients.
 
 func (d *databaseReq) CreateBlob(ctx *context.T, call rpc.ServerCall) (wire.BlobRef, error) {
+	if !d.exists {
+		return wire.NullBlobRef, verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NullBlobRef, wire.NewErrBoundToBatch(ctx)
 	}
@@ -23,6 +27,9 @@ func (d *databaseReq) CreateBlob(ctx *context.T, call rpc.ServerCall) (wire.Blob
 }
 
 func (d *databaseReq) PutBlob(ctx *context.T, call wire.BlobManagerPutBlobServerCall, br wire.BlobRef) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -31,6 +38,9 @@ func (d *databaseReq) PutBlob(ctx *context.T, call wire.BlobManagerPutBlobServer
 }
 
 func (d *databaseReq) CommitBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -39,6 +49,9 @@ func (d *databaseReq) CommitBlob(ctx *context.T, call rpc.ServerCall, br wire.Bl
 }
 
 func (d *databaseReq) GetBlobSize(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) (int64, error) {
+	if !d.exists {
+		return 0, verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return 0, wire.NewErrBoundToBatch(ctx)
 	}
@@ -47,6 +60,9 @@ func (d *databaseReq) GetBlobSize(ctx *context.T, call rpc.ServerCall, br wire.B
 }
 
 func (d *databaseReq) DeleteBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -55,6 +71,9 @@ func (d *databaseReq) DeleteBlob(ctx *context.T, call rpc.ServerCall, br wire.Bl
 }
 
 func (d *databaseReq) GetBlob(ctx *context.T, call wire.BlobManagerGetBlobServerCall, br wire.BlobRef, offset int64) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -63,6 +82,9 @@ func (d *databaseReq) GetBlob(ctx *context.T, call wire.BlobManagerGetBlobServer
 }
 
 func (d *databaseReq) FetchBlob(ctx *context.T, call wire.BlobManagerFetchBlobServerCall, br wire.BlobRef, priority uint64) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -71,6 +93,9 @@ func (d *databaseReq) FetchBlob(ctx *context.T, call wire.BlobManagerFetchBlobSe
 }
 
 func (d *databaseReq) PinBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -79,6 +104,9 @@ func (d *databaseReq) PinBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobR
 }
 
 func (d *databaseReq) UnpinBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -87,6 +115,9 @@ func (d *databaseReq) UnpinBlob(ctx *context.T, call rpc.ServerCall, br wire.Blo
 }
 
 func (d *databaseReq) KeepBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef, rank uint64) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}

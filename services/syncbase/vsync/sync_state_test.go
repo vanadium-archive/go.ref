@@ -27,19 +27,18 @@ func TestReserveGenAndPos(t *testing.T) {
 	for _, sgid := range sgids {
 		var wantGen, wantPos uint64 = 1, 0
 		for i := 0; i < 5; i++ {
-			gotGen, gotPos := s.reserveGenAndPosInternal("mockapp", "mockdb", sgid, 5, 10)
+			gotGen, gotPos := s.reserveGenAndPosInternal(mockDbId, sgid, 5, 10)
 			if gotGen != wantGen || gotPos != wantPos {
 				t.Fatalf("reserveGenAndPosInternal failed, gotGen %v wantGen %v, gotPos %v wantPos %v", gotGen, wantGen, gotPos, wantPos)
 			}
 			wantGen += 5
 			wantPos += 10
 
-			name := appDbName("mockapp", "mockdb")
 			var info *localGenInfoInMem
 			if sgid == "" {
-				info = s.syncState[name].data
+				info = s.syncState[mockDbId].data
 			} else {
-				info = s.syncState[name].sgs[sgid]
+				info = s.syncState[mockDbId].sgs[sgid]
 			}
 			if info.gen != wantGen || info.pos != wantPos {
 				t.Fatalf("reserveGenAndPosInternal failed, gotGen %v wantGen %v, gotPos %v wantPos %v", info.gen, wantGen, info.pos, wantPos)
@@ -138,19 +137,19 @@ func TestSyncPauseAndResumeInCache(t *testing.T) {
 	defer destroyService(t, svc)
 
 	s := svc.sync
-	if !s.isDbSyncable(nil, "mockapp", "mockdb") {
+	if !s.isDbSyncable(nil, mockDbId) {
 		t.Errorf("isDbSyncable returned false")
 	}
 
 	// Test Pause.
-	s.updateInMemoryPauseSt(nil, "mockapp", "mockdb", true)
-	if s.isDbSyncable(nil, "mockapp", "mockdb") {
+	s.updateInMemoryPauseSt(nil, mockDbId, true)
+	if s.isDbSyncable(nil, mockDbId) {
 		t.Errorf("isDbSyncable expected to return false")
 	}
 
 	// Test Resume.
-	s.updateInMemoryPauseSt(nil, "mockapp", "mockdb", false)
-	if !s.isDbSyncable(nil, "mockapp", "mockdb") {
+	s.updateInMemoryPauseSt(nil, mockDbId, false)
+	if !s.isDbSyncable(nil, mockDbId) {
 		t.Errorf("isDbSyncable returned false")
 	}
 }
@@ -161,7 +160,7 @@ func TestSyncPauseAndResumeInDb(t *testing.T) {
 
 	s := svc.sync
 	st := svc.St()
-	if !s.isDbSyncable(nil, "mockapp", "mockdb") {
+	if !s.isDbSyncable(nil, mockDbId) {
 		t.Errorf("isDbSyncable returned false")
 	}
 
@@ -173,7 +172,7 @@ func TestSyncPauseAndResumeInDb(t *testing.T) {
 
 func commitAndVerifySyncStateChange(t *testing.T, s *syncService, st store.Store, expected bool) {
 	tx := st.NewTransaction()
-	if err := s.updateDbPauseSt(nil, tx, "mockapp", "mockdb", expected); err != nil {
+	if err := s.updateDbPauseSt(nil, tx, mockDbId, expected); err != nil {
 		t.Errorf("Error while updating with isPaused=%t : %v", expected, err)
 	}
 	if err := tx.Commit(); err != nil {

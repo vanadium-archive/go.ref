@@ -12,6 +12,7 @@ import (
 	"fmt"
 
 	"v.io/v23/context"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
@@ -41,15 +42,15 @@ func delDbGCEntry(ctx *context.T, stw store.StoreWriter, dbInfo *DbInfo) error {
 // deleteDatabaseEntry marks a database for destruction by moving its dbInfo
 // record from active databases into the garbage collection log. It returns
 // the dbInfo that can be passed to finalizeDatabaseDestroy.
-func deleteDatabaseEntry(ctx *context.T, tx store.Transaction, a *app, dbName string) (*DbInfo, error) {
-	dbInfo, err := a.getDbInfo(ctx, tx, dbName)
+func deleteDatabaseEntry(ctx *context.T, tx store.Transaction, dbId wire.Id) (*DbInfo, error) {
+	dbInfo, err := getDbInfo(ctx, tx, dbId)
 	if err != nil {
 		return nil, err
 	}
 	if err := putDbGCEntry(ctx, tx, dbInfo); err != nil {
 		return nil, err
 	}
-	if err := a.delDbInfo(ctx, tx, dbName); err != nil {
+	if err := delDbInfo(ctx, tx, dbId); err != nil {
 		return nil, err
 	}
 	return dbInfo, nil
@@ -59,7 +60,7 @@ func deleteDatabaseEntry(ctx *context.T, tx store.Transaction, a *app, dbName st
 // the database store. If successful, it removes the dbInfo record from the
 // garbage collection log.
 func finalizeDatabaseDestroy(ctx *context.T, stw store.StoreWriter, dbInfo *DbInfo, stRef store.Store) error {
-	vlog.VI(2).Infof("server: app: destroying store at %q for database %s (closing: %v)", dbInfo.RootDir, dbInfo.Name, stRef != nil)
+	vlog.VI(2).Infof("server: destroying store at %q for database %v (closing: %v)", dbInfo.RootDir, dbInfo.Id, stRef != nil)
 	if stRef != nil {
 		// TODO(ivanpi): Safer to crash syncbased on Close() failure? Otherwise,
 		// already running calls might continue using the database. Alternatively,
@@ -85,7 +86,7 @@ func finalizeDatabaseDestroy(ctx *context.T, stw store.StoreWriter, dbInfo *DbIn
 // collecting a database that is being created).
 // TODO(ivanpi): Consider adding mutex to allow running GC concurrently.
 func runGCInactiveDatabases(ctx *context.T, st store.Store) error {
-	vlog.VI(2).Infof("server: app: starting garbage collection of inactive databases")
+	vlog.VI(2).Infof("server: starting garbage collection of inactive databases")
 	total := 0
 	deleted := 0
 	gcIt := st.Scan(common.ScanPrefixArgs(common.DbGCPrefix, ""))
@@ -106,10 +107,10 @@ func runGCInactiveDatabases(ctx *context.T, st store.Store) error {
 	if err := gcIt.Err(); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
-	vlog.VI(2).Infof("server: app: garbage collected %d out of %d inactive databases", deleted, total)
+	vlog.VI(2).Infof("server: garbage collected %d out of %d inactive databases", deleted, total)
 	return nil
 }
 
 func wrapGCError(dbInfo *DbInfo, err error) error {
-	return fmt.Errorf("failed to destroy store at %q for database %s: %v", dbInfo.RootDir, dbInfo.Name, err)
+	return fmt.Errorf("failed to destroy store at %q for database %v: %v", dbInfo.RootDir, dbInfo.Id, err)
 }

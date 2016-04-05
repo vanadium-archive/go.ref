@@ -38,8 +38,8 @@ import (
 // dispatcher creates a short-lived database object to service that particular
 // request.
 type database struct {
-	name string
-	a    interfaces.App
+	id wire.Id
+	s  *service
 	// The fields below are initialized iff this database exists.
 	exists bool
 	// TODO(sadovsky): Make st point to a store.Store wrapper that handles paging,
@@ -85,14 +85,14 @@ type DatabaseOptions struct {
 	Engine string
 }
 
-// OpenDatabase opens a database and returns a *database for it. Designed for
-// use from within NewDatabase and server.NewService.
-func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOptions, openOpts storeutil.OpenOptions) (*database, error) {
+// openDatabase opens a database and returns a *database for it. Designed for
+// use from within newDatabase and newService.
+func openDatabase(ctx *context.T, s *service, id wire.Id, opts DatabaseOptions, openOpts storeutil.OpenOptions) (*database, error) {
 	st, err := storeutil.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine), openOpts)
 	if err != nil {
 		return nil, err
 	}
-	wst, err := watchable.Wrap(st, a.Service().Clock(), &watchable.Options{
+	wst, err := watchable.Wrap(st, s.vclock, &watchable.Options{
 		// TODO(ivanpi): Since ManagedPrefixes control what gets synced, they
 		// should be moved to a more visible place (e.g. constants). Also consider
 		// decoupling managed and synced prefixes.
@@ -102,8 +102,8 @@ func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOp
 		return nil, err
 	}
 	return &database{
-		name:   name,
-		a:      a,
+		id:     id,
+		s:      s,
 		exists: true,
 		st:     wst,
 		sns:    make(map[uint64]store.Snapshot),
@@ -111,18 +111,17 @@ func OpenDatabase(ctx *context.T, a interfaces.App, name string, opts DatabaseOp
 	}, nil
 }
 
-// NewDatabase creates a new database instance and returns it.
-// Designed for use from within App.CreateDatabase.
-func NewDatabase(ctx *context.T, a interfaces.App, name string, metadata *wire.SchemaMetadata, opts DatabaseOptions) (*database, error) {
+// newDatabase creates a new database instance and returns it.
+// Designed for use from within service.createDatabase.
+func newDatabase(ctx *context.T, s *service, id wire.Id, metadata *wire.SchemaMetadata, opts DatabaseOptions) (*database, error) {
 	if opts.Perms == nil {
 		return nil, verror.New(verror.ErrInternal, ctx, "perms must be specified")
 	}
-	d, err := OpenDatabase(ctx, a, name, opts, storeutil.OpenOptions{CreateIfMissing: true, ErrorIfExists: true})
+	d, err := openDatabase(ctx, s, id, opts, storeutil.OpenOptions{CreateIfMissing: true, ErrorIfExists: true})
 	if err != nil {
 		return nil, err
 	}
 	data := &DatabaseData{
-		Name:           d.name,
 		Perms:          opts.Perms,
 		SchemaMetadata: metadata,
 	}
@@ -137,22 +136,24 @@ func NewDatabase(ctx *context.T, a interfaces.App, name string, metadata *wire.S
 
 func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, metadata *wire.SchemaMetadata, perms access.Permissions) error {
 	if d.exists {
-		return verror.New(verror.ErrExist, ctx, d.name)
+		return verror.New(verror.ErrExist, ctx, d.id)
 	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
+	// TODO(sadovsky): Require id.Blessing to match the client's blessing name.
+	// I.e. reserve names at the app level of the hierarchy.
 	// This database does not yet exist; d is just an ephemeral handle that holds
-	// {name string, a *app}. d.a.CreateDatabase will create a new database handle
-	// and store it in d.a.dbs[d.name].
-	return d.a.CreateDatabase(ctx, call, d.name, perms, metadata)
+	// {id wire.Id, s *service}. d.s.createDatabase will create a new database
+	// handle and store it in d.s.dbs[d.id].
+	return d.s.createDatabase(ctx, call, d.id, perms, metadata)
 }
 
 func (d *databaseReq) Destroy(ctx *context.T, call rpc.ServerCall) error {
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
-	return d.a.DestroyDatabase(ctx, call, d.name)
+	return d.s.destroyDatabase(ctx, call, d.id)
 }
 
 func (d *databaseReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
@@ -166,7 +167,7 @@ var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
 func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.BatchOptions) (string, error) {
 	if !d.exists {
-		return "", verror.New(verror.ErrNoExist, ctx, d.name)
+		return "", verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	if d.batchId != nil {
 		return "", wire.NewErrBoundToBatch(ctx)
@@ -196,7 +197,7 @@ func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.Ba
 
 func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.name)
+		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	if d.batchId == nil {
 		return wire.NewErrNotBoundToBatch(ctx)
@@ -218,7 +219,7 @@ func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall) error {
 
 func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.name)
+		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	if d.batchId == nil {
 		return wire.NewErrNotBoundToBatch(ctx)
@@ -259,7 +260,7 @@ func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, q s
 
 func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerCall, q string, params []*vom.RawBytes) error {
 	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.name)
+		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	impl := func() error {
 		db := &queryDb{
@@ -321,17 +322,17 @@ func execCommitOrAbort(qdb *queryDb, err error) error {
 
 func (d *databaseReq) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.name)
+		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
-	return d.a.SetDatabasePerms(ctx, call, d.name, perms, version)
+	return d.s.setDatabasePerms(ctx, call, d.id, perms, version)
 }
 
 func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	if !d.exists {
-		return nil, "", verror.New(verror.ErrNoExist, ctx, d.name)
+		return nil, "", verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	if d.batchId != nil {
 		return nil, "", wire.NewErrBoundToBatch(ctx)
@@ -345,7 +346,7 @@ func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms
 
 func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
 	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.name)
+		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check perms.
@@ -367,7 +368,7 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServer
 // implement ListCollections using Glob.
 func (d *databaseReq) ListCollections(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	if !d.exists {
-		return nil, verror.New(verror.ErrNoExist, ctx, d.name)
+		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	impl := func(sntx store.SnapshotOrTransaction) ([]string, error) {
 		// Check perms.
@@ -380,8 +381,8 @@ func (d *databaseReq) ListCollections(ctx *context.T, call rpc.ServerCall) ([]st
 		for it.Advance() {
 			keyBytes = it.Key(keyBytes)
 			parts := common.SplitNKeyParts(string(keyBytes), 3)
-			// For explanation of Escape(), see comment in dispatcher.go.
-			res = append(res, pubutil.Escape(parts[1]))
+			// For explanation of Encode(), see comment in dispatcher.go.
+			res = append(res, pubutil.Encode(parts[1]))
 		}
 		if err := it.Err(); err != nil {
 			return nil, err
@@ -402,7 +403,7 @@ func (d *databaseReq) ListCollections(ctx *context.T, call rpc.ServerCall) ([]st
 
 func (d *databaseReq) PauseSync(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.name)
+		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	return watchable.RunInTransaction(d.St(), func(tx *watchable.Transaction) error {
 		return sbwatchable.AddDbStateChangeRequestOp(ctx, tx, sbwatchable.StateChangePauseSync)
@@ -411,7 +412,7 @@ func (d *databaseReq) PauseSync(ctx *context.T, call rpc.ServerCall) error {
 
 func (d *databaseReq) ResumeSync(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.name)
+		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	return watchable.RunInTransaction(d.St(), func(tx *watchable.Transaction) error {
 		return sbwatchable.AddDbStateChangeRequestOp(ctx, tx, sbwatchable.StateChangeResumeSync)
@@ -423,41 +424,24 @@ func (d *databaseReq) ResumeSync(ctx *context.T, call rpc.ServerCall) error {
 
 func (d *database) St() *watchable.Store {
 	if !d.exists {
-		vlog.Fatalf("database %q does not exist", d.name)
+		vlog.Fatalf("database %v does not exist", d.id)
 	}
 	return d.st
 }
 
-func (d *database) App() interfaces.App {
-	return d.a
+func (d *database) Service() interfaces.Service {
+	return d.s
 }
 
 func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
 	if !d.exists {
-		vlog.Fatalf("database %q does not exist", d.name)
+		vlog.Fatalf("database %v does not exist", d.id)
 	}
 	return util.GetWithAuth(ctx, call, st, d.stKey(), &DatabaseData{})
 }
 
-func (d *database) SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
-	if !d.exists {
-		vlog.Fatalf("database %q does not exist", d.name)
-	}
-	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
-		data := &DatabaseData{}
-		return util.UpdateWithAuth(ctx, call, tx, d.stKey(), data, func() error {
-			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
-				return err
-			}
-			data.Perms = perms
-			data.Version++
-			return nil
-		})
-	})
-}
-
-func (d *database) Name() string {
-	return d.name
+func (d *database) Id() wire.Id {
+	return d.id
 }
 
 func (d *database) CrConnectionStream() wire.ConflictManagerStartConflictResolverServerStream {
@@ -678,4 +662,21 @@ func (d *databaseReq) batchTransaction() (*watchable.Transaction, error) {
 	} else {
 		return nil, wire.NewErrReadOnlyBatch(nil)
 	}
+}
+
+func (d *database) setPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
+	if !d.exists {
+		vlog.Fatalf("database %v does not exist", d.id)
+	}
+	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
+		data := &DatabaseData{}
+		return util.UpdateWithAuth(ctx, call, tx, d.stKey(), data, func() error {
+			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
+				return err
+			}
+			data.Perms = perms
+			data.Version++
+			return nil
+		})
+	})
 }

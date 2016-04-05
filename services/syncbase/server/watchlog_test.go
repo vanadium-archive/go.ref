@@ -12,6 +12,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
@@ -55,7 +56,7 @@ func TestWatchLogPerms(t *testing.T) {
 	st, _ := watchable.Wrap(memstore.New(), clk, &watchable.Options{
 		ManagedPrefixes: []string{common.RowPrefix, common.CollectionPermsPrefix},
 	})
-	db := &databaseReq{database: &database{name: "d", st: st}}
+	db := &databaseReq{database: &database{id: wire.Id{Blessing: "v.io:xyz", Name: "d"}, st: st}}
 	c := &collectionReq{name: "c", d: db}
 	// Mock create the collection.
 	perms := access.Permissions{}

@@ -4,7 +4,32 @@
 
 package testutil
 
-var invalidIdentifiers []string = []string{
+var invalidBlessingPatterns = []string{
+	":",
+	"a:",
+	":b",
+	"a::b",
+	"a/b",
+	"a/",
+}
+
+var validBlessingPatterns = []string{
+	"a",
+	"a:b",
+	"v.io",
+	"v.io:foo",
+	"v.io:a:admin@myapp.com",
+	"v.io:o:app:user",
+	"\x00",
+	"\xfb",
+	"a\x00",
+	"a\xfb",
+	"안녕하세요",
+	// 16 4-byte runes => 64 bytes
+	"𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎",
+}
+
+var invalidIdentifiers = []string{
 	"/",
 	"a/b",
 	":",
@@ -22,7 +47,7 @@ var invalidIdentifiers []string = []string{
 	"𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎",
 }
 
-var validIdentifiers []string = []string{
+var validIdentifiers = []string{
 	"a",
 	"B",
 	"a_",
@@ -36,7 +61,7 @@ var validIdentifiers []string = []string{
 	"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcd",
 }
 
-var universallyInvalidNames []string = []string{
+var universallyInvalidNames = []string{
 	"",
 	"\xfc",
 	"\xfd",
@@ -48,18 +73,35 @@ var universallyInvalidNames []string = []string{
 	"a\xffb",
 }
 
-var longNames []string = []string{
+var longNames = []string{
 	// 65 bytes
 	"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde",
 	// 16 4-byte runes + 1 more byte => 65 bytes
 	"𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎a",
 }
 
-var OkAppNames []string = append(validIdentifiers, invalidIdentifiers...)
-var OkRowNames []string = append(OkAppNames, longNames...)
+func concat(slices ...[]string) []string {
+	var res []string
+	for _, slice := range slices {
+		res = append(res, slice...)
+	}
+	return res
+}
 
-var NotOkRowNames []string = universallyInvalidNames
-var NotOkAppNames []string = append(NotOkRowNames, longNames...)
+var (
+	OkAppBlessings    []string = validBlessingPatterns
+	NotOkAppBlessings []string = concat(universallyInvalidNames, invalidBlessingPatterns, longNames)
 
-var OkDbCollectionNames []string = validIdentifiers
-var NotOkDbCollectionNames []string = append(NotOkAppNames, invalidIdentifiers...)
+	OkDbNames    []string = validIdentifiers
+	NotOkDbNames []string = concat(universallyInvalidNames, longNames, invalidIdentifiers)
+)
+
+var (
+	OkCollectionNames    []string = OkDbNames
+	NotOkCollectionNames []string = NotOkDbNames
+)
+
+var (
+	OkRowKeys    []string = concat(validIdentifiers, invalidIdentifiers, longNames)
+	NotOkRowKeys []string = universallyInvalidNames
+)

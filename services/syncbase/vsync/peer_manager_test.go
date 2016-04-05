@@ -38,8 +38,7 @@ func TestPeerManager(t *testing.T) {
 	sg := &interfaces.Syncgroup{
 		Name:        "sg",
 		Id:          interfaces.GroupId(1234),
-		AppName:     "mockapp",
-		DbName:      "mockdb",
+		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{

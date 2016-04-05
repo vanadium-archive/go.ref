@@ -20,18 +20,18 @@ import (
 
 // GlobChildren implements glob over the Syncbase namespace.
 func GlobChildren(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element, sntx store.SnapshotOrTransaction, stKeyPrefix string) error {
-	prefix, _ := matcher.FixedPrefix()
-	unescPrefix, ok := pubutil.Unescape(prefix)
-	if !ok {
-		return verror.New(verror.ErrBadArg, ctx, prefix)
+	encPrefix, _ := matcher.FixedPrefix()
+	prefix, err := pubutil.Decode(encPrefix)
+	if err != nil {
+		return verror.New(verror.ErrBadArg, ctx, err)
 	}
-	it := sntx.Scan(common.ScanPrefixArgs(stKeyPrefix, unescPrefix))
+	it := sntx.Scan(common.ScanPrefixArgs(stKeyPrefix, prefix))
 	key := []byte{}
 	for it.Advance() {
 		key = it.Key(key)
 		parts := common.SplitKeyParts(string(key))
-		// For explanation of Escape(), see comment in server/dispatcher.go.
-		name := pubutil.Escape(parts[len(parts)-1])
+		// For explanation of Encode(), see comment in server/dispatcher.go.
+		name := pubutil.Encode(parts[len(parts)-1])
 		if matcher.Match(name) {
 			// TODO(rogulenko): Check for resolve access. (For collection glob, this
 			// means checking prefix perms.)

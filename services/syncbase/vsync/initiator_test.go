@@ -335,14 +335,13 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	s.id = 10 // initiator
 
 	sgId1 := interfaces.GroupId(1234)
-	gdb := appDbName("mockapp", "mockdb")
 	nullInfo := wire.SyncgroupMemberInfo{}
 	sgInfo := sgMemberInfo{
 		sgId1: nullInfo,
 	}
 	info := &memberInfo{
-		db2sg: map[string]sgMemberInfo{
-			gdb: sgInfo,
+		db2sg: map[wire.Id]sgMemberInfo{
+			mockDbId: sgInfo,
 		},
 		mtTables: map[string]struct{}{
 			"1/2/3/4": struct{}{},
@@ -353,8 +352,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	sg1 := &interfaces.Syncgroup{
 		Name:        "sg1",
 		Id:          sgId1,
-		AppName:     "mockapp",
-		DbName:      "mockdb",
+		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
@@ -384,7 +382,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	}
 
 	var c *initiationConfig
-	if c, err = newInitiationConfig(nil, s, gdb, info.db2sg[gdb], connInfo{relName: "b", mtTbls: set.String.ToSlice(info.mtTables)}); err != nil {
+	if c, err = newInitiationConfig(nil, s, mockDbId, info.db2sg[mockDbId], connInfo{relName: "b", mtTbls: set.String.ToSlice(info.mtTables)}); err != nil {
 		t.Fatalf("newInitiationConfig failed with err %v", err)
 	}
 
@@ -406,7 +404,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		t.Fatal(err)
 	}
 
-	s.initSyncStateInMem(nil, "mockapp", "mockdb", sgOID(sgId1))
+	s.initSyncStateInMem(nil, mockDbId, sgOID(sgId1))
 
 	iSt.stream = createReplayStream(t, rfile)
 

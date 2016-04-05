@@ -35,7 +35,8 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 	if len(suffix) == 0 {
 		return wire.ServiceServer(disp.s), auth, nil
 	}
-	parts := strings.SplitN(suffix, "/", 2)
+	// Namespace: <serviceName>/<encDbId>/<encCxId>/<encRowKey>
+	parts := strings.SplitN(suffix, "/", 3)
 
 	// If the first slash-separated component of suffix is SyncbaseSuffix,
 	// dispatch to the sync module.
@@ -45,79 +46,37 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 
 	// Validate all name components up front, so that we can avoid doing so in all
 	// our method implementations.
-	escAppName := parts[0]
-	appName, ok := pubutil.Unescape(escAppName)
-	if !ok || !pubutil.ValidAppName(appName) {
-		return nil, nil, wire.NewErrInvalidName(ctx, suffix)
-	}
-
-	appExists := false
-	var a *app
-	if aInt, err := disp.s.App(nil, nil, appName); err == nil {
-		a = aInt.(*app) // panics on failure, as desired
-		appExists = true
-	} else {
-		if verror.ErrorID(err) != verror.ErrNoExist.ID {
-			return nil, nil, err
-		} else {
-			a = &app{
-				name: appName,
-				s:    disp.s,
-			}
-		}
-	}
-
-	if len(parts) == 1 {
-		return wire.AppServer(a), auth, nil
-	}
-
-	// All database, collection, and row methods require the app to exist. If it
-	// doesn't, abort early.
-	if !appExists {
-		return nil, nil, verror.New(verror.ErrNoExist, ctx, a.name)
-	}
-
-	// Note, it's possible for the app to be deleted concurrently with downstream
-	// handling of this request. Depending on the order in which things execute,
-	// the client may not get an error, but in any case ultimately the store will
-	// end up in a consistent state.
-	return disp.LookupBeyondApp(ctx, a, parts[1])
-}
-
-// TODO(sadovsky): Migrated from "nosql" package. Merge with code above.
-func (disp *dispatcher) LookupBeyondApp(ctx *context.T, a interfaces.App, suffix string) (interface{}, security.Authorizer, error) {
-	parts := strings.SplitN(suffix, "/", 3) // db, collection, row
 
 	// Note, the slice returned by strings.SplitN is guaranteed to contain at
 	// least one element.
+	// TODO(sadovsky): If we were to continue putting the batch id in the name,
+	// we'd need to switch to a BatchSep that's not allowed to appear in blessing
+	// strings. However, we anyways plan to switch to passing the batch id as an
+	// RPC argument, so we don't bother fixing this now.
 	dbParts := strings.SplitN(parts[0], common.BatchSep, 2)
-	escDbName := dbParts[0]
-
-	// Validate all name components up front, so that we can avoid doing so in all
-	// our method implementations.
-	dbName, ok := pubutil.Unescape(escDbName)
-	if !ok || !pubutil.ValidDatabaseName(dbName) {
+	encDbId := dbParts[0]
+	dbId, err := pubutil.DecodeId(encDbId)
+	if err != nil || !pubutil.ValidDatabaseId(dbId) {
 		return nil, nil, wire.NewErrInvalidName(ctx, suffix)
 	}
 
 	var collectionName, rowKey string
 	if len(parts) > 1 {
-		collectionName, ok = pubutil.Unescape(parts[1])
-		if !ok || !pubutil.ValidCollectionName(collectionName) {
+		collectionName, err = pubutil.Decode(parts[1])
+		if err != nil || !pubutil.ValidCollectionName(collectionName) {
 			return nil, nil, wire.NewErrInvalidName(ctx, suffix)
 		}
 	}
-
 	if len(parts) > 2 {
-		rowKey, ok = pubutil.Unescape(parts[2])
-		if !ok || !pubutil.ValidRowKey(rowKey) {
+		rowKey, err = pubutil.Decode(parts[2])
+		if err != nil || !pubutil.ValidRowKey(rowKey) {
 			return nil, nil, wire.NewErrInvalidName(ctx, suffix)
 		}
 	}
 
 	dbExists := false
 	var d *database
-	if dInt, err := a.Database(nil, nil, dbName); err == nil {
+	if dInt, err := disp.s.Database(ctx, nil, dbId); err == nil {
 		d = dInt.(*database) // panics on failure, as desired
 		dbExists = true
 	} else {
@@ -127,8 +86,8 @@ func (disp *dispatcher) LookupBeyondApp(ctx *context.T, a interfaces.App, suffix
 			// Database does not exist. Create a short-lived database object to
 			// service this request.
 			d = &database{
-				name: dbName,
-				a:    a,
+				id: dbId,
+				s:  disp.s,
 			}
 		}
 	}
@@ -139,6 +98,10 @@ func (disp *dispatcher) LookupBeyondApp(ctx *context.T, a interfaces.App, suffix
 			return nil, nil, err
 		}
 	}
+	// TODO(sadovsky): Is it possible to determine the RPC method from the
+	// context? If so, we can check here that the database exists (unless the
+	// client is calling Database.Create), and avoid the "d.exists" checks in all
+	// the RPC method implementations.
 	if len(parts) == 1 {
 		return wire.DatabaseServer(dReq), auth, nil
 	}
@@ -146,7 +109,7 @@ func (disp *dispatcher) LookupBeyondApp(ctx *context.T, a interfaces.App, suffix
 	// All collection and row methods require the database to exist. If it
 	// doesn't, abort early.
 	if !dbExists {
-		return nil, nil, verror.New(verror.ErrNoExist, ctx, d.name)
+		return nil, nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 
 	// Note, it's possible for the database to be deleted concurrently with

@@ -97,8 +97,7 @@ type Syncgroup struct {
 	SpecVersion string                              // version on syncgroup spec for concurrency control
 	Spec        wire.SyncgroupSpec                  // app-given specification
 	Creator     string                              // Creator's Vanadium name
-	AppName     string                              // Globally unique App name
-	DbName      string                              // Database name within the App
+	DbId        wire.Id                             // Globally unique database id
 	Status      SyncgroupStatus                     // Status of the syncgroup
 	Joiners     map[string]wire.SyncgroupMemberInfo // map of joiners to their metadata
 }
@@ -111,21 +110,17 @@ type DeltaReq union {
 }
 
 // DataDeltaReq contains the initiator's genvectors and the set of syncgroups it
-// is interested in within a Database (specified by the AppName/DbName) when
-// requesting deltas for that Database.
+// is interested in within a database when requesting deltas for that database.
 type DataDeltaReq struct {
-	AppName string
-	DbName  string
+	DbId wire.Id
 	SgIds   set[GroupId]
 	Gvs     Knowledge
 }
 
 // SgDeltaReq contains the initiator's genvectors for the syncgroups it is
-// interested in within a Database (specified by the AppName/DbName) when
-// requesting deltas for those syncgroups.
+// interested in within a database when requesting deltas for those syncgroups.
 type SgDeltaReq struct {
-	AppName string
-	DbName  string
+	DbId wire.Id
 	Gvs     Knowledge // Contains a genvector per syncgroup.
 }
 

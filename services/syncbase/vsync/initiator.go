@@ -20,6 +20,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
@@ -79,14 +80,14 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer connInfo) error {
 
 	// Sync each Database that may have syncgroups common with this peer,
 	// one at a time.
-	for gdbName, dbInfo := range info.db2sg {
+	for dbId, dbInfo := range info.db2sg {
 		if len(peer.mtTbls) < 1 && len(peer.addrs) < 1 {
 			vlog.Errorf("sync: getDeltasFromPeer: no mount tables or endpoints found to connect to peer %v", peer)
 			return verror.New(verror.ErrInternal, ctx, peer.relName, peer.addrs, "all mount tables failed")
 		}
 
 		var err error
-		peer, err = s.getDBDeltas(ctx, gdbName, dbInfo, peer)
+		peer, err = s.getDBDeltas(ctx, dbId, dbInfo, peer)
 
 		if verror.ErrorID(err) == interfaces.ErrConnFail.ID {
 			return err
@@ -100,9 +101,9 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer connInfo) error {
 }
 
 // getDBDeltas performs an initiation round for the specified database.
-func (s *syncService) getDBDeltas(ctx *context.T, gdbName string, info sgMemberInfo, peer connInfo) (connInfo, error) {
-	vlog.VI(2).Infof("sync: getDBDeltas: begin: contacting peer %v for db %s", peer, gdbName)
-	defer vlog.VI(2).Infof("sync: getDBDeltas: end: contacting peer %v for db %s", peer, gdbName)
+func (s *syncService) getDBDeltas(ctx *context.T, dbId wire.Id, info sgMemberInfo, peer connInfo) (connInfo, error) {
+	vlog.VI(2).Infof("sync: getDBDeltas: begin: contacting peer %v for db %v", peer, dbId)
+	defer vlog.VI(2).Infof("sync: getDBDeltas: end: contacting peer %v for db %v", peer, dbId)
 
 	// Note that the "identify" step is done once per database for privacy
 	// reasons. When the app blesses Syncbase during syncgroup create/join,
@@ -120,7 +121,7 @@ func (s *syncService) getDBDeltas(ctx *context.T, gdbName string, info sgMemberI
 	// already failed ones.
 	//
 	// TODO(hpucha): Clean up sharing of the initiationConfig.
-	c, err := newInitiationConfig(ctx, s, gdbName, info, peer)
+	c, err := newInitiationConfig(ctx, s, dbId, info, peer)
 	if err != nil {
 		return peer, err
 	}
@@ -228,11 +229,11 @@ func (s *syncService) filterSyncgroups(ctx *context.T, c *initiationConfig, bles
 	c.sgIds = remSgIds
 
 	if len(c.sgIds) == 0 {
-		return verror.New(verror.ErrInternal, ctx, "no syncgroups found after filtering", c.peer.relName, c.appName, c.dbName)
+		return verror.New(verror.ErrInternal, ctx, "no syncgroups found after filtering", c.peer.relName, c.dbId)
 	}
 
 	if len(c.sharedSgPfxs) == 0 {
-		return verror.New(verror.ErrInternal, ctx, "no syncgroup prefixes found", c.peer.relName, c.appName, c.dbName)
+		return verror.New(verror.ErrInternal, ctx, "no syncgroup prefixes found", c.peer.relName, c.dbId)
 	}
 
 	sort.Strings(blessingNames)
@@ -336,8 +337,7 @@ type initiationConfig struct {
 	sharedSgPfxs map[string]sgSet // Syncgroup prefixes and their ids being requested in the initiation round.
 	allSgPfxs    map[string]sgSet // Syncgroup prefixes and their ids, for all syncgroups known to this device.
 	sync         *syncService
-	appName      string
-	dbName       string
+	dbId         wire.Id
 	db           interfaces.Database // handle to the Database.
 	st           *watchable.Store    // Store handle to the Database.
 
@@ -348,36 +348,29 @@ type initiationConfig struct {
 
 // newInitiatonConfig creates new initiation config. This will be shared between
 // the two sync rounds in the initiation round of a Database.
-func newInitiationConfig(ctx *context.T, s *syncService, name string, info sgMemberInfo, peer connInfo) (*initiationConfig, error) {
-	c := &initiationConfig{}
-	c.peer = peer
-	c.sgIds = make(sgSet)
+func newInitiationConfig(ctx *context.T, s *syncService, dbId wire.Id, info sgMemberInfo, peer connInfo) (*initiationConfig, error) {
+	c := &initiationConfig{
+		peer: peer,
+		// Note: allSgPfxs and sharedSgPfxs will be inited during syncgroup
+		// filtering.
+		sgIds: make(sgSet),
+		sync:  s,
+		dbId:  dbId,
+	}
 	for id := range info {
 		c.sgIds[id] = struct{}{}
 	}
 	if len(c.sgIds) == 0 {
-		return nil, verror.New(verror.ErrInternal, ctx, "no syncgroups found", peer.relName, name)
-	}
-	// Note: allSgPfxs and sharedSgPfxs will be inited during syncgroup filtering.
-	c.sync = s
-
-	// TODO(hpucha): Would be nice to standardize on the combined "app:db"
-	// name across sync (not syncbase) so we only join split/join them at
-	// the boundary with the store part.
-	var err error
-	c.appName, c.dbName, err = splitAppDbName(ctx, name)
-	if err != nil {
-		return nil, err
+		return nil, verror.New(verror.ErrInternal, ctx, "no syncgroups found", peer.relName, dbId)
 	}
 
 	// TODO(hpucha): nil rpc.ServerCall ok?
-	c.db, err = s.getDb(ctx, nil, c.appName, c.dbName)
+	var err error
+	c.db, err = s.sv.Database(ctx, nil, dbId)
 	if err != nil {
 		return nil, err
 	}
-
 	c.st = c.db.St()
-
 	return c, nil
 }
 
@@ -457,10 +450,10 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 	// initiator aborts.
 	// Note: Responder does not need to acquire thLock since it uses the
 	// generation cut by initiator. See responder.go for more details.
-	if !iSt.config.sync.isDbSyncable(ctx, iSt.config.appName, iSt.config.dbName) {
+	if !iSt.config.sync.isDbSyncable(ctx, iSt.config.dbId) {
 		// The database is offline. Skip the db till it becomes syncable again.
-		vlog.VI(1).Infof("sync: prepareDataDeltaReq: database not allowed to sync, skipping sync on db %s for app %s", iSt.config.dbName, iSt.config.appName)
-		return interfaces.NewErrDbOffline(ctx, iSt.config.dbName, iSt.config.appName)
+		vlog.VI(1).Infof("sync: prepareDataDeltaReq: database not allowed to sync, skipping sync on db %v", iSt.config.dbId)
+		return interfaces.NewErrDbOffline(ctx, iSt.config.dbId)
 	}
 
 	// Freeze the most recent batch of local changes before fetching
@@ -476,11 +469,11 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 	// devices.  These remote devices in turn can send these
 	// generations back to the initiator in progress which was
 	// started with older generation information.
-	if err := iSt.config.sync.checkptLocalGen(ctx, iSt.config.appName, iSt.config.dbName, nil); err != nil {
+	if err := iSt.config.sync.checkptLocalGen(ctx, iSt.config.dbId, nil); err != nil {
 		return err
 	}
 
-	local, lgen, err := iSt.config.sync.copyDbGenInfo(ctx, iSt.config.appName, iSt.config.dbName, nil)
+	local, lgen, err := iSt.config.sync.copyDbGenInfo(ctx, iSt.config.dbId, nil)
 	if err != nil {
 		return err
 	}
@@ -534,10 +527,9 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 
 	// Send request.
 	req := interfaces.DataDeltaReq{
-		AppName: iSt.config.appName,
-		DbName:  iSt.config.dbName,
-		SgIds:   iSt.config.sgIds,
-		Gvs:     iSt.local,
+		DbId:  iSt.config.dbId,
+		SgIds: iSt.config.sgIds,
+		Gvs:   iSt.local,
 	}
 
 	iSt.req = interfaces.DeltaReqData{req}
@@ -554,27 +546,26 @@ func (iSt *initiationState) prepareSGDeltaReq(ctx *context.T) error {
 	iSt.config.sync.thLock.Lock()
 	defer iSt.config.sync.thLock.Unlock()
 
-	if !iSt.config.sync.isDbSyncable(ctx, iSt.config.appName, iSt.config.dbName) {
+	if !iSt.config.sync.isDbSyncable(ctx, iSt.config.dbId) {
 		// The database is offline. Skip the db till it becomes syncable again.
-		vlog.VI(1).Infof("sync: prepareSGDeltaReq: database not allowed to sync, skipping sync on db %s for app %s", iSt.config.dbName, iSt.config.appName)
-		return interfaces.NewErrDbOffline(ctx, iSt.config.dbName, iSt.config.appName)
+		vlog.VI(1).Infof("sync: prepareSGDeltaReq: database not allowed to sync, skipping sync on db %v", iSt.config.dbId)
+		return interfaces.NewErrDbOffline(ctx, iSt.config.dbId)
 	}
 
-	if err := iSt.config.sync.checkptLocalGen(ctx, iSt.config.appName, iSt.config.dbName, iSt.config.sgIds); err != nil {
+	if err := iSt.config.sync.checkptLocalGen(ctx, iSt.config.dbId, iSt.config.sgIds); err != nil {
 		return err
 	}
 
 	var err error
-	iSt.local, _, err = iSt.config.sync.copyDbGenInfo(ctx, iSt.config.appName, iSt.config.dbName, iSt.config.sgIds)
+	iSt.local, _, err = iSt.config.sync.copyDbGenInfo(ctx, iSt.config.dbId, iSt.config.sgIds)
 	if err != nil {
 		return err
 	}
 
 	// Send request.
 	req := interfaces.SgDeltaReq{
-		AppName: iSt.config.appName,
-		DbName:  iSt.config.dbName,
-		Gvs:     iSt.local,
+		DbId: iSt.config.dbId,
+		Gvs:  iSt.local,
 	}
 
 	iSt.req = interfaces.DeltaReqSgs{req}
@@ -624,9 +615,9 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 			// TODO(hpucha): Handle if syncgroup is left/destroyed while sync is in progress.
 			var pos uint64
 			if iSt.sg {
-				pos = iSt.config.sync.reservePosInDbLog(ctx, iSt.config.appName, iSt.config.dbName, v.Value.Metadata.ObjId, 1)
+				pos = iSt.config.sync.reservePosInDbLog(ctx, iSt.config.dbId, v.Value.Metadata.ObjId, 1)
 			} else {
-				pos = iSt.config.sync.reservePosInDbLog(ctx, iSt.config.appName, iSt.config.dbName, "", 1)
+				pos = iSt.config.sync.reservePosInDbLog(ctx, iSt.config.dbId, "", 1)
 			}
 
 			rec := &LocalLogRec{Metadata: v.Value.Metadata, Pos: pos, Shell: v.Value.Shell}
@@ -657,9 +648,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 					return err
 				}
 				// Check for BlobRefs, and process them.
-				if err := iSt.config.sync.processBlobRefs(ctx, appDbName(iSt.config.appName, iSt.config.dbName), tx,
-					iSt.config.peer.relName, false, iSt.config.allSgPfxs, iSt.config.sharedSgPfxs, &rec.Metadata, v.Value.Value); err != nil {
-
+				if err := iSt.config.sync.processBlobRefs(ctx, iSt.config.dbId, tx, iSt.config.peer.relName, false, iSt.config.allSgPfxs, iSt.config.sharedSgPfxs, &rec.Metadata, v.Value.Value); err != nil {
 					return err
 				}
 			}
@@ -822,8 +811,8 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 		if err == nil {
 			committed = true
 			// Update in-memory genvectors since commit is successful.
-			if err := iSt.config.sync.putDbGenInfoRemote(ctx, iSt.config.appName, iSt.config.dbName, iSt.sg, iSt.updLocal); err != nil {
-				vlog.Fatalf("sync: processUpdatedObjects: putting geninfo in memory failed for app %s db %s, err %v", iSt.config.appName, iSt.config.dbName, err)
+			if err := iSt.config.sync.putDbGenInfoRemote(ctx, iSt.config.dbId, iSt.sg, iSt.updLocal); err != nil {
+				vlog.Fatalf("sync: processUpdatedObjects: putting geninfo in memory failed for db %v, err %v", iSt.config.dbId, err)
 			}
 
 			// Ignore errors.
@@ -1126,9 +1115,9 @@ func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, objid, vers, p
 
 	var gen, pos uint64
 	if iSt.sg {
-		gen, pos = iSt.config.sync.reserveGenAndPosInDbLog(ctx, iSt.config.appName, iSt.config.dbName, objid, 1)
+		gen, pos = iSt.config.sync.reserveGenAndPosInDbLog(ctx, iSt.config.dbId, objid, 1)
 	} else {
-		gen, pos = iSt.config.sync.reserveGenAndPosInDbLog(ctx, iSt.config.appName, iSt.config.dbName, "", 1)
+		gen, pos = iSt.config.sync.reserveGenAndPosInDbLog(ctx, iSt.config.dbId, "", 1)
 	}
 
 	rec := &LocalLogRec{
@@ -1152,7 +1141,7 @@ func (iSt *initiationState) createLocalLinkLogRec(ctx *context.T, objid, vers, p
 // updateSyncSt updates local sync state at the end of an initiator cycle.
 func (iSt *initiationState) updateSyncSt(ctx *context.T) error {
 	// Get the current local sync state.
-	dsInMem, err := iSt.config.sync.copyDbSyncStateInMem(ctx, iSt.config.appName, iSt.config.dbName)
+	dsInMem, err := iSt.config.sync.copyDbSyncStateInMem(ctx, iSt.config.dbId)
 	if err != nil {
 		return err
 	}

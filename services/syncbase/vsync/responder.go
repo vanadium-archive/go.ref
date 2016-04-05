@@ -12,6 +12,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
@@ -46,8 +47,7 @@ func (s *syncService) GetDeltas(ctx *context.T, call interfaces.SyncGetDeltasSer
 // initiation round.
 type responderState struct {
 	// Parameters from the request.
-	appName  string
-	dbName   string
+	dbId     wire.Id
 	sgIds    sgSet
 	initVecs interfaces.Knowledge
 	sg       bool
@@ -70,15 +70,13 @@ func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, 
 
 	switch v := req.(type) {
 	case interfaces.DeltaReqData:
-		rSt.appName = v.Value.AppName
-		rSt.dbName = v.Value.DbName
+		rSt.dbId = v.Value.DbId
 		rSt.sgIds = v.Value.SgIds
 		rSt.initVecs = v.Value.Gvs
 
 	case interfaces.DeltaReqSgs:
 		rSt.sg = true
-		rSt.appName = v.Value.AppName
-		rSt.dbName = v.Value.DbName
+		rSt.dbId = v.Value.DbId
 		rSt.initVecs = v.Value.Gvs
 		rSt.sgIds = make(sgSet)
 		// Populate the sgids from the initvec.
@@ -133,18 +131,17 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 	// embedded, consider using a helper function to auto-fill it instead
 	// (see http://goo.gl/mEa4L0) but only incur that overhead when the
 	// logging level specified is enabled.
-	vlog.VI(3).Infof("sync: sendDeltasPerDatabase: recvd %s, %s: sgids %v, genvecs %v, sg %v",
-		rSt.appName, rSt.dbName, rSt.sgIds, rSt.initVecs, rSt.sg)
+	vlog.VI(3).Infof("sync: sendDeltasPerDatabase: recvd %v: sgids %v, genvecs %v, sg %v", rSt.dbId, rSt.sgIds, rSt.initVecs, rSt.sg)
 
 	// There is no need to acquire syncService.thLock since responder uses
 	// the generation cut by initiator. The initiator maintains the atomicity
 	// of operations performed within a pause-resume block when a generation is
 	// cut. Hence either none of these operations are present within the
 	// generation or all of them are present.
-	if !rSt.sync.isDbSyncable(ctx, rSt.appName, rSt.dbName) {
+	if !rSt.sync.isDbSyncable(ctx, rSt.dbId) {
 		// The database is offline. Skip the db till it becomes syncable again.
-		vlog.VI(1).Infof("sync: sendDeltasPerDatabase: database not allowed to sync, skipping sync on db %s for app %s", rSt.dbName, rSt.appName)
-		return interfaces.NewErrDbOffline(ctx, rSt.dbName, rSt.appName)
+		vlog.VI(1).Infof("sync: sendDeltasPerDatabase: database not allowed to sync, skipping sync on db %v", rSt.dbId)
+		return interfaces.NewErrDbOffline(ctx, rSt.dbId)
 	}
 
 	// Phase 1 of sendDeltas: Authorize the initiator and respond to the
@@ -177,7 +174,7 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 // allowed syncgroups (phase 1 of sendDeltas).
 func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 	var err error
-	rSt.st, err = rSt.sync.getDbStore(ctx, nil, rSt.appName, rSt.dbName)
+	rSt.st, err = rSt.sync.getDbStore(ctx, nil, rSt.dbId)
 	if err != nil {
 		return err
 	}
@@ -237,7 +234,7 @@ func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 // sendSgDeltas computes the bound on missing generations, and sends the missing
 // log records across all requested syncgroups (phases 2 and 3 of sendDeltas).
 func (rSt *responderState) sendSgDeltas(ctx *context.T) error {
-	respVecs, _, err := rSt.sync.copyDbGenInfo(ctx, rSt.appName, rSt.dbName, rSt.sgIds)
+	respVecs, _, err := rSt.sync.copyDbGenInfo(ctx, rSt.dbId, rSt.sgIds)
 	if err != nil {
 		return err
 	}
@@ -277,7 +274,7 @@ func (rSt *responderState) sendDataDeltas(ctx *context.T) error {
 }
 
 func (rSt *responderState) computeDataDeltas(ctx *context.T) error {
-	respVecs, respGen, err := rSt.sync.copyDbGenInfo(ctx, rSt.appName, rSt.dbName, nil)
+	respVecs, respGen, err := rSt.sync.copyDbGenInfo(ctx, rSt.dbId, nil)
 	if err != nil {
 		return err
 	}
@@ -347,8 +344,7 @@ func (rSt *responderState) computeDataDeltas(ctx *context.T) error {
 		rSt.outVecs[pfx] = respgv
 	}
 
-	vlog.VI(3).Infof("sync: computeDataDeltas: %s, %s: diff %v, outvecs %v",
-		rSt.appName, rSt.dbName, rSt.diff, rSt.outVecs)
+	vlog.VI(3).Infof("sync: computeDataDeltas: %v: diff %v, outvecs %v", rSt.dbId, rSt.diff, rSt.outVecs)
 	return nil
 }
 

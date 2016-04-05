@@ -16,6 +16,9 @@ import (
 // Syncgroup RPC methods
 
 func (d *databaseReq) GetSyncgroupNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	if !d.exists {
+		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return nil, wire.NewErrBoundToBatch(ctx)
 	}
@@ -24,6 +27,9 @@ func (d *databaseReq) GetSyncgroupNames(ctx *context.T, call rpc.ServerCall) ([]
 }
 
 func (d *databaseReq) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, myInfo wire.SyncgroupMemberInfo) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -32,6 +38,9 @@ func (d *databaseReq) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgNam
 }
 
 func (d *databaseReq) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
+	if !d.exists {
+		return wire.SyncgroupSpec{}, verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.SyncgroupSpec{}, wire.NewErrBoundToBatch(ctx)
 	}
@@ -40,6 +49,9 @@ func (d *databaseReq) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgName 
 }
 
 func (d *databaseReq) LeaveSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -47,6 +59,9 @@ func (d *databaseReq) LeaveSyncgroup(ctx *context.T, call rpc.ServerCall, sgName
 }
 
 func (d *databaseReq) DestroySyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -54,6 +69,9 @@ func (d *databaseReq) DestroySyncgroup(ctx *context.T, call rpc.ServerCall, sgNa
 }
 
 func (d *databaseReq) EjectFromSyncgroup(ctx *context.T, call rpc.ServerCall, sgName, member string) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -61,6 +79,9 @@ func (d *databaseReq) EjectFromSyncgroup(ctx *context.T, call rpc.ServerCall, sg
 }
 
 func (d *databaseReq) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string) (wire.SyncgroupSpec, string, error) {
+	if !d.exists {
+		return wire.SyncgroupSpec{}, "", verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.SyncgroupSpec{}, "", wire.NewErrBoundToBatch(ctx)
 	}
@@ -69,6 +90,9 @@ func (d *databaseReq) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgNa
 }
 
 func (d *databaseReq) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, version string) error {
+	if !d.exists {
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)
 	}
@@ -77,6 +101,9 @@ func (d *databaseReq) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgNa
 }
 
 func (d *databaseReq) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncgroupMemberInfo, error) {
+	if !d.exists {
+		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if d.batchId != nil {
 		return nil, wire.NewErrBoundToBatch(ctx)
 	}

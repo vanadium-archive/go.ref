@@ -23,7 +23,7 @@ import (
 // GetResumeMarker implements the wire.DatabaseWatcher interface.
 func (d *databaseReq) GetResumeMarker(ctx *context.T, call rpc.ServerCall) (watch.ResumeMarker, error) {
 	if !d.exists {
-		return nil, verror.New(verror.ErrNoExist, ctx, d.name)
+		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	if d.batchId != nil {
 		return watchable.GetResumeMarker(d.batchReader())
@@ -36,7 +36,7 @@ func (d *databaseReq) GetResumeMarker(ctx *context.T, call rpc.ServerCall) (watc
 func (d *databaseReq) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, req watch.GlobRequest) error {
 	// TODO(rogulenko): Check permissions here and in other methods.
 	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.name)
+		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	if d.batchId != nil {
 		return wire.NewErrBoundToBatch(ctx)

@@ -87,72 +87,73 @@ func TestWatchPrefixes(t *testing.T) {
 	gid2 := interfaces.GroupId(5678)
 
 	watchPrefixOps := []struct {
-		appName, dbName, key string
-		add                  bool
-		gid                  interfaces.GroupId
+		dbId wire.Id
+		key  string
+		add  bool
+		gid  interfaces.GroupId
 	}{
-		{"app1", "db1", "foo", true, gid1},
-		{"app1", "db1", "bar", true, gid1},
-		{"app2", "db1", "xyz", true, gid1},
-		{"app3", "db1", "haha", true, gid2},
-		{"app1", "db1", "foo", true, gid2},
-		{"app1", "db1", "foo", false, gid1},
-		{"app2", "db1", "ttt", true, gid2},
-		{"app2", "db1", "ttt", true, gid1},
-		{"app2", "db1", "ttt", false, gid2},
-		{"app2", "db1", "ttt", false, gid1},
-		{"app2", "db2", "qwerty", true, gid1},
-		{"app3", "db1", "haha", true, gid1},
-		{"app2", "db2", "qwerty", false, gid1},
-		{"app3", "db1", "haha", false, gid2},
+		{wire.Id{"app1", "db1"}, "foo", true, gid1},
+		{wire.Id{"app1", "db1"}, "bar", true, gid1},
+		{wire.Id{"app2", "db1"}, "xyz", true, gid1},
+		{wire.Id{"app3", "db1"}, "haha", true, gid2},
+		{wire.Id{"app1", "db1"}, "foo", true, gid2},
+		{wire.Id{"app1", "db1"}, "foo", false, gid1},
+		{wire.Id{"app2", "db1"}, "ttt", true, gid2},
+		{wire.Id{"app2", "db1"}, "ttt", true, gid1},
+		{wire.Id{"app2", "db1"}, "ttt", false, gid2},
+		{wire.Id{"app2", "db1"}, "ttt", false, gid1},
+		{wire.Id{"app2", "db2"}, "qwerty", true, gid1},
+		{wire.Id{"app3", "db1"}, "haha", true, gid1},
+		{wire.Id{"app2", "db2"}, "qwerty", false, gid1},
+		{wire.Id{"app3", "db1"}, "haha", false, gid2},
 	}
 
 	for _, op := range watchPrefixOps {
 		if op.add {
-			addWatchPrefixSyncgroup(op.appName, op.dbName, op.key, op.gid)
+			addWatchPrefixSyncgroup(op.dbId, op.key, op.gid)
 		} else {
-			rmWatchPrefixSyncgroup(op.appName, op.dbName, op.key, op.gid)
+			rmWatchPrefixSyncgroup(op.dbId, op.key, op.gid)
 		}
 	}
 
-	expPrefixes := map[string]sgPrefixes{
-		"app1\xfedb1": sgPrefixes{"foo": sgSet{gid2: struct{}{}}, "bar": sgSet{gid1: struct{}{}}},
-		"app2\xfedb1": sgPrefixes{"xyz": sgSet{gid1: struct{}{}}},
-		"app3\xfedb1": sgPrefixes{"haha": sgSet{gid1: struct{}{}}},
+	expPrefixes := map[wire.Id]sgPrefixes{
+		wire.Id{"app1", "db1"}: sgPrefixes{"foo": sgSet{gid2: struct{}{}}, "bar": sgSet{gid1: struct{}{}}},
+		wire.Id{"app2", "db1"}: sgPrefixes{"xyz": sgSet{gid1: struct{}{}}},
+		wire.Id{"app3", "db1"}: sgPrefixes{"haha": sgSet{gid1: struct{}{}}},
 	}
 	if !reflect.DeepEqual(watchPrefixes, expPrefixes) {
 		t.Errorf("invalid watch prefixes: got %v instead of %v", watchPrefixes, expPrefixes)
 	}
 
 	checkSyncableTests := []struct {
-		appName, dbName, key string
-		result               bool
+		dbId   wire.Id
+		key    string
+		result bool
 	}{
-		{"app1", "db1", "foo", true},
-		{"app1", "db1", "foobar", true},
-		{"app1", "db1", "bar", true},
-		{"app1", "db1", "bar123", true},
-		{"app1", "db1", "f", false},
-		{"app1", "db1", "ba", false},
-		{"app1", "db1", "xyz", false},
-		{"app1", "db555", "foo", false},
-		{"app555", "db1", "foo", false},
-		{"app2", "db1", "xyz123", true},
-		{"app2", "db1", "ttt123", false},
-		{"app2", "db2", "qwerty", false},
-		{"app3", "db1", "hahahoho", true},
-		{"app3", "db1", "hoho", false},
-		{"app3", "db1", "h", false},
+		{wire.Id{"app1", "db1"}, "foo", true},
+		{wire.Id{"app1", "db1"}, "foobar", true},
+		{wire.Id{"app1", "db1"}, "bar", true},
+		{wire.Id{"app1", "db1"}, "bar123", true},
+		{wire.Id{"app1", "db1"}, "f", false},
+		{wire.Id{"app1", "db1"}, "ba", false},
+		{wire.Id{"app1", "db1"}, "xyz", false},
+		{wire.Id{"app1", "db555"}, "foo", false},
+		{wire.Id{"app555", "db1"}, "foo", false},
+		{wire.Id{"app2", "db1"}, "xyz123", true},
+		{wire.Id{"app2", "db1"}, "ttt123", false},
+		{wire.Id{"app2", "db2"}, "qwerty", false},
+		{wire.Id{"app3", "db1"}, "hahahoho", true},
+		{wire.Id{"app3", "db1"}, "hoho", false},
+		{wire.Id{"app3", "db1"}, "h", false},
 	}
 
 	for _, test := range checkSyncableTests {
 		log := &watchable.LogEntry{
 			Op: vom.RawBytesOf(&watchable.PutOp{Key: []byte(makeRowKey(test.key))}),
 		}
-		res := syncable(appDbName(test.appName, test.dbName), log)
+		res := syncable(test.dbId, log)
 		if res != test.result {
-			t.Errorf("checkSyncable: invalid output: %s, %s, %s: got %t instead of %t",
-				test.appName, test.dbName, test.key, res, test.result)
+			t.Errorf("checkSyncable: invalid output: %v, %s: got %t instead of %t", test.dbId, test.key, res, test.result)
 		}
 	}
 }
@@ -206,13 +207,12 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	st := createDatabase(t, svc).St()
 	s := svc.sync
 
-	app, db := "mockapp", "mockdb"
 	fooKey := makeRowKey("foo")
 	barKey := makeRowKey("bar")
 	fooxyzKey := makeRowKey("fooxyz")
 
 	// Empty logs does not fail.
-	s.processWatchLogBatch(nil, app, db, st, nil, nil)
+	s.processWatchLogBatch(nil, mockDbId, st, nil, nil)
 
 	// Non-syncable logs.
 	batch := []*watchable.LogEntry{
@@ -221,7 +221,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 
 	resmark := watchable.MakeResumeMarker(1234)
-	s.processWatchLogBatch(nil, app, db, st, batch, resmark)
+	s.processWatchLogBatch(nil, mockDbId, st, batch, resmark)
 
 	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
@@ -254,7 +254,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 
 	resmark = watchable.MakeResumeMarker(3456)
-	s.processWatchLogBatch(nil, app, db, st, batch, resmark)
+	s.processWatchLogBatch(nil, mockDbId, st, batch, resmark)
 
 	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
@@ -294,7 +294,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 
 	resmark = watchable.MakeResumeMarker(7890)
-	s.processWatchLogBatch(nil, app, db, st, batch, resmark)
+	s.processWatchLogBatch(nil, mockDbId, st, batch, resmark)
 
 	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
@@ -337,7 +337,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 
 	resmark = watchable.MakeResumeMarker(20212223)
-	s.processWatchLogBatch(nil, app, db, st, batch, resmark)
+	s.processWatchLogBatch(nil, mockDbId, st, batch, resmark)
 
 	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)

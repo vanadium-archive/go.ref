@@ -54,6 +54,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
@@ -116,8 +117,7 @@ func (in *dbSyncStateInMem) deepCopy() *dbSyncStateInMem {
 // remote peer.  It is an in-memory entry in a queue of pending syncgroups.
 type sgPublishInfo struct {
 	sgName  string
-	appName string
-	dbName  string
+	dbId    wire.Id
 	queued  time.Time
 	lastTry time.Time
 }
@@ -136,10 +136,10 @@ func (s *syncService) initSync(ctx *context.T) error {
 	defer s.syncStateLock.Unlock()
 
 	var errFinal error
-	s.syncState = make(map[string]*dbSyncStateInMem)
+	s.syncState = make(map[wire.Id]*dbSyncStateInMem)
 	newMembers := make(map[string]*memberInfo)
 
-	s.forEachDatabaseStore(ctx, func(appName, dbName string, st *watchable.Store) bool {
+	s.forEachDatabaseStore(ctx, func(dbId wire.Id, st *watchable.Store) bool {
 		// Fetch the sync state for data and syncgroups.
 		ds, err := getDbSyncState(ctx, st)
 		if err != nil && verror.ErrorID(err) != verror.ErrNoExist.ID {
@@ -159,10 +159,9 @@ func (s *syncService) initSync(ctx *context.T) error {
 			dsInMem.isPaused = ds.IsPaused
 		}
 
-		vlog.VI(2).Infof("sync: initSync: initing app %v db %v, dsInMem %v", appName, dbName, dsInMem)
+		vlog.VI(2).Infof("sync: initSync: initing db %v, dsInMem %v", dbId, dsInMem)
 
 		sgCount := 0
-		name := appDbName(appName, dbName)
 
 		// Scan the syncgroups and init relevant metadata.
 		forEachSyncgroup(st, func(sg *interfaces.Syncgroup) bool {
@@ -183,16 +182,16 @@ func (s *syncService) initSync(ctx *context.T) error {
 			}
 			if state.Watched {
 				for _, prefix := range sg.Spec.Prefixes {
-					addWatchPrefixSyncgroup(appName, dbName, toCollectionRowPrefixStr(prefix), sg.Id)
+					addWatchPrefixSyncgroup(dbId, toCollectionRowPrefixStr(prefix), sg.Id)
 				}
 			}
 
 			if sg.Status == interfaces.SyncgroupStatusPublishPending {
-				s.enqueuePublishSyncgroup(sg.Name, appName, dbName, false)
+				s.enqueuePublishSyncgroup(sg.Name, dbId, false)
 			}
 
 			// Refresh membership view.
-			refreshSyncgroupMembers(sg, name, newMembers)
+			refreshSyncgroupMembers(sg, dbId, newMembers)
 
 			sgoid := sgOID(sg.Id)
 			info := &localGenInfoInMem{}
@@ -206,13 +205,13 @@ func (s *syncService) initSync(ctx *context.T) error {
 			}
 			info.checkptGen = info.gen - 1
 
-			vlog.VI(4).Infof("sync: initSync: initing app %v db %v sg %v info %v", appName, dbName, sgoid, info)
+			vlog.VI(4).Infof("sync: initSync: initing db %v sg %v info %v", dbId, sgoid, info)
 
 			return false
 		})
 
 		if sgCount == 0 {
-			vlog.VI(2).Infof("sync: initSync: initing app %v db %v done (no sgs found)", appName, dbName)
+			vlog.VI(2).Infof("sync: initSync: initing db %v done (no sgs found)", dbId)
 			return false
 		}
 
@@ -234,9 +233,9 @@ func (s *syncService) initSync(ctx *context.T) error {
 		}
 		dsInMem.data.checkptGen = dsInMem.data.gen - 1
 
-		s.syncState[name] = dsInMem
+		s.syncState[dbId] = dsInMem
 
-		vlog.VI(2).Infof("sync: initSync: initing app %v db %v done dsInMem %v (data %v)", appName, dbName, dsInMem, dsInMem.data)
+		vlog.VI(2).Infof("sync: initSync: initing db %v done dsInMem %v (data %v)", dbId, dsInMem, dsInMem.data)
 
 		return false
 	})
@@ -318,15 +317,14 @@ func getPrevLogRec(ctx *context.T, st store.Store, pfx string, dev, gen uint64) 
 }
 
 // enqueuePublishSyncgroup appends the given syncgroup to the publish queue.
-func (s *syncService) enqueuePublishSyncgroup(sgName, appName, dbName string, attempted bool) {
+func (s *syncService) enqueuePublishSyncgroup(sgName string, dbId wire.Id, attempted bool) {
 	s.sgPublishQueueLock.Lock()
 	defer s.sgPublishQueueLock.Unlock()
 
 	entry := &sgPublishInfo{
-		sgName:  sgName,
-		appName: appName,
-		dbName:  dbName,
-		queued:  time.Now(),
+		sgName: sgName,
+		dbId:   dbId,
+		queued: time.Now(),
 	}
 	if attempted {
 		entry.lastTry = entry.queued
@@ -341,22 +339,22 @@ func (s *syncService) enqueuePublishSyncgroup(sgName, appName, dbName string, at
 // reserveGenAndPosInDbLog reserves a chunk of generation numbers and log
 // positions in a Database's log. Used when local updates result in log
 // entries.
-func (s *syncService) reserveGenAndPosInDbLog(ctx *context.T, appName, dbName, sgoid string, count uint64) (uint64, uint64) {
-	return s.reserveGenAndPosInternal(appName, dbName, sgoid, count, count)
+func (s *syncService) reserveGenAndPosInDbLog(ctx *context.T, dbId wire.Id, sgoid string, count uint64) (uint64, uint64) {
+	return s.reserveGenAndPosInternal(dbId, sgoid, count, count)
 }
 
 // reservePosInDbLog reserves a chunk of log positions in a Database's log. Used
 // when remote log records are received.
-func (s *syncService) reservePosInDbLog(ctx *context.T, appName, dbName, sgoid string, count uint64) uint64 {
-	_, pos := s.reserveGenAndPosInternal(appName, dbName, sgoid, 0, count)
+func (s *syncService) reservePosInDbLog(ctx *context.T, dbId wire.Id, sgoid string, count uint64) uint64 {
+	_, pos := s.reserveGenAndPosInternal(dbId, sgoid, 0, count)
 	return pos
 }
 
-func (s *syncService) reserveGenAndPosInternal(appName, dbName, sgoid string, genCount, posCount uint64) (uint64, uint64) {
+func (s *syncService) reserveGenAndPosInternal(dbId wire.Id, sgoid string, genCount, posCount uint64) (uint64, uint64) {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
-	ds := s.getOrCreateSyncStateInternal(appName, dbName)
+	ds := s.getOrCreateSyncStateInternal(dbId)
 	var info *localGenInfoInMem
 	if sgoid != "" {
 		var ok bool
@@ -378,14 +376,13 @@ func (s *syncService) reserveGenAndPosInternal(appName, dbName, sgoid string, ge
 }
 
 // checkptLocalGen freezes the local generation number for the responder's use.
-func (s *syncService) checkptLocalGen(ctx *context.T, appName, dbName string, sgs sgSet) error {
+func (s *syncService) checkptLocalGen(ctx *context.T, dbId wire.Id, sgs sgSet) error {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
-	name := appDbName(appName, dbName)
-	ds, ok := s.syncState[name]
+	ds, ok := s.syncState[dbId]
 	if !ok {
-		return verror.New(verror.ErrInternal, ctx, "db state not found", name)
+		return verror.New(verror.ErrInternal, ctx, "db state not found", dbId)
 	}
 
 	// The frozen generation is the last generation number used, i.e. one
@@ -395,7 +392,7 @@ func (s *syncService) checkptLocalGen(ctx *context.T, appName, dbName string, sg
 		for id := range sgs {
 			info, ok := ds.sgs[sgOID(id)]
 			if !ok {
-				return verror.New(verror.ErrInternal, ctx, "sg state not found", name, id)
+				return verror.New(verror.ErrInternal, ctx, "sg state not found", dbId, id)
 			}
 			info.checkptGen = info.gen - 1
 		}
@@ -407,19 +404,18 @@ func (s *syncService) checkptLocalGen(ctx *context.T, appName, dbName string, sg
 
 // initSyncStateInMem initializes the in memory sync state of the
 // database/syncgroup if needed.
-func (s *syncService) initSyncStateInMem(ctx *context.T, appName, dbName string, sgoid string) {
+func (s *syncService) initSyncStateInMem(ctx *context.T, dbId wire.Id, sgoid string) {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
-	name := appDbName(appName, dbName)
-	if s.syncState[name] == nil {
-		s.syncState[name] = &dbSyncStateInMem{
+	if s.syncState[dbId] == nil {
+		s.syncState[dbId] = &dbSyncStateInMem{
 			data: &localGenInfoInMem{gen: 1},
 			sgs:  make(map[string]*localGenInfoInMem),
 		}
 	}
 	if sgoid != "" {
-		ds := s.syncState[name]
+		ds := s.syncState[dbId]
 		if _, ok := ds.sgs[sgoid]; !ok {
 			ds.sgs[sgoid] = &localGenInfoInMem{gen: 1}
 		}
@@ -428,27 +424,25 @@ func (s *syncService) initSyncStateInMem(ctx *context.T, appName, dbName string,
 }
 
 // copyDbSyncStateInMem returns a copy of the current in memory sync state of the Database.
-func (s *syncService) copyDbSyncStateInMem(ctx *context.T, appName, dbName string) (*dbSyncStateInMem, error) {
+func (s *syncService) copyDbSyncStateInMem(ctx *context.T, dbId wire.Id) (*dbSyncStateInMem, error) {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
-	name := appDbName(appName, dbName)
-	ds, ok := s.syncState[name]
+	ds, ok := s.syncState[dbId]
 	if !ok {
-		return nil, verror.New(verror.ErrInternal, ctx, "db state not found", name)
+		return nil, verror.New(verror.ErrInternal, ctx, "db state not found", dbId)
 	}
 	return ds.deepCopy(), nil
 }
 
 // copyDbGenInfo returns a copy of the current generation information of the Database.
-func (s *syncService) copyDbGenInfo(ctx *context.T, appName, dbName string, sgs sgSet) (interfaces.Knowledge, uint64, error) {
+func (s *syncService) copyDbGenInfo(ctx *context.T, dbId wire.Id, sgs sgSet) (interfaces.Knowledge, uint64, error) {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
-	name := appDbName(appName, dbName)
-	ds, ok := s.syncState[name]
+	ds, ok := s.syncState[dbId]
 	if !ok {
-		return nil, 0, verror.New(verror.ErrInternal, ctx, "db state not found", name)
+		return nil, 0, verror.New(verror.ErrInternal, ctx, "db state not found", dbId)
 	}
 
 	var genvecs interfaces.Knowledge
@@ -474,14 +468,13 @@ func (s *syncService) copyDbGenInfo(ctx *context.T, appName, dbName string, sgs 
 }
 
 // putDbGenInfoRemote puts the current remote generation information of the Database.
-func (s *syncService) putDbGenInfoRemote(ctx *context.T, appName, dbName string, sg bool, genvecs interfaces.Knowledge) error {
+func (s *syncService) putDbGenInfoRemote(ctx *context.T, dbId wire.Id, sg bool, genvecs interfaces.Knowledge) error {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
 
-	name := appDbName(appName, dbName)
-	ds, ok := s.syncState[name]
+	ds, ok := s.syncState[dbId]
 	if !ok {
-		return verror.New(verror.ErrInternal, ctx, "db state not found", name)
+		return verror.New(verror.ErrInternal, ctx, "db state not found", dbId)
 	}
 
 	if sg {
@@ -494,24 +487,24 @@ func (s *syncService) putDbGenInfoRemote(ctx *context.T, appName, dbName string,
 }
 
 // isDbSyncable checks if the given database is currently syncable.
-func (s *syncService) isDbSyncable(ctx *context.T, appName, dbName string) bool {
+func (s *syncService) isDbSyncable(ctx *context.T, dbId wire.Id) bool {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
-	ds := s.getOrCreateSyncStateInternal(appName, dbName)
+	ds := s.getOrCreateSyncStateInternal(dbId)
 	return !ds.isPaused
 }
 
 // updateInMemoryPauseSt updates the in-memory state with the given isPaused state.
-func (s *syncService) updateInMemoryPauseSt(ctx *context.T, appName, dbName string, isPaused bool) {
+func (s *syncService) updateInMemoryPauseSt(ctx *context.T, dbId wire.Id, isPaused bool) {
 	s.syncStateLock.Lock()
 	defer s.syncStateLock.Unlock()
-	ds := s.getOrCreateSyncStateInternal(appName, dbName)
+	ds := s.getOrCreateSyncStateInternal(dbId)
 	ds.isPaused = isPaused
 }
 
 // updateDbPauseSt updates the db with the given isPaused state.
-func (s *syncService) updateDbPauseSt(ctx *context.T, tx store.Transaction, appName, dbName string, isPaused bool) error {
-	vlog.VI(3).Infof("sync: updateDbPauseSt: updating sync paused for db %s in app %s with value %t", dbName, appName, isPaused)
+func (s *syncService) updateDbPauseSt(ctx *context.T, tx store.Transaction, dbId wire.Id, isPaused bool) error {
+	vlog.VI(3).Infof("sync: updateDbPauseSt: updating sync paused for db %v with value %t", dbId, isPaused)
 	ss, err := getDbSyncState(ctx, tx)
 	if err != nil {
 		if verror.ErrorID(err) != verror.ErrNoExist.ID {
@@ -523,34 +516,16 @@ func (s *syncService) updateDbPauseSt(ctx *context.T, tx store.Transaction, appN
 	return putDbSyncState(ctx, tx, ss)
 }
 
-func (s *syncService) getOrCreateSyncStateInternal(appName, dbName string) *dbSyncStateInMem {
-	name := appDbName(appName, dbName)
-	ds, ok := s.syncState[name]
+func (s *syncService) getOrCreateSyncStateInternal(dbId wire.Id) *dbSyncStateInMem {
+	ds, ok := s.syncState[dbId]
 	if !ok {
 		ds = &dbSyncStateInMem{
 			data: &localGenInfoInMem{gen: 1},
 			sgs:  make(map[string]*localGenInfoInMem),
 		}
-		s.syncState[name] = ds
+		s.syncState[dbId] = ds
 	}
-	return s.syncState[name]
-}
-
-// appDbName combines the app and db names to return a globally unique name for
-// a Database.  This relies on the fact that the app name is globally unique and
-// the db name is unique within the scope of the app.
-func appDbName(appName, dbName string) string {
-	return common.JoinKeyParts(appName, dbName)
-}
-
-// splitAppDbName is the inverse of appDbName and returns app and db name from a
-// globally unique name for a Database.
-func splitAppDbName(ctx *context.T, name string) (string, string, error) {
-	parts := common.SplitNKeyParts(name, 2)
-	if len(parts) != 2 {
-		return "", "", verror.New(verror.ErrInternal, ctx, "invalid appDbName", name)
-	}
-	return parts[0], parts[1], nil
+	return s.syncState[dbId]
 }
 
 ////////////////////////////////////////////////////////////

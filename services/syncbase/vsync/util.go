@@ -16,7 +16,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
-	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
@@ -28,56 +27,31 @@ const (
 // service and invokes the callback function on each database. The callback
 // returns a "done" flag to make forEachDatabaseStore() stop the iteration
 // earlier; otherwise the function loops across all databases of all apps.
-func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(string, string, *watchable.Store) bool) {
+func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(wire.Id, *watchable.Store) bool) {
 	// Get the apps and iterate over them.
 	// TODO(rdaoud): use a "privileged call" parameter instead of nil (here and
 	// elsewhere).
-	appNames, err := s.sv.AppNames(ctx, nil)
+	dbIds, err := s.sv.DatabaseIds(ctx, nil)
 	if err != nil {
-		vlog.Errorf("sync: forEachDatabaseStore: cannot get all app names: %v", err)
+		vlog.Errorf("sync: forEachDatabaseStore: cannot get all db ids: %v", err)
 		return
 	}
-
-	for _, a := range appNames {
-		// For each app, get its databases and iterate over them.
-		app, err := s.sv.App(ctx, nil, a)
+	// For each database, get its Store and invoke the callback.
+	for _, id := range dbIds {
+		db, err := s.sv.Database(ctx, nil, id)
 		if err != nil {
-			vlog.Errorf("sync: forEachDatabaseStore: cannot get app %s: %v", a, err)
+			vlog.Errorf("sync: forEachDatabaseStore: cannot get db %v: %v", id, err)
 			continue
 		}
-		dbNames, err := app.DatabaseNames(ctx, nil)
-		if err != nil {
-			vlog.Errorf("sync: forEachDatabaseStore: cannot get all db names for app %s: %v", a, err)
-			continue
-		}
-
-		for _, d := range dbNames {
-			// For each database, get its Store and invoke the callback.
-			db, err := app.Database(ctx, nil, d)
-			if err != nil {
-				vlog.Errorf("sync: forEachDatabaseStore: cannot get db %s for app %s: %v", d, a, err)
-				continue
-			}
-
-			if callback(a, d, db.St()) {
-				return // done, early exit
-			}
+		if callback(id, db.St()) {
+			return // done, early exit
 		}
 	}
-}
-
-// getDb gets the database handle.
-func (s *syncService) getDb(ctx *context.T, call rpc.ServerCall, appName, dbName string) (interfaces.Database, error) {
-	app, err := s.sv.App(ctx, call, appName)
-	if err != nil {
-		return nil, err
-	}
-	return app.Database(ctx, call, dbName)
 }
 
 // getDbStore gets the store handle to the database.
-func (s *syncService) getDbStore(ctx *context.T, call rpc.ServerCall, appName, dbName string) (*watchable.Store, error) {
-	db, err := s.getDb(ctx, call, appName, dbName)
+func (s *syncService) getDbStore(ctx *context.T, call rpc.ServerCall, dbId wire.Id) (*watchable.Store, error) {
+	db, err := s.sv.Database(ctx, call, dbId)
 	if err != nil {
 		return nil, err
 	}

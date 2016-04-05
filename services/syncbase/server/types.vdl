@@ -15,25 +15,20 @@ type ServiceData struct {
 	Perms   access.Permissions
 }
 
-// AppData represents the persistent state of an App.
-type AppData struct {
-	Name    string
-	Version uint64 // covers the fields below
-	Perms   access.Permissions
-}
-
-// DbInfo contains information about one database for an App.
+// DbInfo contains information about a single Database, stored in the
+// service-level storage engine.
 type DbInfo struct {
-	Name  string
+	Id wire.Id
 	// Select fields from DatabaseOptions, needed in order to open storage engine
 	// on restart.
 	RootDir string // interpreted by storage engine
 	Engine  string // name of storage engine, e.g. "leveldb"
 }
 
-// DatabaseData represents the persistent state of a Database.
+// DatabaseData represents the persistent state of a Database, stored in the
+// per-database storage engine.
 type DatabaseData struct {
-	Name           string
+	Id             wire.Id
 	Version        uint64 // covers the Perms field below
 	Perms          access.Permissions
 	SchemaMetadata ?wire.SchemaMetadata

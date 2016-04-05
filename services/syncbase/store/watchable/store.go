@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	pubutil "v.io/v23/syncbase/util"
-	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -32,8 +32,14 @@ type Options struct {
 	ManagedPrefixes []string
 }
 
+// Clock is an interface to a generic clock.
+type Clock interface {
+	// Now returns the current time.
+	Now() (time.Time, error)
+}
+
 // Wrap returns a *Store that wraps the given store.Store.
-func Wrap(st store.Store, clock common.Clock, opts *Options) (*Store, error) {
+func Wrap(st store.Store, clock Clock, opts *Options) (*Store, error) {
 	seq, err := getNextLogSeq(st)
 	if err != nil {
 		return nil, err
@@ -55,7 +61,7 @@ type Store struct {
 	seq     uint64     // the next sequence number to be used for a new commit
 	// TODO(razvanm): make the clock private. The clock is used only by the
 	// addSyncgroupLogRec function from the vsync package.
-	Clock common.Clock // used to provide write timestamps
+	Clock Clock // used to provide write timestamps
 }
 
 var _ store.Store = (*Store)(nil)

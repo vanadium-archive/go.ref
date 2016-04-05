@@ -119,11 +119,12 @@ type Sync interface {
 	AcceptedBlobOwnership(br wire.BlobRef, callerName string, shares BlobSharesBySyncgroup) (serverName string, keepingBlob bool | error)
 }
 
+// TODO(ivanpi): Some methods are missing additional parameter handling ({:_}).
 error (
 	DupSyncgroupPublish(name string) {"en": "duplicate publish on syncgroup: {name}"}
 	ConnFail() {"en": "connection to peer failed{:_}"}
 	BrokenCrConnection() {"en": "CrConnection stream to client does not exist or is broken"}
-	DbOffline(dbName, appName string) {"en": "database {dbName} in app {appName} is offline and cannot be synced{:_}"}
+	DbOffline(dbId wire.Id) {"en": "database {dbId} is offline and cannot be synced{:_}"}
 	GetTimeFailed() {"en": "GetTime failed{:_}"}
 	NotAdmin() {"en": "not an admin of the syncgroup"}
 )

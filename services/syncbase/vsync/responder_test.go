@@ -125,9 +125,6 @@ func TestDiffPrefixGenVectors(t *testing.T) {
 // and if the log records on the wire are correctly ordered (phases 2 and 3 of
 // SendDeltas).
 func TestSendDataDeltas(t *testing.T) {
-	appName := "mockapp"
-	dbName := "mockdb"
-
 	tests := []struct {
 		respVecs, initVecs, outVecs interfaces.Knowledge
 		respGen                     uint64
@@ -353,7 +350,7 @@ func TestSendDataDeltas(t *testing.T) {
 		s.id = 10 //responder.
 
 		wantDiff, wantVecs := test.genDiff, test.outVecs
-		s.syncState[appDbName(appName, dbName)] = &dbSyncStateInMem{
+		s.syncState[mockDbId] = &dbSyncStateInMem{
 			data: &localGenInfoInMem{
 				gen:        test.respGen,
 				checkptGen: test.respGen,
@@ -404,9 +401,8 @@ func TestSendDataDeltas(t *testing.T) {
 		}
 
 		req := interfaces.DataDeltaReq{
-			AppName: appName,
-			DbName:  dbName,
-			Gvs:     test.initVecs,
+			DbId: mockDbId,
+			Gvs:  test.initVecs,
 		}
 
 		rSt, err := newResponderState(nil, nil, s, interfaces.DeltaReqData{req}, "fakeInitiator")
@@ -415,9 +411,9 @@ func TestSendDataDeltas(t *testing.T) {
 		}
 		d := &dummyResponder{}
 		rSt.call = d
-		rSt.st, err = rSt.sync.getDbStore(nil, nil, rSt.appName, rSt.dbName)
+		rSt.st, err = rSt.sync.getDbStore(nil, nil, rSt.dbId)
 		if err != nil {
-			t.Fatalf("getDbStore failed to get store handle for app/db %v %v", rSt.appName, rSt.dbName)
+			t.Fatalf("getDbStore failed to get store handle for db %v", rSt.dbId)
 		}
 
 		err = rSt.computeDataDeltas(nil)

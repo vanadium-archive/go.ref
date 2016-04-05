@@ -93,11 +93,11 @@ func (iSt *initiationState) resolveViaApp(ctx *context.T, groupedConflicts *grou
 		conf := iSt.config
 
 		// Empty str for Data that is not SyncGroup.
-		sgOid := ""
+		sgoid := ""
 
 		// reserve more than needed
 		reserveCount := uint64(len(results))
-		gen, pos := conf.sync.reserveGenAndPosInDbLog(ctx, conf.appName, conf.dbName, sgOid, reserveCount)
+		gen, pos := conf.sync.reserveGenAndPosInDbLog(ctx, conf.dbId, sgoid, reserveCount)
 		processResInfos(ctx, iSt, results, gen, pos)
 	}
 	return nil

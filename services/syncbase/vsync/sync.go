@@ -24,6 +24,7 @@ import (
 	"v.io/v23/discovery"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	idiscovery "v.io/x/ref/lib/discovery"
@@ -109,7 +110,7 @@ type syncService struct {
 
 	// In-memory sync state per Database. This state is populated at
 	// startup, and periodically persisted by the initiator.
-	syncState     map[string]*dbSyncStateInMem
+	syncState     map[wire.Id]*dbSyncStateInMem
 	syncStateLock sync.Mutex // lock to protect access to the sync state.
 
 	// In-memory queue of syncgroups to be published.  It is reconstructed
@@ -246,7 +247,7 @@ func Close(ss interfaces.SyncServerMethods) {
 }
 
 func NewSyncDatabase(db interfaces.Database) *syncDatabase {
-	return &syncDatabase{db: db, sync: db.App().Service().Sync()}
+	return &syncDatabase{db: db, sync: db.Service().Sync()}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -442,12 +443,8 @@ func AddNames(ctx *context.T, ss interfaces.SyncServerMethods, svr rpc.Server) e
 	}
 
 	// Advertise syncgroups.
-	for gdbName, dbInfo := range info.db2sg {
-		appName, dbName, err := splitAppDbName(ctx, gdbName)
-		if err != nil {
-			return err
-		}
-		st, err := s.getDbStore(ctx, nil, appName, dbName)
+	for dbId, dbInfo := range info.db2sg {
+		st, err := s.getDbStore(ctx, nil, dbId)
 		if err != nil {
 			return err
 		}

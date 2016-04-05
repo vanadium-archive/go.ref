@@ -7,7 +7,7 @@ package interfaces
 import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/x/ref/services/syncbase/common"
+	wire "v.io/v23/services/syncbase"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -19,12 +19,9 @@ type Service interface {
 	// Sync returns the sync instance for this service.
 	Sync() SyncServerMethods
 
-	// Clock returns the clock instance for this service.
-	Clock() common.Clock
+	// Database returns a handle for the specified database.
+	Database(ctx *context.T, call rpc.ServerCall, dbId wire.Id) (Database, error)
 
-	// App returns the App with the specified name.
-	App(ctx *context.T, call rpc.ServerCall, appName string) (App, error)
-
-	// AppNames returns the names of the Apps within the service.
-	AppNames(ctx *context.T, call rpc.ServerCall) ([]string, error)
+	// DatabaseIds returns ids for all databases.
+	DatabaseIds(ctx *context.T, call rpc.ServerCall) ([]wire.Id, error)
 }

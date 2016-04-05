@@ -263,12 +263,12 @@ func (g *globChildrenServerCall) SendStream() interface {
 
 func (g *globChildrenServerCall) Send(reply naming.GlobChildrenReply) error {
 	if v, ok := reply.(naming.GlobChildrenReplyName); ok {
-		escName := v.Value[strings.LastIndex(v.Value, "/")+1:]
-		// Component names within object names are always escaped. See comment in
+		encName := v.Value[strings.LastIndex(v.Value, "/")+1:]
+		// Component names within object names are always encoded. See comment in
 		// server/nosql/dispatcher.go for explanation.
-		name, ok := util.Unescape(escName)
+		name, ok := util.Decode(encName)
 		if !ok {
-			return verror.New(verror.ErrInternal, g.ctx, escName)
+			return verror.New(verror.ErrInternal, g.ctx, encName)
 		}
 		g.Results = append(g.Results, name)
 	}

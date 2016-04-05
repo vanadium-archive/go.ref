@@ -15,7 +15,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/common"
@@ -28,11 +27,12 @@ import (
 )
 
 var (
+	mockDbId     = wire.Id{Blessing: "mockapp", Name: "mockdb"}
 	mockCRStream *conflictResolverStream
 )
 
 // mockService emulates a Syncbase service that includes store and sync.
-// It is used to access a mock application.
+// It is used to access mock databases.
 type mockService struct {
 	engine   string
 	dir      string
@@ -50,52 +50,18 @@ func (s *mockService) Sync() interfaces.SyncServerMethods {
 	return s.sync
 }
 
-func (s *mockService) Clock() common.Clock {
-	return s.vclock
-}
-
-func (s *mockService) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {
-	return &mockApp{s: s}, nil
-}
-
-func (s *mockService) AppNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
-	return []string{"mockapp"}, nil
-}
-
-// mockApp emulates a Syncbase App.  It is used to access a mock database.
-type mockApp struct {
-	s *mockService
-}
-
-func (a *mockApp) Database(ctx *context.T, call rpc.ServerCall, dbName string) (interfaces.Database, error) {
-	wst, err := watchable.Wrap(a.s.st, a.s.vclock, &watchable.Options{
+func (s *mockService) Database(ctx *context.T, call rpc.ServerCall, dbId wire.Id) (interfaces.Database, error) {
+	wst, err := watchable.Wrap(s.st, s.vclock, &watchable.Options{
 		ManagedPrefixes: []string{common.RowPrefix, common.CollectionPermsPrefix},
 	})
-	return &mockDatabase{st: wst}, err
+	if err != nil {
+		return nil, err
+	}
+	return &mockDatabase{st: wst}, nil
 }
 
-func (a *mockApp) DatabaseNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
-	return []string{"mockdb"}, nil
-}
-
-func (a *mockApp) CreateDatabase(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, metadata *wire.SchemaMetadata) error {
-	return verror.NewErrNotImplemented(ctx)
-}
-
-func (a *mockApp) DestroyDatabase(ctx *context.T, call rpc.ServerCall, dbName string) error {
-	return verror.NewErrNotImplemented(ctx)
-}
-
-func (a *mockApp) SetDatabasePerms(ctx *context.T, call rpc.ServerCall, dbName string, perms access.Permissions, version string) error {
-	return verror.NewErrNotImplemented(ctx)
-}
-
-func (a *mockApp) Service() interfaces.Service {
-	return nil
-}
-
-func (a *mockApp) Name() string {
-	return "mockapp"
+func (s *mockService) DatabaseIds(ctx *context.T, call rpc.ServerCall) ([]wire.Id, error) {
+	return []wire.Id{mockDbId}, nil
 }
 
 // mockDatabase emulates a Syncbase Database. It is used to test sync
@@ -104,24 +70,20 @@ type mockDatabase struct {
 	st *watchable.Store
 }
 
+func (d *mockDatabase) Id() wire.Id {
+	return mockDbId
+}
+
+func (d *mockDatabase) Service() interfaces.Service {
+	return nil
+}
+
 func (d *mockDatabase) St() *watchable.Store {
 	return d.st
 }
 
 func (d *mockDatabase) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
 	return verror.NewErrNotImplemented(ctx)
-}
-
-func (d *mockDatabase) SetPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
-	return verror.NewErrNotImplemented(ctx)
-}
-
-func (d *mockDatabase) Name() string {
-	return "mockdb"
-}
-
-func (d *mockDatabase) App() interfaces.App {
-	return nil
 }
 
 func (d *mockDatabase) GetSchemaMetadataInternal(ctx *context.T) (*wire.SchemaMetadata, error) {
@@ -169,14 +131,13 @@ func createService(t *testing.T) *mockService {
 }
 
 // createDatabase creates a mock database.
+// TODO(sadovsky): These mocks use methods like s.Database in ways that violate
+// the API contract. Can we eliminate them and just use the actual
+// implementations?
 func createDatabase(t *testing.T, s *mockService) *mockDatabase {
-	app, err := s.App(nil, nil, "mockapp")
+	db, err := s.Database(nil, nil, mockDbId)
 	if err != nil {
-		t.Errorf("Error while creating App: %v", err)
-	}
-	db, err := app.Database(nil, nil, "mockdb")
-	if err != nil {
-		t.Errorf("Error while creating Database: %v", err)
+		t.Errorf("Error while accessing Database: %v", err)
 	}
 	// TODO(razvanm): Get rid of the type assertion from below.
 	return db.(*mockDatabase)

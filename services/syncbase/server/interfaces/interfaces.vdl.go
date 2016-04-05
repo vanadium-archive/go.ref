@@ -962,8 +962,7 @@ type Syncgroup struct {
 	SpecVersion string                                  // version on syncgroup spec for concurrency control
 	Spec        syncbase.SyncgroupSpec                  // app-given specification
 	Creator     string                                  // Creator's Vanadium name
-	AppName     string                                  // Globally unique App name
-	DbName      string                                  // Database name within the App
+	DbId        syncbase.Id                             // Globally unique database id
 	Status      SyncgroupStatus                         // Status of the syncgroup
 	Joiners     map[string]syncbase.SyncgroupMemberInfo // map of joiners to their metadata
 }
@@ -1094,18 +1093,19 @@ func (m *Syncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var24 := (m.AppName == "")
+	var24 := (m.DbId == syncbase.Id{})
 	if var24 {
-		if err := fieldsTarget1.ZeroField("AppName"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("DbId"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("AppName")
+		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("DbId")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget23.FromString(string(m.AppName), tt.NonOptional().Field(5).Type); err != nil {
+
+			if err := m.DbId.FillVDLTarget(fieldTarget23, tt.NonOptional().Field(5).Type); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
@@ -1113,18 +1113,19 @@ func (m *Syncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var27 := (m.DbName == "")
+	var27 := (m.Status == SyncgroupStatusPublishPending)
 	if var27 {
-		if err := fieldsTarget1.ZeroField("DbName"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("Status"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget25, fieldTarget26, err := fieldsTarget1.StartField("DbName")
+		keyTarget25, fieldTarget26, err := fieldsTarget1.StartField("Status")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget26.FromString(string(m.DbName), tt.NonOptional().Field(6).Type); err != nil {
+
+			if err := m.Status.FillVDLTarget(fieldTarget26, tt.NonOptional().Field(6).Type); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget25, fieldTarget26); err != nil {
@@ -1132,69 +1133,49 @@ func (m *Syncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var30 := (m.Status == SyncgroupStatusPublishPending)
-	if var30 {
-		if err := fieldsTarget1.ZeroField("Status"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget28, fieldTarget29, err := fieldsTarget1.StartField("Status")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := m.Status.FillVDLTarget(fieldTarget29, tt.NonOptional().Field(7).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
-				return err
-			}
-		}
-	}
-	var var33 bool
+	var var30 bool
 	if len(m.Joiners) == 0 {
-		var33 = true
+		var30 = true
 	}
-	if var33 {
+	if var30 {
 		if err := fieldsTarget1.ZeroField("Joiners"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget31, fieldTarget32, err := fieldsTarget1.StartField("Joiners")
+		keyTarget28, fieldTarget29, err := fieldsTarget1.StartField("Joiners")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
 
-			mapTarget34, err := fieldTarget32.StartMap(tt.NonOptional().Field(8).Type, len(m.Joiners))
+			mapTarget31, err := fieldTarget29.StartMap(tt.NonOptional().Field(7).Type, len(m.Joiners))
 			if err != nil {
 				return err
 			}
-			for key36, value38 := range m.Joiners {
-				keyTarget35, err := mapTarget34.StartKey()
+			for key33, value35 := range m.Joiners {
+				keyTarget32, err := mapTarget31.StartKey()
 				if err != nil {
 					return err
 				}
-				if err := keyTarget35.FromString(string(key36), tt.NonOptional().Field(8).Type.Key()); err != nil {
+				if err := keyTarget32.FromString(string(key33), tt.NonOptional().Field(7).Type.Key()); err != nil {
 					return err
 				}
-				valueTarget37, err := mapTarget34.FinishKeyStartField(keyTarget35)
+				valueTarget34, err := mapTarget31.FinishKeyStartField(keyTarget32)
 				if err != nil {
 					return err
 				}
 
-				if err := value38.FillVDLTarget(valueTarget37, tt.NonOptional().Field(8).Type.Elem()); err != nil {
+				if err := value35.FillVDLTarget(valueTarget34, tt.NonOptional().Field(7).Type.Elem()); err != nil {
 					return err
 				}
-				if err := mapTarget34.FinishField(keyTarget35, valueTarget37); err != nil {
+				if err := mapTarget31.FinishField(keyTarget32, valueTarget34); err != nil {
 					return err
 				}
 			}
-			if err := fieldTarget32.FinishMap(mapTarget34); err != nil {
+			if err := fieldTarget29.FinishMap(mapTarget31); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget31, fieldTarget32); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
 				return err
 			}
 		}
@@ -1216,8 +1197,7 @@ type SyncgroupTarget struct {
 	specVersionTarget vdl.StringTarget
 	specTarget        syncbase.SyncgroupSpecTarget
 	creatorTarget     vdl.StringTarget
-	appNameTarget     vdl.StringTarget
-	dbNameTarget      vdl.StringTarget
+	dbIdTarget        syncbase.IdTarget
 	statusTarget      SyncgroupStatusTarget
 	joinersTarget     __VDLTarget1_map
 	vdl.TargetBase
@@ -1253,13 +1233,9 @@ func (t *SyncgroupTarget) StartField(name string) (key, field vdl.Target, _ erro
 		t.creatorTarget.Value = &t.Value.Creator
 		target, err := &t.creatorTarget, error(nil)
 		return nil, target, err
-	case "AppName":
-		t.appNameTarget.Value = &t.Value.AppName
-		target, err := &t.appNameTarget, error(nil)
-		return nil, target, err
-	case "DbName":
-		t.dbNameTarget.Value = &t.Value.DbName
-		target, err := &t.dbNameTarget, error(nil)
+	case "DbId":
+		t.dbIdTarget.Value = &t.Value.DbId
+		target, err := &t.dbIdTarget, error(nil)
 		return nil, target, err
 	case "Status":
 		t.statusTarget.Value = &t.Value.Status
@@ -1293,11 +1269,8 @@ func (t *SyncgroupTarget) ZeroField(name string) error {
 	case "Creator":
 		t.Value.Creator = ""
 		return nil
-	case "AppName":
-		t.Value.AppName = ""
-		return nil
-	case "DbName":
-		t.Value.DbName = ""
+	case "DbId":
+		t.Value.DbId = syncbase.Id{}
 		return nil
 	case "Status":
 		t.Value.Status = SyncgroupStatusPublishPending
@@ -1358,12 +1331,10 @@ func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 }
 
 // SgDeltaReq contains the initiator's genvectors for the syncgroups it is
-// interested in within a Database (specified by the AppName/DbName) when
-// requesting deltas for those syncgroups.
+// interested in within a database when requesting deltas for those syncgroups.
 type SgDeltaReq struct {
-	AppName string
-	DbName  string
-	Gvs     Knowledge // Contains a genvector per syncgroup.
+	DbId syncbase.Id
+	Gvs  Knowledge // Contains a genvector per syncgroup.
 }
 
 func (SgDeltaReq) __VDLReflect(struct {
@@ -1376,18 +1347,19 @@ func (m *SgDeltaReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	var4 := (m.AppName == "")
+	var4 := (m.DbId == syncbase.Id{})
 	if var4 {
-		if err := fieldsTarget1.ZeroField("AppName"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("DbId"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("AppName")
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("DbId")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget3.FromString(string(m.AppName), tt.NonOptional().Field(0).Type); err != nil {
+
+			if err := m.DbId.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -1395,44 +1367,25 @@ func (m *SgDeltaReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var7 := (m.DbName == "")
-	if var7 {
-		if err := fieldsTarget1.ZeroField("DbName"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("DbName")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-			if err := fieldTarget6.FromString(string(m.DbName), tt.NonOptional().Field(1).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-				return err
-			}
-		}
-	}
-	var var10 bool
+	var var7 bool
 	if len(m.Gvs) == 0 {
-		var10 = true
+		var7 = true
 	}
-	if var10 {
+	if var7 {
 		if err := fieldsTarget1.ZeroField("Gvs"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Gvs")
+		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Gvs")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
 
-			if err := m.Gvs.FillVDLTarget(fieldTarget9, tt.NonOptional().Field(2).Type); err != nil {
+			if err := m.Gvs.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
 				return err
 			}
 		}
@@ -1448,10 +1401,9 @@ func (m *SgDeltaReq) MakeVDLTarget() vdl.Target {
 }
 
 type SgDeltaReqTarget struct {
-	Value         *SgDeltaReq
-	appNameTarget vdl.StringTarget
-	dbNameTarget  vdl.StringTarget
-	gvsTarget     KnowledgeTarget
+	Value      *SgDeltaReq
+	dbIdTarget syncbase.IdTarget
+	gvsTarget  KnowledgeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1465,13 +1417,9 @@ func (t *SgDeltaReqTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 }
 func (t *SgDeltaReqTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
-	case "AppName":
-		t.appNameTarget.Value = &t.Value.AppName
-		target, err := &t.appNameTarget, error(nil)
-		return nil, target, err
-	case "DbName":
-		t.dbNameTarget.Value = &t.Value.DbName
-		target, err := &t.dbNameTarget, error(nil)
+	case "DbId":
+		t.dbIdTarget.Value = &t.Value.DbId
+		target, err := &t.dbIdTarget, error(nil)
 		return nil, target, err
 	case "Gvs":
 		t.gvsTarget.Value = &t.Value.Gvs
@@ -1486,11 +1434,8 @@ func (t *SgDeltaReqTarget) FinishField(_, _ vdl.Target) error {
 }
 func (t *SgDeltaReqTarget) ZeroField(name string) error {
 	switch name {
-	case "AppName":
-		t.Value.AppName = ""
-		return nil
-	case "DbName":
-		t.Value.DbName = ""
+	case "DbId":
+		t.Value.DbId = syncbase.Id{}
 		return nil
 	case "Gvs":
 		t.Value.Gvs = Knowledge(nil)
@@ -1505,13 +1450,11 @@ func (t *SgDeltaReqTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // DataDeltaReq contains the initiator's genvectors and the set of syncgroups it
-// is interested in within a Database (specified by the AppName/DbName) when
-// requesting deltas for that Database.
+// is interested in within a database when requesting deltas for that database.
 type DataDeltaReq struct {
-	AppName string
-	DbName  string
-	SgIds   map[GroupId]struct{}
-	Gvs     Knowledge
+	DbId  syncbase.Id
+	SgIds map[GroupId]struct{}
+	Gvs   Knowledge
 }
 
 func (DataDeltaReq) __VDLReflect(struct {
@@ -1524,18 +1467,19 @@ func (m *DataDeltaReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	var4 := (m.AppName == "")
+	var4 := (m.DbId == syncbase.Id{})
 	if var4 {
-		if err := fieldsTarget1.ZeroField("AppName"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("DbId"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("AppName")
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("DbId")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget3.FromString(string(m.AppName), tt.NonOptional().Field(0).Type); err != nil {
+
+			if err := m.DbId.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -1543,18 +1487,39 @@ func (m *DataDeltaReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var7 := (m.DbName == "")
+	var var7 bool
+	if len(m.SgIds) == 0 {
+		var7 = true
+	}
 	if var7 {
-		if err := fieldsTarget1.ZeroField("DbName"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("SgIds"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("DbName")
+		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("SgIds")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget6.FromString(string(m.DbName), tt.NonOptional().Field(1).Type); err != nil {
+
+			setTarget8, err := fieldTarget6.StartSet(tt.NonOptional().Field(1).Type, len(m.SgIds))
+			if err != nil {
+				return err
+			}
+			for key10 := range m.SgIds {
+				keyTarget9, err := setTarget8.StartKey()
+				if err != nil {
+					return err
+				}
+
+				if err := key10.FillVDLTarget(keyTarget9, tt.NonOptional().Field(1).Type.Key()); err != nil {
+					return err
+				}
+				if err := setTarget8.FinishKey(keyTarget9); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget6.FinishSet(setTarget8); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
@@ -1562,65 +1527,25 @@ func (m *DataDeltaReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var var10 bool
-	if len(m.SgIds) == 0 {
-		var10 = true
-	}
-	if var10 {
-		if err := fieldsTarget1.ZeroField("SgIds"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("SgIds")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			setTarget11, err := fieldTarget9.StartSet(tt.NonOptional().Field(2).Type, len(m.SgIds))
-			if err != nil {
-				return err
-			}
-			for key13 := range m.SgIds {
-				keyTarget12, err := setTarget11.StartKey()
-				if err != nil {
-					return err
-				}
-
-				if err := key13.FillVDLTarget(keyTarget12, tt.NonOptional().Field(2).Type.Key()); err != nil {
-					return err
-				}
-				if err := setTarget11.FinishKey(keyTarget12); err != nil {
-					return err
-				}
-			}
-			if err := fieldTarget9.FinishSet(setTarget11); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
-				return err
-			}
-		}
-	}
-	var var16 bool
+	var var13 bool
 	if len(m.Gvs) == 0 {
-		var16 = true
+		var13 = true
 	}
-	if var16 {
+	if var13 {
 		if err := fieldsTarget1.ZeroField("Gvs"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget14, fieldTarget15, err := fieldsTarget1.StartField("Gvs")
+		keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("Gvs")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
 
-			if err := m.Gvs.FillVDLTarget(fieldTarget15, tt.NonOptional().Field(3).Type); err != nil {
+			if err := m.Gvs.FillVDLTarget(fieldTarget12, tt.NonOptional().Field(2).Type); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget14, fieldTarget15); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
 				return err
 			}
 		}
@@ -1636,11 +1561,10 @@ func (m *DataDeltaReq) MakeVDLTarget() vdl.Target {
 }
 
 type DataDeltaReqTarget struct {
-	Value         *DataDeltaReq
-	appNameTarget vdl.StringTarget
-	dbNameTarget  vdl.StringTarget
-	sgIdsTarget   __VDLTarget2_set
-	gvsTarget     KnowledgeTarget
+	Value       *DataDeltaReq
+	dbIdTarget  syncbase.IdTarget
+	sgIdsTarget __VDLTarget2_set
+	gvsTarget   KnowledgeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -1654,13 +1578,9 @@ func (t *DataDeltaReqTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error)
 }
 func (t *DataDeltaReqTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
-	case "AppName":
-		t.appNameTarget.Value = &t.Value.AppName
-		target, err := &t.appNameTarget, error(nil)
-		return nil, target, err
-	case "DbName":
-		t.dbNameTarget.Value = &t.Value.DbName
-		target, err := &t.dbNameTarget, error(nil)
+	case "DbId":
+		t.dbIdTarget.Value = &t.Value.DbId
+		target, err := &t.dbIdTarget, error(nil)
 		return nil, target, err
 	case "SgIds":
 		t.sgIdsTarget.Value = &t.Value.SgIds
@@ -1679,11 +1599,8 @@ func (t *DataDeltaReqTarget) FinishField(_, _ vdl.Target) error {
 }
 func (t *DataDeltaReqTarget) ZeroField(name string) error {
 	switch name {
-	case "AppName":
-		t.Value.AppName = ""
-		return nil
-	case "DbName":
-		t.Value.DbName = ""
+	case "DbId":
+		t.Value.DbId = syncbase.Id{}
 		return nil
 	case "SgIds":
 		t.Value.SgIds = map[GroupId]struct{}(nil)
@@ -3400,7 +3317,7 @@ var (
 	ErrDupSyncgroupPublish = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.DupSyncgroupPublish", verror.NoRetry, "{1:}{2:} duplicate publish on syncgroup: {3}")
 	ErrConnFail            = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.ConnFail", verror.NoRetry, "{1:}{2:} connection to peer failed{:_}")
 	ErrBrokenCrConnection  = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.BrokenCrConnection", verror.NoRetry, "{1:}{2:} CrConnection stream to client does not exist or is broken")
-	ErrDbOffline           = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.DbOffline", verror.NoRetry, "{1:}{2:} database {3} in app {4} is offline and cannot be synced{:_}")
+	ErrDbOffline           = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.DbOffline", verror.NoRetry, "{1:}{2:} database {3} is offline and cannot be synced{:_}")
 	ErrGetTimeFailed       = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.GetTimeFailed", verror.NoRetry, "{1:}{2:} GetTime failed{:_}")
 	ErrNotAdmin            = verror.Register("v.io/x/ref/services/syncbase/server/interfaces.NotAdmin", verror.NoRetry, "{1:}{2:} not an admin of the syncgroup")
 )
@@ -3421,8 +3338,8 @@ func NewErrBrokenCrConnection(ctx *context.T) error {
 }
 
 // NewErrDbOffline returns an error with the ErrDbOffline ID.
-func NewErrDbOffline(ctx *context.T, dbName string, appName string) error {
-	return verror.New(ErrDbOffline, ctx, dbName, appName)
+func NewErrDbOffline(ctx *context.T, dbId syncbase.Id) error {
+	return verror.New(ErrDbOffline, ctx, dbId)
 }
 
 // NewErrGetTimeFailed returns an error with the ErrGetTimeFailed ID.
@@ -4592,7 +4509,7 @@ func __VDLInit() struct{} {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDupSyncgroupPublish.ID), "{1:}{2:} duplicate publish on syncgroup: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrConnFail.ID), "{1:}{2:} connection to peer failed{:_}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBrokenCrConnection.ID), "{1:}{2:} CrConnection stream to client does not exist or is broken")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDbOffline.ID), "{1:}{2:} database {3} in app {4} is offline and cannot be synced{:_}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDbOffline.ID), "{1:}{2:} database {3} is offline and cannot be synced{:_}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrGetTimeFailed.ID), "{1:}{2:} GetTime failed{:_}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNotAdmin.ID), "{1:}{2:} not an admin of the syncgroup")
 

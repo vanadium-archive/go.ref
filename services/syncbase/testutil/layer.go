@@ -21,6 +21,11 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
+// TODO(sadovsky): This testutil library is starting to create more problems
+// than it solves, now that our layers are less homogeneous in behavior. Perhaps
+// eliminate this library entirely, and split up our unit tests into separate
+// test implementations per layer of hierarchy.
+
 // TestCreate tests that object creation works as expected.
 func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	parent := makeLayer(i)
@@ -211,16 +216,57 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self, "self", false)
 }
 
+func copyAndSortStrings(strs []string) []string {
+	sortedStrs := make([]string, len(strs))
+	copy(sortedStrs, strs)
+	sort.Strings(sortedStrs)
+	return sortedStrs
+}
+
+func TestListChildIds(t *testing.T, ctx *context.T, i interface{}, blessings, names []string) {
+	self := makeLayer(i)
+
+	var got, want []wire.Id
+	var err error
+
+	ids := []wire.Id{}
+	for _, blessing := range copyAndSortStrings(blessings) {
+		for _, name := range copyAndSortStrings(names) {
+			ids = append(ids, wire.Id{blessing, name})
+		}
+	}
+
+	for i := 0; i <= len(ids); i++ {
+		got, err = self.ListChildIds(ctx)
+		want = ids[:i]
+		if err != nil {
+			t.Fatalf("self.ListChildren() failed: %v", err)
+		}
+		if got == nil {
+			got = []wire.Id{}
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("Lists do not match: got %v, want %v", got, want)
+		}
+		if i == len(ids) {
+			break
+		}
+		id := ids[i]
+		if err := self.ChildForId(id).Create(ctx, nil); err != nil {
+			t.Fatalf("Create(%v) failed: %v", id, err)
+		}
+	}
+}
+
+// TODO(sadovsky): Eliminate TestListChildren once we've converted collection to
+// be id-based instead of name-based.
 func TestListChildren(t *testing.T, ctx *context.T, i interface{}, names []string) {
 	self := makeLayer(i)
 
 	var got, want []string
 	var err error
 
-	sortedNames := make([]string, len(names))
-	copy(sortedNames, names)
-	sort.Strings(sortedNames)
-	names = sortedNames
+	names = copyAndSortStrings(names)
 
 	for i := 0; i <= len(names); i++ {
 		got, err = self.ListChildren(ctx)
@@ -351,7 +397,9 @@ type layer interface {
 	Destroy(ctx *context.T) error
 	Exists(ctx *context.T) (bool, error)
 	ListChildren(ctx *context.T) ([]string, error)
+	ListChildIds(ctx *context.T) ([]wire.Id, error)
 	Child(childName string) layer
+	ChildForId(childId wire.Id) layer
 }
 
 type service struct {
@@ -371,50 +419,60 @@ func (s *service) Exists(ctx *context.T) (bool, error) {
 	panic(notAvailable)
 }
 func (s *service) ListChildren(ctx *context.T) ([]string, error) {
-	return s.ListApps(ctx)
+	panic(notAvailable)
+}
+func (s *service) ListChildIds(ctx *context.T) ([]wire.Id, error) {
+	return s.ListDatabases(ctx)
 }
 func (s *service) Child(childName string) layer {
-	return makeLayer(s.App(childName))
+	return makeLayer(s.DatabaseForId(wire.Id{Blessing: "v.io:xyz", Name: childName}, nil))
 }
-
-type app struct {
-	syncbase.App
-}
-
-func (a *app) ListChildren(ctx *context.T) ([]string, error) {
-	return a.ListDatabases(ctx)
-}
-func (a *app) Child(childName string) layer {
-	return makeLayer(a.Database(childName, nil))
+func (s *service) ChildForId(childId wire.Id) layer {
+	return makeLayer(s.DatabaseForId(childId, nil))
 }
 
 type database struct {
 	syncbase.Database
 }
 
+func (d *database) Name() string {
+	return d.Database.Id().Name
+}
 func (d *database) ListChildren(ctx *context.T) ([]string, error) {
 	return d.ListCollections(ctx)
 }
+func (d *database) ListChildIds(ctx *context.T) ([]wire.Id, error) {
+	panic(notAvailable)
+}
 func (d *database) Child(childName string) layer {
 	return makeLayer(d.Collection(childName))
+}
+func (d *database) ChildForId(childId wire.Id) layer {
+	panic(notAvailable)
 }
 
 type collection struct {
 	syncbase.Collection
 }
 
-func (t *collection) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
-	return t.Collection.SetPermissions(ctx, perms)
+func (c *collection) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
+	return c.Collection.SetPermissions(ctx, perms)
 }
-func (t *collection) GetPermissions(ctx *context.T) (perms access.Permissions, version string, err error) {
-	perms, err = t.Collection.GetPermissions(ctx)
+func (c *collection) GetPermissions(ctx *context.T) (perms access.Permissions, version string, err error) {
+	perms, err = c.Collection.GetPermissions(ctx)
 	return perms, "", err
 }
-func (t *collection) ListChildren(ctx *context.T) ([]string, error) {
+func (c *collection) ListChildren(ctx *context.T) ([]string, error) {
 	panic(notAvailable)
 }
-func (t *collection) Child(childName string) layer {
-	return &row{Row: t.Row(childName), c: t.Collection}
+func (c *collection) ListChildIds(ctx *context.T) ([]wire.Id, error) {
+	panic(notAvailable)
+}
+func (c *collection) Child(childName string) layer {
+	return &row{Row: c.Row(childName), c: c.Collection}
+}
+func (c *collection) ChildForId(childId wire.Id) layer {
+	panic(notAvailable)
 }
 
 type row struct {
@@ -444,7 +502,13 @@ func (r *row) GetPermissions(ctx *context.T) (perms access.Permissions, version 
 func (r *row) ListChildren(ctx *context.T) ([]string, error) {
 	panic(notAvailable)
 }
+func (r *row) ListChildIds(ctx *context.T) ([]wire.Id, error) {
+	panic(notAvailable)
+}
 func (r *row) Child(childName string) layer {
+	panic(notAvailable)
+}
+func (r *row) ChildForId(childId wire.Id) layer {
 	panic(notAvailable)
 }
 
@@ -452,8 +516,6 @@ func makeLayer(i interface{}) layer {
 	switch t := i.(type) {
 	case syncbase.Service:
 		return &service{t}
-	case syncbase.App:
-		return &app{t}
 	case syncbase.Database:
 		return &database{t}
 	case syncbase.Collection:

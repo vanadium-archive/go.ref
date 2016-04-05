@@ -16,7 +16,9 @@ import (
 	isatty "github.com/mattn/go-isatty"
 
 	"v.io/v23/context"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
+	pubutil "v.io/v23/syncbase/util"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/cmd/sb/internal/demodb"
 	"v.io/x/ref/cmd/sb/internal/reader"
@@ -31,9 +33,9 @@ var cmdSbShell = &cmdline.Command{
 	Long: `
 Connect to a database on the Syncbase service and start a syncQL shell.
 `,
-	ArgsName: "<app_name> <db_name>",
+	ArgsName: "<app_blessing> <db_name>",
 	ArgsLong: `
-<app_name> and <db_name> specify the database to execute queries against.
+<app_blessing> and <db_name> specify the database to execute queries against.
 The database must exist unless -create-missing is specified.
 `,
 }
@@ -48,7 +50,7 @@ var (
 func init() {
 	cmdSbShell.Flags.StringVar(&flagFormat, "format", "table", "Output format. 'table': human-readable table; 'csv': comma-separated values, use -csv-delimiter to control the delimiter; 'json': JSON objects.")
 	cmdSbShell.Flags.StringVar(&flagCSVDelimiter, "csv-delimiter", ",", "Delimiter to use when printing data as CSV (e.g. \"\t\", \",\")")
-	cmdSbShell.Flags.BoolVar(&flagCreateIfNotExists, "create-missing", false, "Create the app and/or database if they do not exist yet.")
+	cmdSbShell.Flags.BoolVar(&flagCreateIfNotExists, "create-missing", false, "Create the database if it does not exist.")
 	cmdSbShell.Flags.BoolVar(&flagMakeDemoCollections, "make-demo", false, "(Re)create demo collections in the database.")
 }
 
@@ -65,17 +67,18 @@ func validateFlags() error {
 // Starts a syncQL shell against the specified database.
 // Runs in interactive or batch mode depending on stdin.
 func runSbShell(ctx *context.T, env *cmdline.Env, args []string) error {
-	// TODO(ivanpi): Add 'use' statement, default to no app/database selected.
+	// TODO(ivanpi): Add 'use' statement, default to no database selected.
 	if len(args) != 2 {
 		return env.UsageErrorf("exactly two arguments expected")
 	}
-	appName, dbName := args[0], args[1]
+	// TODO(ivanpi): Derive blessing from context, perhaps?
+	blessing, name := args[0], args[1]
 	if err := validateFlags(); err != nil {
 		return env.UsageErrorf("%v", err)
 	}
 
 	sbs := syncbase.NewService(*flagSbService)
-	d, err := openAppDB(ctx, sbs, appName, dbName, flagCreateIfNotExists)
+	d, err := openDB(ctx, sbs, wire.Id{Blessing: blessing, Name: name}, flagCreateIfNotExists)
 	if err != nil {
 		return err
 	}
@@ -161,11 +164,13 @@ stmtLoop:
 	return nil
 }
 
-func destroyDB(ctx *context.T, d syncbase.Database, dbName string) error {
+func destroyDB(ctx *context.T, d syncbase.Database, encDbId string) error {
 	// For extra safety, we still require the user to explicitly specify the
-	// database name instead of blindly destroying the current database.
-	if d.Name() != dbName {
-		return fmt.Errorf("can only destroy current database %q", d.Name())
+	// encoded database id instead of blindly destroying the current database.
+	// TODO(ivanpi): Maybe switch to something more user-friendly, e.g. derive
+	// blessing from context.
+	if pubutil.EncodeId(d.Id()) != encDbId {
+		return fmt.Errorf("can only destroy current database %v", d.Id())
 	}
 	return d.Destroy(ctx)
 }
@@ -194,19 +199,8 @@ func destroySyncgroup(ctx *context.T, d syncbase.Database, sgName string) error 
 	return fmt.Errorf("couldn't find syncgroup %q", sgName)
 }
 
-func openAppDB(ctx *context.T, sbs syncbase.Service, appName, dbName string, createIfNotExists bool) (syncbase.Database, error) {
-	app := sbs.App(appName)
-	if exists, err := app.Exists(ctx); err != nil {
-		return nil, fmt.Errorf("failed checking for app %q: %v", app.FullName(), err)
-	} else if !exists {
-		if !createIfNotExists {
-			return nil, fmt.Errorf("app %q does not exist", app.FullName())
-		}
-		if err := app.Create(ctx, nil); err != nil {
-			return nil, err
-		}
-	}
-	d := app.Database(dbName, nil)
+func openDB(ctx *context.T, sbs syncbase.Service, id wire.Id, createIfNotExists bool) (syncbase.Database, error) {
+	d := sbs.DatabaseForId(id, nil)
 	if exists, err := d.Exists(ctx); err != nil {
 		return nil, fmt.Errorf("failed checking for db %q: %v", d.FullName(), err)
 	} else if !exists {

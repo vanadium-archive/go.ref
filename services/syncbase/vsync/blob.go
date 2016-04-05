@@ -444,8 +444,9 @@ func (s *syncService) AcceptedBlobOwnership(ctx *context.T, call rpc.ServerCall,
 			sgs[groupId] = struct{}{}
 		}
 
-		// Get the list of syncgroups in sgs for which callerName is a server in sgs.
-		var serverSgsForCaller sgSet = s.syncgroupsWithServer(ctx, "", callerName, sgs)
+		// Get the list of syncgroups in sgs for which callerName is a server in
+		// sgs.
+		var serverSgsForCaller sgSet = s.syncgroupsWithServer(ctx, wire.Id{}, callerName, sgs)
 
 		// For each syncgroup for which the client will accept some
 		// shares, decrement our ownership count.  Keep track of how
@@ -720,7 +721,7 @@ func getPeerBlessingsForFetchBlob(ctx *context.T, peer string) (blessingNames []
 func filterSignpost(ctx *context.T, blessingNames []string, s *syncService, signpost *interfaces.Signpost) {
 	keepPeer := make(map[string]bool) // Location hints to keep.
 
-	s.forEachDatabaseStore(ctx, func(appName string, dbName string, st *watchable.Store) bool {
+	s.forEachDatabaseStore(ctx, func(dbId wire.Id, st *watchable.Store) bool {
 		// For each database, fetch its syncgroup data entries by scanning their
 		// prefix range.  Use a database snapshot for the scan.
 		snapshot := st.NewSnapshot()
@@ -918,18 +919,18 @@ func (s *syncService) addToBlobSignpost(ctx *context.T, br wire.BlobRef, sp *int
 }
 
 // syncgroupsWithServer returns an sgSet  containing those syncgroups in sgs for
-// which "peer" is known to be a server.  If appdb is the empty string, the routine
-// searches across all available appdb values.
-func (s *syncService) syncgroupsWithServer(ctx *context.T, appdb string, peer string, sgs sgSet) sgSet {
+// which "peer" is known to be a server.  If dbId is the zero value, the routine
+// searches across all available dbId values.
+func (s *syncService) syncgroupsWithServer(ctx *context.T, dbId wire.Id, peer string, sgs sgSet) sgSet {
 	// Fill in serverSgsForPeer with the list of syncgroups in which "peer" is a server.
 	serverSgsForPeer := make(sgSet)
 	s.allMembersLock.Lock()
 	member := s.allMembers.members[peer]
 	if member != nil {
-		var sgMemberInfoMaps map[string]sgMemberInfo = member.db2sg // All appdb entries.
-		if len(appdb) != 0 {
-			// If appdb was specified, pick that one entry.
-			sgMemberInfoMaps = map[string]sgMemberInfo{appdb: member.db2sg[appdb]}
+		var sgMemberInfoMaps map[wire.Id]sgMemberInfo = member.db2sg // All dbId entries.
+		if dbId != (wire.Id{}) {
+			// If dbId was specified, pick that one entry.
+			sgMemberInfoMaps = map[wire.Id]sgMemberInfo{dbId: member.db2sg[dbId]}
 		}
 		for _, sgMemberInfoMap := range sgMemberInfoMaps {
 			for gid := range sgs {
@@ -960,7 +961,7 @@ func peerLocationData(isServer bool, isProxy bool) interfaces.LocationData {
 // allSgPrefixes contains all the syncgroups in the app/db that the current device is aware of.
 // sharedSgPrefixes contains only those shared with a peer device that provided this data;
 // it is nil if the data was created locally.
-func (s *syncService) processBlobRefs(ctx *context.T, appdb string, st store.StoreReader, peer string, isCreator bool,
+func (s *syncService) processBlobRefs(ctx *context.T, dbId wire.Id, st store.StoreReader, peer string, isCreator bool,
 	allSgPrefixes map[string]sgSet, sharedSgPrefixes map[string]sgSet, m *interfaces.LogRecMetadata, valbuf []byte) error {
 
 	objid := m.ObjId
@@ -1015,11 +1016,11 @@ func (s *syncService) processBlobRefs(ctx *context.T, appdb string, st store.Sto
 	for br := range brs {
 		vlog.VI(4).Infof("sync: processBlobRefs: found blobref %v, sgs %v", br, allSgIds)
 		sp := interfaces.Signpost{Locations: make(interfaces.PeerToLocationDataMap), SgIds: make(sgSet)}
-		var peerSyncgroups sgSet = s.syncgroupsWithServer(ctx, appdb, peer, allSgIds)
+		var peerSyncgroups sgSet = s.syncgroupsWithServer(ctx, dbId, peer, allSgIds)
 		var srcPeerSyncgroups sgSet
 		sp.Locations[peer] = peerLocationData(len(peerSyncgroups) != 0, false /*not proxy*/)
 		if peer != srcPeer {
-			srcPeerSyncgroups = s.syncgroupsWithServer(ctx, appdb, srcPeer, allSgIds)
+			srcPeerSyncgroups = s.syncgroupsWithServer(ctx, dbId, srcPeer, allSgIds)
 			sp.Locations[srcPeer] = peerLocationData(len(srcPeerSyncgroups) != 0, false /*not proxy*/)
 		}
 		for gid := range allSgIds {
@@ -1054,7 +1055,7 @@ func (s *syncService) processBlobRefs(ctx *context.T, appdb string, st store.Sto
 			} else if s.name == srcPeer {
 				selfSyncgroups = srcPeerSyncgroups
 			} else {
-				selfSyncgroups = s.syncgroupsWithServer(ctx, appdb, s.name, allSgIds)
+				selfSyncgroups = s.syncgroupsWithServer(ctx, dbId, s.name, allSgIds)
 			}
 			sp.Locations[s.name] = peerLocationData(len(selfSyncgroups) != 0, true /*proxy*/)
 		}

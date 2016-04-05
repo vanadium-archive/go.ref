@@ -10,6 +10,8 @@ package server
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -39,15 +41,15 @@ import (
 
 // service is a singleton (i.e. not per-request) that handles Service RPCs.
 type service struct {
-	st      store.Store // keeps track of which apps and databases exist, etc.
+	st      store.Store // keeps track of which databases exist, etc.
 	sync    interfaces.SyncServerMethods
 	vclock  *vclock.VClock
 	vclockD *vclock.VClockD
 	opts    ServiceOptions
-	// Guards the fields below. Held during app Create, Delete, and
+	// Guards the fields below. Held during database Create, Delete, and
 	// SetPermissions.
-	mu   sync.Mutex
-	apps map[string]*app
+	mu  sync.Mutex
+	dbs map[wire.Id]*database
 }
 
 var (
@@ -116,11 +118,11 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		// app-level databases. util.OpenStore moved the top-level store aside, but
 		// it didn't do anything about the app-level stores.
 		if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
-			vlog.Errorf("top-level store is corrupt, moving all apps aside")
+			vlog.Errorf("top-level store is corrupt, moving all databases aside")
 			appDir := filepath.Join(opts.RootDir, common.AppDir)
 			newPath := appDir + ".corrupt." + time.Now().Format(time.RFC3339)
 			if err := os.Rename(appDir, newPath); err != nil {
-				return nil, verror.New(verror.ErrInternal, ctx, "could not move apps aside: "+err.Error())
+				return nil, verror.New(verror.ErrInternal, ctx, "could not move databases aside: "+err.Error())
 			}
 		}
 		return nil, err
@@ -129,7 +131,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		st:     st,
 		vclock: vclock.NewVClock(st),
 		opts:   opts,
-		apps:   map[string]*app{},
+		dbs:    map[wire.Id]*database{},
 	}
 
 	// Make sure the vclock is initialized before opening any databases (which
@@ -158,28 +160,8 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		if err := runGCInactiveDatabases(ctx, st); err != nil {
 			return nil, err
 		}
-		// Initialize in-memory data structures.
-		// Read all apps, populate apps map.
-		aIt := st.Scan(common.ScanPrefixArgs(common.AppPrefix, ""))
-		aBytes := []byte{}
-		for aIt.Advance() {
-			aBytes = aIt.Value(aBytes)
-			aData := &AppData{}
-			if err := vom.Decode(aBytes, aData); err != nil {
-				return nil, verror.New(verror.ErrInternal, ctx, err)
-			}
-			a := &app{
-				name:   aData.Name,
-				s:      s,
-				exists: true,
-				dbs:    make(map[string]interfaces.Database),
-			}
-			if err := openDatabases(ctx, st, a); err != nil {
-				return nil, verror.New(verror.ErrInternal, ctx, err)
-			}
-			s.apps[a.name] = a
-		}
-		if err := aIt.Err(); err != nil {
+		// Initialize in-memory data structures, namely the dbs map.
+		if err := s.openDatabases(ctx); err != nil {
 			return nil, verror.New(verror.ErrInternal, ctx, err)
 		}
 	} else {
@@ -217,17 +199,16 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 	return s, nil
 }
 
-func openDatabases(ctx *context.T, st store.Store, a *app) error {
-	// Read all dbs for this app, populate dbs map.
-	dIt := st.Scan(common.ScanPrefixArgs(common.JoinKeyParts(common.DbInfoPrefix, a.name), ""))
-	dBytes := []byte{}
-	for dIt.Advance() {
-		dBytes = dIt.Value(dBytes)
+func (s *service) openDatabases(ctx *context.T) error {
+	dbIt := s.st.Scan(common.ScanPrefixArgs(common.DbInfoPrefix, ""))
+	v := []byte{}
+	for dbIt.Advance() {
+		v = dbIt.Value(v)
 		info := &DbInfo{}
-		if err := vom.Decode(dBytes, info); err != nil {
+		if err := vom.Decode(v, info); err != nil {
 			return verror.New(verror.ErrInternal, ctx, err)
 		}
-		d, err := OpenDatabase(ctx, a, info.Name, DatabaseOptions{
+		d, err := openDatabase(ctx, s, info.Id, DatabaseOptions{
 			RootDir: info.RootDir,
 			Engine:  info.Engine,
 		}, storeutil.OpenOptions{
@@ -235,24 +216,22 @@ func openDatabases(ctx *context.T, st store.Store, a *app) error {
 			ErrorIfExists:   false,
 		})
 		if err != nil {
-			// If the database is corrupt, OpenDatabase will have moved it aside. We
+			// If the database is corrupt, openDatabase will have moved it aside. We
 			// need to delete the app's reference to the database so that the client
 			// application can recreate the database the next time it starts.
 			if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
-				vlog.Errorf("app %s, database %s is corrupt, deleting the app's reference to it",
-					a.name, info.Name)
-				if err2 := a.delDbInfo(ctx, a.s.st, info.Name); err2 != nil {
-					vlog.Errorf("failed to delete app %s reference to corrupt database %s: %v",
-						a.name, info.Name, err2)
-					// Return the ErrCorruptDatabase, not err2
+				vlog.Errorf("database %v is corrupt, deleting the reference to it", info.Id)
+				if err2 := delDbInfo(ctx, s.st, info.Id); err2 != nil {
+					vlog.Errorf("failed to delete reference to corrupt database %v: %v", info.Id, err2)
+					// Return the ErrCorruptDatabase, not err2.
 				}
 				return err
 			}
 			return verror.New(verror.ErrInternal, ctx, err)
 		}
-		a.dbs[info.Name] = d
+		s.dbs[info.Id] = d
 	}
-	if err := dIt.Err(); err != nil {
+	if err := dbIt.Err(); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
@@ -362,7 +341,7 @@ func (s *service) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall
 	if err := util.GetWithAuth(ctx, call, sn, s.stKey(), &ServiceData{}); err != nil {
 		return err
 	}
-	return util.GlobChildren(ctx, call, matcher, sn, common.AppPrefix)
+	return util.GlobChildren(ctx, call, matcher, sn, common.DbInfoPrefix)
 }
 
 ////////////////////////////////////////
@@ -376,155 +355,183 @@ func (s *service) Sync() interfaces.SyncServerMethods {
 	return s.sync
 }
 
-func (s *service) Clock() common.Clock {
-	return s.vclock
-}
-
-func (s *service) App(ctx *context.T, call rpc.ServerCall, appName string) (interfaces.App, error) {
+func (s *service) Database(ctx *context.T, call rpc.ServerCall, dbId wire.Id) (interfaces.Database, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// Note, currently the service's 'apps' map as well as the per-app 'dbs' maps
-	// are populated at startup.
-	a, ok := s.apps[appName]
+	d, ok := s.dbs[dbId]
 	if !ok {
-		return nil, verror.New(verror.ErrNoExist, ctx, appName)
+		return nil, verror.New(verror.ErrNoExist, ctx, dbId)
 	}
-	return a, nil
+	return d, nil
 }
 
-func (s *service) AppNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
-	// In the future this API will likely be replaced by one that streams the app
-	// names.
+func (s *service) DatabaseIds(ctx *context.T, call rpc.ServerCall) ([]wire.Id, error) {
+	// Note: In the future this API will likely be replaced by one that streams
+	// the database ids.
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	appNames := make([]string, 0, len(s.apps))
-	for n := range s.apps {
-		appNames = append(appNames, n)
+	dbIds := make([]wire.Id, 0, len(s.dbs))
+	for id := range s.dbs {
+		dbIds = append(dbIds, id)
 	}
-	return appNames, nil
+	return dbIds, nil
 }
 
 ////////////////////////////////////////
-// App management methods
+// Database management methods
 
-func (s *service) createApp(ctx *context.T, call rpc.ServerCall, appName string, perms access.Permissions) error {
+func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.Id, perms access.Permissions, metadata *wire.SchemaMetadata) (reterr error) {
+	// Steps:
+	// 1. Check serviceData perms.
+	// 2. Put dbInfo record into garbage collection log, to clean up database if
+	//    remaining steps fail or syncbased crashes.
+	// 3. Initialize database.
+	// 4. Move dbInfo from GC log into active dbs. <===== CHANGE BECOMES VISIBLE
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.apps[appName]; ok {
-		return verror.New(verror.ErrExist, ctx, appName)
+	if _, ok := s.dbs[dbId]; ok {
+		// TODO(sadovsky): Should this be ErrExistOrNoAccess, for privacy?
+		return verror.New(verror.ErrExist, ctx, dbId)
 	}
 
-	a := &app{
-		name:   appName,
-		s:      s,
-		exists: true,
-		dbs:    make(map[string]interfaces.Database),
+	// 1. Check serviceData perms.
+	sData := &ServiceData{}
+	if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), sData); err != nil {
+		return err
 	}
 
+	// 2. Put dbInfo record into garbage collection log, to clean up database if
+	//    remaining steps fail or syncbased crashes.
+	rootDir, err := s.rootDirForDb(dbId)
+	if err != nil {
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	dbInfo := &DbInfo{
+		Id:      dbId,
+		RootDir: rootDir,
+		Engine:  s.opts.Engine,
+	}
+	if err := putDbGCEntry(ctx, s.st, dbInfo); err != nil {
+		return err
+	}
+	var stRef store.Store
+	defer func() {
+		if reterr != nil {
+			// Best effort database destroy on error. If it fails, it will be retried
+			// on syncbased restart. (It is safe to pass nil stRef if step 3 fails.)
+			// TODO(ivanpi): Consider running asynchronously. However, see TODO in
+			// finalizeDatabaseDestroy.
+			if err := finalizeDatabaseDestroy(ctx, s.st, dbInfo, stRef); err != nil {
+				vlog.Error(err)
+			}
+		}
+	}()
+
+	// 3. Initialize database.
+	// TODO(sadovsky): Revisit default perms.
+	if perms == nil {
+		perms = sData.Perms
+	}
+	// TODO(ivanpi): newDatabase doesn't close the store on failure.
+	d, err := newDatabase(ctx, s, dbId, metadata, DatabaseOptions{
+		Perms:   perms,
+		RootDir: dbInfo.RootDir,
+		Engine:  dbInfo.Engine,
+	})
+	if err != nil {
+		return err
+	}
+	// Save reference to Store to allow finalizeDatabaseDestroy to close it in
+	// case of error.
+	stRef = d.St()
+
+	// 4. Move dbInfo from GC log into active dbs.
 	if err := store.RunInTransaction(s.st, func(tx store.Transaction) error {
-		// Check serviceData perms.
-		sData := &ServiceData{}
-		if err := util.GetWithAuth(ctx, call, tx, s.stKey(), sData); err != nil {
+		// Note: To avoid a race, we must re-check service perms, and make sure the
+		// perms version hasn't changed, inside the transaction that makes the new
+		// database visible.
+		sDataRepeat := &ServiceData{}
+		if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), sDataRepeat); err != nil {
 			return err
 		}
-		// Check for "app already exists".
-		if err := store.Get(ctx, tx, a.stKey(), &AppData{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		if sData.Version != sDataRepeat.Version {
+			return verror.NewErrBadVersion(ctx)
+		}
+		// Check for "database already exists".
+		if _, err := getDbInfo(ctx, tx, dbId); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
-			return verror.New(verror.ErrExist, ctx, appName)
+			// TODO(sadovsky): Should this be ErrExistOrNoAccess, for privacy?
+			return verror.New(verror.ErrExist, ctx, dbId)
 		}
-		// Write new appData.
-		if perms == nil {
-			perms = sData.Perms
+		// Write dbInfo into active databases.
+		if err := putDbInfo(ctx, tx, dbInfo); err != nil {
+			return err
 		}
-		data := &AppData{
-			Name:  appName,
-			Perms: perms,
-		}
-		return store.Put(ctx, tx, a.stKey(), data)
+		// Delete dbInfo from GC log.
+		return delDbGCEntry(ctx, tx, dbInfo)
 	}); err != nil {
 		return err
 	}
 
-	s.apps[appName] = a
+	s.dbs[dbId] = d
 	return nil
 }
 
-func (s *service) destroyApp(ctx *context.T, call rpc.ServerCall, appName string) error {
+func (s *service) destroyDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.Id) error {
+	// Steps:
+	// 1. Check databaseData perms.
+	// 2. Move dbInfo from active dbs into GC log. <===== CHANGE BECOMES VISIBLE
+	// 3. Best effort database destroy. If it fails, it will be retried on
+	//    syncbased restart.
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	// TODO(ivanpi): Destroying an app is in a possible race with creating a
-	// database in that app. Consider locking app mutex here, possibly other
-	// nested mutexes as well, and cancelling calls on nested objects. Same for
-	// database and collection destroy.
-	a, ok := s.apps[appName]
+	d, ok := s.dbs[dbId]
 	if !ok {
 		return nil // destroy is idempotent
 	}
 
-	type dbTombstone struct {
-		store  store.Store
-		dbInfo *DbInfo
+	// 1. Check databaseData perms.
+	if err := d.CheckPermsInternal(ctx, call, d.St()); err != nil {
+		if verror.ErrorID(err) == verror.ErrNoExist.ID {
+			return nil // destroy is idempotent
+		}
+		return err
 	}
-	var tombstones []dbTombstone
-	if err := store.RunInTransaction(s.st, func(tx store.Transaction) error {
-		// Check appData perms.
-		if err := util.GetWithAuth(ctx, call, tx, a.stKey(), &AppData{}); err != nil {
-			if verror.ErrorID(err) == verror.ErrNoExist.ID {
-				return nil // destroy is idempotent
-			}
-			return err
-		}
-		// Mark all databases in this app for destruction.
-		for _, db := range a.dbs {
-			dbInfo, err := deleteDatabaseEntry(ctx, tx, a, db.Name())
-			if err != nil {
-				return err
-			}
-			tombstones = append(tombstones, dbTombstone{
-				store:  db.St(),
-				dbInfo: dbInfo,
-			})
-		}
-		// Delete appData.
-		return store.Delete(ctx, tx, a.stKey())
+
+	// 2. Move dbInfo from active dbs into GC log.
+	var dbInfo *DbInfo
+	if err := store.RunInTransaction(s.st, func(tx store.Transaction) (err error) {
+		dbInfo, err = deleteDatabaseEntry(ctx, tx, dbId)
+		return
 	}); err != nil {
 		return err
 	}
-	delete(s.apps, appName)
+	delete(s.dbs, dbId)
 
-	// Best effort destroy for all databases in this app. If any destroy fails,
-	// it will be attempted again on syncbased restart.
+	// 3. Best effort database destroy. If it fails, it will be retried on
+	//    syncbased restart.
+	// TODO(ivanpi): Consider returning an error on failure here, even though
+	// database was made inaccessible. Note, if Close() failed, ongoing RPCs
+	// might still be using the store.
 	// TODO(ivanpi): Consider running asynchronously. However, see TODO in
 	// finalizeDatabaseDestroy.
-	for _, ts := range tombstones {
-		if err := finalizeDatabaseDestroy(ctx, s.st, ts.dbInfo, ts.store); err != nil {
-			vlog.Error(err)
-		}
+	if err := finalizeDatabaseDestroy(ctx, s.st, dbInfo, d.St()); err != nil {
+		vlog.Error(err)
 	}
 
 	return nil
 }
 
-func (s *service) setAppPerms(ctx *context.T, call rpc.ServerCall, appName string, perms access.Permissions, version string) error {
+func (s *service) setDatabasePerms(ctx *context.T, call rpc.ServerCall, dbId wire.Id, perms access.Permissions, version string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	a, ok := s.apps[appName]
+	d, ok := s.dbs[dbId]
 	if !ok {
-		return verror.New(verror.ErrNoExist, ctx, appName)
+		return verror.New(verror.ErrNoExist, ctx, dbId)
 	}
-	return store.RunInTransaction(s.st, func(tx store.Transaction) error {
-		data := &AppData{}
-		return util.UpdateWithAuth(ctx, call, tx, a.stKey(), data, func() error {
-			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
-				return err
-			}
-			data.Perms = perms
-			data.Version++
-			return nil
-		})
-	})
+	return d.setPermsInternal(ctx, call, perms, version)
 }
 
 ////////////////////////////////////////
@@ -532,4 +539,36 @@ func (s *service) setAppPerms(ctx *context.T, call rpc.ServerCall, appName strin
 
 func (s *service) stKey() string {
 	return common.ServicePrefix
+}
+
+func (s *service) rootDirForDb(dbId wire.Id) (string, error) {
+	// Note: Common Linux filesystems such as ext4 allow almost any character to
+	// appear in a filename, but other filesystems are more restrictive. For
+	// example, by default the OS X filesystem uses case-insensitive filenames.
+	// To play it safe, we hex-encode app and database names, yielding filenames
+	// that match "^[0-9a-f]+$". To allow recreating databases independently of
+	// garbage collecting old destroyed versions, a random suffix is appended to
+	// the database name.
+	blessingHex := hex.EncodeToString([]byte(dbId.Blessing))
+	nameHex := hex.EncodeToString([]byte(dbId.Name))
+	var suffix [32]byte
+	if _, err := rand.Read(suffix[:]); err != nil {
+		return "", fmt.Errorf("failed to generate suffix: %v", err)
+	}
+	suffixHex := hex.EncodeToString(suffix[:])
+	nameHexWithSuffix := nameHex + "-" + suffixHex
+	// ValidDatabaseId requires len([]byte(id.Blessing)) <= 64 and
+	// len([]byte(id.Name)) <= 64, so even after appending the random suffix and
+	// with the 2x blowup from hex-encoding, the lengths of these names should be
+	// well below the filesystem limit of 255 bytes.
+	// TODO(sadovsky): Currently, our client-side database creation tests verify
+	// that the server does not crash when too-long names are specified; we rely
+	// on the server-side dispatcher logic to return errors for too-long names.
+	// However, we ought to add server-side tests for this behavior, so that we
+	// don't accidentally remove the server-side name validation after adding
+	// client-side name validation.
+	if len(blessingHex) > 255 || len(nameHexWithSuffix) > 255 {
+		vlog.Fatalf("blessingHex %s or nameHexWithSuffix %s is too long", blessingHex, nameHexWithSuffix)
+	}
+	return filepath.Join(s.opts.RootDir, common.AppDir, blessingHex, common.DbDir, nameHexWithSuffix), nil
 }

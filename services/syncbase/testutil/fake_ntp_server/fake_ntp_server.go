@@ -16,7 +16,7 @@ var nowBuf = flag.String("now", "", "Time at startup, in Time.MarshalText format
 
 func exitOnError(err error) {
 	if err != nil {
-		log.Fatalf("Error: ", err)
+		log.Fatalf("Error: %v", err)
 	}
 }
 

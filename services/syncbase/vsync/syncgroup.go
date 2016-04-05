@@ -59,7 +59,7 @@ type memberView struct {
 // all the mount table candidates that could be used to reach this peer, learned
 // from the syncgroup metadata.
 type memberInfo struct {
-	db2sg    map[string]sgMemberInfo
+	db2sg    map[wire.Id]sgMemberInfo
 	mtTables map[string]struct{}
 }
 
@@ -89,11 +89,8 @@ func verifySyncgroup(ctx *context.T, sg *interfaces.Syncgroup) error {
 	if sg.Name == "" {
 		return verror.New(verror.ErrBadArg, ctx, "group name not specified")
 	}
-	if sg.AppName == "" {
-		return verror.New(verror.ErrBadArg, ctx, "app name not specified")
-	}
-	if sg.DbName == "" {
-		return verror.New(verror.ErrBadArg, ctx, "db name not specified")
+	if !pubutil.ValidDatabaseId(sg.DbId) {
+		return verror.New(verror.ErrBadArg, ctx, "invalid db id")
 	}
 	if sg.Creator == "" {
 		return verror.New(verror.ErrBadArg, ctx, "creator id not specified")
@@ -397,17 +394,16 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 	// Create a new aggregate view of syncgroup members across all app databases.
 	newMembers := make(map[string]*memberInfo)
 
-	s.forEachDatabaseStore(ctx, func(appName, dbName string, st *watchable.Store) bool {
+	s.forEachDatabaseStore(ctx, func(dbId wire.Id, st *watchable.Store) bool {
 		// For each database, fetch its syncgroup data entries by scanning their
 		// prefix range.  Use a database snapshot for the scan.
 		sn := st.NewSnapshot()
 		defer sn.Abort()
-		name := appDbName(appName, dbName)
 
 		forEachSyncgroup(sn, func(sg *interfaces.Syncgroup) bool {
 			// Add all members of this syncgroup to the membership view.
 			// A member's info is different across syncgroups, so gather all of them.
-			refreshSyncgroupMembers(sg, name, newMembers)
+			refreshSyncgroupMembers(sg, dbId, newMembers)
 
 			return false
 		})
@@ -418,18 +414,18 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 	view.expiration = time.Now().Add(memberViewTTL)
 }
 
-func refreshSyncgroupMembers(sg *interfaces.Syncgroup, name string, newMembers map[string]*memberInfo) {
+func refreshSyncgroupMembers(sg *interfaces.Syncgroup, dbId wire.Id, newMembers map[string]*memberInfo) {
 	for member, info := range sg.Joiners {
 		if _, ok := newMembers[member]; !ok {
 			newMembers[member] = &memberInfo{
-				db2sg:    make(map[string]sgMemberInfo),
+				db2sg:    make(map[wire.Id]sgMemberInfo),
 				mtTables: make(map[string]struct{}),
 			}
 		}
-		if _, ok := newMembers[member].db2sg[name]; !ok {
-			newMembers[member].db2sg[name] = make(sgMemberInfo)
+		if _, ok := newMembers[member].db2sg[dbId]; !ok {
+			newMembers[member].db2sg[dbId] = make(sgMemberInfo)
 		}
-		newMembers[member].db2sg[name][sg.Id] = info
+		newMembers[member].db2sg[dbId][sg.Id] = info
 
 		// Collect mount tables.
 		for _, mt := range sg.Spec.MountTables {
@@ -501,13 +497,13 @@ func (s *syncService) copyMemberInfo(ctx *context.T, member string) *memberInfo 
 
 	// Make a copy.
 	infoCopy := &memberInfo{
-		db2sg:    make(map[string]sgMemberInfo),
+		db2sg:    make(map[wire.Id]sgMemberInfo),
 		mtTables: make(map[string]struct{}),
 	}
-	for gdbName, sgInfo := range info.db2sg {
-		infoCopy.db2sg[gdbName] = make(sgMemberInfo)
+	for dbId, sgInfo := range info.db2sg {
+		infoCopy.db2sg[dbId] = make(sgMemberInfo)
 		for gid, mi := range sgInfo {
-			infoCopy.db2sg[gdbName][gid] = mi
+			infoCopy.db2sg[dbId][gid] = mi
 		}
 	}
 	for mt := range info.mtTables {
@@ -741,7 +737,7 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgN
 	defer vlog.VI(2).Infof("sync: CreateSyncgroup: end: %s", sgName)
 
 	ss := sd.sync.(*syncService)
-	appName, dbName := sd.db.App().Name(), sd.db.Name()
+	dbId := sd.db.Id()
 
 	// Instantiate sg. Add self as joiner.
 	gid, version := newSyncgroupId(), newSyncgroupVersion()
@@ -751,8 +747,7 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgN
 		SpecVersion: version,
 		Spec:        spec,
 		Creator:     ss.name,
-		AppName:     appName,
-		DbName:      dbName,
+		DbId:        dbId,
 		Status:      interfaces.SyncgroupStatusPublishPending,
 		Joiners:     map[string]wire.SyncgroupMemberInfo{ss.name: myInfo},
 	}
@@ -769,7 +764,7 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgN
 		// has Admin privilege.
 
 		// Reserve a log generation and position counts for the new syncgroup.
-		gen, pos := ss.reserveGenAndPosInDbLog(ctx, appName, dbName, sgOID(gid), 1)
+		gen, pos := ss.reserveGenAndPosInDbLog(ctx, dbId, sgOID(gid), 1)
 
 		if err := ss.addSyncgroup(ctx, tx, version, true, "", nil, ss.id, gen, pos, sg); err != nil {
 			return err
@@ -802,12 +797,12 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgN
 		return err
 	}
 
-	ss.initSyncStateInMem(ctx, appName, dbName, sgOID(gid))
+	ss.initSyncStateInMem(ctx, dbId, sgOID(gid))
 
 	// Local SG create succeeded. Publish the SG at the chosen server, or if
 	// that fails, enqueue it for later publish retries.
 	if err := sd.publishSyncgroup(ctx, call, sgName); err != nil {
-		ss.enqueuePublishSyncgroup(sgName, appName, dbName, true)
+		ss.enqueuePublishSyncgroup(sgName, dbId, true)
 	}
 
 	return nil
@@ -905,9 +900,8 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgNam
 	}
 
 	// Verify that the app/db combination is valid for this syncgroup.
-	appName, dbName := sd.db.App().Name(), sd.db.Name()
-	if sg2.AppName != appName || sg2.DbName != dbName {
-		return nullSpec, verror.New(verror.ErrBadArg, ctx, "bad app/db with syncgroup")
+	if sg2.DbId != sd.db.Id() {
+		return nullSpec, verror.New(verror.ErrBadArg, ctx, "bad db with syncgroup")
 	}
 
 	err = watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
@@ -931,7 +925,7 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgNam
 		return nullSpec, err
 	}
 
-	ss.initSyncStateInMem(ctx, sg2.AppName, sg2.DbName, sgOID(sg2.Id))
+	ss.initSyncStateInMem(ctx, sg2.DbId, sgOID(sg2.Id))
 
 	return sg2.Spec, nil
 }
@@ -1026,7 +1020,6 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 	}
 
 	ss := sd.sync.(*syncService)
-	appName, dbName := sd.db.App().Name(), sd.db.Name()
 
 	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Check permissions on Database.
@@ -1070,7 +1063,7 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 		// advertising to change.
 
 		// Reserve a log generation and position counts for the new syncgroup.
-		gen, pos := ss.reserveGenAndPosInDbLog(ctx, appName, dbName, sgOID(sg.Id), 1)
+		gen, pos := ss.reserveGenAndPosInDbLog(ctx, sd.db.Id(), sgOID(sg.Id), 1)
 
 		newVersion := newSyncgroupVersion()
 		sg.Spec = spec
@@ -1093,7 +1086,7 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 func (sd *syncDatabase) publishSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
 	st := sd.db.St()
 	ss := sd.sync.(*syncService)
-	appName, dbName := sd.db.App().Name(), sd.db.Name()
+	dbId := sd.db.Id()
 
 	gid, err := getSyncgroupId(ctx, st, sgName)
 	if err != nil {
@@ -1120,7 +1113,7 @@ func (sd *syncDatabase) publishSyncgroup(ctx *context.T, call rpc.ServerCall, sg
 	status := interfaces.SyncgroupStatusPublishRejected
 
 	sgs := sgSet{gid: struct{}{}}
-	gv, _, err := ss.copyDbGenInfo(ctx, appName, dbName, sgs)
+	gv, _, err := ss.copyDbGenInfo(ctx, dbId, sgs)
 	if err != nil {
 		return err
 	}
@@ -1172,7 +1165,7 @@ func (sd *syncDatabase) publishSyncgroup(ctx *context.T, call rpc.ServerCall, sg
 
 		// Reserve a log generation and position counts for the new
 		// syncgroup version.
-		gen, pos := ss.reserveGenAndPosInDbLog(ctx, appName, dbName, sgOID(gid), 1)
+		gen, pos := ss.reserveGenAndPosInDbLog(ctx, dbId, sgOID(gid), 1)
 
 		sg.Status = status
 		if status == interfaces.SyncgroupStatusRunning {
@@ -1350,7 +1343,7 @@ func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publ
 	vlog.VI(2).Infof("sync: PublishSyncgroup: begin: %s from peer %s", sg.Name, publisher)
 	defer vlog.VI(2).Infof("sync: PublishSyncgroup: end: %s from peer %s", sg.Name, publisher)
 
-	st, err := s.getDbStore(ctx, call, sg.AppName, sg.DbName)
+	st, err := s.getDbStore(ctx, call, sg.DbId)
 	if err != nil {
 		return s.name, err
 	}
@@ -1403,7 +1396,7 @@ func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publ
 	})
 
 	if err == nil {
-		s.initSyncStateInMem(ctx, sg.AppName, sg.DbName, sgOID(sg.Id))
+		s.initSyncStateInMem(ctx, sg.DbId, sgOID(sg.Id))
 
 		// Advertise the Syncbase at the chosen mount table and in the
 		// neighborhood.
@@ -1422,7 +1415,7 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 
 	var dbSt *watchable.Store
 	var gid interfaces.GroupId
-	var stAppName, stDbName string
+	var stDbId wire.Id
 	nullSG, nullGV := interfaces.Syncgroup{}, interfaces.GenVector{}
 
 	// Bootstrap error so that when there are no apps/dbs on this device,
@@ -1436,11 +1429,11 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 	// feedback from app developers (see discussion in syncgroup API
 	// doc). If we decide to keep the SG name as stand-alone, this scan can
 	// be optimized by a lazy cache of sgname to <app, db> info.
-	s.forEachDatabaseStore(ctx, func(appName, dbName string, st *watchable.Store) bool {
+	s.forEachDatabaseStore(ctx, func(dbId wire.Id, st *watchable.Store) bool {
 		if gid, err = getSyncgroupId(ctx, st, sgName); err == nil {
 			// Found the syncgroup being looked for.
 			dbSt = st
-			stAppName, stDbName = appName, dbName
+			stDbId = dbId
 			return true
 		}
 		return false
@@ -1484,7 +1477,7 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 		}
 
 		// Reserve a log generation and position counts for the new syncgroup.
-		gen, pos = s.reserveGenAndPosInDbLog(ctx, stAppName, stDbName, sgOID(gid), 1)
+		gen, pos = s.reserveGenAndPosInDbLog(ctx, stDbId, sgOID(gid), 1)
 
 		// Add to joiner list.
 		sg.Joiners[joinerName] = joinerInfo
@@ -1497,7 +1490,7 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 	}
 
 	sgs := sgSet{gid: struct{}{}}
-	gv, _, err := s.copyDbGenInfo(ctx, stAppName, stDbName, sgs)
+	gv, _, err := s.copyDbGenInfo(ctx, stDbId, sgs)
 	if err != nil {
 		vlog.VI(4).Infof("sync: JoinSyncgroupAtAdmin: end: %s from peer %s, err in copy %v", sgName, joinerName, err)
 		return nullSG, "", nullGV, err

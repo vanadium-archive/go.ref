@@ -40,16 +40,11 @@ func Fatalf(t testing.TB, format string, args ...interface{}) {
 	t.Fatalf(format, args...)
 }
 
-func CreateApp(t testing.TB, ctx *context.T, s syncbase.Service, name string) syncbase.App {
-	a := s.App(name)
-	if err := a.Create(ctx, nil); err != nil {
-		Fatalf(t, "a.Create() failed: %v", err)
-	}
-	return a
-}
-
-func CreateDatabase(t testing.TB, ctx *context.T, a syncbase.App, name string) syncbase.Database {
-	d := a.Database(name, nil)
+// TODO(sadovsky): Standardize on a small set of constants and helper functions
+// to share across all Syncbase tests. Currently, our 'featuretests' tests use a
+// different set of helpers from our other unit tests.
+func CreateDatabase(t testing.TB, ctx *context.T, s syncbase.Service, name string) syncbase.Database {
+	d := s.DatabaseForId(wire.Id{Blessing: "v.io:xyz", Name: name}, nil)
 	if err := d.Create(ctx, nil); err != nil {
 		Fatalf(t, "d.Create() failed: %v", err)
 	}
@@ -182,8 +177,8 @@ func CheckExecError(t testing.TB, ctx *context.T, db syncbase.DatabaseHandle, q 
 	}
 }
 
-// A WatchChangeTest is a syncbase.WatchChange that has a public ValueBytes field, to allow
-// tests to set it.
+// A WatchChangeTest is a syncbase.WatchChange that has a public ValueBytes
+// field, to allow tests to set it.
 type WatchChangeTest struct {
 	syncbase.WatchChange
 	ValueBytes *vom.RawBytes

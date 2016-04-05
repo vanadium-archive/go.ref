@@ -64,8 +64,7 @@ func TestAddSyncgroup(t *testing.T) {
 	sg := &interfaces.Syncgroup{
 		Name:        sgName,
 		Id:          sgId,
-		AppName:     "mockApp",
-		DbName:      "mockDB",
+		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
@@ -205,8 +204,7 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 		return &interfaces.Syncgroup{
 			Name:        "foobar",
 			Id:          interfaces.GroupId(1234),
-			AppName:     "mockApp",
-			DbName:      "mockDB",
+			DbId:        mockDbId,
 			Creator:     "mockCreator",
 			SpecVersion: "etag-0",
 			Spec: wire.SyncgroupSpec{
@@ -225,12 +223,16 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 	checkBadAddSyncgroup(t, st, sg, "SG w/o name")
 
 	sg = mkSg()
-	sg.AppName = ""
-	checkBadAddSyncgroup(t, st, sg, "SG w/o AppName")
+	sg.DbId = wire.Id{}
+	checkBadAddSyncgroup(t, st, sg, "SG w/o DbId")
 
 	sg = mkSg()
-	sg.DbName = ""
-	checkBadAddSyncgroup(t, st, sg, "SG w/o DbName")
+	sg.DbId = wire.Id{Blessing: "foo"}
+	checkBadAddSyncgroup(t, st, sg, "SG with invalid DbId")
+
+	sg = mkSg()
+	sg.DbId = wire.Id{Name: "bar"}
+	checkBadAddSyncgroup(t, st, sg, "SG with invalid DbId")
 
 	sg = mkSg()
 	sg.Creator = ""
@@ -295,8 +297,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 	sg := &interfaces.Syncgroup{
 		Name:        sgName,
 		Id:          sgId,
-		AppName:     "mockApp",
-		DbName:      "mockDB",
+		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
@@ -379,8 +380,7 @@ func TestMultiSyncgroups(t *testing.T) {
 	sg1 := &interfaces.Syncgroup{
 		Name:        sgName1,
 		Id:          sgId1,
-		AppName:     "mockApp",
-		DbName:      "mockDB",
+		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-1",
 		Spec: wire.SyncgroupSpec{
@@ -396,8 +396,7 @@ func TestMultiSyncgroups(t *testing.T) {
 	sg2 := &interfaces.Syncgroup{
 		Name:        sgName2,
 		Id:          sgId2,
-		AppName:     "mockApp",
-		DbName:      "mockDB",
+		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-2",
 		Spec: wire.SyncgroupSpec{
@@ -447,16 +446,16 @@ func TestMultiSyncgroups(t *testing.T) {
 
 	expMemberInfo := map[string]*memberInfo{
 		"phone": &memberInfo{
-			db2sg: map[string]sgMemberInfo{
-				"mockapp\xfemockdb": sgMemberInfo{
+			db2sg: map[wire.Id]sgMemberInfo{
+				mockDbId: sgMemberInfo{
 					sgId1: sg1.Joiners["phone"],
 				},
 			},
 			mtTables: map[string]struct{}{"mt1": struct{}{}},
 		},
 		"tablet": &memberInfo{
-			db2sg: map[string]sgMemberInfo{
-				"mockapp\xfemockdb": sgMemberInfo{
+			db2sg: map[wire.Id]sgMemberInfo{
+				mockDbId: sgMemberInfo{
 					sgId1: sg1.Joiners["tablet"],
 					sgId2: sg2.Joiners["tablet"],
 				},
@@ -468,24 +467,24 @@ func TestMultiSyncgroups(t *testing.T) {
 			},
 		},
 		"cloud": &memberInfo{
-			db2sg: map[string]sgMemberInfo{
-				"mockapp\xfemockdb": sgMemberInfo{
+			db2sg: map[wire.Id]sgMemberInfo{
+				mockDbId: sgMemberInfo{
 					sgId1: sg1.Joiners["cloud"],
 				},
 			},
 			mtTables: map[string]struct{}{"mt1": struct{}{}},
 		},
 		"door": &memberInfo{
-			db2sg: map[string]sgMemberInfo{
-				"mockapp\xfemockdb": sgMemberInfo{
+			db2sg: map[wire.Id]sgMemberInfo{
+				mockDbId: sgMemberInfo{
 					sgId2: sg2.Joiners["door"],
 				},
 			},
 			mtTables: mt2and3,
 		},
 		"lamp": &memberInfo{
-			db2sg: map[string]sgMemberInfo{
-				"mockapp\xfemockdb": sgMemberInfo{
+			db2sg: map[wire.Id]sgMemberInfo{
+				mockDbId: sgMemberInfo{
 					sgId2: sg2.Joiners["lamp"],
 				},
 			},
@@ -528,24 +527,24 @@ func TestMultiSyncgroups(t *testing.T) {
 
 	expMemberInfo = map[string]*memberInfo{
 		"tablet": &memberInfo{
-			db2sg: map[string]sgMemberInfo{
-				"mockapp\xfemockdb": sgMemberInfo{
+			db2sg: map[wire.Id]sgMemberInfo{
+				mockDbId: sgMemberInfo{
 					sgId2: sg2.Joiners["tablet"],
 				},
 			},
 			mtTables: mt2and3,
 		},
 		"door": &memberInfo{
-			db2sg: map[string]sgMemberInfo{
-				"mockapp\xfemockdb": sgMemberInfo{
+			db2sg: map[wire.Id]sgMemberInfo{
+				mockDbId: sgMemberInfo{
 					sgId2: sg2.Joiners["door"],
 				},
 			},
 			mtTables: mt2and3,
 		},
 		"lamp": &memberInfo{
-			db2sg: map[string]sgMemberInfo{
-				"mockapp\xfemockdb": sgMemberInfo{
+			db2sg: map[wire.Id]sgMemberInfo{
+				mockDbId: sgMemberInfo{
 					sgId2: sg2.Joiners["lamp"],
 				},
 			},

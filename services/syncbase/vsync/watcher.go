@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/services/watch"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
@@ -35,8 +36,8 @@ var (
 	// and updated at runtime when syncgroups are joined or left.  It is
 	// not guarded by a mutex because only the watcher goroutine uses it
 	// beyond the startup phase (before any sync goroutines are started).
-	// The map keys are the appdb names (globally unique).
-	watchPrefixes = make(map[string]sgPrefixes)
+	// The map keys are the database ids (globally unique).
+	watchPrefixes = make(map[wire.Id]sgPrefixes)
 )
 
 // sgPrefixes tracks syncgroup prefixes being synced in a database and their
@@ -81,8 +82,8 @@ func (s *syncService) watchStore(ctx *context.T) {
 func (s *syncService) processStoreUpdates(ctx *context.T) {
 	for {
 		total, active := 0, 0
-		s.forEachDatabaseStore(ctx, func(appName, dbName string, st *watchable.Store) bool {
-			if s.processDatabase(ctx, appName, dbName, st) {
+		s.forEachDatabaseStore(ctx, func(dbId wire.Id, st *watchable.Store) bool {
+			if s.processDatabase(ctx, dbId, st) {
 				active++
 			}
 			total++
@@ -101,24 +102,24 @@ func (s *syncService) processStoreUpdates(ctx *context.T) {
 // from starving others.  A batch is stored as a contiguous set of log records
 // ending with one record having the "continued" flag set to false.  The call
 // returns true if a new batch update was processed.
-func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st store.Store) bool {
+func (s *syncService) processDatabase(ctx *context.T, dbId wire.Id, st store.Store) bool {
 	s.thLock.Lock()
 	defer s.thLock.Unlock()
 
-	vlog.VI(2).Infof("sync: processDatabase: begin: %s, %s", appName, dbName)
-	defer vlog.VI(2).Infof("sync: processDatabase: end: %s, %s", appName, dbName)
+	vlog.VI(2).Infof("sync: processDatabase: begin: %v", dbId)
+	defer vlog.VI(2).Infof("sync: processDatabase: end: %v", dbId)
 
 	resMark, err := getResMark(ctx, st)
 	if err != nil {
 		if verror.ErrorID(err) != verror.ErrNoExist.ID {
-			vlog.Errorf("sync: processDatabase: %s, %s: cannot get resMark: %v", appName, dbName, err)
+			vlog.Errorf("sync: processDatabase: %v: cannot get resMark: %v", dbId, err)
 			return false
 		}
 		resMark = watchable.MakeResumeMarker(0)
 	}
 
 	// Initialize Database sync state if needed.
-	s.initSyncStateInMem(ctx, appName, dbName, "")
+	s.initSyncStateInMem(ctx, dbId, "")
 
 	// Get a batch of watch log entries, if any, after this resume marker.
 	logs, nextResmark, err := watchable.ReadBatchFromLog(st, resMark)
@@ -127,11 +128,11 @@ func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st
 		// watcher is in the middle of processing a database and the
 		// app/db is detroyed. Hence, we just ignore this database and
 		// proceed.
-		vlog.Errorf("sync: processDatabase: %s, %s: cannot get watch log batch: %v", appName, dbName, verror.DebugString(err))
+		vlog.Errorf("sync: processDatabase: %v: cannot get watch log batch: %v", dbId, verror.DebugString(err))
 		return false
 	}
 	if logs != nil {
-		s.processWatchLogBatch(ctx, appName, dbName, st, logs, nextResmark)
+		s.processWatchLogBatch(ctx, dbId, st, logs, nextResmark)
 		return true
 	}
 	return false
@@ -141,12 +142,12 @@ func (s *syncService) processDatabase(ctx *context.T, appName, dbName string, st
 // watchable syncgroup prefixes, uses the prefixes to filter the batch to the
 // subset of syncable records, and transactionally applies these updates to the
 // sync metadata (DAG & log records) and updates the watch resume marker.
-func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName string, st store.Store, logs []*watchable.LogEntry, resMark watch.ResumeMarker) {
+func (s *syncService) processWatchLogBatch(ctx *context.T, dbId wire.Id, st store.Store, logs []*watchable.LogEntry, resMark watch.ResumeMarker) {
 	if len(logs) == 0 {
 		return
 	}
 
-	if processDbStateChangeLogRecord(ctx, s, st, appName, dbName, logs[0], resMark) {
+	if processDbStateChangeLogRecord(ctx, s, st, dbId, logs[0], resMark) {
 		// A batch containing DbStateChange will not have any more records.
 		// This batch is done processing.
 		return
@@ -158,7 +159,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 	// and exclude the first entry from the batch.  Also inform the batch
 	// processing below to not assign it a batch ID in the DAG.
 	appBatch := true
-	sgop := processSyncgroupLogRecord(appName, dbName, logs[0])
+	sgop := processSyncgroupLogRecord(dbId, logs[0])
 	if sgop != nil {
 		appBatch = false
 		logs = logs[1:]
@@ -167,18 +168,16 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 	// Filter out the log entries for keys not part of any syncgroup.
 	// Ignore as well log entries made by sync (echo suppression).
 	totalCount := uint64(len(logs))
-	appdb := appDbName(appName, dbName)
 
 	i := 0
 	for _, entry := range logs {
-		if !entry.FromSync && syncable(appdb, entry) {
+		if !entry.FromSync && syncable(dbId, entry) {
 			logs[i] = entry
 			i++
 		}
 	}
 	logs = logs[:i]
-	vlog.VI(3).Infof("sync: processWatchLogBatch: %s, %s: sg snap %t, syncable %d, total %d",
-		appName, dbName, !appBatch, len(logs), totalCount)
+	vlog.VI(3).Infof("sync: processWatchLogBatch: %v: sg snap %t, syncable %d, total %d", dbId, !appBatch, len(logs), totalCount)
 
 	// Transactional processing of the batch: convert these syncable log
 	// records to a batch of sync log records, filling their parent versions
@@ -196,7 +195,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 		}
 		batch = batch[:i]
 
-		if err := s.processBatch(ctx, appName, dbName, batch, appBatch, totalCount, tx); err != nil {
+		if err := s.processBatch(ctx, dbId, batch, appBatch, totalCount, tx); err != nil {
 			return err
 		}
 
@@ -213,7 +212,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 		// TODO(rdaoud): quarantine this app database for other errors.
 		// There may be an error here if the database is recently
 		// destroyed. Ignore the error and continue to another database.
-		vlog.Errorf("sync: processWatchLogBatch: %s, %s: watcher cannot process batch: %v", appName, dbName, err)
+		vlog.Errorf("sync: processWatchLogBatch: %v: watcher cannot process batch: %v", dbId, err)
 		return
 	}
 
@@ -229,17 +228,17 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, appName, dbName strin
 	// first outside the transaction, followed by blob ref processing also
 	// outside the transaction (idempotent), then inside the transaction
 	// patch-up the log records in a 2nd phase.
-	if err = s.processWatchBlobRefs(ctx, appdb, st, batch); err != nil {
+	if err = s.processWatchBlobRefs(ctx, dbId, st, batch); err != nil {
 		// There may be an error here if the database is recently
 		// destroyed. Ignore the error and continue to another database.
-		vlog.Errorf("sync: processWatchLogBatch:: %s, %s: watcher cannot process blob refs: %v", appName, dbName, err)
+		vlog.Errorf("sync: processWatchLogBatch:: %v: watcher cannot process blob refs: %v", dbId, err)
 		return
 	}
 }
 
 // processBatch applies a single batch of changes (object mutations) received
 // from watching a particular Database.
-func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch []*LocalLogRec, appBatch bool, totalCount uint64, tx store.Transaction) error {
+func (s *syncService) processBatch(ctx *context.T, dbId wire.Id, batch []*LocalLogRec, appBatch bool, totalCount uint64, tx store.Transaction) error {
 	count := uint64(len(batch))
 	if count == 0 {
 		return nil
@@ -254,10 +253,9 @@ func (s *syncService) processBatch(ctx *context.T, appName, dbName string, batch
 		}
 	}
 
-	gen, pos := s.reserveGenAndPosInDbLog(ctx, appName, dbName, "", count)
+	gen, pos := s.reserveGenAndPosInDbLog(ctx, dbId, "", count)
 
-	vlog.VI(3).Infof("sync: processBatch: %s, %s: len %d, total %d, btid %x, gen %d, pos %d",
-		appName, dbName, count, totalCount, batchId, gen, pos)
+	vlog.VI(3).Infof("sync: processBatch: %v: len %d, total %d, btid %x, gen %d, pos %d", dbId, count, totalCount, batchId, gen, pos)
 
 	for _, rec := range batch {
 		// Update the log record. Portions of the record Metadata must
@@ -312,14 +310,14 @@ func (s *syncService) processLocalLogRec(ctx *context.T, tx store.Transaction, r
 
 // processWatchBlobRefs extracts blob refs from the data values of the updates
 // received in the watch batch and updates the blob-to-syncgroup metadata.
-func (s *syncService) processWatchBlobRefs(ctx *context.T, appdb string, st store.Store, batch []*LocalLogRec) error {
+func (s *syncService) processWatchBlobRefs(ctx *context.T, dbId wire.Id, st store.Store, batch []*LocalLogRec) error {
 	if len(batch) == 0 {
 		return nil
 	}
 
-	sgPfxs := watchPrefixes[appdb]
+	sgPfxs := watchPrefixes[dbId]
 	if len(sgPfxs) == 0 {
-		return verror.New(verror.ErrInternal, ctx, "processWatchBlobRefs: no sg prefixes in db", appdb)
+		return verror.New(verror.ErrInternal, ctx, "processWatchBlobRefs: no sg prefixes in db", dbId)
 	}
 
 	for _, rec := range batch {
@@ -333,7 +331,7 @@ func (s *syncService) processWatchBlobRefs(ctx *context.T, appdb string, st stor
 			return err
 		}
 
-		if err = s.processBlobRefs(ctx, appdb, st, s.name, true, sgPfxs, nil, m, buf); err != nil {
+		if err = s.processBlobRefs(ctx, dbId, st, s.name, true, sgPfxs, nil, m, buf); err != nil {
 			return err
 		}
 	}
@@ -342,30 +340,28 @@ func (s *syncService) processWatchBlobRefs(ctx *context.T, appdb string, st stor
 
 // addWatchPrefixSyncgroup adds a syncgroup prefix-to-ID mapping for an app
 // database in the watch prefix cache.
-func addWatchPrefixSyncgroup(appName, dbName, prefix string, gid interfaces.GroupId) {
-	name := appDbName(appName, dbName)
-	if pfxs := watchPrefixes[name]; pfxs != nil {
+func addWatchPrefixSyncgroup(dbId wire.Id, prefix string, gid interfaces.GroupId) {
+	if pfxs := watchPrefixes[dbId]; pfxs != nil {
 		if sgs := pfxs[prefix]; sgs != nil {
 			sgs[gid] = struct{}{}
 		} else {
 			pfxs[prefix] = sgSet{gid: struct{}{}}
 		}
 	} else {
-		watchPrefixes[name] = sgPrefixes{prefix: sgSet{gid: struct{}{}}}
+		watchPrefixes[dbId] = sgPrefixes{prefix: sgSet{gid: struct{}{}}}
 	}
 }
 
 // rmWatchPrefixSyncgroup removes a syncgroup prefix-to-ID mapping for an app
 // database in the watch prefix cache.
-func rmWatchPrefixSyncgroup(appName, dbName, prefix string, gid interfaces.GroupId) {
-	name := appDbName(appName, dbName)
-	if pfxs := watchPrefixes[name]; pfxs != nil {
+func rmWatchPrefixSyncgroup(dbId wire.Id, prefix string, gid interfaces.GroupId) {
+	if pfxs := watchPrefixes[dbId]; pfxs != nil {
 		if sgs := pfxs[prefix]; sgs != nil {
 			delete(sgs, gid)
 			if len(sgs) == 0 {
 				delete(pfxs, prefix)
 				if len(pfxs) == 0 {
-					delete(watchPrefixes, name)
+					delete(watchPrefixes, dbId)
 				}
 			}
 		}
@@ -457,10 +453,10 @@ func newLocalLogRec(ctx *context.T, tx store.Transaction, key, version []byte, d
 // DbStateChangeRequest and if so, it executes the state change request
 // appropriately.
 // TODO(razvanm): change the return type to error.
-func processDbStateChangeLogRecord(ctx *context.T, s *syncService, st store.Store, appName, dbName string, logEnt *watchable.LogEntry, resMark watch.ResumeMarker) bool {
+func processDbStateChangeLogRecord(ctx *context.T, s *syncService, st store.Store, dbId wire.Id, logEnt *watchable.LogEntry, resMark watch.ResumeMarker) bool {
 	var op interface{}
 	if err := logEnt.Op.ToValue(&op); err != nil {
-		vlog.Fatalf("sync: processDbStateChangeLogRecord: %s, %s: bad VOM: %v", appName, dbName, err)
+		vlog.Fatalf("sync: processDbStateChangeLogRecord: %v: bad VOM: %v", dbId, err)
 	}
 	switch op := op.(type) {
 	case *sbwatchable.DbStateChangeRequestOp:
@@ -479,16 +475,16 @@ func processDbStateChangeLogRecord(ctx *context.T, s *syncService, st store.Stor
 				return fmt.Errorf("Unexpected DbStateChangeRequest found: %#v", dbStateChangeRequest)
 			}
 			// Update isPaused state in db.
-			if err := s.updateDbPauseSt(ctx, tx, appName, dbName, isPaused); err != nil {
+			if err := s.updateDbPauseSt(ctx, tx, dbId, isPaused); err != nil {
 				return err
 			}
 			return setResMark(ctx, tx, resMark)
 		}); err != nil {
 			// TODO(rdaoud): don't crash, quarantine this app database.
-			vlog.Fatalf("sync: processDbStateChangeLogRecord: %s, %s: watcher failed to reset dbState bits: %v", appName, dbName, err)
+			vlog.Fatalf("sync: processDbStateChangeLogRecord: %v: watcher failed to reset dbState bits: %v", dbId, err)
 		}
 		// Update isPaused state in cache.
-		s.updateInMemoryPauseSt(ctx, appName, dbName, isPaused)
+		s.updateInMemoryPauseSt(ctx, dbId, isPaused)
 		return true
 
 	default:
@@ -500,23 +496,22 @@ func processDbStateChangeLogRecord(ctx *context.T, s *syncService, st store.Stor
 // if it is, updates the watch prefixes for the app database and returns a
 // syncgroup operation.  Otherwise it returns nil with no other changes.
 // TODO(razvanm): change the return to also include an error.
-func processSyncgroupLogRecord(appName, dbName string, logEnt *watchable.LogEntry) *sbwatchable.SyncgroupOp {
+func processSyncgroupLogRecord(dbId wire.Id, logEnt *watchable.LogEntry) *sbwatchable.SyncgroupOp {
 	var op interface{}
 	if err := logEnt.Op.ToValue(&op); err != nil {
-		vlog.Fatalf("sync: processSyncgroupLogRecord: %s, %s: bad VOM: %v", appName, dbName, err)
+		vlog.Fatalf("sync: processSyncgroupLogRecord: %v: bad VOM: %v", dbId, err)
 	}
 	switch op := op.(type) {
 	case *sbwatchable.SyncgroupOp:
 		gid, remove := op.SgId, op.Remove
 		for _, prefix := range op.Prefixes {
 			if remove {
-				rmWatchPrefixSyncgroup(appName, dbName, prefix, gid)
+				rmWatchPrefixSyncgroup(dbId, prefix, gid)
 			} else {
-				addWatchPrefixSyncgroup(appName, dbName, prefix, gid)
+				addWatchPrefixSyncgroup(dbId, prefix, gid)
 			}
 		}
-		vlog.VI(3).Infof("sync: processSyncgroupLogRecord: %s, %s: gid %d, remove %t, prefixes: %q",
-			appName, dbName, gid, remove, op.Prefixes)
+		vlog.VI(3).Infof("sync: processSyncgroupLogRecord: %v: gid %d, remove %t, prefixes: %q", dbId, gid, remove, op.Prefixes)
 		return op
 
 	default:
@@ -528,11 +523,11 @@ func processSyncgroupLogRecord(appName, dbName string, logEnt *watchable.LogEntr
 // syncgroup prefix for the given app database, and thus should be synced.
 // It is used to pre-filter the batch of log entries before sync processing.
 // TODO(razvanm): change the return type to error.
-func syncable(appdb string, logEnt *watchable.LogEntry) bool {
+func syncable(dbId wire.Id, logEnt *watchable.LogEntry) bool {
 	var key string
 	var op interface{}
 	if err := logEnt.Op.ToValue(&op); err != nil {
-		vlog.Fatalf("sync: syncable: %s: bad VOM: %v", appdb, err)
+		vlog.Fatalf("sync: syncable: %v: bad VOM: %v", dbId, err)
 	}
 	switch op := op.(type) {
 	case *watchable.PutOp:
@@ -551,7 +546,7 @@ func syncable(appdb string, logEnt *watchable.LogEntry) bool {
 	// by the application.
 	key = common.StripFirstKeyPartOrDie(key)
 
-	for prefix := range watchPrefixes[appdb] {
+	for prefix := range watchPrefixes[dbId] {
 		if strings.HasPrefix(key, prefix) {
 			return true
 		}
