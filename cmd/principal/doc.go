@@ -8,7 +8,7 @@
 /*
 Command principal creates and manages Vanadium principals and blessings.
 
-All objects are printed using base64-VOM-encoding.
+All objects are printed using base64url-vom-encoding.
 
 Usage:
    principal [flags] <command>
@@ -259,15 +259,15 @@ tool. - is used for STDIN.
 
 Principal dumproots - Dump out blessings of the identity providers of blessings
 
-Prints out the blessings of the identity providers of the input blessings. One
-line per identity provider, each line is a base64-encoded vom-encoded Blessings
-object.
+Prints out the blessings of the identity providers of the input blessings.  One
+line per identity provider, each line is a base64url-encoded (RFC 4648, Section
+5) vom-encoded Blessings object.
 
 Usage:
    principal dumproots [flags] <file>
 
-<file> is the path to a file containing blessings (base64-encoded vom-encoded).
-- is used for STDIN.
+<file> is the path to a file containing blessings (base64url-encoded
+vom-encoded). - is used for STDIN.
 
 Principal blessself - Generate a self-signed blessing
 
@@ -304,9 +304,9 @@ For example, let's say a principal "alice" wants to bless another principal
 and this will dump the blessing to STDOUT.
 
 With the --remote-key and --remote-token flags, this command can be used to
-bless a principal on a remote machine as well. In this case, the blessing is not
-dumped to STDOUT but sent to the remote end. Use 'principal help recvblessings'
-for more details on that.
+bless a principal on a remote machine. In this case, the blessing is not dumped
+to STDOUT but sent to the remote end. Use 'principal help recvblessings' for
+details.
 
 When --remote-arg-file is specified, only the blessing extension is required, as
 all other arguments will be extracted from the specified file.
@@ -317,8 +317,8 @@ Usage:
 <principal to bless> represents the principal to be blessed (i.e., whose public
 key will be provided with a name).  This can be either: (a) The directory
 containing credentials for that principal, OR (b) The filename (- for STDIN)
-containing any other blessings of that
-    principal,
+containing the base64url-encoded public
+    key or any other blessings of the principal,
 OR (c) The object name produced by the 'recvblessings' command of this tool
     running on behalf of another principal (if the --remote-key and
     --remote-token flags are specified).
@@ -353,8 +353,8 @@ Principal set
 
 Commands to mutate the blessings of the principal.
 
-All input blessings are expected to be serialized using base64-VOM-encoding. See
-'principal get'.
+All input blessings are expected to be serialized using base64url-vom-encoding.
+See 'principal get'.
 
 Usage:
    principal set [flags] <command>
@@ -414,7 +414,7 @@ Principal get
 
 Commands to inspect the blessings of the principal.
 
-All blessings are printed to stdout using base64-VOM-encoding.
+All blessings are printed to stdout using base64url-vom-encoding.
 
 Usage:
    principal get [flags] <command>
@@ -476,9 +476,9 @@ Principal get publickey
 Prints out the public key of the principal specified by the environment that
 this tool is running in.
 
-The key is printed as a base64 encoded bytes of the DER-format representation of
-the key (suitable to be provided as an argument to the 'recognize' command for
-example).
+The key is printed as a base64url encoded bytes (RFC 4648, Section 5) of the
+DER-format representation of the key (suitable to be provided as an argument to
+the 'recognize' command for example).
 
 With --pretty, a 16-byte fingerprint of the key instead. This format is easier
 for humans to read and is used in output of other commands in this program, but
@@ -517,7 +517,8 @@ Adds an identity provider to the set of recognized root public keys for this
 principal.
 
 It accepts either a single argument (which points to a file containing a
-blessing) or two arguments (a name and a base64-encoded DER-encoded public key).
+blessing) or two arguments (a name and a base64url-encoded DER-encoded public
+key).
 
 For example, to make the principal in credentials directory A recognize the root
 of the default blessing in credentials directory B:
@@ -537,7 +538,7 @@ this tool. - is used for STDIN.
 
 <blessing pattern> is the blessing pattern for which <key> should be recognized.
 
-<key> is a base64-encoded, DER-encoded public key, such as that printed by
+<key> is a base64url-encoded, DER-encoded public key, such as that printed by
 "principal get publickey".
 
 Principal help - Display help for commands or topics

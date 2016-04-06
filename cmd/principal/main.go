@@ -166,12 +166,13 @@ this tool. - is used for STDIN.
 		Name:  "dumproots",
 		Short: "Dump out blessings of the identity providers of blessings",
 		Long: `
-Prints out the blessings of the identity providers of the input blessings.
-One line per identity provider, each line is a base64-encoded vom-encoded Blessings object.
+Prints out the blessings of the identity providers of the input blessings.  One
+line per identity provider, each line is a base64url-encoded (RFC 4648, Section
+5) vom-encoded Blessings object.
 `,
 		ArgsName: "<file>",
 		ArgsLong: `
-<file> is the path to a file containing blessings (base64-encoded vom-encoded).
+<file> is the path to a file containing blessings (base64url-encoded vom-encoded).
 - is used for STDIN.
 `,
 		Runner: cmdline.RunnerFunc(func(env *cmdline.Env, args []string) error {
@@ -247,9 +248,9 @@ as "alice:friend", the invocation would be:
 and this will dump the blessing to STDOUT.
 
 With the --remote-key and --remote-token flags, this command can be used to
-bless a principal on a remote machine as well. In this case, the blessing is
-not dumped to STDOUT but sent to the remote end. Use 'principal help
-recvblessings' for more details on that.
+bless a principal on a remote machine. In this case, the blessing is not dumped
+to STDOUT but sent to the remote end. Use 'principal help recvblessings' for
+details.
 
 When --remote-arg-file is specified, only the blessing extension is required, as all other
 arguments will be extracted from the specified file.
@@ -260,8 +261,8 @@ arguments will be extracted from the specified file.
 key will be provided with a name).  This can be either:
 (a) The directory containing credentials for that principal,
 OR
-(b) The filename (- for STDIN) containing any other blessings of that
-    principal,
+(b) The filename (- for STDIN) containing the base64url-encoded public
+    key or any other blessings of the principal,
 OR
 (c) The object name produced by the 'recvblessings' command of this tool
     running on behalf of another principal (if the --remote-key and
@@ -344,9 +345,9 @@ blessing.
 Prints out the public key of the principal specified by the environment
 that this tool is running in.
 
-The key is printed as a base64 encoded bytes of the DER-format representation
-of the key (suitable to be provided as an argument to the 'recognize' command
-for example).
+The key is printed as a base64url encoded bytes (RFC 4648, Section 5) of the
+DER-format representation of the key (suitable to be provided as an argument to
+the 'recognize' command for example).
 
 With --pretty, a 16-byte fingerprint of the key instead. This format is easier
 for humans to read and is used in output of other commands in this program, but
@@ -496,7 +497,7 @@ blessing can be shared with.
 Adds an identity provider to the set of recognized root public keys for this principal.
 
 It accepts either a single argument (which points to a file containing a blessing)
-or two arguments (a name and a base64-encoded DER-encoded public key).
+or two arguments (a name and a base64url-encoded DER-encoded public key).
 
 For example, to make the principal in credentials directory A recognize the
 root of the default blessing in credentials directory B:
@@ -515,7 +516,7 @@ this tool. - is used for STDIN.
 
 <blessing pattern> is the blessing pattern for which <key> should be recognized.
 
-<key> is a base64-encoded, DER-encoded public key, such as that printed by "principal get publickey".
+<key> is a base64url-encoded, DER-encoded public key, such as that printed by "principal get publickey".
 `,
 		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
 			if len(args) != 1 && len(args) != 2 {
@@ -535,7 +536,7 @@ this tool. - is used for STDIN.
 			// len(args) == 2
 			der, err := base64.URLEncoding.DecodeString(args[1])
 			if err != nil {
-				return fmt.Errorf("invalid base64 encoding of public key: %v", err)
+				return fmt.Errorf("invalid base64url encoding of public key: %v", err)
 			}
 			return p.Roots().Add(der, security.BlessingPattern(args[0]))
 		}),
@@ -914,10 +915,17 @@ func blessOverFileSystem(p security.Principal, tobless string, with security.Ble
 			}
 		}
 		key = other.PublicKey()
-	} else if other, err := decodeBlessings(tobless); err != nil {
-		return security.Blessings{}, fmt.Errorf("failed to decode blessings in %q: %v", tobless, err)
-	} else {
-		key = other.PublicKey()
+	} else if str, err := read(tobless); err != nil {
+		return security.Blessings{}, fmt.Errorf("failed to read %q: %v", tobless, err)
+	} else if b64, err := base64.URLEncoding.DecodeString(str); err != nil {
+		return security.Blessings{}, fmt.Errorf("failed to decode base64url encoded bytes in %q: %v", tobless, err)
+	} else if key, err = security.UnmarshalPublicKey(b64); err != nil {
+		// Not a public key, maybe a blessings object?
+		var b security.Blessings
+		if errb := vom.Decode(b64, &b); errb != nil {
+			return security.Blessings{}, fmt.Errorf("failed to decode blessings (%v) or public key (%v) from %q", errb, err, tobless)
+		}
+		key = b.PublicKey()
 	}
 	return p.Bless(key, with, extension, caveats[0], caveats[1:]...)
 }
@@ -1014,7 +1022,7 @@ func main() {
 		Long: `
 Commands to mutate the blessings of the principal.
 
-All input blessings are expected to be serialized using base64-VOM-encoding.
+All input blessings are expected to be serialized using base64url-vom-encoding.
 See 'principal get'.
 `,
 		Children: []*cmdline.Command{cmdSetDefault, cmdSetForPeer},
@@ -1026,7 +1034,7 @@ See 'principal get'.
 		Long: `
 Commands to inspect the blessings of the principal.
 
-All blessings are printed to stdout using base64-VOM-encoding.
+All blessings are printed to stdout using base64url-vom-encoding.
 `,
 		Children: []*cmdline.Command{cmdGetDefault, cmdGetForPeer, cmdGetPublicKey, cmdGetTrustedRoots, cmdGetPeerMap},
 	}
@@ -1037,7 +1045,7 @@ All blessings are printed to stdout using base64-VOM-encoding.
 		Long: `
 Command principal creates and manages Vanadium principals and blessings.
 
-All objects are printed using base64-VOM-encoding.
+All objects are printed using base64url-vom-encoding.
 `,
 		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdDumpRoots, cmdBlessSelf, cmdBless, cmdSet, cmdGet, cmdRecognize},
 	}
@@ -1054,9 +1062,9 @@ func dumpBlessings(blessings security.Blessings) error {
 	if blessings.IsZero() {
 		return fmt.Errorf("no blessings found")
 	}
-	str, err := base64VomEncode(blessings)
+	str, err := base64urlVomEncode(blessings)
 	if err != nil {
-		return fmt.Errorf("base64-VOM encoding failed: %v", err)
+		return fmt.Errorf("base64url-vom encoding failed: %v", err)
 	}
 	fmt.Println(str)
 	return nil
@@ -1166,7 +1174,7 @@ func decode(fname string, val interface{}) error {
 	if err != nil {
 		return err
 	}
-	if err := base64VomDecode(str, val); err != nil || val == nil {
+	if err := base64urlVomDecode(str, val); err != nil || val == nil {
 		return fmt.Errorf("failed to decode %q: %v", fname, err)
 	}
 	return nil
@@ -1204,7 +1212,7 @@ func chainName(chain []security.Certificate) string {
 	return strings.Join(exts, security.ChainSeparator)
 }
 
-func base64VomEncode(i interface{}) (string, error) {
+func base64urlVomEncode(i interface{}) (string, error) {
 	buf := &bytes.Buffer{}
 	closer := base64.NewEncoder(base64.URLEncoding, buf)
 	enc := vom.NewEncoder(closer)
@@ -1219,7 +1227,7 @@ func base64VomEncode(i interface{}) (string, error) {
 	return buf.String(), nil
 }
 
-func base64VomDecode(s string, i interface{}) error {
+func base64urlVomDecode(s string, i interface{}) error {
 	b, err := base64.URLEncoding.DecodeString(s)
 	if err != nil {
 		return err

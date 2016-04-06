@@ -761,6 +761,24 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 			t.Errorf("got error %q, expected to match %q", got, want)
 		}
 	}
+	{
+		// And should be able to bless a public key.
+		keyfile := filepath.Join(dir, "keyfile")
+		redirect(t, withCreds(bobDir, sh.Cmd(bin, "get", "publickey")), keyfile)
+		redirect(t, aliceCmd(bin, "bless", "--for=1m", keyfile, "buddy"), tmpfile)
+		got := removeCaveats(removePublicKeys(sh.Cmd(bin, "dumpblessings", tmpfile).Stdout()))
+		want := `Blessings          : alice:buddy
+PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Certificate chains : 1
+Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+  Certificate #0: alice with 0 caveats
+  Certificate #1: buddy with 1 caveat
+    (0) ExpiryCaveat
+`
+		if got != want {
+			t.Errorf("Got\n%vWant\n%v", got, want)
+		}
+	}
 }
 
 func TestV23AddBlessingsToRoots(t *testing.T) {
