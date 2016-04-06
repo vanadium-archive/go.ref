@@ -15,7 +15,10 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/security"
+	"v.io/v23/services/stats"
 	"v.io/v23/vom"
 	"v.io/x/ref/test/testutil"
 	"v.io/x/ref/test/v23test"
@@ -85,6 +88,16 @@ func testOauthHandler(t *testing.T, addr string) {
 	}
 }
 
+func readCounter(t *testing.T, ctx *context.T, addr, stat string) (int64, error) {
+	v, err := stats.StatsClient(naming.Join(addr, stat)).Value(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var c int64
+	err = v.ToValue(&c)
+	return c, err
+}
+
 func TestV23IdentityServer(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
 	sh := v23test.NewShell(t, nil)
@@ -107,6 +120,7 @@ func TestV23IdentityServer(t *testing.T) {
 		"-oauth-agent-path="+oauthCreds.Handle).WithCredentials(creds)
 	cmd.Start()
 	httpAddr := cmd.S.ExpectVar("HTTP_ADDR")
+	v23Addr := cmd.S.ExpectVar("NAME")
 
 	// Use the principal tool to seekblessings.
 	// This tool will not run with any credentials: Its whole purpose is to "seek" them!
@@ -120,7 +134,14 @@ func TestV23IdentityServer(t *testing.T) {
 	// the tool twice doesn't seem to help?
 	seekBlessings(t, sh, principal, httpAddr)
 
+	// Check stats: Since not blessings were issued over HTTP right now, the value should be 0.
+	if got, _ := readCounter(t, sh.ForkContext("u"), v23Addr, "__debug/stats/http/blessings/root:o"); got != 0 {
+		t.Errorf("Got %d, want 0 for the count of blessings issued over HTTP", got)
+	}
 	testOauthHandler(t, httpAddr)
+	if got, err := readCounter(t, sh.ForkContext("u"), v23Addr, "__debug/stats/http/blessings/root:o"); got != 1 || err != nil {
+		t.Errorf("Got (%d, %v), want (1, <nil>) for the count of blessings issued over HTTP", got, err)
+	}
 }
 
 func TestMain(m *testing.M) {

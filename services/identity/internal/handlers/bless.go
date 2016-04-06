@@ -10,12 +10,15 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/vom"
+	"v.io/x/ref/lib/stats"
+	"v.io/x/ref/lib/stats/counter"
 	"v.io/x/ref/services/identity/internal/blesser"
 	"v.io/x/ref/services/identity/internal/util"
 )
@@ -33,6 +36,9 @@ const (
 type accessTokenBlesser struct {
 	ctx    *context.T
 	params blesser.OAuthBlesserParams
+
+	countersMu sync.Mutex
+	counters   map[string]*counter.Counter
 }
 
 // NewOAuthBlessingHandler returns an http.Handler that uses Google OAuth2 Access tokens
@@ -53,7 +59,7 @@ type accessTokenBlesser struct {
 // - "output_format": The encoding format for the returned blessings. The following
 //   formats are supported:
 //     - "json": JSON-encoding of the wire format of Blessings.
-//     - "base64vom": Base64 encoding of VOM-encoded Blessings [DEFAULT]
+//     - "base64vom": Base64URL encoding of VOM-encoded Blessings [DEFAULT]
 //
 // The response consists of blessings encoded in the requested output format.
 //
@@ -65,7 +71,7 @@ type accessTokenBlesser struct {
 // account (victim), she may be able to obtain a blessing with Alice's name on it
 // for any public key of her choice.
 func NewOAuthBlessingHandler(ctx *context.T, params blesser.OAuthBlesserParams) http.Handler {
-	return &accessTokenBlesser{ctx, params}
+	return &accessTokenBlesser{ctx: ctx, params: params}
 }
 
 func (a *accessTokenBlesser) blessingCaveats(r *http.Request, p security.Principal) ([]security.Caveat, error) {
@@ -137,6 +143,20 @@ func (a *accessTokenBlesser) encodeBlessingsVom(b security.Blessings) (string, e
 	return base64.URLEncoding.EncodeToString(bVom), nil
 }
 
+func (a *accessTokenBlesser) counter(name string) *counter.Counter {
+	a.countersMu.Lock()
+	defer a.countersMu.Unlock()
+	if a.counters == nil {
+		a.counters = make(map[string]*counter.Counter)
+	}
+	if c := a.counters[name]; c != nil {
+		return c
+	}
+	c := stats.NewCounter(fmt.Sprint("http/blessings/", name))
+	a.counters[name] = c
+	return c
+}
+
 func (a *accessTokenBlesser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	remoteKey, err := a.remotePublicKey(r)
 	if err != nil {
@@ -168,6 +188,7 @@ func (a *accessTokenBlesser) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		util.HTTPServerError(w, fmt.Errorf("failed to Bless: %v", err))
 		return
 	}
+	a.counter(with.String()).Incr(1)
 
 	outputFormat := r.FormValue(outputFormatFormKey)
 	if len(outputFormat) == 0 {
