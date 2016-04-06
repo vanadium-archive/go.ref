@@ -23,7 +23,7 @@ import (
 	"v.io/x/ref/services/syncbase/syncbaselib"
 )
 
-//#include "mojo/public/c/system/types.h"
+//#include "mojo/public/c/system/handle.h"
 import "C"
 
 type delegate struct {

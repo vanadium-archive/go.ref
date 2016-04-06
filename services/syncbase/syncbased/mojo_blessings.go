@@ -54,13 +54,12 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+
 	"mojo/public/go/application"
 	"mojo/public/go/bindings"
-	"mojo/public/go/system"
-	"mojo/public/interfaces/network/url_request"
 	"mojo/services/authentication/interfaces/authentication"
-	"mojo/services/network/interfaces/network_service"
-	"mojo/services/network/interfaces/url_loader"
 	"net/url"
 	"runtime"
 
@@ -131,35 +130,19 @@ func oauthToken(ctx application.Context) (string, error) {
 
 func token2blessings(ctx application.Context, token string, key security.PublicKey) (security.Blessings, error) {
 	var ret security.Blessings
-	netReq, netPtr := network_service.CreateMessagePipeForNetworkService()
-	ctx.ConnectToApplication("mojo:network_service").ConnectToService(&netReq)
-	netProxy := network_service.NewNetworkServiceProxy(netPtr, bindings.GetAsyncWaiter())
-
-	loaderReq, loaderPtr := url_loader.CreateMessagePipeForUrlLoader()
-	if err := netProxy.CreateUrlLoader(loaderReq); err != nil {
-		return ret, fmt.Errorf("failed to create URL loader: %v", err)
-	}
 	url, err := token2blessingURL(token, key)
 	if err != nil {
 		return ret, err
 	}
-	response, err := url_loader.NewUrlLoaderProxy(loaderPtr, bindings.GetAsyncWaiter()).Start(url_request.UrlRequest{
-		Url:    url,
-		Method: "GET",
-	})
-	if err != nil || response.Error != nil {
-		var errrep interface{}
-		if err != nil {
-			errrep = err
-		} else {
-			errrep = response.Error
-		}
-		return ret, fmt.Errorf("HTTP request to exchange OAuth token for blessings failed: %v", errrep)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return ret, fmt.Errorf("HTTP request to exchange OAuth token for blessings failed: %v", err)
 	}
-	res, b64bytes := (*response.Body).ReadData(system.MOJO_READ_DATA_FLAG_ALL_OR_NONE)
-	if res != system.MOJO_RESULT_OK {
-		return ret, fmt.Errorf("failed to read blessings from the Vanadium identity provider. Result: %v", res)
-	}
+
+	defer resp.Body.Close()
+	b64bytes, err := ioutil.ReadAll(resp.Body)
+
 	vombytes, err := base64.URLEncoding.DecodeString(string(b64bytes))
 	if err != nil {
 		return ret, fmt.Errorf("invalid base64 encoded blessings: %v", err)
