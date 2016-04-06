@@ -57,8 +57,6 @@ type LogRecMetadata struct {
 	CurVers    string    // current version number of the object.
 	Parents    []string  // 0, 1 or 2 parent versions that the current version is derived from.
 	UpdTime    time.Time // timestamp when the update is generated.
-	PermId     string    // id of the permissions object controlling this version.
-	PermVers   string    // current version of the permissions object.
 	Delete     bool      // indicates whether the update resulted in object being deleted from the store.
 	BatchId    uint64    // unique id of the Batch this update belongs to.
 	BatchCount uint64    // number of objects in the Batch.
@@ -69,7 +67,6 @@ type LogRecMetadata struct {
 type LogRec struct {
 	Metadata LogRecMetadata
 	Value    []byte
-	Shell      bool      // true when the mutation data is hidden due to permissions.
 }
 
 // GroupId is a globally unique syncgroup ID.

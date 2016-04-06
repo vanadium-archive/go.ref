@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"v.io/v23/context"
-	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -463,7 +462,6 @@ func (rSt *responderState) makeWireLogRec(ctx *context.T, rec *LocalLogRec) (*in
 	// Get the object value at the required version.
 	key, version := rec.Metadata.ObjId, rec.Metadata.CurVers
 	var value []byte
-	shell := rec.Shell
 
 	if rSt.sg {
 		sg, err := getSGDataEntryByOID(ctx, rSt.st, key, version)
@@ -474,19 +472,15 @@ func (rSt *responderState) makeWireLogRec(ctx *context.T, rec *LocalLogRec) (*in
 		if err != nil {
 			return nil, err
 		}
-	} else if !rec.Metadata.Delete && !rec.Shell && rec.Metadata.RecType == interfaces.NodeRec {
-		if rSt.sendValue(ctx, rec) {
-			var err error
-			value, err = watchable.GetAtVersion(ctx, rSt.st, []byte(key), nil, []byte(version))
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			shell = true
+	} else if !rec.Metadata.Delete && rec.Metadata.RecType == interfaces.NodeRec {
+		var err error
+		value, err = watchable.GetAtVersion(ctx, rSt.st, []byte(key), nil, []byte(version))
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	wireRec := &interfaces.LogRec{Metadata: rec.Metadata, Value: value, Shell: shell}
+	wireRec := &interfaces.LogRec{Metadata: rec.Metadata, Value: value}
 	return wireRec, nil
 }
 
@@ -563,40 +557,6 @@ func filterLogRec(rec *LocalLogRec, initVecs interfaces.Knowledge, initPfxs []st
 	}
 
 	return filter
-}
-
-// sendValue decides if the oid's value should be sent to this initiator or
-// should be shelled.
-func (rSt *responderState) sendValue(ctx *context.T, rec *LocalLogRec) bool {
-	key := rec.Metadata.ObjId
-
-	// All collection permissions objects are always readable by everyone.
-	if common.FirstKeyPart(key) == common.CollectionPermsPrefix {
-		return true
-	}
-
-	// TODO(hpucha): Can PermID be empty?
-	if rec.Metadata.PermId == "" {
-		return true
-	}
-
-	value, err := watchable.GetAtVersion(ctx, rSt.st, []byte(rec.Metadata.PermId), nil, []byte(rec.Metadata.PermVers))
-	if err != nil {
-		return false
-	}
-
-	var perms access.Permissions
-	if err := vom.Decode(value, &perms); err != nil {
-		return false
-	}
-
-	// Check that the caller has Read access.
-	auth := access.TypicalTagTypePermissionsAuthorizer(perms)
-	if err := auth.Authorize(ctx, rSt.call.Security()); err != nil {
-		return false
-	}
-
-	return true
 }
 
 // A minHeap implements heap.Interface and holds local log records.

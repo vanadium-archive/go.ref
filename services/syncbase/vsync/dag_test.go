@@ -258,21 +258,21 @@ func TestLocalUpdates(t *testing.T) {
 	tx := st.NewTransaction()
 
 	// Make sure a new node cannot have more than 2 parents.
-	if err := s.addNode(nil, tx, oid, "4", "c\xfefoo", false, false, []string{"1", "2", "3"}, NoBatchId, nil); err == nil {
+	if err := s.addNode(nil, tx, oid, "4", "c\xfefoo", false, []string{"1", "2", "3"}, NoBatchId, nil); err == nil {
 		t.Errorf("addNode() did not fail when given 3 parents")
 	}
 
 	// Make sure a new node cannot have an invalid parent.
-	if err := s.addNode(nil, tx, oid, "4", "c\xfefoo", false, false, []string{"1", "555"}, NoBatchId, nil); err == nil {
+	if err := s.addNode(nil, tx, oid, "4", "c\xfefoo", false, []string{"1", "555"}, NoBatchId, nil); err == nil {
 		t.Errorf("addNode() did not fail when using an invalid parent")
 	}
 
 	// Make sure a new root node (no parents) can be added once a root exists.
 	// For the parents array, check both the "nil" and the empty array as input.
-	if err := s.addNode(nil, tx, oid, "6789", "c\xfefoo", false, false, nil, NoBatchId, nil); err != nil {
+	if err := s.addNode(nil, tx, oid, "6789", "c\xfefoo", false, nil, NoBatchId, nil); err != nil {
 		t.Errorf("cannot add another root node (nil parents) for object %s: %v", oid, err)
 	}
-	if err := s.addNode(nil, tx, oid, "9999", "c\xfefoo", false, false, []string{}, NoBatchId, nil); err != nil {
+	if err := s.addNode(nil, tx, oid, "9999", "c\xfefoo", false, []string{}, NoBatchId, nil); err != nil {
 		t.Errorf("cannot add another root node (empty parents) for object %s: %v", oid, err)
 	}
 
@@ -1249,7 +1249,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("batch info map for ID %v has length %d instead of 0", btid_1, n)
 	}
 
-	if err := s.addNode(nil, tx, oid_a, "3", "logrec-a-03", false, false, []string{"2"}, btid_1, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_a, "3", "logrec-a-03", false, []string{"2"}, btid_1, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s and batch ID %v: %v", oid_a, btid_1, err)
 	}
 
@@ -1257,7 +1257,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Fatalf("restarting batch failed: got %v instead of %v", id, btid_1)
 	}
 
-	if err := s.addNode(nil, tx, oid_b, "3", "logrec-b-03", false, false, []string{"2"}, btid_1, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_b, "3", "logrec-b-03", false, []string{"2"}, btid_1, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s and batch ID %v: %v", oid_b, btid_1, err)
 	}
 
@@ -1275,7 +1275,7 @@ func TestAddNodeBatch(t *testing.T) {
 		t.Errorf("batch info map for ID %v has length %d instead of 0", btid_2, n)
 	}
 
-	if err := s.addNode(nil, tx, oid_c, "2", "logrec-c-02", false, false, []string{"1"}, btid_2, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_c, "2", "logrec-c-02", false, []string{"1"}, btid_2, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s and batch ID %v: %v", oid_c, btid_2, err)
 	}
 
@@ -1306,7 +1306,7 @@ func TestAddNodeBatch(t *testing.T) {
 		bad_btid++
 	}
 
-	if err := s.addNode(nil, tx, oid_c, "3", "logrec-c-03", false, false, []string{"2"}, bad_btid, nil); err == nil {
+	if err := s.addNode(nil, tx, oid_c, "3", "logrec-c-03", false, []string{"2"}, bad_btid, nil); err == nil {
 		t.Errorf("addNode() did not fail on object %s for a bad batch ID %v", oid_c, bad_btid)
 	}
 	if err := s.endBatch(nil, tx, bad_btid, 1); err == nil {
@@ -1388,7 +1388,7 @@ func TestAddNodeBatch(t *testing.T) {
 	}
 
 	tx = st.NewTransaction()
-	if err := s.addNode(nil, tx, oid_a, "4", "logrec-a-04", false, false, []string{"3"}, btid_3, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_a, "4", "logrec-a-04", false, []string{"3"}, btid_3, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s and batch ID %v: %v", oid_a, btid_3, err)
 	}
 
@@ -1427,7 +1427,7 @@ func TestAddNodeBatch(t *testing.T) {
 	}
 
 	tx = st.NewTransaction()
-	if err := s.addNode(nil, tx, oid_b, "4", "logrec-b-04", false, false, []string{"3"}, btid_3, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_b, "4", "logrec-b-04", false, []string{"3"}, btid_3, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s and batch ID %v: %v", oid_b, btid_3, err)
 	}
 
@@ -1507,10 +1507,10 @@ func TestPruningBatches(t *testing.T) {
 	}
 
 	tx := st.NewTransaction()
-	if err := s.addNode(nil, tx, oid_a, "3", "logrec-a-03", false, false, []string{"2"}, btid_1, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_a, "3", "logrec-a-03", false, []string{"2"}, btid_1, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s and batch ID %v: %v", oid_a, btid_1, err)
 	}
-	if err := s.addNode(nil, tx, oid_b, "3", "logrec-b-03", false, false, []string{"2"}, btid_1, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_b, "3", "logrec-b-03", false, []string{"2"}, btid_1, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s and batch ID %v: %v", oid_b, btid_1, err)
 	}
 	if err := s.endBatch(nil, tx, btid_1, 2); err != nil {
@@ -1524,10 +1524,10 @@ func TestPruningBatches(t *testing.T) {
 	}
 
 	tx = st.NewTransaction()
-	if err := s.addNode(nil, tx, oid_b, "4", "logrec-b-04", false, false, []string{"3"}, btid_2, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_b, "4", "logrec-b-04", false, []string{"3"}, btid_2, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s and batch ID %v: %v", oid_b, btid_2, err)
 	}
-	if err := s.addNode(nil, tx, oid_c, "2", "logrec-c-02", false, false, []string{"1"}, btid_2, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_c, "2", "logrec-c-02", false, []string{"1"}, btid_2, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s and batch ID %v: %v", oid_c, btid_2, err)
 	}
 	if err := s.endBatch(nil, tx, btid_2, 2); err != nil {
@@ -1536,10 +1536,10 @@ func TestPruningBatches(t *testing.T) {
 	tx.Commit()
 
 	tx = st.NewTransaction()
-	if err := s.addNode(nil, tx, oid_a, "4", "logrec-a-04", false, false, []string{"3"}, NoBatchId, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_a, "4", "logrec-a-04", false, []string{"3"}, NoBatchId, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s: %v", oid_a, err)
 	}
-	if err := s.addNode(nil, tx, oid_b, "5", "logrec-b-05", false, false, []string{"4"}, NoBatchId, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_b, "5", "logrec-b-05", false, []string{"4"}, NoBatchId, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s: %v", oid_b, err)
 	}
 
@@ -1617,7 +1617,7 @@ func TestPruningBatches(t *testing.T) {
 
 	// Add c3 as a new head and prune at that point.  This should GC batch-2.
 	tx = st.NewTransaction()
-	if err := s.addNode(nil, tx, oid_c, "3", "logrec-c-03", false, false, []string{"2"}, NoBatchId, nil); err != nil {
+	if err := s.addNode(nil, tx, oid_c, "3", "logrec-c-03", false, []string{"2"}, NoBatchId, nil); err != nil {
 		t.Errorf("cannot addNode() on object %s: %v", oid_c, err)
 	}
 	if err = moveHead(nil, tx, oid_c, "3"); err != nil {

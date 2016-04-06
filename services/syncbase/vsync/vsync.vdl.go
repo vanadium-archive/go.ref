@@ -258,7 +258,6 @@ func (t *DbSyncStateTarget) FinishFields(_ vdl.FieldsTarget) error {
 type LocalLogRec struct {
 	Metadata interfaces.LogRecMetadata
 	Pos      uint64 // position in the Database log.
-	Shell    bool   // indicates if the value was shelled by the sender.
 }
 
 func (LocalLogRec) __VDLReflect(struct {
@@ -294,16 +293,12 @@ func (m *LocalLogRec) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 	var12 := (wireValue11 == time.Time{})
 	var4 = var4 && var12
-	var13 := (m.Metadata.PermId == "")
+	var13 := (m.Metadata.Delete == false)
 	var4 = var4 && var13
-	var14 := (m.Metadata.PermVers == "")
+	var14 := (m.Metadata.BatchId == uint64(0))
 	var4 = var4 && var14
-	var15 := (m.Metadata.Delete == false)
+	var15 := (m.Metadata.BatchCount == uint64(0))
 	var4 = var4 && var15
-	var16 := (m.Metadata.BatchId == uint64(0))
-	var4 = var4 && var16
-	var17 := (m.Metadata.BatchCount == uint64(0))
-	var4 = var4 && var17
 	if var4 {
 		if err := fieldsTarget1.ZeroField("Metadata"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -323,40 +318,21 @@ func (m *LocalLogRec) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var20 := (m.Pos == uint64(0))
-	if var20 {
+	var18 := (m.Pos == uint64(0))
+	if var18 {
 		if err := fieldsTarget1.ZeroField("Pos"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("Pos")
+		keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("Pos")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget19.FromUint(uint64(m.Pos), tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldTarget17.FromUint(uint64(m.Pos), tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
-				return err
-			}
-		}
-	}
-	var23 := (m.Shell == false)
-	if var23 {
-		if err := fieldsTarget1.ZeroField("Shell"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget21, fieldTarget22, err := fieldsTarget1.StartField("Shell")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-			if err := fieldTarget22.FromBool(bool(m.Shell), tt.NonOptional().Field(2).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget21, fieldTarget22); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
 				return err
 			}
 		}
@@ -375,7 +351,6 @@ type LocalLogRecTarget struct {
 	Value          *LocalLogRec
 	metadataTarget interfaces.LogRecMetadataTarget
 	posTarget      vdl.Uint64Target
-	shellTarget    vdl.BoolTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -397,10 +372,6 @@ func (t *LocalLogRecTarget) StartField(name string) (key, field vdl.Target, _ er
 		t.posTarget.Value = &t.Value.Pos
 		target, err := &t.posTarget, error(nil)
 		return nil, target, err
-	case "Shell":
-		t.shellTarget.Value = &t.Value.Shell
-		target, err := &t.shellTarget, error(nil)
-		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.LocalLogRec", name)
 	}
@@ -415,9 +386,6 @@ func (t *LocalLogRecTarget) ZeroField(name string) error {
 		return nil
 	case "Pos":
 		t.Value.Pos = uint64(0)
-		return nil
-	case "Shell":
-		t.Value.Shell = false
 		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.LocalLogRec", name)
@@ -667,7 +635,6 @@ type DagNode struct {
 	Parents  []string // references to parent versions
 	Logrec   string   // reference to log record
 	BatchId  uint64   // ID of a write batch
-	Shell    bool     // true when the data is hidden due to permissions
 	Deleted  bool     // true if the change was a delete
 	PermId   string   // ID of the permissions controlling this version
 	PermVers string   // current version of the permissions object
@@ -779,18 +746,18 @@ func (m *DagNode) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var19 := (m.Shell == false)
+	var19 := (m.Deleted == false)
 	if var19 {
-		if err := fieldsTarget1.ZeroField("Shell"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("Deleted"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget17, fieldTarget18, err := fieldsTarget1.StartField("Shell")
+		keyTarget17, fieldTarget18, err := fieldsTarget1.StartField("Deleted")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget18.FromBool(bool(m.Shell), tt.NonOptional().Field(4).Type); err != nil {
+			if err := fieldTarget18.FromBool(bool(m.Deleted), tt.NonOptional().Field(4).Type); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget17, fieldTarget18); err != nil {
@@ -798,18 +765,18 @@ func (m *DagNode) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var22 := (m.Deleted == false)
+	var22 := (m.PermId == "")
 	if var22 {
-		if err := fieldsTarget1.ZeroField("Deleted"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("PermId"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget20, fieldTarget21, err := fieldsTarget1.StartField("Deleted")
+		keyTarget20, fieldTarget21, err := fieldsTarget1.StartField("PermId")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget21.FromBool(bool(m.Deleted), tt.NonOptional().Field(5).Type); err != nil {
+			if err := fieldTarget21.FromString(string(m.PermId), tt.NonOptional().Field(5).Type); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget20, fieldTarget21); err != nil {
@@ -817,40 +784,21 @@ func (m *DagNode) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var25 := (m.PermId == "")
+	var25 := (m.PermVers == "")
 	if var25 {
-		if err := fieldsTarget1.ZeroField("PermId"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget23, fieldTarget24, err := fieldsTarget1.StartField("PermId")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-			if err := fieldTarget24.FromString(string(m.PermId), tt.NonOptional().Field(6).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget23, fieldTarget24); err != nil {
-				return err
-			}
-		}
-	}
-	var28 := (m.PermVers == "")
-	if var28 {
 		if err := fieldsTarget1.ZeroField("PermVers"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget26, fieldTarget27, err := fieldsTarget1.StartField("PermVers")
+		keyTarget23, fieldTarget24, err := fieldsTarget1.StartField("PermVers")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget27.FromString(string(m.PermVers), tt.NonOptional().Field(7).Type); err != nil {
+			if err := fieldTarget24.FromString(string(m.PermVers), tt.NonOptional().Field(6).Type); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget26, fieldTarget27); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget23, fieldTarget24); err != nil {
 				return err
 			}
 		}
@@ -871,7 +819,6 @@ type DagNodeTarget struct {
 	parentsTarget  vdl.StringSliceTarget
 	logrecTarget   vdl.StringTarget
 	batchIdTarget  vdl.Uint64Target
-	shellTarget    vdl.BoolTarget
 	deletedTarget  vdl.BoolTarget
 	permIdTarget   vdl.StringTarget
 	permVersTarget vdl.StringTarget
@@ -903,10 +850,6 @@ func (t *DagNodeTarget) StartField(name string) (key, field vdl.Target, _ error)
 	case "BatchId":
 		t.batchIdTarget.Value = &t.Value.BatchId
 		target, err := &t.batchIdTarget, error(nil)
-		return nil, target, err
-	case "Shell":
-		t.shellTarget.Value = &t.Value.Shell
-		target, err := &t.shellTarget, error(nil)
 		return nil, target, err
 	case "Deleted":
 		t.deletedTarget.Value = &t.Value.Deleted
@@ -940,9 +883,6 @@ func (t *DagNodeTarget) ZeroField(name string) error {
 		return nil
 	case "BatchId":
 		t.Value.BatchId = uint64(0)
-		return nil
-	case "Shell":
-		t.Value.Shell = false
 		return nil
 	case "Deleted":
 		t.Value.Deleted = false

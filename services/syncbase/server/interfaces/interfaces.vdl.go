@@ -219,8 +219,6 @@ type LogRecMetadata struct {
 	CurVers    string    // current version number of the object.
 	Parents    []string  // 0, 1 or 2 parent versions that the current version is derived from.
 	UpdTime    time.Time // timestamp when the update is generated.
-	PermId     string    // id of the permissions object controlling this version.
-	PermVers   string    // current version of the permissions object.
 	Delete     bool      // indicates whether the update resulted in object being deleted from the store.
 	BatchId    uint64    // unique id of the Batch this update belongs to.
 	BatchCount uint64    // number of objects in the Batch.
@@ -395,18 +393,18 @@ func (m *LogRecMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var29 := (m.PermId == "")
+	var29 := (m.Delete == false)
 	if var29 {
-		if err := fieldsTarget1.ZeroField("PermId"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("Delete"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget27, fieldTarget28, err := fieldsTarget1.StartField("PermId")
+		keyTarget27, fieldTarget28, err := fieldsTarget1.StartField("Delete")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget28.FromString(string(m.PermId), tt.NonOptional().Field(7).Type); err != nil {
+			if err := fieldTarget28.FromBool(bool(m.Delete), tt.NonOptional().Field(7).Type); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget27, fieldTarget28); err != nil {
@@ -414,18 +412,18 @@ func (m *LogRecMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var32 := (m.PermVers == "")
+	var32 := (m.BatchId == uint64(0))
 	if var32 {
-		if err := fieldsTarget1.ZeroField("PermVers"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("BatchId"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget30, fieldTarget31, err := fieldsTarget1.StartField("PermVers")
+		keyTarget30, fieldTarget31, err := fieldsTarget1.StartField("BatchId")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget31.FromString(string(m.PermVers), tt.NonOptional().Field(8).Type); err != nil {
+			if err := fieldTarget31.FromUint(uint64(m.BatchId), tt.NonOptional().Field(8).Type); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget30, fieldTarget31); err != nil {
@@ -433,59 +431,21 @@ func (m *LogRecMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var35 := (m.Delete == false)
+	var35 := (m.BatchCount == uint64(0))
 	if var35 {
-		if err := fieldsTarget1.ZeroField("Delete"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget33, fieldTarget34, err := fieldsTarget1.StartField("Delete")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-			if err := fieldTarget34.FromBool(bool(m.Delete), tt.NonOptional().Field(9).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget33, fieldTarget34); err != nil {
-				return err
-			}
-		}
-	}
-	var38 := (m.BatchId == uint64(0))
-	if var38 {
-		if err := fieldsTarget1.ZeroField("BatchId"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget36, fieldTarget37, err := fieldsTarget1.StartField("BatchId")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-			if err := fieldTarget37.FromUint(uint64(m.BatchId), tt.NonOptional().Field(10).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget36, fieldTarget37); err != nil {
-				return err
-			}
-		}
-	}
-	var41 := (m.BatchCount == uint64(0))
-	if var41 {
 		if err := fieldsTarget1.ZeroField("BatchCount"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget39, fieldTarget40, err := fieldsTarget1.StartField("BatchCount")
+		keyTarget33, fieldTarget34, err := fieldsTarget1.StartField("BatchCount")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget40.FromUint(uint64(m.BatchCount), tt.NonOptional().Field(11).Type); err != nil {
+			if err := fieldTarget34.FromUint(uint64(m.BatchCount), tt.NonOptional().Field(9).Type); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget39, fieldTarget40); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget33, fieldTarget34); err != nil {
 				return err
 			}
 		}
@@ -509,8 +469,6 @@ type LogRecMetadataTarget struct {
 	curVersTarget    vdl.StringTarget
 	parentsTarget    vdl.StringSliceTarget
 	updTimeTarget    time_2.TimeTarget
-	permIdTarget     vdl.StringTarget
-	permVersTarget   vdl.StringTarget
 	deleteTarget     vdl.BoolTarget
 	batchIdTarget    vdl.Uint64Target
 	batchCountTarget vdl.Uint64Target
@@ -554,14 +512,6 @@ func (t *LogRecMetadataTarget) StartField(name string) (key, field vdl.Target, _
 	case "UpdTime":
 		t.updTimeTarget.Value = &t.Value.UpdTime
 		target, err := &t.updTimeTarget, error(nil)
-		return nil, target, err
-	case "PermId":
-		t.permIdTarget.Value = &t.Value.PermId
-		target, err := &t.permIdTarget, error(nil)
-		return nil, target, err
-	case "PermVers":
-		t.permVersTarget.Value = &t.Value.PermVers
-		target, err := &t.permVersTarget, error(nil)
 		return nil, target, err
 	case "Delete":
 		t.deleteTarget.Value = &t.Value.Delete
@@ -611,12 +561,6 @@ func (t *LogRecMetadataTarget) ZeroField(name string) error {
 			return native
 		}()
 		return nil
-	case "PermId":
-		t.Value.PermId = ""
-		return nil
-	case "PermVers":
-		t.Value.PermVers = ""
-		return nil
 	case "Delete":
 		t.Value.Delete = false
 		return nil
@@ -640,7 +584,6 @@ func (t *LogRecMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
 type LogRec struct {
 	Metadata LogRecMetadata
 	Value    []byte
-	Shell    bool // true when the mutation data is hidden due to permissions.
 }
 
 func (LogRec) __VDLReflect(struct {
@@ -676,16 +619,12 @@ func (m *LogRec) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 
 	var12 := (wireValue11 == time_2.Time{})
 	var4 = var4 && var12
-	var13 := (m.Metadata.PermId == "")
+	var13 := (m.Metadata.Delete == false)
 	var4 = var4 && var13
-	var14 := (m.Metadata.PermVers == "")
+	var14 := (m.Metadata.BatchId == uint64(0))
 	var4 = var4 && var14
-	var15 := (m.Metadata.Delete == false)
+	var15 := (m.Metadata.BatchCount == uint64(0))
 	var4 = var4 && var15
-	var16 := (m.Metadata.BatchId == uint64(0))
-	var4 = var4 && var16
-	var17 := (m.Metadata.BatchCount == uint64(0))
-	var4 = var4 && var17
 	if var4 {
 		if err := fieldsTarget1.ZeroField("Metadata"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -705,44 +644,25 @@ func (m *LogRec) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var var20 bool
+	var var18 bool
 	if len(m.Value) == 0 {
-		var20 = true
+		var18 = true
 	}
-	if var20 {
+	if var18 {
 		if err := fieldsTarget1.ZeroField("Value"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("Value")
+		keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("Value")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
 
-			if err := fieldTarget19.FromBytes([]byte(m.Value), tt.NonOptional().Field(1).Type); err != nil {
+			if err := fieldTarget17.FromBytes([]byte(m.Value), tt.NonOptional().Field(1).Type); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
-				return err
-			}
-		}
-	}
-	var23 := (m.Shell == false)
-	if var23 {
-		if err := fieldsTarget1.ZeroField("Shell"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget21, fieldTarget22, err := fieldsTarget1.StartField("Shell")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-			if err := fieldTarget22.FromBool(bool(m.Shell), tt.NonOptional().Field(2).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget21, fieldTarget22); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
 				return err
 			}
 		}
@@ -761,7 +681,6 @@ type LogRecTarget struct {
 	Value          *LogRec
 	metadataTarget LogRecMetadataTarget
 	valueTarget    vdl.BytesTarget
-	shellTarget    vdl.BoolTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -783,10 +702,6 @@ func (t *LogRecTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		t.valueTarget.Value = &t.Value.Value
 		target, err := &t.valueTarget, error(nil)
 		return nil, target, err
-	case "Shell":
-		t.shellTarget.Value = &t.Value.Shell
-		target, err := &t.shellTarget, error(nil)
-		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.LogRec", name)
 	}
@@ -801,9 +716,6 @@ func (t *LogRecTarget) ZeroField(name string) error {
 		return nil
 	case "Value":
 		t.Value.Value = []byte(nil)
-		return nil
-	case "Shell":
-		t.Value.Shell = false
 		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.LogRec", name)

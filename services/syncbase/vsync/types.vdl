@@ -25,7 +25,6 @@ type DbSyncState struct {
 type LocalLogRec struct {
 	Metadata interfaces.LogRecMetadata
 	Pos      uint64 // position in the Database log.
-	Shell    bool   // indicates if the value was shelled by the sender.
 }
 
 // SgLocalState holds the syncgroup local state, only relevant to this member
@@ -78,7 +77,6 @@ type DagNode struct {
 	Parents  []string // references to parent versions
 	Logrec   string   // reference to log record
 	BatchId  uint64   // ID of a write batch
-	Shell    bool     // true when the data is hidden due to permissions
 	Deleted  bool     // true if the change was a delete
 	PermId   string   // ID of the permissions controlling this version
 	PermVers string   // current version of the permissions object

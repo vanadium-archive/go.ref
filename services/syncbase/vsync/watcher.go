@@ -266,7 +266,6 @@ func (s *syncService) processBatch(ctx *context.T, dbId wire.Id, batch []*LocalL
 		rec.Metadata.BatchId = batchId
 		rec.Metadata.BatchCount = totalCount
 
-		rec.Shell = false
 		rec.Pos = pos
 
 		gen++
@@ -299,7 +298,7 @@ func (s *syncService) processLocalLogRec(ctx *context.T, tx store.Transaction, r
 	logKey := logRecKey(logDataPrefix, m.Id, m.Gen)
 
 	// Insert the new log record into dag.
-	if err := s.addNode(ctx, tx, m.ObjId, m.CurVers, logKey, m.Delete, rec.Shell, m.Parents, m.BatchId, nil); err != nil {
+	if err := s.addNode(ctx, tx, m.ObjId, m.CurVers, logKey, m.Delete, m.Parents, m.BatchId, nil); err != nil {
 		return err
 	}
 

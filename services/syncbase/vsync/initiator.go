@@ -620,7 +620,7 @@ func (iSt *initiationState) recvAndProcessDeltas(ctx *context.T) error {
 				pos = iSt.config.sync.reservePosInDbLog(ctx, iSt.config.dbId, "", 1)
 			}
 
-			rec := &LocalLogRec{Metadata: v.Value.Metadata, Pos: pos, Shell: v.Value.Shell}
+			rec := &LocalLogRec{Metadata: v.Value.Metadata, Pos: pos}
 			batchId := rec.Metadata.BatchId
 			if batchId != NoBatchId {
 				if cnt, ok := batchMap[batchId]; !ok {
@@ -703,7 +703,7 @@ func (iSt *initiationState) insertRecInLogAndDag(ctx *context.T, rec *LocalLogRe
 	var err error
 	switch m.RecType {
 	case interfaces.NodeRec:
-		err = iSt.config.sync.addNode(ctx, tx, m.ObjId, m.CurVers, logKey, m.Delete, rec.Shell, m.Parents, m.BatchId, iSt.dagGraft)
+		err = iSt.config.sync.addNode(ctx, tx, m.ObjId, m.CurVers, logKey, m.Delete, m.Parents, m.BatchId, iSt.dagGraft)
 	case interfaces.LinkRec:
 		err = iSt.config.sync.addParent(ctx, tx, m.ObjId, m.CurVers, m.Parents[0], m.BatchId, iSt.dagGraft)
 	default:
@@ -730,7 +730,7 @@ func (iSt *initiationState) insertRecInDb(ctx *context.T, rec *LocalLogRec, valb
 	// deleted objects. Currently, the initiator needs to treat deletions
 	// specially since deletions do not get a version number or a special
 	// value in the Database.
-	if !rec.Metadata.Delete && !rec.Shell && rec.Metadata.RecType == interfaces.NodeRec {
+	if !rec.Metadata.Delete && rec.Metadata.RecType == interfaces.NodeRec {
 		return watchable.PutAtVersion(ctx, tx, []byte(m.ObjId), valbuf, []byte(m.CurVers))
 	}
 	return nil
@@ -1094,7 +1094,7 @@ func (iSt *initiationState) updateLogAndDag(ctx *context.T, objid string, batchM
 		m := rec.Metadata
 		switch m.RecType {
 		case interfaces.NodeRec:
-			err = iSt.config.sync.addNode(ctx, iSt.tx, objid, m.CurVers, logRecKey(pfx, m.Id, m.Gen), m.Delete, rec.Shell, m.Parents, NoBatchId, nil)
+			err = iSt.config.sync.addNode(ctx, iSt.tx, objid, m.CurVers, logRecKey(pfx, m.Id, m.Gen), m.Delete, m.Parents, NoBatchId, nil)
 		case interfaces.LinkRec:
 			err = iSt.config.sync.addParent(ctx, iSt.tx, objid, m.CurVers, m.Parents[0], m.BatchId, nil)
 		default:
