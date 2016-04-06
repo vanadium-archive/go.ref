@@ -5,6 +5,7 @@
 package main_test
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -96,23 +97,30 @@ func TestV23Vkube(t *testing.T) {
 				c := sh.Cmd(name, args...).WithCredentials(creds)
 				c.ExitErrorIsOk = true
 				plw := textutil.PrefixLineWriter(os.Stdout, fmt.Sprintf("%s(%s)> ", filepath.Base(name), d))
+				// gosh.Cmd isn't thread-safe. We can't call c.CombinedOutput() in this goroutine and
+				// c.Pid() in another one. Instead, we must use c.AddStdoutWriter(), c.AddStderrWriter(),
+				// c.Start(), c.Pid(), and c.Wait(), all in the same goroutine. Then, use syscall.Kill()
+				// in the other goroutine.
+				var output bytes.Buffer
+				c.AddStdoutWriter(&output)
+				c.AddStderrWriter(&output)
 				c.AddStdoutWriter(plw)
 				c.AddStderrWriter(plw)
+				c.Start()
 				exit := make(chan struct{})
 				go func(pid int) {
 					select {
 					case <-exit:
 					case <-time.After(d):
-						// gosh isn't thread-safe. We can't use c.Signal() here.
-						syscall.Kill(-pid, syscall.SIGINT)
+						syscall.Kill(pid, syscall.SIGINT)
 						time.Sleep(time.Second)
-						syscall.Kill(-pid, syscall.SIGKILL)
+						syscall.Kill(pid, syscall.SIGKILL)
 					}
 				}(c.Pid())
-				output := c.CombinedOutput()
+				c.Wait()
 				close(exit)
 				plw.Flush()
-				return output, c.Err
+				return output.String(), c.Err
 			}
 		}
 		gsutil      = cmd("gsutil", true)
