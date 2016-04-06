@@ -112,9 +112,9 @@ func TestV23Vkube(t *testing.T) {
 					select {
 					case <-exit:
 					case <-time.After(d):
-						syscall.Kill(pid, syscall.SIGINT)
+						syscall.Kill(-pid, syscall.SIGINT)
 						time.Sleep(time.Second)
-						syscall.Kill(pid, syscall.SIGKILL)
+						syscall.Kill(-pid, syscall.SIGKILL)
 					}
 				}(c.Pid())
 				c.Wait()
