@@ -123,7 +123,7 @@ type sgPublishInfo struct {
 }
 
 // initSync initializes the sync module during startup. It scans all the
-// databases across all apps to initialize the following:
+// databases to initialize the following:
 // a) in-memory sync state of a Database and all its syncgroups consisting of
 // the current generation number, log position and generation vectors.
 // b) watcher map of prefixes currently being synced.

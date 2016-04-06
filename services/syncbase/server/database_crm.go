@@ -19,8 +19,8 @@ func (d *databaseReq) StartConflictResolver(ctx *context.T, call wire.ConflictMa
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 
-	// Store the conflict resolver connection in the per-app, per-database
-	// singleton so that sync can access it.
+	// Store the conflict resolver connection in the per-database singleton
+	// so that sync can access it.
 	vlog.VI(2).Infof("cr: StartConflictResolver: resolution stream established")
 
 	d.database.crMu.Lock()

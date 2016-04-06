@@ -42,7 +42,7 @@ func nue(msg string) error {
 // returned error specifies why the data was not updated.
 // TODO(sadovsky): This design assumes trust across syncgroups, which is
 // generally not desirable. Eventually we may need to perform
-// MaybeUpdateFromPeerData separately for each app or syncgroup, or something
+// MaybeUpdateFromPeerData separately for each db or syncgroup, or something
 // along these lines.
 func MaybeUpdateFromPeerData(c *VClock, data *VClockData, psd *PeerSyncData) (*VClockData, error) {
 	// Same skew calculation as in NTP.

@@ -115,8 +115,8 @@ func (t *GenVectorTarget) FinishMap(elem vdl.MapTarget) error {
 }
 
 // Knowledge is a mapping of syncable entities to their generation
-// vectors. These syncable entities could be data prefixes relative to an
-// Application and Database name, or syncgroup oids.
+// vectors. These syncable entities could be data prefixes relative to a
+// Database id, or syncgroup oids.
 type Knowledge map[string]GenVector
 
 func (Knowledge) __VDLReflect(struct {

@@ -47,10 +47,9 @@ var (
 	// management actions.
 	peerManagementInterval = peerSyncInterval / 5
 
-	// watchPollInterval is the duration between consecutive watch polling
-	// events across all app databases.  Every watch event loops across all
-	// app databases and fetches from each one at most one batch update
-	// (transaction) to process.
+	// watchPollInterval is the duration between consecutive watch polling events
+	// across all databases.  Every watch event loops across all databases and
+	// fetches from each one at most one batch update (transaction) to process.
 	// TODO(rdaoud): add a channel between store and watch to get change
 	// notifications instead of using a polling solution.
 	watchPollInterval = 100 * time.Millisecond

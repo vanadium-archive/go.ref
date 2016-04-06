@@ -115,8 +115,8 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 	st, err := storeutil.OpenStore(opts.Engine, filepath.Join(opts.RootDir, opts.Engine), storeutil.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
 	if err != nil {
 		// If the top-level store is corrupt, we lose the meaning of all of the
-		// app-level databases. util.OpenStore moved the top-level store aside, but
-		// it didn't do anything about the app-level stores.
+		// db-level stores. util.OpenStore moved the top-level store aside, but
+		// it didn't do anything about the db-level stores.
 		if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
 			vlog.Errorf("top-level store is corrupt, moving all databases aside")
 			appDir := filepath.Join(opts.RootDir, common.AppDir)
@@ -217,8 +217,8 @@ func (s *service) openDatabases(ctx *context.T) error {
 		})
 		if err != nil {
 			// If the database is corrupt, openDatabase will have moved it aside. We
-			// need to delete the app's reference to the database so that the client
-			// application can recreate the database the next time it starts.
+			// need to delete the service's reference to the database so that the
+			// client application can recreate the database the next time it starts.
 			if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
 				vlog.Errorf("database %v is corrupt, deleting the reference to it", info.Id)
 				if err2 := delDbInfo(ctx, s.st, info.Id); err2 != nil {
@@ -263,7 +263,7 @@ func (s *service) AddNames(ctx *context.T, svr rpc.Server) error {
 
 // Close shuts down this Syncbase instance.
 //
-// TODO(hpucha): Close or cleanup Syncbase app/db data structures.
+// TODO(hpucha): Close or cleanup Syncbase database data structures.
 func (s *service) Close() {
 	s.vclockD.Close()
 	vsync.Close(s.sync)
@@ -545,10 +545,10 @@ func (s *service) rootDirForDb(dbId wire.Id) (string, error) {
 	// Note: Common Linux filesystems such as ext4 allow almost any character to
 	// appear in a filename, but other filesystems are more restrictive. For
 	// example, by default the OS X filesystem uses case-insensitive filenames.
-	// To play it safe, we hex-encode app and database names, yielding filenames
-	// that match "^[0-9a-f]+$". To allow recreating databases independently of
-	// garbage collecting old destroyed versions, a random suffix is appended to
-	// the database name.
+	// To play it safe, we hex-encode app blessings and database names, yielding
+	// filenames that match "^[0-9a-f]+$". To allow recreating databases
+	// independently of garbage collecting old destroyed versions, a random
+	// suffix is appended to the database name.
 	blessingHex := hex.EncodeToString([]byte(dbId.Blessing))
 	nameHex := hex.EncodeToString([]byte(dbId.Name))
 	var suffix [32]byte

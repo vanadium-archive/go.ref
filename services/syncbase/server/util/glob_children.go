@@ -16,7 +16,7 @@ import (
 )
 
 // Note, Syncbase handles Glob requests by implementing GlobChildren__ at each
-// level (service, app, database, collection).
+// level (service, database, collection).
 
 // GlobChildren implements glob over the Syncbase namespace.
 func GlobChildren(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element, sntx store.SnapshotOrTransaction, stKeyPrefix string) error {

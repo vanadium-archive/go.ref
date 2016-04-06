@@ -54,10 +54,10 @@ type memberView struct {
 }
 
 // memberInfo holds the member metadata for each syncgroup this member belongs
-// to within each App/Database (i.e. global database name). It's a mapping of
-// global DB names to sets of syncgroup member information. It also maintains
-// all the mount table candidates that could be used to reach this peer, learned
-// from the syncgroup metadata.
+// to within each database. It's a mapping of database ids (globally unique
+// because they include app blessings) to sets of syncgroup member information.
+// It also maintains all the mount table candidates that could be used to reach
+// this peer, learned from the syncgroup metadata.
 type memberInfo struct {
 	db2sg    map[wire.Id]sgMemberInfo
 	mtTables map[string]struct{}
@@ -376,8 +376,8 @@ func delSyncgroupByName(ctx *context.T, bst blob.BlobStore, tx *watchable.Transa
 
 // refreshMembersIfExpired updates the aggregate view of syncgroup members
 // across databases if the view has expired.
-// TODO(rdaoud): track dirty apps/dbs since the last refresh and incrementally
-// update the membership view for them instead of always scanning all of them.
+// TODO(rdaoud): track dirty dbs since the last refresh and incrementally update
+// the membership view for them instead of always scanning all of them.
 func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 	view := s.allMembers
 	if view == nil {
@@ -391,7 +391,7 @@ func (s *syncService) refreshMembersIfExpired(ctx *context.T) {
 		return
 	}
 
-	// Create a new aggregate view of syncgroup members across all app databases.
+	// Create a new aggregate view of syncgroup members across all databases.
 	newMembers := make(map[string]*memberInfo)
 
 	s.forEachDatabaseStore(ctx, func(dbId wire.Id, st *watchable.Store) bool {
@@ -899,7 +899,7 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgNam
 		return nullSpec, err
 	}
 
-	// Verify that the app/db combination is valid for this syncgroup.
+	// Verify that the database id is valid for this syncgroup.
 	if sg2.DbId != sd.db.Id() {
 		return nullSpec, verror.New(verror.ErrBadArg, ctx, "bad db with syncgroup")
 	}
@@ -1418,17 +1418,17 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 	var stDbId wire.Id
 	nullSG, nullGV := interfaces.Syncgroup{}, interfaces.GenVector{}
 
-	// Bootstrap error so that when there are no apps/dbs on this device,
+	// Bootstrap error so that when there are no databases on this device,
 	// the err doesn't stay nil.
 	var err error = verror.New(verror.ErrNoExist, ctx, "Syncgroup not found", sgName)
 
 	// Find the database store for this syncgroup.
 	//
-	// TODO(hpucha): At a high level, we have yet to decide if the SG name
-	// is stand-alone or is derived from the app/db namespace, based on the
-	// feedback from app developers (see discussion in syncgroup API
-	// doc). If we decide to keep the SG name as stand-alone, this scan can
-	// be optimized by a lazy cache of sgname to <app, db> info.
+	// TODO(hpucha): At a high level, we have yet to decide if the SG name is
+	// stand-alone or is derived from the db id, based on the feedback from app
+	// developers (see discussion in syncgroup API doc). If we decide to keep the
+	// SG name as stand-alone, this scan can be optimized by a lazy cache of
+	// sgname to db info.
 	s.forEachDatabaseStore(ctx, func(dbId wire.Id, st *watchable.Store) bool {
 		if gid, err = getSyncgroupId(ctx, st, sgName); err == nil {
 			// Found the syncgroup being looked for.

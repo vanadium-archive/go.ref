@@ -249,7 +249,7 @@ func (c *collectionReq) stKeyPart() string {
 // invalidate the modification.
 // TODO(rogulenko): Revisit this behavior. Eventually we'll want the
 // collection-level access check to be a check for "Resolve", i.e. also check
-// access to service, app and database.
+// access to service and database.
 func (c *collectionReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) error {
 	if err := util.GetWithAuth(ctx, call, sntx, c.permsKey(), &CollectionPerms{}); err != nil {
 		return err

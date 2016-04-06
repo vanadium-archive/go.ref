@@ -32,7 +32,7 @@ import (
 
 var (
 	// watchPrefixes is an in-memory cache of syncgroup prefixes for each
-	// app database.  It is filled at startup from persisted syncgroup data
+	// database.  It is filled at startup from persisted syncgroup data
 	// and updated at runtime when syncgroups are joined or left.  It is
 	// not guarded by a mutex because only the watcher goroutine uses it
 	// beyond the startup phase (before any sync goroutines are started).
@@ -124,10 +124,9 @@ func (s *syncService) processDatabase(ctx *context.T, dbId wire.Id, st store.Sto
 	// Get a batch of watch log entries, if any, after this resume marker.
 	logs, nextResmark, err := watchable.ReadBatchFromLog(st, resMark)
 	if err != nil {
-		// An error here (scan stream cancelled) is possible when the
-		// watcher is in the middle of processing a database and the
-		// app/db is detroyed. Hence, we just ignore this database and
-		// proceed.
+		// An error here (scan stream cancelled) is possible when the watcher is in
+		// the middle of processing a database when it is destroyed. Hence, we just
+		// ignore this database and proceed.
 		vlog.Errorf("sync: processDatabase: %v: cannot get watch log batch: %v", dbId, verror.DebugString(err))
 		return false
 	}
@@ -209,7 +208,7 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, dbId wire.Id, st stor
 	})
 
 	if err != nil {
-		// TODO(rdaoud): quarantine this app database for other errors.
+		// TODO(rdaoud): quarantine this database for other errors.
 		// There may be an error here if the database is recently
 		// destroyed. Ignore the error and continue to another database.
 		vlog.Errorf("sync: processWatchLogBatch: %v: watcher cannot process batch: %v", dbId, err)
@@ -480,7 +479,7 @@ func processDbStateChangeLogRecord(ctx *context.T, s *syncService, st store.Stor
 			}
 			return setResMark(ctx, tx, resMark)
 		}); err != nil {
-			// TODO(rdaoud): don't crash, quarantine this app database.
+			// TODO(rdaoud): don't crash, quarantine this database.
 			vlog.Fatalf("sync: processDbStateChangeLogRecord: %v: watcher failed to reset dbState bits: %v", dbId, err)
 		}
 		// Update isPaused state in cache.
@@ -493,8 +492,8 @@ func processDbStateChangeLogRecord(ctx *context.T, s *syncService, st store.Stor
 }
 
 // processSyncgroupLogRecord checks if the log entry is a syncgroup update and,
-// if it is, updates the watch prefixes for the app database and returns a
-// syncgroup operation.  Otherwise it returns nil with no other changes.
+// if it is, updates the watch prefixes for the database and returns a syncgroup
+// operation.  Otherwise it returns nil with no other changes.
 // TODO(razvanm): change the return to also include an error.
 func processSyncgroupLogRecord(dbId wire.Id, logEnt *watchable.LogEntry) *sbwatchable.SyncgroupOp {
 	var op interface{}
@@ -520,8 +519,8 @@ func processSyncgroupLogRecord(dbId wire.Id, logEnt *watchable.LogEntry) *sbwatc
 }
 
 // syncable returns true if the given log entry falls within the scope of a
-// syncgroup prefix for the given app database, and thus should be synced.
-// It is used to pre-filter the batch of log entries before sync processing.
+// syncgroup prefix for the given database, and thus should be synced. It is
+// used to pre-filter the batch of log entries before sync processing.
 // TODO(razvanm): change the return type to error.
 func syncable(dbId wire.Id, logEnt *watchable.LogEntry) bool {
 	var key string

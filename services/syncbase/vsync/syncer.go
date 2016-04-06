@@ -17,11 +17,11 @@ import (
 // needed and pick a peer from all the known remote peers to sync with. (2) Act
 // as an initiator and sync syncgroup metadata for all common syncgroups with
 // the chosen peer (getting updates from the remote peer, detecting and
-// resolving conflicts) (3) Act as an initiator and sync data corresponding to
-// all common syncgroups across all Apps/Databases with the chosen peer; (4)
-// Fetch any queued blobs. (5) Transfer ownership of blobs if needed. (6) Act as
-// a syncgroup publisher to publish pending syncgroups; (6) Garbage collect
-// older generations.
+// resolving conflicts). (3) Act as an initiator and sync data corresponding to
+// all common syncgroups across all Databases with the chosen peer. (4) Fetch
+// any queued blobs. (5) Transfer ownership of blobs if needed. (6) Act as a
+// syncgroup publisher to publish pending syncgroups. (6) Garbage collect older
+// generations.
 //
 // TODO(hpucha): Currently only does initiation. Add rest.
 func (s *syncService) syncer(ctx *context.T) {

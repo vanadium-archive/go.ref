@@ -23,12 +23,12 @@ const (
 	nanoPerSec = int64(1000000000)
 )
 
-// forEachDatabaseStore iterates over all Databases in all Apps within the
-// service and invokes the callback function on each database. The callback
-// returns a "done" flag to make forEachDatabaseStore() stop the iteration
-// earlier; otherwise the function loops across all databases of all apps.
+// forEachDatabaseStore iterates over all Databases within the service and
+// invokes the callback function on each. The callback returns a "done" flag
+// to make forEachDatabaseStore() stop the iteration earlier; otherwise the
+// function loops across all databases.
 func (s *syncService) forEachDatabaseStore(ctx *context.T, callback func(wire.Id, *watchable.Store) bool) {
-	// Get the apps and iterate over them.
+	// Get the databases and iterate over them.
 	// TODO(rdaoud): use a "privileged call" parameter instead of nil (here and
 	// elsewhere).
 	dbIds, err := s.sv.DatabaseIds(ctx, nil)

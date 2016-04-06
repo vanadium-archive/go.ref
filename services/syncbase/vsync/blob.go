@@ -958,7 +958,7 @@ func peerLocationData(isServer bool, isProxy bool) interfaces.LocationData {
 // it all blob refs.  For each of these blob refs, it updates the blob metadata
 // to associate to it the sync peer, the source, and the matching syncgroups.
 // isCreator indicates whether the current device is the likely initial creator of the blob.
-// allSgPrefixes contains all the syncgroups in the app/db that the current device is aware of.
+// allSgPrefixes contains all the syncgroups in the db that the current device is aware of.
 // sharedSgPrefixes contains only those shared with a peer device that provided this data;
 // it is nil if the data was created locally.
 func (s *syncService) processBlobRefs(ctx *context.T, dbId wire.Id, st store.StoreReader, peer string, isCreator bool,

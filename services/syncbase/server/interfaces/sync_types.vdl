@@ -32,8 +32,8 @@ const (
 type GenVector map[uint64]uint64
 
 // Knowledge is a mapping of syncable entities to their generation
-// vectors. These syncable entities could be data prefixes relative to an
-// Application and Database name, or syncgroup oids.
+// vectors. These syncable entities could be data prefixes relative to a
+// Database id, or syncgroup oids.
 type Knowledge map[string]GenVector
 
 // LogRecMetadata represents the metadata of a single log record that is

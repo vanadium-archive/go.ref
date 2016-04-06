@@ -41,12 +41,12 @@ type crRecvStream interface {
 // 2) Stream each batch info within the group to the app.
 // 3) Stream each conflict info row within the group to the app with the last
 //    row containing continued=false.
-// 4) Receive a batch of resolutions from App. This is a blocking step.
+// 4) Receive a batch of resolutions from app. This is a blocking step.
 // 5) Verify if all conflicts sent within the group have a corresponding
 //    resolution.
 // 6) Process each resolution info object by assigning an appropriate
 //    conflictResolution object to the Oid under conflict.
-// TODO(jlodhia): Add a timeout for waiting on App's resolution.
+// TODO(jlodhia): Add a timeout for waiting on app's resolution.
 func (iSt *initiationState) resolveViaApp(ctx *context.T, groupedConflicts *groupedCrData) error {
 	db := iSt.config.db
 	appConn := db.CrConnectionStream()

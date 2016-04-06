@@ -5,8 +5,8 @@
 package vsync
 
 // Initiator requests deltas from a chosen peer for all the syncgroups in common
-// across all apps/databases. It then modifies the sync metadata (DAG and local
-// log records) based on the deltas, detects and resolves conflicts if any, and
+// across all databases. It then modifies the sync metadata (DAG and local log
+// records) based on the deltas, detects and resolves conflicts if any, and
 // suitably updates the local Databases.
 
 import (
