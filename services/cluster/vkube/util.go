@@ -36,36 +36,33 @@ func localAgentAddress(config *vkubeConfig) string {
 	)
 }
 
-// readResourceConfig reads a Deployment or ReplicationController config from a
-// file.
-func readResourceConfig(fileName string) (string, object, error) {
+// readResourceConfig reads a Deployment config from a file.
+func readResourceConfig(fileName string) (object, error) {
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
-	var rc object
-	if err := rc.importJSON(data); err != nil {
-		return "", nil, err
+	var dep object
+	if err := dep.importJSON(data); err != nil {
+		return nil, err
 	}
-	kind := rc.getString("kind")
-	if kind != Deployment && kind != ReplicationController {
-		return "", nil, fmt.Errorf("expected kind=%q or kind=%q, got %q", Deployment, ReplicationController, kind)
+	if kind := dep.getString("kind"); kind != Deployment {
+		return nil, fmt.Errorf("expected kind=%q, got %q", Deployment, kind)
 	}
-	return kind, rc, nil
+	return dep, nil
 }
 
-// addPodAgent takes a Deployment, ReplicationController, or Pod object and adds
-// a pod-agent container to it. The existing containers are updated to use the
-// pod agent.
+// addPodAgent takes a Deployment, or Pod object and adds a pod-agent container
+// to it. The existing containers are updated to use the pod agent.
 func addPodAgent(ctx *context.T, config *vkubeConfig, obj object, secretName, rootBlessings string) error {
 	var base string
 	switch kind := obj.getString("kind"); kind {
-	case Deployment, ReplicationController:
+	case Deployment:
 		base = "spec.template."
 	case Pod:
 		base = ""
 	default:
-		return fmt.Errorf("expected kind=%q, %q, or %q, got %q", Deployment, ReplicationController, Pod, kind)
+		return fmt.Errorf("expected kind=%q, or %q, got %q", Deployment, Pod, kind)
 	}
 
 	// Add the volumes used by the pod agent container.
@@ -209,24 +206,12 @@ func createDeployment(ctx *context.T, config *vkubeConfig, rc object, secretName
 	return nil
 }
 
-// createReplicationController takes a ReplicationController object, adds a
-// pod-agent, and then creates it on kubernetes.
-func createReplicationController(ctx *context.T, config *vkubeConfig, rc object, secretName string) error {
-	if err := addPodAgent(ctx, config, rc, secretName, rootBlessings(ctx)); err != nil {
-		return err
-	}
-	if out, err := kubectlCreate(rc); err != nil {
-		return fmt.Errorf("failed to create replication controller: %v\n%s\n", err, string(out))
-	}
-	return nil
-}
-
 // updateDeployment takes a Deployment object, adds a pod-agent (if needed),
 // and then applies the update.
 func updateDeployment(ctx *context.T, config *vkubeConfig, rc object, stdout, stderr io.Writer) error {
 	name := rc.getString("metadata.name")
 	namespace := rc.getString("metadata.namespace")
-	secretName, rootBlessings, err := findPodAttributes(Deployment, name, namespace)
+	secretName, rootBlessings, err := findPodAttributes(name, namespace)
 	if err != nil {
 		return err
 	}
@@ -302,67 +287,6 @@ func watchDeploymentRollout(name, namespace string, timeout time.Duration, stdou
 	return errors.New("deployment rollout failed, rolled back.")
 }
 
-// updateReplicationController takes a ReplicationController object, adds a
-// pod-agent (if needed), and then performs a rolling update.
-func updateReplicationController(ctx *context.T, config *vkubeConfig, rc object, stdout, stderr io.Writer) error {
-	namespace := rc.getString("metadata.namespace")
-	oldNames, err := findReplicationControllerNamesForApp(rc.getString("spec.template.metadata.labels.application"), namespace)
-	if err != nil {
-		return err
-	}
-	if len(oldNames) != 1 {
-		return fmt.Errorf("found %d replication controllers for this application: %q", len(oldNames), oldNames)
-	}
-	if oldNames[0] == rc.getString("metadata.name") {
-		// Assume this update is a no op.
-		fmt.Fprintf(stderr, "replication controller %q already exists\n", oldNames[0])
-		return nil
-	}
-	secretName, rootBlessings, err := findPodAttributes(ReplicationController, oldNames[0], namespace)
-	if err != nil {
-		return err
-	}
-	if secretName != "" {
-		if err := addPodAgent(ctx, config, rc, secretName, rootBlessings); err != nil {
-			return err
-		}
-	}
-	if hasPersistentDisk(rc) {
-		// Rolling updates with persistent disks don't work because
-		// the new Pod cannot come up until the old one has released
-		// the disk. Instead, we create the new RC and delete the old
-		// one.
-		if out, err := kubectlCreate(rc); err != nil {
-			return fmt.Errorf("failed to create replication controller: %v: %s", err, string(out))
-		}
-		if out, err := kubectl("delete", "rc", oldNames[0], "--namespace="+namespace); err != nil {
-			return fmt.Errorf("failed to delete replication controller %q: %v: %s", oldNames[0], err, string(out))
-		}
-		return nil
-	}
-	json, err := rc.json()
-	if err != nil {
-		return err
-	}
-	cmd := exec.Command(flagKubectlBin, "rolling-update", oldNames[0], "-f", "-", "--namespace="+namespace)
-	cmd.Stdin = bytes.NewBuffer(json)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to update replication controller %q: %v\n", oldNames[0], err)
-	}
-	return nil
-}
-
-func hasPersistentDisk(obj object) bool {
-	for _, v := range obj.getObjectArray("spec.template.spec.volumes") {
-		if v.get("gcePersistentDisk") != nil {
-			return true
-		}
-	}
-	return false
-}
-
 // createNamespaceIfNotExist creates a Namespace object if it doesn't already exist.
 func createNamespaceIfNotExist(name string) error {
 	if _, err := kubectl("get", "namespace", name); err == nil {
@@ -389,49 +313,24 @@ func makeSecretName() (string, error) {
 	return fmt.Sprintf("secret-%s", hex.EncodeToString(b)), nil
 }
 
-// findReplicationControllerNamesForApp returns the names of the
-// ReplicationController that are currently used to run the given application.
-func findReplicationControllerNamesForApp(app, namespace string) ([]string, error) {
-	data, err := kubectl("--namespace="+namespace, "get", "rc", "-l", "application="+app, "-o", "json")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get replication controller for application %q: %v\n%s\n", app, err, string(data))
-	}
-	var list object
-	if err := list.importJSON(data); err != nil {
-		return nil, fmt.Errorf("failed to parse kubectl output: %v", err)
-	}
-	names := []string{}
-	for _, item := range list.getObjectArray("items") {
-		names = append(names, item.getString("metadata.name"))
-	}
-	return names, nil
-}
-
 // findPodAttributes finds the name of the Secret object and root blessings
-// associated the given Deployment or Replication Controller.
-func findPodAttributes(kind, name, namespace string) (string, string, error) {
+// associated the given Deployment.
+func findPodAttributes(name, namespace string) (string, string, error) {
 	var (
 		data []byte
 		err  error
 	)
-	switch kind {
-	case Deployment:
-		if data, err = kubectl("--namespace="+namespace, "get", "deployment", name, "-o", "json"); err != nil {
-			return "", "", fmt.Errorf("failed to get deployment %q: %v\n%s\n", name, err, string(data))
-		}
-	case ReplicationController:
-		if data, err = kubectl("--namespace="+namespace, "get", "rc", name, "-o", "json"); err != nil {
-			return "", "", fmt.Errorf("failed to get replication controller %q: %v\n%s\n", name, err, string(data))
-		}
+	if data, err = kubectl("--namespace="+namespace, "get", "deployment", name, "-o", "json"); err != nil {
+		return "", "", fmt.Errorf("failed to get deployment %q: %v\n%s\n", name, err, string(data))
 	}
-	var rc object
-	if err := rc.importJSON(data); err != nil {
+	var dep object
+	if err := dep.importJSON(data); err != nil {
 		return "", "", fmt.Errorf("failed to parse kubectl output: %v", err)
 	}
 
 	// Find secret.
 	var secret string
-	for _, v := range rc.getObjectArray("spec.template.spec.volumes") {
+	for _, v := range dep.getObjectArray("spec.template.spec.volumes") {
 		if v.getString("name") == "agent-secret" {
 			secret = v.getString("secret.secretName")
 			break
@@ -441,7 +340,7 @@ func findPodAttributes(kind, name, namespace string) (string, string, error) {
 	// Find root blessings.
 	var root string
 L:
-	for _, c := range rc.getObjectArray("spec.template.spec.containers") {
+	for _, c := range dep.getObjectArray("spec.template.spec.containers") {
 		if c.getString("name") == "pod-agent" {
 			for _, e := range c.getObjectArray("env") {
 				if e.getString("name") == "ROOT_BLESSINGS" {
@@ -452,61 +351,6 @@ L:
 		}
 	}
 	return secret, root, nil
-}
-
-func readyPods(appName, namespace string) ([]string, error) {
-	data, err := kubectl("--namespace="+namespace, "get", "pod", "-l", "application="+appName, "-o", "json")
-	if err != nil {
-		return nil, err
-	}
-	var list object
-	if err := list.importJSON(data); err != nil {
-		return nil, fmt.Errorf("failed to parse kubectl output: %v", err)
-	}
-	names := []string{}
-L:
-	for _, item := range list.getObjectArray("items") {
-		if item.get("status.phase") != "Running" {
-			continue
-		}
-		for _, status := range item.getObjectArray("status.containerStatuses") {
-			if status.get("ready") == false {
-				if status.getInt("restartCount", 0) >= 5 {
-					return nil, fmt.Errorf("application is failing: %#v", item)
-				}
-				continue L
-			}
-		}
-		for _, cond := range item.getObjectArray("status.conditions") {
-			if cond.get("type") == "Ready" && cond.get("status") == "True" {
-				names = append(names, item.getString("metadata.name"))
-				break
-			}
-		}
-	}
-	return names, nil
-}
-
-func waitForReadyPods(numReplicas int, timeout time.Duration, appName, namespace string) error {
-	lastChange := time.Now()
-	var previousCount int
-	for time.Since(lastChange) < timeout {
-		n, err := readyPods(appName, namespace)
-		if err != nil {
-			time.Sleep(time.Second)
-			continue
-		}
-		count := len(n)
-		if count >= numReplicas {
-			return nil
-		}
-		if count != previousCount {
-			lastChange = time.Now()
-			previousCount = count
-		}
-		time.Sleep(time.Second)
-	}
-	return errors.New("timeout waiting for pods to become ready")
 }
 
 // kubectlCreate runs 'kubectl create -f' on the given object and returns the

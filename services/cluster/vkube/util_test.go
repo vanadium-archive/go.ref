@@ -21,8 +21,8 @@ func TestAddPodAgent(t *testing.T) {
 
 	const (
 		myAppJSON = `{
-  "apiVersion": "v1",
-  "kind": "ReplicationController",
+  "apiVersion": "extensions/v1beta1",
+  "kind": "Deployment",
   "metadata": {
     "name": "my-app",
     "labels": {
@@ -59,8 +59,8 @@ func TestAddPodAgent(t *testing.T) {
 }`
 
 		expected = `{
-  "apiVersion": "v1",
-  "kind": "ReplicationController",
+  "apiVersion": "extensions/v1beta1",
+  "kind": "Deployment",
   "metadata": {
     "labels": {
       "run": "my-app"

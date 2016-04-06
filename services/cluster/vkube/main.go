@@ -43,9 +43,8 @@ var (
 )
 
 const (
-	Deployment            = "Deployment"
-	Pod                   = "Pod"
-	ReplicationController = "ReplicationController"
+	Deployment = "Deployment"
+	Pod        = "Pod"
 )
 
 func main() {
@@ -152,28 +151,15 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 	if flagResourceFile == "" {
 		return env.UsageErrorf("-f must be specified.")
 	}
-	kind, rc, err := readResourceConfig(flagResourceFile)
+	dep, err := readResourceConfig(flagResourceFile)
 	if err != nil {
 		return err
 	}
-	for _, v := range []string{"spec.template.metadata.labels.application", "spec.template.metadata.labels.version"} {
-		if rc.getString(v) == "" {
-			fmt.Fprintf(env.Stderr, "WARNING: %q is not set. Rolling updates will not work.\n", v)
-		}
-	}
-	namespace := rc.getString("metadata.namespace")
-	appName := rc.getString("spec.template.metadata.labels.application")
-
-	if kind == ReplicationController {
-		if n, err := findReplicationControllerNamesForApp(appName, namespace); err != nil {
-			return err
-		} else if len(n) != 0 {
-			return fmt.Errorf("replication controller for application=%q already running: %q", appName, n)
-		}
-	}
+	namespace := dep.getString("metadata.namespace")
+	appName := dep.getString("spec.template.metadata.labels.application")
 
 	if flagNoBlessings {
-		if out, err := kubectlCreate(rc); err != nil {
+		if out, err := kubectlCreate(dep); err != nil {
 			fmt.Fprintln(env.Stderr, string(out))
 			return err
 		}
@@ -192,8 +178,7 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 		}
 		fmt.Fprintln(env.Stdout, "Created secret successfully.")
 
-		// Delete Secret if we encounter an error while creating the Deployment
-		// or Replication Controller.
+		// Delete Secret if we encounter an error while creating the Deployment.
 		needToDeleteSecret := true
 		defer func() {
 			if needToDeleteSecret {
@@ -204,34 +189,17 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 			}
 		}()
 
-		switch kind {
-		case Deployment:
-			if err := createDeployment(ctx, config, rc, secretName); err != nil {
-				return err
-			}
-			if flagWait {
-				if err := watchDeploymentRollout(appName, namespace, flagWaitTimeout, env.Stdout); err != nil {
-					return err
-				}
-			}
-			fmt.Fprintln(env.Stdout, "Created deployment successfully.")
-		case ReplicationController:
-			if err := createReplicationController(ctx, config, rc, secretName); err != nil {
-				return err
-			}
-			fmt.Fprintln(env.Stdout, "Created replication controller successfully.")
-			if flagWait {
-				numReplicas := rc.getInt("spec.replicas", 1)
-				if err := waitForReadyPods(numReplicas, flagWaitTimeout, appName, namespace); err != nil {
-					return err
-				}
-				fmt.Fprintln(env.Stdout, "Application is ready.")
-			}
-		default:
-			return fmt.Errorf("unexpected kind: %q", kind)
+		if err := createDeployment(ctx, config, dep, secretName); err != nil {
+			return err
 		}
 		needToDeleteSecret = false
 	}
+	if flagWait {
+		if err := watchDeploymentRollout(appName, namespace, flagWaitTimeout, env.Stdout); err != nil {
+			return err
+		}
+	}
+	fmt.Fprintln(env.Stdout, "Created deployment successfully.")
 	return nil
 }
 
@@ -246,40 +214,21 @@ func runCmdUpdate(ctx *context.T, env *cmdline.Env, args []string, config *vkube
 	if flagResourceFile == "" {
 		return env.UsageErrorf("-f must be specified.")
 	}
-	kind, rc, err := readResourceConfig(flagResourceFile)
+	dep, err := readResourceConfig(flagResourceFile)
 	if err != nil {
 		return err
 	}
-	switch kind {
-	case ReplicationController:
-		if err := updateReplicationController(ctx, config, rc, env.Stdout, env.Stderr); err != nil {
-			return err
-		}
-		if flagWait {
-			namespace := rc.getString("metadata.namespace")
-			appName := rc.getString("spec.template.metadata.labels.application")
-			numReplicas := rc.getInt("spec.replicas", 1)
-			if err := waitForReadyPods(numReplicas, flagWaitTimeout, appName, namespace); err != nil {
-				return err
-			}
-			fmt.Fprintln(env.Stdout, "Application is ready.")
-		}
-		fmt.Fprintln(env.Stdout, "Updated replication controller successfully.")
-	case Deployment:
-		if err := updateDeployment(ctx, config, rc, env.Stdout, env.Stderr); err != nil {
-			return err
-		}
-		if flagWait {
-			name := rc.getString("metadata.name")
-			namespace := rc.getString("metadata.namespace")
-			if err := watchDeploymentRollout(name, namespace, flagWaitTimeout, env.Stdout); err != nil {
-				return err
-			}
-		}
-		fmt.Fprintln(env.Stdout, "Updated deployment successfully.")
-	default:
-		return fmt.Errorf("unexpected kind: %q", kind)
+	if err := updateDeployment(ctx, config, dep, env.Stdout, env.Stderr); err != nil {
+		return err
 	}
+	if flagWait {
+		name := dep.getString("metadata.name")
+		namespace := dep.getString("metadata.namespace")
+		if err := watchDeploymentRollout(name, namespace, flagWaitTimeout, env.Stdout); err != nil {
+			return err
+		}
+	}
+	fmt.Fprintln(env.Stdout, "Updated deployment successfully.")
 
 	return nil
 }
@@ -295,33 +244,23 @@ func runCmdStop(ctx *context.T, env *cmdline.Env, args []string, config *vkubeCo
 	if flagResourceFile == "" {
 		return env.UsageErrorf("-f must be specified.")
 	}
-	kind, rc, err := readResourceConfig(flagResourceFile)
+	dep, err := readResourceConfig(flagResourceFile)
 	if err != nil {
 		return err
 	}
-	name := rc.getString("metadata.name")
+	name := dep.getString("metadata.name")
 	if name == "" {
 		return fmt.Errorf("metadata.name must be set")
 	}
-	namespace := rc.getString("metadata.namespace")
-	secretName, rootBlessings, err := findPodAttributes(kind, name, namespace)
+	namespace := dep.getString("metadata.namespace")
+	secretName, rootBlessings, err := findPodAttributes(name, namespace)
 	if err != nil {
 		return err
 	}
-	switch kind {
-	case ReplicationController:
-		if out, err := kubectl("--namespace="+namespace, "delete", "rc", name); err != nil {
-			return fmt.Errorf("failed to stop replication controller: %v: %s", err, out)
-		}
-		fmt.Fprintln(env.Stdout, "Stopping replication controller.")
-	case Deployment:
-		if out, err := kubectl("--namespace="+namespace, "delete", "deployment", name); err != nil {
-			return fmt.Errorf("failed to stop deployment: %v: %s", err, out)
-		}
-		fmt.Fprintln(env.Stdout, "Stopping deployment.")
-	default:
-		return fmt.Errorf("unexpected kind: %q", kind)
+	if out, err := kubectl("--namespace="+namespace, "delete", "deployment", name); err != nil {
+		return fmt.Errorf("failed to stop deployment: %v: %s", err, out)
 	}
+	fmt.Fprintln(env.Stdout, "Stopping deployment.")
 	if secretName != "" {
 		if err := deleteSecret(ctx, config, secretName, rootBlessings, namespace); err != nil {
 			return fmt.Errorf("failed to delete secret: %v", err)
