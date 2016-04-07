@@ -28,7 +28,7 @@ Before *vkube* starts an application, it creates a new secret in the cluster
 agent and saves the Secret Key in a Kubernetes Secret object. This Secret Key
 will later be used by the _replicas_ to get their Blessings.
 
-![New Secret Diagram](diagrams/new-secret.svg)
+![New Secret Diagram](diagrams/new-secret.png?raw=true)
 
 Then, it takes the user-specified [Deployment](http://kubernetes.io/docs/user-guide/deployments/)
 and adds a [pod-agent](../agent/pod_agentd/doc.go) container to its Pod template.
@@ -36,7 +36,7 @@ and adds a [pod-agent](../agent/pod_agentd/doc.go) container to its Pod template
 The pod-agent uses the Secret Key to get the blessings for the _replica_, and
 makes them available to the other container(s) via the agent protocol.
 
-![Pod Agent Diagram](diagrams/pod-agent.svg)
+![Pod Agent Diagram](diagrams/pod-agent.png?raw=true)
 
 
 # Walkthrough for GKE
