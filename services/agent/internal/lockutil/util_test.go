@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -83,7 +84,49 @@ func TestStillHeld(t *testing.T) {
 	}
 }
 
+// TestStillHeldManual verifies the behavior of StillHeld using some manually
+// generated lock file contents.
+func TestStillHeldManual(t *testing.T) {
+	sysID, err := lockutil.GetSystemID()
+	if err != nil {
+		t.Fatalf("Failed to get system ID: %v", err)
+	}
+	for i, c := range []struct {
+		info string
+		held bool
+	}{
+		{
+			"VERSION:1\nSYSTEM ID:UNKNOWN\n",
+			true,
+		},
+		{
+			"VERSION:1\nSYSTEM ID:" + sysID + "\nPID:123456\n",
+			false,
+		},
+		{
+			"VERSION:1\nSYSTEM ID:" + sysID + "\nPID:" + strconv.Itoa(os.Getpid()) + "\n",
+			true,
+		},
+		{
+			"VERSION:1\nSYSTEM ID:" + sysID + "\nPID:" + strconv.Itoa(os.Getpid()) + "\nBLAH\n",
+			false,
+		},
+	} {
+		if held, err := lockutil.StillHeld([]byte(c.info)); err != nil {
+			t.Fatalf("case %d: unexpected error: %v", i, err)
+		} else if held != c.held {
+			t.Fatalf("case %d: expected %t, got %t instead", i, c.held, held)
+		}
+	}
+}
+
+// TestInvalidVersion ensures StillHeld fails when presented with invalid
+// versions or incorrectly formatted lock files.
 func TestInvalidVersion(t *testing.T) {
+	sysID, err := lockutil.GetSystemID()
+	if err != nil {
+		t.Fatalf("Failed to get system ID: %v", err)
+	}
 	for i, c := range []struct {
 		info, error string
 	}{
@@ -93,11 +136,19 @@ func TestInvalidVersion(t *testing.T) {
 		},
 		{
 			"VERSION:1\nBLAH\n",
-			"failed to parse",
+			"couldn't parse SYSTEM ID",
+		},
+		{
+			"VERSION:1\nSYSTEM ID:" + sysID + "\nBLAH\n",
+			"couldn't parse PID",
+		},
+		{
+			"VERSION:1\nSYSTEM ID:" + sysID + "\nPID:abc\n",
+			"couldn't parse PID",
 		},
 	} {
 		if _, err := lockutil.StillHeld([]byte(c.info)); err == nil {
-			t.Fatalf("case %d: expected to fail\n", i)
+			t.Fatalf("case %d: expected to fail", i)
 		} else if !strings.Contains(err.Error(), c.error) {
 			t.Fatalf("case %d: expected error \"...%s...\", got \"%s\" instead", i, c.error, err.Error())
 		}
