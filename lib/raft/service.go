@@ -227,7 +227,6 @@ func (s *service) Committed(ctx *context.T, call rpc.ServerCall) (Index, error) 
 	r.Lock()
 	defer r.Unlock()
 	if r.role != RoleLeader {
-		r.Unlock()
 		return 0, verror.New(errNotLeader, ctx)
 	}
 	return r.commitIndex, nil
