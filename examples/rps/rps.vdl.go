@@ -132,7 +132,7 @@ func (x *GameId) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -353,7 +353,7 @@ func (x *GameOptions) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -456,7 +456,7 @@ func (x *unused) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
@@ -621,7 +621,7 @@ func VDLReadPlayerAction(dec vdl.Decoder, x *PlayerAction) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Union {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
 	}
 	f, err := dec.NextField()
@@ -728,16 +728,15 @@ func (x *PlayersMoves) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	tt := dec.Type()
-	if k := tt.Kind(); k != vdl.Array && k != vdl.List {
-		return fmt.Errorf("incompatible array %T, from %v", *x, tt)
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
 	}
 	index := 0
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
-		case done != (index >= tt.Len()):
+		case done != (index >= len(*x)):
 			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
 		case done:
 			return dec.FinishValue()
@@ -1055,7 +1054,7 @@ func (x *Round) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -1475,7 +1474,7 @@ func (x *ScoreCard) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -1552,8 +1551,8 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len == 0:
@@ -1587,8 +1586,8 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]Round) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len == 0:
@@ -1894,7 +1893,7 @@ func VDLReadJudgeAction(dec vdl.Decoder, x *JudgeAction) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Union {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
 	}
 	f, err := dec.NextField()
@@ -2051,7 +2050,7 @@ func (x *PlayResult) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0

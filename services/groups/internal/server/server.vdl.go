@@ -199,7 +199,7 @@ func (x *groupData) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -237,7 +237,7 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]struct{}
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Set {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {

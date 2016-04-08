@@ -280,16 +280,15 @@ func (g *genRead) bodyBytes(tt *vdl.Type, arg namedArg) string {
 
 func (g *genRead) bodyArray(tt *vdl.Type, arg namedArg) string {
 	s := fmt.Sprintf(`
-	tt := dec.Type()
-	if k := tt.Kind(); k != %[1]sArray && k != %[1]sList {
-		return %[2]sErrorf("incompatible array %%T, from %%v", %[3]s, tt)
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !%[1]sCompatible(%[1]sTypeOf(*x), dec.Type()) {
+		return %[2]sErrorf("incompatible array %%T, from %%v", %[3]s, dec.Type())
 	}
 	index := 0
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
-		case done != (index >= tt.Len()):
+		case done != (index >= len(*x)):
 			return %[2]sErrorf("array len mismatch, got %%d, want %%T", index, %[3]s)
 		case done:
 			return dec.FinishValue()
@@ -304,8 +303,8 @@ func (g *genRead) bodyArray(tt *vdl.Type, arg namedArg) string {
 
 func (g *genRead) bodyList(tt *vdl.Type, arg namedArg) string {
 	s := fmt.Sprintf(`
-	if k := dec.Type().Kind(); k != %[1]sArray && k != %[1]sList {
-		return %[2]sErrorf("incompatible list %%T, from %%v", %[3]s, dec.Type())
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !%[1]sCompatible(%[1]sTypeOf(*x), dec.Type()) {
+		return %[2]sErrorf("incompatible array %%T, from %%v", %[3]s, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len == 0:
@@ -333,7 +332,7 @@ func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
 		kindVar = g.Pkg("v.io/v23/vdl") + "Map"
 	}
 	s := fmt.Sprintf(`
-	if k := dec.Type().Kind(); k != %[1]s {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !%[7]sCompatible(%[7]sTypeOf(*x), dec.Type()) {
 		return %[2]sErrorf("incompatible %[3]v %%T, from %%v", %[4]s, dec.Type())
 	}
 	switch len := dec.LenHint(); {
@@ -353,7 +352,7 @@ func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
 			return dec.FinishValue()
 		}
 		var key %[6]s
-		{`, kindVar, g.Pkg("fmt"), tt.Kind(), arg.Ref(), typeGo(g.goData, tt), typeGo(g.goData, tt.Key()))
+		{`, kindVar, g.Pkg("fmt"), tt.Kind(), arg.Ref(), typeGo(g.goData, tt), typeGo(g.goData, tt.Key()), g.goData.Pkg("v.io/v23/vdl"))
 	s += g.body(tt.Key(), typedArg("key", tt.Key()), false) + `
 		}`
 	elemVar := "struct{}{}"
@@ -372,7 +371,7 @@ func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
 
 func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {
 	s := fmt.Sprintf(`
-	if dec.Type().Kind() != %[1]sStruct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !%[1]sCompatible(%[1]sTypeOf(*x), dec.Type()) {
 		return %[2]sErrorf("incompatible struct %%T, from %%v", %[3]s, dec.Type())
 	}`, g.Pkg("v.io/v23/vdl"), g.Pkg("fmt"), arg.Ref())
 	if tt.NumField() == 0 {
@@ -423,7 +422,7 @@ func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {
 
 func (g *genRead) bodyUnion(tt *vdl.Type, arg namedArg) string {
 	s := fmt.Sprintf(`
-	if dec.Type().Kind() != %[1]sUnion {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !%[1]sCompatible(%[1]sTypeOf(*x), dec.Type()) {
 		return %[2]sErrorf("incompatible union %%T, from %%v", %[3]s, dec.Type())
 	}
 	f, err := dec.NextField()
@@ -461,8 +460,8 @@ func (g *genRead) bodyOptional(tt *vdl.Type, arg namedArg) string {
 	// NOTE: arg.IsPtr is always true here, since tt is optional.
 	s := fmt.Sprintf(`
 	if dec.IsNil() {
-		if !%[1]sCompatible(dec.Type(), %[1]sTypeOf(%[2]s)) {
-			return %[3]sErrorf("incompatible optional %%T, from %%v", %[2]s, dec.Type())
+		if (dec.StackDepth() == 1 || dec.IsAny()) && !%[1]sCompatible(%[1]sTypeOf(*x), dec.Type()) {
+			return %[3]sErrorf("incompatible union %%T, from %%v", %[5]s, dec.Type())
 		}
 		%[2]s = nil
 		if err = dec.FinishValue(); err != nil {
@@ -470,7 +469,7 @@ func (g *genRead) bodyOptional(tt *vdl.Type, arg namedArg) string {
 		}
 	} else {
 		%[2]s = new(%[4]s)
-		dec.IgnoreNextStartValue()`, g.Pkg("v.io/v23/vdl"), arg.Name, g.Pkg("fmt"), typeGo(g.goData, tt.Elem()))
+		dec.IgnoreNextStartValue()`, g.Pkg("v.io/v23/vdl"), arg.Name, g.Pkg("fmt"), typeGo(g.goData, tt.Elem()), arg.Ref())
 	return s + g.body(tt.Elem(), arg, false) + `
 	}`
 }

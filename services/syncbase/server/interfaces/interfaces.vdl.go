@@ -119,7 +119,7 @@ func (x *GenVector) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Map {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
@@ -258,7 +258,7 @@ func (x *Knowledge) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Map {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
@@ -683,7 +683,7 @@ func (x *LogRecMetadata) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -815,8 +815,8 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len == 0:
@@ -998,7 +998,7 @@ func (x *LogRec) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -1587,7 +1587,7 @@ func (x *Syncgroup) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -1673,7 +1673,7 @@ func __VDLRead2_map(dec vdl.Decoder, x *map[string]syncbase.SyncgroupMemberInfo)
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Map {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
@@ -1839,7 +1839,7 @@ func (x *SgDeltaReq) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -2081,7 +2081,7 @@ func (x *DataDeltaReq) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -2124,7 +2124,7 @@ func __VDLRead3_set(dec vdl.Decoder, x *map[GroupId]struct{}) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Set {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
@@ -2305,7 +2305,7 @@ func VDLReadDeltaReq(dec vdl.Decoder, x *DeltaReq) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Union {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
 	}
 	f, err := dec.NextField()
@@ -2491,7 +2491,7 @@ func VDLReadDeltaResp(dec vdl.Decoder, x *DeltaResp) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Union {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
 	}
 	f, err := dec.NextField()
@@ -2685,7 +2685,7 @@ func (x *SgPriority) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -2836,7 +2836,7 @@ func (x *SgPriorities) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Map {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
@@ -2966,7 +2966,7 @@ func (x *DeltaFinalResp) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -3089,7 +3089,7 @@ func (x *ChunkHash) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -3218,7 +3218,7 @@ func (x *ChunkData) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -3355,7 +3355,7 @@ func (x *TimeReq) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -3673,7 +3673,7 @@ func (x *TimeResp) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -3849,7 +3849,7 @@ func (x *BlobSharesBySyncgroup) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Map {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
@@ -4052,7 +4052,7 @@ func (x *LocationData) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -4196,7 +4196,7 @@ func (x *PeerToLocationDataMap) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Map {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
@@ -4383,7 +4383,7 @@ func (x *Signpost) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0

@@ -139,7 +139,7 @@ func (x *BlobInfo) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -326,7 +326,7 @@ func VDLReadBlobUnion(dec vdl.Decoder, x *BlobUnion) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Union {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
 	}
 	f, err := dec.NextField()
@@ -542,7 +542,7 @@ func (x *BlobSet) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -586,7 +586,7 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[syncbase.BlobRef]struct{}) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Set {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
@@ -786,7 +786,7 @@ func (x *BlobAny) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -830,8 +830,8 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]*vom.RawBytes) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len == 0:
@@ -1025,7 +1025,7 @@ func (x *NonBlobSet) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -1069,7 +1069,7 @@ func __VDLRead3_set(dec vdl.Decoder, x *map[string]struct{}) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Set {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
@@ -1252,7 +1252,7 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -1284,8 +1284,8 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 			if dec.IsNil() {
-				if !vdl.Compatible(dec.Type(), vdl.TypeOf(x.Bo)) {
-					return fmt.Errorf("incompatible optional %T, from %v", x.Bo, dec.Type())
+				if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+					return fmt.Errorf("incompatible union %T, from %v", *x.Bo, dec.Type())
 				}
 				x.Bo = nil
 				if err = dec.FinishValue(); err != nil {

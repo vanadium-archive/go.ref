@@ -179,7 +179,7 @@ func VDLReadItem(dec vdl.Decoder, x *Item) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Union {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
 	}
 	f, err := dec.NextField()
@@ -588,7 +588,7 @@ func (x *DataWithSignature) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -664,8 +664,8 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]Item) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len == 0:
@@ -832,7 +832,7 @@ func (x *WireValidatorData) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -876,8 +876,8 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]string) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len == 0:

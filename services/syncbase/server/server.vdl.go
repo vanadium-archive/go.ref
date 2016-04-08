@@ -142,7 +142,7 @@ func (x *ServiceData) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -332,7 +332,7 @@ func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -593,7 +593,7 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -635,8 +635,8 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 			if dec.IsNil() {
-				if !vdl.Compatible(dec.Type(), vdl.TypeOf(x.SchemaMetadata)) {
-					return fmt.Errorf("incompatible optional %T, from %v", x.SchemaMetadata, dec.Type())
+				if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+					return fmt.Errorf("incompatible union %T, from %v", *x.SchemaMetadata, dec.Type())
 				}
 				x.SchemaMetadata = nil
 				if err = dec.FinishValue(); err != nil {
@@ -755,7 +755,7 @@ func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if k := dec.Type().Kind(); k != vdl.Map {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {

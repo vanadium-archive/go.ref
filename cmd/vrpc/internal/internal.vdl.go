@@ -139,7 +139,7 @@ func (x *Struct) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if dec.Type().Kind() != vdl.Struct {
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	match := 0
@@ -255,16 +255,15 @@ func (x *Array2Int) VDLRead(dec vdl.Decoder) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	tt := dec.Type()
-	if k := tt.Kind(); k != vdl.Array && k != vdl.List {
-		return fmt.Errorf("incompatible array %T, from %v", *x, tt)
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
 	}
 	index := 0
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
-		case done != (index >= tt.Len()):
+		case done != (index >= len(*x)):
 			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
 		case done:
 			return dec.FinishValue()
