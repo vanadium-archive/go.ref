@@ -83,13 +83,13 @@ func TestGenerateDeviceSet(t *testing.T) {
 	}
 }
 
-func TestGenerateDeviceTopology(t *testing.T) {
+func TestGenerateTopology(t *testing.T) {
 	dbs := model.GenerateDatabaseSet(5)
 	specs := []model.DeviceSpec{model.LaptopSpec, model.PhoneSpec, model.CloudSpec}
 	devices := model.GenerateDeviceSet(5, dbs, specs)
 
 	// With affinity = 0, devices should only be connected to themselves.
-	top1 := model.GenerateDeviceTopology(devices, 0)
+	top1 := model.GenerateTopology(devices, 0)
 	if want, got := 5, len(top1); want != got {
 		t.Errorf("wanted topology to contain %v devices but got %v", want, got)
 	}
@@ -103,7 +103,7 @@ func TestGenerateDeviceTopology(t *testing.T) {
 	}
 
 	// With affinity = 1, devices should be connected to all others.
-	top2 := model.GenerateDeviceTopology(devices, 1)
+	top2 := model.GenerateTopology(devices, 1)
 	if want, got := 5, len(top2); want != got {
 		t.Errorf("wanted topology to contain %v devices but got %v", want, got)
 	}

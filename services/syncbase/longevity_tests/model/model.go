@@ -131,6 +131,10 @@ type Device struct {
 	// TODO(nlacasse): Blessings.
 }
 
+func (d Device) String() string {
+	return d.Name
+}
+
 // DeviceSet is a set of devices.
 // TODO(nlacasse): Consider using a map here if uniqueness becomes an issue.
 type DeviceSet []*Device
@@ -164,26 +168,26 @@ func GenerateDeviceSet(n int, databases DatabaseSet, specs []DeviceSpec) DeviceS
 func (ds DeviceSet) String() string {
 	r := make([]string, len(ds))
 	for i, j := range ds {
-		r[i] = j.Name
+		r[i] = j.String()
 	}
 	return fmt.Sprintf("[%s]", strings.Join(r, ", "))
 }
 
-// DeviceTopology is an adjacency matrix specifying the connection type between
+// Topology is an adjacency matrix specifying the connection type between
 // devices.
 // TODO(nlacasse): For now we only specify which devices are reachable by each
 // device.
-type DeviceTopology map[*Device]DeviceSet
+type Topology map[*Device]DeviceSet
 
-// GenerateDeviceTopology generates a DeviceTopology on the given DeviceSet.
-// The affinity argument specifies the probability that any two devices are
-// connected.  We ensure that the generated topology is symmetric, but we do
-// *not* guarantee that it is connected.
+// GenerateTopology generates a Topology on the given DeviceSet.  The affinity
+// argument specifies the probability that any two devices are connected.  We
+// ensure that the generated topology is symmetric, but we do *not* guarantee
+// that it is connected.
 // TODO(nlacasse): Have more fine-grained affinity taking into account the
 // DeviceSpec of each device.  E.g. Desktop is likely to be connected to the
 // cloud, but less likely to be connected to a watch.
-func GenerateDeviceTopology(devices DeviceSet, affinity float64) DeviceTopology {
-	top := DeviceTopology{}
+func GenerateTopology(devices DeviceSet, affinity float64) Topology {
+	top := Topology{}
 	for i, d1 := range devices {
 		// All devices are connected to themselves.
 		top[d1] = append(top[d1], d1)
@@ -262,7 +266,7 @@ type Universe struct {
 	// All users in the universe.
 	Users UserSet
 	// Description of device connectivity.
-	DeviceTopology DeviceTopology
+	Topology Topology
 }
 
 // UniverseOpts specifies the options to use when creating a random universe.
@@ -300,9 +304,9 @@ func GenerateUniverse(opts UniverseOpts) Universe {
 	}
 
 	return Universe{
-		Databases:      dbs,
-		Users:          users,
-		Devices:        devices,
-		DeviceTopology: GenerateDeviceTopology(devices, opts.DeviceAffinity),
+		Databases: dbs,
+		Users:     users,
+		Devices:   devices,
+		Topology:  GenerateTopology(devices, opts.DeviceAffinity),
 	}
 }
