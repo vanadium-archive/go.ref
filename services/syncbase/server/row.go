@@ -109,7 +109,7 @@ func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx *watchable.Transact
 	if err := r.c.checkAccess(ctx, call, tx); err != nil {
 		return err
 	}
-	if err := watchable.PutWithPerms(tx, []byte(r.stKey()), value, r.c.permsKey()); err != nil {
+	if err := tx.Put([]byte(r.stKey()), value); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil
@@ -121,7 +121,7 @@ func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, tx *watchable.Trans
 	if err := r.c.checkAccess(ctx, call, tx); err != nil {
 		return err
 	}
-	if err := watchable.DeleteWithPerms(tx, []byte(r.stKey()), r.c.permsKey()); err != nil {
+	if err := tx.Delete([]byte(r.stKey())); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil

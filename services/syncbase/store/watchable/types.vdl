@@ -15,28 +15,17 @@ type ScanOp struct {
 	Limit []byte
 }
 
-// TODO(razvanm): PermKey and PermVersion are specific to syncbase. We should
-// add a generic way to add fields to PutOp and DeleteOp and use that instead.
-
 // PutOp represents a store put operation.  The new version is written instead
 // of the value to avoid duplicating the user data in the store.  The version
-// is used to access the user data of that specific mutation.  The key and the
-// version of the permissions entry that was checked to allow this put operation
-// are also tracked to secure the access to this history.
+// is used to access the user data of that specific mutation.
 type PutOp struct {
 	Key         []byte
 	Version     []byte
-	PermKey     []byte
-	PermVersion []byte
 }
 
-// DeleteOp represents a store delete operation.  The key and the version of the
-// permissions entry that was checked to allow this delete operation are also
-// tracked to secure the access to this history.
+// DeleteOp represents a store delete operation.
 type DeleteOp struct {
 	Key         []byte
-	PermKey     []byte
-	PermVersion []byte
 }
 
 // LogEntry represents a single store operation. This operation may have been

@@ -231,14 +231,10 @@ func (t *ScanOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 // PutOp represents a store put operation.  The new version is written instead
 // of the value to avoid duplicating the user data in the store.  The version
-// is used to access the user data of that specific mutation.  The key and the
-// version of the permissions entry that was checked to allow this put operation
-// are also tracked to secure the access to this history.
+// is used to access the user data of that specific mutation.
 type PutOp struct {
-	Key         []byte
-	Version     []byte
-	PermKey     []byte
-	PermVersion []byte
+	Key     []byte
+	Version []byte
 }
 
 func (PutOp) __VDLReflect(struct {
@@ -297,52 +293,6 @@ func (m *PutOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var var10 bool
-	if len(m.PermKey) == 0 {
-		var10 = true
-	}
-	if var10 {
-		if err := fieldsTarget1.ZeroField("PermKey"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("PermKey")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := fieldTarget9.FromBytes([]byte(m.PermKey), tt.NonOptional().Field(2).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
-				return err
-			}
-		}
-	}
-	var var13 bool
-	if len(m.PermVersion) == 0 {
-		var13 = true
-	}
-	if var13 {
-		if err := fieldsTarget1.ZeroField("PermVersion"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("PermVersion")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := fieldTarget12.FromBytes([]byte(m.PermVersion), tt.NonOptional().Field(3).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
-				return err
-			}
-		}
-	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
 		return err
 	}
@@ -354,11 +304,9 @@ func (m *PutOp) MakeVDLTarget() vdl.Target {
 }
 
 type PutOpTarget struct {
-	Value             *PutOp
-	keyTarget         vdl.BytesTarget
-	versionTarget     vdl.BytesTarget
-	permKeyTarget     vdl.BytesTarget
-	permVersionTarget vdl.BytesTarget
+	Value         *PutOp
+	keyTarget     vdl.BytesTarget
+	versionTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -380,14 +328,6 @@ func (t *PutOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
 		t.versionTarget.Value = &t.Value.Version
 		target, err := &t.versionTarget, error(nil)
 		return nil, target, err
-	case "PermKey":
-		t.permKeyTarget.Value = &t.Value.PermKey
-		target, err := &t.permKeyTarget, error(nil)
-		return nil, target, err
-	case "PermVersion":
-		t.permVersionTarget.Value = &t.Value.PermVersion
-		target, err := &t.permVersionTarget, error(nil)
-		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.PutOp", name)
 	}
@@ -403,12 +343,6 @@ func (t *PutOpTarget) ZeroField(name string) error {
 	case "Version":
 		t.Value.Version = []byte(nil)
 		return nil
-	case "PermKey":
-		t.Value.PermKey = []byte(nil)
-		return nil
-	case "PermVersion":
-		t.Value.PermVersion = []byte(nil)
-		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.PutOp", name)
 	}
@@ -418,13 +352,9 @@ func (t *PutOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-// DeleteOp represents a store delete operation.  The key and the version of the
-// permissions entry that was checked to allow this delete operation are also
-// tracked to secure the access to this history.
+// DeleteOp represents a store delete operation.
 type DeleteOp struct {
-	Key         []byte
-	PermKey     []byte
-	PermVersion []byte
+	Key []byte
 }
 
 func (DeleteOp) __VDLReflect(struct {
@@ -460,52 +390,6 @@ func (m *DeleteOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var var7 bool
-	if len(m.PermKey) == 0 {
-		var7 = true
-	}
-	if var7 {
-		if err := fieldsTarget1.ZeroField("PermKey"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("PermKey")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := fieldTarget6.FromBytes([]byte(m.PermKey), tt.NonOptional().Field(1).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-				return err
-			}
-		}
-	}
-	var var10 bool
-	if len(m.PermVersion) == 0 {
-		var10 = true
-	}
-	if var10 {
-		if err := fieldsTarget1.ZeroField("PermVersion"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("PermVersion")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := fieldTarget9.FromBytes([]byte(m.PermVersion), tt.NonOptional().Field(2).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
-				return err
-			}
-		}
-	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
 		return err
 	}
@@ -517,10 +401,8 @@ func (m *DeleteOp) MakeVDLTarget() vdl.Target {
 }
 
 type DeleteOpTarget struct {
-	Value             *DeleteOp
-	keyTarget         vdl.BytesTarget
-	permKeyTarget     vdl.BytesTarget
-	permVersionTarget vdl.BytesTarget
+	Value     *DeleteOp
+	keyTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -538,14 +420,6 @@ func (t *DeleteOpTarget) StartField(name string) (key, field vdl.Target, _ error
 		t.keyTarget.Value = &t.Value.Key
 		target, err := &t.keyTarget, error(nil)
 		return nil, target, err
-	case "PermKey":
-		t.permKeyTarget.Value = &t.Value.PermKey
-		target, err := &t.permKeyTarget, error(nil)
-		return nil, target, err
-	case "PermVersion":
-		t.permVersionTarget.Value = &t.Value.PermVersion
-		target, err := &t.permVersionTarget, error(nil)
-		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.DeleteOp", name)
 	}
@@ -557,12 +431,6 @@ func (t *DeleteOpTarget) ZeroField(name string) error {
 	switch name {
 	case "Key":
 		t.Value.Key = []byte(nil)
-		return nil
-	case "PermKey":
-		t.Value.PermKey = []byte(nil)
-		return nil
-	case "PermVersion":
-		t.Value.PermVersion = []byte(nil)
 		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.DeleteOp", name)

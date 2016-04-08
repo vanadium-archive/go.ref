@@ -34,13 +34,11 @@ func (c *mockCall) Security() security.Call              { return c }
 func (c *mockCall) LocalBlessings() security.Blessings   { return c.b }
 func (c *mockCall) RemoteBlessings() security.Blessings  { return c.b }
 
-func putOp(st store.Store, key, permKey string, permVersion []byte) *watchable.PutOp {
+func putOp(st store.Store, key string) *watchable.PutOp {
 	version, _ := watchable.GetVersion(nil, st, []byte(key))
 	return &watchable.PutOp{
-		Key:         []byte(key),
-		Version:     version,
-		PermKey:     []byte(permKey),
-		PermVersion: permVersion,
+		Key:     []byte(key),
+		Version: version,
 	}
 }
 
@@ -80,16 +78,13 @@ func TestWatchLogPerms(t *testing.T) {
 		if err := row.Put(ctx, call, []byte("value")); err != nil {
 			t.Fatalf("row.Put failed: %v", err)
 		}
-		permVersion, _ := watchable.GetVersion(ctx, st, []byte(c.permsKey()))
-		expected = append(expected, putOp(st, row.stKey(), c.permsKey(), permVersion))
+		expected = append(expected, putOp(st, row.stKey()))
 		// Delete.
 		if err := row.Delete(ctx, call); err != nil {
 			t.Fatalf("row.Delete failed: %v", err)
 		}
 		deleteOp := &watchable.DeleteOp{
-			Key:         []byte(row.stKey()),
-			PermKey:     []byte(c.permsKey()),
-			PermVersion: permVersion,
+			Key: []byte(row.stKey()),
 		}
 		expected = append(expected, deleteOp)
 		// DeleteRange.
@@ -104,13 +99,12 @@ func TestWatchLogPerms(t *testing.T) {
 		if err := c.SetPermissions(ctx, call, perms); err != nil {
 			t.Fatalf("c.SetPermissions failed: %v", err)
 		}
-		expected = append(expected, putOp(st, c.permsKey(), c.permsKey(), permVersion))
+		expected = append(expected, putOp(st, c.permsKey()))
 		// SetPermissions again.
-		permVersion, _ = watchable.GetVersion(ctx, st, []byte(c.permsKey()))
 		if err := c.SetPermissions(ctx, call, perms); err != nil {
 			t.Fatalf("c.SetPermissions failed: %v", err)
 		}
-		expected = append(expected, putOp(st, c.permsKey(), c.permsKey(), permVersion))
+		expected = append(expected, putOp(st, c.permsKey()))
 	}
 	expectedIndex := 0
 	for {

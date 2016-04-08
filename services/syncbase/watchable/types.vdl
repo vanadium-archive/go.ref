@@ -19,19 +19,15 @@ type SyncgroupOp struct {
 }
 
 // SyncSnapshotOp represents a snapshot operation when creating and joining a
-// syncgroup.  The sync watcher needs to get a snapshot of the Database at the
-// point of creating/joining a syncgroup.  A SyncSnapshotOp entry is written to
-// the log for each Database key that falls within the syncgroup prefixes.  This
+// syncgroup. The sync watcher needs to get a snapshot of the Database at the
+// point of creating/joining a syncgroup. A SyncSnapshotOp entry is written to
+// the log for each Database key that falls within the syncgroup prefixes. This
 // allows sync to initialize its metadata at the correct versions of the objects
-// when they become syncable.  These log entries should be filtered by the
+// when they become syncable. These log entries should be filtered by the
 // client-facing Watch interface because the user data did not actually change.
-// The key and the version of the permissions entry that was checked when the
-// key was accessed are also tracked to secure the access to this history.
 type SyncSnapshotOp struct {
 	Key         []byte
 	Version     []byte
-	PermKey     []byte
-	PermVersion []byte
 }
 
 // StateChange represents the set of types of state change requests possible.

@@ -75,11 +75,9 @@ func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall) error {
 
 		// TODO(ivanpi): Check that no syncgroup includes the collection being
 		// destroyed. Also check that all collections exist when creating a
-		// syncgroup.
+		// syncgroup. Refactor with common part of DeleteRange.
 
-		// Delete all data rows without logging the collection ACL version allowing
-		// the operation (note, this is different from DeleteRange, which does log
-		// the ACL version).
+		// Delete all data rows.
 		it := tx.Scan(common.ScanPrefixArgs(common.JoinKeyParts(common.RowPrefix, c.name), ""))
 		var key []byte
 		for it.Advance() {
@@ -91,8 +89,7 @@ func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall) error {
 		if err := it.Err(); err != nil {
 			return verror.New(verror.ErrInternal, ctx, err)
 		}
-		// Delete CollectionPerms without logging the ACL version allowing the
-		// operation.
+		// Delete CollectionPerms.
 		return store.Delete(ctx, tx, c.permsKey())
 	})
 }
@@ -124,7 +121,7 @@ func (c *collectionReq) SetPermissions(ctx *context.T, call rpc.ServerCall, perm
 			return err
 		}
 		storedPerms := CollectionPerms(perms)
-		return watchable.PutVomWithPerms(ctx, tx, c.permsKey(), &storedPerms, c.permsKey())
+		return store.Put(ctx, tx, c.permsKey(), &storedPerms)
 	}
 	if c.d.batchId != nil {
 		if tx, err := c.d.batchTransaction(); err != nil {
@@ -148,7 +145,7 @@ func (c *collectionReq) DeleteRange(ctx *context.T, call rpc.ServerCall, start, 
 		for it.Advance() {
 			key = it.Key(key)
 			// Delete the key-value pair.
-			if err := watchable.DeleteWithPerms(tx, key, c.permsKey()); err != nil {
+			if err := tx.Delete(key); err != nil {
 				return verror.New(verror.ErrInternal, ctx, err)
 			}
 		}

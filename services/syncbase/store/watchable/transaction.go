@@ -5,7 +5,6 @@
 package watchable
 
 import (
-	"fmt"
 	"math"
 	"sync"
 
@@ -262,82 +261,6 @@ func PutVersion(ctx *context.T, tx *Transaction, key, version []byte) error {
 	tx.ops = append(tx.ops, &PutOp{
 		Key:     append([]byte{}, key...),
 		Version: append([]byte{}, version...),
-	})
-	return nil
-}
-
-// PutWithPerms puts a value for the managed key, recording the key and version
-// of the permissions object that granted access to this put operation.
-func PutWithPerms(tx *Transaction, key, value []byte, permsKey string) error {
-	tx.mu.Lock()
-	defer tx.mu.Unlock()
-	if tx.err != nil {
-		return convertError(tx.err)
-	}
-	if !tx.St.managesKey(key) {
-		panic(fmt.Sprintf("cannot do PutWithPerms on unmanaged key: %s", string(key)))
-	}
-	permsKeyBytes := []byte(permsKey)
-	// NOTE: We must get the version before modifying the data because
-	// the key and the permsKey might be the same. This might happen when
-	// we are putting a perms object.
-	permsVersion, err := getVersion(tx.itx, permsKeyBytes)
-	if err != nil {
-		return err
-	}
-	version, err := putVersioned(tx.itx, key, value)
-	if err != nil {
-		return err
-	}
-	tx.ops = append(tx.ops, &PutOp{
-		Key:         append([]byte{}, key...),
-		Version:     version,
-		PermKey:     permsKeyBytes,
-		PermVersion: permsVersion,
-	})
-	return nil
-}
-
-// PutVomWithPerms puts a VOM-encoded value for the managed key, recording
-// the key and the version of the permissions object that granted access to
-// this put operation.
-func PutVomWithPerms(ctx *context.T, tx *Transaction, k string, v interface{}, permsKey string) error {
-	bytes, err := vom.Encode(v)
-	if err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	if err = PutWithPerms(tx, []byte(k), bytes, permsKey); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
-}
-
-// DeleteWithPerms deletes a value for the managed key, recording the key and version
-// of the permissions object that granted access to this delete operation.
-func DeleteWithPerms(tx *Transaction, key []byte, permsKey string) error {
-	tx.mu.Lock()
-	defer tx.mu.Unlock()
-	if tx.err != nil {
-		return convertError(tx.err)
-	}
-	if !tx.St.managesKey(key) {
-		panic(fmt.Sprintf("cannot do DeleteWithPerms on unmanaged key: %s", string(key)))
-	}
-	permsKeyBytes := []byte(permsKey)
-	// NOTE: We must get the version before modifying the data because
-	// the key and the permsKey might be the same. This might happen when
-	// we are deleting a perms object.
-	permsVersion, err := getVersion(tx.itx, permsKeyBytes)
-	if err != nil {
-		return err
-	}
-	if err := deleteVersioned(tx.itx, key); err != nil {
-		return err
-	}
-	tx.ops = append(tx.ops, &DeleteOp{
-		Key:         append([]byte{}, key...),
-		PermKey:     permsKeyBytes,
-		PermVersion: permsVersion,
 	})
 	return nil
 }

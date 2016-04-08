@@ -184,19 +184,15 @@ func (t *SyncgroupOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 // SyncSnapshotOp represents a snapshot operation when creating and joining a
-// syncgroup.  The sync watcher needs to get a snapshot of the Database at the
-// point of creating/joining a syncgroup.  A SyncSnapshotOp entry is written to
-// the log for each Database key that falls within the syncgroup prefixes.  This
+// syncgroup. The sync watcher needs to get a snapshot of the Database at the
+// point of creating/joining a syncgroup. A SyncSnapshotOp entry is written to
+// the log for each Database key that falls within the syncgroup prefixes. This
 // allows sync to initialize its metadata at the correct versions of the objects
-// when they become syncable.  These log entries should be filtered by the
+// when they become syncable. These log entries should be filtered by the
 // client-facing Watch interface because the user data did not actually change.
-// The key and the version of the permissions entry that was checked when the
-// key was accessed are also tracked to secure the access to this history.
 type SyncSnapshotOp struct {
-	Key         []byte
-	Version     []byte
-	PermKey     []byte
-	PermVersion []byte
+	Key     []byte
+	Version []byte
 }
 
 func (SyncSnapshotOp) __VDLReflect(struct {
@@ -255,52 +251,6 @@ func (m *SyncSnapshotOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var var10 bool
-	if len(m.PermKey) == 0 {
-		var10 = true
-	}
-	if var10 {
-		if err := fieldsTarget1.ZeroField("PermKey"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("PermKey")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := fieldTarget9.FromBytes([]byte(m.PermKey), tt.NonOptional().Field(2).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
-				return err
-			}
-		}
-	}
-	var var13 bool
-	if len(m.PermVersion) == 0 {
-		var13 = true
-	}
-	if var13 {
-		if err := fieldsTarget1.ZeroField("PermVersion"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("PermVersion")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := fieldTarget12.FromBytes([]byte(m.PermVersion), tt.NonOptional().Field(3).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
-				return err
-			}
-		}
-	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
 		return err
 	}
@@ -312,11 +262,9 @@ func (m *SyncSnapshotOp) MakeVDLTarget() vdl.Target {
 }
 
 type SyncSnapshotOpTarget struct {
-	Value             *SyncSnapshotOp
-	keyTarget         vdl.BytesTarget
-	versionTarget     vdl.BytesTarget
-	permKeyTarget     vdl.BytesTarget
-	permVersionTarget vdl.BytesTarget
+	Value         *SyncSnapshotOp
+	keyTarget     vdl.BytesTarget
+	versionTarget vdl.BytesTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -338,14 +286,6 @@ func (t *SyncSnapshotOpTarget) StartField(name string) (key, field vdl.Target, _
 		t.versionTarget.Value = &t.Value.Version
 		target, err := &t.versionTarget, error(nil)
 		return nil, target, err
-	case "PermKey":
-		t.permKeyTarget.Value = &t.Value.PermKey
-		target, err := &t.permKeyTarget, error(nil)
-		return nil, target, err
-	case "PermVersion":
-		t.permVersionTarget.Value = &t.Value.PermVersion
-		target, err := &t.permVersionTarget, error(nil)
-		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/watchable.SyncSnapshotOp", name)
 	}
@@ -360,12 +300,6 @@ func (t *SyncSnapshotOpTarget) ZeroField(name string) error {
 		return nil
 	case "Version":
 		t.Value.Version = []byte(nil)
-		return nil
-	case "PermKey":
-		t.Value.PermKey = []byte(nil)
-		return nil
-	case "PermVersion":
-		t.Value.PermVersion = []byte(nil)
 		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/watchable.SyncSnapshotOp", name)
