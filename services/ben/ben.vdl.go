@@ -162,6 +162,70 @@ func (t *CpuTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *Cpu) VDLRead(dec vdl.Decoder) error {
+	*x = Cpu{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Architecture":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Architecture, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Description":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Description, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "ClockSpeedMhz":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(32)
+			if err != nil {
+				return err
+			}
+			x.ClockSpeedMhz = uint32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // Os describes the Operating System on which the microbenchmarks were run.
 type Os struct {
 	Name    string // Short name of the operating system: linux, darwin, android etc.
@@ -273,6 +337,57 @@ func (t *OsTarget) ZeroField(name string) error {
 func (t *OsTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *Os) VDLRead(dec vdl.Decoder) error {
+	*x = Os{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Name":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Name, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Version":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Version, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // Scenario encapsulates the conditions on the machine on which the microbenchmarks were run.
@@ -418,6 +533,56 @@ func (t *ScenarioTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *Scenario) VDLRead(dec vdl.Decoder) error {
+	*x = Scenario{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Cpu":
+			match++
+			if err = x.Cpu.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Os":
+			match++
+			if err = x.Os.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Label":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Label, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // SourceCode represents the state of the source code used to build the
 // microbenchmarks.
 //
@@ -455,6 +620,19 @@ func (t *SourceCodeTarget) FromString(src string, tt *vdl.Type) error {
 	*t.Value = SourceCode(src)
 
 	return nil
+}
+
+func (x *SourceCode) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeString()
+	if err != nil {
+		return err
+	}
+	*x = SourceCode(tmp)
+	return dec.FinishValue()
 }
 
 // Run encapsulates the results of a single microbenchmark run.
@@ -708,6 +886,114 @@ func (t *RunTarget) ZeroField(name string) error {
 func (t *RunTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *Run) VDLRead(dec vdl.Decoder) error {
+	*x = Run{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Name":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Name, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Iterations":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Iterations, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "NanoSecsPerOp":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.NanoSecsPerOp, err = dec.DecodeFloat(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "AllocsPerOp":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.AllocsPerOp, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "AllocedBytesPerOp":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.AllocedBytesPerOp, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "MegaBytesPerSec":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.MegaBytesPerSec, err = dec.DecodeFloat(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Parallelism":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(32)
+			if err != nil {
+				return err
+			}
+			x.Parallelism = uint32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 var __VDLInitCalled bool

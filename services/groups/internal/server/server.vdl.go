@@ -193,6 +193,79 @@ func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 	return nil
 }
 
+func (x *groupData) VDLRead(dec vdl.Decoder) error {
+	*x = groupData{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Perms":
+			match++
+			if err = x.Perms.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Entries":
+			match++
+			if err = __VDLRead1_set(dec, &x.Entries); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead1_set(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]struct{}) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Set {
+		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(map[groups.BlessingPatternChunk]struct{}, len)
+	default:
+		*x = make(map[groups.BlessingPatternChunk]struct{})
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key groups.BlessingPatternChunk
+		{
+			if err = key.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = struct{}{}
+	}
+}
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

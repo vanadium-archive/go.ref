@@ -136,6 +136,61 @@ func (t *WindowSizeTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *WindowSize) VDLRead(dec vdl.Decoder) error {
+	*x = WindowSize{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Rows":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(16)
+			if err != nil {
+				return err
+			}
+			x.Rows = uint16(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Cols":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(16)
+			if err != nil {
+				return err
+			}
+			x.Cols = uint16(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type ShellOpts struct {
 	UsePty      bool       // Whether to open a pseudo-terminal.
 	Environment []string   // Environment variables to pass to the remote shell.
@@ -297,6 +352,91 @@ func (t *ShellOptsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *ShellOpts) VDLRead(dec vdl.Decoder) error {
+	*x = ShellOpts{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "UsePty":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.UsePty, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Environment":
+			match++
+			if err = __VDLRead1_list(dec, &x.Environment); err != nil {
+				return err
+			}
+		case "WinSize":
+			match++
+			if err = x.WinSize.VDLRead(dec); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+	case len > 0:
+		*x = make([]string, 0, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem string
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if elem, err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
+}
+
 type unused struct {
 }
 
@@ -351,6 +491,29 @@ func (t *unusedTarget) ZeroField(name string) error {
 func (t *unusedTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *unused) VDLRead(dec vdl.Decoder) error {
+	*x = unused{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		switch f, err := dec.NextField(); {
+		case err != nil:
+			return err
+		case f == "":
+			return dec.FinishValue()
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 type (
@@ -544,6 +707,57 @@ func (t clientShellPacketTargetFactory) VDLMakeUnionTarget(union interface{}) (v
 	return nil, fmt.Errorf("got %T, want *ClientShellPacket", union)
 }
 
+func VDLReadClientShellPacket(dec vdl.Decoder, x *ClientShellPacket) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Union {
+		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "Stdin":
+		var field ClientShellPacketStdin
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if err = dec.DecodeBytes(-1, &field.Value); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "EndOfFile":
+		var field ClientShellPacketEndOfFile
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "WinSize":
+		var field ClientShellPacketWinSize
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
+}
+
 type (
 	// ServerShellPacket represents any single field of the ServerShellPacket union type.
 	ServerShellPacket interface {
@@ -690,6 +904,57 @@ func (t serverShellPacketTargetFactory) VDLMakeUnionTarget(union interface{}) (v
 		return &ServerShellPacketTarget{Value: typedUnion}, nil
 	}
 	return nil, fmt.Errorf("got %T, want *ServerShellPacket", union)
+}
+
+func VDLReadServerShellPacket(dec vdl.Decoder, x *ServerShellPacket) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Union {
+		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "Stdout":
+		var field ServerShellPacketStdout
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if err = dec.DecodeBytes(-1, &field.Value); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "Stderr":
+		var field ServerShellPacketStderr
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if err = dec.DecodeBytes(-1, &field.Value); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
 }
 
 //////////////////////////////////////////////////

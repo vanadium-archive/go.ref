@@ -133,6 +133,57 @@ func (t *HistogramBucketTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
+	*x = HistogramBucket{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "LowBound":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.LowBound, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Count":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Count, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // HistogramValue is the value of Histogram objects.
 type HistogramValue struct {
 	// Count is the total number of values added to the histogram.
@@ -387,6 +438,113 @@ func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
+}
+
+func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
+	*x = HistogramValue{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Count":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Count, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Sum":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Sum, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Min":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Min, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Max":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Max, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Buckets":
+			match++
+			if err = __VDLRead1_list(dec, &x.Buckets); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead1_list(dec vdl.Decoder, x *[]HistogramBucket) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+	case len > 0:
+		*x = make([]HistogramBucket, 0, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem HistogramBucket
+		if err = elem.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
 }
 
 var __VDLInitCalled bool

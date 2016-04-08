@@ -114,6 +114,58 @@ func (t *GenVectorTarget) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
+func (x *GenVector) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Map {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(GenVector, len)
+	default:
+		*x = make(GenVector)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key uint64
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if key, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		var elem uint64
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if elem, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = elem
+	}
+}
+
 // Knowledge is a mapping of syncable entities to their generation
 // vectors. These syncable entities could be data prefixes relative to a
 // Database id, or syncgroup oids.
@@ -199,6 +251,52 @@ func (t *KnowledgeTarget) FinishMap(elem vdl.MapTarget) error {
 	}
 
 	return nil
+}
+
+func (x *Knowledge) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Map {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(Knowledge, len)
+	default:
+		*x = make(Knowledge)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key string
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if key, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		var elem GenVector
+		{
+			if err = elem.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = elem
+	}
 }
 
 // LogRecMetadata represents the metadata of a single log record that is
@@ -579,6 +677,174 @@ func (t *LogRecMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *LogRecMetadata) VDLRead(dec vdl.Decoder) error {
+	*x = LogRecMetadata{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Id":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Id, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Gen":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Gen, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "RecType":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(8)
+			if err != nil {
+				return err
+			}
+			x.RecType = byte(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "ObjId":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.ObjId, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "CurVers":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.CurVers, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Parents":
+			match++
+			if err = __VDLRead1_list(dec, &x.Parents); err != nil {
+				return err
+			}
+		case "UpdTime":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.UpdTime); err != nil {
+				return err
+			}
+		case "Delete":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Delete, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "BatchId":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.BatchId, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "BatchCount":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.BatchCount, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+	case len > 0:
+		*x = make([]string, 0, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem string
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if elem, err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
+}
+
 // LogRec represents the on-wire representation of an entire log record: its
 // metadata and data. Value is the actual value of a store object.
 type LogRec struct {
@@ -726,6 +992,51 @@ func (t *LogRecTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *LogRec) VDLRead(dec vdl.Decoder) error {
+	*x = LogRec{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Metadata":
+			match++
+			if err = x.Metadata.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Value":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if err = dec.DecodeBytes(-1, &x.Value); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // GroupId is a globally unique syncgroup ID.
 // TODO(hpucha): Make this a string since now the syncgroup id is an object id.
 type GroupId uint64
@@ -776,6 +1087,19 @@ func (t *GroupIdTarget) FromFloat(src float64, tt *vdl.Type) error {
 	*t.Value = GroupId(val)
 
 	return nil
+}
+
+func (x *GroupId) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(64)
+	if err != nil {
+		return err
+	}
+	*x = GroupId(tmp)
+	return dec.FinishValue()
 }
 
 // Possible states for a syncgroup.
@@ -865,6 +1189,21 @@ func (t *SyncgroupStatusTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	}
 
 	return nil
+}
+
+func (x *SyncgroupStatus) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	enum, err := dec.DecodeString()
+	if err != nil {
+		return err
+	}
+	if err = x.Set(enum); err != nil {
+		return err
+	}
+	return dec.FinishValue()
 }
 
 // Syncgroup contains the state of a syncgroup.
@@ -1242,6 +1581,139 @@ func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
+func (x *Syncgroup) VDLRead(dec vdl.Decoder) error {
+	*x = Syncgroup{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Id":
+			match++
+			if err = x.Id.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Name":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Name, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "SpecVersion":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.SpecVersion, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Spec":
+			match++
+			if err = x.Spec.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Creator":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Creator, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "DbId":
+			match++
+			if err = x.DbId.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Status":
+			match++
+			if err = x.Status.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Joiners":
+			match++
+			if err = __VDLRead2_map(dec, &x.Joiners); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead2_map(dec vdl.Decoder, x *map[string]syncbase.SyncgroupMemberInfo) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Map {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(map[string]syncbase.SyncgroupMemberInfo, len)
+	default:
+		*x = make(map[string]syncbase.SyncgroupMemberInfo)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key string
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if key, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		var elem syncbase.SyncgroupMemberInfo
+		{
+			if err = elem.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = elem
+	}
+}
+
 // SgDeltaReq contains the initiator's genvectors for the syncgroups it is
 // interested in within a database when requesting deltas for those syncgroups.
 type SgDeltaReq struct {
@@ -1359,6 +1831,45 @@ func (t *SgDeltaReqTarget) ZeroField(name string) error {
 func (t *SgDeltaReqTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *SgDeltaReq) VDLRead(dec vdl.Decoder) error {
+	*x = SgDeltaReq{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "DbId":
+			match++
+			if err = x.DbId.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Gvs":
+			match++
+			if err = x.Gvs.VDLRead(dec); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // DataDeltaReq contains the initiator's genvectors and the set of syncgroups it
@@ -1564,6 +2075,84 @@ func (t *__VDLTarget2_set) FinishSet(list vdl.SetTarget) error {
 	return nil
 }
 
+func (x *DataDeltaReq) VDLRead(dec vdl.Decoder) error {
+	*x = DataDeltaReq{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "DbId":
+			match++
+			if err = x.DbId.VDLRead(dec); err != nil {
+				return err
+			}
+		case "SgIds":
+			match++
+			if err = __VDLRead3_set(dec, &x.SgIds); err != nil {
+				return err
+			}
+		case "Gvs":
+			match++
+			if err = x.Gvs.VDLRead(dec); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead3_set(dec vdl.Decoder, x *map[GroupId]struct{}) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Set {
+		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(map[GroupId]struct{}, len)
+	default:
+		*x = make(map[GroupId]struct{})
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key GroupId
+		{
+			if err = key.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = struct{}{}
+	}
+}
+
 type (
 	// DeltaReq represents any single field of the DeltaReq union type.
 	//
@@ -1711,6 +2300,45 @@ func (t deltaReqTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target
 	return nil, fmt.Errorf("got %T, want *DeltaReq", union)
 }
 
+func VDLReadDeltaReq(dec vdl.Decoder, x *DeltaReq) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Union {
+		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "Sgs":
+		var field DeltaReqSgs
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "Data":
+		var field DeltaReqData
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
+}
+
 type (
 	// DeltaResp represents any single field of the DeltaResp union type.
 	//
@@ -1856,6 +2484,45 @@ func (t deltaRespTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Targe
 		return &DeltaRespTarget{Value: typedUnion}, nil
 	}
 	return nil, fmt.Errorf("got %T, want *DeltaResp", union)
+}
+
+func VDLReadDeltaResp(dec vdl.Decoder, x *DeltaResp) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Union {
+		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "Rec":
+		var field DeltaRespRec
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "Gvs":
+		var field DeltaRespGvs
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
 }
 
 // A SgPriority represents data used to decide whether to transfer blob ownership
@@ -2012,6 +2679,70 @@ func (t *SgPriorityTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *SgPriority) VDLRead(dec vdl.Decoder) error {
+	*x = SgPriority{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "DevType":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.DevType = int32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Distance":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeFloat(32)
+			if err != nil {
+				return err
+			}
+			x.Distance = float32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "ServerTime":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.ServerTime); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // A SgPriorities maps syncgroup IDs to SgPriority structures.  It is sent and
 // received in GetDeltas calls to allow the participants to assess who has
 // higher priorities for keeping blobs.
@@ -2098,6 +2829,46 @@ func (t *SgPrioritiesTarget) FinishMap(elem vdl.MapTarget) error {
 	}
 
 	return nil
+}
+
+func (x *SgPriorities) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Map {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(SgPriorities, len)
+	default:
+		*x = make(SgPriorities)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key GroupId
+		{
+			if err = key.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		var elem SgPriority
+		{
+			if err = elem.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = elem
+	}
 }
 
 // DeltaFinalResp contains the data returned at the end of a GetDeltas call.
@@ -2189,6 +2960,40 @@ func (t *DeltaFinalRespTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *DeltaFinalResp) VDLRead(dec vdl.Decoder) error {
+	*x = DeltaFinalResp{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "SgPriorities":
+			match++
+			if err = x.SgPriorities.VDLRead(dec); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // ChunkHash contains the hash of a chunk that is part of a blob's recipe.
 type ChunkHash struct {
 	Hash []byte
@@ -2278,6 +3083,46 @@ func (t *ChunkHashTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *ChunkHash) VDLRead(dec vdl.Decoder) error {
+	*x = ChunkHash{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Hash":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if err = dec.DecodeBytes(-1, &x.Hash); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // ChunkData contains the data of a chunk.
 type ChunkData struct {
 	Data []byte
@@ -2365,6 +3210,46 @@ func (t *ChunkDataTarget) ZeroField(name string) error {
 func (t *ChunkDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *ChunkData) VDLRead(dec vdl.Decoder) error {
+	*x = ChunkData{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Data":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if err = dec.DecodeBytes(-1, &x.Data); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // TimeReq contains the send timestamp from the requester.
@@ -2462,6 +3347,44 @@ func (t *TimeReqTarget) ZeroField(name string) error {
 func (t *TimeReqTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *TimeReq) VDLRead(dec vdl.Decoder) error {
+	*x = TimeReq{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "SendTs":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.SendTs); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // TimeResp contains information needed by the requester to estimate the
@@ -2744,6 +3667,97 @@ func (t *TimeRespTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *TimeResp) VDLRead(dec vdl.Decoder) error {
+	*x = TimeResp{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "OrigTs":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.OrigTs); err != nil {
+				return err
+			}
+		case "RecvTs":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.RecvTs); err != nil {
+				return err
+			}
+		case "SendTs":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.SendTs); err != nil {
+				return err
+			}
+		case "LastNtpTs":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.LastNtpTs); err != nil {
+				return err
+			}
+		case "NumReboots":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(16)
+			if err != nil {
+				return err
+			}
+			x.NumReboots = uint16(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "NumHops":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(16)
+			if err != nil {
+				return err
+			}
+			x.NumHops = uint16(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // A BlobSharesBySyncgroup maps syncgroup IDs to integer share numbers that a
 // syncbase instance may have for a blob.
 type BlobSharesBySyncgroup map[GroupId]int32
@@ -2828,6 +3842,54 @@ func (t *BlobSharesBySyncgroupTarget) FinishMap(elem vdl.MapTarget) error {
 	}
 
 	return nil
+}
+
+func (x *BlobSharesBySyncgroup) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Map {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(BlobSharesBySyncgroup, len)
+	default:
+		*x = make(BlobSharesBySyncgroup)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key GroupId
+		{
+			if err = key.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		var elem int32
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			elem = int32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = elem
+	}
 }
 
 // A LocationData is the information known about a particular location in a Signpost.
@@ -2984,6 +4046,66 @@ func (t *LocationDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *LocationData) VDLRead(dec vdl.Decoder) error {
+	*x = LocationData{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "WhenSeen":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.WhenSeen); err != nil {
+				return err
+			}
+		case "IsProxy":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.IsProxy, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "IsServer":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.IsServer, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // A PeerToLocationDataMap is a map from syncbase peer names to LocationData structures.
 type PeerToLocationDataMap map[string]LocationData
 
@@ -3067,6 +4189,52 @@ func (t *PeerToLocationDataMapTarget) FinishMap(elem vdl.MapTarget) error {
 	}
 
 	return nil
+}
+
+func (x *PeerToLocationDataMap) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Map {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(PeerToLocationDataMap, len)
+	default:
+		*x = make(PeerToLocationDataMap)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key string
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if key, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		var elem LocationData
+		{
+			if err = elem.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = elem
+	}
 }
 
 // A Signpost is a hint to syncbase of the device on which a blob may be found.
@@ -3207,6 +4375,45 @@ func (t *SignpostTarget) ZeroField(name string) error {
 func (t *SignpostTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *Signpost) VDLRead(dec vdl.Decoder) error {
+	*x = Signpost{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Locations":
+			match++
+			if err = x.Locations.VDLRead(dec); err != nil {
+				return err
+			}
+		case "SgIds":
+			match++
+			if err = __VDLRead3_set(dec, &x.SgIds); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////////

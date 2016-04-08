@@ -155,6 +155,55 @@ func (t *BlessingsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *Blessings) VDLRead(dec vdl.Decoder) error {
+	*x = Blessings{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Blessings":
+			match++
+			var wire security.WireBlessings
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = security.WireBlessingsToNative(wire, &x.Blessings); err != nil {
+				return err
+			}
+		case "BKey":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.BKey, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // EncryptedBlessings is used to transport encrypted blessings between the
 // two ends of a Conn. The encryption is with respect to a set of blessing
 // patterns that define the set of peers that are allowed to see the blessings.
@@ -325,6 +374,80 @@ func (t *__VDLTarget1_list) FinishElem(elem vdl.Target) error {
 func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 
 	return nil
+}
+
+func (x *EncryptedBlessings) VDLRead(dec vdl.Decoder) error {
+	*x = EncryptedBlessings{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Ciphertexts":
+			match++
+			if err = __VDLRead1_list(dec, &x.Ciphertexts); err != nil {
+				return err
+			}
+		case "BKey":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.BKey, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead1_list(dec vdl.Decoder, x *[]bcrypter.WireCiphertext) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+	case len > 0:
+		*x = make([]bcrypter.WireCiphertext, 0, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem bcrypter.WireCiphertext
+		if err = elem.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
 }
 
 // Discharges is used to transport discharges between the two ends of a Conn.
@@ -536,6 +659,95 @@ func (t *__VDLTarget2_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
+func (x *Discharges) VDLRead(dec vdl.Decoder) error {
+	*x = Discharges{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Discharges":
+			match++
+			if err = __VDLRead2_list(dec, &x.Discharges); err != nil {
+				return err
+			}
+		case "DKey":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.DKey, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "BKey":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.BKey, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead2_list(dec vdl.Decoder, x *[]security.Discharge) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+	case len > 0:
+		*x = make([]security.Discharge, 0, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem security.Discharge
+		var wire security.WireDischarge
+		if err = security.VDLReadWireDischarge(dec, &wire); err != nil {
+			return err
+		}
+		if err = security.WireDischargeToNative(wire, &elem); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
+}
+
 // EncryptedDischarges is used to transport encrypted discharges between the
 // two ends of a Conn. The encryption is with respect to a set of blessing
 // patterns that define the set of peers that are allowed to see the discharges.
@@ -703,6 +915,62 @@ func (t *EncryptedDischargesTarget) ZeroField(name string) error {
 func (t *EncryptedDischargesTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *EncryptedDischarges) VDLRead(dec vdl.Decoder) error {
+	*x = EncryptedDischarges{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Ciphertexts":
+			match++
+			if err = __VDLRead1_list(dec, &x.Ciphertexts); err != nil {
+				return err
+			}
+		case "DKey":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.DKey, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "BKey":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.BKey, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 type (
@@ -930,6 +1198,57 @@ func (t blessingsFlowMessageTargetFactory) VDLMakeUnionTarget(union interface{})
 		return &BlessingsFlowMessageTarget{Value: typedUnion}, nil
 	}
 	return nil, fmt.Errorf("got %T, want *BlessingsFlowMessage", union)
+}
+
+func VDLReadBlessingsFlowMessage(dec vdl.Decoder, x *BlessingsFlowMessage) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Union {
+		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "Blessings":
+		var field BlessingsFlowMessageBlessings
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "Discharges":
+		var field BlessingsFlowMessageDischarges
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "EncryptedBlessings":
+		var field BlessingsFlowMessageEncryptedBlessings
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "EncryptedDischarges":
+		var field BlessingsFlowMessageEncryptedDischarges
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
 }
 
 //////////////////////////////////////////////////

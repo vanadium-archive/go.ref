@@ -166,6 +166,68 @@ func (t *SumArgTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *SumArg) VDLRead(dec vdl.Decoder) error {
+	*x = SumArg{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "ABool":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.ABool, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "AInt64":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.AInt64, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "AListOfBytes":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if err = dec.DecodeBytes(-1, &x.AListOfBytes); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type SumStats struct {
 	SumCount       uint64
 	SumStreamCount uint64
@@ -332,6 +394,79 @@ func (t *SumStatsTarget) ZeroField(name string) error {
 func (t *SumStatsTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *SumStats) VDLRead(dec vdl.Decoder) error {
+	*x = SumStats{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "SumCount":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.SumCount, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "SumStreamCount":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.SumStreamCount, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "BytesRecv":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.BytesRecv, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "BytesSent":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.BytesSent, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////////

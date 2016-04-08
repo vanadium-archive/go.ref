@@ -25,7 +25,8 @@ type goData struct {
 	Env            *compile.Env
 	Imports        goImports
 	createdTargets map[*vdl.Type]bool // set of types whose Targets have already been created
-	unnamedTargets map[*vdl.Type]int  // tracks unnamed target numbers
+	anonTargets    map[*vdl.Type]int  // tracks unnamed target numbers
+	anonReaders    map[*vdl.Type]int  // tracks unnamed decoder numbers
 
 	collectImports bool // is this the import collecting pass instead of normal generation
 	importMap      importMap
@@ -95,7 +96,8 @@ func Generate(pkg *compile.Package, env *compile.Env) []byte {
 		collectImports: true,
 		importMap:      importMap{},
 		createdTargets: make(map[*vdl.Type]bool),
-		unnamedTargets: make(map[*vdl.Type]int),
+		anonTargets:    make(map[*vdl.Type]int),
+		anonReaders:    make(map[*vdl.Type]int),
 	}
 	// The implementation uses the template mechanism from text/template and
 	// executes the template against the goData instance.
@@ -118,7 +120,8 @@ func Generate(pkg *compile.Package, env *compile.Env) []byte {
 	// output file.
 	data.collectImports = false
 	data.createdTargets = make(map[*vdl.Type]bool)
-	data.unnamedTargets = make(map[*vdl.Type]int)
+	data.anonTargets = make(map[*vdl.Type]int)
+	data.anonReaders = make(map[*vdl.Type]int)
 	buf.Reset()
 	if err := goTemplate.Execute(&buf, data); err != nil {
 		// We shouldn't see an error; it means our template is buggy.
@@ -214,6 +217,7 @@ func init() {
 		"nativeIdent":             nativeIdent,
 		"typeGo":                  typeGo,
 		"typeDefGo":               typeDefGo,
+		"readerGo":                readerGo,
 		"constDefGo":              constDefGo,
 		"genValueOf":              genValueOf,
 		"typedConst":              typedConst,
@@ -501,6 +505,7 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 // Type definitions
 {{range $tdef := $pkg.TypeDefs}}
 {{typeDefGo $data $tdef}}
+{{readerGo $data $tdef}}
 {{end}}
 
 {{if $pkg.Config.Go.WireToNativeTypes}}

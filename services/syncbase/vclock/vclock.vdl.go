@@ -303,6 +303,97 @@ func (t *VClockDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *VClockData) VDLRead(dec vdl.Decoder) error {
+	*x = VClockData{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "SystemTimeAtBoot":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.SystemTimeAtBoot); err != nil {
+				return err
+			}
+		case "Skew":
+			match++
+			var wire time_2.Duration
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.DurationToNative(wire, &x.Skew); err != nil {
+				return err
+			}
+		case "ElapsedTimeSinceBoot":
+			match++
+			var wire time_2.Duration
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.DurationToNative(wire, &x.ElapsedTimeSinceBoot); err != nil {
+				return err
+			}
+		case "LastNtpTs":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.LastNtpTs); err != nil {
+				return err
+			}
+		case "NumReboots":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(16)
+			if err != nil {
+				return err
+			}
+			x.NumReboots = uint16(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "NumHops":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(16)
+			if err != nil {
+				return err
+			}
+			x.NumHops = uint16(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

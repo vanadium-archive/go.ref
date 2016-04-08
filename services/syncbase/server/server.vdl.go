@@ -136,6 +136,51 @@ func (t *ServiceDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *ServiceData) VDLRead(dec vdl.Decoder) error {
+	*x = ServiceData{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Version":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Version, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Perms":
+			match++
+			if err = x.Perms.VDLRead(dec); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // DbInfo contains information about a single Database, stored in the
 // service-level storage engine.
 type DbInfo struct {
@@ -279,6 +324,62 @@ func (t *DbInfoTarget) ZeroField(name string) error {
 func (t *DbInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
+	*x = DbInfo{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Id":
+			match++
+			if err = x.Id.VDLRead(dec); err != nil {
+				return err
+			}
+		case "RootDir":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.RootDir, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Engine":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Engine, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // DatabaseData represents the persistent state of a Database, stored in the
@@ -486,6 +587,76 @@ func (t *__VDLTarget1_optional) FromNil(tt *vdl.Type) error {
 	return nil
 }
 
+func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
+	*x = DatabaseData{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Id":
+			match++
+			if err = x.Id.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Version":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Version, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Perms":
+			match++
+			if err = x.Perms.VDLRead(dec); err != nil {
+				return err
+			}
+		case "SchemaMetadata":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if dec.IsNil() {
+				if !vdl.Compatible(dec.Type(), vdl.TypeOf(x.SchemaMetadata)) {
+					return fmt.Errorf("incompatible optional %T, from %v", x.SchemaMetadata, dec.Type())
+				}
+				x.SchemaMetadata = nil
+				if err = dec.FinishValue(); err != nil {
+					return err
+				}
+			} else {
+				x.SchemaMetadata = new(syncbase.SchemaMetadata)
+				dec.IgnoreNextStartValue()
+				if err = x.SchemaMetadata.VDLRead(dec); err != nil {
+					return err
+				}
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // CollectionPerms represent the persistent, synced permissions of a Collection.
 // Existence of CollectionPerms in the store determines existence of the
 // Collection.
@@ -577,6 +748,52 @@ func (t *CollectionPermsTarget) FinishMap(elem vdl.MapTarget) error {
 	}
 
 	return nil
+}
+
+func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Map {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(CollectionPerms, len)
+	default:
+		*x = make(CollectionPerms)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key string
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if key, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		var elem access.AccessList
+		{
+			if err = elem.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = elem
+	}
 }
 
 var __VDLInitCalled bool

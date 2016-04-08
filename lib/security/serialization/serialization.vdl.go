@@ -102,6 +102,46 @@ func (t *SignedHeaderTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *SignedHeader) VDLRead(dec vdl.Decoder) error {
+	*x = SignedHeader{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "ChunkSizeBytes":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.ChunkSizeBytes, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type HashCode [32]byte
 
 func (HashCode) __VDLReflect(struct {
@@ -133,6 +173,18 @@ func (t *HashCodeTarget) FromBytes(src []byte, tt *vdl.Type) error {
 	copy((*t.Value)[:], src)
 
 	return nil
+}
+
+func (x *HashCode) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	bytes := x[:]
+	if err = dec.DecodeBytes(32, &bytes); err != nil {
+		return err
+	}
+	return dec.FinishValue()
 }
 
 type (
@@ -279,6 +331,45 @@ func (t signedDataTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Targ
 		return &SignedDataTarget{Value: typedUnion}, nil
 	}
 	return nil, fmt.Errorf("got %T, want *SignedData", union)
+}
+
+func VDLReadSignedData(dec vdl.Decoder, x *SignedData) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Union {
+		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "Signature":
+		var field SignedDataSignature
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "Hash":
+		var field SignedDataHash
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
 }
 
 var __VDLInitCalled bool

@@ -548,10 +548,10 @@ func targetTypeName(data *goData, t *vdl.Type) string {
 	if def := data.Env.FindTypeDef(t); def != nil {
 		return def.Name + "Target"
 	}
-	id := data.unnamedTargets[t]
+	id := data.anonTargets[t]
 	if id == 0 {
-		id = len(data.unnamedTargets) + 1
-		data.unnamedTargets[t] = id
+		id = len(data.anonTargets) + 1
+		data.anonTargets[t] = id
 	}
 	return fmt.Sprintf("__VDLTarget%d_%s", id, t.Kind())
 }

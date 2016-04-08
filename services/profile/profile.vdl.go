@@ -163,6 +163,68 @@ func (t *LibraryTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *Library) VDLRead(dec vdl.Decoder) error {
+	*x = Library{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Name":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Name, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "MajorVersion":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.MajorVersion, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "MinorVersion":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.MinorVersion, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // Specification is how we represent a profile internally. It should
 // provide enough information to allow matching of binaries to devices.
 type Specification struct {
@@ -453,6 +515,111 @@ func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 	}
 
 	return nil
+}
+
+func (x *Specification) VDLRead(dec vdl.Decoder) error {
+	*x = Specification{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Label":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Label, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Description":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Description, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Arch":
+			match++
+			if err = x.Arch.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Os":
+			match++
+			if err = x.Os.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Format":
+			match++
+			if err = x.Format.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Libraries":
+			match++
+			if err = __VDLRead1_set(dec, &x.Libraries); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead1_set(dec vdl.Decoder, x *map[Library]struct{}) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Set {
+		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(map[Library]struct{}, len)
+	default:
+		*x = make(map[Library]struct{})
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key Library
+		{
+			if err = key.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = struct{}{}
+	}
 }
 
 var __VDLInitCalled bool

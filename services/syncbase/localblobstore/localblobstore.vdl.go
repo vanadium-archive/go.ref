@@ -194,6 +194,58 @@ func (t *BlobMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *BlobMetadata) VDLRead(dec vdl.Decoder) error {
+	*x = BlobMetadata{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "OwnerShares":
+			match++
+			if err = x.OwnerShares.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Referenced":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.Referenced); err != nil {
+				return err
+			}
+		case "Accessed":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.Accessed); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // A PerSyncgroup is blob-related data stored per syncgroup.
 // It includes information that helps syncgroup members decide whether
 // a peer makes a better or worse owner of a blob.
@@ -280,6 +332,40 @@ func (t *PerSyncgroupTarget) ZeroField(name string) error {
 func (t *PerSyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *PerSyncgroup) VDLRead(dec vdl.Decoder) error {
+	*x = PerSyncgroup{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Priority":
+			match++
+			if err = x.Priority.VDLRead(dec); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 var __VDLInitCalled bool

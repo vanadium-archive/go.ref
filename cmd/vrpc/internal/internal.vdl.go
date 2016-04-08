@@ -133,6 +133,61 @@ func (t *StructTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *Struct) VDLRead(dec vdl.Decoder) error {
+	*x = Struct{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "X":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.X = int32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Y":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.Y = int32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type Array2Int [2]int32
 
 func (Array2Int) __VDLReflect(struct {
@@ -193,6 +248,42 @@ func (t *Array2IntTarget) FinishElem(elem vdl.Target) error {
 func (t *Array2IntTarget) FinishList(elem vdl.ListTarget) error {
 
 	return nil
+}
+
+func (x *Array2Int) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tt := dec.Type()
+	if k := tt.Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible array %T, from %v", *x, tt)
+	}
+	index := 0
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done != (index >= tt.Len()):
+			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
+		case done:
+			return dec.FinishValue()
+		}
+		var elem int32
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		tmp, err := dec.DecodeInt(32)
+		if err != nil {
+			return err
+		}
+		elem = int32(tmp)
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		x[index] = elem
+		index++
+	}
 }
 
 //////////////////////////////////////////////////

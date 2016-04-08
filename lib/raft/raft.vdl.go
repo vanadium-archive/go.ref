@@ -74,6 +74,19 @@ func (t *TermTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *Term) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(64)
+	if err != nil {
+		return err
+	}
+	*x = Term(tmp)
+	return dec.FinishValue()
+}
+
 // Index is an index into the log.  The log entries are numbered sequentially.  At the moment
 // the entries RaftClient.Apply()ed should be sequential but that will change if we introduce
 // system entries. For example, we could have an entry type that is used to add members to the
@@ -126,6 +139,19 @@ func (t *IndexTarget) FromFloat(src float64, tt *vdl.Type) error {
 	*t.Value = Index(val)
 
 	return nil
+}
+
+func (x *Index) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(64)
+	if err != nil {
+		return err
+	}
+	*x = Index(tmp)
+	return dec.FinishValue()
 }
 
 // The LogEntry is what the log consists of.  'error' starts nil and is never written to stable
@@ -303,6 +329,69 @@ func (t *LogEntryTarget) ZeroField(name string) error {
 func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
+	*x = LogEntry{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Term":
+			match++
+			if err = x.Term.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Index":
+			match++
+			if err = x.Index.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Cmd":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if err = dec.DecodeBytes(-1, &x.Cmd); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Type":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(8)
+			if err != nil {
+				return err
+			}
+			x.Type = byte(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////////

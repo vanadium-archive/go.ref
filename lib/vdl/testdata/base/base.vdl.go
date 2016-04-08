@@ -60,6 +60,19 @@ func (t *NamedBoolTarget) FromBool(src bool, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *NamedBool) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeBool()
+	if err != nil {
+		return err
+	}
+	*x = NamedBool(tmp)
+	return dec.FinishValue()
+}
+
 type NamedByte byte
 
 func (NamedByte) __VDLReflect(struct {
@@ -112,6 +125,19 @@ func (t *NamedByteTarget) FromFloat(src float64, tt *vdl.Type) error {
 	*t.Value = NamedByte(val)
 
 	return nil
+}
+
+func (x *NamedByte) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(8)
+	if err != nil {
+		return err
+	}
+	*x = NamedByte(tmp)
+	return dec.FinishValue()
 }
 
 type NamedUint16 uint16
@@ -168,6 +194,19 @@ func (t *NamedUint16Target) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *NamedUint16) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(16)
+	if err != nil {
+		return err
+	}
+	*x = NamedUint16(tmp)
+	return dec.FinishValue()
+}
+
 type NamedUint32 uint32
 
 func (NamedUint32) __VDLReflect(struct {
@@ -222,6 +261,19 @@ func (t *NamedUint32Target) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *NamedUint32) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(32)
+	if err != nil {
+		return err
+	}
+	*x = NamedUint32(tmp)
+	return dec.FinishValue()
+}
+
 type NamedUint64 uint64
 
 func (NamedUint64) __VDLReflect(struct {
@@ -270,6 +322,19 @@ func (t *NamedUint64Target) FromFloat(src float64, tt *vdl.Type) error {
 	*t.Value = NamedUint64(val)
 
 	return nil
+}
+
+func (x *NamedUint64) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(64)
+	if err != nil {
+		return err
+	}
+	*x = NamedUint64(tmp)
+	return dec.FinishValue()
 }
 
 type NamedInt8 int8
@@ -326,6 +391,19 @@ func (t *NamedInt8Target) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *NamedInt8) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeInt(8)
+	if err != nil {
+		return err
+	}
+	*x = NamedInt8(tmp)
+	return dec.FinishValue()
+}
+
 type NamedInt16 int16
 
 func (NamedInt16) __VDLReflect(struct {
@@ -378,6 +456,19 @@ func (t *NamedInt16Target) FromFloat(src float64, tt *vdl.Type) error {
 	*t.Value = NamedInt16(val)
 
 	return nil
+}
+
+func (x *NamedInt16) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeInt(16)
+	if err != nil {
+		return err
+	}
+	*x = NamedInt16(tmp)
+	return dec.FinishValue()
 }
 
 type NamedInt32 int32
@@ -434,6 +525,19 @@ func (t *NamedInt32Target) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *NamedInt32) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeInt(32)
+	if err != nil {
+		return err
+	}
+	*x = NamedInt32(tmp)
+	return dec.FinishValue()
+}
+
 type NamedInt64 int64
 
 func (NamedInt64) __VDLReflect(struct {
@@ -482,6 +586,19 @@ func (t *NamedInt64Target) FromFloat(src float64, tt *vdl.Type) error {
 	*t.Value = NamedInt64(val)
 
 	return nil
+}
+
+func (x *NamedInt64) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeInt(64)
+	if err != nil {
+		return err
+	}
+	*x = NamedInt64(tmp)
+	return dec.FinishValue()
 }
 
 type NamedFloat32 float32
@@ -538,6 +655,19 @@ func (t *NamedFloat32Target) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *NamedFloat32) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeFloat(32)
+	if err != nil {
+		return err
+	}
+	*x = NamedFloat32(tmp)
+	return dec.FinishValue()
+}
+
 type NamedFloat64 float64
 
 func (NamedFloat64) __VDLReflect(struct {
@@ -588,6 +718,19 @@ func (t *NamedFloat64Target) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *NamedFloat64) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeFloat(64)
+	if err != nil {
+		return err
+	}
+	*x = NamedFloat64(tmp)
+	return dec.FinishValue()
+}
+
 type NamedString string
 
 func (NamedString) __VDLReflect(struct {
@@ -619,6 +762,19 @@ func (t *NamedStringTarget) FromString(src string, tt *vdl.Type) error {
 	*t.Value = NamedString(src)
 
 	return nil
+}
+
+func (x *NamedString) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeString()
+	if err != nil {
+		return err
+	}
+	*x = NamedString(tmp)
+	return dec.FinishValue()
 }
 
 type NamedEnum int
@@ -709,6 +865,21 @@ func (t *NamedEnumTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *NamedEnum) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	enum, err := dec.DecodeString()
+	if err != nil {
+		return err
+	}
+	if err = x.Set(enum); err != nil {
+		return err
+	}
+	return dec.FinishValue()
+}
+
 type NamedArray [2]bool
 
 func (NamedArray) __VDLReflect(struct {
@@ -769,6 +940,40 @@ func (t *NamedArrayTarget) FinishElem(elem vdl.Target) error {
 func (t *NamedArrayTarget) FinishList(elem vdl.ListTarget) error {
 
 	return nil
+}
+
+func (x *NamedArray) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tt := dec.Type()
+	if k := tt.Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible array %T, from %v", *x, tt)
+	}
+	index := 0
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done != (index >= tt.Len()):
+			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
+		case done:
+			return dec.FinishValue()
+		}
+		var elem bool
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if elem, err = dec.DecodeBool(); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		x[index] = elem
+		index++
+	}
 }
 
 type NamedList []uint32
@@ -838,6 +1043,43 @@ func (t *NamedListTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
+func (x *NamedList) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+	case len > 0:
+		*x = make(NamedList, 0, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem uint32
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		tmp, err := dec.DecodeUint(32)
+		if err != nil {
+			return err
+		}
+		elem = uint32(tmp)
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
+}
+
 type NamedSet map[string]struct{}
 
 func (NamedSet) __VDLReflect(struct {
@@ -904,6 +1146,46 @@ func (t *NamedSetTarget) FinishSet(list vdl.SetTarget) error {
 	}
 
 	return nil
+}
+
+func (x *NamedSet) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Set {
+		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(NamedSet, len)
+	default:
+		*x = make(NamedSet)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key string
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if key, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = struct{}{}
+	}
 }
 
 type NamedMap map[string]float32
@@ -987,6 +1269,60 @@ func (t *NamedMapTarget) FinishMap(elem vdl.MapTarget) error {
 	}
 
 	return nil
+}
+
+func (x *NamedMap) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Map {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(NamedMap, len)
+	default:
+		*x = make(NamedMap)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key string
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if key, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		var elem float32
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeFloat(32)
+			if err != nil {
+				return err
+			}
+			elem = float32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = elem
+	}
 }
 
 type NamedStruct struct {
@@ -1127,6 +1463,70 @@ func (t *NamedStructTarget) ZeroField(name string) error {
 func (t *NamedStructTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *NamedStruct) VDLRead(dec vdl.Decoder) error {
+	*x = NamedStruct{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "A":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "B":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.B, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "C":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.C = int32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 type (
@@ -1308,6 +1708,71 @@ func (t namedUnionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Targ
 		return &NamedUnionTarget{Value: typedUnion}, nil
 	}
 	return nil, fmt.Errorf("got %T, want *NamedUnion", union)
+}
+
+func VDLReadNamedUnion(dec vdl.Decoder, x *NamedUnion) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Union {
+		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "A":
+		var field NamedUnionA
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if field.Value, err = dec.DecodeBool(); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "B":
+		var field NamedUnionB
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if field.Value, err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "C":
+		var field NamedUnionC
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		tmp, err := dec.DecodeInt(32)
+		if err != nil {
+			return err
+		}
+		field.Value = int32(tmp)
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
 }
 
 type Scalars struct {
@@ -2211,6 +2676,274 @@ func (t *ScalarsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *Scalars) VDLRead(dec vdl.Decoder) error {
+	*x = Scalars{
+		A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+		A14: vdl.AnyType,
+		B13: NamedUnionA{},
+	}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "A0":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A0, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A1":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(8)
+			if err != nil {
+				return err
+			}
+			x.A1 = byte(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A2":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(16)
+			if err != nil {
+				return err
+			}
+			x.A2 = uint16(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A3":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(32)
+			if err != nil {
+				return err
+			}
+			x.A3 = uint32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A4":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A4, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A5":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(8)
+			if err != nil {
+				return err
+			}
+			x.A5 = int8(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A6":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(16)
+			if err != nil {
+				return err
+			}
+			x.A6 = int16(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A7":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.A7 = int32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A8":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A8, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A9":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeFloat(32)
+			if err != nil {
+				return err
+			}
+			x.A9 = float32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A10":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A10, err = dec.DecodeFloat(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A11":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A11, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A12":
+			match++
+			if err = verror.VDLRead(dec, &x.A12); err != nil {
+				return err
+			}
+		case "A13":
+			match++
+			// TODO(toddw): implement any
+		case "A14":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A14, err = dec.DecodeTypeObject(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "B0":
+			match++
+			if err = x.B0.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B1":
+			match++
+			if err = x.B1.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B2":
+			match++
+			if err = x.B2.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B3":
+			match++
+			if err = x.B3.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B4":
+			match++
+			if err = x.B4.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B5":
+			match++
+			if err = x.B5.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B6":
+			match++
+			if err = x.B6.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B7":
+			match++
+			if err = x.B7.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B8":
+			match++
+			if err = x.B8.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B9":
+			match++
+			if err = x.B9.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B10":
+			match++
+			if err = x.B10.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B11":
+			match++
+			if err = x.B11.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B12":
+			match++
+			if err = x.B12.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B13":
+			match++
+			if err = VDLReadNamedUnion(dec, &x.B13); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // These are all scalars that may be used as map or set keys.
 type KeyScalars struct {
 	A0  bool
@@ -2952,6 +3685,241 @@ func (t *KeyScalarsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *KeyScalars) VDLRead(dec vdl.Decoder) error {
+	*x = KeyScalars{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "A0":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A0, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A1":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(8)
+			if err != nil {
+				return err
+			}
+			x.A1 = byte(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A2":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(16)
+			if err != nil {
+				return err
+			}
+			x.A2 = uint16(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A3":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(32)
+			if err != nil {
+				return err
+			}
+			x.A3 = uint32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A4":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A4, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A5":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(8)
+			if err != nil {
+				return err
+			}
+			x.A5 = int8(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A6":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(16)
+			if err != nil {
+				return err
+			}
+			x.A6 = int16(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A7":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.A7 = int32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A8":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A8, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A9":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeFloat(32)
+			if err != nil {
+				return err
+			}
+			x.A9 = float32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A10":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A10, err = dec.DecodeFloat(64); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "A11":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.A11, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "B0":
+			match++
+			if err = x.B0.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B1":
+			match++
+			if err = x.B1.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B2":
+			match++
+			if err = x.B2.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B3":
+			match++
+			if err = x.B3.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B4":
+			match++
+			if err = x.B4.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B5":
+			match++
+			if err = x.B5.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B6":
+			match++
+			if err = x.B6.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B7":
+			match++
+			if err = x.B7.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B8":
+			match++
+			if err = x.B8.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B9":
+			match++
+			if err = x.B9.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B10":
+			match++
+			if err = x.B10.VDLRead(dec); err != nil {
+				return err
+			}
+		case "B13":
+			match++
+			if err = x.B13.VDLRead(dec); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type ScalarsArray [2]Scalars
 
 func (ScalarsArray) __VDLReflect(struct {
@@ -3013,6 +3981,34 @@ func (t *ScalarsArrayTarget) FinishElem(elem vdl.Target) error {
 func (t *ScalarsArrayTarget) FinishList(elem vdl.ListTarget) error {
 
 	return nil
+}
+
+func (x *ScalarsArray) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tt := dec.Type()
+	if k := tt.Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible array %T, from %v", *x, tt)
+	}
+	index := 0
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done != (index >= tt.Len()):
+			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
+		case done:
+			return dec.FinishValue()
+		}
+		var elem Scalars
+		if err = elem.VDLRead(dec); err != nil {
+			return err
+		}
+		x[index] = elem
+		index++
+	}
 }
 
 type Composites struct {
@@ -3547,6 +4543,187 @@ func (t *__VDLTarget3_map) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
+func (x *Composites) VDLRead(dec vdl.Decoder) error {
+	*x = Composites{
+		A0: Scalars{
+			A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+			A14: vdl.AnyType,
+			B13: NamedUnionA{},
+		},
+		A1: ScalarsArray{
+			{
+				A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+				A14: vdl.AnyType,
+				B13: NamedUnionA{},
+			},
+			{
+				A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+				A14: vdl.AnyType,
+				B13: NamedUnionA{},
+			},
+		},
+	}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "A0":
+			match++
+			if err = x.A0.VDLRead(dec); err != nil {
+				return err
+			}
+		case "A1":
+			match++
+			if err = x.A1.VDLRead(dec); err != nil {
+				return err
+			}
+		case "A2":
+			match++
+			if err = __VDLRead1_list(dec, &x.A2); err != nil {
+				return err
+			}
+		case "A3":
+			match++
+			if err = __VDLRead2_set(dec, &x.A3); err != nil {
+				return err
+			}
+		case "A4":
+			match++
+			if err = __VDLRead3_map(dec, &x.A4); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead1_list(dec vdl.Decoder, x *[]Scalars) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+	case len > 0:
+		*x = make([]Scalars, 0, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem Scalars
+		if err = elem.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
+}
+
+func __VDLRead2_set(dec vdl.Decoder, x *map[KeyScalars]struct{}) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Set {
+		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(map[KeyScalars]struct{}, len)
+	default:
+		*x = make(map[KeyScalars]struct{})
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key KeyScalars
+		{
+			if err = key.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = struct{}{}
+	}
+}
+
+func __VDLRead3_map(dec vdl.Decoder, x *map[string]Scalars) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Map {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(map[string]Scalars, len)
+	default:
+		*x = make(map[string]Scalars)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key string
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if key, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		var elem Scalars
+		{
+			if err = elem.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = elem
+	}
+}
+
 type CompositesArray [2]Composites
 
 func (CompositesArray) __VDLReflect(struct {
@@ -3608,6 +4785,34 @@ func (t *CompositesArrayTarget) FinishElem(elem vdl.Target) error {
 func (t *CompositesArrayTarget) FinishList(elem vdl.ListTarget) error {
 
 	return nil
+}
+
+func (x *CompositesArray) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tt := dec.Type()
+	if k := tt.Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible array %T, from %v", *x, tt)
+	}
+	index := 0
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done != (index >= tt.Len()):
+			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
+		case done:
+			return dec.FinishValue()
+		}
+		var elem Composites
+		if err = elem.VDLRead(dec); err != nil {
+			return err
+		}
+		x[index] = elem
+		index++
+	}
 }
 
 type CompComp struct {
@@ -4468,6 +5673,264 @@ func (t *__VDLTarget7_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
+func (x *CompComp) VDLRead(dec vdl.Decoder) error {
+	*x = CompComp{
+		A0: Composites{
+			A0: Scalars{
+				A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+				A14: vdl.AnyType,
+				B13: NamedUnionA{},
+			},
+			A1: ScalarsArray{
+				{
+					A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+					A14: vdl.AnyType,
+					B13: NamedUnionA{},
+				},
+				{
+					A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+					A14: vdl.AnyType,
+					B13: NamedUnionA{},
+				},
+			},
+		},
+		A1: CompositesArray{
+			{
+				A0: Scalars{
+					A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+					A14: vdl.AnyType,
+					B13: NamedUnionA{},
+				},
+				A1: ScalarsArray{
+					{
+						A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+						A14: vdl.AnyType,
+						B13: NamedUnionA{},
+					},
+					{
+						A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+						A14: vdl.AnyType,
+						B13: NamedUnionA{},
+					},
+				},
+			},
+			{
+				A0: Scalars{
+					A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+					A14: vdl.AnyType,
+					B13: NamedUnionA{},
+				},
+				A1: ScalarsArray{
+					{
+						A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+						A14: vdl.AnyType,
+						B13: NamedUnionA{},
+					},
+					{
+						A13: vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType)),
+						A14: vdl.AnyType,
+						B13: NamedUnionA{},
+					},
+				},
+			},
+		},
+	}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "A0":
+			match++
+			if err = x.A0.VDLRead(dec); err != nil {
+				return err
+			}
+		case "A1":
+			match++
+			if err = x.A1.VDLRead(dec); err != nil {
+				return err
+			}
+		case "A2":
+			match++
+			if err = __VDLRead4_list(dec, &x.A2); err != nil {
+				return err
+			}
+		case "A3":
+			match++
+			if err = __VDLRead5_map(dec, &x.A3); err != nil {
+				return err
+			}
+		case "A4":
+			match++
+			if err = __VDLRead6_map(dec, &x.A4); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead4_list(dec vdl.Decoder, x *[]Composites) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+	case len > 0:
+		*x = make([]Composites, 0, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem Composites
+		if err = elem.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
+}
+
+func __VDLRead5_map(dec vdl.Decoder, x *map[string]Composites) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Map {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(map[string]Composites, len)
+	default:
+		*x = make(map[string]Composites)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key string
+		{
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if key, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		var elem Composites
+		{
+			if err = elem.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = elem
+	}
+}
+
+func __VDLRead6_map(dec vdl.Decoder, x *map[KeyScalars][]map[string]Composites) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Map {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+		return dec.FinishValue()
+	case len > 0:
+		*x = make(map[KeyScalars][]map[string]Composites, len)
+	default:
+		*x = make(map[KeyScalars][]map[string]Composites)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var key KeyScalars
+		{
+			if err = key.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		var elem []map[string]Composites
+		{
+			if err = __VDLRead7_list(dec, &elem); err != nil {
+				return err
+			}
+		}
+		(*x)[key] = elem
+	}
+}
+
+func __VDLRead7_list(dec vdl.Decoder, x *[]map[string]Composites) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+	case len > 0:
+		*x = make([]map[string]Composites, 0, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem map[string]Composites
+		if err = __VDLRead5_map(dec, &elem); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
+}
+
 // Args will be reordered to show up before NestedArgs in the generated output.
 type Args struct {
 	A int32
@@ -4581,6 +6044,61 @@ func (t *ArgsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *Args) VDLRead(dec vdl.Decoder) error {
+	*x = Args{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "A":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.A = int32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "B":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.B = int32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // NestedArgs is defined before Args; that's allowed in regular Go, and also
 // allowed in our vdl files.  The compiler will re-order dependent types to ease
 // code generation in other languages.
@@ -4667,6 +6185,40 @@ func (t *NestedArgsTarget) ZeroField(name string) error {
 func (t *NestedArgsTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *NestedArgs) VDLRead(dec vdl.Decoder) error {
+	*x = NestedArgs{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Args":
+			match++
+			if err = x.Args.VDLRead(dec); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////////

@@ -126,6 +126,46 @@ func (t *GameIdTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *GameId) VDLRead(dec vdl.Decoder) error {
+	*x = GameId{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Id":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Id, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type GameTypeTag byte
 
 func (GameTypeTag) __VDLReflect(struct {
@@ -178,6 +218,19 @@ func (t *GameTypeTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 	*t.Value = GameTypeTag(val)
 
 	return nil
+}
+
+func (x *GameTypeTag) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(8)
+	if err != nil {
+		return err
+	}
+	*x = GameTypeTag(tmp)
+	return dec.FinishValue()
 }
 
 // GameOptions specifies the parameters of a game.
@@ -294,6 +347,53 @@ func (t *GameOptionsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *GameOptions) VDLRead(dec vdl.Decoder) error {
+	*x = GameOptions{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "NumRounds":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.NumRounds = int32(tmp)
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "GameType":
+			match++
+			if err = x.GameType.VDLRead(dec); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type unused struct {
 }
 
@@ -348,6 +448,29 @@ func (t *unusedTarget) ZeroField(name string) error {
 func (t *unusedTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *unused) VDLRead(dec vdl.Decoder) error {
+	*x = unused{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		switch f, err := dec.NextField(); {
+		case err != nil:
+			return err
+		case f == "":
+			return dec.FinishValue()
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 type (
@@ -493,6 +616,51 @@ func (t playerActionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Ta
 	return nil, fmt.Errorf("got %T, want *PlayerAction", union)
 }
 
+func VDLReadPlayerAction(dec vdl.Decoder, x *PlayerAction) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Union {
+		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "Move":
+		var field PlayerActionMove
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if field.Value, err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "Quit":
+		var field PlayerActionQuit
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
+}
+
 type PlayersMoves [2]string
 
 func (PlayersMoves) __VDLReflect(struct {
@@ -555,6 +723,40 @@ func (t *PlayersMovesTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
+func (x *PlayersMoves) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tt := dec.Type()
+	if k := tt.Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible array %T, from %v", *x, tt)
+	}
+	index := 0
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done != (index >= tt.Len()):
+			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
+		case done:
+			return dec.FinishValue()
+		}
+		var elem string
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if elem, err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		x[index] = elem
+		index++
+	}
+}
+
 // WinnerTag is a type used to indicate whether a round or a game was a draw,
 // was won by player 1 or was won by player 2.
 type WinnerTag byte
@@ -609,6 +811,19 @@ func (t *WinnerTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 	*t.Value = WinnerTag(val)
 
 	return nil
+}
+
+func (x *WinnerTag) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(8)
+	if err != nil {
+		return err
+	}
+	*x = WinnerTag(tmp)
+	return dec.FinishValue()
 }
 
 // Round represents the state of a round.
@@ -832,6 +1047,74 @@ func (t *RoundTarget) ZeroField(name string) error {
 func (t *RoundTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *Round) VDLRead(dec vdl.Decoder) error {
+	*x = Round{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Moves":
+			match++
+			if err = x.Moves.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Comment":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Comment, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Winner":
+			match++
+			if err = x.Winner.VDLRead(dec); err != nil {
+				return err
+			}
+		case "StartTime":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.StartTime); err != nil {
+				return err
+			}
+		case "EndTime":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.EndTime); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 type ScoreCard struct {
@@ -1186,6 +1469,148 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
+func (x *ScoreCard) VDLRead(dec vdl.Decoder) error {
+	*x = ScoreCard{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Opts":
+			match++
+			if err = x.Opts.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Judge":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Judge, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Players":
+			match++
+			if err = __VDLRead1_list(dec, &x.Players); err != nil {
+				return err
+			}
+		case "Rounds":
+			match++
+			if err = __VDLRead2_list(dec, &x.Rounds); err != nil {
+				return err
+			}
+		case "StartTime":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.StartTime); err != nil {
+				return err
+			}
+		case "EndTime":
+			match++
+			var wire time_2.Time
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = time_2.TimeToNative(wire, &x.EndTime); err != nil {
+				return err
+			}
+		case "Winner":
+			match++
+			if err = x.Winner.VDLRead(dec); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+	case len > 0:
+		*x = make([]string, 0, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem string
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if elem, err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
+}
+
+func __VDLRead2_list(dec vdl.Decoder, x *[]Round) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if k := dec.Type().Kind(); k != vdl.Array && k != vdl.List {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len == 0:
+		*x = nil
+	case len > 0:
+		*x = make([]Round, 0, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem Round
+		if err = elem.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
+}
+
 type (
 	// JudgeAction represents any single field of the JudgeAction union type.
 	JudgeAction interface {
@@ -1464,6 +1889,77 @@ func (t judgeActionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Tar
 	return nil, fmt.Errorf("got %T, want *JudgeAction", union)
 }
 
+func VDLReadJudgeAction(dec vdl.Decoder, x *JudgeAction) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Union {
+		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "PlayerNum":
+		var field JudgeActionPlayerNum
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		tmp, err := dec.DecodeInt(32)
+		if err != nil {
+			return err
+		}
+		field.Value = int32(tmp)
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "OpponentName":
+		var field JudgeActionOpponentName
+		if err = dec.StartValue(); err != nil {
+			return err
+		}
+		if field.Value, err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err = dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "MoveOptions":
+		var field JudgeActionMoveOptions
+		if err = __VDLRead1_list(dec, &field.Value); err != nil {
+			return err
+		}
+		*x = field
+	case "RoundResult":
+		var field JudgeActionRoundResult
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "Score":
+		var field JudgeActionScore
+		if err = field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
+}
+
 // PlayResult is the value returned by the Play method. It indicates the outcome of the game.
 type PlayResult struct {
 	YouWon bool // True if the player receiving the result won the game.
@@ -1547,6 +2043,46 @@ func (t *PlayResultTarget) ZeroField(name string) error {
 func (t *PlayResultTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *PlayResult) VDLRead(dec vdl.Decoder) error {
+	*x = PlayResult{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "YouWon":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.YouWon, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////////

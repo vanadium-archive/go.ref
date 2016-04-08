@@ -135,6 +135,57 @@ func (t *PeerKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *PeerKey) VDLRead(dec vdl.Decoder) error {
+	*x = PeerKey{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Dialer":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Dialer, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Acceptor":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Acceptor, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 // PeerBehavior specifies characteristics of a connection.
 type PeerBehavior struct {
 	// Reachable specifies whether the outgoing or incoming connection can be
@@ -253,6 +304,57 @@ func (t *PeerBehaviorTarget) ZeroField(name string) error {
 func (t *PeerBehaviorTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
+}
+
+func (x *PeerBehavior) VDLRead(dec vdl.Decoder) error {
+	*x = PeerBehavior{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "Reachable":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Reachable, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Discoverable":
+			match++
+			if err = dec.StartValue(); err != nil {
+				return err
+			}
+			if x.Discoverable, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err = dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////////

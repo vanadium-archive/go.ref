@@ -85,6 +85,19 @@ func (t *WireStringTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *WireString) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeInt(32)
+	if err != nil {
+		return err
+	}
+	*x = string(tmp)
+	return dec.FinishValue()
+}
+
 type WireMapStringInt int32
 
 func (WireMapStringInt) __VDLReflect(struct {
@@ -147,6 +160,19 @@ func (t *WireMapStringIntTarget) FromFloat(src float64, tt *vdl.Type) error {
 		return err
 	}
 	return nil
+}
+
+func (x *WireMapStringInt) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeInt(32)
+	if err != nil {
+		return err
+	}
+	*x = map[string]int(tmp)
+	return dec.FinishValue()
 }
 
 type WireTime int32
@@ -213,6 +239,19 @@ func (t *WireTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *WireTime) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeInt(32)
+	if err != nil {
+		return err
+	}
+	*x = time.Time(tmp)
+	return dec.FinishValue()
+}
+
 type WireSamePkg int32
 
 func (WireSamePkg) __VDLReflect(struct {
@@ -275,6 +314,19 @@ func (t *WireSamePkgTarget) FromFloat(src float64, tt *vdl.Type) error {
 		return err
 	}
 	return nil
+}
+
+func (x *WireSamePkg) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeInt(32)
+	if err != nil {
+		return err
+	}
+	*x = nativetest.NativeSamePkg(tmp)
+	return dec.FinishValue()
 }
 
 type WireMultiImport int32
@@ -341,6 +393,19 @@ func (t *WireMultiImportTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
+func (x *WireMultiImport) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeInt(32)
+	if err != nil {
+		return err
+	}
+	*x = map[nativetest.NativeSamePkg]time.Time(tmp)
+	return dec.FinishValue()
+}
+
 type WireRenameMe int32
 
 func (WireRenameMe) __VDLReflect(struct {
@@ -393,6 +458,19 @@ func (t *WireRenameMeTarget) FromFloat(src float64, tt *vdl.Type) error {
 	*t.Value = WireRenameMe(val)
 
 	return nil
+}
+
+func (x *WireRenameMe) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeInt(32)
+	if err != nil {
+		return err
+	}
+	*x = WireRenameMe(tmp)
+	return dec.FinishValue()
 }
 
 type WireAll struct {
@@ -680,6 +758,85 @@ func (t *WireAllTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x *WireAll) VDLRead(dec vdl.Decoder) error {
+	*x = WireAll{}
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	if dec.Type().Kind() != vdl.Struct {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	match := 0
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			if match == 0 && dec.Type().NumField() > 0 {
+				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
+			}
+			return dec.FinishValue()
+		case "A":
+			match++
+			var wire WireString
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = WireStringToNative(wire, &x.A); err != nil {
+				return err
+			}
+		case "B":
+			match++
+			var wire WireMapStringInt
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = WireMapStringIntToNative(wire, &x.B); err != nil {
+				return err
+			}
+		case "C":
+			match++
+			var wire WireTime
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = WireTimeToNative(wire, &x.C); err != nil {
+				return err
+			}
+		case "D":
+			match++
+			var wire WireSamePkg
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = WireSamePkgToNative(wire, &x.D); err != nil {
+				return err
+			}
+		case "E":
+			match++
+			var wire WireMultiImport
+			if err = wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err = WireMultiImportToNative(wire, &x.E); err != nil {
+				return err
+			}
+		case "F":
+			match++
+			if err = x.F.VDLRead(dec); err != nil {
+				return err
+			}
+		default:
+			if err = dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type ignoreme string
 
 func (ignoreme) __VDLReflect(struct {
@@ -711,6 +868,19 @@ func (t *ignoremeTarget) FromString(src string, tt *vdl.Type) error {
 	*t.Value = ignoreme(src)
 
 	return nil
+}
+
+func (x *ignoreme) VDLRead(dec vdl.Decoder) error {
+	var err error
+	if err = dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeString()
+	if err != nil {
+		return err
+	}
+	*x = ignoreme(tmp)
+	return dec.FinishValue()
 }
 
 // Type-check native conversion functions.
