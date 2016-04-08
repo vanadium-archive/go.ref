@@ -74,7 +74,7 @@ func TestAddRetrieveAndDeleteBlobMetadata(t *testing.T) {
 	}
 	for i := range b {
 		bmd.OwnerShares = make(interfaces.BlobSharesBySyncgroup)
-		bmd.OwnerShares[61] = 17 + int32(i)
+		bmd.OwnerShares["fakesyncgroupidshouldbe43byteslong123456789"] = 17 + int32(i)
 		bmdList = append(bmdList, bmd)
 		err = bm.SetBlobMetadata(ctx, b[i], &bmd)
 		if err != nil {

@@ -6,7 +6,6 @@ package vsync
 
 import (
 	"container/heap"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -190,8 +189,7 @@ func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 		err = authorize(ctx, rSt.call.Security(), sg)
 		if verror.ErrorID(err) == verror.ErrNoAccess.ID {
 			if rSt.sg {
-				id := fmt.Sprintf("%d", sgid)
-				delete(rSt.initVecs, id)
+				delete(rSt.initVecs, string(sgid))
 			}
 			continue
 		} else if err != nil {

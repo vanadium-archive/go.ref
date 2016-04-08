@@ -14,7 +14,6 @@ var (
 	dbssKey        = common.JoinKeyParts(common.SyncPrefix, "d") // database sync state
 	sgIdPrefix     = common.JoinKeyParts(common.SyncPrefix, "i") // syncgroup ID --> syncgroup local state
 	logPrefix      = common.JoinKeyParts(common.SyncPrefix, "l") // log state
-	sgNamePrefix   = common.JoinKeyParts(common.SyncPrefix, "n") // syncgroup name --> syncgroup ID
 	sgDataPrefix   = common.JoinKeyParts(common.SyncPrefix, "s") // syncgroup (ID, version) --> syncgroup synced state
 )
 

@@ -157,8 +157,8 @@ func (s *syncService) identifyPeer(ctx *context.T, peer connInfo) []string {
 	return blessingNames
 }
 
-// addPrefixesToMap adds to map m the prefixes of syncgroup *sg.
-func addPrefixesToMap(m map[string]sgSet, sg *interfaces.Syncgroup) {
+// addPrefixesToMap adds to map m the prefixes of syncgroup *sg and its ID.
+func addPrefixesToMap(m map[string]sgSet, gid interfaces.GroupId, sg *interfaces.Syncgroup) {
 	for _, p := range sg.Spec.Prefixes {
 		pfxStr := toCollectionRowPrefixStr(p)
 		sgs, ok := m[pfxStr]
@@ -166,7 +166,7 @@ func addPrefixesToMap(m map[string]sgSet, sg *interfaces.Syncgroup) {
 			sgs = make(sgSet)
 			m[pfxStr] = sgs
 		}
-		sgs[sg.Id] = struct{}{}
+		sgs[gid] = struct{}{}
 	}
 }
 
@@ -192,9 +192,9 @@ func (s *syncService) filterSyncgroups(ctx *context.T, c *initiationConfig, bles
 	// prefix range.  Use a database snapshot for the scan.
 	snapshot := c.st.NewSnapshot()
 	defer snapshot.Abort()
-	forEachSyncgroup(snapshot, func(sg *interfaces.Syncgroup) bool {
-		addPrefixesToMap(c.allSgPfxs, sg) // Add syncgroups prefixes to allSgPfxs.
-		return false                      // from forEachSyncgroup closure
+	forEachSyncgroup(snapshot, func(gid interfaces.GroupId, sg *interfaces.Syncgroup) bool {
+		addPrefixesToMap(c.allSgPfxs, gid, sg) // Add syncgroups prefixes to allSgPfxs.
+		return false                           // from forEachSyncgroup closure
 	})
 
 	// Prepare the syncgroup prefixes shared with the caller since we are going through each
@@ -223,7 +223,7 @@ func (s *syncService) filterSyncgroups(ctx *context.T, c *initiationConfig, bles
 		}
 
 		remSgIds[gid] = struct{}{}
-		addPrefixesToMap(c.sharedSgPfxs, sg) // Add syncgroups prefixes to sharedSgPfxs.
+		addPrefixesToMap(c.sharedSgPfxs, gid, sg) // Add syncgroups prefixes to sharedSgPfxs.
 	}
 
 	c.sgIds = remSgIds

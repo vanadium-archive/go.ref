@@ -164,7 +164,7 @@ func (s *syncService) initSync(ctx *context.T) error {
 		sgCount := 0
 
 		// Scan the syncgroups and init relevant metadata.
-		forEachSyncgroup(st, func(sg *interfaces.Syncgroup) bool {
+		forEachSyncgroup(st, func(gid interfaces.GroupId, sg *interfaces.Syncgroup) bool {
 			sgCount++
 
 			// Only use syncgroups that have been marked as
@@ -175,14 +175,14 @@ func (s *syncService) initSync(ctx *context.T) error {
 			// be syncing that syncgroup's data after restart, but
 			// wait until the watcher processes the entry as would
 			// have happened without a restart.
-			state, err := getSGIdEntry(ctx, st, sg.Id)
+			state, err := getSGIdEntry(ctx, st, gid)
 			if err != nil {
 				errFinal = err
 				return false
 			}
 			if state.Watched {
 				for _, prefix := range sg.Spec.Prefixes {
-					addWatchPrefixSyncgroup(dbId, toCollectionRowPrefixStr(prefix), sg.Id)
+					addWatchPrefixSyncgroup(dbId, toCollectionRowPrefixStr(prefix), gid)
 				}
 			}
 
@@ -191,9 +191,9 @@ func (s *syncService) initSync(ctx *context.T) error {
 			}
 
 			// Refresh membership view.
-			refreshSyncgroupMembers(sg, dbId, newMembers)
+			refreshSyncgroupMembers(gid, sg, dbId, newMembers)
 
-			sgoid := sgOID(sg.Id)
+			sgoid := sgOID(gid)
 			info := &localGenInfoInMem{}
 			dsInMem.sgs[sgoid] = info
 

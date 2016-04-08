@@ -334,7 +334,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	s := svc.sync
 	s.id = 10 // initiator
 
-	sgId1 := interfaces.GroupId(1234)
+	sgId1 := interfaces.GroupId("1234")
 	nullInfo := wire.SyncgroupMemberInfo{}
 	sgInfo := sgMemberInfo{
 		sgId1: nullInfo,
@@ -351,7 +351,6 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 
 	sg1 := &interfaces.Syncgroup{
 		Name:        "sg1",
-		Id:          sgId1,
 		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
@@ -367,10 +366,10 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 
 	tx := createDatabase(t, svc).St().NewWatchableTransaction()
 	if err = s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg1); err != nil {
-		t.Fatalf("cannot add syncgroup ID %d, err %v", sg1.Id, err)
+		t.Fatalf("cannot add syncgroup %s, err %v", sg1.Name, err)
 	}
 	if err = tx.Commit(); err != nil {
-		t.Fatalf("cannot commit adding syncgroup ID %d, err %v", sg1.Id, err)
+		t.Fatalf("cannot commit adding syncgroup %s, err %v", sg1.Name, err)
 	}
 
 	if lfile != "" {
@@ -413,7 +412,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		if err = iSt.prepareSGDeltaReq(nil); err != nil {
 			t.Fatalf("prepareSGDeltaReq failed with err %v", err)
 		}
-		sg := fmt.Sprintf("%d", sgId1)
+		sg := string(sgId1)
 		wantVecs = interfaces.Knowledge{
 			sg: interfaces.GenVector{10: 0},
 		}

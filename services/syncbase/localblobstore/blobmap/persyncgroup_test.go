@@ -50,7 +50,8 @@ func TestAddRetrieveAndDeletePerSyncgroup(t *testing.T) {
 	}
 
 	// Two syncgroup IDs: sgs[0] and sgs[1].
-	sgs := []interfaces.GroupId{17, 23}
+	// Mimic actual syncgroup IDs: 43-byte strings.
+	sgs := []interfaces.GroupId{"foofoofoofoofoofoofoofoofoofoofoofoofoofoo0", "barbarbarbarbarbarbarbarbarbarbarbarbarbar1"}
 
 	var psg localblobstore.PerSyncgroup
 	var psgList []localblobstore.PerSyncgroup

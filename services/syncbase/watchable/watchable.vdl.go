@@ -38,7 +38,7 @@ func (m *SyncgroupOp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	var4 := (m.SgId == interfaces.GroupId(0))
+	var4 := (m.SgId == interfaces.GroupId(""))
 	if var4 {
 		if err := fieldsTarget1.ZeroField("SgId"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -166,7 +166,7 @@ func (t *SyncgroupOpTarget) FinishField(_, _ vdl.Target) error {
 func (t *SyncgroupOpTarget) ZeroField(name string) error {
 	switch name {
 	case "SgId":
-		t.Value.SgId = interfaces.GroupId(0)
+		t.Value.SgId = interfaces.GroupId("")
 		return nil
 	case "Prefixes":
 		t.Value.Prefixes = []string(nil)

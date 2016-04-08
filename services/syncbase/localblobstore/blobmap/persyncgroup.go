@@ -6,8 +6,6 @@
 
 package blobmap
 
-import "encoding/binary"
-
 import "v.io/v23/context"
 import "v.io/v23/verror"
 import "v.io/v23/vom"
@@ -20,12 +18,11 @@ import "v.io/x/ref/services/syncbase/store"
 // into keyBuf.  The argument keyBuf is required to be large enough to hold the
 // key.
 func perSyncgroupKey(sgId interfaces.GroupId, keyBuf []byte) []byte {
-	keyLen := copy(keyBuf[:], perSyncgroupPrefix)
-	binary.BigEndian.PutUint64(keyBuf[keyLen:], uint64(sgId))
-	keyLen += 8
-	if len(keyBuf) < keyLen {
+	if len(keyBuf) < (len(perSyncgroupPrefix) + len(sgId)) {
 		panic("keyBuf too short")
 	}
+	keyLen := copy(keyBuf[:], perSyncgroupPrefix)
+	keyLen += copy(keyBuf[keyLen:], []byte(sgId))
 	return keyBuf[:keyLen]
 }
 
@@ -35,7 +32,7 @@ func (bm *BlobMap) SetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg 
 
 	val, err = vom.Encode(psg)
 	if err == nil {
-		var keyBuf [16]byte
+		var keyBuf [64]byte
 		err = bm.st.Put(perSyncgroupKey(sgId, keyBuf[:]), val)
 	}
 	return err
@@ -45,7 +42,7 @@ func (bm *BlobMap) SetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg 
 // If there is an error, *psg is set to a canonical empty PerSyncgroup.
 // On return, it is guaranteed that any maps in *psg are non-nil.
 func (bm *BlobMap) GetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg *localblobstore.PerSyncgroup) (err error) {
-	var keyBuf [16]byte
+	var keyBuf [64]byte
 	var valBuf [maxPerSyncgroupLen]byte
 	var val []byte
 
@@ -61,7 +58,7 @@ func (bm *BlobMap) GetPerSyncgroup(ctx *context.T, sgId interfaces.GroupId, psg 
 
 // DeletePerSyncgroup() deletes the PerSyncgroup for the specified syncgroup.
 func (bm *BlobMap) DeletePerSyncgroup(ctx *context.T, sgId interfaces.GroupId) error {
-	var keyBuf [16]byte
+	var keyBuf [64]byte
 	return bm.st.Delete(perSyncgroupKey(sgId, keyBuf[:]))
 }
 
@@ -114,10 +111,11 @@ func (psgs *PerSyncgroupStream) Advance() (ok bool) {
 			psgs.more = false // no more stream, even if no error
 		} else {
 			var key []byte = psgs.stream.Key(psgs.keyBuf[:])
-			psgs.sgId = interfaces.GroupId(binary.BigEndian.Uint64(key[1:]))
+			psgs.sgId = interfaces.GroupId(key[1:])
 			var value []byte = psgs.stream.Value(psgs.valBuf[:])
 			psgs.err = vom.Decode(value, &psgs.perSyncgroup)
-			if psgs.err == nil && len(key) != len(perSyncgroupPrefix)+8 {
+			// The syncgroup ID is always a 43-byte string.
+			if psgs.err == nil && len(key) != len(perSyncgroupPrefix)+43 {
 				psgs.err = verror.New(errMalformedPerSyncgroupEntry, psgs.ctx, psgs.bm.dir, key, value)
 			}
 			ok = (psgs.err == nil)

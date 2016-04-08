@@ -65,7 +65,7 @@ var (
 //    Value: vom-encoded BlobMetaData
 //
 // syncgroup-to-per-syncgroup
-//    Key:   1-byte containing perSyncgroupPrefix, 8-byte syncgroup id (GroupId)
+//    Key:   1-byte containing perSyncgroupPrefix, 43-byte syncgroup id (GroupId)
 //    Value: vom-encoded PerSyncgroup
 //
 // The varint encoded fields are written/read with

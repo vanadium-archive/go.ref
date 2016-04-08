@@ -727,14 +727,14 @@ func filterSignpost(ctx *context.T, blessingNames []string, s *syncService, sign
 		snapshot := st.NewSnapshot()
 		defer snapshot.Abort()
 
-		forEachSyncgroup(snapshot, func(sg *interfaces.Syncgroup) bool {
-			_, sgIsPresent := signpost.SgIds[sg.Id]
+		forEachSyncgroup(snapshot, func(gid interfaces.GroupId, sg *interfaces.Syncgroup) bool {
+			_, sgIsPresent := signpost.SgIds[gid]
 			if sgIsPresent {
 				// Reveal a hinted syncgroup only if not private, or
 				// the caller has permission to join it.
 				isVisible := !sg.Spec.IsPrivate || isAuthorizedForTag(sg.Spec.Perms, access.Read, blessingNames)
 				if !isVisible { // Otherwise omit the syncgroup.
-					delete(signpost.SgIds, sg.Id)
+					delete(signpost.SgIds, gid)
 				}
 
 				// Reveal a hinted location only if either:
