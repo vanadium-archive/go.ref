@@ -198,6 +198,10 @@ gcloud docker push $IMAGE
 
 ### Create fortuned-deployment.json
 
+The Pod template contains only the _fortuned_ container. There is no need to
+specify the _pod-agent_ container. The *vkube* command adds it for us
+transparently.
+
 ```
  cat - <<EOF >fortuned-deployment.json
 {
@@ -278,9 +282,10 @@ jiri go install v.io/x/ref/cmd/vrpc
 
 IPADDR=$(vkube kubectl get service fortune --template '{{range .status.loadBalancer.ingress}}{{.ip}}{{end}}')
 vrpc signature /$IPADDR:2345
+vrpc identify /$IPADDR:2345
 ```
 
-This should show
+This should show something like
 
 ```
 $ vrpc signature /$IPADDR:2345
@@ -293,6 +298,11 @@ type "v.io/x/ref/examples/fortune".Fortune interface {
 	// Returns whether or not a fortune exists.
 	Has(fortune string) (bool | error)
 }
+
+$ vrpc identify /$IPADDR:2345
+PRESENTED: test-root:fortuned:10.64.0.4:54945
+VALID:     [test-root:fortuned:10.64.0.4:54945]
+PUBLICKEY: 3d:92:fc:5f:b3:ee:72:1f:7b:bf:22:a2:d4:d8:86:1a
 ```
 
 ## Clean up
