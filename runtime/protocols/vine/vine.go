@@ -98,12 +98,18 @@ type vine struct {
 func (v *vine) SetBehaviors(ctx *context.T, call rpc.ServerCall, behaviors map[PeerKey]PeerBehavior) error {
 	var toKill []flow.Conn
 	v.mu.Lock()
+	if behaviors == nil {
+		behaviors = map[PeerKey]PeerBehavior{}
+	}
 	v.behaviors = behaviors
-	for key, behavior := range behaviors {
-		if !behavior.Reachable {
+	// We kill previously made connections that are no longer allowed with this new
+	// behavior map.
+	for key := range v.conns {
+		if behavior := behaviors[key]; !behavior.Reachable {
 			for conn := range v.conns[key] {
 				toKill = append(toKill, conn)
 			}
+			delete(v.conns, key)
 		}
 	}
 	v.mu.Unlock()

@@ -81,6 +81,16 @@ func TestOutgoingReachable(t *testing.T) {
 	if err := client.Call(ctx, "reachable", "Foo", nil, nil); err != nil {
 		t.Error(err)
 	}
+	// Now, we remove the entries from the configuration and nothing should be reachable.
+	if err := vineClient.SetBehaviors(ctx, nil); err != nil {
+		t.Error(err)
+	}
+	if err := client.Call(ctx, "reachable", "Foo", nil, nil, options.NoRetry{}); err == nil {
+		t.Errorf("wanted call to fail")
+	}
+	if err := client.Call(ctx, "unreachable", "Foo", nil, nil, options.NoRetry{}); err == nil {
+		t.Errorf("wanted call to fail")
+	}
 }
 
 func TestIncomingReachable(t *testing.T) {
@@ -141,6 +151,16 @@ func TestIncomingReachable(t *testing.T) {
 	// Now, a call with "client" should still work even without a cached connection.
 	if err := v23.GetClient(ctx).Call(ctx, "server", "Foo", nil, nil); err != nil {
 		t.Error(err)
+	}
+	// After removing all policies all calls should fail again.
+	if err := vineClient.SetBehaviors(ctx, nil); err != nil {
+		t.Error(err)
+	}
+	if err := v23.GetClient(ctx).Call(ctx, "server", "Foo", nil, nil, options.NoRetry{}); err == nil {
+		t.Errorf("wanted call to fail")
+	}
+	if err := v23.GetClient(denyCtx).Call(denyCtx, "server", "Foo", nil, nil, options.NoRetry{}); err == nil {
+		t.Errorf("wanted call to fail")
 	}
 }
 
