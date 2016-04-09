@@ -17,6 +17,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/metadata"
+	"v.io/x/lib/vlog"
+	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/internal/constants"
@@ -28,8 +30,9 @@ var (
 	errNotADirectory = verror.Register(pkgPath+".errNotADirectory", verror.NoRetry, "{1:}{2:} {3} is not a directory{:_}")
 	errCantCreate    = verror.Register(pkgPath+".errCantCreate", verror.NoRetry, "{1:}{2:} failed to create {3}{:_}")
 	errFilepathAbs   = verror.Register(pkgPath+".errAbsFailed", verror.NoRetry, "{1:}{2:} filepath.Abs failed for {3}")
-	errFindAgent     = verror.Register(pkgPath+".errFindAgent", verror.NoRetry, "{1:}{2:} couldn't find a suitable agent binary ({3}) or load principal locally ({4})")
+	errFindAgent     = verror.Register(pkgPath+".errFindAgent", verror.NoRetry, "{1:}{2:} couldn't find a suitable agent binary ({3}) or load principal in the address space of the current process ({4})")
 	errLaunchAgent   = verror.Register(pkgPath+".errLaunchAgent", verror.NoRetry, "{1:}{2:} couldn't launch agent ({3}) or load principal locally ({4})")
+	errLoadLocally   = verror.Register(pkgPath+".errLoadLocally", verror.NoRetry, "{1:}{2:} couldn't load principal in the address space of the current process{:_}")
 )
 
 type localPrincipal struct {
@@ -77,11 +80,11 @@ func loadPrincipalLocally(credentials string) (agent.Principal, error) {
 // process.  The new agent may use os.Stdin and os.Stdout in order to fetch a
 // private key decryption passphrase.  If an agent serving the principal is not
 // found and a new one cannot be started, LoadPrincipal tries to load the
-// principal locally, which will be exclusive for this process; if that fails
-// too (for example, because the principal is encrypted), an error is returned.
-// The caller should call Close on the returned Principal once it's no longer
-// used, in order to free up resources and allow the agent to terminate once it
-// has no more clients.
+// principal in the current process' address space, which will be exclusive for
+// this process; if that fails too (for example, because the principal is
+// encrypted), an error is returned.  The caller should call Close on the
+// returned Principal once it's no longer used, in order to free up resources
+// and allow the agent to terminate once it has no more clients.
 func LoadPrincipal(credsDir string) (agent.Principal, error) {
 	if finfo, err := os.Stat(credsDir); err != nil || err == nil && !finfo.IsDir() {
 		return nil, verror.New(errNotADirectory, nil, credsDir)
@@ -104,6 +107,7 @@ func LoadPrincipal(credsDir string) (agent.Principal, error) {
 		agentBin     string
 		agentVersion version.T
 	)
+	dontStartAgent := os.Getenv(ref.EnvCredentialsNoAgent) != ""
 	for {
 		// If the socket exists and we're able to connect over the
 		// socket to an existing agent, we're done.  This works even if
@@ -115,6 +119,17 @@ func LoadPrincipal(credsDir string) (agent.Principal, error) {
 		} else if tries == maxTries {
 			return nil, err
 		}
+
+		// If launching an agent is not in the cards, just try loading
+		// the principal locally.
+		if dontStartAgent {
+			p, err := loadPrincipalLocally(credsDir)
+			if err != nil {
+				return nil, verror.New(errLoadLocally, nil, err)
+			}
+			return p, nil
+		}
+
 		// Go ahead and try to launch an agent.  Implicitly requires the
 		// current process to have write permissions to the credentials
 		// directory.
@@ -128,7 +143,7 @@ func LoadPrincipal(credsDir string) (agent.Principal, error) {
 				if lerr != nil {
 					return nil, verror.New(errFindAgent, nil, err, lerr)
 				}
-				fmt.Fprintf(os.Stderr, "Couldn't find a suitable agent binary (%v); loaded principal locally.\n", err)
+				vlog.Infof("Couldn't find a suitable agent binary (%v); loaded principal in the current process' address space.", err)
 				return p, nil
 			}
 		}
@@ -143,7 +158,7 @@ func LoadPrincipal(credsDir string) (agent.Principal, error) {
 			if lerr != nil {
 				return nil, verror.New(errLaunchAgent, nil, err, lerr)
 			}
-			fmt.Fprintf(os.Stderr, "Couldn't launch agent (%v); loaded principal locally.\n", err)
+			vlog.Infof("Couldn't launch agent (%v); loaded principal in the current process' address space.", err)
 			return p, nil
 		}
 	}
@@ -182,10 +197,10 @@ func findAgent() (string, version.T, error) {
 		}
 	case <-time.After(timeout):
 		if err := cmd.Process.Kill(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to kill %v (PID:%d): %v\n", cmd.Args, cmd.Process.Pid, err)
+			vlog.Errorf("Failed to kill %v (PID:%d): %v", cmd.Args, cmd.Process.Pid, err)
 		}
 		if err := <-waitErr; err != nil {
-			fmt.Fprintf(os.Stderr, "%v failed: %v\n", cmd.Args, err)
+			vlog.Errorf("%v failed: %v", cmd.Args, err)
 		}
 		return "", defaultVersion, fmt.Errorf("%v failed to complete in %v", cmd.Args, timeout)
 	}
@@ -232,7 +247,7 @@ func launchAgent(credsDir, agentBin string, agentVersion version.T) error {
 	if err != nil {
 		return fmt.Errorf("failed to run %v: %v", cmd.Args, err)
 	}
-	fmt.Fprintf(os.Stderr, "Started agent for credentials %v with PID %d\n", credsDir, cmd.Process.Pid)
+	vlog.Infof("Started agent for credentials %v with PID %d", credsDir, cmd.Process.Pid)
 	scanner := bufio.NewScanner(agentRead)
 	if !scanner.Scan() || scanner.Text() != constants.ServingMsg {
 		return fmt.Errorf("failed to receive \"%s\" from agent", constants.ServingMsg)

@@ -5,7 +5,6 @@
 package daemonreap_test
 
 import (
-	"io/ioutil"
 	"os"
 	"syscall"
 	"testing"
@@ -23,12 +22,7 @@ func TestReapRestartsDaemonMode(t *testing.T) {
 	// Start a device manager.
 	// (Since it will be restarted, use the VeyronCredentials environment
 	// to maintain the same set of credentials across runs)
-	dmCreds, err := ioutil.TempDir("", "TestReapRestartsDaemonMode")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dmCreds)
-
+	dmCreds := utiltest.CreatePrincipal(t, sh)
 	dm := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	dm.Vars[ref.EnvCredentials] = dmCreds
 	dm.Start()

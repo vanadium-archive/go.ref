@@ -91,6 +91,12 @@ func NewPrincipalFromSigner(signer security.Signer, state *PrincipalStateSeriali
 	return security.CreatePrincipal(signer, blessingStore, blessingRoots)
 }
 
+// TODO(caprita): LoadPersistentPrincipal and CreatePersistentPrincipal load the
+// principal without concern to locking or sharing.  Provide alternatives to
+// these in agentlib that lock or use agent, and replace as many existing uses
+// of LoadPersistentPrincipal and CreatePersistentPrincipal with the safer
+// alternatives.
+
 // LoadPersistentPrincipal reads state for a principal (private key,
 // BlessingRoots, BlessingStore) from the provided directory 'dir' and commits
 // all state changes to the same directory.

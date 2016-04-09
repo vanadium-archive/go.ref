@@ -20,39 +20,19 @@ import (
 	"v.io/x/ref/services/agent/agentlib"
 )
 
-func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal security.Principal, shutdown func(), err error) {
-	if principal, _ = ctx.Value(principalKey).(security.Principal); principal != nil {
+func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (security.Principal, func(), error) {
+	if principal, _ := ctx.Value(principalKey).(security.Principal); principal != nil {
 		return principal, func() {}, nil
 	}
 	if len(credentials) > 0 {
-		// TODO(caprita): remove V23_CREDENTIALS_USE_AGENT and always
-		// use the agent way of loading credentials once we update tests
-		// that rely on the old behavior.
-		if os.Getenv("V23_CREDENTIALS_USE_AGENT") != "" {
-			// Explicitly specified credentials, use (or set up) an
-			// agent that serves the principal.
-			if principal, err := agentlib.LoadPrincipal(credentials); err != nil {
-				return nil, nil, err
-			} else {
-				return principal, func() { principal.Close() }, nil
-			}
-		}
-		// Explicitly specified credentials, ignore the agent.
-
-		// TODO(ataly, ashankar): If multiple runtimes are getting
-		// initialized at the same time from the same
-		// ref.EnvCredentials we will need some kind of locking for the
-		// credential files.
-		if principal, err = vsecurity.LoadPersistentPrincipal(credentials, nil); err != nil {
-			if os.IsNotExist(err) {
-				if principal, err = vsecurity.CreatePersistentPrincipal(credentials, nil); err != nil {
-					return principal, nil, err
-				}
-				return principal, func() {}, vsecurity.InitDefaultBlessings(principal, defaultBlessingName())
-			}
+		// Explicitly specified credentials, use (or set up) an agent
+		// that serves the principal; or otherwise load the principal
+		// exclusively.
+		principal, err := agentlib.LoadPrincipal(credentials)
+		if err != nil {
 			return nil, nil, err
 		}
-		return principal, func() {}, nil
+		return principal, func() { principal.Close() }, nil
 	}
 	// Use credentials stored in the agent.
 	if principal, err := ipcAgent(); err != nil {
@@ -60,8 +40,10 @@ func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (principal s
 	} else if principal != nil {
 		return principal, func() { principal.Close() }, nil
 	}
-	// No agent, no explicit credentials specified: - create a new principal and blessing in memory.
-	if principal, err = vsecurity.NewPrincipal(); err != nil {
+	// No agent, no explicit credentials specified: create a new principal
+	// and blessing in memory.
+	principal, err := vsecurity.NewPrincipal()
+	if err != nil {
 		return principal, nil, err
 	}
 	return principal, func() {}, vsecurity.InitDefaultBlessings(principal, defaultBlessingName())

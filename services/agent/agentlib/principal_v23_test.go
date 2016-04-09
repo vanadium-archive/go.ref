@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"v.io/v23/security"
+	"v.io/x/ref"
 	vsecurity "v.io/x/ref/lib/security"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/agent"
@@ -35,9 +36,15 @@ func createFakeV23AgentdDir(t *testing.T, sh *v23test.Shell) string {
 func TestV23AgentPrincipal(t *testing.T) {
 	v23test.SkipUnlessRunningIntegrationTests(t)
 
-	os.Setenv("V23_CREDENTIALS_USE_AGENT", "1")
 	sh := v23test.NewShell(t, nil)
 	sh.PropagateChildOutput = true
+	// Make sure we enable launching an agent when loading credentials.
+	os.Unsetenv(ref.EnvCredentialsNoAgent)
+	// This is not strictly needed since we don't create child processes
+	// using the shell that need to load credentials using the agent, but
+	// it's good practice to use the same setting in the parent and any
+	// children.
+	delete(sh.Vars, ref.EnvCredentialsNoAgent)
 	defer sh.Cleanup()
 
 	agentd := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/v23agentd")

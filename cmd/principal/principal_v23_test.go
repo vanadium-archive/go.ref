@@ -7,6 +7,7 @@ package main_test
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -276,41 +277,48 @@ func TestV23RecvBlessings(t *testing.T) {
 	sh.Cmd(bin, "create", carolDir, "carol").Run()
 
 	// Run recvblessings on carol, and have alice send blessings over
-	// (blessings received must be set as default and shareable with all peers).
-	var args []string
+	// (blessings received must be set as default and shareable with all
+	// peers).
 	{
 		cmd := sh.Cmd(bin, "--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings")
 		cmd.Start()
-		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
+		args := append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
 		// Use the "friend:carol" extension
 		args = append(args, "friend:carol")
+		withCreds(aliceDir, sh.Cmd(bin, args...)).Run()
+		cmd.Wait()
 	}
-	withCreds(aliceDir, sh.Cmd(bin, args...)).Run()
 
 	// Run recvblessings on carol, and have alice send blessings over
-	// (blessings received must be set as shareable with peers matching 'alice:...'.)
+	// (blessings received must be set as shareable with peers matching
+	// 'alice:...'.)
 	{
 		cmd := sh.Cmd(bin, "--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=alice", "--set-default=false")
 		cmd.Start()
-		// recvblessings suggests a random extension, find the extension and replace it with friend:carol:foralice.
-		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
+		// recvblessings suggests a random extension, find the extension
+		// and replace it with friend:carol:foralice.
+		args := append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
 		args = append(args, "friend:carol:foralice")
+		withCreds(aliceDir, sh.Cmd(bin, args...)).Run()
+		cmd.Wait()
 	}
-	withCreds(aliceDir, sh.Cmd(bin, args...)).Run()
 
-	// Run recvblessings on carol with the --remote-arg-file flag, and have bob send blessings over with the --remote-arg-file flag.
+	// Run recvblessings on carol with the --remote-arg-file flag, and have
+	// bob send blessings over with the --remote-arg-file flag.
 	{
 		cmd := sh.Cmd(bin, "--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=bob", "--set-default=false", "--remote-arg-file="+bobBlessFile)
 		cmd.Start()
-		// recvblessings suggests a random extension, use friend:carol:forbob instead.
-		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
+		// recvblessings suggests a random extension, use
+		// friend:carol:forbob instead.
+		args := append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
 		args = append(args, "friend:carol:forbob")
+		withCreds(bobDir, sh.Cmd(bin, args...)).Run()
+		cmd.Wait()
 	}
-	withCreds(bobDir, sh.Cmd(bin, args...)).Run()
 
 	cmd := sh.Cmd(bin, "--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=alice:...", "--set-default=false", "--vmodule=*=2", "--logtostderr")
 	cmd.Start()
-	args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
+	args := append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(cmd.S)...)
 	args = append(args, "willfail")
 
 	{
@@ -342,6 +350,10 @@ func TestV23RecvBlessings(t *testing.T) {
 			t.Fatalf("expected %q to be contained within\n%s\n, but was not", want, got)
 		}
 	}
+	// carol's recvblessings never completes since alice couldn't get her
+	// act together.  Kill the recvblessings command to release the lock on
+	// carol's credentials.
+	cmd.Terminate(os.Kill)
 
 	// Dump carol out, the only blessing that survives should be from the
 	// first "bless" command. (alice:friend:carol).

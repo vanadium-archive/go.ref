@@ -53,6 +53,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/application"
 	"v.io/x/ref"
+	"v.io/x/ref/lib/security"
 	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/versioning"
 	"v.io/x/ref/services/device/internal/config"
@@ -206,8 +207,8 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	principalDir := filepath.Join(securityDir, "principal")
 	keyDir := filepath.Join(securityDir, "keys")
 	perm := os.FileMode(0700)
-	if err := os.MkdirAll(principalDir, perm); err != nil {
-		return fmt.Errorf("MkdirAll(%v, %v) failed: %v", principalDir, perm, err)
+	if _, err := security.CreatePersistentPrincipal(principalDir, nil); err != nil {
+		return fmt.Errorf("CreatePersistentPrincipal(%v, nil) failed: %v", principalDir, err)
 	}
 	if err := os.MkdirAll(keyDir, perm); err != nil {
 		return fmt.Errorf("MkdirAll(%v, %v) failed: %v", keyDir, perm, err)

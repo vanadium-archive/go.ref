@@ -193,9 +193,9 @@ func VanadiumEnvironment(env []string) []string {
 	return filterEnvironment(env, allowedVarsRE, deniedVarsRE)
 }
 
-var allowedVarsRE = regexp.MustCompile("V23_.*|GOSH_.*|PAUSE_BEFORE_STOP|TMPDIR")
+var allowedVarsRE = regexp.MustCompile("^(V23_.*|GOSH_.*|PAUSE_BEFORE_STOP|TMPDIR|PATH)$")
 
-var deniedVarsRE = regexp.MustCompile("V23_EXEC_VERSION|V23_EXEC_CONFIG")
+var deniedVarsRE = regexp.MustCompile("^(V23_EXEC_VERSION|V23_EXEC_CONFIG)$")
 
 // filterEnvironment returns only the environment variables, specified by
 // the env parameter, whose names match the supplied regexp.

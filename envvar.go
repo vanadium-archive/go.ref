@@ -22,25 +22,38 @@ const (
 	// See v.io/x/ref/lib/security.CreatePersistentPrincipal.
 	EnvCredentials = "V23_CREDENTIALS"
 
-	// EnvAgentPath is the name of the environment variable pointing to a socket
-	// of the agentd process containing all the credentials for a principal (the
-	// blessing store, the blessing roots, possibly the private key etc.).
+	// EnvCredentialsNoAgent is the name of the environment variable
+	// indicating whether an agent should be started to serve credentials to
+	// be loaded from a directory.  If set to anything but empty string, no
+	// attempt is made to load an agent.
+	//
+	// Typically used in tests or on platforms where launching agents is not
+	// desirable.
+	//
+	// See v.io/x/ref/security/agent/agentlib.LoadPrincipal.
+	EnvCredentialsNoAgent = "V23_CREDENTIALS_NO_AGENT"
+
+	// EnvAgentPath is the name of the environment variable pointing to a
+	// socket of the agentd process containing all the credentials for a
+	// principal (the blessing store, the blessing roots, possibly the
+	// private key etc.).
 	//
 	// Typically only one of EnvCredentials or EnvAgentPath will be set in a
 	// process. If both are set, then EnvCredentials takes preference.
 	EnvAgentPath = "V23_AGENT_PATH"
 
-	// EnvNamespacePrefix is the prefix of all environment variables that define a
-	// namespace root.
+	// EnvNamespacePrefix is the prefix of all environment variables that
+	// define a namespace root.
 	EnvNamespacePrefix = "V23_NAMESPACE"
 
-	// EnvI18nCatalogueFiles is the name of the environment variable pointing to a
-	// comma-separated list of i18n catalogue files to be loaded at startup.
+	// EnvI18nCatalogueFiles is the name of the environment variable
+	// pointing to a comma-separated list of i18n catalogue files to be
+	// loaded at startup.
 	EnvI18nCatalogueFiles = "V23_I18N_CATALOGUE"
 
-	// EnvOAuthIdentityProvider is the name of the environment variable pointing
-	// to the url of the OAuth identity provider used by the principal
-	// seekblessings command.
+	// EnvOAuthIdentityProvider is the name of the environment variable
+	// pointing to the url of the OAuth identity provider used by the
+	// principal seekblessings command.
 	EnvOAuthIdentityProvider = "V23_OAUTH_IDENTITY_PROVIDER"
 
 	// When EnvExpectGoogleComputeEngine is set and non-empty, the runtime

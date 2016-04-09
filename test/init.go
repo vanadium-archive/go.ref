@@ -37,15 +37,7 @@ var debugOnShutdown = flag.String("v23.debug-address", "",
 // V23InitWithMounttable, and have their services access each other via the
 // mount table (rather than using endpoint strings).
 func V23Init() (*context.T, v23.Shutdown) {
-	ctx, shutdown := v23.Init()
-	ctx = internalInit(ctx, false)
-
-	if *debugOnShutdown != "" {
-		orig := shutdown
-		shutdown = func() { debug(ctx, orig) }
-	}
-
-	return ctx, shutdown
+	return internalInit(false)
 }
 
 // V23InitWithMounttable initializes the runtime and:
@@ -54,15 +46,7 @@ func V23Init() (*context.T, v23.Shutdown) {
 // Both these steps are skipped if this function is invoked from a v23test.Shell
 // child process.
 func V23InitWithMounttable() (*context.T, v23.Shutdown) {
-	ctx, shutdown := v23.Init()
-	ctx = internalInit(ctx, true)
-
-	if *debugOnShutdown != "" {
-		orig := shutdown
-		shutdown = func() { debug(ctx, orig) }
-	}
-
-	return ctx, shutdown
+	return internalInit(true)
 }
 
 func debug(ctx *context.T, shutdown func()) {

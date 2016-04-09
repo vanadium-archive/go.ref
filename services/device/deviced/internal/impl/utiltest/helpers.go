@@ -35,6 +35,7 @@ import (
 	"v.io/x/lib/gosh"
 	"v.io/x/ref"
 	"v.io/x/ref/internal/logger"
+	vsecurity "v.io/x/ref/lib/security"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/device/deviced/internal/impl"
 	"v.io/x/ref/services/device/deviced/internal/versioning"
@@ -605,6 +606,16 @@ func CtxWithNewPrincipal(t *testing.T, ctx *context.T, idp *testutil.IDProvider,
 		t.Fatal(testutil.FormatLogLine(2, "idp.Bless(?, %q) failed: %v", extension, err))
 	}
 	return ret
+}
+
+// CreatePrincipal sets up a principal in a temporary directory (to be cleaned
+// up by the shell at the end) and returns that directory.
+func CreatePrincipal(t *testing.T, sh *v23test.Shell) string {
+	principalDir := sh.MakeTempDir()
+	if _, err := vsecurity.CreatePersistentPrincipal(principalDir, nil); err != nil {
+		t.Fatal(err)
+	}
+	return principalDir
 }
 
 // TODO(rjkroege): This helper is generally useful. Use it to reduce

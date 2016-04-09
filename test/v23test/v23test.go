@@ -110,6 +110,10 @@ func NewShell(tb testing.TB, ctx *context.T) *Shell {
 	}
 	if sh.tb != nil {
 		sh.Vars[envShellTestProcess] = "1"
+		// We don't want to launch on-demand agents when loading
+		// credentials from disk in tests.  See also similar setting in
+		// test.V23Init().
+		sh.Vars[ref.EnvCredentialsNoAgent] = "1"
 	}
 
 	cleanup := true

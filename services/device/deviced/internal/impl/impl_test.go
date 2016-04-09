@@ -103,12 +103,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// the device manager and the signatures used for AccessList integrity checks
 	// - will not carry over between updates to the binary, which would not be
 	// reflective of intended use.
-	dmCreds, err := ioutil.TempDir("", "TestDeviceManagerUpdateAndRevert")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dmCreds)
-	dmVars := map[string]string{ref.EnvCredentials: dmCreds}
+	dmVars := map[string]string{ref.EnvCredentials: utiltest.CreatePrincipal(t, sh)}
 	dmArgs := []interface{}{"factoryDM", root, "unused_helper", utiltest.MockApplicationRepoName, currLink}
 	dmCmd := utiltest.DeviceManagerCmd(sh, utiltest.DeviceManager, dmArgs...)
 	dmCmd.Vars = envvar.MergeMaps(dmCmd.Vars, dmVars)
