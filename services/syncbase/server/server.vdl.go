@@ -635,8 +635,8 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 			if dec.IsNil() {
-				if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-					return fmt.Errorf("incompatible union %T, from %v", *x.SchemaMetadata, dec.Type())
+				if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x.SchemaMetadata), dec.Type()) {
+					return fmt.Errorf("incompatible optional %T, from %v", x.SchemaMetadata, dec.Type())
 				}
 				x.SchemaMetadata = nil
 				if err = dec.FinishValue(); err != nil {

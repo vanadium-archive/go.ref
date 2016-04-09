@@ -326,8 +326,8 @@ func VDLReadBlobUnion(dec vdl.Decoder, x *BlobUnion) error {
 	if err = dec.StartValue(); err != nil {
 		return err
 	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible union %T, from %v", *x, dec.Type())
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x), dec.Type()) {
+		return fmt.Errorf("incompatible union %T, from %v", x, dec.Type())
 	}
 	f, err := dec.NextField()
 	if err != nil {
@@ -831,7 +831,7 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]*vom.RawBytes) error {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len == 0:
@@ -1284,8 +1284,8 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 			if dec.IsNil() {
-				if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-					return fmt.Errorf("incompatible union %T, from %v", *x.Bo, dec.Type())
+				if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x.Bo), dec.Type()) {
+					return fmt.Errorf("incompatible optional %T, from %v", x.Bo, dec.Type())
 				}
 				x.Bo = nil
 				if err = dec.FinishValue(); err != nil {
