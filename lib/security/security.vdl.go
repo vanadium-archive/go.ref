@@ -163,20 +163,16 @@ func (x *blessingRootsState) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
-	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
-		return dec.FinishValue()
-	case len > 0:
-		*x = make(blessingRootsState, len)
-	default:
-		*x = make(blessingRootsState)
+	var tmpMap blessingRootsState
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(blessingRootsState, len)
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
 		case done:
+			*x = tmpMap
 			return dec.FinishValue()
 		}
 		var key string
@@ -197,7 +193,10 @@ func (x *blessingRootsState) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		}
-		(*x)[key] = elem
+		if tmpMap == nil {
+			tmpMap = make(blessingRootsState)
+		}
+		tmpMap[key] = elem
 	}
 }
 
@@ -210,10 +209,10 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]security.BlessingPattern) error {
 		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
 	case len > 0:
 		*x = make([]security.BlessingPattern, 0, len)
+	default:
+		*x = nil
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
@@ -464,7 +463,6 @@ func (x *CachedDischarge) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -472,12 +470,8 @@ func (x *CachedDischarge) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Discharge":
-			match++
 			var wire security.WireDischarge
 			if err = security.VDLReadWireDischarge(dec, &wire); err != nil {
 				return err
@@ -486,7 +480,6 @@ func (x *CachedDischarge) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "CacheTime":
-			match++
 			var wire time_2.Time
 			if err = wire.VDLRead(dec); err != nil {
 				return err
@@ -966,7 +959,6 @@ func (x *blessingStoreState) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -974,17 +966,12 @@ func (x *blessingStoreState) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "PeerBlessings":
-			match++
 			if err = __VDLRead2_map(dec, &x.PeerBlessings); err != nil {
 				return err
 			}
 		case "DefaultBlessings":
-			match++
 			var wire security.WireBlessings
 			if err = wire.VDLRead(dec); err != nil {
 				return err
@@ -993,17 +980,14 @@ func (x *blessingStoreState) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "DischargeCache":
-			match++
 			if err = __VDLRead3_map(dec, &x.DischargeCache); err != nil {
 				return err
 			}
 		case "Discharges":
-			match++
 			if err = __VDLRead4_map(dec, &x.Discharges); err != nil {
 				return err
 			}
 		case "CacheKeyFormat":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -1031,20 +1015,16 @@ func __VDLRead2_map(dec vdl.Decoder, x *map[security.BlessingPattern]security.Bl
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
-	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
-		return dec.FinishValue()
-	case len > 0:
-		*x = make(map[security.BlessingPattern]security.Blessings, len)
-	default:
-		*x = make(map[security.BlessingPattern]security.Blessings)
+	var tmpMap map[security.BlessingPattern]security.Blessings
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(map[security.BlessingPattern]security.Blessings, len)
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
 		case done:
+			*x = tmpMap
 			return dec.FinishValue()
 		}
 		var key security.BlessingPattern
@@ -1063,7 +1043,10 @@ func __VDLRead2_map(dec vdl.Decoder, x *map[security.BlessingPattern]security.Bl
 				return err
 			}
 		}
-		(*x)[key] = elem
+		if tmpMap == nil {
+			tmpMap = make(map[security.BlessingPattern]security.Blessings)
+		}
+		tmpMap[key] = elem
 	}
 }
 
@@ -1075,20 +1058,16 @@ func __VDLRead3_map(dec vdl.Decoder, x *map[dischargeCacheKey]security.Discharge
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
-	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
-		return dec.FinishValue()
-	case len > 0:
-		*x = make(map[dischargeCacheKey]security.Discharge, len)
-	default:
-		*x = make(map[dischargeCacheKey]security.Discharge)
+	var tmpMap map[dischargeCacheKey]security.Discharge
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(map[dischargeCacheKey]security.Discharge, len)
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
 		case done:
+			*x = tmpMap
 			return dec.FinishValue()
 		}
 		var key dischargeCacheKey
@@ -1107,7 +1086,10 @@ func __VDLRead3_map(dec vdl.Decoder, x *map[dischargeCacheKey]security.Discharge
 				return err
 			}
 		}
-		(*x)[key] = elem
+		if tmpMap == nil {
+			tmpMap = make(map[dischargeCacheKey]security.Discharge)
+		}
+		tmpMap[key] = elem
 	}
 }
 
@@ -1119,20 +1101,16 @@ func __VDLRead4_map(dec vdl.Decoder, x *map[dischargeCacheKey]CachedDischarge) e
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
-	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
-		return dec.FinishValue()
-	case len > 0:
-		*x = make(map[dischargeCacheKey]CachedDischarge, len)
-	default:
-		*x = make(map[dischargeCacheKey]CachedDischarge)
+	var tmpMap map[dischargeCacheKey]CachedDischarge
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(map[dischargeCacheKey]CachedDischarge, len)
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
 		case done:
+			*x = tmpMap
 			return dec.FinishValue()
 		}
 		var key dischargeCacheKey
@@ -1147,7 +1125,10 @@ func __VDLRead4_map(dec vdl.Decoder, x *map[dischargeCacheKey]CachedDischarge) e
 				return err
 			}
 		}
-		(*x)[key] = elem
+		if tmpMap == nil {
+			tmpMap = make(map[dischargeCacheKey]CachedDischarge)
+		}
+		tmpMap[key] = elem
 	}
 }
 

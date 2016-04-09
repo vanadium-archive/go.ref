@@ -297,23 +297,22 @@ func (g *genRead) bodyArray(tt *vdl.Type, arg namedArg) string {
 			return %[1]sErrorf("array len mismatch, got %%d, want %%T", index, %[2]s)
 		case done:
 			return dec.FinishValue()
-		}
-		var elem %[3]s`, g.Pkg("fmt"), arg.Ref(), typeGo(g.goData, tt.Elem()))
-	s += g.body(tt.Elem(), typedArg("elem", tt.Elem()), false)
-	return s + fmt.Sprintf(`
-		%[1]s[index] = elem
+		}`, g.Pkg("fmt"), arg.Ref())
+	elem := fmt.Sprintf(`%[1]s[index]`, arg.Name)
+	s += g.body(tt.Elem(), typedArg(elem, tt.Elem()), false)
+	return s + `
 		index++
-	}`, arg.Name)
+	}`
 }
 
 func (g *genRead) bodyList(tt *vdl.Type, arg namedArg) string {
 	s := g.checkCompat(tt.Kind(), arg.Ref())
 	s += fmt.Sprintf(`
 	switch len := dec.LenHint(); {
-	case len == 0:
-		%[1]s = nil
 	case len > 0:
 		%[1]s = make(%[2]s, 0, len)
+	default:
+		%[1]s = nil
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
@@ -332,20 +331,16 @@ func (g *genRead) bodyList(tt *vdl.Type, arg namedArg) string {
 func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
 	s := g.checkCompat(tt.Kind(), arg.Ref())
 	s += fmt.Sprintf(`
-	switch len := dec.LenHint(); {
-	case len == 0:
-		%[1]s = nil
-		return dec.FinishValue()
-	case len > 0:
-		%[1]s = make(%[2]s, len)
-	default:
-		%[1]s = make(%[2]s)
+	var tmpMap %[2]s
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(%[2]s, len)
   }
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
 		case done:
+			%[1]s = tmpMap
 			return dec.FinishValue()
 		}
 		var key %[3]s
@@ -362,31 +357,15 @@ func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
 		}`
 	}
 	return s + fmt.Sprintf(`
-		%[1]s[key] = %[2]s
-	}`, arg.SafeRef(), elemVar)
+		if tmpMap == nil {
+			tmpMap = make(%[1]s)
+		}
+		tmpMap[key] = %[2]s
+	}`, typeGo(g.goData, tt), elemVar)
 }
 
 func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {
-	s := g.checkCompat(tt.Kind(), arg.Ref())
-	if tt.NumField() == 0 {
-		// TODO(toddw): Disallow named struct{}, allow unnamed struct{}, and remove
-		// this special-case logic.
-		return s + `
-	for {
-		switch f, err := dec.NextField(); {
-		case err != nil:
-			return err
-		case f == "":
-			return dec.FinishValue()
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}`
-	}
-	s += fmt.Sprintf(`
-	match := 0
+	s := g.checkCompat(tt.Kind(), arg.Ref()) + `
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -394,15 +373,11 @@ func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return %[1]sErrorf("no matching fields in struct %%T, from %%v", %[2]s, dec.Type())
-			}
-			return dec.FinishValue()`, g.Pkg("fmt"), arg.Ref())
+			return dec.FinishValue()`
 	for f := 0; f < tt.NumField(); f++ {
 		field := tt.Field(f)
 		s += fmt.Sprintf(`
-		case %[1]q:
-			match++`, field.Name)
+		case %[1]q:`, field.Name)
 		s += g.body(field.Type, arg.Field(field), false)
 	}
 	return s + `

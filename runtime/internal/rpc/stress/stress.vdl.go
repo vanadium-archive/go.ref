@@ -175,7 +175,6 @@ func (x *SumArg) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -183,12 +182,8 @@ func (x *SumArg) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "ABool":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -199,7 +194,6 @@ func (x *SumArg) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "AInt64":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -210,7 +204,6 @@ func (x *SumArg) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "AListOfBytes":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -405,7 +398,6 @@ func (x *SumStats) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -413,12 +405,8 @@ func (x *SumStats) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "SumCount":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -429,7 +417,6 @@ func (x *SumStats) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "SumStreamCount":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -440,7 +427,6 @@ func (x *SumStats) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "BytesRecv":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -451,7 +437,6 @@ func (x *SumStats) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "BytesSent":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}

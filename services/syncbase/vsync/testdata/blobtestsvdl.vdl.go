@@ -142,7 +142,6 @@ func (x *BlobInfo) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -150,12 +149,8 @@ func (x *BlobInfo) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Info":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -166,7 +161,6 @@ func (x *BlobInfo) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Br":
-			match++
 			if err = x.Br.VDLRead(dec); err != nil {
 				return err
 			}
@@ -545,7 +539,6 @@ func (x *BlobSet) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -553,12 +546,8 @@ func (x *BlobSet) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Info":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -569,7 +558,6 @@ func (x *BlobSet) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Bs":
-			match++
 			if err = __VDLRead1_set(dec, &x.Bs); err != nil {
 				return err
 			}
@@ -589,20 +577,16 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[syncbase.BlobRef]struct{}) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
 	}
-	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
-		return dec.FinishValue()
-	case len > 0:
-		*x = make(map[syncbase.BlobRef]struct{}, len)
-	default:
-		*x = make(map[syncbase.BlobRef]struct{})
+	var tmpMap map[syncbase.BlobRef]struct{}
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(map[syncbase.BlobRef]struct{}, len)
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
 		case done:
+			*x = tmpMap
 			return dec.FinishValue()
 		}
 		var key syncbase.BlobRef
@@ -611,7 +595,10 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[syncbase.BlobRef]struct{}) error {
 				return err
 			}
 		}
-		(*x)[key] = struct{}{}
+		if tmpMap == nil {
+			tmpMap = make(map[syncbase.BlobRef]struct{})
+		}
+		tmpMap[key] = struct{}{}
 	}
 }
 
@@ -789,7 +776,6 @@ func (x *BlobAny) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -797,12 +783,8 @@ func (x *BlobAny) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Info":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -813,7 +795,6 @@ func (x *BlobAny) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Baa":
-			match++
 			if err = __VDLRead2_list(dec, &x.Baa); err != nil {
 				return err
 			}
@@ -834,10 +815,10 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]*vom.RawBytes) error {
 		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
 	case len > 0:
 		*x = make([]*vom.RawBytes, 0, len)
+	default:
+		*x = nil
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
@@ -1028,7 +1009,6 @@ func (x *NonBlobSet) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -1036,12 +1016,8 @@ func (x *NonBlobSet) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Info":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -1052,7 +1028,6 @@ func (x *NonBlobSet) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "S":
-			match++
 			if err = __VDLRead3_set(dec, &x.S); err != nil {
 				return err
 			}
@@ -1072,20 +1047,16 @@ func __VDLRead3_set(dec vdl.Decoder, x *map[string]struct{}) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
 	}
-	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
-		return dec.FinishValue()
-	case len > 0:
-		*x = make(map[string]struct{}, len)
-	default:
-		*x = make(map[string]struct{})
+	var tmpMap map[string]struct{}
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(map[string]struct{}, len)
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
 		case done:
+			*x = tmpMap
 			return dec.FinishValue()
 		}
 		var key string
@@ -1100,7 +1071,10 @@ func __VDLRead3_set(dec vdl.Decoder, x *map[string]struct{}) error {
 				return err
 			}
 		}
-		(*x)[key] = struct{}{}
+		if tmpMap == nil {
+			tmpMap = make(map[string]struct{})
+		}
+		tmpMap[key] = struct{}{}
 	}
 }
 
@@ -1255,7 +1229,6 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -1263,12 +1236,8 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Info":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -1279,7 +1248,6 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Bo":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}

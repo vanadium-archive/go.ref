@@ -171,7 +171,6 @@ func (x *Cpu) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -179,12 +178,8 @@ func (x *Cpu) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Architecture":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -195,7 +190,6 @@ func (x *Cpu) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Description":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -206,7 +200,6 @@ func (x *Cpu) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "ClockSpeedMhz":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -348,7 +341,6 @@ func (x *Os) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -356,12 +348,8 @@ func (x *Os) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Name":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -372,7 +360,6 @@ func (x *Os) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Version":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -542,7 +529,6 @@ func (x *Scenario) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -550,22 +536,16 @@ func (x *Scenario) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Cpu":
-			match++
 			if err = x.Cpu.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Os":
-			match++
 			if err = x.Os.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Label":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -897,7 +877,6 @@ func (x *Run) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -905,12 +884,8 @@ func (x *Run) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Name":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -921,7 +896,6 @@ func (x *Run) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Iterations":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -932,7 +906,6 @@ func (x *Run) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "NanoSecsPerOp":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -943,7 +916,6 @@ func (x *Run) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "AllocsPerOp":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -954,7 +926,6 @@ func (x *Run) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "AllocedBytesPerOp":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -965,7 +936,6 @@ func (x *Run) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "MegaBytesPerSec":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -976,7 +946,6 @@ func (x *Run) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Parallelism":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}

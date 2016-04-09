@@ -254,7 +254,6 @@ func (x *AdConversionTestCase) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -262,17 +261,12 @@ func (x *AdConversionTestCase) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "AdInfo":
-			match++
 			if err = x.AdInfo.VDLRead(dec); err != nil {
 				return err
 			}
 		case "GattAttrs":
-			match++
 			if err = __VDLRead1_map(dec, &x.GattAttrs); err != nil {
 				return err
 			}
@@ -292,20 +286,16 @@ func __VDLRead1_map(dec vdl.Decoder, x *map[string][]byte) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
-	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
-		return dec.FinishValue()
-	case len > 0:
-		*x = make(map[string][]byte, len)
-	default:
-		*x = make(map[string][]byte)
+	var tmpMap map[string][]byte
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(map[string][]byte, len)
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
 		case done:
+			*x = tmpMap
 			return dec.FinishValue()
 		}
 		var key string
@@ -332,7 +322,10 @@ func __VDLRead1_map(dec vdl.Decoder, x *map[string][]byte) error {
 				return err
 			}
 		}
-		(*x)[key] = elem
+		if tmpMap == nil {
+			tmpMap = make(map[string][]byte)
+		}
+		tmpMap[key] = elem
 	}
 }
 

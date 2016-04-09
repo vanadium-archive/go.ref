@@ -145,7 +145,6 @@ func (x *ServiceData) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -153,12 +152,8 @@ func (x *ServiceData) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Version":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -169,7 +164,6 @@ func (x *ServiceData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Perms":
-			match++
 			if err = x.Perms.VDLRead(dec); err != nil {
 				return err
 			}
@@ -335,7 +329,6 @@ func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -343,17 +336,12 @@ func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Id":
-			match++
 			if err = x.Id.VDLRead(dec); err != nil {
 				return err
 			}
 		case "RootDir":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -364,7 +352,6 @@ func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Engine":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -596,7 +583,6 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -604,17 +590,12 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Id":
-			match++
 			if err = x.Id.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Version":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -625,12 +606,10 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Perms":
-			match++
 			if err = x.Perms.VDLRead(dec); err != nil {
 				return err
 			}
 		case "SchemaMetadata":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -758,20 +737,16 @@ func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
-	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
-		return dec.FinishValue()
-	case len > 0:
-		*x = make(CollectionPerms, len)
-	default:
-		*x = make(CollectionPerms)
+	var tmpMap CollectionPerms
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(CollectionPerms, len)
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
 		case done:
+			*x = tmpMap
 			return dec.FinishValue()
 		}
 		var key string
@@ -792,7 +767,10 @@ func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		}
-		(*x)[key] = elem
+		if tmpMap == nil {
+			tmpMap = make(CollectionPerms)
+		}
+		tmpMap[key] = elem
 	}
 }
 

@@ -145,7 +145,6 @@ func (x *WindowSize) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -153,12 +152,8 @@ func (x *WindowSize) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Rows":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -171,7 +166,6 @@ func (x *WindowSize) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Cols":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -361,7 +355,6 @@ func (x *ShellOpts) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -369,12 +362,8 @@ func (x *ShellOpts) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "UsePty":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -385,12 +374,10 @@ func (x *ShellOpts) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Environment":
-			match++
 			if err = __VDLRead1_list(dec, &x.Environment); err != nil {
 				return err
 			}
 		case "WinSize":
-			match++
 			if err = x.WinSize.VDLRead(dec); err != nil {
 				return err
 			}
@@ -411,10 +398,10 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
 		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
 	case len > 0:
 		*x = make([]string, 0, len)
+	default:
+		*x = nil
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
@@ -503,10 +490,12 @@ func (x *unused) VDLRead(dec vdl.Decoder) error {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
-		switch f, err := dec.NextField(); {
-		case err != nil:
+		f, err := dec.NextField()
+		if err != nil {
 			return err
-		case f == "":
+		}
+		switch f {
+		case "":
 			return dec.FinishValue()
 		default:
 			if err = dec.SkipValue(); err != nil {

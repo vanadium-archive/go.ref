@@ -142,7 +142,6 @@ func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -150,12 +149,8 @@ func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "LowBound":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -166,7 +161,6 @@ func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Count":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -449,7 +443,6 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -457,12 +450,8 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Count":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -473,7 +462,6 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Sum":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -484,7 +472,6 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Min":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -495,7 +482,6 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Max":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -506,7 +492,6 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Buckets":
-			match++
 			if err = __VDLRead1_list(dec, &x.Buckets); err != nil {
 				return err
 			}
@@ -527,10 +512,10 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]HistogramBucket) error {
 		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
 	case len > 0:
 		*x = make([]HistogramBucket, 0, len)
+	default:
+		*x = nil
 	}
 	for {
 		switch done, err := dec.NextEntry(); {

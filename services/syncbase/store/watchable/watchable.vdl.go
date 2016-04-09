@@ -117,7 +117,6 @@ func (x *GetOp) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -125,12 +124,8 @@ func (x *GetOp) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Key":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -278,7 +273,6 @@ func (x *ScanOp) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -286,12 +280,8 @@ func (x *ScanOp) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Start":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -302,7 +292,6 @@ func (x *ScanOp) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Limit":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -452,7 +441,6 @@ func (x *PutOp) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -460,12 +448,8 @@ func (x *PutOp) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Key":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -476,7 +460,6 @@ func (x *PutOp) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Version":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -592,7 +575,6 @@ func (x *DeleteOp) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -600,12 +582,8 @@ func (x *DeleteOp) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Key":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -814,7 +792,6 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -822,15 +799,10 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Op":
-			match++
 			// TODO(toddw): implement any
 		case "CommitTimestamp":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -841,7 +813,6 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "FromSync":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -852,7 +823,6 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Continued":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}

@@ -203,7 +203,6 @@ func (x *BlobMetadata) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -211,17 +210,12 @@ func (x *BlobMetadata) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "OwnerShares":
-			match++
 			if err = x.OwnerShares.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Referenced":
-			match++
 			var wire time_2.Time
 			if err = wire.VDLRead(dec); err != nil {
 				return err
@@ -230,7 +224,6 @@ func (x *BlobMetadata) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Accessed":
-			match++
 			var wire time_2.Time
 			if err = wire.VDLRead(dec); err != nil {
 				return err
@@ -343,7 +336,6 @@ func (x *PerSyncgroup) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -351,12 +343,8 @@ func (x *PerSyncgroup) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Priority":
-			match++
 			if err = x.Priority.VDLRead(dec); err != nil {
 				return err
 			}

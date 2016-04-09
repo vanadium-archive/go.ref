@@ -142,7 +142,6 @@ func (x *Struct) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -150,12 +149,8 @@ func (x *Struct) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "X":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -168,7 +163,6 @@ func (x *Struct) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Y":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -268,7 +262,6 @@ func (x *Array2Int) VDLRead(dec vdl.Decoder) error {
 		case done:
 			return dec.FinishValue()
 		}
-		var elem int32
 		if err = dec.StartValue(); err != nil {
 			return err
 		}
@@ -276,11 +269,10 @@ func (x *Array2Int) VDLRead(dec vdl.Decoder) error {
 		if err != nil {
 			return err
 		}
-		elem = int32(tmp)
+		x[index] = int32(tmp)
 		if err = dec.FinishValue(); err != nil {
 			return err
 		}
-		x[index] = elem
 		index++
 	}
 }

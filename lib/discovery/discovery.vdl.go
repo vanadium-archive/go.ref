@@ -676,7 +676,6 @@ func (x *AdInfo) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -684,42 +683,32 @@ func (x *AdInfo) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Ad":
-			match++
 			if err = x.Ad.VDLRead(dec); err != nil {
 				return err
 			}
 		case "EncryptionAlgorithm":
-			match++
 			if err = x.EncryptionAlgorithm.VDLRead(dec); err != nil {
 				return err
 			}
 		case "EncryptionKeys":
-			match++
 			if err = __VDLRead1_list(dec, &x.EncryptionKeys); err != nil {
 				return err
 			}
 		case "Hash":
-			match++
 			if err = x.Hash.VDLRead(dec); err != nil {
 				return err
 			}
 		case "DirAddrs":
-			match++
 			if err = __VDLRead2_list(dec, &x.DirAddrs); err != nil {
 				return err
 			}
 		case "Status":
-			match++
 			if err = x.Status.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Lost":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -746,10 +735,10 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]EncryptionKey) error {
 		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
 	case len > 0:
 		*x = make([]EncryptionKey, 0, len)
+	default:
+		*x = nil
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
@@ -775,10 +764,10 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]string) error {
 		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
 	case len > 0:
 		*x = make([]string, 0, len)
+	default:
+		*x = nil
 	}
 	for {
 		switch done, err := dec.NextEntry(); {

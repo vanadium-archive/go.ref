@@ -312,7 +312,6 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -320,12 +319,8 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "SystemTimeAtBoot":
-			match++
 			var wire time_2.Time
 			if err = wire.VDLRead(dec); err != nil {
 				return err
@@ -334,7 +329,6 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Skew":
-			match++
 			var wire time_2.Duration
 			if err = wire.VDLRead(dec); err != nil {
 				return err
@@ -343,7 +337,6 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "ElapsedTimeSinceBoot":
-			match++
 			var wire time_2.Duration
 			if err = wire.VDLRead(dec); err != nil {
 				return err
@@ -352,7 +345,6 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "LastNtpTs":
-			match++
 			var wire time_2.Time
 			if err = wire.VDLRead(dec); err != nil {
 				return err
@@ -361,7 +353,6 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "NumReboots":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}
@@ -374,7 +365,6 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "NumHops":
-			match++
 			if err = dec.StartValue(); err != nil {
 				return err
 			}

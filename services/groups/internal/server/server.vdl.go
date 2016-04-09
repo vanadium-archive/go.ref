@@ -202,7 +202,6 @@ func (x *groupData) VDLRead(dec vdl.Decoder) error {
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
-	match := 0
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -210,17 +209,12 @@ func (x *groupData) VDLRead(dec vdl.Decoder) error {
 		}
 		switch f {
 		case "":
-			if match == 0 && dec.Type().NumField() > 0 {
-				return fmt.Errorf("no matching fields in struct %T, from %v", *x, dec.Type())
-			}
 			return dec.FinishValue()
 		case "Perms":
-			match++
 			if err = x.Perms.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Entries":
-			match++
 			if err = __VDLRead1_set(dec, &x.Entries); err != nil {
 				return err
 			}
@@ -240,20 +234,16 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]struct{}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
 		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
 	}
-	switch len := dec.LenHint(); {
-	case len == 0:
-		*x = nil
-		return dec.FinishValue()
-	case len > 0:
-		*x = make(map[groups.BlessingPatternChunk]struct{}, len)
-	default:
-		*x = make(map[groups.BlessingPatternChunk]struct{})
+	var tmpMap map[groups.BlessingPatternChunk]struct{}
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(map[groups.BlessingPatternChunk]struct{}, len)
 	}
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
 		case done:
+			*x = tmpMap
 			return dec.FinishValue()
 		}
 		var key groups.BlessingPatternChunk
@@ -262,7 +252,10 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]struct{}
 				return err
 			}
 		}
-		(*x)[key] = struct{}{}
+		if tmpMap == nil {
+			tmpMap = make(map[groups.BlessingPatternChunk]struct{})
+		}
+		tmpMap[key] = struct{}{}
 	}
 }
 
