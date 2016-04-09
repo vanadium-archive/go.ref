@@ -28,52 +28,35 @@ var (
 ////////////////////////////////////////
 // RPC methods
 
-func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
-	_, err := r.Get(ctx, call)
+func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (bool, error) {
+	_, err := r.Get(ctx, call, bh)
 	return util.ErrorToExists(err)
 }
 
-func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
-	impl := func(sntx store.SnapshotOrTransaction) ([]byte, error) {
-		return r.get(ctx, call, sntx)
+func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) ([]byte, error) {
+	var res []byte
+	impl := func(sntx store.SnapshotOrTransaction) (err error) {
+		res, err = r.get(ctx, call, sntx)
+		return err
 	}
-	if r.c.d.batchId != nil {
-		return impl(r.c.d.batchReader())
-	} else {
-		sn := r.c.d.st.NewSnapshot()
-		defer sn.Abort()
-		return impl(sn)
+	if err := r.c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl); err != nil {
+		return nil, err
 	}
+	return res, nil
 }
 
-func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, value []byte) error {
+func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, value []byte) error {
 	impl := func(tx *watchable.Transaction) error {
 		return r.put(ctx, call, tx, value)
 	}
-	if r.c.d.batchId != nil {
-		if tx, err := r.c.d.batchTransaction(); err != nil {
-			return err
-		} else {
-			return impl(tx)
-		}
-	} else {
-		return watchable.RunInTransaction(r.c.d.st, impl)
-	}
+	return r.c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
 }
 
-func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall) error {
+func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
 	impl := func(tx *watchable.Transaction) error {
 		return r.delete(ctx, call, tx)
 	}
-	if r.c.d.batchId != nil {
-		if tx, err := r.c.d.batchTransaction(); err != nil {
-			return err
-		} else {
-			return impl(tx)
-		}
-	} else {
-		return watchable.RunInTransaction(r.c.d.st, impl)
-	}
+	return r.c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
 }
 
 ////////////////////////////////////////

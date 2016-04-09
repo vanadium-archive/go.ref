@@ -40,10 +40,6 @@ const (
 	// Sync object names have the form:
 	//     <syncbase>/%%sync/...
 	SyncbaseSuffix = "%%sync"
-	// Separator for batch info in database names.
-	// Batch object names have the form:
-	//     <syncbase>/<app>/<database>%%<batchInfo>/...
-	BatchSep = "%%"
 )
 
 // Other constants.

@@ -15,97 +15,70 @@ import (
 ////////////////////////////////////////
 // Syncgroup RPC methods
 
-func (d *databaseReq) GetSyncgroupNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+func (d *database) GetSyncgroupNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return nil, wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
 	return sd.GetSyncgroupNames(ctx, call)
 }
 
-func (d *databaseReq) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, myInfo wire.SyncgroupMemberInfo) error {
+func (d *database) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, myInfo wire.SyncgroupMemberInfo) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
 	return sd.CreateSyncgroup(ctx, call, sgName, spec, myInfo)
 }
 
-func (d *databaseReq) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
+func (d *database) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
 	if !d.exists {
 		return wire.SyncgroupSpec{}, verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return wire.SyncgroupSpec{}, wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
 	return sd.JoinSyncgroup(ctx, call, sgName, myInfo)
 }
 
-func (d *databaseReq) LeaveSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+func (d *database) LeaveSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return wire.NewErrBoundToBatch(ctx)
 	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *databaseReq) DestroySyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+func (d *database) DestroySyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return wire.NewErrBoundToBatch(ctx)
 	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *databaseReq) EjectFromSyncgroup(ctx *context.T, call rpc.ServerCall, sgName, member string) error {
+func (d *database) EjectFromSyncgroup(ctx *context.T, call rpc.ServerCall, sgName, member string) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return wire.NewErrBoundToBatch(ctx)
 	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *databaseReq) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string) (wire.SyncgroupSpec, string, error) {
+func (d *database) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string) (wire.SyncgroupSpec, string, error) {
 	if !d.exists {
 		return wire.SyncgroupSpec{}, "", verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return wire.SyncgroupSpec{}, "", wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
 	return sd.GetSyncgroupSpec(ctx, call, sgName)
 }
 
-func (d *databaseReq) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, version string) error {
+func (d *database) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, version string) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
 	return sd.SetSyncgroupSpec(ctx, call, sgName, spec, version)
 }
 
-func (d *databaseReq) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncgroupMemberInfo, error) {
+func (d *database) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncgroupMemberInfo, error) {
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return nil, wire.NewErrBoundToBatch(ctx)
 	}
 	sd := vsync.NewSyncDatabase(d)
 	return sd.GetSyncgroupMembers(ctx, call, sgName)

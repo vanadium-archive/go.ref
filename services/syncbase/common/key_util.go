@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
@@ -88,35 +89,31 @@ func ScanRangeArgs(stKeyPrefix, start, limit string) ([]byte, []byte) {
 	return []byte(fullStart), []byte(fullLimit)
 }
 
-type BatchType int
+type BatchType byte
 
 const (
-	BatchTypeSn BatchType = iota // snapshot
-	BatchTypeTx                  // transaction
+	BatchTypeSn BatchType = 's' // snapshot
+	BatchTypeTx           = 't' // transaction
 )
 
-// JoinBatchInfo encodes batch type and id into a single "info" string.
-func JoinBatchInfo(batchType BatchType, batchId uint64) string {
-	return strings.Join([]string{strconv.Itoa(int(batchType)), strconv.FormatUint(batchId, 10)}, BatchSep)
+// JoinBatchHandle encodes batch type and id into a BatchHandle.
+func JoinBatchHandle(batchType BatchType, batchId uint64) wire.BatchHandle {
+	return wire.BatchHandle(fmt.Sprintf("%c%016x", rune(batchType), batchId))
 }
 
-// SplitBatchInfo is the inverse of JoinBatchInfo.
-func SplitBatchInfo(batchInfo string) (BatchType, uint64, error) {
-	parts := strings.Split(batchInfo, BatchSep)
-	if len(parts) != 2 {
-		return BatchTypeSn, 0, verror.New(verror.ErrBadArg, nil, batchInfo)
+// SplitBatchHandle is the inverse of JoinBatchHandle.
+func SplitBatchHandle(bh wire.BatchHandle) (BatchType, uint64, error) {
+	if len(bh) != 1+16 {
+		return BatchTypeSn, 0, verror.New(verror.ErrBadArg, nil, bh, "invalid batch handle length")
 	}
-	batchTypeInt, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return BatchTypeSn, 0, err
-	}
-	batchType := BatchType(batchTypeInt)
+	batchTypeByte, batchIdStr := bh[0], string(bh[1:])
+	batchType := BatchType(batchTypeByte)
 	if batchType != BatchTypeSn && batchType != BatchTypeTx {
-		return BatchTypeSn, 0, verror.New(verror.ErrBadArg, nil, batchInfo)
+		return BatchTypeSn, 0, verror.New(verror.ErrBadArg, nil, bh, "invalid batch type")
 	}
-	batchId, err := strconv.ParseUint(parts[1], 0, 64)
+	batchId, err := strconv.ParseUint(batchIdStr, 16, 64)
 	if err != nil {
-		return BatchTypeSn, 0, err
+		return BatchTypeSn, 0, verror.New(verror.ErrBadArg, nil, bh, err)
 	}
 	return batchType, batchId, nil
 }

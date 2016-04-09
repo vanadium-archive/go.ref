@@ -49,12 +49,7 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 
 	// Note, the slice returned by strings.SplitN is guaranteed to contain at
 	// least one element.
-	// TODO(sadovsky): If we were to continue putting the batch id in the name,
-	// we'd need to switch to a BatchSep that's not allowed to appear in blessing
-	// strings. However, we anyways plan to switch to passing the batch id as an
-	// RPC argument, so we don't bother fixing this now.
-	dbParts := strings.SplitN(parts[0], common.BatchSep, 2)
-	encDbId := dbParts[0]
+	encDbId := parts[0]
 	dbId, err := pubutil.DecodeId(encDbId)
 	if err != nil || !pubutil.ValidDatabaseId(dbId) {
 		return nil, nil, wire.NewErrInvalidName(ctx, suffix)
@@ -92,18 +87,12 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 		}
 	}
 
-	dReq := &databaseReq{database: d}
-	if len(dbParts) == 2 {
-		if err := setBatchFields(ctx, dReq, dbParts[1]); err != nil {
-			return nil, nil, err
-		}
-	}
 	// TODO(sadovsky): Is it possible to determine the RPC method from the
 	// context? If so, we can check here that the database exists (unless the
 	// client is calling Database.Create), and avoid the "d.exists" checks in all
 	// the RPC method implementations.
 	if len(parts) == 1 {
-		return wire.DatabaseServer(dReq), auth, nil
+		return wire.DatabaseServer(d), auth, nil
 	}
 
 	// All collection and row methods require the database to exist. If it
@@ -118,7 +107,7 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 	// store will end up in a consistent state.
 	cReq := &collectionReq{
 		name: collectionName,
-		d:    dReq,
+		d:    d,
 	}
 	if len(parts) == 2 {
 		return wire.CollectionServer(cReq), auth, nil
@@ -133,30 +122,4 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 	}
 
 	return nil, nil, verror.NewErrNoExist(ctx)
-}
-
-// setBatchFields sets the batch-related fields in databaseReq based on the
-// value of batchInfo (suffix of the database name component). It returns an
-// error if batchInfo is malformed or the batch does not exist.
-func setBatchFields(ctx *context.T, d *databaseReq, batchInfo string) error {
-	// TODO(sadovsky): Maybe share a common keyspace between sns and txs so that
-	// we can avoid including the batch type in the batchInfo string.
-	batchType, batchId, err := common.SplitBatchInfo(batchInfo)
-	if err != nil {
-		return err
-	}
-	d.batchId = &batchId
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	var ok bool
-	switch batchType {
-	case common.BatchTypeSn:
-		d.sn, ok = d.sns[batchId]
-	case common.BatchTypeTx:
-		d.tx, ok = d.txs[batchId]
-	}
-	if !ok {
-		return wire.NewErrUnknownBatch(ctx)
-	}
-	return nil
 }

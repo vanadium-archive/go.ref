@@ -32,8 +32,8 @@ import (
 	sbwatchable "v.io/x/ref/services/syncbase/watchable"
 )
 
-// database is a per-database singleton (i.e. not per-request). It does not
-// directly handle RPCs.
+// database is a per-database singleton (i.e. not per-request) that handles
+// Database RPCs.
 // Note: If a database does not exist at the time of a database RPC, the
 // dispatcher creates a short-lived database object to service that particular
 // request.
@@ -60,18 +60,8 @@ type database struct {
 	crMu sync.Mutex
 }
 
-// databaseReq is a per-request object that handles Database RPCs.
-// It embeds database and tracks request-specific batch state.
-type databaseReq struct {
-	*database
-	// If non-nil, sn or tx will be non-nil.
-	batchId *uint64
-	sn      store.Snapshot
-	tx      *watchable.Transaction
-}
-
 var (
-	_ wire.DatabaseServerMethods = (*databaseReq)(nil)
+	_ wire.DatabaseServerMethods = (*database)(nil)
 	_ interfaces.Database        = (*database)(nil)
 )
 
@@ -134,12 +124,9 @@ func newDatabase(ctx *context.T, s *service, id wire.Id, metadata *wire.SchemaMe
 ////////////////////////////////////////
 // RPC methods
 
-func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, metadata *wire.SchemaMetadata, perms access.Permissions) error {
+func (d *database) Create(ctx *context.T, call rpc.ServerCall, metadata *wire.SchemaMetadata, perms access.Permissions) error {
 	if d.exists {
 		return verror.New(verror.ErrExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return wire.NewErrBoundToBatch(ctx)
 	}
 	// TODO(sadovsky): Require id.Blessing to match the client's blessing name.
 	// I.e. reserve names at the app level of the hierarchy.
@@ -149,14 +136,11 @@ func (d *databaseReq) Create(ctx *context.T, call rpc.ServerCall, metadata *wire
 	return d.s.createDatabase(ctx, call, d.id, perms, metadata)
 }
 
-func (d *databaseReq) Destroy(ctx *context.T, call rpc.ServerCall) error {
-	if d.batchId != nil {
-		return wire.NewErrBoundToBatch(ctx)
-	}
+func (d *database) Destroy(ctx *context.T, call rpc.ServerCall) error {
 	return d.s.destroyDatabase(ctx, call, d.id)
 }
 
-func (d *databaseReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
+func (d *database) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
 	if !d.exists {
 		return false, nil
 	}
@@ -165,12 +149,9 @@ func (d *databaseReq) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) 
 
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
-func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.BatchOptions) (string, error) {
+func (d *database) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.BatchOptions) (wire.BatchHandle, error) {
 	if !d.exists {
 		return "", verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return "", wire.NewErrBoundToBatch(ctx)
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -192,73 +173,82 @@ func (d *databaseReq) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.Ba
 			}
 		}
 	}
-	return common.BatchSep + common.JoinBatchInfo(batchType, id), nil
+	return common.JoinBatchHandle(batchType, id), nil
 }
 
-func (d *databaseReq) Commit(ctx *context.T, call rpc.ServerCall) error {
+func (d *database) Commit(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	if d.batchId == nil {
+	if bh == "" {
 		return wire.NewErrNotBoundToBatch(ctx)
 	}
-	if d.tx == nil {
+	_, tx, batchId, err := d.batchLookupInternal(ctx, bh)
+	if err != nil {
+		return err
+	}
+	if tx == nil {
 		return wire.NewErrReadOnlyBatch(ctx)
 	}
-	var err error
-	if err = d.tx.Commit(); err == nil {
+	if err = tx.Commit(); err == nil {
 		d.mu.Lock()
-		delete(d.txs, *d.batchId)
+		delete(d.txs, batchId)
 		d.mu.Unlock()
 	}
+	// TODO(ivanpi): Best effort abort if commit fails? Watchable Commit can fail
+	// before the underlying snapshot is aborted.
 	if verror.ErrorID(err) == store.ErrConcurrentTransaction.ID {
 		return verror.New(wire.ErrConcurrentBatch, ctx, err)
 	}
 	return err
 }
 
-func (d *databaseReq) Abort(ctx *context.T, call rpc.ServerCall) error {
+func (d *database) Abort(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	if d.batchId == nil {
+	if bh == "" {
 		return wire.NewErrNotBoundToBatch(ctx)
 	}
-	var err error
-	if d.tx != nil {
-		if err = d.tx.Abort(); err == nil {
-			d.mu.Lock()
-			delete(d.txs, *d.batchId)
-			d.mu.Unlock()
-		}
-	} else {
-		if err = d.sn.Abort(); err == nil {
-			d.mu.Lock()
-			delete(d.sns, *d.batchId)
-			d.mu.Unlock()
-		}
+	sn, tx, batchId, err := d.batchLookupInternal(ctx, bh)
+	if err != nil {
+		return err
 	}
-	return err
+	if tx != nil {
+		d.mu.Lock()
+		delete(d.txs, batchId)
+		d.mu.Unlock()
+		// TODO(ivanpi): If tx.Abort fails, retry later?
+		return tx.Abort()
+	} else {
+		d.mu.Lock()
+		delete(d.sns, batchId)
+		d.mu.Unlock()
+		// TODO(ivanpi): If sn.Abort fails, retry later?
+		return sn.Abort()
+	}
 }
 
-func (d *databaseReq) Exec(ctx *context.T, call wire.DatabaseExecServerCall, q string, params []*vom.RawBytes) error {
+func (d *database) Exec(ctx *context.T, call wire.DatabaseExecServerCall, bh wire.BatchHandle, q string, params []*vom.RawBytes) error {
 	// RunInTransaction() cannot be used here because we may or may not be
 	// creating a transaction. qe.Exec must be called and the statement must be
 	// parsed before we know if a snapshot or a transaction should be created. To
-	// duplicate the semantics of RunInTransaction, we attempt the Exec up to 100
-	// times and retry on ErrConcurrentTransaction.
+	// duplicate the semantics of RunInTransaction, if we are not inside a batch,
+	// we attempt the Exec up to 100 times and retry on ErrConcurrentTransaction.
+	// TODO(ivanpi): Refactor query parsing into a separate step, simplify request
+	// handling. Consider separate Query and Exec methods.
 	maxAttempts := 100
 	attempt := 0
 	for {
-		err := d.execInternal(ctx, call, q, params)
-		if attempt >= maxAttempts || verror.ErrorID(err) != store.ErrConcurrentTransaction.ID {
+		err := d.execInternal(ctx, call, bh, q, params)
+		if bh != "" || attempt >= maxAttempts || verror.ErrorID(err) != store.ErrConcurrentTransaction.ID {
 			return err
 		}
 		attempt++
 	}
 }
 
-func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerCall, q string, params []*vom.RawBytes) error {
+func (d *database) execInternal(ctx *context.T, call wire.DatabaseExecServerCall, bh wire.BatchHandle, q string, params []*vom.RawBytes) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
@@ -266,7 +256,8 @@ func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerC
 		db := &queryDb{
 			ctx:  ctx,
 			call: call,
-			dReq: d,
+			d:    d,
+			bh:   bh,
 			sntx: nil, // Filled in later with existing or created sn/tx.
 			tx:   nil, // Only filled in if new tx created.
 		}
@@ -302,7 +293,7 @@ func (d *databaseReq) execInternal(ctx *context.T, call wire.DatabaseExecServerC
 }
 
 func execCommitOrAbort(qdb *queryDb, err error) error {
-	if qdb.dReq.batchId != nil {
+	if qdb.bh != "" {
 		return err // part of an enclosing sn/tx
 	}
 	if err != nil {
@@ -320,22 +311,16 @@ func execCommitOrAbort(qdb *queryDb, err error) error {
 	}
 }
 
-func (d *databaseReq) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
+func (d *database) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return wire.NewErrBoundToBatch(ctx)
 	}
 	return d.s.setDatabasePerms(ctx, call, d.id, perms, version)
 }
 
-func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
+func (d *database) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	if !d.exists {
 		return nil, "", verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return nil, "", wire.NewErrBoundToBatch(ctx)
 	}
 	data := &DatabaseData{}
 	if err := util.GetWithAuth(ctx, call, d.st, d.stKey(), data); err != nil {
@@ -344,7 +329,7 @@ func (d *databaseReq) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
-func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
+func (d *database) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
@@ -355,29 +340,23 @@ func (d *databaseReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServer
 		}
 		return util.GlobChildren(ctx, call, matcher, sntx, common.CollectionPermsPrefix)
 	}
-	if d.batchId != nil {
-		return impl(d.batchReader())
-	} else {
-		sn := d.st.NewSnapshot()
-		defer sn.Abort()
-		return impl(sn)
-	}
+	return store.RunWithSnapshot(d.st, impl)
 }
 
 // See comment in v.io/v23/services/syncbase/service.vdl for why we can't
 // implement ListCollections using Glob.
-func (d *databaseReq) ListCollections(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+func (d *database) ListCollections(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) ([]string, error) {
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	impl := func(sntx store.SnapshotOrTransaction) ([]string, error) {
+	var res []string
+	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check perms.
 		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
-			return nil, err
+			return err
 		}
 		it := sntx.Scan(common.ScanPrefixArgs(common.CollectionPermsPrefix, ""))
 		keyBytes := []byte{}
-		res := []string{}
 		for it.Advance() {
 			keyBytes = it.Key(keyBytes)
 			parts := common.SplitNKeyParts(string(keyBytes), 3)
@@ -385,23 +364,20 @@ func (d *databaseReq) ListCollections(ctx *context.T, call rpc.ServerCall) ([]st
 			res = append(res, pubutil.Encode(parts[1]))
 		}
 		if err := it.Err(); err != nil {
-			return nil, err
+			return err
 		}
 		// TODO(rdaoud,ivanpi): Sort is necessary because of hack in
 		// collectionReq.permsKey().
 		sort.Sort(sort.StringSlice(res))
-		return res, nil
+		return nil
 	}
-	if d.batchId != nil {
-		return impl(d.batchReader())
-	} else {
-		sntx := d.st.NewSnapshot()
-		defer sntx.Abort()
-		return impl(sntx)
+	if err := d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl); err != nil {
+		return nil, err
 	}
+	return res, nil
 }
 
-func (d *databaseReq) PauseSync(ctx *context.T, call rpc.ServerCall) error {
+func (d *database) PauseSync(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
@@ -410,7 +386,7 @@ func (d *databaseReq) PauseSync(ctx *context.T, call rpc.ServerCall) error {
 	})
 }
 
-func (d *databaseReq) ResumeSync(ctx *context.T, call rpc.ServerCall) error {
+func (d *database) ResumeSync(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
@@ -465,7 +441,8 @@ func (d *database) ResetCrConnectionStream() {
 type queryDb struct {
 	ctx  *context.T
 	call rpc.ServerCall
-	dReq *databaseReq
+	d    *database
+	bh   wire.BatchHandle
 	sntx store.SnapshotOrTransaction
 	tx   *watchable.Transaction // If transaction, this will be same as sntx (else nil)
 }
@@ -484,32 +461,38 @@ func (qdb *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error)
 		qdb: qdb,
 		cReq: &collectionReq{
 			name: name,
-			d:    qdb.dReq,
+			d:    qdb.d,
 		},
 	}
-	if qt.cReq.d.batchId != nil {
+	if qt.qdb.bh != "" {
+		var err error
 		if writeAccessReq {
 			// We are in a batch (could be snapshot or transaction)
 			// and Write access is required.  Attempt to get a
 			// transaction from the request.
-			var err error
-			qt.qdb.tx, err = qt.qdb.dReq.batchTransaction()
+			qt.qdb.tx, err = qt.qdb.d.batchTransaction(qt.qdb.GetContext(), qt.qdb.bh)
 			if err != nil {
-				// We are in a snapshot batch, write access cannot be provided.
-				// Return NotWritable.
-				return nil, syncql.NewErrNotWritable(qt.qdb.GetContext(), qt.cReq.name)
+				if verror.ErrorID(err) == wire.ErrReadOnlyBatch.ID {
+					// We are in a snapshot batch, write access cannot be provided.
+					// Return NotWritable.
+					return nil, syncql.NewErrNotWritable(qt.qdb.GetContext(), qt.cReq.name)
+				}
+				return nil, err
 			}
 			qt.qdb.sntx = qt.qdb.tx
 		} else {
-			qt.qdb.sntx = qt.qdb.dReq.batchReader()
+			qt.qdb.sntx, err = qt.qdb.d.batchReader(qt.qdb.GetContext(), qt.qdb.bh)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		// Now that we know if write access is required, create a snapshot
 		// or transaction.
 		if !writeAccessReq {
-			qt.qdb.sntx = qt.qdb.dReq.st.NewSnapshot()
+			qt.qdb.sntx = qt.qdb.d.st.NewSnapshot()
 		} else { // writeAccessReq
-			qt.qdb.tx = qt.qdb.dReq.st.NewWatchableTransaction()
+			qt.qdb.tx = qt.qdb.d.st.NewWatchableTransaction()
 			qt.qdb.sntx = qt.qdb.tx
 		}
 	}
@@ -644,24 +627,78 @@ func (d *database) stKey() string {
 	return common.DatabasePrefix
 }
 
-func (d *databaseReq) batchReader() store.SnapshotOrTransaction {
-	if d.batchId == nil {
-		return nil
-	} else if d.sn != nil {
-		return d.sn
+func (d *database) runWithExistingBatchOrNewSnapshot(ctx *context.T, bh wire.BatchHandle, fn func(sntx store.SnapshotOrTransaction) error) error {
+	if bh != "" {
+		if sntx, err := d.batchReader(ctx, bh); err != nil {
+			// Batch does not exist.
+			return err
+		} else {
+			return fn(sntx)
+		}
 	} else {
-		return d.tx
+		return store.RunWithSnapshot(d.st, fn)
 	}
 }
 
-func (d *databaseReq) batchTransaction() (*watchable.Transaction, error) {
-	if d.batchId == nil {
-		return nil, nil
-	} else if d.tx != nil {
-		return d.tx, nil
+func (d *database) runInExistingBatchOrNewTransaction(ctx *context.T, bh wire.BatchHandle, fn func(tx *watchable.Transaction) error) error {
+	if bh != "" {
+		if tx, err := d.batchTransaction(ctx, bh); err != nil {
+			// Batch does not exist or is readonly (snapshot).
+			return err
+		} else {
+			return fn(tx)
+		}
 	} else {
-		return nil, wire.NewErrReadOnlyBatch(nil)
+		return watchable.RunInTransaction(d.st, fn)
 	}
+}
+
+func (d *database) batchReader(ctx *context.T, bh wire.BatchHandle) (store.SnapshotOrTransaction, error) {
+	sn, tx, _, err := d.batchLookupInternal(ctx, bh)
+	if err != nil {
+		return nil, err
+	}
+	if sn != nil {
+		return sn, nil
+	}
+	return tx, nil
+}
+
+func (d *database) batchTransaction(ctx *context.T, bh wire.BatchHandle) (*watchable.Transaction, error) {
+	sn, tx, _, err := d.batchLookupInternal(ctx, bh)
+	if err != nil {
+		return nil, err
+	}
+	if sn != nil {
+		return nil, wire.NewErrReadOnlyBatch(ctx)
+	}
+	return tx, nil
+}
+
+// batchLookupInternal parses the batch handle and retrieves the corresponding
+// snapshot or transaction. It returns an error if the handle is malformed or
+// the batch does not exist. Otherwise, exactly one of sn and tx will be != nil.
+func (d *database) batchLookupInternal(ctx *context.T, bh wire.BatchHandle) (sn store.Snapshot, tx *watchable.Transaction, batchId uint64, _ error) {
+	if bh == "" {
+		return nil, nil, 0, verror.New(verror.ErrInternal, ctx, "batch lookup for empty handle")
+	}
+	bType, bId, err := common.SplitBatchHandle(bh)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	var found bool
+	switch bType {
+	case common.BatchTypeSn:
+		sn, found = d.sns[bId]
+	case common.BatchTypeTx:
+		tx, found = d.txs[bId]
+	}
+	if !found {
+		return nil, nil, bId, wire.NewErrUnknownBatch(ctx)
+	}
+	return sn, tx, bId, nil
 }
 
 func (d *database) setPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {

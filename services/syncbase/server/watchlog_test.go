@@ -54,7 +54,7 @@ func TestWatchLogPerms(t *testing.T) {
 	st, _ := watchable.Wrap(memstore.New(), clk, &watchable.Options{
 		ManagedPrefixes: []string{common.RowPrefix, common.CollectionPermsPrefix},
 	})
-	db := &databaseReq{database: &database{id: wire.Id{Blessing: "v.io:xyz", Name: "d"}, st: st}}
+	db := &database{id: wire.Id{Blessing: "v.io:xyz", Name: "d"}, st: st}
 	c := &collectionReq{name: "c", d: db}
 	// Mock create the collection.
 	perms := access.Permissions{}
@@ -70,17 +70,17 @@ func TestWatchLogPerms(t *testing.T) {
 	// Generate Put/Delete events.
 	for i := 0; i < 5; i++ {
 		// Set initial collection permissions.
-		if err := c.SetPermissions(ctx, call, perms); err != nil {
+		if err := c.SetPermissions(ctx, call, "", perms); err != nil {
 			t.Fatalf("c.SetPermissions failed: %v", err)
 		}
 		// Put.
 		row := &rowReq{key: "foo", c: c}
-		if err := row.Put(ctx, call, []byte("value")); err != nil {
+		if err := row.Put(ctx, call, "", []byte("value")); err != nil {
 			t.Fatalf("row.Put failed: %v", err)
 		}
 		expected = append(expected, putOp(st, row.stKey()))
 		// Delete.
-		if err := row.Delete(ctx, call); err != nil {
+		if err := row.Delete(ctx, call, ""); err != nil {
 			t.Fatalf("row.Delete failed: %v", err)
 		}
 		deleteOp := &watchable.DeleteOp{
@@ -88,20 +88,20 @@ func TestWatchLogPerms(t *testing.T) {
 		}
 		expected = append(expected, deleteOp)
 		// DeleteRange.
-		if err := row.Put(ctx, call, []byte("value")); err != nil {
+		if err := row.Put(ctx, call, "", []byte("value")); err != nil {
 			t.Fatalf("row.Put failed: %v", err)
 		}
-		if err := c.DeleteRange(ctx, call, []byte("foo"), nil); err != nil {
+		if err := c.DeleteRange(ctx, call, "", []byte("foo"), nil); err != nil {
 			t.Fatalf("c.DeleteRange failed: %v", err)
 		}
 		expected = append(expected, deleteOp)
 		// SetPermissions.
-		if err := c.SetPermissions(ctx, call, perms); err != nil {
+		if err := c.SetPermissions(ctx, call, "", perms); err != nil {
 			t.Fatalf("c.SetPermissions failed: %v", err)
 		}
 		expected = append(expected, putOp(st, c.permsKey()))
 		// SetPermissions again.
-		if err := c.SetPermissions(ctx, call, perms); err != nil {
+		if err := c.SetPermissions(ctx, call, "", perms); err != nil {
 			t.Fatalf("c.SetPermissions failed: %v", err)
 		}
 		expected = append(expected, putOp(st, c.permsKey()))

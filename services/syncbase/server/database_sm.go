@@ -20,7 +20,7 @@ import (
 ////////////////////////////////////////
 // SchemaManager RPC methods
 
-func (d *databaseReq) GetSchemaMetadata(ctx *context.T, call rpc.ServerCall) (wire.SchemaMetadata, error) {
+func (d *database) GetSchemaMetadata(ctx *context.T, call rpc.ServerCall) (wire.SchemaMetadata, error) {
 	if !d.exists {
 		return wire.SchemaMetadata{}, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
@@ -35,7 +35,7 @@ func (d *databaseReq) GetSchemaMetadata(ctx *context.T, call rpc.ServerCall) (wi
 	return *dbData.SchemaMetadata, nil
 }
 
-func (d *databaseReq) SetSchemaMetadata(ctx *context.T, call rpc.ServerCall, metadata wire.SchemaMetadata) error {
+func (d *database) SetSchemaMetadata(ctx *context.T, call rpc.ServerCall, metadata wire.SchemaMetadata) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}

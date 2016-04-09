@@ -14,7 +14,7 @@ import (
 ////////////////////////////////////////
 // ConflictManager RPC methods
 
-func (d *databaseReq) StartConflictResolver(ctx *context.T, call wire.ConflictManagerStartConflictResolverServerCall) error {
+func (d *database) StartConflictResolver(ctx *context.T, call wire.ConflictManagerStartConflictResolverServerCall) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
@@ -23,9 +23,9 @@ func (d *databaseReq) StartConflictResolver(ctx *context.T, call wire.ConflictMa
 	// so that sync can access it.
 	vlog.VI(2).Infof("cr: StartConflictResolver: resolution stream established")
 
-	d.database.crMu.Lock()
-	d.database.crStream = call
-	d.database.crMu.Unlock()
+	d.crMu.Lock()
+	d.crStream = call
+	d.crMu.Unlock()
 
 	// In order to keep the CrStream alive, we must block here until the context
 	// for this RPC is cancelled or closed.
@@ -35,8 +35,8 @@ func (d *databaseReq) StartConflictResolver(ctx *context.T, call wire.ConflictMa
 	// NOTE: Any code that accesses crStream must make a copy of the pointer
 	// before using it to make sure that the value does not suddenly become nil
 	// during their processing.
-	d.database.crMu.Lock()
-	d.database.crStream = nil
-	d.database.crMu.Unlock()
+	d.crMu.Lock()
+	d.crStream = nil
+	d.crMu.Unlock()
 	return nil
 }

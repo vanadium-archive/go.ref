@@ -17,29 +17,31 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/common"
+	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // GetResumeMarker implements the wire.DatabaseWatcher interface.
-func (d *databaseReq) GetResumeMarker(ctx *context.T, call rpc.ServerCall) (watch.ResumeMarker, error) {
+func (d *database) GetResumeMarker(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (watch.ResumeMarker, error) {
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	if d.batchId != nil {
-		return watchable.GetResumeMarker(d.batchReader())
-	} else {
-		return watchable.GetResumeMarker(d.st)
+	var res watch.ResumeMarker
+	impl := func(sntx store.SnapshotOrTransaction) (err error) {
+		res, err = watchable.GetResumeMarker(sntx)
+		return err
 	}
+	if err := d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl); err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 // WatchGlob implements the wire.DatabaseWatcher interface.
-func (d *databaseReq) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, req watch.GlobRequest) error {
+func (d *database) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, req watch.GlobRequest) error {
 	// TODO(rogulenko): Check permissions here and in other methods.
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
-	}
-	if d.batchId != nil {
-		return wire.NewErrBoundToBatch(ctx)
 	}
 	// Parse the pattern.
 	if !strings.HasSuffix(req.Pattern, "*") {

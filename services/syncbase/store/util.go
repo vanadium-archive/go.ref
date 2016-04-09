@@ -21,6 +21,13 @@ type TransactionOptions struct {
 	NumAttempts int // number of attempts; only used by RunInTransaction
 }
 
+// RunWithSnapshot runs the given fn with a snapshot that is aborted afterwards.
+func RunWithSnapshot(st Store, fn func(sntx SnapshotOrTransaction) error) error {
+	sn := st.NewSnapshot()
+	defer sn.Abort()
+	return fn(sn)
+}
+
 // RunInTransaction runs the given fn in a transaction, managing retries and
 // commit/abort.
 func RunInTransaction(st Store, fn func(tx Transaction) error) error {
