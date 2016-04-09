@@ -7,6 +7,7 @@ package testutil_test
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -49,29 +50,22 @@ func start(c *v23test.Cmd) *expect.Session {
 }
 
 func TestRandSeed(t *testing.T) {
-	sh := v23test.NewShell(t, nil)
-	defer sh.Cleanup()
+	var seed int64
+	rnd := testutil.NewRandGenerator(func(format string, args ...interface{}) {
+		seed = args[0].(int64)
+	})
+	firstNumber := rnd.RandomInt()
 
-	s := start(sh.Cmd("jiri", "go", "test", "./testdata"))
-	s.ExpectRE("FAIL: TestRandSeedInternal.*", 1)
-	parts := s.ExpectRE(`Seeded pseudo-random number generator with (\d+)`, -1)
-	if len(parts) != 1 || len(parts[0]) != 2 {
-		t.Fatalf("failed to match regexp")
-	}
-	seed := parts[0][1]
-	parts = s.ExpectRE(`rand: (\d+)`, -1)
-	if len(parts) != 1 || len(parts[0]) != 2 {
-		t.Fatalf("failed to match regexp")
-	}
-	randInt := parts[0][1]
+	// Instantiate another random number generator with the same seed and
+	// verify that it produces the same random number.
+	os.Setenv("V23_RNG_SEED", fmt.Sprintf("%d", seed))
+	rnd = testutil.NewRandGenerator(t.Logf)
+	secondNumber := rnd.RandomInt()
 
-	// Rerun the test, this time with the seed that we want to use.
-	cmd := sh.Cmd("jiri", "go", "test", "./testdata")
-	cmd.Vars["V23_RNG_SEED"] = seed
-	s = start(cmd)
-	s.ExpectRE("FAIL: TestRandSeedInternal.*", 1)
-	s.ExpectRE("Seeded pseudo-random number generator with "+seed, -1)
-	s.ExpectRE("rand: "+randInt, 1)
+	t.Logf("Seed: %d First: %d Second: %d", seed, firstNumber, secondNumber)
+	if firstNumber != secondNumber {
+		t.Errorf("Unexpected random number: got %d, expected %d", secondNumber, firstNumber)
+	}
 }
 
 func TestFileTreeEqual(t *testing.T) {
