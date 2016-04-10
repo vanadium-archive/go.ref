@@ -4,13 +4,14 @@
 
 // +build linux,!android
 
-package gce
+package cloudvm
 
 import (
 	"fmt"
 	"net"
 	"net/http"
 	"testing"
+	"time"
 )
 
 func startServer(t *testing.T) (net.Addr, func()) {
@@ -53,16 +54,16 @@ func TestGCE(t *testing.T) {
 	defer stop()
 	baseURL := "http://" + addr.String()
 
-	if ip, err := gceTest(baseURL + "/404"); err == nil || ip != nil {
+	if ip, err := gceGetIP(baseURL+"/404", time.Second); err == nil || ip != nil {
 		t.Errorf("expected error, but not got nil")
 	}
-	if ip, err := gceTest(baseURL + "/200_not_gce"); err == nil || ip != nil {
+	if ip, err := gceGetIP(baseURL+"/200_not_gce", time.Second); err == nil || ip != nil {
 		t.Errorf("expected error, but not got nil")
 	}
-	if ip, err := gceTest(baseURL + "/gce_no_ip"); err != nil || ip != nil {
+	if ip, err := gceGetIP(baseURL+"/gce_no_ip", time.Second); err != nil || ip != nil {
 		t.Errorf("Unexpected result. Got (%v, %v), want nil:nil", ip, err)
 	}
-	if ip, err := gceTest(baseURL + "/gce_with_ip"); err != nil || ip.String() != "1.2.3.4" {
+	if ip, err := gceGetIP(baseURL+"/gce_with_ip", time.Second); err != nil || ip.String() != "1.2.3.4" {
 		t.Errorf("Unexpected result. Got (%v, %v), want nil:1.2.3.4", ip, err)
 	}
 }

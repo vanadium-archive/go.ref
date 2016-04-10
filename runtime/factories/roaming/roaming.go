@@ -50,6 +50,10 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		return nil, nil, nil, err
 	}
 
+	if err := internal.InitCloudVM(); err != nil {
+		return nil, nil, nil, err
+	}
+
 	ac := appcycle.New()
 	discoveryFactory, err := dfactory.New(ctx)
 	if err != nil {

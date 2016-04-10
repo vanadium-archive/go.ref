@@ -4,16 +4,27 @@
 
 // +build android
 
-package gce
+package cloudvm
 
 import (
 	"net"
+	"time"
 )
+
+func InitGCE(time.Duration) {
+}
+
+func InitAWS(time.Duration) {
+}
 
 func RunningOnGCE() bool {
 	return false
 }
 
-func ExternalIPAddress() (net.IP, error) {
-	panic("The GCE profile was unexpectedly used with android.")
+func RunningOnAWS() bool {
+	return false
+}
+
+func ExternalIPAddress() net.IP {
+	return nil
 }

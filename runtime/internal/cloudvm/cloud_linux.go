@@ -4,16 +4,10 @@
 
 // +build linux,!android
 
-// Package gce functions to test whether the current process is running on
-// Google Compute Engine, and to extract settings from this environment.
-// Any server that knows it will only ever run on GCE can import this Profile,
-// but in most cases, other Profiles will use the utility routines provided
-// by it to test to ensure that they are running on GCE and to obtain
-// metadata directly from its service APIs.
-//
-// TODO -- rename the package to "CloudVM" rather than gce, as it handles both gce
-// and AWS, and perhaps, in future, other cases of NAT'ed VMs.
-package gce
+// Package cloudvm proides functions to test whether the current process is
+// running on Google Compute Engine or Amazon Web Services, and to extract
+// settings from this environment.
+package cloudvm
 
 import (
 	"fmt"
@@ -35,46 +29,53 @@ import (
 const gceUrl = "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip"
 const awsUrl = "http://169.254.169.254/latest/meta-data/public-ipv4"
 
-// How long to wait for the HTTP request to return.
-const timeout = time.Second
-
 var (
-	once       sync.Once
-	isGCEErr   error
+	onceGCE    sync.Once
+	onceAWS    sync.Once
+	onGCE      bool
+	onAWS      bool
 	externalIP net.IP
 )
 
-// RunningOnGCE returns true if the current process is running
-// on a Google Compute Engine instance.
-func RunningOnGCE() bool {
-	once.Do(func() {
-		externalIP, isGCEErr = gceTest(gceUrl)
-		if isGCEErr == nil {
-			gceExportVariables()
-		} else {
-			// try AWS instead
-			externalIP, isGCEErr = awsTest(awsUrl)
+func InitGCE(timeout time.Duration) {
+	onceGCE.Do(func() {
+		if onAWS {
+			return
 		}
+		gceTest(timeout)
 	})
-	return isGCEErr == nil
 }
 
-// ExternalIPAddress returns the external IP address of this
-// Google Compute Engine instance, or nil if there is none. Must be
-// called after RunningOnGCE.
-func ExternalIPAddress() (net.IP, error) {
-	return externalIP, isGCEErr
+func InitAWS(timeout time.Duration) {
+	onceAWS.Do(func() {
+		if onGCE {
+			return
+		}
+		awsTest(timeout)
+	})
 }
 
-func gceTest(url string) (net.IP, error) {
-	body, err := gceGetMeta(url, timeout)
-	if err != nil {
-		return nil, err
+func RunningOnGCE() bool {
+	return onGCE
+}
+
+func RunningOnAWS() bool {
+	return onAWS
+}
+
+// ExternalIPAddress returns the external IP address of this Google Compute
+// Engine or AWS instance, or nil if there is none. Must be called after
+// InitGCE / InitAWS.
+func ExternalIPAddress() net.IP {
+	return externalIP
+}
+
+func gceTest(timeout time.Duration) {
+	var err error
+	if externalIP, err = gceGetIP(gceUrl, timeout); err != nil {
+		return
 	}
-	return net.ParseIP(body), nil
-}
 
-func gceExportVariables() {
 	vars := []struct {
 		name, url string
 	}{
@@ -82,13 +83,21 @@ func gceExportVariables() {
 		{"system/gce/zone", "http://metadata.google.internal/computeMetadata/v1/instance/zone"},
 	}
 	for _, v := range vars {
-		// At this point, we know we're on GCE. So, we might as well use a longer timeout.
-		if body, err := gceGetMeta(v.url, 10*time.Second); err == nil {
-			stats.NewString(v.name).Set(body)
-		} else {
-			stats.NewString(v.name).Set("unknown")
+		body, err := gceGetMeta(v.url, timeout)
+		if err != nil || body == "" {
+			return
 		}
+		stats.NewString(v.name).Set(body)
 	}
+	onGCE = true
+}
+
+func gceGetIP(url string, timeout time.Duration) (net.IP, error) {
+	body, err := gceGetMeta(url, timeout)
+	if err != nil {
+		return nil, err
+	}
+	return net.ParseIP(body), nil
 }
 
 func gceGetMeta(url string, timeout time.Duration) (string, error) {
@@ -116,26 +125,27 @@ func gceGetMeta(url string, timeout time.Duration) (string, error) {
 	return string(body), nil
 }
 
-func awsTest(url string) (net.IP, error) {
+func awsTest(timeout time.Duration) {
 	client := &http.Client{Timeout: timeout}
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", awsUrl, nil)
 	if err != nil {
-		return nil, err
+		return
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("http error: %d", resp.StatusCode)
+		return
 	}
 	if server := resp.Header["Server"]; len(server) != 1 || server[0] != "EC2ws" {
-		return nil, fmt.Errorf("unexpected http Server header: %q", server)
+		return
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return
 	}
-	return net.ParseIP(string(body)), nil
+	externalIP = net.ParseIP(string(body))
+	onAWS = true
 }

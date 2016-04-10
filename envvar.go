@@ -42,6 +42,10 @@ const (
 	// to the url of the OAuth identity provider used by the principal
 	// seekblessings command.
 	EnvOAuthIdentityProvider = "V23_OAUTH_IDENTITY_PROVIDER"
+
+	// When EnvExpectGoogleComputeEngine is set and non-empty, the runtime
+	// initialization will fail if the GCE metadata is inaccessible.
+	EnvExpectGoogleComputeEngine = "V23_EXPECT_GOOGLE_COMPUTE_ENGINE"
 )
 
 // EnvNamespaceRoots returns the set of namespace roots to be used by the
