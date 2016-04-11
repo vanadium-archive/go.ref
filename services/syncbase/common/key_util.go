@@ -56,17 +56,21 @@ func IsRowKey(key string) bool {
 // ParseRowKey extracts collection and row parts from the given storage engine
 // key for a data row. Returns an error if the given key is not a storage engine
 // key for a data row.
-func ParseRowKey(key string) (collection string, row string, err error) {
+func ParseRowKey(key string) (collection wire.Id, row string, err error) {
 	parts := SplitNKeyParts(key, 3)
 	pfx := parts[0]
 	if len(parts) < 3 || pfx != RowPrefix {
-		return "", "", fmt.Errorf("ParseRowKey: invalid key %q", key)
+		return wire.Id{}, "", fmt.Errorf("ParseRowKey: invalid key %q", key)
 	}
-	return parts[1], parts[2], nil
+	cxId, err := util.DecodeId(parts[1])
+	if err != nil {
+		return wire.Id{}, "", fmt.Errorf("ParseRowKey: invalid collection %q: %v", parts[1], err)
+	}
+	return cxId, parts[2], nil
 }
 
 // ParseRowKeyOrDie calls ParseRowKey and panics on error.
-func ParseRowKeyOrDie(key string) (collection string, row string) {
+func ParseRowKeyOrDie(key string) (collection wire.Id, row string) {
 	collection, row, err := ParseRowKey(key)
 	if err != nil {
 		vlog.Fatal(err)

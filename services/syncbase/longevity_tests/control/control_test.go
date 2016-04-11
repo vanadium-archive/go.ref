@@ -218,11 +218,11 @@ func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name stri
 	// Create collections on both syncbase servers.
 	counter++
 	colName := fmt.Sprintf("test_collection_%d", counter)
-	sb1Col := sb1Db.Collection(colName)
+	sb1Col := sb1Db.Collection(ctx, colName)
 	if err := sb1Col.Create(ctx, openPerms); err != nil {
 		t.Fatal(err)
 	}
-	sb2Col := sb2Db.Collection(colName)
+	sb2Col := sb2Db.Collection(ctx, colName)
 	if err := sb2Col.Create(ctx, openPerms); err != nil {
 		t.Fatal(err)
 	}
@@ -237,8 +237,8 @@ func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name stri
 		Perms:       openPerms,
 		Prefixes: []wire.CollectionRow{
 			wire.CollectionRow{
-				CollectionName: colName,
-				Row:            "",
+				CollectionId: sb1Col.Id(),
+				Row:          "",
 			},
 		},
 		MountTables: []string{mounttable},

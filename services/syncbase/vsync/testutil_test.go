@@ -16,6 +16,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	wire "v.io/v23/services/syncbase"
+	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -156,17 +157,23 @@ func destroyService(t *testing.T, s *mockService) {
 	}
 }
 
+// makeCxId returns a collection id with a default user blessing.
+func makeCxId(name string) wire.Id {
+	return wire.Id{Blessing: "v.io:u:sam", Name: name}
+}
+
 // makeRowKey returns the database row key for a given application key.
 func makeRowKey(key string) string {
 	return common.JoinKeyParts(common.RowPrefix, key)
 }
 
-func makeRowKeyFromParts(collection, row string) string {
-	return common.JoinKeyParts(common.RowPrefix, collection, row)
+func makeRowKeyFromParts(cxBlessing, cxName, row string) string {
+	return common.JoinKeyParts(common.RowPrefix, pubutil.EncodeId(wire.Id{cxBlessing, cxName}), row)
 }
 
-func makeCollectionPermsKey(collection string) string {
-	return common.JoinKeyParts(common.CollectionPermsPrefix, collection)
+func makeCollectionPermsKey(cxBlessing, cxName string) string {
+	// TODO(rdaoud,ivanpi): See hack in collection.go.
+	return common.JoinKeyParts(common.CollectionPermsPrefix, pubutil.EncodeId(wire.Id{cxBlessing, cxName}), "")
 }
 
 // conflictResolverStream mock for testing.

@@ -13,6 +13,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	wire "v.io/v23/services/syncbase"
+	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
@@ -66,17 +67,17 @@ func unixNanoToTime(timestamp int64) time.Time {
 	return time.Unix(timestamp/nanoPerSec, timestamp%nanoPerSec)
 }
 
-// toCollectionRowPrefixStr converts a CollectionRow (collection name and row
-// key or prefix pair) to a string of the form used for storing perms and row
-// data in the underlying storage engine.
+// toCollectionRowPrefixStr converts a CollectionRow (collection id and row key
+// or prefix pair) to a string of the form used for storing perms and row data
+// in the underlying storage engine.
 func toCollectionRowPrefixStr(p wire.CollectionRow) string {
-	return common.JoinKeyParts(p.CollectionName, p.Row)
+	return common.JoinKeyParts(pubutil.EncodeId(p.CollectionId), p.Row)
 }
 
 // toRowKey prepends RowPrefix to what is presumably a "<collection>:<row>"
 // string, yielding a storage engine key for a row.
 // TODO(sadovsky): Only used by CR code. Should go away once CR stores
-// collection name and row key as separate fields in a "CollectionRow" struct.
+// collection id and row key as separate fields in a "CollectionRow" struct.
 func toRowKey(collectionRow string) string {
 	return common.JoinKeyParts(common.RowPrefix, collectionRow)
 }

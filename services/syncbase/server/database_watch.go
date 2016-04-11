@@ -53,9 +53,9 @@ func (d *database) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobServ
 	}
 	// Get the resume marker and fetch the initial state if necessary.
 	resumeMarker := req.ResumeMarker
-	t := collectionReq{
-		name: collection,
-		d:    d,
+	c := collectionReq{
+		id: collection,
+		d:  d,
 	}
 	if bytes.Equal(resumeMarker, []byte("now")) {
 		var err error
@@ -65,18 +65,18 @@ func (d *database) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobServ
 	}
 	if len(resumeMarker) == 0 {
 		var err error
-		if resumeMarker, err = t.scanInitialState(ctx, call, prefix); err != nil {
+		if resumeMarker, err = c.scanInitialState(ctx, call, prefix); err != nil {
 			return err
 		}
 	}
-	return t.watchUpdates(ctx, call, prefix, resumeMarker)
+	return c.watchUpdates(ctx, call, prefix, resumeMarker)
 }
 
 // scanInitialState sends the initial state of the watched prefix as one batch.
 // TODO(ivanpi): Send dummy update for empty prefix to be compatible with
 // v.io/v23/services/watch.
-func (t *collectionReq) scanInitialState(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string) (watch.ResumeMarker, error) {
-	sntx := t.d.st.NewSnapshot()
+func (c *collectionReq) scanInitialState(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string) (watch.ResumeMarker, error) {
+	sntx := c.d.st.NewSnapshot()
 	defer sntx.Abort()
 	// Get resume marker inside snapshot.
 	resumeMarker, err := watchable.GetResumeMarker(sntx)
@@ -84,7 +84,7 @@ func (t *collectionReq) scanInitialState(ctx *context.T, call watch.GlobWatcherW
 		return nil, err
 	}
 	// Scan initial state, sending accessible rows as single batch.
-	it := sntx.Scan(common.ScanPrefixArgs(common.JoinKeyParts(common.RowPrefix, t.name), prefix))
+	it := sntx.Scan(common.ScanPrefixArgs(common.JoinKeyParts(common.RowPrefix, c.stKeyPart()), prefix))
 	sender := &watchBatchSender{
 		send: call.SendStream().Send,
 	}
@@ -96,7 +96,7 @@ func (t *collectionReq) scanInitialState(ctx *context.T, call watch.GlobWatcherW
 		parts := common.SplitNKeyParts(string(key), 3)
 		externalKey := parts[2]
 		// TODO(ivanpi): Check only once per collection.
-		if err := t.checkAccess(ctx, call, sntx); err != nil {
+		if err := c.checkAccess(ctx, call, sntx); err != nil {
 			// TODO(ivanpi): Inaccessible rows are skipped. Figure out how to signal
 			// this to caller.
 			if verror.ErrorID(err) == verror.ErrNoAccess.ID {
@@ -112,7 +112,7 @@ func (t *collectionReq) scanInitialState(ctx *context.T, call watch.GlobWatcherW
 			return nil, err
 		}
 		if err := sender.addChange(
-			naming.Join(t.name, externalKey),
+			naming.Join(pubutil.EncodeId(c.id), externalKey),
 			watch.Exists,
 			vom.RawBytesOf(wire.StoreChange{
 				Value: valueAsRawBytes,
@@ -138,8 +138,8 @@ func (t *collectionReq) scanInitialState(ctx *context.T, call watch.GlobWatcherW
 // - scan through the watch log until the end, sending all updates to the client
 // - wait for one of two signals: new updates available or the call is canceled.
 // The 'new updates' signal is sent by the watcher via a Go channel.
-func (t *collectionReq) watchUpdates(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string, resumeMarker watch.ResumeMarker) error {
-	hasUpdates, cancelWatch := watchable.WatchUpdates(t.d.st)
+func (c *collectionReq) watchUpdates(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string, resumeMarker watch.ResumeMarker) error {
+	hasUpdates, cancelWatch := watchable.WatchUpdates(c.d.st)
 	defer cancelWatch()
 	sender := &watchBatchSender{
 		send: call.SendStream().Send,
@@ -151,7 +151,7 @@ func (t *collectionReq) watchUpdates(ctx *context.T, call watch.GlobWatcherWatch
 			// conflict resolution merge batches, very large batches may not be
 			// unrealistic. However, sync currently also processes an entire batch at
 			// a time, and would need to be updated as well.
-			logs, nextResumeMarker, err := watchable.ReadBatchFromLog(t.d.st, resumeMarker)
+			logs, nextResumeMarker, err := watchable.ReadBatchFromLog(c.d.st, resumeMarker)
 			if err != nil {
 				return err
 			}
@@ -160,7 +160,7 @@ func (t *collectionReq) watchUpdates(ctx *context.T, call watch.GlobWatcherWatch
 				break
 			}
 			resumeMarker = nextResumeMarker
-			if err := t.processLogBatch(ctx, call, prefix, logs, sender); err != nil {
+			if err := c.processLogBatch(ctx, call, prefix, logs, sender); err != nil {
 				return err
 			}
 			if err := sender.finishBatch(resumeMarker); err != nil {
@@ -181,8 +181,8 @@ func (t *collectionReq) watchUpdates(ctx *context.T, call watch.GlobWatcherWatch
 
 // processLogBatch converts []*watchable.LogEntry to a watch.Change stream,
 // filtering out unnecessary or inaccessible log records.
-func (t *collectionReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string, logs []*watchable.LogEntry, sender *watchBatchSender) error {
-	sn := t.d.st.NewSnapshot()
+func (c *collectionReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, prefix string, logs []*watchable.LogEntry, sender *watchBatchSender) error {
+	sn := c.d.st.NewSnapshot()
 	defer sn.Abort()
 	for _, logEntry := range logs {
 		var opKey string
@@ -205,11 +205,11 @@ func (t *collectionReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWa
 		}
 		collection, row := common.ParseRowKeyOrDie(opKey)
 		// Filter out unnecessary rows and rows that we can't access.
-		if collection != t.name || !strings.HasPrefix(row, prefix) {
+		if collection != c.id || !strings.HasPrefix(row, prefix) {
 			continue
 		}
 		// TODO(ivanpi): Check only once per collection per batch.
-		if err := t.checkAccess(ctx, call, sn); err != nil {
+		if err := c.checkAccess(ctx, call, sn); err != nil {
 			if verror.ErrorID(err) != verror.ErrNoAccess.ID {
 				return err
 			}
@@ -225,7 +225,7 @@ func (t *collectionReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWa
 			if err := vom.Decode(rowValue, &rowValueAsRawBytes); err != nil {
 				return err
 			}
-			if err := sender.addChange(naming.Join(collection, row),
+			if err := sender.addChange(naming.Join(pubutil.EncodeId(collection), row),
 				watch.Exists,
 				vom.RawBytesOf(wire.StoreChange{
 					Value:    rowValueAsRawBytes,
@@ -234,7 +234,7 @@ func (t *collectionReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWa
 				return err
 			}
 		case *watchable.DeleteOp:
-			if err := sender.addChange(naming.Join(collection, row),
+			if err := sender.addChange(naming.Join(pubutil.EncodeId(collection), row),
 				watch.DoesNotExist,
 				vom.RawBytesOf(wire.StoreChange{
 					FromSync: logEntry.FromSync,

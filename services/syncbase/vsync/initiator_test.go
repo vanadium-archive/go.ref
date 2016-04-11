@@ -355,7 +355,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
-			Prefixes:    []wire.CollectionRow{{CollectionName: "foo", Row: ""}, {CollectionName: "bar", Row: ""}},
+			Prefixes:    []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}, {CollectionId: makeCxId("bar"), Row: ""}},
 			MountTables: []string{"1/2/3/4", "5/6/7/8"},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
@@ -422,8 +422,8 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		}
 
 		wantVecs = interfaces.Knowledge{
-			"foo\xfe": interfaces.GenVector{10: 0},
-			"bar\xfe": interfaces.GenVector{10: 0},
+			"v.io:u:sam,foo\xfe": interfaces.GenVector{10: 0},
+			"v.io:u:sam,bar\xfe": interfaces.GenVector{10: 0},
 		}
 	}
 

@@ -10,9 +10,9 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
+	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/common"
-	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/watchable"
@@ -20,8 +20,8 @@ import (
 
 // collectionReq is a per-request object that handles Collection RPCs.
 type collectionReq struct {
-	name string
-	d    *database
+	id wire.Id
+	d  *database
 }
 
 var (
@@ -43,7 +43,7 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 			if err != nil {
 				return err
 			}
-			return verror.New(verror.ErrExist, ctx, c.name)
+			return verror.New(verror.ErrExist, ctx, c.id)
 		}
 		if perms == nil {
 			perms = dData.Perms
@@ -55,7 +55,7 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 	return c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
 }
 
-// TODO(ivanpi): Decouple collection key prefix from collection name to allow
+// TODO(ivanpi): Decouple collection key prefix from collection id to allow
 // collection data deletion to be deferred, making deletion faster (reference
 // removal). Same for database deletion.
 func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
@@ -73,7 +73,7 @@ func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, bh wire.Bat
 		// syncgroup. Refactor with common part of DeleteRange.
 
 		// Delete all data rows.
-		it := tx.Scan(common.ScanPrefixArgs(common.JoinKeyParts(common.RowPrefix, c.name), ""))
+		it := tx.Scan(common.ScanPrefixArgs(common.JoinKeyParts(common.RowPrefix, c.stKeyPart()), ""))
 		var key []byte
 		for it.Advance() {
 			key = it.Key(key)
@@ -125,7 +125,7 @@ func (c *collectionReq) DeleteRange(ctx *context.T, call rpc.ServerCall, bh wire
 		if err := c.checkAccess(ctx, call, tx); err != nil {
 			return err
 		}
-		it := tx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, c.name), string(start), string(limit)))
+		it := tx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, c.stKeyPart()), string(start), string(limit)))
 		key := []byte{}
 		for it.Advance() {
 			key = it.Key(key)
@@ -148,7 +148,7 @@ func (c *collectionReq) Scan(ctx *context.T, call wire.CollectionScanServerCall,
 		if err := c.checkAccess(ctx, call, sntx); err != nil {
 			return err
 		}
-		it := sntx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, c.name), string(start), string(limit)))
+		it := sntx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, c.stKeyPart()), string(start), string(limit)))
 		sender := call.SendStream()
 		key, value := []byte{}, []byte{}
 		for it.Advance() {
@@ -175,20 +175,9 @@ func (c *collectionReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServ
 		if err := c.checkAccess(ctx, call, sntx); err != nil {
 			return err
 		}
-		return util.GlobChildren(ctx, call, matcher, sntx, common.JoinKeyParts(common.RowPrefix, c.name))
+		return util.GlobChildren(ctx, call, matcher, sntx, common.JoinKeyParts(common.RowPrefix, c.stKeyPart()))
 	}
 	return store.RunWithSnapshot(c.d.st, impl)
-}
-
-////////////////////////////////////////
-// interfaces.Database methods
-
-func (c *collectionReq) Database() interfaces.Database {
-	return c.d
-}
-
-func (c *collectionReq) Name() string {
-	return c.name
 }
 
 ////////////////////////////////////////
@@ -196,13 +185,13 @@ func (c *collectionReq) Name() string {
 
 func (c *collectionReq) permsKey() string {
 	// TODO(rdaoud,ivanpi): The third empty key component is added to ensure a
-	// sync prefix matches only the exact collection name. Make sync handling of
+	// sync prefix matches only the exact collection id. Make sync handling of
 	// collections more explicit and clean up this hack.
 	return common.JoinKeyParts(common.CollectionPermsPrefix, c.stKeyPart(), "")
 }
 
 func (c *collectionReq) stKeyPart() string {
-	return c.name
+	return pubutil.EncodeId(c.id)
 }
 
 // checkAccess checks that this collection exists in the database, and performs

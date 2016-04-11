@@ -80,7 +80,7 @@ func verifySyncgroup(ctx *context.T, sg *interfaces.Syncgroup) error {
 	if sg.Name == "" {
 		return verror.New(verror.ErrBadArg, ctx, "group name not specified")
 	}
-	if !pubutil.ValidDatabaseId(sg.DbId) {
+	if !pubutil.ValidId(sg.DbId) {
 		return verror.New(verror.ErrBadArg, ctx, "invalid db id")
 	}
 	if sg.Creator == "" {
@@ -107,8 +107,8 @@ func verifySyncgroupSpec(ctx *context.T, spec *wire.SyncgroupSpec) error {
 	// Duplicate prefixes are not allowed.
 	prefixes := make(map[string]bool, len(spec.Prefixes))
 	for _, p := range spec.Prefixes {
-		if !pubutil.ValidCollectionName(p.CollectionName) {
-			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a CollectionRow with invalid collection name %q", p.CollectionName))
+		if !pubutil.ValidId(p.CollectionId) {
+			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a CollectionRow with invalid collection id %v", p.CollectionId))
 		}
 		if p.Row != "" && !pubutil.ValidRowKey(p.Row) {
 			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a CollectionRow with invalid row prefix %q", p.Row))

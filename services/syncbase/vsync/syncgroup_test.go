@@ -66,7 +66,7 @@ func TestAddSyncgroup(t *testing.T) {
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
-			Prefixes: []wire.CollectionRow{{CollectionName: "foo", Row: ""}, {CollectionName: "bar", Row: ""}},
+			Prefixes: []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}, {CollectionId: makeCxId("bar"), Row: ""}},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -188,7 +188,7 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 			Creator:     "mockCreator",
 			SpecVersion: "etag-0",
 			Spec: wire.SyncgroupSpec{
-				Prefixes: []wire.CollectionRow{{CollectionName: "foo", Row: ""}, {CollectionName: "bar", Row: ""}},
+				Prefixes: []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}, {CollectionId: makeCxId("bar"), Row: ""}},
 			},
 			Joiners: map[string]wire.SyncgroupMemberInfo{
 				"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -208,11 +208,11 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 
 	sg = mkSg()
 	sg.DbId = wire.Id{Blessing: "foo"}
-	checkBadAddSyncgroup(t, st, sg, "SG with invalid DbId")
+	checkBadAddSyncgroup(t, st, sg, "SG with invalid (empty Name) DbId")
 
 	sg = mkSg()
 	sg.DbId = wire.Id{Name: "bar"}
-	checkBadAddSyncgroup(t, st, sg, "SG with invalid DbId")
+	checkBadAddSyncgroup(t, st, sg, "SG with invalid (empty Blessing) DbId")
 
 	sg = mkSg()
 	sg.Creator = ""
@@ -231,15 +231,23 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 	checkBadAddSyncgroup(t, st, sg, "SG w/o Prefixes")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionName: "foo", Row: ""}, {CollectionName: "bar", Row: ""}, {CollectionName: "foo", Row: ""}}
+	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}, {CollectionId: makeCxId("bar"), Row: ""}, {CollectionId: makeCxId("foo"), Row: ""}}
 	checkBadAddSyncgroup(t, st, sg, "SG with duplicate Prefixes")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionName: "", Row: ""}}
-	checkBadAddSyncgroup(t, st, sg, "SG with invalid (empty) collection name")
+	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionId: wire.Id{}, Row: ""}}
+	checkBadAddSyncgroup(t, st, sg, "SG with invalid (empty) collection id")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionName: "a", Row: "\xfe"}}
+	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionId: wire.Id{Blessing: "foo"}, Row: ""}}
+	checkBadAddSyncgroup(t, st, sg, "SG with invalid (empty Name) collection id")
+
+	sg = mkSg()
+	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionId: wire.Id{Name: "bar"}, Row: ""}}
+	checkBadAddSyncgroup(t, st, sg, "SG with invalid (empty Blessing) collection id")
+
+	sg = mkSg()
+	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionId: makeCxId("a"), Row: "\xfe"}}
 	checkBadAddSyncgroup(t, st, sg, "SG with invalid row prefix")
 }
 
@@ -276,7 +284,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
-			Prefixes: []wire.CollectionRow{{CollectionName: "foo", Row: ""}, {CollectionName: "bar", Row: ""}},
+			Prefixes: []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}, {CollectionId: makeCxId("bar"), Row: ""}},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -359,7 +367,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		SpecVersion: "etag-1",
 		Spec: wire.SyncgroupSpec{
 			MountTables: []string{"mt1"},
-			Prefixes:    []wire.CollectionRow{{CollectionName: "foo", Row: ""}},
+			Prefixes:    []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -374,7 +382,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		SpecVersion: "etag-2",
 		Spec: wire.SyncgroupSpec{
 			MountTables: []string{"mt2", "mt3"},
-			Prefixes:    []wire.CollectionRow{{CollectionName: "bar", Row: ""}},
+			Prefixes:    []wire.CollectionRow{{CollectionId: makeCxId("bar"), Row: ""}},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"tablet": wire.SyncgroupMemberInfo{SyncPriority: 111},
@@ -547,7 +555,7 @@ func TestPrefixCompare(t *testing.T) {
 			if len(parts) != 2 {
 				t.Fatalf("invalid CollectionRow string: %s", v)
 			}
-			res[i] = wire.CollectionRow{CollectionName: parts[0], Row: parts[1]}
+			res[i] = wire.CollectionRow{CollectionId: wire.Id{"u", parts[0]}, Row: parts[1]}
 		}
 		return res
 	}

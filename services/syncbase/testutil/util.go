@@ -43,16 +43,24 @@ func Fatalf(t testing.TB, format string, args ...interface{}) {
 // TODO(sadovsky): Standardize on a small set of constants and helper functions
 // to share across all Syncbase tests. Currently, our 'featuretests' tests use a
 // different set of helpers from our other unit tests.
+func DbId(name string) wire.Id {
+	return wire.Id{Blessing: "v.io:a:xyz", Name: name}
+}
+
 func CreateDatabase(t testing.TB, ctx *context.T, s syncbase.Service, name string) syncbase.Database {
-	d := s.DatabaseForId(wire.Id{Blessing: "v.io:xyz", Name: name}, nil)
+	d := s.DatabaseForId(DbId(name), nil)
 	if err := d.Create(ctx, nil); err != nil {
 		Fatalf(t, "d.Create() failed: %v", err)
 	}
 	return d
 }
 
+func CxId(name string) wire.Id {
+	return wire.Id{Blessing: "v.io:u:sam", Name: name}
+}
+
 func CreateCollection(t testing.TB, ctx *context.T, d syncbase.Database, name string) syncbase.Collection {
-	c := d.Collection(name)
+	c := d.CollectionForId(CxId(name))
 	if err := c.Create(ctx, nil); err != nil {
 		Fatalf(t, "c.Create() failed: %v", err)
 	}

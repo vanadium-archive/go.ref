@@ -12,7 +12,7 @@ package vsync
 // Note: the sync code uses the words "object" and "object ID" (oid) as a
 // generic way to refer to syncable entities, whether they are actual user data
 // (collection row and its row key), collection headers (permissions entry and
-// its internal key based on the collection name), or other metadata such as
+// its internal key based on the collection id), or other metadata such as
 // syncgroups (syncgroup value and its internal key based on the syncgroup ID).
 //
 // * Object IDs are globally unique across all devices.

@@ -41,7 +41,7 @@ func TestPeerManager(t *testing.T) {
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
-			Prefixes:    []wire.CollectionRow{{CollectionName: "foo", Row: ""}, {CollectionName: "bar", Row: ""}},
+			Prefixes:    []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}, {CollectionId: makeCxId("bar"), Row: ""}},
 			MountTables: []string{"1/2/3/4", "5/6/7/8"},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{

@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"testing"
 
+	wire "v.io/v23/services/syncbase"
 	"v.io/x/ref/services/syncbase/common"
 )
 
@@ -120,29 +121,32 @@ func TestIsRowKey(t *testing.T) {
 func TestParseRowKey(t *testing.T) {
 	tests := []struct {
 		key        string
-		collection string
+		collection wire.Id
 		row        string
 		err        bool
 	}{
-		{common.RowPrefix + "\xfec\xferow", "c", "row", false},
-		{common.RowPrefix + "\xfec\xfe", "c", "", false},
-		{common.RowPrefix + "\xfe\xferow", "", "row", false},
-		{common.RowPrefix + "\xfe\xfe", "", "", false},
-		{common.CollectionPermsPrefix + "\xfec\xferow", "", "", true},
-		{common.CollectionPermsPrefix + "\xfec\xfe", "", "", true},
-		{common.CollectionPermsPrefix + "\xfe\xferow", "", "", true},
-		{common.CollectionPermsPrefix + "\xfe\xfe", "", "", true},
-		{"pfx\xfec\xferow", "", "", true},
-		{"pfx\xfec\xfe", "", "", true},
-		{"pfx\xfe\xferow", "", "", true},
-		{"pfx\xfe\xfe", "", "", true},
-		{"\xfec\xferow", "", "", true},
-		{"\xfec\xfe", "", "", true},
-		{"\xfe\xferow", "", "", true},
-		{"\xfe\xfe", "", "", true},
-		{common.RowPrefix, "", "", true},
-		{common.RowPrefix + "\xfec", "", "", true},
-		{common.RowPrefix + "\xfe", "", "", true},
+		{common.RowPrefix + "\xfeu,c\xferow", wire.Id{"u", "c"}, "row", false},
+		{common.RowPrefix + "\xfeu,c\xfe", wire.Id{"u", "c"}, "", false},
+		{common.RowPrefix + "\xfe,c\xfe", wire.Id{"", "c"}, "", false},
+		{common.RowPrefix + "\xfeu,\xfe", wire.Id{"u", ""}, "", false},
+		{common.RowPrefix + "\xfe,\xferow", wire.Id{"", ""}, "row", false},
+		{common.RowPrefix + "\xfe\xferow", wire.Id{}, "", true},
+		{common.RowPrefix + "\xfeuc\xfe", wire.Id{}, "", true},
+		{common.CollectionPermsPrefix + "\xfeu,c\xferow", wire.Id{}, "", true},
+		{common.CollectionPermsPrefix + "\xfeu,c\xfe", wire.Id{}, "", true},
+		{common.CollectionPermsPrefix + "\xfe\xferow", wire.Id{}, "", true},
+		{common.CollectionPermsPrefix + "\xfe\xfe", wire.Id{}, "", true},
+		{"pfx\xfeu,c\xferow", wire.Id{}, "", true},
+		{"pfx\xfeu,c\xfe", wire.Id{}, "", true},
+		{"pfx\xfe\xferow", wire.Id{}, "", true},
+		{"pfx\xfe\xfe", wire.Id{}, "", true},
+		{"\xfeu,c\xferow", wire.Id{}, "", true},
+		{"\xfeu,c\xfe", wire.Id{}, "", true},
+		{"\xfe\xferow", wire.Id{}, "", true},
+		{"\xfe\xfe", wire.Id{}, "", true},
+		{common.RowPrefix, wire.Id{}, "", true},
+		{common.RowPrefix + "\xfeu,c", wire.Id{}, "", true},
+		{common.RowPrefix + "\xfe", wire.Id{}, "", true},
 	}
 	for _, test := range tests {
 		collection, row, err := common.ParseRowKey(test.key)
@@ -150,7 +154,7 @@ func TestParseRowKey(t *testing.T) {
 			t.Errorf("%q: got %v, want %v", test.key, collection, test.collection)
 		}
 		if !reflect.DeepEqual(row, test.row) {
-			t.Errorf("%q: got %v, want %v", test.key, collection, test.collection)
+			t.Errorf("%q: got %v, want %v", test.key, row, test.row)
 		}
 		if !reflect.DeepEqual(err != nil, test.err) {
 			t.Errorf("%q: got %v, want %v", test.key, err != nil, test.err)

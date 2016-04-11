@@ -7,7 +7,6 @@ package server
 import (
 	"math/rand"
 	"path"
-	"sort"
 	"sync"
 	"time"
 
@@ -345,11 +344,11 @@ func (d *database) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCal
 
 // See comment in v.io/v23/services/syncbase/service.vdl for why we can't
 // implement ListCollections using Glob.
-func (d *database) ListCollections(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) ([]string, error) {
+func (d *database) ListCollections(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) ([]wire.Id, error) {
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	var res []string
+	var res []wire.Id
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check perms.
 		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
@@ -360,15 +359,15 @@ func (d *database) ListCollections(ctx *context.T, call rpc.ServerCall, bh wire.
 		for it.Advance() {
 			keyBytes = it.Key(keyBytes)
 			parts := common.SplitNKeyParts(string(keyBytes), 3)
-			// For explanation of Encode(), see comment in dispatcher.go.
-			res = append(res, pubutil.Encode(parts[1]))
+			id, err := pubutil.DecodeId(parts[1])
+			if err != nil {
+				return verror.New(verror.ErrInternal, ctx, err)
+			}
+			res = append(res, id)
 		}
 		if err := it.Err(); err != nil {
 			return err
 		}
-		// TODO(rdaoud,ivanpi): Sort is necessary because of hack in
-		// collectionReq.permsKey().
-		sort.Sort(sort.StringSlice(res))
 		return nil
 	}
 	if err := d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl); err != nil {
@@ -457,11 +456,16 @@ func (qdb *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error)
 	// or a snapshot. If batchId is already set, there's nothing to do; but if
 	// not, the writeAccessReq arg dictates whether a snapshot or a transaction is
 	// should be created.
+	// TODO(ivanpi): Allow passing in non-default user blessings.
+	blessing, err := pubutil.UserBlessingFromContext(qdb.ctx)
+	if err != nil {
+		return nil, err
+	}
 	qt := &queryTable{
 		qdb: qdb,
 		cReq: &collectionReq{
-			name: name,
-			d:    qdb.d,
+			id: wire.Id{Blessing: blessing, Name: name},
+			d:  qdb.d,
 		},
 	}
 	if qt.qdb.bh != "" {
@@ -475,7 +479,7 @@ func (qdb *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error)
 				if verror.ErrorID(err) == wire.ErrReadOnlyBatch.ID {
 					// We are in a snapshot batch, write access cannot be provided.
 					// Return NotWritable.
-					return nil, syncql.NewErrNotWritable(qt.qdb.GetContext(), qt.cReq.name)
+					return nil, syncql.NewErrNotWritable(qt.qdb.GetContext(), pubutil.EncodeId(qt.cReq.id))
 				}
 				return nil, err
 			}
@@ -536,7 +540,7 @@ func (t *queryTable) Scan(indexRanges ...ds.IndexRanges) (ds.KeyValueStream, err
 		// TODO(jkline): For now, acquire all of the streams at once to minimize the
 		// race condition. Need a way to Scan multiple ranges at the same state of
 		// uncommitted changes.
-		streams = append(streams, t.qdb.sntx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, t.cReq.name), keyRange.Start, keyRange.Limit)))
+		streams = append(streams, t.qdb.sntx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, t.cReq.stKeyPart()), keyRange.Start, keyRange.Limit)))
 	}
 	return &kvs{
 		t:        t,

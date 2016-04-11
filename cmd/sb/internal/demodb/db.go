@@ -152,22 +152,22 @@ func t(timeStr string) time.Time {
 // and recreated if they already exist.
 func PopulateDemoDB(ctx *context.T, db syncbase.Database) error {
 	for i, c := range demoCollections {
-		if err := db.Collection(c.name).Destroy(ctx); err != nil {
-			return fmt.Errorf("failed destroying collection %s (%d/%d): %v", c.name, i+1, len(demoCollections), err)
-		}
-		if err := db.Collection(c.name).Create(ctx, nil); err != nil {
-			return fmt.Errorf("failed creating collection %s (%d/%d): %v", c.name, i+1, len(demoCollections), err)
-		}
 		if err := syncbase.RunInBatch(ctx, db, wire.BatchOptions{}, func(db syncbase.BatchDatabase) error {
-			dc := db.Collection(c.name)
+			dc := db.Collection(ctx, c.name)
+			if err := dc.Destroy(ctx); err != nil {
+				return fmt.Errorf("Destroy %v failed: %v", dc.Id(), err)
+			}
+			if err := dc.Create(ctx, nil); err != nil {
+				return fmt.Errorf("Create %v failed: %v", dc.Id(), err)
+			}
 			for _, kv := range c.rows {
 				if err := dc.Put(ctx, kv.key, kv.value); err != nil {
-					return err
+					return fmt.Errorf("Put %q into %v failed: %v", kv.key, dc.Id(), err)
 				}
 			}
 			return nil
 		}); err != nil {
-			return fmt.Errorf("failed populating collection %s (%d/%d): %v", c.name, i+1, len(demoCollections), err)
+			return fmt.Errorf("failed creating collection %s (%d/%d): %v", c.name, i+1, len(demoCollections), err)
 		}
 	}
 	return nil

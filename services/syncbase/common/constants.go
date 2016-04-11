@@ -20,7 +20,7 @@ const (
 	SyncPrefix            = "y"
 
 	// KeyPartSep is a separator for parts of storage engine keys, e.g. separating
-	// collection name from row key.
+	// collection id from row key.
 	KeyPartSep = "\xfe"
 
 	// PrefixRangeLimitSuffix is a key suffix that indicates the end of a prefix

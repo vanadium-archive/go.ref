@@ -9,9 +9,10 @@
 // creating it if it does not exist if -create-missing is specified.
 // The user can then enter the following at the command line:
 //     1. dump - to get a dump of the database
-//     2. a syncbase select statement - which is executed and results printed to stdout
-//     3. a syncbase delete statement - which is executed to delete k/v pairs from a collection
-//     4. make-demo - to create demo collections in the database to experiment with, equivalent to -make-demo flag
+//     2. a syncQL select statement - which is executed and results printed to stdout
+//     3. a syncQL delete statement - which is executed to delete k/v pairs from a collection
+//     4. destroy {db|collection|syncgroup} <identifier> - to destroy a syncbase object
+//     5. make-demo - to create demo collections in the database to experiment with, equivalent to -make-demo flag
 //     5. exit (or quit) - to exit the program
 //
 // When the shell is running non-interactively (stdin not connected to a tty),
@@ -21,7 +22,7 @@
 //     jiri go install v.io/x/ref/cmd/sb
 //
 // To run client:
-//     $JIRI_ROOT/release/go/bin/sb sh <appname> <dbname>
+//     $JIRI_ROOT/release/go/bin/sb sh <app_blessing> <db_name>
 //
 // Sample run (assuming a syncbase service is mounted at '/:8101/syncbase',
 // otherwise specify using -service flag):

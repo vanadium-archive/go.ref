@@ -89,16 +89,11 @@ func concat(slices ...[]string) []string {
 }
 
 var (
-	OkAppBlessings    []string = validBlessingPatterns
-	NotOkAppBlessings []string = concat(universallyInvalidNames, invalidBlessingPatterns, longNames)
+	OkAppUserBlessings    []string = validBlessingPatterns
+	NotOkAppUserBlessings []string = concat(universallyInvalidNames, invalidBlessingPatterns, longNames)
 
-	OkDbNames    []string = validIdentifiers
-	NotOkDbNames []string = concat(universallyInvalidNames, longNames, invalidIdentifiers)
-)
-
-var (
-	OkCollectionNames    []string = OkDbNames
-	NotOkCollectionNames []string = NotOkDbNames
+	OkDbCxNames    []string = validIdentifiers
+	NotOkDbCxNames []string = concat(universallyInvalidNames, longNames, invalidIdentifiers)
 )
 
 var (

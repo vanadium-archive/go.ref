@@ -13,37 +13,37 @@ import (
 )
 
 var (
-	x = makeRowKeyFromParts("collection1", "x")
-	y = makeRowKeyFromParts("collection1", "y")
-	z = makeRowKeyFromParts("collection1", "z")
-	a = makeRowKeyFromParts("collection2", "a")
-	b = makeRowKeyFromParts("collection2", "b")
-	c = makeRowKeyFromParts("collection2", "c")
-	d = makeCollectionPermsKey("collection1")
+	x = makeRowKeyFromParts("u", "collection1", "x")
+	y = makeRowKeyFromParts("u", "collection1", "y")
+	z = makeRowKeyFromParts("u", "collection1", "z")
+	a = makeRowKeyFromParts("u", "collection2", "a")
+	b = makeRowKeyFromParts("u", "collection2", "b")
+	c = makeRowKeyFromParts("u", "collection2", "c")
+	d = makeCollectionPermsKey("u", "collection1")
 
-	e = makeRowKeyFromParts("collection1", "e")
-	f = makeRowKeyFromParts("collection1", "f")
-	g = makeRowKeyFromParts("collection1", "g")
+	e = makeRowKeyFromParts("u", "collection1", "e")
+	f = makeRowKeyFromParts("u", "collection1", "f")
+	g = makeRowKeyFromParts("u", "collection1", "g")
 
 	// Oids for batches containing linked objects
-	la1 = makeRowKeyFromParts("collection1", "la1")
-	lb1 = makeRowKeyFromParts("collection1", "lb1")
-	lc1 = makeRowKeyFromParts("collection1", "lc1")
+	la1 = makeRowKeyFromParts("u", "collection1", "la1")
+	lb1 = makeRowKeyFromParts("u", "collection1", "lb1")
+	lc1 = makeRowKeyFromParts("u", "collection1", "lc1")
 
-	la2 = makeRowKeyFromParts("collection1", "la2")
-	lb2 = makeRowKeyFromParts("collection1", "lb2")
-	lc2 = makeRowKeyFromParts("collection1", "lc2")
+	la2 = makeRowKeyFromParts("u", "collection1", "la2")
+	lb2 = makeRowKeyFromParts("u", "collection1", "lb2")
+	lc2 = makeRowKeyFromParts("u", "collection1", "lc2")
 
-	la3 = makeRowKeyFromParts("collection1", "la3")
-	lb3 = makeRowKeyFromParts("collection1", "lb3")
-	lc3 = makeRowKeyFromParts("collection1", "lc3")
+	la3 = makeRowKeyFromParts("u", "collection1", "la3")
+	lb3 = makeRowKeyFromParts("u", "collection1", "lb3")
+	lc3 = makeRowKeyFromParts("u", "collection1", "lc3")
 
-	la4 = makeRowKeyFromParts("collection1", "la4")
-	lb4 = makeRowKeyFromParts("collection1", "lb4")
-	lc4 = makeRowKeyFromParts("collection1", "lc4")
+	la4 = makeRowKeyFromParts("u", "collection1", "la4")
+	lb4 = makeRowKeyFromParts("u", "collection1", "lb4")
+	lc4 = makeRowKeyFromParts("u", "collection1", "lc4")
 
-	p = makeRowKeyFromParts("collection3", "p")
-	q = makeRowKeyFromParts("collection3", "q")
+	p = makeRowKeyFromParts("u", "collection3", "p")
+	q = makeRowKeyFromParts("u", "collection3", "q")
 )
 
 func createObjConflictState(isConflict, hasLocal, hasRemote, hasAncestor bool) *objConflictState {

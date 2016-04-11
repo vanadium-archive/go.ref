@@ -49,19 +49,20 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 
 	// Note, the slice returned by strings.SplitN is guaranteed to contain at
 	// least one element.
-	encDbId := parts[0]
-	dbId, err := pubutil.DecodeId(encDbId)
-	if err != nil || !pubutil.ValidDatabaseId(dbId) {
+	dbId, err := pubutil.DecodeId(parts[0])
+	if err != nil || !pubutil.ValidId(dbId) {
 		return nil, nil, wire.NewErrInvalidName(ctx, suffix)
 	}
 
-	var collectionName, rowKey string
+	var collectionId wire.Id
 	if len(parts) > 1 {
-		collectionName, err = pubutil.Decode(parts[1])
-		if err != nil || !pubutil.ValidCollectionName(collectionName) {
+		collectionId, err = pubutil.DecodeId(parts[1])
+		if err != nil || !pubutil.ValidId(collectionId) {
 			return nil, nil, wire.NewErrInvalidName(ctx, suffix)
 		}
 	}
+
+	var rowKey string
 	if len(parts) > 2 {
 		rowKey, err = pubutil.Decode(parts[2])
 		if err != nil || !pubutil.ValidRowKey(rowKey) {
@@ -106,8 +107,8 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 	// execute, the client may not get an error, but in any case ultimately the
 	// store will end up in a consistent state.
 	cReq := &collectionReq{
-		name: collectionName,
-		d:    d,
+		id: collectionId,
+		d:  d,
 	}
 	if len(parts) == 2 {
 		return wire.CollectionServer(cReq), auth, nil

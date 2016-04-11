@@ -175,14 +175,21 @@ func destroyDB(ctx *context.T, d syncbase.Database, encDbId string) error {
 	return d.Destroy(ctx)
 }
 
-func destroyCollection(ctx *context.T, d syncbase.Database, collectionName string) error {
-	collection := d.Collection(collectionName)
-	if exists, err := collection.Exists(ctx); err != nil {
+func destroyCollection(ctx *context.T, d syncbase.Database, encCxId string) error {
+	// For extra safety, we still require the user to explicitly specify the
+	// encoded collection id instead of assuming the blessing from context.
+	// TODO(ivanpi): Maybe switch to something more user-friendly.
+	cxId, err := pubutil.DecodeId(encCxId)
+	if err != nil {
+		return fmt.Errorf("failed to decode collection id %q: %v", encCxId, err)
+	}
+	c := d.CollectionForId(cxId)
+	if exists, err := c.Exists(ctx); err != nil {
 		return err
 	} else if !exists {
-		return fmt.Errorf("couldn't find collection %q", collectionName)
+		return fmt.Errorf("couldn't find collection %v", c.Id())
 	}
-	return collection.Destroy(ctx)
+	return c.Destroy(ctx)
 }
 
 func destroySyncgroup(ctx *context.T, d syncbase.Database, sgName string) error {
@@ -232,9 +239,10 @@ func dumpCollections(ctx *context.T, w io.Writer, d syncbase.Database) error {
 	}
 	var errs []error
 	for _, collection := range collections {
-		fmt.Fprintf(w, "collection: %s\n", collection)
-		if err := queryExec(ctx, w, d, fmt.Sprintf("select k, v from %s", collection)); err != nil {
-			errs = append(errs, fmt.Errorf("> %s: %v", collection, err))
+		fmt.Fprintf(w, "collection: %v\n", collection)
+		// TODO(ivanpi): Queries currently support only the default user blessing.
+		if err := queryExec(ctx, w, d, fmt.Sprintf("select k, v from %s", collection.Name)); err != nil {
+			errs = append(errs, fmt.Errorf("> %v: %v", collection, err))
 		}
 	}
 	if len(errs) > 0 {

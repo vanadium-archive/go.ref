@@ -240,7 +240,7 @@ func TestListChildIds(t *testing.T, ctx *context.T, i interface{}, blessings, na
 		got, err = self.ListChildIds(ctx)
 		want = ids[:i]
 		if err != nil {
-			t.Fatalf("self.ListChildren() failed: %v", err)
+			t.Fatalf("self.ListChildIds() failed: %v", err)
 		}
 		if got == nil {
 			got = []wire.Id{}
@@ -254,38 +254,6 @@ func TestListChildIds(t *testing.T, ctx *context.T, i interface{}, blessings, na
 		id := ids[i]
 		if err := self.ChildForId(id).Create(ctx, nil); err != nil {
 			t.Fatalf("Create(%v) failed: %v", id, err)
-		}
-	}
-}
-
-// TODO(sadovsky): Eliminate TestListChildren once we've converted collection to
-// be id-based instead of name-based.
-func TestListChildren(t *testing.T, ctx *context.T, i interface{}, names []string) {
-	self := makeLayer(i)
-
-	var got, want []string
-	var err error
-
-	names = copyAndSortStrings(names)
-
-	for i := 0; i <= len(names); i++ {
-		got, err = self.ListChildren(ctx)
-		want = names[:i]
-		if err != nil {
-			t.Fatalf("self.ListChildren() failed: %v", err)
-		}
-		if got == nil {
-			got = []string{}
-		}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("Lists do not match: got %v, want %v", got, want)
-		}
-		if i == len(names) {
-			break
-		}
-		name := names[i]
-		if err := self.Child(name).Create(ctx, nil); err != nil {
-			t.Fatalf("Create(%q) failed: %v", name, err)
 		}
 	}
 }
@@ -391,12 +359,10 @@ const notAvailable = "not available"
 
 type layer interface {
 	util.AccessController
-	Name() string
 	FullName() string
 	Create(ctx *context.T, perms access.Permissions) error
 	Destroy(ctx *context.T) error
 	Exists(ctx *context.T) (bool, error)
-	ListChildren(ctx *context.T) ([]string, error)
 	ListChildIds(ctx *context.T) ([]wire.Id, error)
 	Child(childName string) layer
 	ChildForId(childId wire.Id) layer
@@ -406,9 +372,6 @@ type service struct {
 	syncbase.Service
 }
 
-func (s *service) Name() string {
-	panic(notAvailable)
-}
 func (s *service) Create(ctx *context.T, perms access.Permissions) error {
 	panic(notAvailable)
 }
@@ -418,14 +381,11 @@ func (s *service) Destroy(ctx *context.T) error {
 func (s *service) Exists(ctx *context.T) (bool, error) {
 	panic(notAvailable)
 }
-func (s *service) ListChildren(ctx *context.T) ([]string, error) {
-	panic(notAvailable)
-}
 func (s *service) ListChildIds(ctx *context.T) ([]wire.Id, error) {
 	return s.ListDatabases(ctx)
 }
 func (s *service) Child(childName string) layer {
-	return makeLayer(s.DatabaseForId(wire.Id{Blessing: "v.io:xyz", Name: childName}, nil))
+	return makeLayer(s.DatabaseForId(DbId(childName), nil))
 }
 func (s *service) ChildForId(childId wire.Id) layer {
 	return makeLayer(s.DatabaseForId(childId, nil))
@@ -435,20 +395,14 @@ type database struct {
 	syncbase.Database
 }
 
-func (d *database) Name() string {
-	return d.Database.Id().Name
-}
-func (d *database) ListChildren(ctx *context.T) ([]string, error) {
+func (d *database) ListChildIds(ctx *context.T) ([]wire.Id, error) {
 	return d.ListCollections(ctx)
 }
-func (d *database) ListChildIds(ctx *context.T) ([]wire.Id, error) {
-	panic(notAvailable)
-}
 func (d *database) Child(childName string) layer {
-	return makeLayer(d.Collection(childName))
+	return makeLayer(d.CollectionForId(CxId(childName)))
 }
 func (d *database) ChildForId(childId wire.Id) layer {
-	panic(notAvailable)
+	return makeLayer(d.CollectionForId(childId))
 }
 
 type collection struct {
@@ -461,9 +415,6 @@ func (c *collection) SetPermissions(ctx *context.T, perms access.Permissions, ve
 func (c *collection) GetPermissions(ctx *context.T) (perms access.Permissions, version string, err error) {
 	perms, err = c.Collection.GetPermissions(ctx)
 	return perms, "", err
-}
-func (c *collection) ListChildren(ctx *context.T) ([]string, error) {
-	panic(notAvailable)
 }
 func (c *collection) ListChildIds(ctx *context.T) ([]wire.Id, error) {
 	panic(notAvailable)
@@ -480,9 +431,6 @@ type row struct {
 	c syncbase.Collection
 }
 
-func (r *row) Name() string {
-	return r.Key()
-}
 func (r *row) Create(ctx *context.T, perms access.Permissions) error {
 	if perms != nil {
 		panic(fmt.Sprintf("bad perms: %v", perms))
@@ -497,9 +445,6 @@ func (r *row) SetPermissions(ctx *context.T, perms access.Permissions, version s
 	return nil
 }
 func (r *row) GetPermissions(ctx *context.T) (perms access.Permissions, version string, err error) {
-	panic(notAvailable)
-}
-func (r *row) ListChildren(ctx *context.T) ([]string, error) {
 	panic(notAvailable)
 }
 func (r *row) ListChildIds(ctx *context.T) ([]wire.Id, error) {
