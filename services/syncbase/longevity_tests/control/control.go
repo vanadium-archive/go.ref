@@ -33,6 +33,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"v.io/v23"
@@ -172,11 +173,44 @@ func (c *Controller) TearDown() error {
 // defined by the given model.
 // Run can be called multiple times, and will update the running syncbases to
 // reflect the model.  Any running instances not contained in the model will be
-// stopped.  Any non-running instances contained it the model will be started.
+// stopped.  Any non-running instances contained in the model will be started.
 func (c *Controller) Run(u *model.Universe) error {
-	if err := c.updateInstances(u.Devices); err != nil {
-		return err
+	// allDevices keeps track of all devices in the model.
+	allDevices := model.DeviceSet{}
+
+	// Update all devices owned by each user.  If a device is not currently
+	// running, it will be started.
+	for _, user := range u.Users {
+		allDevices = append(allDevices, user.Devices...)
+		if err := c.updateInstancesForUser(user); err != nil {
+			return err
+		}
 	}
+
+	// Stop all running instances that are not in the model.
+	// TODO(nlacasse): Does it make sense to allow universes to shrink like
+	// this?  Maybe once a device is in the universe, it cannot be taken out?
+	// Pausing and disconnecting should still be allowed, of course.
+	c.instancesMu.Lock()
+	for _, inst := range c.instances {
+		shouldBeKilled := true
+		for _, d := range allDevices {
+			if inst.name == d.Name {
+				shouldBeKilled = false
+				break
+			}
+		}
+		if !shouldBeKilled {
+			continue
+		}
+		if err := inst.kill(); err != nil {
+			c.instancesMu.Unlock()
+			return err
+		}
+		delete(c.instances, inst.name)
+	}
+	c.instancesMu.Unlock()
+
 	return c.updateTopology(u.Topology)
 }
 
@@ -190,18 +224,18 @@ func (c *Controller) ResumeUniverse() error {
 	return fmt.Errorf("not implemented")
 }
 
-func (c *Controller) updateInstances(devices model.DeviceSet) error {
+func (c *Controller) updateInstancesForUser(user *model.User) error {
 	c.instancesMu.Lock()
 	defer c.instancesMu.Unlock()
 
-	for _, d := range devices {
+	for _, d := range user.Devices {
 		// If instance is already running, update it to match model.
 		if inst, ok := c.instances[d.Name]; ok {
 			inst.update(d)
 			continue
 		}
 		// Otherwise start a new instance for the model.
-		inst, err := c.newInstance(d)
+		inst, err := c.newInstance(user, d)
 		if err != nil {
 			return err
 		}
@@ -209,28 +243,6 @@ func (c *Controller) updateInstances(devices model.DeviceSet) error {
 			return err
 		}
 		c.instances[inst.name] = inst
-	}
-
-	// Stop all running instances that are not in the model.
-	// TODO(nlacasse): Does it make sense to allow universes to shrink like
-	// this?  Maybe once a device is in the universe, it cannot be taken out?
-	// Pausing and disconnecting should still be allowed, of course.
-	for _, inst := range c.instances {
-		// TODO(nlacasse): Consider using a map to represent DeviceSet, so we
-		// don't have to iterate like this.
-		inModel := false
-		for _, d := range devices {
-			if inst.name == d.Name {
-				inModel = true
-				break
-			}
-		}
-		if !inModel {
-			if err := inst.kill(); err != nil {
-				return err
-			}
-			delete(c.instances, inst.name)
-		}
 	}
 	return nil
 }
@@ -307,22 +319,21 @@ func (c *Controller) updateTopology(top model.Topology) error {
 }
 
 // newInstance creates a new instance corresponding to the given device model.
-func (c *Controller) newInstance(d *model.Device) (*instance, error) {
+func (c *Controller) newInstance(user *model.User, d *model.Device) (*instance, error) {
 	wd := filepath.Join(c.rootDir, "instances", d.Name)
 	if err := os.MkdirAll(wd, 0755); err != nil {
 		return nil, err
 	}
 
-	// Create principal blessed by identity provider.
-	// TODO(nlacasse): Once we have credentials per user, these should be
-	// blessed by the user who owns the device.  For now we give each device
-	// its own credentails blessed directly by the identity provider.
+	// Create principal for instance.
 	credsDir := filepath.Join(wd, "credentials")
 	p, err := vsecurity.CreatePersistentPrincipal(credsDir, nil)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.identityProvider.Bless(p, d.Name); err != nil {
+	// Bless instance's principal with name root:<user>:<device>.
+	blessingName := strings.Join([]string{user.Name, d.Name}, security.ChainSeparator)
+	if err := c.identityProvider.Bless(p, blessingName); err != nil {
 		return nil, err
 	}
 

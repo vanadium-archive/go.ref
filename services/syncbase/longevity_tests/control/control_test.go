@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -94,11 +95,17 @@ func TestRunUniverseSingleDevice(t *testing.T) {
 	c, cleanup := newController(t)
 	defer cleanup()
 
-	name := "test-device"
+	userName := "test-user"
+	deviceName := "test-device"
 	u := &model.Universe{
-		Devices: model.DeviceSet{
-			&model.Device{
-				Name: name,
+		Users: model.UserSet{
+			&model.User{
+				Name: userName,
+				Devices: model.DeviceSet{
+					&model.Device{
+						Name: deviceName,
+					},
+				},
 			},
 		},
 	}
@@ -111,27 +118,34 @@ func TestRunUniverseSingleDevice(t *testing.T) {
 		t.Errorf("expected mounttable to be running but it was not")
 	}
 	// Check syncbase is running.
-	if !syncbaseIsRunning(t, c, name) {
-		t.Errorf("expected syncbase %q to be running but it was not", name)
+	if !syncbaseIsRunning(t, c, deviceName) {
+		t.Errorf("expected syncbase %q to be running but it was not", deviceName)
+	}
+
+	// Check that instance has correct blessing name.
+	gotBlessings := c.GetInstance(deviceName).DefaultBlessings().String()
+	wantSuffix := strings.Join([]string{userName, deviceName}, security.ChainSeparator)
+	if !strings.HasSuffix(gotBlessings, wantSuffix) {
+		t.Errorf("wanted blessing name to have suffix %v but got %v", wantSuffix, gotBlessings)
 	}
 
 	// Calling Run a second time should not fail.
 	if err := c.Run(u); err != nil {
 		t.Fatal(err)
 	}
-	if !syncbaseIsRunning(t, c, name) {
-		t.Errorf("expected syncbase %q to be running but it was not", name)
+	if !syncbaseIsRunning(t, c, deviceName) {
+		t.Errorf("expected syncbase %q to be running but it was not", deviceName)
 	}
 
 	// Delete the device from the universe.
-	u.Devices = model.DeviceSet{}
+	u.Users[0].Devices = model.DeviceSet{}
 	if err := c.Run(u); err != nil {
 		t.Fatal(err)
 	}
 
 	// Syncbase should no longer be running.
-	if syncbaseIsRunning(t, c, name) {
-		t.Errorf("expected syncbase %q not to be running but it was", name)
+	if syncbaseIsRunning(t, c, deviceName) {
+		t.Errorf("expected syncbase %q not to be running but it was", deviceName)
 	}
 }
 
@@ -145,10 +159,20 @@ func TestRunUniverseTwoDevices(t *testing.T) {
 	d2 := &model.Device{
 		Name: "test-device-2",
 	}
+	users := model.UserSet{
+		&model.User{
+			Name:    "user-1",
+			Devices: model.DeviceSet{d1},
+		},
+		&model.User{
+			Name:    "user-2",
+			Devices: model.DeviceSet{d2},
+		},
+	}
 
 	// Initially universe has devices unconnected.
 	uDisconnected := &model.Universe{
-		Devices: model.DeviceSet{d1, d2},
+		Users: users,
 		Topology: model.Topology{
 			d1: model.DeviceSet{d1},
 			d2: model.DeviceSet{d2},
@@ -164,7 +188,7 @@ func TestRunUniverseTwoDevices(t *testing.T) {
 
 	// Connect the two devices.
 	uConnected := &model.Universe{
-		Devices: model.DeviceSet{d1, d2},
+		Users: users,
 		Topology: model.Topology{
 			d1: model.DeviceSet{d1, d2},
 			d2: model.DeviceSet{d1, d2},

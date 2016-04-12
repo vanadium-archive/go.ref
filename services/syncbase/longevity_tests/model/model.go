@@ -128,7 +128,6 @@ type Device struct {
 	// Current connectivity spec for the device.  This value must be included
 	// in Spec.ConnectivitySpecs.
 	CurrentConnectivity ConnectivitySpec
-	// TODO(nlacasse): Blessings.
 }
 
 func (d Device) String() string {
@@ -151,7 +150,6 @@ func GenerateDeviceSet(n int, databases DatabaseSet, specs []DeviceSpec) DeviceS
 		spec := specs[idx]
 		databases := databases.RandomSubset(1, spec.MaxDatabases)
 
-		// TODO(nlacasse): Blessings.
 		d := &Device{
 			Name:      randomName("device"),
 			Databases: databases,
@@ -215,7 +213,6 @@ type User struct {
 	// The user's devices.  All databases in the user's devices will be
 	// included in the user's Databases.
 	Devices DeviceSet
-	// TODO(nlacasse): Blessings.
 }
 
 // UserSet is a set of users.
@@ -261,8 +258,6 @@ func GenerateUser(dbs DatabaseSet, opts UserOpts) *User {
 type Universe struct {
 	// All databases in the universe.
 	Databases DatabaseSet
-	// All devices in the universe.
-	Devices DeviceSet
 	// All users in the universe.
 	Users UserSet
 	// Description of device connectivity.
@@ -306,7 +301,6 @@ func GenerateUniverse(opts UniverseOpts) Universe {
 	return Universe{
 		Databases: dbs,
 		Users:     users,
-		Devices:   devices,
 		Topology:  GenerateTopology(devices, opts.DeviceAffinity),
 	}
 }
