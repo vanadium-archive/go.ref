@@ -30,13 +30,17 @@ RUN google-cloud-sdk/install.sh --usage-reporting=false --path-update=true --bas
 ENV PATH /google-cloud-sdk/bin:$PATH
 
 # vanadium
-COPY claimable cluster_agent cluster_agentd vrpc init.sh /usr/local/bin/
+COPY claimable cluster_agent cluster_agentd principal vrpc init.sh /usr/local/bin/
 RUN chmod 755 /usr/local/bin/*
 CMD ["/usr/local/bin/init.sh"]
 `
 	clusterAgentInitSh = `#!/bin/sh
+export V23_CREDENTIALS_NO_AGENT=true
 if [ ! -e "${DATADIR}/perms" ]; then
   # Not claimed
+  if [ ! -e "${DATADIR}/creds" ]; then
+    /usr/local/bin/principal create --with-passphrase=false "${DATADIR}/creds" cluster-agent
+  fi
   /usr/local/bin/claimable \
     --v23.credentials="${DATADIR}/creds" \
     --v23.tcp.address=:8193 \
@@ -94,6 +98,7 @@ func buildDockerImages(config *vkubeConfig, tag string, verbose bool, stdout io.
 		{"jiri", goBuildArgs("claimable", "v.io/x/ref/services/device/claimable")},
 		{"jiri", goBuildArgs("cluster_agent", "v.io/x/ref/services/cluster/cluster_agent")},
 		{"jiri", goBuildArgs("cluster_agentd", "v.io/x/ref/services/cluster/cluster_agentd")},
+		{"jiri", goBuildArgs("principal", "v.io/x/ref/cmd/principal")},
 		{"jiri", goBuildArgs("vrpc", "v.io/x/ref/cmd/vrpc")},
 		{"docker", []string{"build", "-t", imageName, "."}},
 		{"docker", []string{"tag", "-f", imageName, imageNameTag}},

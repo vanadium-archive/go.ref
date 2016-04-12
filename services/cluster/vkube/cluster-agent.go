@@ -59,8 +59,9 @@ func makeClusterAgentObject(config *vkubeConfig, rootBlessings string) object {
 				"spec": object{
 					"containers": []object{
 						object{
-							"name":  "cluster-agentd",
-							"image": config.ClusterAgent.Image,
+							"name":            "cluster-agentd",
+							"image":           config.ClusterAgent.Image,
+							"imagePullPolicy": "Always",
 							"ports": []object{
 								object{
 									"containerPort": clusterAgentServicePort,
@@ -231,7 +232,7 @@ func updateClusterAgent(config *vkubeConfig, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(flagKubectlBin, "apply", "-f", "-", "--namespace="+config.ClusterAgent.Namespace)
+	cmd := exec.Command(flagKubectlBin, "replace", "--record", "-f", "-", "--namespace="+config.ClusterAgent.Namespace)
 	cmd.Stdin = bytes.NewBuffer(json)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr

@@ -120,6 +120,7 @@ func TestAddPodAgent(t *testing.T) {
               }
             ],
             "image": "",
+            "imagePullPolicy": "Always",
             "livenessProbe": {
               "exec": {
                 "command": [

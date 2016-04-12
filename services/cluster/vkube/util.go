@@ -87,8 +87,9 @@ func addPodAgent(ctx *context.T, config *vkubeConfig, obj object, secretName, ro
 
 	// Add the pod agent container.
 	containers = append(containers, object{
-		"name":  "pod-agent",
-		"image": config.PodAgent.Image,
+		"name":            "pod-agent",
+		"image":           config.PodAgent.Image,
+		"imagePullPolicy": "Always",
 		"env": []object{
 			object{"name": "ROOT_BLESSINGS", "value": rootBlessings},
 		},
@@ -224,7 +225,7 @@ func updateDeployment(ctx *context.T, config *vkubeConfig, rc object, stdout, st
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(flagKubectlBin, "apply", "-f", "-", "--namespace="+namespace)
+	cmd := exec.Command(flagKubectlBin, "replace", "--record", "-f", "-", "--namespace="+namespace)
 	cmd.Stdin = bytes.NewBuffer(json)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
