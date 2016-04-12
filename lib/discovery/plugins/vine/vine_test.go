@@ -200,16 +200,16 @@ func TestExpired(t *testing.T) {
 	}
 
 	// Advance the clock past the first advertisement TTL and make sure it has been expired.
-	configs[2].clock.AdvanceTime(15 * time.Minute)
 	<-configs[2].clock.Requests()
+	configs[2].clock.AdvanceTime(15 * time.Minute)
 
 	if err := testutil.ScanAndMatch(ctx, plugins[2], "", adinfos[1]); err != nil {
 		t.Error(err)
 	}
 
 	// Advance the clock past the second advertisement TTL and make sure it has been expired too.
-	configs[2].clock.AdvanceTime(10 * time.Minute)
 	<-configs[2].clock.Requests()
+	configs[2].clock.AdvanceTime(10 * time.Minute)
 
 	if err := testutil.ScanAndMatch(ctx, plugins[2], ""); err != nil {
 		t.Error(err)
@@ -260,19 +260,17 @@ func TestRefresh(t *testing.T) {
 	}
 	defer stop()
 
-	<-clock.Requests() // One from each plugin - refreshing and expiring.
-	<-clock.Requests()
-
 	// Make sure all advertisements are discovered.
 	if err := testutil.ScanAndMatch(ctx, plugins[1], "", adinfo); err != nil {
 		t.Error(err)
 	}
 
 	// Make sure that the advertisement are refreshed on every ttl time.
-	for i := 0; i < 10; i++ {
-		clock.AdvanceTime(TTL)
-		<-clock.Requests() // One from each plugin - refreshing and expiring.
-		<-clock.Requests()
+	for i := 0; i < 5; i++ {
+		for i := 0; i < len(configs); i++ {
+			<-clock.Requests() // One from each plugin
+		}
+		clock.AdvanceTime(TTL * 2)
 
 		if err := testutil.ScanAndMatch(ctx, plugins[1], "", adinfo); err != nil {
 			t.Error(err)

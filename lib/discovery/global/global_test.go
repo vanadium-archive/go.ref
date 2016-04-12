@@ -125,7 +125,7 @@ func TestVisibility(t *testing.T) {
 	stop, _ := testutil.Advertise(mectx, d1, visibility, &ad)
 	defer stop()
 
-	d2, _ := New(ctx, testPath)
+	d2, _ := NewWithTTL(ctx, testPath, 0, 1*time.Millisecond)
 
 	// Bob and his friend should discover the advertisement.
 	bobctx, _ := testutil.WithPrincipal(ctx, "bob")
@@ -204,9 +204,9 @@ func TestRefresh(t *testing.T) {
 	}
 
 	// Make sure that the advertisement are refreshed on every ttl time.
-	for i := 0; i < 10; i++ {
-		clock.AdvanceTime(mountTTL * 2)
+	for i := 0; i < 5; i++ {
 		<-clock.Requests()
+		clock.AdvanceTime(mountTTL * 2)
 
 		if err := testutil.ScanAndMatch(ctx, d2, ``, ad); err != nil {
 			t.Error(err)

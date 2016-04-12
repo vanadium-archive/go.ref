@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"runtime"
 	"sort"
 	"time"
 
@@ -75,16 +76,21 @@ func Advertise(ctx *context.T, d discovery.T, visibility []security.BlessingPatt
 }
 
 func Scan(ctx *context.T, d discovery.T, query string) (<-chan discovery.Update, func(), error) {
-	ctx, stop := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 	scanCh, err := d.Scan(ctx, query)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Scan failed: %v", err)
+	}
+	stop := func() {
+		cancel()
+		for range scanCh {
+		}
 	}
 	return scanCh, stop, err
 }
 
 func ScanAndMatch(ctx *context.T, d discovery.T, query string, wants ...discovery.Advertisement) error {
-	const timeout = 30 * time.Second
+	const timeout = 3 * time.Minute
 
 	var updates []discovery.Update
 	for now := time.Now(); time.Since(now) < timeout; {
@@ -96,6 +102,8 @@ func ScanAndMatch(ctx *context.T, d discovery.T, query string, wants ...discover
 		if MatchFound(ctx, updates, wants...) {
 			return nil
 		}
+
+		runtime.Gosched()
 	}
 	return fmt.Errorf("Match failed; got %v, but wanted %v", updates, wants)
 }
@@ -105,11 +113,7 @@ func doScan(ctx *context.T, d discovery.T, query string, expectedUpdates int) ([
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		stop()
-		for range scanCh {
-		}
-	}()
+	defer stop()
 
 	updates := make([]discovery.Update, 0, expectedUpdates)
 	for {
