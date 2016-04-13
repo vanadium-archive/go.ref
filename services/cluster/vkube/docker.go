@@ -17,20 +17,8 @@ import (
 
 const (
 	clusterAgentDockerfile = `
-FROM ubuntu:14.04
-
-# gcloud
-RUN apt-get update && apt-get install -y -qq --no-install-recommends wget unzip python php5-mysql php5-cli php5-cgi openjdk-7-jre-headless openssh-client python-openssl && apt-get clean
-RUN wget https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.zip && unzip google-cloud-sdk.zip && rm google-cloud-sdk.zip
-ENV CLOUDSDK_PYTHON_SITEPACKAGES 1
-ENV HOME /root
-RUN google-cloud-sdk/install.sh --usage-reporting=false --path-update=true --bash-completion=true --rc-path=/root/.bashrc --disable-installation-options && \
-  google-cloud-sdk/bin/gcloud --quiet components update preview alpha beta app kubectl && \
-  google-cloud-sdk/bin/gcloud --quiet config set component_manager/disable_update_check true
-ENV PATH /google-cloud-sdk/bin:$PATH
-
-# vanadium
-COPY claimable cluster_agent cluster_agentd principal vrpc init.sh /usr/local/bin/
+FROM busybox
+COPY claimable cluster_agentd principal vrpc init.sh /usr/local/bin/
 RUN chmod 755 /usr/local/bin/*
 CMD ["/usr/local/bin/init.sh"]
 `
@@ -96,7 +84,6 @@ func buildDockerImages(config *vkubeConfig, tag string, verbose bool, stdout io.
 		{"init.sh", []byte(clusterAgentInitSh)},
 	}, []dockerCmd{
 		{"jiri", goBuildArgs("claimable", "v.io/x/ref/services/device/claimable")},
-		{"jiri", goBuildArgs("cluster_agent", "v.io/x/ref/services/cluster/cluster_agent")},
 		{"jiri", goBuildArgs("cluster_agentd", "v.io/x/ref/services/cluster/cluster_agentd")},
 		{"jiri", goBuildArgs("principal", "v.io/x/ref/cmd/principal")},
 		{"jiri", goBuildArgs("vrpc", "v.io/x/ref/cmd/vrpc")},

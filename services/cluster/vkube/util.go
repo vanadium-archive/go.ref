@@ -154,43 +154,24 @@ func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings,
 
 // deleteSecret deletes a Secret object and its associated secret key and
 // blessings.
-// We know the name of the Secret object, but we don't know the secret key. The
-// only way to get it back from Kubernetes is to mount the Secret Object to a
-// Pod, and then use the secret key to delete the secret key.
-func deleteSecret(ctx *context.T, config *vkubeConfig, name, rootBlessings, namespace string) error {
-	podName := fmt.Sprintf("delete-secret-%s", name)
-	del := object{
-		"apiVersion": "v1",
-		"kind":       "Pod",
-		"metadata": object{
-			"name":      podName,
-			"namespace": namespace,
-		},
-		"spec": object{
-			"containers": []interface{}{
-				object{
-					"name":  "delete-secret",
-					"image": config.ClusterAgent.Image,
-					"args": []string{
-						"/bin/bash",
-						"-c",
-						"cluster_agent --agent='" + localAgentAddress(config) + "' forget $(cat /agent/secret/secret) && /google-cloud-sdk/bin/kubectl --namespace=" + namespace + " delete secret " + name + " && /google-cloud-sdk/bin/kubectl --namespace=" + namespace + " delete pod " + podName,
-					},
-					"volumeMounts": []interface{}{
-						object{"name": "agent-secret", "mountPath": "/agent/secret", "readOnly": true},
-					},
-				},
-			},
-			"restartPolicy":         "OnFailure",
-			"activeDeadlineSeconds": 300,
-		},
-	}
-	if err := addPodAgent(ctx, config, del, name, rootBlessings); err != nil {
+func deleteSecret(ctx *context.T, agentAddr, name, namespace string) error {
+	data, err := kubectl("--namespace="+namespace, "get", "secret", name, "-o", "json")
+	if err != nil {
 		return err
 	}
-	out, err := kubectlCreate(del)
-	if err != nil {
-		return fmt.Errorf("failed to create delete Pod: %v: %s", err, out)
+	var secret object
+	if err := secret.importJSON(data); err != nil {
+		return fmt.Errorf("failed to parse kubectl output: %v", err)
+	}
+	key, err := base64.StdEncoding.DecodeString(secret.getString("data.secret"))
+	if err != nil || len(key) == 0 {
+		return fmt.Errorf("failed to decode base64-encoded secret: %v", err)
+	}
+	if err := cluster.ClusterAgentAdminClient(agentAddr).ForgetSecret(ctx, string(key)); err != nil {
+		return fmt.Errorf("ForgetSecret failed: %v", err)
+	}
+	if _, err := kubectl("--namespace="+namespace, "delete", "secret", name); err != nil {
+		return fmt.Errorf("failed to delete secret object: %v", err)
 	}
 	return nil
 }

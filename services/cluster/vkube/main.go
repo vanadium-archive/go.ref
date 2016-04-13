@@ -182,7 +182,7 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 		needToDeleteSecret := true
 		defer func() {
 			if needToDeleteSecret {
-				if err := deleteSecret(ctx, config, secretName, rootBlessings(ctx), namespace); err != nil {
+				if err := deleteSecret(ctx, agentAddr, secretName, namespace); err != nil {
 					fmt.Fprintf(env.Stderr, "Error deleting secret: %v\n", err)
 				}
 				fmt.Fprintln(env.Stdout, "Deleting secret.")
@@ -253,19 +253,23 @@ func runCmdStop(ctx *context.T, env *cmdline.Env, args []string, config *vkubeCo
 		return fmt.Errorf("metadata.name must be set")
 	}
 	namespace := dep.getString("metadata.namespace")
-	secretName, rootBlessings, err := findPodAttributes(name, namespace)
+	secretName, _, err := findPodAttributes(name, namespace)
 	if err != nil {
 		return err
 	}
 	if out, err := kubectl("--namespace="+namespace, "delete", "deployment", name); err != nil {
 		return fmt.Errorf("failed to stop deployment: %v: %s", err, out)
 	}
-	fmt.Fprintln(env.Stdout, "Stopping deployment.")
+	fmt.Fprintln(env.Stdout, "Stopped deployment.")
 	if secretName != "" {
-		if err := deleteSecret(ctx, config, secretName, rootBlessings, namespace); err != nil {
-			return fmt.Errorf("failed to delete secret: %v", err)
+		agentAddr, err := findClusterAgent(config, true)
+		if err != nil {
+			return err
 		}
-		fmt.Fprintln(env.Stdout, "Deleting secret.")
+		if err := deleteSecret(ctx, agentAddr, secretName, namespace); err != nil {
+			return err
+		}
+		fmt.Fprintln(env.Stdout, "Deleted secret.")
 	}
 	return nil
 }
