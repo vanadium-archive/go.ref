@@ -96,7 +96,11 @@ func createV1(w io.Writer) error {
 	cmd := makePsCommandV1(os.Getpid())
 	cmd.Stdout = w
 	cmd.Stderr = nil
-	return cmd.Run()
+	cmd.Run()
+	// If the 'ps' command fails for any reason (e.g. wrong invocation for
+	// the particular ps version on the system), treat that as no 'ps'
+	// available instead of failing.
+	return nil
 }
 
 var pidRegexV1 = regexp.MustCompile("\n\\s*(\\d+)")
@@ -149,7 +153,10 @@ func stillHeldV1(info []byte) (bool, error) {
 	cmd := makePsCommandV1(pid)
 	out, err := cmd.Output()
 	if err != nil {
-		return false, err
+		// If the 'ps' command fails to run (for example, wrong
+		// invocation for the version of 'ps' on the system), treat that
+		// as no 'ps' available instead of failing.
+		return true, nil
 	}
 	return bytes.Equal(infoLeft, out), nil
 }
