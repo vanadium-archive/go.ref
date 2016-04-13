@@ -31,11 +31,11 @@ func TestV23Tunneld(t *testing.T) {
 
 	// Run remote command with the endpoint.
 	if want, got := "HELLO ENDPOINT\n", sh.Cmd(vsh, tunnelEndpoint, "echo", "HELLO", "ENDPOINT").Stdout(); want != got {
-		t.Fatalf("unexpected output, got %s, want %s", got, want)
+		t.Fatalf("unexpected output, got %q, want %q", got, want)
 	}
 
 	if want, got := "HELLO NAME\n", sh.Cmd(vsh, "tunnel/test", "echo", "HELLO", "NAME").Stdout(); want != got {
-		t.Fatalf("unexpected output, got %s, want %s", got, want)
+		t.Fatalf("unexpected output, got %q, want %q", got, want)
 	}
 
 	// Send input to remote command.

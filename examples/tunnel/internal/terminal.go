@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"v.io/x/ref/internal/logger"
+	"v.io/v23/context"
 )
 
 // Winsize defines the window size used by ioctl TIOCGWINSZ and TIOCSWINSZ.
@@ -25,7 +25,6 @@ type Winsize struct {
 
 // SetWindowSize sets the terminal's window size.
 func SetWindowSize(fd uintptr, ws Winsize) error {
-	logger.Global().Infof("Setting window size: %v", ws)
 	ret, _, _ := syscall.Syscall(
 		syscall.SYS_IOCTL,
 		fd,
@@ -55,11 +54,11 @@ func GetWindowSize() (*Winsize, error) {
 // unbuffered, local echo of input characters is disabled, and special signal
 // characters are disabled.  Returns a string which may be passed to
 // RestoreTerminalSettings to restore to the original terminal settings.
-func EnterRawTerminalMode() string {
+func EnterRawTerminalMode(ctx *context.T) string {
 	var savedBytes []byte
 	var err error
 	if savedBytes, err = exec.Command("stty", "-F", "/dev/tty", "-g").Output(); err != nil {
-		logger.Global().Infof("Failed to save terminal settings: %q (%v)", savedBytes, err)
+		ctx.Infof("Failed to save terminal settings: %q (%v)", savedBytes, err)
 	}
 	saved := strings.TrimSpace(string(savedBytes))
 
@@ -85,7 +84,7 @@ func EnterRawTerminalMode() string {
 		"-iexten",
 	}
 	if out, err := exec.Command("stty", args...).CombinedOutput(); err != nil {
-		logger.Global().Infof("stty failed (%v) (%q)", err, out)
+		ctx.Infof("stty failed (%v) (%q)", err, out)
 	}
 
 	return string(saved)
@@ -93,12 +92,12 @@ func EnterRawTerminalMode() string {
 
 // RestoreTerminalSettings uses stty to restore the terminal to the original
 // settings, taking the saved settings returned by EnterRawTerminalMode.
-func RestoreTerminalSettings(saved string) {
+func RestoreTerminalSettings(ctx *context.T, saved string) {
 	args := []string{
 		"-F", "/dev/tty",
 		saved,
 	}
 	if out, err := exec.Command("stty", args...).CombinedOutput(); err != nil {
-		logger.Global().Infof("stty failed (%v) (%q)", err, out)
+		ctx.Infof("stty failed (%v) (%q)", err, out)
 	}
 }

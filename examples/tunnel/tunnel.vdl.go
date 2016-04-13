@@ -966,7 +966,7 @@ type TunnelClientMethods interface {
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
-	// command.
+	// command as an integer exit code and a human readable string.
 	Shell(_ *context.T, command string, shellOpts ShellOpts, _ ...rpc.CallOpt) (TunnelShellClientCall, error)
 }
 
@@ -1156,7 +1156,7 @@ type TunnelShellClientCall interface {
 	// Calling Finish is mandatory for releasing stream resources, unless the call
 	// has been canceled or any of the other methods return an error.  Finish should
 	// be called at most once.
-	Finish() (int32, error)
+	Finish() (exitCode int32, exitMsg string, _ error)
 }
 
 type implTunnelShellClientCall struct {
@@ -1207,8 +1207,8 @@ func (c implTunnelShellClientCallSend) Send(item ClientShellPacket) error {
 func (c implTunnelShellClientCallSend) Close() error {
 	return c.c.CloseSend()
 }
-func (c *implTunnelShellClientCall) Finish() (o0 int32, err error) {
-	err = c.ClientCall.Finish(&o0)
+func (c *implTunnelShellClientCall) Finish() (o0 int32, o1 string, err error) {
+	err = c.ClientCall.Finish(&o0, &o1)
 	return
 }
 
@@ -1229,8 +1229,8 @@ type TunnelServerMethods interface {
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
-	// command.
-	Shell(_ *context.T, _ TunnelShellServerCall, command string, shellOpts ShellOpts) (int32, error)
+	// command as an integer exit code and a human readable string.
+	Shell(_ *context.T, _ TunnelShellServerCall, command string, shellOpts ShellOpts) (exitCode int32, exitMsg string, _ error)
 }
 
 // TunnelServerStubMethods is the server interface containing
@@ -1252,8 +1252,8 @@ type TunnelServerStubMethods interface {
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
-	// command.
-	Shell(_ *context.T, _ *TunnelShellServerCallStub, command string, shellOpts ShellOpts) (int32, error)
+	// command as an integer exit code and a human readable string.
+	Shell(_ *context.T, _ *TunnelShellServerCallStub, command string, shellOpts ShellOpts) (exitCode int32, exitMsg string, _ error)
 }
 
 // TunnelServerStub adds universal methods to TunnelServerStubMethods.
@@ -1293,7 +1293,7 @@ func (s implTunnelServerStub) ReverseForward(ctx *context.T, call rpc.ServerCall
 	return s.impl.ReverseForward(ctx, call, i0, i1)
 }
 
-func (s implTunnelServerStub) Shell(ctx *context.T, call *TunnelShellServerCallStub, i0 string, i1 ShellOpts) (int32, error) {
+func (s implTunnelServerStub) Shell(ctx *context.T, call *TunnelShellServerCallStub, i0 string, i1 ShellOpts) (int32, string, error) {
 	return s.impl.Shell(ctx, call, i0, i1)
 }
 
@@ -1333,13 +1333,14 @@ var descTunnel = rpc.InterfaceDesc{
 		},
 		{
 			Name: "Shell",
-			Doc:  "// The Shell method is used to either run shell commands remotely, or to open\n// an interactive shell. The data received over the byte stream is sent to the\n// shell's stdin, and the data received from the shell's stdout and stderr is\n// sent back in the reply stream. It returns the exit status of the shell\n// command.",
+			Doc:  "// The Shell method is used to either run shell commands remotely, or to open\n// an interactive shell. The data received over the byte stream is sent to the\n// shell's stdin, and the data received from the shell's stdout and stderr is\n// sent back in the reply stream. It returns the exit status of the shell\n// command as an integer exit code and a human readable string.",
 			InArgs: []rpc.ArgDesc{
 				{"command", ``},   // string
 				{"shellOpts", ``}, // ShellOpts
 			},
 			OutArgs: []rpc.ArgDesc{
-				{"", ``}, // int32
+				{"exitCode", ``}, // int32
+				{"exitMsg", ``},  // string
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Admin"))},
 		},

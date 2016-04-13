@@ -25,8 +25,8 @@ type Tunnel interface {
   // an interactive shell. The data received over the byte stream is sent to the
   // shell's stdin, and the data received from the shell's stdout and stderr is
   // sent back in the reply stream. It returns the exit status of the shell
-  // command.
-  Shell(command string, shellOpts ShellOpts) stream<ClientShellPacket, ServerShellPacket> (int32 | error) {access.Admin}
+  // command as an integer exit code and a human readable string.
+  Shell(command string, shellOpts ShellOpts) stream<ClientShellPacket, ServerShellPacket> (exitCode int32, exitMsg string | error) {access.Admin}
 }
 
 type Forwarder interface {

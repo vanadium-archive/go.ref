@@ -10,9 +10,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 
 	"v.io/x/lib/cmdline"
 
@@ -24,7 +28,6 @@ import (
 
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/examples/tunnel/internal"
-	"v.io/x/ref/internal/logger"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -122,22 +125,93 @@ func runVsh(ctx *context.T, env *cmdline.Env, args []string) error {
 		return nil
 	}
 
-	opts := shellOptions(env, cmd)
+	opts := shellOptions(ctx, env, cmd)
 
-	stream, err := tunnel.TunnelClient(serverName).Shell(ctx, cmd, opts)
+	call, err := tunnel.TunnelClient(serverName).Shell(ctx, cmd, opts)
 	if err != nil {
 		return err
 	}
 	if opts.UsePty {
-		saved := internal.EnterRawTerminalMode()
-		defer internal.RestoreTerminalSettings(saved)
+		saved := internal.EnterRawTerminalMode(ctx)
+		defer internal.RestoreTerminalSettings(ctx, saved)
 	}
-	runIOManager(env.Stdin, env.Stdout, env.Stderr, stream)
+
+	var (
+		sendMutex sync.Mutex
+		send      = func(packet tunnel.ClientShellPacket) error {
+			sendMutex.Lock()
+			defer sendMutex.Unlock()
+			return call.SendStream().Send(packet)
+		}
+	)
+
+	// Read loop for STDIN
+	// This loop reads from STDIN and sends the data on the RPC stream.
+	go func() {
+		buf := make([]byte, 2048)
+		for {
+			n, err := env.Stdin.Read(buf[:])
+			if err == io.EOF {
+				if err := send(tunnel.ClientShellPacketEndOfFile{}); err != nil {
+					ctx.VI(3).Infof("send failed: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				return
+			}
+			if err := send(tunnel.ClientShellPacketStdin{buf[:n]}); err != nil {
+				ctx.VI(3).Infof("send failed: %v", err)
+				return
+			}
+		}
+	}()
+
+	// Signal loop for WINCH
+	// This loops sends WinSize packets on the RPC stream whenever the local
+	// window size changes.
+	winch := make(chan os.Signal, 1)
+	signal.Notify(winch, syscall.SIGWINCH)
+	go func() {
+		for range winch {
+			ws, err := internal.GetWindowSize()
+			if err != nil {
+				ctx.Infof("GetWindowSize failed: %v", err)
+				continue
+			}
+			if err := send(tunnel.ClientShellPacketWinSize{tunnel.WindowSize{Rows: ws.Row, Cols: ws.Col}}); err != nil {
+				ctx.VI(2).Infof("send failed: %v", err)
+				return
+			}
+		}
+	}()
+
+	// Read loop for STDOUT / STDERR
+	// This loop receives output from the remote shell and writes it to
+	// STDOUT or STDERR.
+	for call.RecvStream().Advance() {
+		packet := call.RecvStream().Value()
+		switch v := packet.(type) {
+		case tunnel.ServerShellPacketStdout:
+			if n, err := env.Stdout.Write(v.Value); n != len(v.Value) || err != nil {
+				break
+			}
+		case tunnel.ServerShellPacketStderr:
+			if n, err := env.Stderr.Write(v.Value); n != len(v.Value) || err != nil {
+				break
+			}
+		default:
+			ctx.Infof("unexpected message type: %T", packet)
+		}
+	}
 
 	exitMsg := fmt.Sprintf("Connection to %s closed.", serverName)
-	exitStatus, err := stream.Finish()
+	exitStatus, m, err := call.Finish()
 	if err != nil {
-		exitMsg += fmt.Sprintf(" (%v)", err)
+		return err
+	}
+	if m != "" {
+		exitMsg += fmt.Sprintf(" (%v)", m)
 	}
 	ctx.VI(1).Info(exitMsg)
 	// Only show the exit message on stdout for interactive shells.
@@ -151,12 +225,12 @@ func runVsh(ctx *context.T, env *cmdline.Env, args []string) error {
 	return cmdline.ErrExitCode(exitStatus)
 }
 
-func shellOptions(env *cmdline.Env, cmd string) (opts tunnel.ShellOpts) {
+func shellOptions(ctx *context.T, env *cmdline.Env, cmd string) (opts tunnel.ShellOpts) {
 	opts.UsePty = (len(cmd) == 0 || forcePty) && !disablePty
 	opts.Environment = environment(env.Vars)
 	ws, err := internal.GetWindowSize()
 	if err != nil {
-		logger.Global().VI(1).Infof("GetWindowSize failed: %v", err)
+		ctx.VI(1).Infof("GetWindowSize failed: %v", err)
 	} else {
 		opts.WinSize.Rows = ws.Row
 		opts.WinSize.Cols = ws.Col
