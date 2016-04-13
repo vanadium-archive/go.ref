@@ -15,6 +15,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -128,7 +129,7 @@ func Start(ctx *context.T, args Args) ([]naming.Endpoint, func(), error) {
 func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) ([]naming.Endpoint, func(), error) {
 	ctx, cancel := context.WithCancel(ctx)
 	ctx = v23.WithListenSpec(ctx, args.Device.ListenSpec)
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher)
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", dispatcher, options.LameDuckTimeout(30*time.Second))
 	if err != nil {
 		cancel()
 		return nil, nil, err
@@ -171,13 +172,6 @@ func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), 
 	defer close(stopped)
 	select {
 	case <-claimed:
-		// TODO(caprita): There seems to be a race between the claimable
-		// service sending the reply to the claiming client, and the
-		// claimable service shutting down.  This delay is meant to
-		// verify the hypothesis that postponing shutting down the
-		// claimable service resolves the flakiness in
-		// https://vanadium-review.googlesource.com/#/c/21576/
-		time.Sleep(2 * time.Second)
 		stopClaimable()
 	case <-stop:
 		stopClaimable()
