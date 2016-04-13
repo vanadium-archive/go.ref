@@ -1347,3 +1347,41 @@ func defaultBlessings(ctx *context.T) security.Blessings {
 	b, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	return b
 }
+
+type closeServer struct {
+	ch chan struct{}
+}
+
+func (s *closeServer) Close(*context.T, rpc.ServerCall) ([20000]byte, error) {
+	defer close(s.ch)
+	return [20000]byte{}, nil
+}
+
+func TestImmediateClose(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	ch := make(chan struct{})
+	sctx, cancel := context.WithCancel(ctx)
+	_, server, err := v23.WithNewServer(sctx, "", &closeServer{ch}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := server.Status().Endpoints[0].Name()
+	done := make(chan struct{})
+	go func() {
+		var b [20000]byte
+		if err := v23.GetClient(ctx).Call(ctx, name, "Close", nil, []interface{}{&b}); err != nil {
+			t.Error(err)
+		}
+		close(done)
+	}()
+
+	// Once the server responds to a request close the server.
+	<-ch
+	cancel()
+	<-server.Closed()
+
+	// Wait for the client to finish up.
+	<-done
+}
