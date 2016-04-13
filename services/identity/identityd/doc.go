@@ -51,6 +51,8 @@ The identityd flags are:
    Address on which the HTTP server listens on.
  -mount-prefix=identity
    Mount name prefix to use.  May be rooted.
+ -registered-apps=
+   Path to the config file for registered oauth clients.
  -remote-signer-blessing-dir=
    Path to the blessings to use with the remote signer. Use the empty string to
    disable the remote signer.

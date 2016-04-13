@@ -9,6 +9,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"v.io/x/ref/services/identity/internal/auditor"
 	"v.io/x/ref/services/identity/internal/blesser"
 	"v.io/x/ref/services/identity/internal/caveats"
+	"v.io/x/ref/services/identity/internal/handlers"
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/revocation"
 	"v.io/x/ref/services/identity/internal/server"
@@ -36,6 +38,7 @@ var (
 	remoteSignerBlessings                                            string
 	oauthRemoteSignerBlessings                                       string
 	sqlConf                                                          string
+	registeredAppConfig                                              string
 )
 
 func init() {
@@ -47,6 +50,7 @@ func init() {
 	// Configuration using the remote signer
 	cmdIdentityD.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
 	cmdIdentityD.Flags.StringVar(&oauthRemoteSignerBlessings, "remote-signer-o-blessing-dir", "", "Path to the blessings to use with the remote signer for oauth. Use the empty string to disable the remote signer.")
+	cmdIdentityD.Flags.StringVar(&registeredAppConfig, "registered-apps", "", "Path to the config file for registered oauth clients.")
 
 	// Flags controlling the HTTP server
 	cmdIdentityD.Flags.StringVar(&externalHttpAddr, "external-http-addr", "", "External address on which the HTTP server listens on.  If none is provided the server will only listen on -http-addr.")
@@ -136,6 +140,11 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 	}
 
+	registeredApps, err := readRegisteredAppsConfig()
+	if err != nil {
+		return err
+	}
+
 	googleoauth, err := oauth.NewGoogleOAuth(ctx, googleConfigWeb)
 	if err != nil {
 		return env.UsageErrorf("Failed to setup GoogleOAuth: %v", err)
@@ -160,7 +169,8 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		caveats.NewBrowserCaveatSelector(assetsPrefix),
 		assetsPrefix,
 		mountPrefix,
-		dischargerLocation)
+		dischargerLocation,
+		registeredApps)
 	s.Serve(ctx, oauthCtx, externalHttpAddr, httpAddr, tlsConfig)
 	return nil
 }
@@ -195,4 +205,22 @@ func getOAuthClientID(configFile string) (clientID string, err error) {
 		return "", fmt.Errorf("failed to decode JSON in %q: %v", configFile, err)
 	}
 	return clientID, nil
+}
+
+func readRegisteredAppsConfig() (registeredApps handlers.RegisteredAppMap, err error) {
+	if registeredAppConfig == "" {
+		return nil, nil
+	}
+	var configFile *os.File
+	configFile, err = os.Open(registeredAppConfig)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open registered app config: %v", err)
+	}
+	defer configFile.Close()
+	dec := json.NewDecoder(configFile)
+	if err = dec.Decode(&registeredApps); err != nil {
+		return nil, fmt.Errorf("Error parsing registered apps: %v", err)
+
+	}
+	return registeredApps, nil
 }

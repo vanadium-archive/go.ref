@@ -160,9 +160,15 @@ func TestBless(t *testing.T) {
 		}
 	)
 
+	trustedBlessing, err := blesserPrin.BlessSelf("trustedBlesser")
+	if err != nil {
+		t.Fatal(err)
+	}
+	blesserPrin.BlessingStore().Set(trustedBlessing, "trusted")
+	blesserPrin.BlessingStore().Set(security.Blessings{}, "...")
+
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
-	var err error
 	if ctx, err = v23.WithPrincipal(ctx, blesserPrin); err != nil {
 		t.Fatal(err)
 	}
@@ -172,6 +178,9 @@ func TestBless(t *testing.T) {
 	if err := security.AddToRoots(blesseePrin, blesserB); err != nil {
 		t.Fatal(err)
 	}
+	if err := security.AddToRoots(blesseePrin, trustedBlessing); err != nil {
+		t.Fatal(err)
+	}
 
 	testEmail := "foo@bar.com"
 	testClientID := "test-client-id"
@@ -179,15 +188,32 @@ func TestBless(t *testing.T) {
 	oauthProvider := oauth.NewMockOAuth(testEmail, testClientID)
 
 	testcases := []struct {
-		params  blesser.OAuthBlesserParams
-		caveats []security.Caveat
+		params   blesser.OAuthBlesserParams
+		caveats  []security.Caveat
+		clients  RegisteredAppMap
+		blessing string
 	}{
+		{
+			blesser.OAuthBlesserParams{
+				OAuthProvider:     oauthProvider,
+				RevocationManager: revocationManager,
+			},
+			[]security.Caveat{expiryCav, methodCav},
+			RegisteredAppMap{
+				"test-client-id": {
+					Extension: "{email}:trusted-client",
+				},
+			},
+			"blesser:foo@bar.com:trusted-client",
+		},
 		{
 			blesser.OAuthBlesserParams{
 				OAuthProvider:    oauthProvider,
 				BlessingDuration: 24 * time.Hour,
 			},
 			nil,
+			nil,
+			"blesser:test-client-id:foo@bar.com",
 		},
 		{
 			blesser.OAuthBlesserParams{
@@ -195,6 +221,8 @@ func TestBless(t *testing.T) {
 				RevocationManager: revocationManager,
 			},
 			nil,
+			nil,
+			"blesser:test-client-id:foo@bar.com",
 		},
 		{
 			blesser.OAuthBlesserParams{
@@ -202,11 +230,13 @@ func TestBless(t *testing.T) {
 				RevocationManager: revocationManager,
 			},
 			[]security.Caveat{expiryCav, methodCav},
+			RegisteredAppMap{},
+			"blesser:test-client-id:foo@bar.com",
 		},
 	}
 	for _, testcase := range testcases {
 		for _, outputFormat := range []string{jsonFormat, base64VomFormat, ""} {
-			ts := httptest.NewServer(NewOAuthBlessingHandler(ctx, testcase.params))
+			ts := httptest.NewServer(NewOAuthBlessingHandler(ctx, testcase.params, testcase.clients))
 			defer ts.Close()
 
 			response, err := http.Get(mkReqURL(ts.URL, testcase.caveats, outputFormat))
@@ -226,9 +256,7 @@ func TestBless(t *testing.T) {
 			}
 
 			// Verify the name and caveats on the blessings.
-			if got, want := security.BlessingNames(blesseePrin, blessings), []string{
-				"blesser" + security.ChainSeparator + testClientID + security.ChainSeparator + testEmail,
-			}; !reflect.DeepEqual(got, want) {
+			if got, want := security.BlessingNames(blesseePrin, blessings), []string{testcase.blessing}; !reflect.DeepEqual(got, want) {
 				t.Errorf("Got %v, want %v", got, want)
 			}
 			caveats, err := extractCaveats(blessings)

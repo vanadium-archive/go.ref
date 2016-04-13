@@ -195,7 +195,8 @@ func runIdentityDTest(ctx *context.T, env *cmdline.Env, args []string) error {
 		caveatSelector,
 		assetsPrefix,
 		mountPrefix,
-		dischargerLocation)
+		dischargerLocation,
+		nil)
 	s.Serve(ctx, oauthCtx, externalHttpAddr, httpAddr, tlsConfig)
 	return nil
 }

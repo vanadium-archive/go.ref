@@ -59,6 +59,7 @@ type IdentityServer struct {
 	assetsPrefix       string
 	mountNamePrefix    string
 	dischargerLocation string
+	registeredApps     handlers.RegisteredAppMap
 }
 
 // NewIdentityServer returns a IdentityServer that:
@@ -66,7 +67,7 @@ type IdentityServer struct {
 // - auditor and blessingLogReader to audit the root principal and read audit logs
 // - revocationManager to store revocation data and grant discharges
 // - oauthBlesserParams to configure the identity.OAuthBlesser service
-func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, assetsPrefix, mountNamePrefix, dischargerLocation string) *IdentityServer {
+func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, assetsPrefix, mountNamePrefix, dischargerLocation string, registeredApps handlers.RegisteredAppMap) *IdentityServer {
 	return &IdentityServer{
 		oauthProvider:      oauthProvider,
 		auditor:            auditor,
@@ -77,6 +78,7 @@ func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor,
 		assetsPrefix:       assetsPrefix,
 		mountNamePrefix:    mountNamePrefix,
 		dischargerLocation: dischargerLocation,
+		registeredApps:     registeredApps,
 	}
 }
 
@@ -245,7 +247,7 @@ func (s *IdentityServer) setupBlessingServices(ctx, oauthCtx *context.T) (rpc.Se
 	ctx.Infof("Vanadium Blessing and discharger services will be published at %v", rootedObjectAddr)
 	// Start the HTTP Handler for the OAuth2 access token based blesser.
 	s.oauthBlesserParams.DischargerLocation = s.dischargerLocation
-	http.Handle("/auth/google/bless", handlers.NewOAuthBlessingHandler(oauthCtx, s.oauthBlesserParams))
+	http.Handle("/auth/google/bless", handlers.NewOAuthBlessingHandler(oauthCtx, s.oauthBlesserParams, s.registeredApps))
 	return server, []string{rootedObjectAddr}, nil
 }
 
