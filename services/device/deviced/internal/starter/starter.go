@@ -171,6 +171,13 @@ func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), 
 	defer close(stopped)
 	select {
 	case <-claimed:
+		// TODO(caprita): There seems to be a race between the claimable
+		// service sending the reply to the claiming client, and the
+		// claimable service shutting down.  This delay is meant to
+		// verify the hypothesis that postponing shutting down the
+		// claimable service resolves the flakiness in
+		// https://vanadium-review.googlesource.com/#/c/21576/
+		time.Sleep(2 * time.Second)
 		stopClaimable()
 	case <-stop:
 		stopClaimable()
