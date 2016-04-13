@@ -278,6 +278,7 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte, dialer bool) (secu
 		c.rPublicKey = rBlessings.PublicKey()
 		c.remoteBlessings = rBlessings
 		c.remoteDischarges = rDischarges
+		c.remoteValid = make(chan struct{})
 		c.mu.Unlock()
 	}
 	if c.rPublicKey == nil {

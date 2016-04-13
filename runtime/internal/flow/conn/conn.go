@@ -94,6 +94,8 @@ type Conn struct {
 
 	localBlessings, remoteBlessings   security.Blessings
 	localDischarges, remoteDischarges map[string]security.Discharge
+	localValid                        <-chan struct{}
+	remoteValid                       chan struct{}
 	rPublicKey                        security.PublicKey
 	status                            Status
 	remoteLameDuck                    bool
@@ -183,7 +185,6 @@ func NewDialed(
 	}
 	done := make(chan struct{})
 	var rtt time.Duration
-	var valid <-chan struct{}
 	c.loopWG.Add(1)
 	go func() {
 		defer c.loopWG.Done()
@@ -192,7 +193,7 @@ func NewDialed(
 		// Otherwise, we only send our public key through a nameless blessings object.
 		// TODO(suharshs): Should we reveal server blessings if we are connecting to proxy here.
 		if handler != nil {
-			c.localBlessings, valid = v23.GetPrincipal(ctx).BlessingStore().Default()
+			c.localBlessings, c.localValid = v23.GetPrincipal(ctx).BlessingStore().Default()
 		} else {
 			c.localBlessings, _ = security.NamelessBlessing(v23.GetPrincipal(ctx).PublicKey())
 		}
@@ -223,7 +224,7 @@ func NewDialed(
 	// the same mounttable.
 	if handler != nil {
 		c.loopWG.Add(1)
-		go c.blessingsLoop(ctx, valid, time.Now(), nil)
+		go c.blessingsLoop(ctx, time.Now(), nil)
 	}
 	c.loopWG.Add(1)
 	go c.readLoop(ctx)
@@ -263,14 +264,13 @@ func NewAccepted(
 	done := make(chan struct{}, 1)
 	var rtt time.Duration
 	var err error
-	var valid <-chan struct{}
 	var refreshTime time.Time
 	c.loopWG.Add(1)
 	go func() {
 		defer c.loopWG.Done()
 		defer close(done)
 		principal := v23.GetPrincipal(ctx)
-		c.localBlessings, valid = principal.BlessingStore().Default()
+		c.localBlessings, c.localValid = principal.BlessingStore().Default()
 		if c.localBlessings.IsZero() {
 			c.localBlessings, _ = security.NamelessBlessing(principal.PublicKey())
 		}
@@ -295,21 +295,20 @@ func NewAccepted(
 	}
 	c.initializeHealthChecks(ctx, rtt)
 	c.loopWG.Add(2)
-	go c.blessingsLoop(ctx, valid, refreshTime, lAuthorizedPeers)
+	go c.blessingsLoop(ctx, refreshTime, lAuthorizedPeers)
 	go c.readLoop(ctx)
 	return c, nil
 }
 
 func (c *Conn) blessingsLoop(
 	ctx *context.T,
-	valid <-chan struct{},
 	refreshTime time.Time,
 	authorizedPeers []security.BlessingPattern) {
 	defer c.loopWG.Done()
 	for {
 		if refreshTime.IsZero() {
 			select {
-			case <-valid:
+			case <-c.localValid:
 			case <-ctx.Done():
 				return
 			}
@@ -317,16 +316,15 @@ func (c *Conn) blessingsLoop(
 			timer := time.NewTimer(refreshTime.Sub(time.Now()))
 			select {
 			case <-timer.C:
-			case <-valid:
+			case <-c.localValid:
 			case <-ctx.Done():
 				timer.Stop()
 				return
 			}
 			timer.Stop()
 		}
-		var blessings security.Blessings
 		var dis map[string]security.Discharge
-		blessings, valid = v23.GetPrincipal(ctx).BlessingStore().Default()
+		blessings, valid := v23.GetPrincipal(ctx).BlessingStore().Default()
 		dis, refreshTime = slib.PrepareDischarges(ctx, blessings, nil, "", nil)
 		bkey, dkey, err := c.blessingsFlow.send(ctx, blessings, dis, authorizedPeers)
 		if err != nil {
@@ -336,6 +334,7 @@ func (c *Conn) blessingsLoop(
 		c.mu.Lock()
 		c.localBlessings = blessings
 		c.localDischarges = dis
+		c.localValid = valid
 		err = c.sendMessageLocked(ctx, true, expressPriority, &message.Auth{
 			BlessingsKey: bkey,
 			DischargeKey: dkey,
@@ -448,6 +447,17 @@ func (c *Conn) Dial(ctx *context.T, blessings security.Blessings, discharges map
 	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
+
+	// It may happen that in the case of bidirectional RPC the dialer of the connection
+	// has sent blessings,  but not yet discharges.  In this case we will wait for them
+	// to send the discharges before allowing a bidirectional flow dial.
+	if len(c.remoteDischarges) == 0 && len(c.remoteBlessings.ThirdPartyCaveats()) > 0 {
+		valid := c.remoteValid
+		c.mu.Unlock()
+		<-valid
+		c.mu.Lock()
+	}
+
 	if c.remoteLameDuck || c.status >= Closing {
 		return nil, NewErrConnectionClosed(ctx)
 	}
@@ -505,6 +515,15 @@ func (c *Conn) LocalDischarges() map[string]security.Discharge {
 // ends blessings.
 func (c *Conn) RemoteDischarges() map[string]security.Discharge {
 	c.mu.Lock()
+	// It may happen that in the case of bidirectional RPC the dialer of the connection
+	// has sent blessings,  but not yet discharges.  In this case we will wait for them
+	// to send the discharges instead of returning the initial nil discharges.
+	if len(c.remoteDischarges) == 0 && len(c.remoteBlessings.ThirdPartyCaveats()) > 0 {
+		valid := c.remoteValid
+		c.mu.Unlock()
+		<-valid
+		c.mu.Lock()
+	}
 	remoteDischarges := c.remoteDischarges
 	c.mu.Unlock()
 	return remoteDischarges
@@ -826,8 +845,9 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		c.mu.Lock()
 		c.remoteBlessings = blessings
 		c.remoteDischarges = discharges
+		close(c.remoteValid)
+		c.remoteValid = make(chan struct{})
 		c.mu.Unlock()
-
 	default:
 		return NewErrUnexpectedMsg(ctx, reflect.TypeOf(msg).String())
 	}
