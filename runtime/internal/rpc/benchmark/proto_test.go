@@ -8,9 +8,7 @@
 // GOPATH=$JIRI_ROOT/release/go go get github.com/golang/protobuf/protoc-gen-go
 // GOPATH=$JIRI_ROOT/release/go go install github.com/golang/protobuf/protoc-gen-go
 // PATH=$PATH:$JIRI_ROOT/release/go/bin protoc --go_out=. rpc.proto
-// manually add build tag and copyright notice
-
-// +build protobuf
+// manually add copyright notice
 
 package benchmark
 
