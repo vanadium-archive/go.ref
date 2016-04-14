@@ -267,8 +267,14 @@ func TestRefresh(t *testing.T) {
 
 	// Make sure that the advertisement are refreshed on every ttl time.
 	for i := 0; i < 5; i++ {
-		for i := 0; i < len(configs); i++ {
-			<-clock.Requests() // One from each plugin
+		for {
+			// Wait until the advertising plugin is waiting for refreshing explicitly
+			// since the scanning plugin may call After() multiple times depending on
+			// the goroutine scheduling during the test. Note that the scanning plugin
+			// waits for TTL with a slack time.
+			if d := <-clock.Requests(); d == TTL {
+				break
+			}
 		}
 		clock.AdvanceTime(TTL * 2)
 

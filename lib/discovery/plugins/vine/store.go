@@ -55,17 +55,7 @@ func (s *store) Add(_ *context.T, _ rpc.ServerCall, adinfo idiscovery.AdInfo, tt
 func (s *store) Delete(_ *context.T, _ rpc.ServerCall, id discovery.AdId) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	for key, adinfos := range s.adinfoMap {
-		delete(adinfos, id)
-		if len(adinfos) == 0 {
-			delete(s.adinfoMap, key)
-		}
-	}
-	delete(s.expirations, id)
-
-	s.updateSeq++
-	s.updated.Broadcast()
+	s.deleteLocked(id)
 	return nil
 }
 
@@ -78,6 +68,19 @@ func (s *store) lookup(interfaceName string) map[discovery.AdId]idiscovery.AdInf
 		adinfos[id] = *adinfo
 	}
 	return adinfos
+}
+
+func (s *store) deleteLocked(id discovery.AdId) {
+	for key, adinfos := range s.adinfoMap {
+		delete(adinfos, id)
+		if len(adinfos) == 0 {
+			delete(s.adinfoMap, key)
+		}
+	}
+	delete(s.expirations, id)
+
+	s.updateSeq++
+	s.updated.Broadcast()
 }
 
 func (s *store) listenToUpdates(ctx *context.T) <-chan struct{} {
@@ -108,24 +111,21 @@ func (s *store) flushExpired(ctx *context.T) {
 	updated := s.listenToUpdates(ctx)
 
 	for {
+		s.mu.Lock()
 		now := s.clock.Now()
 
-		var expired []discovery.AdId
 		var nextExpiry time.Time
-
-		s.mu.Lock()
 		for id, expiry := range s.expirations {
-			if !expiry.After(now) {
-				expired = append(expired, id)
-			} else if nextExpiry.IsZero() || expiry.Before(nextExpiry) {
-				nextExpiry = expiry
+			if expiry.After(now) {
+				if nextExpiry.IsZero() || expiry.Before(nextExpiry) {
+					nextExpiry = expiry
+				}
+				continue
 			}
+
+			s.deleteLocked(id)
 		}
 		s.mu.Unlock()
-
-		for _, id := range expired {
-			s.Delete(nil, nil, id)
-		}
 
 		var timer <-chan time.Time
 		if !nextExpiry.IsZero() {
