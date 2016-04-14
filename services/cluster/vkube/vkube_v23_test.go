@@ -275,13 +275,30 @@ func TestV23Vkube(t *testing.T) {
 }
 
 func createVkubeConfig(path, id, dockerRegistry string) error {
+	internalOnly := false
+	if !*flagGetCredentials && os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+		// The test is running on kubernetes and it is using the same
+		// cluster to run the test applications. There is no need to
+		// allocate an external IP address for the cluster agent.
+		internalOnly = true
+	}
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	params := struct{ Project, Zone, Cluster, Registry, ID string }{*flagProject, *flagZone, *flagCluster, dockerRegistry, id}
+	params := struct {
+		Project, Zone, Cluster, Registry, ID string
+		InternalOnly                         bool
+	}{
+		*flagProject,
+		*flagZone,
+		*flagCluster,
+		dockerRegistry,
+		id,
+		internalOnly,
+	}
 	return template.Must(template.New("cfg").Parse(`{
   "project": "{{.Project}}",
   "zone": "{{.Zone}}",
@@ -292,7 +309,8 @@ func createVkubeConfig(path, id, dockerRegistry string) error {
     "blessing": "root:alice:cluster-agent",
     "admin": "root:alice",
     "cpu": "0.1",
-    "memory": "100M"
+    "memory": "100M",
+    "internalOnly": {{.InternalOnly}}
   },
   "podAgent": {
     "image": "{{.Registry}}/pod-agent:xxx"

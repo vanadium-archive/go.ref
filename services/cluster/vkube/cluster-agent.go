@@ -184,7 +184,9 @@ func createClusterAgent(ctx *context.T, config *vkubeConfig) error {
 			"type": "LoadBalancer",
 		},
 	}
-	if config.ClusterAgent.ExternalIP != "" {
+	if config.ClusterAgent.InternalOnly {
+		svc.set("spec.type", "ClusterIP")
+	} else if config.ClusterAgent.ExternalIP != "" {
 		svc.set("spec.loadBalancerIP", config.ClusterAgent.ExternalIP)
 	}
 	if out, err := kubectlCreate(svc); err != nil {
@@ -267,11 +269,16 @@ func findClusterAgent(config *vkubeConfig, includeBlessings bool) (string, error
 	if port < 0 {
 		return "", fmt.Errorf("service %q has no valid port: %v", clusterAgentServiceName, port)
 	}
-	ingress := svc.getObjectArray("status.loadBalancer.ingress")
-	if len(ingress) == 0 {
-		return "", fmt.Errorf("service %q has no loadbalancer ingress", clusterAgentServiceName)
+	var ip string
+	if config.ClusterAgent.InternalOnly {
+		ip = svc.getString("spec.clusterIP")
+	} else {
+		ingress := svc.getObjectArray("status.loadBalancer.ingress")
+		if len(ingress) == 0 {
+			return "", fmt.Errorf("service %q has no loadbalancer ingress", clusterAgentServiceName)
+		}
+		ip = ingress[0].getString("ip")
 	}
-	ip := ingress[0].getString("ip")
 	if ip == "" {
 		return "", fmt.Errorf("service %q loadbalancer has no valid ip", clusterAgentServiceName)
 	}

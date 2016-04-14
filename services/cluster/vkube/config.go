@@ -42,14 +42,14 @@ type clusterAgentConfig struct {
 	Admin string `json:"admin"`
 	// The external IP address of the cluster agent. An empty value
 	// means that an ephemeral address will be used.
-	// TODO(rthellend): This doesn't currently work.
-	// https://github.com/kubernetes/kubernetes/issues/10323
-	// https://github.com/kubernetes/kubernetes/pull/13005
 	ExternalIP string `json:"externalIP"`
 	// The name of the Persistent Disk of the cluster agent. An
 	// value means that the cluster agent won't use a persistent
 	// disk.
 	PersistentDisk string `json:"persistentDisk"`
+	// When true, indicates that the cluster agent should only have an
+	// IP address that is reachable from within the kubernetes cluster.
+	InternalOnly bool `json:"internalOnly"`
 }
 
 type podAgentConfig struct {
