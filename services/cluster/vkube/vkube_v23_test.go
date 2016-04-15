@@ -31,6 +31,7 @@ var (
 	flagGetCredentials = flag.Bool("get-credentials", true, "This flag is passed to vkube.")
 	flagDockerRegistry = flag.String("docker-registry", "", "The docker registry to use. If empty, a temporary bucket in <project> is used.")
 	flagRebuildProb    = flag.Float64("rebuild-probability", 0.05, "A number between 0 and 1 to control how often the docker images are rebuilt. A value of 0 means never. A value of 1 means always. This flag is only meaningful when --docker-registry is set.")
+	flagTestNamespace  = flag.String("test-namespace", "", "The name of the kubernetes namespace to use for this test instance. If empty, a temporary namespace is used.")
 )
 
 // TestV23Vkube is an end-to-end test for the vkube command. It operates on a
@@ -51,7 +52,12 @@ func TestV23Vkube(t *testing.T) {
 
 	workdir := sh.MakeTempDir()
 
-	id := fmt.Sprintf("vkube-test-%08x", rand.Uint32())
+	id := fmt.Sprintf("vkube-test-%s-%08x", time.Now().UTC().Format("20060102-150405"), rand.Uint32())
+
+	namespace := *flagTestNamespace
+	if namespace == "" {
+		namespace = id
+	}
 
 	dockerRegistry := *flagDockerRegistry
 	if dockerRegistry == "" {
@@ -59,7 +65,7 @@ func TestV23Vkube(t *testing.T) {
 	}
 
 	vkubeCfgPath := filepath.Join(workdir, "vkube.cfg")
-	if err := createVkubeConfig(vkubeCfgPath, id, dockerRegistry); err != nil {
+	if err := createVkubeConfig(vkubeCfgPath, namespace, dockerRegistry); err != nil {
 		t.Fatal(err)
 	}
 
@@ -129,9 +135,9 @@ func TestV23Vkube(t *testing.T) {
 		getCreds    = fmt.Sprintf("--get-credentials=%v", *flagGetCredentials)
 		vkubeOK     = cmd(vkubeBin, true, "--config="+vkubeCfgPath, getCreds, "--no-headers")
 		vkubeFail   = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds, "--no-headers")
-		kubectlOK   = cmd(vkubeBin, true, "--config="+vkubeCfgPath, getCreds, "--no-headers", "kubectl", "--", "--namespace="+id)
-		kubectlFail = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds, "--no-headers", "kubectl", "--", "--namespace="+id)
-		kubectl5s   = timedCmd(vkubeBin, 5*time.Second, "--config="+vkubeCfgPath, getCreds, "--no-headers", "kubectl", "--", "--namespace="+id)
+		kubectlOK   = cmd(vkubeBin, true, "--config="+vkubeCfgPath, getCreds, "--no-headers", "kubectl", "--", "--namespace="+namespace)
+		kubectlFail = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds, "--no-headers", "kubectl", "--", "--namespace="+namespace)
+		kubectl5s   = timedCmd(vkubeBin, 5*time.Second, "--config="+vkubeCfgPath, getCreds, "--no-headers", "kubectl", "--", "--namespace="+namespace)
 		vshOK       = cmd(vshBin, true)
 	)
 
@@ -148,9 +154,12 @@ func TestV23Vkube(t *testing.T) {
 		}()
 	}
 
-	defer func() {
-		kubectlOK("delete", "namespace", id)
-	}()
+	if *flagTestNamespace == "" {
+		kubectlOK("create", "namespace", namespace)
+		defer func() {
+			kubectlOK("delete", "namespace", namespace)
+		}()
+	}
 
 	// Create app's docker image and configs.
 	appImage := dockerRegistry + "/tunneld:latest"
@@ -173,11 +182,11 @@ func TestV23Vkube(t *testing.T) {
 		var err error
 		switch c.kind {
 		case "deploy":
-			err = createAppDeploymentConfig(file, id, appImage, c.version)
+			err = createAppDeploymentConfig(file, namespace, appImage, c.version)
 		case "deploy-bad":
-			err = createAppDeploymentConfig(file, id, badImage, c.version)
+			err = createAppDeploymentConfig(file, namespace, badImage, c.version)
 		case "busybox":
-			err = createBusyboxConfig(file, id, c.version)
+			err = createBusyboxConfig(file, namespace, c.version)
 		default:
 			err = fmt.Errorf("%s?", c.kind)
 		}
@@ -274,7 +283,7 @@ func TestV23Vkube(t *testing.T) {
 	kubectlFail("get", "deployment", "cluster-agentd")
 }
 
-func createVkubeConfig(path, id, dockerRegistry string) error {
+func createVkubeConfig(path, namespace, dockerRegistry string) error {
 	internalOnly := false
 	if !*flagGetCredentials && os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
 		// The test is running on kubernetes and it is using the same
@@ -289,14 +298,14 @@ func createVkubeConfig(path, id, dockerRegistry string) error {
 	defer f.Close()
 
 	params := struct {
-		Project, Zone, Cluster, Registry, ID string
-		InternalOnly                         bool
+		Project, Zone, Cluster, Registry, Namespace string
+		InternalOnly                                bool
 	}{
 		*flagProject,
 		*flagZone,
 		*flagCluster,
 		dockerRegistry,
-		id,
+		namespace,
 		internalOnly,
 	}
 	return template.Must(template.New("cfg").Parse(`{
@@ -304,7 +313,7 @@ func createVkubeConfig(path, id, dockerRegistry string) error {
   "zone": "{{.Zone}}",
   "cluster": "{{.Cluster}}",
   "clusterAgent": {
-    "namespace": "{{.ID}}",
+    "namespace": "{{.Namespace}}",
     "image": "{{.Registry}}/cluster-agent:xxx",
     "blessing": "root:alice:cluster-agent",
     "admin": "root:alice",
@@ -339,20 +348,20 @@ func setupDockerDirectory(workdir string) (string, error) {
 	return dockerDir, nil
 }
 
-func createAppDeploymentConfig(path, id, image, version string) error {
+func createAppDeploymentConfig(path, namespace, image, version string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	params := struct{ ID, Image, Version string }{id, image, version}
+	params := struct{ Namespace, Image, Version string }{namespace, image, version}
 	return template.Must(template.New("appcfg").Parse(`{
   "apiVersion": "extensions/v1beta1",
   "kind": "Deployment",
   "metadata": {
     "name": "tunneld",
-    "namespace": "{{.ID}}",
+    "namespace": "{{.Namespace}}",
     "labels": {
       "application": "tunneld"
     }
@@ -402,20 +411,20 @@ func createAppDeploymentConfig(path, id, image, version string) error {
 }`)).Execute(f, params)
 }
 
-func createBusyboxConfig(path, id, version string) error {
+func createBusyboxConfig(path, namespace, version string) error {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	params := struct{ ID, Version string }{id, version}
+	params := struct{ Namespace, Version string }{namespace, version}
 	return template.Must(template.New("appcfg").Parse(`{
   "apiVersion": "extensions/v1beta1",
   "kind": "Deployment",
   "metadata": {
     "name": "busybox",
-    "namespace": "{{.ID}}",
+    "namespace": "{{.Namespace}}",
     "labels": {
       "application": "busybox"
     }
