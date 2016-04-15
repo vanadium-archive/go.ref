@@ -32,7 +32,7 @@ func TestWriter(t *testing.T) {
 		return key, value
 	}
 	writer := &client.Writer{
-		WriteInterval: 100 * time.Millisecond,
+		WriteInterval: 50 * time.Millisecond,
 		KeyValueFunc:  keyValueFunc,
 	}
 
@@ -52,12 +52,12 @@ func TestWriter(t *testing.T) {
 		},
 	}
 
-	// Run the writer for 1 second.
+	// Run the writer for 2 seconds.
 	var err error
 	go func() {
 		err = writer.Run(ctx, sbName, dbName, collectionIds, stop)
 	}()
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	close(stop)
 	if err != nil {
 		t.Fatalf("writer error: %v", err)
@@ -77,9 +77,9 @@ func TestWriter(t *testing.T) {
 		}
 	}
 
-	// Make sure we did at least 5 writes.
-	if writeCounter < 5 {
-		t.Errorf("expected to write at least 5 rows, but only wrote %d", writeCounter)
+	// Make sure we did at least 2 writes.
+	if writeCounter < 2 {
+		t.Errorf("expected to write at least 2 rows, but only wrote %d", writeCounter)
 	}
 
 	// Check that each collection contains the wroteKeys and wroteVals.
