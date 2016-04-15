@@ -74,6 +74,7 @@ func init() {
 }
 
 func TestV23DeviceManagerSingleUser(t *testing.T) {
+	t.Skip("https://github.com/vanadium/build/issues/58")
 	v23test.SkipUnlessRunningIntegrationTests(t)
 	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
@@ -86,6 +87,7 @@ func TestV23DeviceManagerSingleUser(t *testing.T) {
 }
 
 func TestV23DeviceManagerMultiUser(t *testing.T) {
+	t.Skip("https://github.com/vanadium/build/issues/58")
 	v23test.SkipUnlessRunningIntegrationTests(t)
 	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
