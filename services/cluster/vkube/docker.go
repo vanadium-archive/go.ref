@@ -148,14 +148,21 @@ func buildDockerImage(files []dockerFile, cmds []dockerCmd, stdout io.Writer) er
 		}
 	}
 	for _, c := range cmds {
-		if stdout != nil {
-			fmt.Fprintf(stdout, "#### Running %s %s\n", c.name, strings.Join(c.args, " "))
+		var err error
+		for attempt := 1; attempt <= 3; attempt++ {
+			if stdout != nil {
+				fmt.Fprintf(stdout, "#### Running %s %s [%d/3]\n", c.name, strings.Join(c.args, " "), attempt)
+			}
+			cmd := exec.Command(c.name, c.args...)
+			cmd.Dir = workDir
+			cmd.Stdout = stdout
+			cmd.Stderr = stdout
+			if err = cmd.Run(); err == nil {
+				break
+			}
+			time.Sleep(10 * time.Second)
 		}
-		cmd := exec.Command(c.name, c.args...)
-		cmd.Dir = workDir
-		cmd.Stdout = stdout
-		cmd.Stderr = stdout
-		if err := cmd.Run(); err != nil {
+		if err != nil {
 			return fmt.Errorf("%v failed: %v", c, err)
 		}
 	}
