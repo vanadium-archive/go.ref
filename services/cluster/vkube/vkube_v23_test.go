@@ -129,9 +129,23 @@ func TestV23Vkube(t *testing.T) {
 				return output.String(), c.Err
 			}
 		}
-		gsutil      = cmd("gsutil", true)
-		gcloud      = cmd("gcloud", true, "--project="+*flagProject)
-		docker      = cmd("docker", true)
+		retry = func(name string, baseArgs ...string) func(args ...string) string {
+			c := timedCmd(name, 5*time.Minute, baseArgs...)
+			return func(args ...string) (out string) {
+				var err error
+				for attempt := 0; attempt < 5; attempt++ {
+					if out, err = c(args...); err == nil {
+						return out
+					}
+					time.Sleep(10 * time.Second)
+				}
+				t.Errorf("Unexpected failure: %s %s: %v", name, strings.Join(args, " "), err)
+				return
+			}
+		}
+		gsutil      = retry("gsutil")
+		gcloud      = retry("gcloud", "--project="+*flagProject)
+		docker      = retry("docker")
 		getCreds    = fmt.Sprintf("--get-credentials=%v", *flagGetCredentials)
 		vkubeOK     = cmd(vkubeBin, true, "--config="+vkubeCfgPath, getCreds, "--no-headers")
 		vkubeFail   = cmd(vkubeBin, false, "--config="+vkubeCfgPath, getCreds, "--no-headers")
@@ -205,7 +219,7 @@ func TestV23Vkube(t *testing.T) {
 
 		// Clean up local docker images.
 		docker(
-			"rmi",
+			"rmi", "-f",
 			dockerRegistry+"/cluster-agent",
 			dockerRegistry+"/cluster-agent:1",
 			dockerRegistry+"/cluster-agent:2",
