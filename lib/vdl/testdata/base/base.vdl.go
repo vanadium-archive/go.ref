@@ -2824,7 +2824,9 @@ func (x *Scalars) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "A13":
-			// TODO(toddw): implement any
+			if err = x.A13.VDLRead(dec); err != nil {
+				return err
+			}
 		case "A14":
 			if err = dec.StartValue(); err != nil {
 				return err

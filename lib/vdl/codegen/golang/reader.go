@@ -106,7 +106,7 @@ func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 		// The top-level type is always named, and needs a real body generated.
 		// Appears before bytes, so that we use the defined method rather than
 		// re-generating extra code.
-		return g.bodyNamed(tt, arg)
+		return g.bodyCallVDLRead(tt, arg)
 	case tt.IsBytes():
 		// Bytes use the special Decoder.DecodeBytes method.  Appears before
 		// anonymous types, to avoid processing bytes as a list or array.
@@ -145,8 +145,7 @@ func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 	case vdl.Union:
 		return sta + g.bodyUnion(tt, arg) + fin
 	case vdl.Any:
-		return `
-// TODO(toddw): implement any`
+		return g.bodyAny(tt, arg)
 	default:
 		panic(fmt.Errorf("vom: unhandled type %s", tt))
 	}
@@ -164,10 +163,10 @@ func (g *genRead) bodyNative(tt *vdl.Type, arg namedArg) string {
 	var wire %[1]s%[2]s
 	if err = %[1]sToNative(wire, %[3]s); err != nil {
 		return err
-	}`, typeGoWire(g.goData, tt), g.bodyNamed(tt, typedArg("wire", tt)), arg.Ptr())
+	}`, typeGoWire(g.goData, tt), g.bodyCallVDLRead(tt, typedArg("wire", tt)), arg.Ptr())
 }
 
-func (g *genRead) bodyNamed(tt *vdl.Type, arg namedArg) string {
+func (g *genRead) bodyCallVDLRead(tt *vdl.Type, arg namedArg) string {
 	if tt.Kind() == vdl.Union {
 		// Unions are a special-case, since we can't attach methods to a pointer
 		// receiver interface.  Instead we call the package-level function.
@@ -436,6 +435,25 @@ func (g *genRead) bodyOptional(tt *vdl.Type, arg namedArg) string {
 		dec.IgnoreNextStartValue()`, arg.Ptr(), typeGo(g.goData, tt.Elem()))
 	return s + g.body(tt.Elem(), arg, false) + `
 	}`
+}
+
+func (g *genRead) bodyAny(tt *vdl.Type, arg namedArg) string {
+	var s string
+	if shouldUseVdlValueForAny(g.Package) {
+		// Hack to deal with top-level any.  Any values in the generated code are
+		// initialized to vdl.ZeroValue(AnyType), so when we call vdl.Value.VDLRead
+		// on the value, the type of the value is always top-level any.  We create a
+		// new (invalid) vdl.Value here, which causes VDLRead to fill the value with
+		// the exact type read from the decoder.  We can't just change the
+		// initialization to create a new vdl.Value, since struct fields that aren't
+		// read will retain their initialized values, and the invalid vdl.Value
+		// causes problems with the encoder.
+		//
+		// TODO(toddw): Remove this hack.
+		s += fmt.Sprintf(`
+	%[1]s = new(%[2]sValue)`, arg.Ref(), g.Pkg("v.io/v23/vdl"))
+	}
+	return s + g.bodyCallVDLRead(tt, arg)
 }
 
 // namedArg represents a named argument, with methods to conveniently return the

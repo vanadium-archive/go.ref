@@ -801,7 +801,9 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Op":
-			// TODO(toddw): implement any
+			if err = x.Op.VDLRead(dec); err != nil {
+				return err
+			}
 		case "CommitTimestamp":
 			if err = dec.StartValue(); err != nil {
 				return err

@@ -3782,7 +3782,9 @@ func (x *Recursive) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Any":
-			// TODO(toddw): implement any
+			if err = x.Any.VDLRead(dec); err != nil {
+				return err
+			}
 		case "Maybe":
 			if err = dec.StartValue(); err != nil {
 				return err
@@ -4403,7 +4405,9 @@ func (x *AnythingGoes) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Anything":
-			// TODO(toddw): implement any
+			if err = x.Anything.VDLRead(dec); err != nil {
+				return err
+			}
 		default:
 			if err = dec.SkipValue(); err != nil {
 				return err
