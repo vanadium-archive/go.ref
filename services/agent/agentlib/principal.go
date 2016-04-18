@@ -247,12 +247,30 @@ func launchAgent(credsDir, agentBin string, agentVersion version.T) error {
 	if err != nil {
 		return fmt.Errorf("failed to run %v: %v", cmd.Args, err)
 	}
-	vlog.Infof("Started agent for credentials %v with PID %d", credsDir, cmd.Process.Pid)
+	pid := cmd.Process.Pid
+	vlog.Infof("Started agent for credentials %v with PID %d", credsDir, pid)
+	// Make sure we don't leave a disfunctional or zombie agent behind upon
+	// error.
+	cleanUpAgent := func() {
+		defer cmd.Wait()
+		if err := syscall.Kill(pid, syscall.SIGINT); err == syscall.ESRCH {
+			return
+		}
+		for i := 0; i < 10; i++ {
+			time.Sleep(100 * time.Millisecond)
+			if err := syscall.Kill(pid, 0); err == syscall.ESRCH {
+				return
+			}
+		}
+		syscall.Kill(pid, syscall.SIGKILL)
+	}
 	scanner := bufio.NewScanner(agentRead)
 	if !scanner.Scan() || scanner.Text() != constants.ServingMsg {
+		cleanUpAgent()
 		return fmt.Errorf("failed to receive \"%s\" from agent", constants.ServingMsg)
 	}
 	if err := scanner.Err(); err != nil {
+		cleanUpAgent()
 		return fmt.Errorf("failed reading status from agent: %v", err)
 	}
 	return nil
