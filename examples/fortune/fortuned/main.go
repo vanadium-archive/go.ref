@@ -14,8 +14,8 @@ import (
 	"v.io/x/ref/examples/fortune"
 	"v.io/x/ref/lib/signals"
 
-	// The v23.Init call below will use the generic runtime factory.
-	_ "v.io/x/ref/runtime/factories/generic"
+	// The v23.Init call below will use the roaming runtime factory.
+	_ "v.io/x/ref/runtime/factories/roaming"
 )
 
 var (
