@@ -17,6 +17,7 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 
 //////////////////////////////////////////////////
 // Error definitions
+
 var (
 	ErrNoNamespace = verror.Register("v.io/x/ref/lib/discovery/global.NoNamespace", verror.NoRetry, "{1:}{2:}  namespace not found")
 )

@@ -533,6 +533,7 @@ var (
 {{if $pkg.ErrorDefs}}
 //////////////////////////////////////////////////
 // Error definitions
+
 var (
 {{range $edef := $pkg.ErrorDefs}}
 	{{$edef.Doc}}{{errorName $edef}} = {{$data.Pkg "v.io/v23/verror"}}Register("{{$edef.ID}}", {{$data.Pkg "v.io/v23/verror"}}{{$edef.RetryCode}}, "{{$edef.English}}"){{end}}

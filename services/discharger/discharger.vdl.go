@@ -22,6 +22,7 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 
 //////////////////////////////////////////////////
 // Error definitions
+
 var (
 
 	// Indicates that the Caveat does not require a discharge

@@ -297,7 +297,13 @@ func __VDLWrite1_set(enc vdl.Encoder, x *map[groups.BlessingPatternChunk]struct{
 	if err := enc.StartValue(vdl.TypeOf((*map[groups.BlessingPatternChunk]struct{})(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for key := range *x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := key.VDLWrite(enc); err != nil {
 			return err
 		}

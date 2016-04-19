@@ -322,6 +322,9 @@ func (x Array2Int) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	for i := 0; i < 2; i++ {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
 			return err
 		}

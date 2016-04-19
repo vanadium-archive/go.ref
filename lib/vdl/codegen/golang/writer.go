@@ -83,12 +83,12 @@ func (g *genWrite) body(tt *vdl.Type, arg namedArg, topLevel bool, unionField st
 		return err
 	}`, typedConst(g.goData, vdl.TypeObjectValue(tt)))
 	fin := `
-  	if err := enc.FinishValue(); err != nil {
-    		return err
-  	}`
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}`
 	if topLevel {
 		fin = `
-  	return enc.FinishValue()`
+	return enc.FinishValue()`
 	}
 	// Handle special cases.  The ordering of the cases is very important.
 	switch {
@@ -112,7 +112,7 @@ func (g *genWrite) body(tt *vdl.Type, arg namedArg, topLevel bool, unionField st
 		// The top-level type is always named, and needs a real body generated.
 		// Appears before bytes, so that we use the defined method rather than
 		// re-generating extra code.
-		return g.bodyCallVDLWrite(tt, arg)
+		return g.bodyCallVDLWrite(arg)
 	case tt.IsBytes():
 		// Bytes use the special Encoder.EncodeBytes method.  Appears before
 		// anonymous types, to avoid processing bytes as a list or array.
@@ -137,7 +137,7 @@ func (g *genWrite) body(tt *vdl.Type, arg namedArg, topLevel bool, unionField st
 	case vdl.Float32, vdl.Float64:
 		return sta + g.bodyScalar(tt, vdl.Float64Type, arg, "Float") + fin
 	case vdl.TypeObject:
-		return sta + g.bodyTypeObject(tt, arg) + fin
+		return g.bodyCallVDLWrite(arg)
 	case vdl.Enum:
 		return sta + g.bodyEnum(tt, arg) + fin
 	case vdl.Array:
@@ -172,11 +172,11 @@ func (g *genWrite) bodyNative(tt *vdl.Type, arg namedArg) string {
   	if err := %[1]sFromNative(&wire, %[2]s); err != nil {
     		return err
   	}`, typeGoWire(g.goData, tt), arg.Ref())
-	s += g.bodyCallVDLWrite(tt, typedArg("wire", tt))
+	s += g.bodyCallVDLWrite(typedArg("wire", tt))
 	return s
 }
 
-func (g *genWrite) bodyCallVDLWrite(tt *vdl.Type, arg namedArg) string {
+func (g *genWrite) bodyCallVDLWrite(arg namedArg) string {
 	return fmt.Sprintf(`
 	if err := %[1]s.VDLWrite(enc); err != nil {
 		return err
@@ -215,20 +215,13 @@ func (g *genWrite) bodyScalar(tt *vdl.Type, exact *vdl.Type, arg namedArg, metho
 	}
 }
 
-var ttBytes *vdl.Type = vdl.TypeOf([]byte{})
+var ttBytes = vdl.ListType(vdl.ByteType)
 
 func (g *genWrite) bodyBytes(tt *vdl.Type, arg namedArg) string {
 	if tt.Kind() == vdl.Array {
-		arg = typedArg(fmt.Sprintf("%s[:]", arg.SafeRef()), ttBytes)
+		arg = arg.Index(":", ttBytes)
 	}
 	return g.bodyScalar(tt, ttBytes, arg, "Bytes")
-}
-
-func (g *genWrite) bodyTypeObject(tt *vdl.Type, arg namedArg) string {
-	return fmt.Sprintf(`
-	if err := enc.EncodeTypeObject(%[1]s); err != nil {
-		return err
-	}`, arg.Ref())
 }
 
 func (g *genWrite) bodyEnum(tt *vdl.Type, arg namedArg) string {
@@ -238,55 +231,70 @@ func (g *genWrite) bodyEnum(tt *vdl.Type, arg namedArg) string {
 	}`, arg.Name)
 }
 
-func (g *genWrite) bodyArray(tt *vdl.Type, arg namedArg) string {
-	s := fmt.Sprintf(`
-	for i := 0; i < %[1]d; i++ {`, tt.Len())
-	s += g.body(tt.Elem(), arg.Index("i", tt.Elem()), false, "")
-	s += `
-	}
+const (
+	encNextEntry = `
+	if err := enc.NextEntry(false); err != nil {
+		return err
+	}`
+	encNextEntryDone = `
 	if err := enc.NextEntry(true); err != nil {
 		return err
 	}`
+	encNextFieldDone = `
+	if err := enc.NextField(""); err != nil {
+		return err
+	}`
+)
+
+func (g *genWrite) bodyArray(tt *vdl.Type, arg namedArg) string {
+	s := fmt.Sprintf(`
+	for i := 0; i < %[1]d; i++ {`, tt.Len())
+	s += encNextEntry
+	s += g.body(tt.Elem(), arg.Index("i", tt.Elem()), false, "")
+	s += `
+	}` + encNextEntryDone
 	return s
 }
 
 func (g *genWrite) bodyList(tt *vdl.Type, arg namedArg) string {
 	s := fmt.Sprintf(`
+	if err := enc.SetLenHint(len(%[1]v)); err != nil {
+		return err
+	}
 	for i := 0; i < len(%[1]v); i++ {`, arg.Ref())
+	s += encNextEntry
 	s += g.body(tt.Elem(), arg.Index("i", tt.Elem()), false, "")
 	s += `
-	}
-	if err := enc.NextEntry(true); err != nil {
-		return err
-	}`
+	}` + encNextEntryDone
 	return s
 }
 
 func (g *genWrite) bodySet(tt *vdl.Type, arg namedArg) string {
 	keyArg := typedArg("key", tt.Key())
 	s := fmt.Sprintf(`
+	if err := enc.SetLenHint(len(%[2]v)); err != nil {
+		return err
+	}
 	for %[1]v := range %[2]v {`, keyArg.Ref(), arg.Ref())
+	s += encNextEntry
 	s += g.body(tt.Key(), keyArg, false, "")
 	s += `
-	}
-	if err := enc.NextEntry(true); err != nil {
-		return err
-	}`
+	}` + encNextEntryDone
 	return s
 }
 
 func (g *genWrite) bodyMap(tt *vdl.Type, arg namedArg) string {
-	keyArg := typedArg("key", tt.Key())
-	elemArg := typedArg("elem", tt.Elem())
+	keyArg, elemArg := typedArg("key", tt.Key()), typedArg("elem", tt.Elem())
 	s := fmt.Sprintf(`
+	if err := enc.SetLenHint(len(%[3]v)); err != nil {
+		return err
+	}
 	for %[1]v, %[2]v := range %[3]v {`, keyArg.Ref(), elemArg.Ref(), arg.Ref())
+	s += encNextEntry
 	s += g.body(tt.Key(), keyArg, false, "")
 	s += g.body(tt.Elem(), elemArg, false, "")
 	s += `
-	}
-	if err := enc.NextEntry(true); err != nil {
-		return err
-	}`
+	}` + encNextEntryDone
 	return s
 }
 
@@ -305,10 +313,7 @@ func (g *genWrite) bodyStruct(tt *vdl.Type, arg namedArg) string {
 		s += `
 	}`
 	}
-	s += `
-	if err := enc.NextField(""); err != nil {
-		return err
-	}`
+	s += encNextFieldDone
 	return s
 }
 
@@ -319,10 +324,7 @@ func (g *genWrite) bodyUnion(tt *vdl.Type, unionField string, arg namedArg) stri
 			return err
 	}`, unionField)
 	s += g.body(field.Type, arg.Field(vdl.Field{Name: "Value", Type: field.Type}), false, "")
-	s += `
-	if err := enc.NextField(""); err != nil {
-		return err
-	}`
+	s += encNextFieldDone
 	return s
 }
 
@@ -352,7 +354,7 @@ func (g *genWrite) bodyAny(arg namedArg) string {
 		}
 	} else {
 		if err := %[1]s.VDLWrite(enc); err != nil {
-				     return err
+			return err
 		}
 	}`, arg.Name, typeAccessor)
 }

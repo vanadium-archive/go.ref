@@ -345,7 +345,13 @@ func __VDLWrite1_map(enc vdl.Encoder, x *map[string][]byte) error {
 	if err := enc.StartValue(vdl.TypeOf((*map[string][]byte)(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for key, elem := range *x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
 			return err
 		}
@@ -938,7 +944,13 @@ func __VDLWrite2_list(enc vdl.Encoder, x *[][]byte) error {
 	if err := enc.StartValue(vdl.TypeOf((*[][]byte)(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for i := 0; i < len(*x); i++ {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
 			return err
 		}
@@ -957,6 +969,7 @@ func __VDLWrite2_list(enc vdl.Encoder, x *[][]byte) error {
 
 //////////////////////////////////////////////////
 // Error definitions
+
 var (
 	ErrInternal           = verror.Register("v.io/x/ref/lib/security/bcrypter.Internal", verror.NoRetry, "{1:}{2:} internal error: {3}")
 	ErrNoParams           = verror.Register("v.io/x/ref/lib/security/bcrypter.NoParams", verror.NoRetry, "{1:}{2:} no public parameters available for encrypting for pattern: {3}")

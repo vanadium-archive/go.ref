@@ -929,7 +929,13 @@ func (x CollectionPerms) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*CollectionPerms)(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
 	for key, elem := range x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
 			return err
 		}

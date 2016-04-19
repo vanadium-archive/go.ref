@@ -742,7 +742,13 @@ func __VDLWrite1_set(enc vdl.Encoder, x *map[Library]struct{}) error {
 	if err := enc.StartValue(vdl.TypeOf((*map[Library]struct{})(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for key := range *x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := key.VDLWrite(enc); err != nil {
 			return err
 		}

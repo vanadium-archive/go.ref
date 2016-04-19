@@ -527,7 +527,13 @@ func __VDLWrite1_list(enc vdl.Encoder, x *[]bcrypter.WireCiphertext) error {
 	if err := enc.StartValue(vdl.TypeOf((*[]bcrypter.WireCiphertext)(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for i := 0; i < len(*x); i++ {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := (*x)[i].VDLWrite(enc); err != nil {
 			return err
 		}
@@ -885,7 +891,13 @@ func __VDLWrite2_list(enc vdl.Encoder, x *[]security.Discharge) error {
 	if err := enc.StartValue(vdl.TypeOf((*[]security.Discharge)(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for i := 0; i < len(*x); i++ {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		var wire security.WireDischarge
 		if err := security.WireDischargeFromNative(&wire, (*x)[i]); err != nil {
 			return err
@@ -1512,6 +1524,7 @@ func (x BlessingsFlowMessageEncryptedDischarges) VDLWrite(enc vdl.Encoder) error
 
 //////////////////////////////////////////////////
 // Error definitions
+
 var (
 	ErrMissingSetupOption       = verror.Register("v.io/x/ref/runtime/internal/flow/conn.MissingSetupOption", verror.NoRetry, "{1:}{2:} missing required setup option{:3}.")
 	ErrUnexpectedMsg            = verror.Register("v.io/x/ref/runtime/internal/flow/conn.UnexpectedMsg", verror.NoRetry, "{1:}{2:} unexpected message type{:3}.")

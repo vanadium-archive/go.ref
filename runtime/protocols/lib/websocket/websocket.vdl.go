@@ -17,6 +17,7 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 
 //////////////////////////////////////////////////
 // Error definitions
+
 var (
 	ErrListenerClosed     = verror.Register("v.io/x/ref/runtime/protocols/lib/websocket.ListenerClosed", verror.NoRetry, "{1:}{2:} listener is already closed.")
 	ErrListenCalledInNaCl = verror.Register("v.io/x/ref/runtime/protocols/lib/websocket.ListenCalledInNaCl", verror.NoRetry, "{1:}{2:} Listen cannot be called in NaCl code.")

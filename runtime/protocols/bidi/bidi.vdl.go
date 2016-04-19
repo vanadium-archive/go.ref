@@ -17,6 +17,7 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 
 //////////////////////////////////////////////////
 // Error definitions
+
 var (
 	ErrCannotListenOnBidi     = verror.Register("v.io/x/ref/runtime/protocols/bidi.CannotListenOnBidi", verror.NoRetry, "{1:}{2:} cannot listen on bidi protocol")
 	ErrBidiRoutingIdNotCached = verror.Register("v.io/x/ref/runtime/protocols/bidi.BidiRoutingIdNotCached", verror.NoRetry, "{1:}{2:} bidi routing id not in cache")

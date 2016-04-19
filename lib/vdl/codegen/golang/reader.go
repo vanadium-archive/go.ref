@@ -67,19 +67,16 @@ func %[1]s(dec %[2]sDecoder, x *%[3]s) error {
 	return s
 }
 
-const (
-	startValue = `
+func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
+	kind := tt.Kind()
+	sta := `
 	if err = dec.StartValue(); err != nil {
 		return err
 	}`
-	finishValue = `
+	fin := `
 	if err = dec.FinishValue(); err != nil {
 		return err
 	}`
-)
-
-func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
-	kind, sta, fin := tt.Kind(), startValue, finishValue
 	if topLevel {
 		fin = `
 	return dec.FinishValue()`

@@ -17,6 +17,7 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 
 //////////////////////////////////////////////////
 // Error definitions
+
 var (
 	ErrNotListening              = verror.Register("v.io/x/ref/services/xproxy/xproxy.NotListening", verror.NoRetry, "{1:}{2:} Proxy is not listening on any endpoints.")
 	ErrUnexpectedMessage         = verror.Register("v.io/x/ref/services/xproxy/xproxy.UnexpectedMessage", verror.NoRetry, "{1:}{2:} Unexpected message of type{:3}")

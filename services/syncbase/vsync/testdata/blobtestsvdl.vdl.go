@@ -715,7 +715,13 @@ func __VDLWrite1_set(enc vdl.Encoder, x *map[syncbase.BlobRef]struct{}) error {
 	if err := enc.StartValue(vdl.TypeOf((*map[syncbase.BlobRef]struct{})(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for key := range *x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := key.VDLWrite(enc); err != nil {
 			return err
 		}
@@ -1000,7 +1006,13 @@ func __VDLWrite2_list(enc vdl.Encoder, x *[]*vom.RawBytes) error {
 	if err := enc.StartValue(vdl.TypeOf((*[]*vom.RawBytes)(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for i := 0; i < len(*x); i++ {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := enc.StartValue(vdl.AnyType); err != nil {
 			return err
 		}
@@ -1309,7 +1321,13 @@ func __VDLWrite3_set(enc vdl.Encoder, x *map[string]struct{}) error {
 	if err := enc.StartValue(vdl.TypeOf((*map[string]struct{})(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for key := range *x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
 			return err
 		}

@@ -427,6 +427,7 @@ func (x PeerBehavior) VDLWrite(enc vdl.Encoder) error {
 
 //////////////////////////////////////////////////
 // Error definitions
+
 var (
 	ErrInvalidAddress       = verror.Register("v.io/x/ref/runtime/protocols/vine.InvalidAddress", verror.NoRetry, "{1:}{2:} invalid vine address {3}, address must be of the form 'network/address/tag'")
 	ErrAddressNotReachable  = verror.Register("v.io/x/ref/runtime/protocols/vine.AddressNotReachable", verror.NoRetry, "{1:}{2:} address {3} not reachable")

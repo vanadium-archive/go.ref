@@ -233,7 +233,13 @@ func (x blessingRootsState) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*blessingRootsState)(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
 	for key, elem := range x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
 			return err
 		}
@@ -257,7 +263,13 @@ func __VDLWrite1_list(enc vdl.Encoder, x *[]security.BlessingPattern) error {
 	if err := enc.StartValue(vdl.TypeOf((*[]security.BlessingPattern)(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for i := 0; i < len(*x); i++ {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := (*x)[i].VDLWrite(enc); err != nil {
 			return err
 		}
@@ -1346,7 +1358,13 @@ func __VDLWrite2_map(enc vdl.Encoder, x *map[security.BlessingPattern]security.B
 	if err := enc.StartValue(vdl.TypeOf((*map[security.BlessingPattern]security.Blessings)(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for key, elem := range *x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := key.VDLWrite(enc); err != nil {
 			return err
 		}
@@ -1368,7 +1386,13 @@ func __VDLWrite3_map(enc vdl.Encoder, x *map[dischargeCacheKey]security.Discharg
 	if err := enc.StartValue(vdl.TypeOf((*map[dischargeCacheKey]security.Discharge)(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for key, elem := range *x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := key.VDLWrite(enc); err != nil {
 			return err
 		}
@@ -1390,7 +1414,13 @@ func __VDLWrite4_map(enc vdl.Encoder, x *map[dischargeCacheKey]CachedDischarge) 
 	if err := enc.StartValue(vdl.TypeOf((*map[dischargeCacheKey]CachedDischarge)(nil))); err != nil {
 		return err
 	}
+	if err := enc.SetLenHint(len(*x)); err != nil {
+		return err
+	}
 	for key, elem := range *x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
 		if err := key.VDLWrite(enc); err != nil {
 			return err
 		}
