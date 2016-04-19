@@ -68,12 +68,9 @@ func TestWatcher(t *testing.T) {
 	}
 
 	// Run the watcher in a goroutine.
-	var err error
+	wErr := make(chan error)
 	go func() {
-		err = watcher.Run(ctx, sbName, dbName, collectionIds, stop)
-		if err != nil {
-			t.Errorf("watcher.Run returned error: %v", err)
-		}
+		wErr <- watcher.Run(ctx, sbName, dbName, collectionIds, stop)
 	}()
 
 	// Put 3 rows to each collection.
@@ -95,6 +92,10 @@ func TestWatcher(t *testing.T) {
 
 	// Stop the watcher.
 	close(stop)
+
+	if err := <-wErr; err != nil {
+		t.Errorf("watcher.Run returned error: %v", err)
+	}
 
 	// Check that we got watchChanges for each row that we put to.
 	sort.Strings(wantRows)

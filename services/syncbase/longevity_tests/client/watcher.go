@@ -54,22 +54,20 @@ func (w *Watcher) Run(ctx *context.T, sbName, dbName string, collectionIds []wir
 	// changes.
 	wg := sync.WaitGroup{}
 	for _, col := range w.collections {
-		wg.Add(1)
-		ctxWithCancel, cancel := context.WithCancel(w.ctx)
-		stream, err := w.db.Watch(ctxWithCancel, col.Id(), w.Prefix, w.ResumeMarker)
+		stream, err := w.db.Watch(w.ctx, col.Id(), w.Prefix, w.ResumeMarker)
 		if err != nil {
 			return err
 		}
+		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for {
 				// Call Advance() in a goroutine and send its value on
 				// advanceChan.
-				advanceChan := make(chan bool)
+				advanceChan := make(chan bool, 1)
 				go func() {
 					advanceChan <- stream.Advance()
 				}()
-
 				// Wait on advance and stop channels.
 				select {
 				case advance := <-advanceChan:
@@ -82,14 +80,8 @@ func (w *Watcher) Run(ctx *context.T, sbName, dbName string, collectionIds []wir
 						w.OnChange(change)
 					}
 				case <-stopChan:
-					// TODO(nlacasse): We should call stream.Cancel() here in
-					// order to stop the Advance call in the goroutine.
-					// However, due to  bug https://v.io/i/1284, calling Cancel
-					// while Advance is running will lead to a deadlock.
-					// As a workaround, we cancel the context, rather than the
-					// stream.  Once the above bug is resolved, we should call
-					// stream.Cancel() here.
-					cancel()
+					stream.Cancel()
+					<-advanceChan
 					return
 				}
 			}
