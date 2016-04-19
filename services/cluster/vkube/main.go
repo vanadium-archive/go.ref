@@ -40,6 +40,7 @@ var (
 	flagClusterAgentImage string
 	flagPodAgentImage     string
 	flagSecrets           string
+	flagPrompt            bool
 )
 
 const (
@@ -65,6 +66,7 @@ func main() {
 			cmdClaimClusterAgent,
 			cmdBuildDockerImages,
 			cmdCreateSecrets,
+			cmdUpgradeCluster,
 			cmdKubectl,
 		},
 	}
@@ -99,6 +101,8 @@ func main() {
 
 	cmdCreateSecrets.Flags.StringVar(&flagSecrets, "secrets", "", "The file containing the encrypted secrets.")
 	cmdCreateSecrets.Flags.StringVar(&flagGpg, "gpg", "gpg", "The gpg binary to use.")
+
+	cmdUpgradeCluster.Flags.BoolVar(&flagPrompt, "prompt", true, "When true, prompt for confirmation before upgrading the cluster.")
 
 	cmdline.Main(cmd)
 }
@@ -451,6 +455,25 @@ func runCreateSecrets(ctx *context.T, env *cmdline.Env, args []string, config *v
 		return env.UsageErrorf("must specify --secrets")
 	}
 	return createSecrets(flagSecrets, args)
+}
+
+var cmdUpgradeCluster = &cmdline.Command{
+	Runner: kubeCmdRunner(runCmdUpgradeCluster),
+	Name:   "upgrade-cluster",
+	Short:  "Upgrade the cluster defined in vkube.cfg.",
+	Long: `
+Upgrade the cluster defined in vkube.cfg to the default latest version.
+
+This command is only meaningful with Kubernetes clusters on the Google Container
+Engine.
+`,
+}
+
+func runCmdUpgradeCluster(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
+	if config.Project == "" {
+		return env.UsageErrorf("upgrade-cluster requires 'project' to be set in vkube.cfg")
+	}
+	return upgradeCluster(ctx, config, env.Stdin, env.Stdout, env.Stderr)
 }
 
 var cmdKubectl = &cmdline.Command{

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/rand"
 	"encoding/base64"
@@ -354,6 +355,12 @@ func kubectl(args ...string) ([]byte, error) {
 	return exec.Command(flagKubectlBin, args...).CombinedOutput()
 }
 
+// gcloud runs the 'gcloud' command with the given arguments and returns the
+// output.
+func gcloud(args ...string) ([]byte, error) {
+	return exec.Command(flagGcloudBin, args...).Output()
+}
+
 // rootBlessings returns the root blessings for the current principal.
 func rootBlessings(ctx *context.T) string {
 	p := v23.GetPrincipal(ctx)
@@ -369,4 +376,70 @@ func rootBlessings(ctx *context.T) string {
 		b64 = append(b64, base64.URLEncoding.EncodeToString(data))
 	}
 	return strings.Join(b64, ",")
+}
+
+// upgradeCluster upgrades the cluster to the latest version.
+func upgradeCluster(ctx *context.T, config *vkubeConfig, stdin io.Reader, stdout, stderr io.Writer) error {
+	data, err := gcloud("--format=json", "container", "get-server-config", "--project", config.Project, "--zone", config.Zone)
+	if err != nil {
+		return fmt.Errorf("failed to get server config: %v\n%s\n", err, string(data))
+	}
+	var serverConfig object
+	if err := serverConfig.importJSON(data); err != nil {
+		return fmt.Errorf("failed to parse gcloud output: %v", err)
+	}
+
+	if data, err = gcloud("--format=json", "container", "clusters", "describe", config.Cluster, "--project", config.Project, "--zone", config.Zone); err != nil {
+		return fmt.Errorf("failed to get cluster details for %q: %v\n%s\n", config.Cluster, err, string(data))
+	}
+	var clusterDetails object
+	if err := clusterDetails.importJSON(data); err != nil {
+		return fmt.Errorf("failed to parse gcloud output: %v", err)
+	}
+	defaultVersion := serverConfig.getString("defaultClusterVersion")
+	masterVersion := clusterDetails.getString("currentMasterVersion")
+	nodeVersion := clusterDetails.getString("currentNodeVersion")
+
+	fmt.Fprintf(stdout, "default version: %s\n", defaultVersion)
+	fmt.Fprintf(stdout, "master version: %s\n", masterVersion)
+	fmt.Fprintf(stdout, "node version: %s\n\n", nodeVersion)
+
+	var upgradeMaster, upgradeNodes bool
+	switch {
+	case masterVersion != defaultVersion:
+		upgradeMaster = true
+		upgradeNodes = true
+	case nodeVersion != defaultVersion:
+		upgradeNodes = true
+	default:
+		fmt.Fprintf(stdout, "### Nothing to do\n")
+		return nil
+	}
+
+	if flagPrompt {
+		fmt.Fprintf(stdout, "Upgrade the cluster to %q? This can result in several minutes of downtime [y/N]? ", defaultVersion)
+		if line, _ := bufio.NewReader(stdin).ReadString('\n'); strings.ToUpper(strings.TrimSpace(line)) != "Y" {
+			return errors.New("aborted")
+		}
+	}
+
+	if upgradeMaster {
+		fmt.Fprintf(stdout, "### Upgrading master\n\n")
+		cmd := exec.Command(flagGcloudBin, "--quiet", "container", "clusters", "upgrade", config.Cluster, "--project", config.Project, "--zone", config.Zone, "--master")
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
+	if upgradeNodes {
+		fmt.Fprintf(stdout, "\n### Upgrading nodes\n\n")
+		cmd := exec.Command(flagGcloudBin, "--quiet", "container", "clusters", "upgrade", config.Cluster, "--project", config.Project, "--zone", config.Zone)
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

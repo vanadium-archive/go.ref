@@ -22,6 +22,7 @@ The vkube commands are:
    claim-cluster-agent  Claims the cluster agent.
    build-docker-images  Builds the docker images for the cluster and pod agents.
    create-secrets       Creates secrets
+   upgrade-cluster      Upgrade the cluster defined in vkube.cfg.
    kubectl              Runs kubectl on the cluster defined in vkube.cfg.
    help                 Display help for commands or topics
 
@@ -364,6 +365,33 @@ The vkube create-secrets flags are:
    The gpg binary to use.
  -secrets=
    The file containing the encrypted secrets.
+
+ -config=vkube.cfg
+   The 'vkube.cfg' file to use.
+ -gcloud=gcloud
+   The 'gcloud' binary to use.
+ -get-credentials=true
+   When true, use gcloud to get the cluster credentials. Otherwise, assume
+   kubectl already has the correct credentials, and 'vkube kubectl' is
+   equivalent to 'kubectl'.
+ -kubectl=kubectl
+   The 'kubectl' binary to use.
+ -no-headers=false
+   When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.
+
+Vkube upgrade-cluster
+
+Upgrade the cluster defined in vkube.cfg to the default latest version.
+
+This command is only meaningful with Kubernetes clusters on the Google Container
+Engine.
+
+Usage:
+   vkube upgrade-cluster [flags]
+
+The vkube upgrade-cluster flags are:
+ -prompt=true
+   When true, prompt for confirmation before upgrading the cluster.
 
  -config=vkube.cfg
    The 'vkube.cfg' file to use.
