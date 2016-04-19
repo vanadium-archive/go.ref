@@ -322,19 +322,10 @@ var (
 	structXYZEmptyTypeN = vdl.NamedType("nStructXYZEmpty", vdl.StructType(vdl.Field{Name: "X", Type: emptyTypeN}, vdl.Field{Name: "Y", Type: emptyTypeN}, vdl.Field{Name: "Z", Type: emptyTypeN}))
 )
 
-func anyValue(x *vdl.Value) *vdl.Value             { return vdl.ZeroValue(vdl.AnyType).Assign(x) }
-func boolValue(t *vdl.Type, x bool) *vdl.Value     { return vdl.ZeroValue(t).AssignBool(x) }
-func uintValue(t *vdl.Type, x uint64) *vdl.Value   { return vdl.ZeroValue(t).AssignUint(x) }
-func intValue(t *vdl.Type, x int64) *vdl.Value     { return vdl.ZeroValue(t).AssignInt(x) }
-func floatValue(t *vdl.Type, x float64) *vdl.Value { return vdl.ZeroValue(t).AssignFloat(x) }
-func stringValue(t *vdl.Type, x string) *vdl.Value { return vdl.ZeroValue(t).AssignString(x) }
-func bytesValue(t *vdl.Type, x string) *vdl.Value  { return vdl.ZeroValue(t).AssignBytes([]byte(x)) }
-func bytes3Value(t *vdl.Type, x string) *vdl.Value { return vdl.ZeroValue(t).CopyBytes([]byte(x)) }
-
 func setStringValue(t *vdl.Type, x ...string) *vdl.Value {
 	res := vdl.ZeroValue(t)
 	for _, vx := range x {
-		key := vdl.ZeroValue(t.Key()).AssignString(vx)
+		key := vdl.StringValue(t.Key(), vx)
 		res.AssignSetKey(key)
 	}
 	return res
@@ -348,8 +339,8 @@ type sb struct {
 func mapStringBoolValue(t *vdl.Type, x ...sb) *vdl.Value {
 	res := vdl.ZeroValue(t)
 	for _, sb := range x {
-		key := vdl.ZeroValue(t.Key()).AssignString(sb.s)
-		val := vdl.ZeroValue(t.Elem()).AssignBool(sb.b)
+		key := vdl.StringValue(t.Key(), sb.s)
+		val := vdl.BoolValue(t.Elem(), sb.b)
 		res.AssignMapIndex(key, val)
 	}
 	return res
@@ -358,7 +349,7 @@ func mapStringBoolValue(t *vdl.Type, x ...sb) *vdl.Value {
 func mapStringEmptyValue(t *vdl.Type, x ...string) *vdl.Value {
 	res := vdl.ZeroValue(t)
 	for _, vx := range x {
-		key := vdl.ZeroValue(t.Key()).AssignString(vx)
+		key := vdl.StringValue(t.Key(), vx)
 		val := vdl.ZeroValue(t.Elem())
 		res.AssignMapIndex(key, val)
 	}
@@ -416,7 +407,7 @@ func mapNumBoolValue(t *vdl.Type, x ...nb) *vdl.Value {
 	res := vdl.ZeroValue(t)
 	for _, nb := range x {
 		key := assignNum(vdl.ZeroValue(t.Key()), nb.n)
-		val := vdl.ZeroValue(t.Elem()).AssignBool(nb.b)
+		val := vdl.BoolValue(t.Elem(), nb.b)
 		res.AssignMapIndex(key, val)
 	}
 	return res
@@ -430,7 +421,7 @@ type sn struct {
 func mapStringNumValue(t *vdl.Type, x ...sn) *vdl.Value {
 	res := vdl.ZeroValue(t)
 	for _, sn := range x {
-		key := vdl.ZeroValue(t.Key()).AssignString(sn.s)
+		key := vdl.StringValue(t.Key(), sn.s)
 		val := assignNum(vdl.ZeroValue(t.Elem()), sn.n)
 		res.AssignMapIndex(key, val)
 	}

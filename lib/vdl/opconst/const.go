@@ -240,32 +240,38 @@ func (c Const) ToValue() (*vdl.Value, error) {
 	case bool:
 		switch vx.Kind() {
 		case vdl.Bool:
-			return vx.AssignBool(trep), nil
+			vx.AssignBool(trep)
+			return vx, nil
 		}
 	case string:
 		switch {
 		case vx.Kind() == vdl.String:
-			return vx.AssignString(trep), nil
+			vx.AssignString(trep)
+			return vx, nil
 		case vx.Type().IsBytes():
 			if vx.Kind() == vdl.Array {
 				if vx.Len() != len(trep) {
 					return nil, fmt.Errorf("%s has a different length than %v", c, vx.Type())
 				}
 			}
-			return vx.AssignBytes([]byte(trep)), nil
+			vx.AssignBytes([]byte(trep))
+			return vx, nil
 		}
 	case *big.Int:
 		switch vx.Kind() {
 		case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
-			return vx.AssignUint(trep.Uint64()), nil
+			vx.AssignUint(trep.Uint64())
+			return vx, nil
 		case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
-			return vx.AssignInt(trep.Int64()), nil
+			vx.AssignInt(trep.Int64())
+			return vx, nil
 		}
 	case *big.Rat:
 		switch vx.Kind() {
 		case vdl.Float32, vdl.Float64:
 			f64, _ := trep.Float64()
-			return vx.AssignFloat(f64), nil
+			vx.AssignFloat(f64)
+			return vx, nil
 		}
 	case *vdl.Value:
 		return trep, nil

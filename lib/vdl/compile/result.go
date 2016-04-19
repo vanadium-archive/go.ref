@@ -192,12 +192,10 @@ func (e *Env) evalSelectorOnType(t *vdl.Type, selector string) (opconst.Const, e
 	if t.Kind() != vdl.Enum {
 		return opconst.Const{}, fmt.Errorf("invalid selector on type of kind: %v", t.Kind())
 	}
-	index := t.EnumIndex(selector)
-	if index < 0 {
+	if index := t.EnumIndex(selector); index < 0 {
 		return opconst.Const{}, fmt.Errorf("invalid label on enum %s: %s", t.Name(), selector)
 	}
-	enum := vdl.ZeroValue(t).AssignEnumIndex(index)
-	return opconst.FromValue(enum), nil
+	return opconst.FromValue(vdl.EnumValue(t, selector)), nil
 }
 
 // EvalConst resolves and evaluates a name to a const.

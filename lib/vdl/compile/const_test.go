@@ -95,12 +95,9 @@ func TestConfig(t *testing.T) {
 	}
 }
 
-func namedZero(name string, base *vdl.Type) *vdl.Value {
-	return vdl.ZeroValue(vdl.NamedType(name, base))
-}
-
 func makeIntList(vals ...int64) *vdl.Value {
-	listv := vdl.ZeroValue(vdl.ListType(vdl.Int64Type)).AssignLen(len(vals))
+	listv := vdl.ZeroValue(vdl.ListType(vdl.Int64Type))
+	listv.AssignLen(len(vals))
 	for index, v := range vals {
 		listv.Index(index).AssignInt(v)
 	}
@@ -116,11 +113,12 @@ func makeIntArray(name string, vals ...int64) *vdl.Value {
 }
 
 func makeByteList(vals ...byte) *vdl.Value {
-	arrayv := vdl.ZeroValue(vdl.ListType(vdl.ByteType)).AssignLen(len(vals))
+	listv := vdl.ZeroValue(vdl.ListType(vdl.ByteType))
+	listv.AssignLen(len(vals))
 	for index, v := range vals {
-		arrayv.Index(index).AssignUint(uint64(v))
+		listv.Index(index).AssignUint(uint64(v))
 	}
-	return arrayv
+	return listv
 }
 
 func makeByteArray(name string, vals ...byte) *vdl.Value {
@@ -134,7 +132,7 @@ func makeByteArray(name string, vals ...byte) *vdl.Value {
 func makeStringSet(keys ...string) *vdl.Value {
 	setv := vdl.ZeroValue(vdl.SetType(vdl.StringType))
 	for _, k := range keys {
-		setv.AssignSetKey(vdl.StringValue(k))
+		setv.AssignSetKey(vdl.StringValue(nil, k))
 	}
 	return setv
 }
@@ -142,7 +140,7 @@ func makeStringSet(keys ...string) *vdl.Value {
 func makeStringIntMap(m map[string]int64) *vdl.Value {
 	mapv := vdl.ZeroValue(vdl.MapType(vdl.StringType, vdl.Int64Type))
 	for k, v := range m {
-		mapv.AssignMapIndex(vdl.StringValue(k), vdl.Int64Value(v))
+		mapv.AssignMapIndex(vdl.StringValue(nil, k), vdl.IntValue(vdl.Int64Type, v))
 	}
 	return mapv
 }
@@ -171,11 +169,11 @@ func makeUnion(name string, val interface{}) *vdl.Value {
 	unionv := vdl.ZeroValue(makeUnionType(name))
 	switch tval := val.(type) {
 	case int64:
-		unionv.AssignUnionField(0, vdl.Int64Value(tval))
+		unionv.AssignField(0, vdl.IntValue(vdl.Int64Type, tval))
 	case string:
-		unionv.AssignUnionField(1, vdl.StringValue(tval))
+		unionv.AssignField(1, vdl.StringValue(nil, tval))
 	case bool:
-		unionv.AssignUnionField(2, vdl.BoolValue(tval))
+		unionv.AssignField(2, vdl.BoolValue(nil, tval))
 	default:
 		panic(fmt.Errorf("makeUnion unhandled %T %v", val, val))
 	}
@@ -204,7 +202,8 @@ func makeABStruct() *vdl.Value {
 		Type: vdl.ListType(tA),
 	}))
 	res := vdl.ZeroValue(tB)
-	listv := res.StructField(0).AssignLen(2)
+	listv := res.StructField(0)
+	listv.AssignLen(2)
 	listv.Index(0).StructField(0).AssignInt(1)
 	listv.Index(0).StructField(1).AssignString("a")
 	listv.Index(1).StructField(0).AssignInt(2)
@@ -214,7 +213,7 @@ func makeABStruct() *vdl.Value {
 
 func makeEnumXYZ(name, label string) *vdl.Value {
 	t := vdl.NamedType(name, vdl.EnumType("X", "Y", "Z"))
-	return vdl.ZeroValue(t).AssignEnumLabel(label)
+	return vdl.EnumValue(t, label)
 }
 
 func makeInnerEnum(label string) *vdl.Value {
@@ -268,10 +267,10 @@ var constTests = []struct {
 	// Test literals.
 	{
 		"UntypedBool",
-		cp{{"a", `const Res = true`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = true`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"UntypedString",
-		cp{{"a", `const Res = "abc"`, vdl.StringValue("abc"), ""}}},
+		cp{{"a", `const Res = "abc"`, vdl.StringValue(nil, "abc"), ""}}},
 	{
 		"UntypedInteger",
 		cp{{"a", `const Res = 123`, nil,
@@ -302,13 +301,13 @@ var constTests = []struct {
 		cp{{"a", `const Res = []int64{0,1,"c"}`, nil, "invalid list value"}}},
 	{
 		"IndexingNamedList",
-		cp{{"a", `const A = []int64{3,4,2}; const Res=A[1]`, vdl.Int64Value(4), ""}}},
+		cp{{"a", `const A = []int64{3,4,2}; const Res=A[1]`, vdl.IntValue(vdl.Int64Type, 4), ""}}},
 	{
 		"IndexingUnnamedList",
 		cp{{"a", `const Res = []int64{3,4,2}[1]`, nil, "cannot apply index operator to unnamed constant"}}},
 	{
 		"TypedListIndexing",
-		cp{{"a", `const A = []int64{3,4,2};  const Res = A[int16(1)]`, vdl.Int64Value(4), ""}}},
+		cp{{"a", `const A = []int64{3,4,2};  const Res = A[int16(1)]`, vdl.IntValue(vdl.Int64Type, 4), ""}}},
 	{
 		"NegativeListIndexing",
 		cp{{"a", `const A = []int64{3,4,2}; const Res = A[-1]`, nil, `\(const -1 overflows uint64\)`}}},
@@ -349,13 +348,13 @@ var constTests = []struct {
 		cp{{"a", `type T [3]int64; const Res = T{0,1,"c"}`, nil, "invalid array value"}}},
 	{
 		"IndexingNamedList",
-		cp{{"a", `type T [3]int64; const A = T{3,4,2}; const Res=A[1]`, vdl.Int64Value(4), ""}}},
+		cp{{"a", `type T [3]int64; const A = T{3,4,2}; const Res=A[1]`, vdl.IntValue(vdl.Int64Type, 4), ""}}},
 	{
 		"IndexingUnnamedArray",
 		cp{{"a", `type T [3]int64; const Res = T{3,4,2}[1]`, nil, "cannot apply index operator to unnamed constant"}}},
 	{
 		"TypedArrayIndexing",
-		cp{{"a", `type T [3]int64; const A = T{3,4,2};  const Res = A[int16(1)]`, vdl.Int64Value(4), ""}}},
+		cp{{"a", `type T [3]int64; const A = T{3,4,2};  const Res = A[int16(1)]`, vdl.IntValue(vdl.Int64Type, 4), ""}}},
 	{
 		"NegativeArrayIndexing",
 		cp{{"a", `type T [3]int64; const A = T{3,4,2}; const Res = A[-1]`, nil, `\(const -1 overflows uint64\)`}}},
@@ -414,13 +413,13 @@ var constTests = []struct {
 		cp{{"a", `const Res = map[string]int64{"a":1, "b":2, "c":"c"}`, nil, "invalid map value"}}},
 	{
 		"MapIndexing",
-		cp{{"a", `const A = map[int64]int64{1:4}; const Res=A[1]`, vdl.Int64Value(4), ""}}},
+		cp{{"a", `const A = map[int64]int64{1:4}; const Res=A[1]`, vdl.IntValue(vdl.Int64Type, 4), ""}}},
 	{
 		"MapUnnamedIndexing",
 		cp{{"a", `const Res = map[int64]int64{1:4}[1]`, nil, "cannot apply index operator to unnamed constant"}}},
 	{
 		"MapTypedIndexing",
-		cp{{"a", `const A = map[int64]int64{1:4}; const Res = A[int64(1)]`, vdl.Int64Value(4), ""}}},
+		cp{{"a", `const A = map[int64]int64{1:4}; const Res = A[int64(1)]`, vdl.IntValue(vdl.Int64Type, 4), ""}}},
 	{
 		"MapIncorrectlyTypedIndexing",
 		cp{{"a", `const A = map[int64]int64{1:4};const Res = A[int16(1)]`, nil, `invalid map key \(int64 not assignable from int16\(1\)\)`}}},
@@ -464,10 +463,10 @@ var constTests = []struct {
 		cp{{"a", `type A struct{X int64;Y string}; type B struct{Z []A}; const Res = B{{{1, "a"}, A{X:2,Y:"b"}}}`, makeABStruct(), ""}}},
 	{
 		"StructSelector",
-		cp{{"a", `type A struct{X int64;Y string}; const x = A{2,"b"}; const Res = x.Y`, vdl.StringValue("b"), ""}}},
+		cp{{"a", `type A struct{X int64;Y string}; const x = A{2,"b"}; const Res = x.Y`, vdl.StringValue(nil, "b"), ""}}},
 	{
 		"StructMultipleSelector",
-		cp{{"a", `type A struct{X int64;Y B}; type B struct{Z bool}; const x = A{2,B{true}}; const Res = x.Y.Z`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `type A struct{X int64;Y B}; type B struct{Z bool}; const x = A{2,B{true}}; const Res = x.Y.Z`, vdl.BoolValue(nil, true), ""}}},
 
 	{
 		"InvalidStructSelectorName",
@@ -548,16 +547,16 @@ var constTests = []struct {
 	// Test explicit primitive type conversions.
 	{
 		"TypedBool",
-		cp{{"a", `const Res = bool(false)`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = bool(false)`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"TypedString",
-		cp{{"a", `const Res = string("abc")`, vdl.StringValue("abc"), ""}}},
+		cp{{"a", `const Res = string("abc")`, vdl.StringValue(nil, "abc"), ""}}},
 	{
 		"TypedInt32",
-		cp{{"a", `const Res = int32(123)`, vdl.Int32Value(123), ""}}},
+		cp{{"a", `const Res = int32(123)`, vdl.IntValue(vdl.Int32Type, 123), ""}}},
 	{
 		"TypedFloat32",
-		cp{{"a", `const Res = float32(1.5)`, vdl.Float32Value(1.5), ""}}},
+		cp{{"a", `const Res = float32(1.5)`, vdl.FloatValue(vdl.Float32Type, 1.5), ""}}},
 	{
 		"TypedBoolMismatch",
 		cp{{"a", `const Res = bool(1)`, nil,
@@ -578,16 +577,16 @@ var constTests = []struct {
 	// Test explicit user type conversions.
 	{
 		"TypedUserBool",
-		cp{{"a", `type TypedBool bool;const Res = TypedBool(true)`, namedZero("p.kg/a.TypedBool", vdl.BoolType).AssignBool(true), ""}}},
+		cp{{"a", `type TypedBool bool;const Res = TypedBool(true)`, vdl.BoolValue(vdl.NamedType("p.kg/a.TypedBool", vdl.BoolType), true), ""}}},
 	{
 		"TypedUserString",
-		cp{{"a", `type TypedStr string;const Res = TypedStr("abc")`, namedZero("p.kg/a.TypedStr", vdl.StringType).AssignString("abc"), ""}}},
+		cp{{"a", `type TypedStr string;const Res = TypedStr("abc")`, vdl.StringValue(vdl.NamedType("p.kg/a.TypedStr", vdl.StringType), "abc"), ""}}},
 	{
 		"TypedUserInt32",
-		cp{{"a", `type TypedInt int32;const Res = TypedInt(123)`, namedZero("p.kg/a.TypedInt", vdl.Int32Type).AssignInt(123), ""}}},
+		cp{{"a", `type TypedInt int32;const Res = TypedInt(123)`, vdl.IntValue(vdl.NamedType("p.kg/a.TypedInt", vdl.Int32Type), 123), ""}}},
 	{
 		"TypedUserFloat32",
-		cp{{"a", `type TypedFlt float32;const Res = TypedFlt(1.5)`, namedZero("p.kg/a.TypedFlt", vdl.Float32Type).AssignFloat(1.5), ""}}},
+		cp{{"a", `type TypedFlt float32;const Res = TypedFlt(1.5)`, vdl.FloatValue(vdl.NamedType("p.kg/a.TypedFlt", vdl.Float32Type), 1.5), ""}}},
 	{
 		"TypedUserBoolMismatch",
 		cp{{"a", `type TypedBool bool;const Res = TypedBool(1)`, nil,
@@ -682,73 +681,73 @@ var constTests = []struct {
 	// Test named consts.
 	{
 		"NamedBool",
-		cp{{"a", `const foo = true;const Res = foo`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const foo = true;const Res = foo`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"NamedString",
-		cp{{"a", `const foo = "abc";const Res = foo`, vdl.StringValue("abc"), ""}}},
+		cp{{"a", `const foo = "abc";const Res = foo`, vdl.StringValue(nil, "abc"), ""}}},
 	{
 		"NamedInt32",
-		cp{{"a", `const foo = int32(123);const Res = foo`, vdl.Int32Value(123), ""}}},
+		cp{{"a", `const foo = int32(123);const Res = foo`, vdl.IntValue(vdl.Int32Type, 123), ""}}},
 	{
 		"NamedFloat32",
-		cp{{"a", `const foo = float32(1.5);const Res = foo`, vdl.Float32Value(1.5), ""}}},
+		cp{{"a", `const foo = float32(1.5);const Res = foo`, vdl.FloatValue(vdl.Float32Type, 1.5), ""}}},
 	{
 		"NamedUserBool",
 		cp{{"a", `type TypedBool bool;const foo = TypedBool(true);const Res = foo`,
-			namedZero("p.kg/a.TypedBool", vdl.BoolType).AssignBool(true), ""}}},
+			vdl.BoolValue(vdl.NamedType("p.kg/a.TypedBool", vdl.BoolType), true), ""}}},
 	{
 		"NamedUserString",
 		cp{{"a", `type TypedStr string;const foo = TypedStr("abc");const Res = foo`,
-			namedZero("p.kg/a.TypedStr", vdl.StringType).AssignString("abc"), ""}}},
+			vdl.StringValue(vdl.NamedType("p.kg/a.TypedStr", vdl.StringType), "abc"), ""}}},
 	{
 		"NamedUserInt32",
 		cp{{"a", `type TypedInt int32;const foo = TypedInt(123);const Res = foo`,
-			namedZero("p.kg/a.TypedInt", vdl.Int32Type).AssignInt(123), ""}}},
+			vdl.IntValue(vdl.NamedType("p.kg/a.TypedInt", vdl.Int32Type), 123), ""}}},
 	{
 		"NamedUserFloat32",
 		cp{{"a", `type TypedFlt float32;const foo = TypedFlt(1.5);const Res = foo`,
-			namedZero("p.kg/a.TypedFlt", vdl.Float32Type).AssignFloat(1.5), ""}}},
+			vdl.FloatValue(vdl.NamedType("p.kg/a.TypedFlt", vdl.Float32Type), 1.5), ""}}},
 	{
 		"ConstNamedI",
-		cp{{"a", `const I = true;const Res = I`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const I = true;const Res = I`, vdl.BoolValue(nil, true), ""}}},
 
 	// Test unary ops.
 	{
 		"Not",
-		cp{{"a", `const Res = !true`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = !true`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"Pos",
-		cp{{"a", `const Res = int32(+123)`, vdl.Int32Value(123), ""}}},
+		cp{{"a", `const Res = int32(+123)`, vdl.IntValue(vdl.Int32Type, 123), ""}}},
 	{
 		"Neg",
-		cp{{"a", `const Res = int32(-123)`, vdl.Int32Value(-123), ""}}},
+		cp{{"a", `const Res = int32(-123)`, vdl.IntValue(vdl.Int32Type, -123), ""}}},
 	{
 		"Complement",
-		cp{{"a", `const Res = int32(^1)`, vdl.Int32Value(-2), ""}}},
+		cp{{"a", `const Res = int32(^1)`, vdl.IntValue(vdl.Int32Type, -2), ""}}},
 	{
 		"TypedNot",
-		cp{{"a", `type TypedBool bool;const Res = !TypedBool(true)`, namedZero("p.kg/a.TypedBool", vdl.BoolType), ""}}},
+		cp{{"a", `type TypedBool bool;const Res = !TypedBool(true)`, vdl.BoolValue(vdl.NamedType("p.kg/a.TypedBool", vdl.BoolType), false), ""}}},
 	{
 		"TypedPos",
-		cp{{"a", `type TypedInt int32;const Res = TypedInt(+123)`, namedZero("p.kg/a.TypedInt", vdl.Int32Type).AssignInt(123), ""}}},
+		cp{{"a", `type TypedInt int32;const Res = TypedInt(+123)`, vdl.IntValue(vdl.NamedType("p.kg/a.TypedInt", vdl.Int32Type), 123), ""}}},
 	{
 		"TypedNeg",
-		cp{{"a", `type TypedInt int32;const Res = TypedInt(-123)`, namedZero("p.kg/a.TypedInt", vdl.Int32Type).AssignInt(-123), ""}}},
+		cp{{"a", `type TypedInt int32;const Res = TypedInt(-123)`, vdl.IntValue(vdl.NamedType("p.kg/a.TypedInt", vdl.Int32Type), -123), ""}}},
 	{
 		"TypedComplement",
-		cp{{"a", `type TypedInt int32;const Res = TypedInt(^1)`, namedZero("p.kg/a.TypedInt", vdl.Int32Type).AssignInt(-2), ""}}},
+		cp{{"a", `type TypedInt int32;const Res = TypedInt(^1)`, vdl.IntValue(vdl.NamedType("p.kg/a.TypedInt", vdl.Int32Type), -2), ""}}},
 	{
 		"NamedNot",
-		cp{{"a", `const foo = bool(true);const Res = !foo`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const foo = bool(true);const Res = !foo`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"NamedPos",
-		cp{{"a", `const foo = int32(123);const Res = +foo`, vdl.Int32Value(123), ""}}},
+		cp{{"a", `const foo = int32(123);const Res = +foo`, vdl.IntValue(vdl.Int32Type, 123), ""}}},
 	{
 		"NamedNeg",
-		cp{{"a", `const foo = int32(123);const Res = -foo`, vdl.Int32Value(-123), ""}}},
+		cp{{"a", `const foo = int32(123);const Res = -foo`, vdl.IntValue(vdl.Int32Type, -123), ""}}},
 	{
 		"NamedComplement",
-		cp{{"a", `const foo = int32(1);const Res = ^foo`, vdl.Int32Value(-2), ""}}},
+		cp{{"a", `const foo = int32(1);const Res = ^foo`, vdl.IntValue(vdl.Int32Type, -2), ""}}},
 	{
 		"ErrNot",
 		cp{{"a", `const Res = !1`, nil, `unary \! invalid \(untyped integer not supported\)`}}},
@@ -765,116 +764,116 @@ var constTests = []struct {
 	// Test logical and comparison ops.
 	{
 		"Or",
-		cp{{"a", `const Res = true || false`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = true || false`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"And",
-		cp{{"a", `const Res = true && false`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = true && false`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"Lt11",
-		cp{{"a", `const Res = 1 < 1`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = 1 < 1`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"Lt12",
-		cp{{"a", `const Res = 1 < 2`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = 1 < 2`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"Lt21",
-		cp{{"a", `const Res = 2 < 1`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = 2 < 1`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"Gt11",
-		cp{{"a", `const Res = 1 > 1`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = 1 > 1`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"Gt12",
-		cp{{"a", `const Res = 1 > 2`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = 1 > 2`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"Gt21",
-		cp{{"a", `const Res = 2 > 1`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = 2 > 1`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"Le11",
-		cp{{"a", `const Res = 1 <= 1`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = 1 <= 1`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"Le12",
-		cp{{"a", `const Res = 1 <= 2`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = 1 <= 2`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"Le21",
-		cp{{"a", `const Res = 2 <= 1`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = 2 <= 1`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"Ge11",
-		cp{{"a", `const Res = 1 >= 1`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = 1 >= 1`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"Ge12",
-		cp{{"a", `const Res = 1 >= 2`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = 1 >= 2`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"Ge21",
-		cp{{"a", `const Res = 2 >= 1`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = 2 >= 1`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"Ne11",
-		cp{{"a", `const Res = 1 != 1`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = 1 != 1`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"Ne12",
-		cp{{"a", `const Res = 1 != 2`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = 1 != 2`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"Ne21",
-		cp{{"a", `const Res = 2 != 1`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = 2 != 1`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"Eq11",
-		cp{{"a", `const Res = 1 == 1`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = 1 == 1`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"Eq12",
-		cp{{"a", `const Res = 1 == 2`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = 1 == 2`, vdl.BoolValue(nil, false), ""}}},
 	{
 		"Eq21",
-		cp{{"a", `const Res = 2 == 1`, vdl.BoolValue(false), ""}}},
+		cp{{"a", `const Res = 2 == 1`, vdl.BoolValue(nil, false), ""}}},
 
 	// Test arithmetic ops.
 	{
 		"IntPlus",
-		cp{{"a", `const Res = int32(1) + 1`, vdl.Int32Value(2), ""}}},
+		cp{{"a", `const Res = int32(1) + 1`, vdl.IntValue(vdl.Int32Type, 2), ""}}},
 	{
 		"IntMinus",
-		cp{{"a", `const Res = int32(2) - 1`, vdl.Int32Value(1), ""}}},
+		cp{{"a", `const Res = int32(2) - 1`, vdl.IntValue(vdl.Int32Type, 1), ""}}},
 	{
 		"IntTimes",
-		cp{{"a", `const Res = int32(3) * 2`, vdl.Int32Value(6), ""}}},
+		cp{{"a", `const Res = int32(3) * 2`, vdl.IntValue(vdl.Int32Type, 6), ""}}},
 	{
 		"IntDivide",
-		cp{{"a", `const Res = int32(5) / 2`, vdl.Int32Value(2), ""}}},
+		cp{{"a", `const Res = int32(5) / 2`, vdl.IntValue(vdl.Int32Type, 2), ""}}},
 	{
 		"FloatPlus",
-		cp{{"a", `const Res = float32(1) + 1`, vdl.Float32Value(2), ""}}},
+		cp{{"a", `const Res = float32(1) + 1`, vdl.FloatValue(vdl.Float32Type, 2), ""}}},
 	{
 		"FloatMinus",
-		cp{{"a", `const Res = float32(2) - 1`, vdl.Float32Value(1), ""}}},
+		cp{{"a", `const Res = float32(2) - 1`, vdl.FloatValue(vdl.Float32Type, 1), ""}}},
 	{
 		"FloatTimes",
-		cp{{"a", `const Res = float32(3) * 2`, vdl.Float32Value(6), ""}}},
+		cp{{"a", `const Res = float32(3) * 2`, vdl.FloatValue(vdl.Float32Type, 6), ""}}},
 	{
 		"FloatDivide",
-		cp{{"a", `const Res = float32(5) / 2`, vdl.Float32Value(2.5), ""}}},
+		cp{{"a", `const Res = float32(5) / 2`, vdl.FloatValue(vdl.Float32Type, 2.5), ""}}},
 
 	// Test integer arithmetic ops.
 	{
 		"Mod",
-		cp{{"a", `const Res = int32(8) % 3`, vdl.Int32Value(2), ""}}},
+		cp{{"a", `const Res = int32(8) % 3`, vdl.IntValue(vdl.Int32Type, 2), ""}}},
 	{
 		"BitOr",
-		cp{{"a", `const Res = int32(8) | 7`, vdl.Int32Value(15), ""}}},
+		cp{{"a", `const Res = int32(8) | 7`, vdl.IntValue(vdl.Int32Type, 15), ""}}},
 	{
 		"BitAnd",
-		cp{{"a", `const Res = int32(8) & 15`, vdl.Int32Value(8), ""}}},
+		cp{{"a", `const Res = int32(8) & 15`, vdl.IntValue(vdl.Int32Type, 8), ""}}},
 	{
 		"BitXor",
-		cp{{"a", `const Res = int32(8) ^ 5`, vdl.Int32Value(13), ""}}},
+		cp{{"a", `const Res = int32(8) ^ 5`, vdl.IntValue(vdl.Int32Type, 13), ""}}},
 	{
 		"UntypedFloatMod",
-		cp{{"a", `const Res = int32(8.0 % 3.0)`, vdl.Int32Value(2), ""}}},
+		cp{{"a", `const Res = int32(8.0 % 3.0)`, vdl.IntValue(vdl.Int32Type, 2), ""}}},
 	{
 		"UntypedFloatBitOr",
-		cp{{"a", `const Res = int32(8.0 | 7.0)`, vdl.Int32Value(15), ""}}},
+		cp{{"a", `const Res = int32(8.0 | 7.0)`, vdl.IntValue(vdl.Int32Type, 15), ""}}},
 	{
 		"UntypedFloatBitAnd",
-		cp{{"a", `const Res = int32(8.0 & 15.0)`, vdl.Int32Value(8), ""}}},
+		cp{{"a", `const Res = int32(8.0 & 15.0)`, vdl.IntValue(vdl.Int32Type, 8), ""}}},
 	{
 		"UntypedFloatBitXor",
-		cp{{"a", `const Res = int32(8.0 ^ 5.0)`, vdl.Int32Value(13), ""}}},
+		cp{{"a", `const Res = int32(8.0 ^ 5.0)`, vdl.IntValue(vdl.Int32Type, 13), ""}}},
 	{
 		"TypedFloatMod",
 		cp{{"a", `const Res = int32(float32(8.0) % 3.0)`, nil,
@@ -895,33 +894,33 @@ var constTests = []struct {
 	// Test shift ops.
 	{
 		"Lsh",
-		cp{{"a", `const Res = int32(8) << 2`, vdl.Int32Value(32), ""}}},
+		cp{{"a", `const Res = int32(8) << 2`, vdl.IntValue(vdl.Int32Type, 32), ""}}},
 	{
 		"Rsh",
-		cp{{"a", `const Res = int32(8) >> 2`, vdl.Int32Value(2), ""}}},
+		cp{{"a", `const Res = int32(8) >> 2`, vdl.IntValue(vdl.Int32Type, 2), ""}}},
 	{
 		"UntypedFloatLsh",
-		cp{{"a", `const Res = int32(8.0 << 2.0)`, vdl.Int32Value(32), ""}}},
+		cp{{"a", `const Res = int32(8.0 << 2.0)`, vdl.IntValue(vdl.Int32Type, 32), ""}}},
 	{
 		"UntypedFloatRsh",
-		cp{{"a", `const Res = int32(8.0 >> 2.0)`, vdl.Int32Value(2), ""}}},
+		cp{{"a", `const Res = int32(8.0 >> 2.0)`, vdl.IntValue(vdl.Int32Type, 2), ""}}},
 
 	// Test mixed ops.
 	{
 		"Mixed",
-		cp{{"a", `const F = "f";const Res = "f" == F && (1+2) == 3`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const F = "f";const Res = "f" == F && (1+2) == 3`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"MixedPrecedence",
-		cp{{"a", `const Res = int32(1+2*3-4)`, vdl.Int32Value(3), ""}}},
+		cp{{"a", `const Res = int32(1+2*3-4)`, vdl.IntValue(vdl.Int32Type, 3), ""}}},
 
 	// Test uint conversion.
 	{
 		"MaxUint32",
-		cp{{"a", `const Res = uint32(4294967295)`, vdl.Uint32Value(4294967295), ""}}},
+		cp{{"a", `const Res = uint32(4294967295)`, vdl.UintValue(vdl.Uint32Type, 4294967295), ""}}},
 	{
 		"MaxUint64",
 		cp{{"a", `const Res = uint64(18446744073709551615)`,
-			vdl.Uint64Value(18446744073709551615), ""}}},
+			vdl.UintValue(vdl.Uint64Type, 18446744073709551615), ""}}},
 	{
 		"OverflowUint32",
 		cp{{"a", `const Res = uint32(4294967296)`, nil,
@@ -940,16 +939,16 @@ var constTests = []struct {
 			"const -4 overflows uint64"}}},
 	{
 		"ZeroUint32",
-		cp{{"a", `const Res = uint32(0)`, vdl.Uint32Value(0), ""}}},
+		cp{{"a", `const Res = uint32(0)`, vdl.UintValue(vdl.Uint32Type, 0), ""}}},
 
 	// Test int conversion.
 	{
 		"MinInt32",
-		cp{{"a", `const Res = int32(-2147483648)`, vdl.Int32Value(-2147483648), ""}}},
+		cp{{"a", `const Res = int32(-2147483648)`, vdl.IntValue(vdl.Int32Type, -2147483648), ""}}},
 	{
 		"MinInt64",
 		cp{{"a", `const Res = int64(-9223372036854775808)`,
-			vdl.Int64Value(-9223372036854775808), ""}}},
+			vdl.IntValue(vdl.Int64Type, -9223372036854775808), ""}}},
 	{
 		"MinOverflowInt32",
 		cp{{"a", `const Res = int32(-2147483649)`, nil,
@@ -961,11 +960,11 @@ var constTests = []struct {
 	{
 		"MaxInt32",
 		cp{{"a", `const Res = int32(2147483647)`,
-			vdl.Int32Value(2147483647), ""}}},
+			vdl.IntValue(vdl.Int32Type, 2147483647), ""}}},
 	{
 		"MaxInt64",
 		cp{{"a", `const Res = int64(9223372036854775807)`,
-			vdl.Int64Value(9223372036854775807), ""}}},
+			vdl.IntValue(vdl.Int64Type, 9223372036854775807), ""}}},
 	{
 		"MaxOverflowInt32",
 		cp{{"a", `const Res = int32(2147483648)`, nil,
@@ -976,25 +975,25 @@ var constTests = []struct {
 			"const 9223372036854775808 overflows int64"}}},
 	{
 		"ZeroInt32",
-		cp{{"a", `const Res = int32(0)`, vdl.Int32Value(0), ""}}},
+		cp{{"a", `const Res = int32(0)`, vdl.IntValue(vdl.Int32Type, 0), ""}}},
 
 	// Test float conversion.
 	{
 		"SmallestFloat32",
 		cp{{"a", `const Res = float32(1.401298464324817070923729583289916131281e-45)`,
-			vdl.Float32Value(1.401298464324817070923729583289916131281e-45), ""}}},
+			vdl.FloatValue(vdl.Float32Type, 1.401298464324817070923729583289916131281e-45), ""}}},
 	{
 		"SmallestFloat64",
 		cp{{"a", `const Res = float64(4.940656458412465441765687928682213723651e-324)`,
-			vdl.Float64Value(4.940656458412465441765687928682213723651e-324), ""}}},
+			vdl.FloatValue(vdl.Float64Type, 4.940656458412465441765687928682213723651e-324), ""}}},
 	{
 		"MaxFloat32",
 		cp{{"a", `const Res = float32(3.40282346638528859811704183484516925440e+38)`,
-			vdl.Float32Value(3.40282346638528859811704183484516925440e+38), ""}}},
+			vdl.FloatValue(vdl.Float32Type, 3.40282346638528859811704183484516925440e+38), ""}}},
 	{
 		"MaxFloat64",
 		cp{{"a", `const Res = float64(1.797693134862315708145274237317043567980e+308)`,
-			vdl.Float64Value(1.797693134862315708145274237317043567980e+308), ""}}},
+			vdl.FloatValue(vdl.Float64Type, 1.797693134862315708145274237317043567980e+308), ""}}},
 	{
 		"UnderflowFloat32",
 		cp{{"a", `const Res = float32(1.401298464324817070923729583289916131280e-45)`,
@@ -1013,39 +1012,39 @@ var constTests = []struct {
 			nil, "overflows float64"}}},
 	{
 		"ZeroFloat32",
-		cp{{"a", `const Res = float32(0)`, vdl.Float32Value(0), ""}}},
+		cp{{"a", `const Res = float32(0)`, vdl.FloatValue(vdl.Float32Type, 0), ""}}},
 
 	// Test float rounding - note that 1.1 incurs loss of precision.
 	{
 		"RoundedCompareFloat32",
-		cp{{"a", `const Res = float32(1.1) == 1.1`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = float32(1.1) == 1.1`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"RoundedCompareFloat64",
-		cp{{"a", `const Res = float64(1.1) == 1.1`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = float64(1.1) == 1.1`, vdl.BoolValue(nil, true), ""}}},
 	{
 		"RoundedTruncation",
-		cp{{"a", `const Res = float64(float32(1.1)) != 1.1`, vdl.BoolValue(true), ""}}},
+		cp{{"a", `const Res = float64(float32(1.1)) != 1.1`, vdl.BoolValue(nil, true), ""}}},
 
 	// Test multi-package consts
 	{"MultiPkgSameConstName", cp{
-		{"a", `const Res = true`, vdl.BoolValue(true), ""},
-		{"b", `const Res = true`, vdl.BoolValue(true), ""}}},
+		{"a", `const Res = true`, vdl.BoolValue(nil, true), ""},
+		{"b", `const Res = true`, vdl.BoolValue(nil, true), ""}}},
 	{"MultiPkgDep", cp{
-		{"a", `const Res = x;const x = true`, vdl.BoolValue(true), ""},
-		{"b", `import "p.kg/a";const Res = a.Res && false`, vdl.BoolValue(false), ""}}},
+		{"a", `const Res = x;const x = true`, vdl.BoolValue(nil, true), ""},
+		{"b", `import "p.kg/a";const Res = a.Res && false`, vdl.BoolValue(nil, false), ""}}},
 	{"MultiPkgDepQualifiedPath", cp{
-		{"a", `const Res = x;const x = true`, vdl.BoolValue(true), ""},
-		{"b", `import "p.kg/a";const Res = "p.kg/a".Res && false`, vdl.BoolValue(false), ""}}},
+		{"a", `const Res = x;const x = true`, vdl.BoolValue(nil, true), ""},
+		{"b", `import "p.kg/a";const Res = "p.kg/a".Res && false`, vdl.BoolValue(nil, false), ""}}},
 	{"MultiPkgUnexportedConst", cp{
-		{"a", `const Res = x;const x = true`, vdl.BoolValue(true), ""},
+		{"a", `const Res = x;const x = true`, vdl.BoolValue(nil, true), ""},
 		{"b", `import "p.kg/a";const Res = a.x && false`, nil, "a.x undefined"}}},
 	{"MultiPkgSamePkgName", cp{
-		{"a", `const Res = true`, vdl.BoolValue(true), ""},
+		{"a", `const Res = true`, vdl.BoolValue(nil, true), ""},
 		{"a", `const Res = true`, nil, "invalid recompile"}}},
 	{"MultiPkgUnimportedPkg", cp{
-		{"a", `const Res = true`, vdl.BoolValue(true), ""},
+		{"a", `const Res = true`, vdl.BoolValue(nil, true), ""},
 		{"b", `const Res = a.Res && false`, nil, "a.Res undefined"}}},
 	{"RedefinitionOfImportedName", cp{
-		{"a", `const Res = true`, vdl.BoolValue(true), ""},
+		{"a", `const Res = true`, vdl.BoolValue(nil, true), ""},
 		{"b", `import "p.kg/a"; const a = "test"; const Res = a`, nil, "const a name conflict"}}},
 }

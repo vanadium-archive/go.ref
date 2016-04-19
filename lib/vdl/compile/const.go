@@ -17,8 +17,8 @@ import (
 var (
 	// Built-in consts defined by the compiler.
 	NilConst   = vdl.ZeroValue(vdl.AnyType) // nil == any(nil)
-	TrueConst  = vdl.BoolValue(true)
-	FalseConst = vdl.BoolValue(false)
+	TrueConst  = vdl.BoolValue(nil, true)
+	FalseConst = vdl.BoolValue(nil, false)
 )
 
 // ConstDef represents a user-defined named const definition in the compiled
@@ -610,6 +610,6 @@ func evalUnionLit(t *vdl.Type, lit *parse.ConstCompositeLit, file *File, env *En
 	if value == nil {
 		return nil
 	}
-	unionv.AssignUnionField(index, value)
+	unionv.AssignField(index, value)
 	return unionv
 }

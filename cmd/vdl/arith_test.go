@@ -170,7 +170,7 @@ func TestCalculator(t *testing.T) {
 			},
 			Methods: []rpc.MethodDesc{
 				{Name: "On"},
-				{Name: "Off", Tags: []*vdl.Value{vdl.StringValue("offtag")}},
+				{Name: "Off", Tags: []*vdl.Value{vdl.StringValue(nil, "offtag")}},
 			},
 		},
 		{
@@ -199,7 +199,7 @@ func TestCalculator(t *testing.T) {
 				},
 				{
 					Name: "GenError",
-					Tags: []*vdl.Value{vdl.StringValue("foo"), vdl.StringValue("barz"), vdl.StringValue("hello"), vdl.Int32Value(129), vdl.Uint64Value(0x24)},
+					Tags: []*vdl.Value{vdl.StringValue(nil, "foo"), vdl.StringValue(nil, "barz"), vdl.StringValue(nil, "hello"), vdl.IntValue(vdl.Int32Type, 129), vdl.UintValue(vdl.Uint64Type, 0x24)},
 				},
 				{
 					Name:   "Count",
@@ -422,7 +422,7 @@ func TestArith(t *testing.T) {
 					},
 					{
 						Name: "GenError",
-						Tags: []*vdl.Value{vdl.StringValue("foo"), vdl.StringValue("barz"), vdl.StringValue("hello"), vdl.Int32Value(129), vdl.Uint64Value(0x24)},
+						Tags: []*vdl.Value{vdl.StringValue(nil, "foo"), vdl.StringValue(nil, "barz"), vdl.StringValue(nil, "hello"), vdl.IntValue(vdl.Int32Type, 129), vdl.UintValue(vdl.Uint64Type, 0x24)},
 					},
 					{
 						Name:   "Count",

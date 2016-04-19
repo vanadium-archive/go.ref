@@ -37,13 +37,12 @@ var (
 	br_neg1, br_neg2 = big.NewRat(-1, 1), big.NewRat(-2, 1)
 )
 
-func boolConst(t *vdl.Type, x bool) Const     { return FromValue(boolValue(t, x)) }
-func stringConst(t *vdl.Type, x string) Const { return FromValue(stringValue(t, x)) }
-func bytesConst(t *vdl.Type, x string) Const  { return FromValue(bytesValue(t, x)) }
-func bytes3Const(t *vdl.Type, x string) Const { return FromValue(bytes3Value(t, x)) }
-func intConst(t *vdl.Type, x int64) Const     { return FromValue(intValue(t, x)) }
-func uintConst(t *vdl.Type, x uint64) Const   { return FromValue(uintValue(t, x)) }
-func floatConst(t *vdl.Type, x float64) Const { return FromValue(floatValue(t, x)) }
+func boolConst(t *vdl.Type, x bool) Const     { return FromValue(vdl.BoolValue(t, x)) }
+func stringConst(t *vdl.Type, x string) Const { return FromValue(vdl.StringValue(t, x)) }
+func bytesConst(t *vdl.Type, x string) Const  { return FromValue(vdl.BytesValue(t, []byte(x))) }
+func intConst(t *vdl.Type, x int64) Const     { return FromValue(vdl.IntValue(t, x)) }
+func uintConst(t *vdl.Type, x uint64) Const   { return FromValue(vdl.UintValue(t, x)) }
+func floatConst(t *vdl.Type, x float64) Const { return FromValue(vdl.FloatValue(t, x)) }
 func structNumConst(t *vdl.Type, x float64) Const {
 	return FromValue(structNumValue(t, sn{"A", x}))
 }
@@ -109,14 +108,15 @@ func TestConstInvalid(t *testing.T) {
 }
 
 func TestConstToValueOK(t *testing.T) {
+	abcBytes := []byte("abc")
 	tests := []*vdl.Value{
-		boolValue(vdl.BoolType, true), boolValue(boolTypeN, true),
-		stringValue(vdl.StringType, "abc"), stringValue(stringTypeN, "abc"),
-		bytesValue(bytesType, "abc"), bytesValue(bytesTypeN, "abc"),
-		bytes3Value(bytesType, "abc"), bytes3Value(bytesTypeN, "abc"),
-		intValue(vdl.Int32Type, 123), intValue(int32TypeN, 123),
-		uintValue(vdl.Uint32Type, 123), uintValue(uint32TypeN, 123),
-		floatValue(vdl.Float32Type, 123), floatValue(float32TypeN, 123),
+		vdl.BoolValue(nil, true), vdl.BoolValue(boolTypeN, true),
+		vdl.StringValue(nil, "abc"), vdl.StringValue(stringTypeN, "abc"),
+		vdl.BytesValue(nil, abcBytes), vdl.BytesValue(bytesTypeN, abcBytes),
+		vdl.BytesValue(bytes3Type, abcBytes), vdl.BytesValue(bytes3TypeN, abcBytes),
+		vdl.IntValue(vdl.Int32Type, 123), vdl.IntValue(int32TypeN, 123),
+		vdl.UintValue(vdl.Uint32Type, 123), vdl.UintValue(uint32TypeN, 123),
+		vdl.FloatValue(vdl.Float32Type, 123), vdl.FloatValue(float32TypeN, 123),
 		structNumValue(structAIntType, sn{"A", 123}), structNumValue(structAIntTypeN, sn{"A", 123}),
 	}
 	for _, test := range tests {
@@ -134,8 +134,8 @@ func TestConstToValueImplicit(t *testing.T) {
 		C Const
 		V *vdl.Value
 	}{
-		{Boolean(true), vdl.BoolValue(true)},
-		{String("abc"), vdl.StringValue("abc")},
+		{Boolean(true), vdl.BoolValue(nil, true)},
+		{String("abc"), vdl.StringValue(nil, "abc")},
 	}
 	for _, test := range tests {
 		c := FromValue(test.V)
@@ -171,6 +171,7 @@ type c []Const
 type v []*vdl.Value
 
 func TestConstConvertOK(t *testing.T) {
+	abcBytes := []byte("abc")
 	// Each test has a set of consts C and values V that are all convertible to
 	// each other and equivalent.
 	tests := []struct {
@@ -178,25 +179,25 @@ func TestConstConvertOK(t *testing.T) {
 		V v
 	}{
 		{c{Boolean(true)},
-			v{boolValue(vdl.BoolType, true), boolValue(boolTypeN, true)}},
+			v{vdl.BoolValue(nil, true), vdl.BoolValue(boolTypeN, true)}},
 		{c{String("abc")},
-			v{stringValue(vdl.StringType, "abc"), stringValue(stringTypeN, "abc"),
-				bytesValue(bytesType, "abc"), bytesValue(bytesTypeN, "abc"),
-				bytes3Value(bytes3Type, "abc"), bytes3Value(bytes3TypeN, "abc")}},
+			v{vdl.StringValue(nil, "abc"), vdl.StringValue(stringTypeN, "abc"),
+				vdl.BytesValue(nil, abcBytes), vdl.BytesValue(bytesTypeN, abcBytes),
+				vdl.BytesValue(bytes3Type, abcBytes), vdl.BytesValue(bytes3TypeN, abcBytes)}},
 		{c{Integer(bi1), Rational(br1)},
-			v{intValue(vdl.Int32Type, 1), intValue(int32TypeN, 1),
-				uintValue(vdl.Uint32Type, 1), uintValue(uint32TypeN, 1),
-				floatValue(vdl.Float32Type, 1), floatValue(float32TypeN, 1)}},
+			v{vdl.IntValue(vdl.Int32Type, 1), vdl.IntValue(int32TypeN, 1),
+				vdl.UintValue(vdl.Uint32Type, 1), vdl.UintValue(uint32TypeN, 1),
+				vdl.FloatValue(vdl.Float32Type, 1), vdl.FloatValue(float32TypeN, 1)}},
 		{c{Integer(bi_neg1), Rational(br_neg1)},
-			v{intValue(vdl.Int32Type, -1), intValue(int32TypeN, -1),
-				floatValue(vdl.Float32Type, -1), floatValue(float32TypeN, -1)}},
+			v{vdl.IntValue(vdl.Int32Type, -1), vdl.IntValue(int32TypeN, -1),
+				vdl.FloatValue(vdl.Float32Type, -1), vdl.FloatValue(float32TypeN, -1)}},
 		{c{Rational(big.NewRat(1, 2))},
-			v{floatValue(vdl.Float32Type, 0.5), floatValue(float32TypeN, 0.5)}},
+			v{vdl.FloatValue(vdl.Float32Type, 0.5), vdl.FloatValue(float32TypeN, 0.5)}},
 		// Check implicit conversion of untyped bool and string consts.
 		{c{Boolean(true)},
-			v{boolValue(vdl.BoolType, true), anyValue(boolValue(vdl.BoolType, true))}},
+			v{vdl.BoolValue(nil, true), vdl.AnyValue(vdl.BoolValue(nil, true))}},
 		{c{String("abc")},
-			v{stringValue(vdl.StringType, "abc"), anyValue(stringValue(vdl.StringType, "abc"))}},
+			v{vdl.StringValue(nil, "abc"), vdl.AnyValue(vdl.StringValue(nil, "abc"))}},
 	}
 	for _, test := range tests {
 		// Create a slice of consts containing everything in C and V.
@@ -326,7 +327,7 @@ func TestConstUnaryOpError(t *testing.T) {
 		{Neg, Boolean(false), notSupported},
 		{Neg, String("abc"), notSupported},
 		{Neg, structNumConst(structAIntTypeN, 999), notSupported},
-		{Neg, intConst(vdl.Int32Type, 1<<32-1), overflows},
+		{Neg, intConst(vdl.Int32Type, -1<<31), overflows},
 
 		{BitNot, Boolean(false), cantConvert},
 		{BitNot, String("abc"), cantConvert},
@@ -473,7 +474,7 @@ func TestConstOrdered(t *testing.T) {
 
 		{stringConst(stringTypeN, "abc"), stringConst(stringTypeN, "def")},
 		{bytesConst(bytesTypeN, "abc"), bytesConst(bytesTypeN, "def")},
-		{bytes3Const(bytes3TypeN, "abc"), bytes3Const(bytes3TypeN, "def")},
+		{bytesConst(bytes3TypeN, "abc"), bytesConst(bytes3TypeN, "def")},
 		{intConst(int32TypeN, 1), intConst(int32TypeN, 2)},
 		{uintConst(uint32TypeN, 1), uintConst(uint32TypeN, 2)},
 		{floatConst(float32TypeN, 1), floatConst(float32TypeN, 2)},
@@ -524,7 +525,7 @@ func TestConstBinaryOpError(t *testing.T) {
 		{bo{LogicAnd, LogicOr},
 			c{String("abc"),
 				stringConst(stringTypeN, "abc"),
-				bytesConst(bytesTypeN, "abc"), bytes3Const(bytes3TypeN, "abc"),
+				bytesConst(bytesTypeN, "abc"), bytesConst(bytes3TypeN, "abc"),
 				Integer(bi1), intConst(int32TypeN, 1), uintConst(uint32TypeN, 1),
 				Rational(br1), floatConst(float32TypeN, 1),
 				structNumConst(structAIntType, 1), structNumConst(structAIntTypeN, 1)},
@@ -538,12 +539,12 @@ func TestConstBinaryOpError(t *testing.T) {
 			notSupported},
 		{bo{Sub, Mul, Div},
 			c{String("abc"), stringConst(stringTypeN, "abc"),
-				bytesConst(bytesTypeN, "abc"), bytes3Const(bytes3TypeN, "abc"),
+				bytesConst(bytesTypeN, "abc"), bytesConst(bytes3TypeN, "abc"),
 				structNumConst(structAIntType, 1), structNumConst(structAIntTypeN, 1)},
 			notSupported},
 		{bo{Mod, BitAnd, BitOr, BitXor, LeftShift, RightShift},
 			c{String("abc"), stringConst(stringTypeN, "abc"),
-				bytesConst(bytesTypeN, "abc"), bytes3Const(bytes3TypeN, "abc"),
+				bytesConst(bytesTypeN, "abc"), bytesConst(bytes3TypeN, "abc"),
 				structNumConst(structAIntType, 1), structNumConst(structAIntTypeN, 1)},
 			cantConvert},
 		// Bounds checking

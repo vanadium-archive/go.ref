@@ -18,21 +18,22 @@ func TestConst(t *testing.T) {
 		V    *vdl.Value
 		Want string
 	}{
-		{"True", vdl.BoolValue(true), `true`},
-		{"False", vdl.BoolValue(false), `false`},
-		{"String", vdl.StringValue("abc"), `"abc"`},
-		{"Bytes", vdl.BytesValue([]byte("abc")), `[]byte("abc")`},
-		{"Byte", vdl.ByteValue(111), `byte(111)`},
-		{"EmptyBytes", vdl.BytesValue(nil), `[]byte(nil)`},
-		{"Uint16", vdl.Uint16Value(222), `uint16(222)`},
-		{"Uint32", vdl.Uint32Value(333), `uint32(333)`},
-		{"Uint64", vdl.Uint64Value(444), `uint64(444)`},
-		{"Int16", vdl.Int16Value(-555), `int16(-555)`},
-		{"Int32", vdl.Int32Value(-666), `int32(-666)`},
-		{"Int64", vdl.Int64Value(-777), `int64(-777)`},
-		{"Float32", vdl.Float32Value(1.5), `float32(1.5)`},
-		{"Float64", vdl.Float64Value(2.5), `float64(2.5)`},
-		{"Enum", vdl.ZeroValue(tEnum).AssignEnumLabel("B"), `TestEnumB`},
+		{"True", vdl.BoolValue(nil, true), `true`},
+		{"False", vdl.BoolValue(nil, false), `false`},
+		{"String", vdl.StringValue(nil, "abc"), `"abc"`},
+		{"Bytes", vdl.BytesValue(nil, []byte("abc")), `[]byte("abc")`},
+		{"EmptyBytes", vdl.BytesValue(nil, nil), `[]byte(nil)`},
+		{"Byte", vdl.UintValue(vdl.ByteType, 111), `byte(111)`},
+		{"Uint16", vdl.UintValue(vdl.Uint16Type, 222), `uint16(222)`},
+		{"Uint32", vdl.UintValue(vdl.Uint32Type, 333), `uint32(333)`},
+		{"Uint64", vdl.UintValue(vdl.Uint64Type, 444), `uint64(444)`},
+		{"Int8", vdl.IntValue(vdl.Int8Type, -111), `int8(-111)`},
+		{"Int16", vdl.IntValue(vdl.Int16Type, -555), `int16(-555)`},
+		{"Int32", vdl.IntValue(vdl.Int32Type, -666), `int32(-666)`},
+		{"Int64", vdl.IntValue(vdl.Int64Type, -777), `int64(-777)`},
+		{"Float32", vdl.FloatValue(vdl.Float32Type, 1.5), `float32(1.5)`},
+		{"Float64", vdl.FloatValue(vdl.Float64Type, 2.5), `float64(2.5)`},
+		{"Enum", vdl.EnumValue(tEnum, "B"), `TestEnumB`},
 		{"EmptyArray", vEmptyArray, "[3]string{}"},
 		{"EmptyList", vEmptyList, "[]string(nil)"},
 		{"EmptySet", vEmptySet, "map[string]struct{}(nil)"},
@@ -125,18 +126,18 @@ func init() {
 	vList.Index(1).AssignString("B")
 	vList.Index(2).AssignString("C")
 	vListOfByteList.AssignLen(2)
-	vListOfByteList.Index(0).Assign(vdl.BytesValue([]byte("abc")))
-	vListOfByteList.Index(1).Assign(vdl.BytesValue(nil))
+	vListOfByteList.Index(0).Assign(vdl.BytesValue(nil, []byte("abc")))
+	vListOfByteList.Index(1).Assign(vdl.BytesValue(nil, nil))
 	// TODO(toddw): Assign more items once the ordering is fixed.
-	vSet.AssignSetKey(vdl.StringValue("A"))
-	vMap.AssignMapIndex(vdl.StringValue("A"), vdl.Int64Value(1))
+	vSet.AssignSetKey(vdl.StringValue(nil, "A"))
+	vMap.AssignMapIndex(vdl.StringValue(nil, "A"), vdl.IntValue(vdl.Int64Type, 1))
 
 	vStruct.StructField(0).AssignString("foo")
 	vStruct.StructField(1).AssignInt(123)
 
-	vUnionABC.AssignUnionField(0, vdl.StringValue("abc"))
-	vUnion123.AssignUnionField(1, vdl.Int64Value(123))
+	vUnionABC.AssignField(0, vdl.StringValue(nil, "abc"))
+	vUnion123.AssignField(1, vdl.IntValue(vdl.Int64Type, 123))
 
-	vAnyABC.Assign(vdl.StringValue("abc"))
-	vAny123.Assign(vdl.Int64Value(123))
+	vAnyABC.Assign(vdl.StringValue(nil, "abc"))
+	vAny123.Assign(vdl.IntValue(vdl.Int64Type, 123))
 }

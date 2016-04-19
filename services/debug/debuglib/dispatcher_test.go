@@ -115,7 +115,7 @@ func TestDebugServer(t *testing.T) {
 			t.Errorf("Value failed: %v", err)
 		}
 		vv := vdl.ValueOf(v)
-		if want := vdl.Int64Value(123); !vdl.EqualValue(vv, want) {
+		if want := vdl.IntValue(vdl.Int64Type, 123); !vdl.EqualValue(vv, want) {
 			t.Errorf("unexpected result. got %v, want %v", vv, want)
 		}
 	}

@@ -138,7 +138,7 @@ func TestStatsImpl(t *testing.T) {
 			t.Errorf("unexpected error: %v", err)
 		}
 		vv := vdl.ValueOf(value)
-		if want := vdl.Int64Value(17); !vdl.EqualValue(vv, want) {
+		if want := vdl.IntValue(vdl.Int64Type, 17); !vdl.EqualValue(vv, want) {
 			t.Errorf("unexpected result. Got %v, want %v", vv, want)
 		}
 	}
