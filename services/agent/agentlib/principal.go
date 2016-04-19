@@ -89,13 +89,14 @@ func LoadPrincipal(credsDir string) (agent.Principal, error) {
 	if finfo, err := os.Stat(credsDir); err != nil || err == nil && !finfo.IsDir() {
 		return nil, verror.New(errNotADirectory, nil, credsDir)
 	}
-	sockPath := constants.SocketPath(credsDir)
-	if path, err := filepath.Abs(sockPath); err != nil {
-		return nil, verror.New(errFilepathAbs, nil, sockPath, err)
+	// Use an absolute path to the credentials directory to avoid relying on
+	// a specific cwd setting when starting the agent.
+	if path, err := filepath.Abs(credsDir); err != nil {
+		return nil, verror.New(errFilepathAbs, nil, credsDir, err)
 	} else {
-		sockPath = path
+		credsDir = path
 	}
-	sockPath = filepath.Clean(sockPath)
+	sockPath := constants.SocketPath(credsDir)
 
 	// Since we don't hold a lock between launchAgent and
 	// NewAgentPrincipal, the agent could go away by the time we try to
