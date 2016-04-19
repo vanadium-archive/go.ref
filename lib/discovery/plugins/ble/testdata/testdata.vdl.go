@@ -329,6 +329,106 @@ func __VDLRead1_map(dec vdl.Decoder, x *map[string][]byte) error {
 	}
 }
 
+func (x AdConversionTestCase) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*AdConversionTestCase)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := true
+	var2 := true
+	var3 := (x.AdInfo.Ad.Id == discovery.AdId{})
+	var2 = var2 && var3
+	var4 := (x.AdInfo.Ad.InterfaceName == "")
+	var2 = var2 && var4
+	var var5 bool
+	if len(x.AdInfo.Ad.Addresses) == 0 {
+		var5 = true
+	}
+	var2 = var2 && var5
+	var var6 bool
+	if len(x.AdInfo.Ad.Attributes) == 0 {
+		var6 = true
+	}
+	var2 = var2 && var6
+	var var7 bool
+	if len(x.AdInfo.Ad.Attachments) == 0 {
+		var7 = true
+	}
+	var2 = var2 && var7
+	var1 = var1 && var2
+	var8 := (x.AdInfo.EncryptionAlgorithm == discovery_2.EncryptionAlgorithm(0))
+	var1 = var1 && var8
+	var var9 bool
+	if len(x.AdInfo.EncryptionKeys) == 0 {
+		var9 = true
+	}
+	var1 = var1 && var9
+	var10 := (x.AdInfo.Hash == discovery_2.AdHash{})
+	var1 = var1 && var10
+	var var11 bool
+	if len(x.AdInfo.DirAddrs) == 0 {
+		var11 = true
+	}
+	var1 = var1 && var11
+	var12 := (x.AdInfo.Status == discovery_2.AdStatus(0))
+	var1 = var1 && var12
+	var13 := (x.AdInfo.Lost == false)
+	var1 = var1 && var13
+	if !(var1) {
+		if err := enc.NextField("AdInfo"); err != nil {
+			return err
+		}
+		if err := x.AdInfo.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var14 bool
+	if len(x.GattAttrs) == 0 {
+		var14 = true
+	}
+	if !(var14) {
+		if err := enc.NextField("GattAttrs"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_map(enc, &x.GattAttrs); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_map(enc vdl.Encoder, x *map[string][]byte) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[string][]byte)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range *x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(elem); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 //////////////////////////////////////////////////
 // Const definitions
 

@@ -488,6 +488,10 @@ func (arg namedArg) Field(field vdl.Field) namedArg {
 	return typedArg(arg.Name+"."+field.Name, field.Type)
 }
 
+func (arg namedArg) Index(index string, tt *vdl.Type) namedArg {
+	return typedArg(fmt.Sprintf("%s[%s]", arg.SafeRef(), index), tt)
+}
+
 func typedArg(name string, tt *vdl.Type) namedArg {
 	return namedArg{name, tt.Kind() == vdl.Optional}
 }

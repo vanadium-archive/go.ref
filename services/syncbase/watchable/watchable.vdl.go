@@ -261,6 +261,73 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
 	}
 }
 
+func (x SyncgroupOp) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SyncgroupOp)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.SgId == interfaces.GroupId(""))
+	if !(var1) {
+		if err := enc.NextField("SgId"); err != nil {
+			return err
+		}
+		if err := x.SgId.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Prefixes) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Prefixes"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.Prefixes); err != nil {
+			return err
+		}
+	}
+	var3 := (x.Remove == false)
+	if !(var3) {
+		if err := enc.NextField("Remove"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.Remove); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString((*x)[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // SyncSnapshotOp represents a snapshot operation when creating and joining a
 // syncgroup. The sync watcher needs to get a snapshot of the Database at the
 // point of creating/joining a syncgroup. A SyncSnapshotOp entry is written to
@@ -433,6 +500,52 @@ func (x *SyncSnapshotOp) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x SyncSnapshotOp) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SyncSnapshotOp)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Key) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Key"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Version) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Version"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Version); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // StateChange represents the set of types of state change requests possible.
 type StateChange int
 
@@ -527,6 +640,16 @@ func (x *StateChange) VDLRead(dec vdl.Decoder) error {
 		return err
 	}
 	return dec.FinishValue()
+}
+
+func (x StateChange) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*StateChange)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeString(x.String()); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // DbStateChangeRequestOp represents a database state change request.
@@ -646,6 +769,25 @@ func (x *DbStateChangeRequestOp) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x DbStateChangeRequestOp) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DbStateChangeRequestOp)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.RequestType == StateChangePauseSync)
+	if !(var1) {
+		if err := enc.NextField("RequestType"); err != nil {
+			return err
+		}
+		if err := x.RequestType.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

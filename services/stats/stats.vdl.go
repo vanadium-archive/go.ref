@@ -178,6 +178,46 @@ func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x HistogramBucket) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*HistogramBucket)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.LowBound == int64(0))
+	if !(var1) {
+		if err := enc.NextField("LowBound"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.LowBound); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Count == int64(0))
+	if !(var2) {
+		if err := enc.NextField("Count"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.Count); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // HistogramValue is the value of Histogram objects.
 type HistogramValue struct {
 	// Count is the total number of values added to the histogram.
@@ -530,6 +570,103 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]HistogramBucket) error {
 		}
 		*x = append(*x, elem)
 	}
+}
+
+func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*HistogramValue)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Count == int64(0))
+	if !(var1) {
+		if err := enc.NextField("Count"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.Count); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Sum == int64(0))
+	if !(var2) {
+		if err := enc.NextField("Sum"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.Sum); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.Min == int64(0))
+	if !(var3) {
+		if err := enc.NextField("Min"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.Min); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var4 := (x.Max == int64(0))
+	if !(var4) {
+		if err := enc.NextField("Max"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.Max); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var5 bool
+	if len(x.Buckets) == 0 {
+		var5 = true
+	}
+	if !(var5) {
+		if err := enc.NextField("Buckets"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.Buckets); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]HistogramBucket) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]HistogramBucket)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := (*x)[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

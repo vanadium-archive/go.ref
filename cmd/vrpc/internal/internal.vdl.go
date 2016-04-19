@@ -182,6 +182,46 @@ func (x *Struct) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x Struct) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Struct)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.X == int32(0))
+	if !(var1) {
+		if err := enc.NextField("X"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.X)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Y == int32(0))
+	if !(var2) {
+		if err := enc.NextField("Y"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.Y)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type Array2Int [2]int32
 
 func (Array2Int) __VDLReflect(struct {
@@ -275,6 +315,27 @@ func (x *Array2Int) VDLRead(dec vdl.Decoder) error {
 		}
 		index++
 	}
+}
+
+func (x Array2Int) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Array2Int)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < 2; i++ {
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x[i])); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

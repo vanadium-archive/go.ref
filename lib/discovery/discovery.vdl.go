@@ -76,6 +76,16 @@ func (x *Uuid) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x Uuid) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Uuid)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBytes([]byte(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type EncryptionAlgorithm int32
 
 func (EncryptionAlgorithm) __VDLReflect(struct {
@@ -143,6 +153,16 @@ func (x *EncryptionAlgorithm) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x EncryptionAlgorithm) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*EncryptionAlgorithm)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type EncryptionKey []byte
 
 func (EncryptionKey) __VDLReflect(struct {
@@ -192,6 +212,16 @@ func (x *EncryptionKey) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = bytes
 	return dec.FinishValue()
+}
+
+func (x EncryptionKey) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*EncryptionKey)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBytes([]byte(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type AdStatus byte
@@ -261,6 +291,16 @@ func (x *AdStatus) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x AdStatus) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*AdStatus)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeUint(uint64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // An AdHash is a hash of an advertisement.
 type AdHash [8]byte
 
@@ -305,6 +345,16 @@ func (x *AdHash) VDLRead(dec vdl.Decoder) error {
 		return err
 	}
 	return dec.FinishValue()
+}
+
+func (x AdHash) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*AdHash)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBytes([]byte(x[:])); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // AdInfo represents advertisement information for discovery.
@@ -788,6 +838,146 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]string) error {
 		}
 		*x = append(*x, elem)
 	}
+}
+
+func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*AdInfo)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := true
+	var2 := (x.Ad.Id == discovery.AdId{})
+	var1 = var1 && var2
+	var3 := (x.Ad.InterfaceName == "")
+	var1 = var1 && var3
+	var var4 bool
+	if len(x.Ad.Addresses) == 0 {
+		var4 = true
+	}
+	var1 = var1 && var4
+	var var5 bool
+	if len(x.Ad.Attributes) == 0 {
+		var5 = true
+	}
+	var1 = var1 && var5
+	var var6 bool
+	if len(x.Ad.Attachments) == 0 {
+		var6 = true
+	}
+	var1 = var1 && var6
+	if !(var1) {
+		if err := enc.NextField("Ad"); err != nil {
+			return err
+		}
+		if err := x.Ad.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var7 := (x.EncryptionAlgorithm == EncryptionAlgorithm(0))
+	if !(var7) {
+		if err := enc.NextField("EncryptionAlgorithm"); err != nil {
+			return err
+		}
+		if err := x.EncryptionAlgorithm.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var8 bool
+	if len(x.EncryptionKeys) == 0 {
+		var8 = true
+	}
+	if !(var8) {
+		if err := enc.NextField("EncryptionKeys"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.EncryptionKeys); err != nil {
+			return err
+		}
+	}
+	var9 := (x.Hash == AdHash{})
+	if !(var9) {
+		if err := enc.NextField("Hash"); err != nil {
+			return err
+		}
+		if err := x.Hash.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var10 bool
+	if len(x.DirAddrs) == 0 {
+		var10 = true
+	}
+	if !(var10) {
+		if err := enc.NextField("DirAddrs"); err != nil {
+			return err
+		}
+		if err := __VDLWrite2_list(enc, &x.DirAddrs); err != nil {
+			return err
+		}
+	}
+	var11 := (x.Status == AdStatus(0))
+	if !(var11) {
+		if err := enc.NextField("Status"); err != nil {
+			return err
+		}
+		if err := x.Status.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var12 := (x.Lost == false)
+	if !(var12) {
+		if err := enc.NextField("Lost"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.Lost); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]EncryptionKey) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]EncryptionKey)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := (*x)[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite2_list(enc vdl.Encoder, x *[]string) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString((*x)[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

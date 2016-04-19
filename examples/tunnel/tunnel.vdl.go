@@ -185,6 +185,46 @@ func (x *WindowSize) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x WindowSize) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*WindowSize)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Rows == uint16(0))
+	if !(var1) {
+		if err := enc.NextField("Rows"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.Rows)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Cols == uint16(0))
+	if !(var2) {
+		if err := enc.NextField("Cols"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.Cols)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type ShellOpts struct {
 	UsePty      bool       // Whether to open a pseudo-terminal.
 	Environment []string   // Environment variables to pass to the remote shell.
@@ -424,6 +464,73 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
 	}
 }
 
+func (x ShellOpts) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ShellOpts)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.UsePty == false)
+	if !(var1) {
+		if err := enc.NextField("UsePty"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.UsePty); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Environment) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Environment"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.Environment); err != nil {
+			return err
+		}
+	}
+	var3 := (x.WinSize == WindowSize{})
+	if !(var3) {
+		if err := enc.NextField("WinSize"); err != nil {
+			return err
+		}
+		if err := x.WinSize.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString((*x)[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type unused struct {
 }
 
@@ -505,6 +612,16 @@ func (x *unused) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x unused) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*unused)(nil)).Elem()); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type (
 	// ClientShellPacket represents any single field of the ClientShellPacket union type.
 	ClientShellPacket interface {
@@ -517,6 +634,7 @@ type (
 		// __VDLReflect describes the ClientShellPacket union type.
 		__VDLReflect(__ClientShellPacketReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// ClientShellPacketStdin represents field Stdin of the ClientShellPacket union type.
 	//
@@ -747,6 +865,58 @@ func VDLReadClientShellPacket(dec vdl.Decoder, x *ClientShellPacket) error {
 	return dec.FinishValue()
 }
 
+func (x ClientShellPacketStdin) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ClientShellPacket)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Stdin"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBytes(x.Value); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x ClientShellPacketEndOfFile) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ClientShellPacket)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("EndOfFile"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x ClientShellPacketWinSize) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ClientShellPacket)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("WinSize"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type (
 	// ServerShellPacket represents any single field of the ServerShellPacket union type.
 	ServerShellPacket interface {
@@ -759,6 +929,7 @@ type (
 		// __VDLReflect describes the ServerShellPacket union type.
 		__VDLReflect(__ServerShellPacketReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// ServerShellPacketStdout represents field Stdout of the ServerShellPacket union type.
 	//
@@ -944,6 +1115,49 @@ func VDLReadServerShellPacket(dec vdl.Decoder, x *ServerShellPacket) error {
 		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
 	}
 	return dec.FinishValue()
+}
+
+func (x ServerShellPacketStdout) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ServerShellPacket)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Stdout"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBytes(x.Value); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x ServerShellPacketStderr) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ServerShellPacket)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Stderr"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBytes(x.Value); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

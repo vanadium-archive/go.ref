@@ -137,6 +137,31 @@ func (x *SignedHeader) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x SignedHeader) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SignedHeader)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.ChunkSizeBytes == int64(0))
+	if !(var1) {
+		if err := enc.NextField("ChunkSizeBytes"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.ChunkSizeBytes); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type HashCode [32]byte
 
 func (HashCode) __VDLReflect(struct {
@@ -182,6 +207,16 @@ func (x *HashCode) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x HashCode) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*HashCode)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBytes([]byte(x[:])); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type (
 	// SignedData represents any single field of the SignedData union type.
 	//
@@ -196,6 +231,7 @@ type (
 		// __VDLReflect describes the SignedData union type.
 		__VDLReflect(__SignedDataReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// SignedDataSignature represents field Signature of the SignedData union type.
 	SignedDataSignature struct{ Value security.Signature }
@@ -365,6 +401,37 @@ func VDLReadSignedData(dec vdl.Decoder, x *SignedData) error {
 		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
 	}
 	return dec.FinishValue()
+}
+
+func (x SignedDataSignature) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SignedData)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Signature"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x SignedDataHash) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SignedData)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Hash"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

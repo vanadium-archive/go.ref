@@ -139,6 +139,31 @@ func (x *SyncData) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x SyncData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SyncData)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Id == uint64(0))
+	if !(var1) {
+		if err := enc.NextField("Id"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Id); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // DbSyncState represents the persistent sync state of a Database.
 type DbSyncState struct {
 	GenVecs   interfaces.Knowledge // knowledge capturing the locally-known generations of remote peers for data in Database.
@@ -331,6 +356,55 @@ func (x *DbSyncState) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x DbSyncState) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DbSyncState)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.GenVecs) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("GenVecs"); err != nil {
+			return err
+		}
+		if err := x.GenVecs.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.SgGenVecs) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("SgGenVecs"); err != nil {
+			return err
+		}
+		if err := x.SgGenVecs.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var3 := (x.IsPaused == false)
+	if !(var3) {
+		if err := enc.NextField("IsPaused"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.IsPaused); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // LocalLogRec represents the persistent local state of a log record. Metadata
 // is synced across peers, while pos is local-only.
 type LocalLogRec struct {
@@ -511,6 +585,68 @@ func (x *LocalLogRec) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x LocalLogRec) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*LocalLogRec)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := true
+	var2 := (x.Metadata.Id == uint64(0))
+	var1 = var1 && var2
+	var3 := (x.Metadata.Gen == uint64(0))
+	var1 = var1 && var3
+	var4 := (x.Metadata.RecType == byte(0))
+	var1 = var1 && var4
+	var5 := (x.Metadata.ObjId == "")
+	var1 = var1 && var5
+	var6 := (x.Metadata.CurVers == "")
+	var1 = var1 && var6
+	var var7 bool
+	if len(x.Metadata.Parents) == 0 {
+		var7 = true
+	}
+	var1 = var1 && var7
+	var wireValue8 time.Time
+	if err := time.TimeFromNative(&wireValue8, x.Metadata.UpdTime); err != nil {
+		return fmt.Errorf("error converting x.Metadata.UpdTime to wiretype")
+	}
+
+	var9 := (wireValue8 == time.Time{})
+	var1 = var1 && var9
+	var10 := (x.Metadata.Delete == false)
+	var1 = var1 && var10
+	var11 := (x.Metadata.BatchId == uint64(0))
+	var1 = var1 && var11
+	var12 := (x.Metadata.BatchCount == uint64(0))
+	var1 = var1 && var12
+	if !(var1) {
+		if err := enc.NextField("Metadata"); err != nil {
+			return err
+		}
+		if err := x.Metadata.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var13 := (x.Pos == uint64(0))
+	if !(var13) {
+		if err := enc.NextField("Pos"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Pos); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // SgLocalState holds the syncgroup local state, only relevant to this member
@@ -812,6 +948,88 @@ func (x *SgLocalState) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x SgLocalState) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SgLocalState)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.NumLocalJoiners == uint32(0))
+	if !(var1) {
+		if err := enc.NextField("NumLocalJoiners"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.NumLocalJoiners)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Watched == false)
+	if !(var2) {
+		if err := enc.NextField("Watched"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.Watched); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.RemotePublisher == "")
+	if !(var3) {
+		if err := enc.NextField("RemotePublisher"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.RemotePublisher); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var4 := (x.SyncPending == false)
+	if !(var4) {
+		if err := enc.NextField("SyncPending"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.SyncPending); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var5 bool
+	if len(x.PendingGenVec) == 0 {
+		var5 = true
+	}
+	if !(var5) {
+		if err := enc.NextField("PendingGenVec"); err != nil {
+			return err
+		}
+		if err := x.PendingGenVec.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // DagNode holds the information on an object mutation in the DAG.  The node
@@ -1214,6 +1432,139 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
 	}
 }
 
+func (x DagNode) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DagNode)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Level == uint64(0))
+	if !(var1) {
+		if err := enc.NextField("Level"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Level); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Parents) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Parents"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.Parents); err != nil {
+			return err
+		}
+	}
+	var3 := (x.Logrec == "")
+	if !(var3) {
+		if err := enc.NextField("Logrec"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Logrec); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var4 := (x.BatchId == uint64(0))
+	if !(var4) {
+		if err := enc.NextField("BatchId"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.BatchId); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var5 := (x.Deleted == false)
+	if !(var5) {
+		if err := enc.NextField("Deleted"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.Deleted); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var6 := (x.PermId == "")
+	if !(var6) {
+		if err := enc.NextField("PermId"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.PermId); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var7 := (x.PermVers == "")
+	if !(var7) {
+		if err := enc.NextField("PermVers"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.PermVers); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString((*x)[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // BatchInfo holds the information on a write batch:
 //  * The map of syncable (versioned) objects: {oid: version}
 //  * The map of linked objects {oid: version} that were not explicitly written
@@ -1554,6 +1905,85 @@ func __VDLRead2_map(dec vdl.Decoder, x *map[string]string) error {
 		}
 		tmpMap[key] = elem
 	}
+}
+
+func (x BatchInfo) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BatchInfo)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Objects) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Objects"); err != nil {
+			return err
+		}
+		if err := __VDLWrite2_map(enc, &x.Objects); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.LinkedObjects) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("LinkedObjects"); err != nil {
+			return err
+		}
+		if err := __VDLWrite2_map(enc, &x.LinkedObjects); err != nil {
+			return err
+		}
+	}
+	var3 := (x.Count == uint64(0))
+	if !(var3) {
+		if err := enc.NextField("Count"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Count); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite2_map(enc vdl.Encoder, x *map[string]string) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[string]string)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range *x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(elem); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

@@ -211,6 +211,7 @@ func typeDefGo(data *goData, def *compile.TypeDef) string {
 			"\n\t\t// __VDLReflect describes the %[1]s union type."+
 			"\n\t\t__VDLReflect(__%[1]sReflect)"+
 			"\n\t\tFillVDLTarget(%[4]sTarget, *%[4]sType) error"+
+			"\n\t\tVDLWrite(%[4]sEncoder) error"+
 			"\n\t}%[3]s", def.Name, docBreak(def.Doc), def.DocSuffix, data.Pkg("v.io/v23/vdl"))
 		for ix := 0; ix < t.NumField(); ix++ {
 			f := t.Field(ix)

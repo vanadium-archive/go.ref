@@ -198,6 +198,54 @@ func (x *Blessings) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x Blessings) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Blessings)(nil)).Elem()); err != nil {
+		return err
+	}
+	var wireValue1 security.WireBlessings
+	if err := security.WireBlessingsFromNative(&wireValue1, x.Blessings); err != nil {
+		return fmt.Errorf("error converting x.Blessings to wiretype")
+	}
+
+	var2 := true
+	var var3 bool
+	if len(wireValue1.CertificateChains) == 0 {
+		var3 = true
+	}
+	var2 = var2 && var3
+	if !(var2) {
+		if err := enc.NextField("Blessings"); err != nil {
+			return err
+		}
+		var wire security.WireBlessings
+		if err := security.WireBlessingsFromNative(&wire, x.Blessings); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var4 := (x.BKey == uint64(0))
+	if !(var4) {
+		if err := enc.NextField("BKey"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.BKey); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // EncryptedBlessings is used to transport encrypted blessings between the
 // two ends of a Conn. The encryption is with respect to a set of blessing
 // patterns that define the set of peers that are allowed to see the blessings.
@@ -436,6 +484,58 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]bcrypter.WireCiphertext) error {
 		}
 		*x = append(*x, elem)
 	}
+}
+
+func (x EncryptedBlessings) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*EncryptedBlessings)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Ciphertexts) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Ciphertexts"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.Ciphertexts); err != nil {
+			return err
+		}
+	}
+	var2 := (x.BKey == uint64(0))
+	if !(var2) {
+		if err := enc.NextField("BKey"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.BKey); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]bcrypter.WireCiphertext) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]bcrypter.WireCiphertext)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := (*x)[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // Discharges is used to transport discharges between the two ends of a Conn.
@@ -729,6 +829,77 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]security.Discharge) error {
 	}
 }
 
+func (x Discharges) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Discharges)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Discharges) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Discharges"); err != nil {
+			return err
+		}
+		if err := __VDLWrite2_list(enc, &x.Discharges); err != nil {
+			return err
+		}
+	}
+	var2 := (x.DKey == uint64(0))
+	if !(var2) {
+		if err := enc.NextField("DKey"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.DKey); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.BKey == uint64(0))
+	if !(var3) {
+		if err := enc.NextField("BKey"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.BKey); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite2_list(enc vdl.Encoder, x *[]security.Discharge) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]security.Discharge)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		var wire security.WireDischarge
+		if err := security.WireDischargeFromNative(&wire, (*x)[i]); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // EncryptedDischarges is used to transport encrypted discharges between the
 // two ends of a Conn. The encryption is with respect to a set of blessing
 // patterns that define the set of peers that are allowed to see the discharges.
@@ -947,6 +1118,58 @@ func (x *EncryptedDischarges) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x EncryptedDischarges) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*EncryptedDischarges)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Ciphertexts) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Ciphertexts"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.Ciphertexts); err != nil {
+			return err
+		}
+	}
+	var2 := (x.DKey == uint64(0))
+	if !(var2) {
+		if err := enc.NextField("DKey"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.DKey); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.BKey == uint64(0))
+	if !(var3) {
+		if err := enc.NextField("BKey"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.BKey); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type (
 	// BlessingsFlowMessage represents any single field of the BlessingsFlowMessage union type.
 	//
@@ -962,6 +1185,7 @@ type (
 		// __VDLReflect describes the BlessingsFlowMessage union type.
 		__VDLReflect(__BlessingsFlowMessageReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// BlessingsFlowMessageBlessings represents field Blessings of the BlessingsFlowMessage union type.
 	BlessingsFlowMessageBlessings struct{ Value Blessings }
@@ -1223,6 +1447,67 @@ func VDLReadBlessingsFlowMessage(dec vdl.Decoder, x *BlessingsFlowMessage) error
 		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
 	}
 	return dec.FinishValue()
+}
+
+func (x BlessingsFlowMessageBlessings) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlessingsFlowMessage)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Blessings"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x BlessingsFlowMessageDischarges) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlessingsFlowMessage)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Discharges"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x BlessingsFlowMessageEncryptedBlessings) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlessingsFlowMessage)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("EncryptedBlessings"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x BlessingsFlowMessageEncryptedDischarges) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlessingsFlowMessage)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("EncryptedDischarges"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

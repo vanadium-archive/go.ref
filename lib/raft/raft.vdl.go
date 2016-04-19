@@ -87,6 +87,16 @@ func (x *Term) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x Term) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Term)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeUint(uint64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // Index is an index into the log.  The log entries are numbered sequentially.  At the moment
 // the entries RaftClient.Apply()ed should be sequential but that will change if we introduce
 // system entries. For example, we could have an entry type that is used to add members to the
@@ -152,6 +162,16 @@ func (x *Index) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = Index(tmp)
 	return dec.FinishValue()
+}
+
+func (x Index) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Index)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeUint(uint64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // The LogEntry is what the log consists of.  'error' starts nil and is never written to stable
@@ -384,6 +404,67 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*LogEntry)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Term == Term(0))
+	if !(var1) {
+		if err := enc.NextField("Term"); err != nil {
+			return err
+		}
+		if err := x.Term.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Index == Index(0))
+	if !(var2) {
+		if err := enc.NextField("Index"); err != nil {
+			return err
+		}
+		if err := x.Index.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var3 bool
+	if len(x.Cmd) == 0 {
+		var3 = true
+	}
+	if !(var3) {
+		if err := enc.NextField("Cmd"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Cmd); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var4 := (x.Type == byte(0))
+	if !(var4) {
+		if err := enc.NextField("Type"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.Type)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

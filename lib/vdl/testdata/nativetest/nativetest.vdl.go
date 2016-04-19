@@ -98,6 +98,16 @@ func (x *WireString) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x WireString) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*WireString)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type WireMapStringInt int32
 
 func (WireMapStringInt) __VDLReflect(struct {
@@ -173,6 +183,16 @@ func (x *WireMapStringInt) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = map[string]int(tmp)
 	return dec.FinishValue()
+}
+
+func (x WireMapStringInt) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*WireMapStringInt)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type WireTime int32
@@ -252,6 +272,16 @@ func (x *WireTime) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x WireTime) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*WireTime)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type WireSamePkg int32
 
 func (WireSamePkg) __VDLReflect(struct {
@@ -327,6 +357,16 @@ func (x *WireSamePkg) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = nativetest.NativeSamePkg(tmp)
 	return dec.FinishValue()
+}
+
+func (x WireSamePkg) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*WireSamePkg)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type WireMultiImport int32
@@ -406,6 +446,16 @@ func (x *WireMultiImport) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x WireMultiImport) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*WireMultiImport)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type WireRenameMe int32
 
 func (WireRenameMe) __VDLReflect(struct {
@@ -471,6 +521,16 @@ func (x *WireRenameMe) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = WireRenameMe(tmp)
 	return dec.FinishValue()
+}
+
+func (x WireRenameMe) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*WireRenameMe)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type WireAll struct {
@@ -827,6 +887,115 @@ func (x *WireAll) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x WireAll) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*WireAll)(nil)).Elem()); err != nil {
+		return err
+	}
+	var wireValue1 WireString
+	if err := WireStringFromNative(&wireValue1, x.A); err != nil {
+		return fmt.Errorf("error converting x.A to wiretype")
+	}
+
+	var2 := (wireValue1 == WireString(0))
+	if !(var2) {
+		if err := enc.NextField("A"); err != nil {
+			return err
+		}
+		var wire WireString
+		if err := WireStringFromNative(&wire, x.A); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue3 WireMapStringInt
+	if err := WireMapStringIntFromNative(&wireValue3, x.B); err != nil {
+		return fmt.Errorf("error converting x.B to wiretype")
+	}
+
+	var4 := (wireValue3 == WireMapStringInt(0))
+	if !(var4) {
+		if err := enc.NextField("B"); err != nil {
+			return err
+		}
+		var wire WireMapStringInt
+		if err := WireMapStringIntFromNative(&wire, x.B); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue5 WireTime
+	if err := WireTimeFromNative(&wireValue5, x.C); err != nil {
+		return fmt.Errorf("error converting x.C to wiretype")
+	}
+
+	var6 := (wireValue5 == WireTime(0))
+	if !(var6) {
+		if err := enc.NextField("C"); err != nil {
+			return err
+		}
+		var wire WireTime
+		if err := WireTimeFromNative(&wire, x.C); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue7 WireSamePkg
+	if err := WireSamePkgFromNative(&wireValue7, x.D); err != nil {
+		return fmt.Errorf("error converting x.D to wiretype")
+	}
+
+	var8 := (wireValue7 == WireSamePkg(0))
+	if !(var8) {
+		if err := enc.NextField("D"); err != nil {
+			return err
+		}
+		var wire WireSamePkg
+		if err := WireSamePkgFromNative(&wire, x.D); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue9 WireMultiImport
+	if err := WireMultiImportFromNative(&wireValue9, x.E); err != nil {
+		return fmt.Errorf("error converting x.E to wiretype")
+	}
+
+	var10 := (wireValue9 == WireMultiImport(0))
+	if !(var10) {
+		if err := enc.NextField("E"); err != nil {
+			return err
+		}
+		var wire WireMultiImport
+		if err := WireMultiImportFromNative(&wire, x.E); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var11 := (x.F == WireRenameMe(0))
+	if !(var11) {
+		if err := enc.NextField("F"); err != nil {
+			return err
+		}
+		if err := x.F.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type ignoreme string
 
 func (ignoreme) __VDLReflect(struct {
@@ -871,6 +1040,16 @@ func (x *ignoreme) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = ignoreme(tmp)
 	return dec.FinishValue()
+}
+
+func (x ignoreme) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ignoreme)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeString(string(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // Type-check native conversion functions.

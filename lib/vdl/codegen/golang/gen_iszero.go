@@ -27,7 +27,7 @@ func genIsZeroBlockWiretype(data *goData, t *vdl.Type, inName string, varCount *
 		if shouldUseVdlValueForAny(data.Package) {
 			body = fmt.Sprintf("\n%[1]s := %[2]s == nil || (%[2]s.Kind() == %[3]sAny && %[2]s.IsZero())", outName, inName, data.Pkg("v.io/v23/vdl"))
 		} else {
-			body = fmt.Sprintf("\n%[1]s := %[2]s == nil || %[2]s.IsNilAny()", outName, inName)
+			body = fmt.Sprintf("\n%[1]s := %[2]s == nil || (%[2]s.Type.Kind() == %[3]sAny && %[2]s.IsNil())", outName, inName, data.Pkg("v.io/v23/vdl"))
 		}
 		return
 	}

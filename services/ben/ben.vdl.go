@@ -219,6 +219,61 @@ func (x *Cpu) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x Cpu) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Cpu)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Architecture == "")
+	if !(var1) {
+		if err := enc.NextField("Architecture"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Architecture); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Description == "")
+	if !(var2) {
+		if err := enc.NextField("Description"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Description); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.ClockSpeedMhz == uint32(0))
+	if !(var3) {
+		if err := enc.NextField("ClockSpeedMhz"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.ClockSpeedMhz)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // Os describes the Operating System on which the microbenchmarks were run.
 type Os struct {
 	Name    string // Short name of the operating system: linux, darwin, android etc.
@@ -375,6 +430,46 @@ func (x *Os) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x Os) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Os)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Name == "")
+	if !(var1) {
+		if err := enc.NextField("Name"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Name); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Version == "")
+	if !(var2) {
+		if err := enc.NextField("Version"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Version); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // Scenario encapsulates the conditions on the machine on which the microbenchmarks were run.
@@ -563,6 +658,49 @@ func (x *Scenario) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x Scenario) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Scenario)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Cpu == Cpu{})
+	if !(var1) {
+		if err := enc.NextField("Cpu"); err != nil {
+			return err
+		}
+		if err := x.Cpu.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Os == Os{})
+	if !(var2) {
+		if err := enc.NextField("Os"); err != nil {
+			return err
+		}
+		if err := x.Os.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var3 := (x.Label == "")
+	if !(var3) {
+		if err := enc.NextField("Label"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Label); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // SourceCode represents the state of the source code used to build the
 // microbenchmarks.
 //
@@ -613,6 +751,16 @@ func (x *SourceCode) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = SourceCode(tmp)
 	return dec.FinishValue()
+}
+
+func (x SourceCode) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SourceCode)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeString(string(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // Run encapsulates the results of a single microbenchmark run.
@@ -963,6 +1111,121 @@ func (x *Run) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x Run) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Run)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Name == "")
+	if !(var1) {
+		if err := enc.NextField("Name"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Name); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Iterations == uint64(0))
+	if !(var2) {
+		if err := enc.NextField("Iterations"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Iterations); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.NanoSecsPerOp == float64(0))
+	if !(var3) {
+		if err := enc.NextField("NanoSecsPerOp"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*float64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeFloat(x.NanoSecsPerOp); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var4 := (x.AllocsPerOp == uint64(0))
+	if !(var4) {
+		if err := enc.NextField("AllocsPerOp"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.AllocsPerOp); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var5 := (x.AllocedBytesPerOp == uint64(0))
+	if !(var5) {
+		if err := enc.NextField("AllocedBytesPerOp"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.AllocedBytesPerOp); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var6 := (x.MegaBytesPerSec == float64(0))
+	if !(var6) {
+		if err := enc.NextField("MegaBytesPerSec"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*float64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeFloat(x.MegaBytesPerSec); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var7 := (x.Parallelism == uint32(0))
+	if !(var7) {
+		if err := enc.NextField("Parallelism"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.Parallelism)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

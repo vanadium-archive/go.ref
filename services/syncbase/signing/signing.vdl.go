@@ -42,6 +42,7 @@ type (
 		// __VDLReflect describes the Item union type.
 		__VDLReflect(__ItemReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// ItemData represents field Data of the Item union type.
 	ItemData struct{ Value []byte } // Marshalled form of data.
@@ -223,6 +224,49 @@ func VDLReadItem(dec vdl.Decoder, x *Item) error {
 		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
 	}
 	return dec.FinishValue()
+}
+
+func (x ItemData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Item)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Data"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBytes(x.Value); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x ItemHash) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Item)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Hash"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBytes(x.Value); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // A DataWithSignature represents a signed, and possibily validated, collection
@@ -678,6 +722,146 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]Item) error {
 	}
 }
 
+func (x DataWithSignature) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DataWithSignature)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Data) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Data"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.Data); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.BlessingsHash) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("BlessingsHash"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.BlessingsHash); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := true
+	var var4 bool
+	if len(x.AuthorSigned.Purpose) == 0 {
+		var4 = true
+	}
+	var3 = var3 && var4
+	var5 := (x.AuthorSigned.Hash == security.Hash(""))
+	var3 = var3 && var5
+	var var6 bool
+	if len(x.AuthorSigned.R) == 0 {
+		var6 = true
+	}
+	var3 = var3 && var6
+	var var7 bool
+	if len(x.AuthorSigned.S) == 0 {
+		var7 = true
+	}
+	var3 = var3 && var7
+	if !(var3) {
+		if err := enc.NextField("AuthorSigned"); err != nil {
+			return err
+		}
+		if err := x.AuthorSigned.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var8 := (x.IsValidated == false)
+	if !(var8) {
+		if err := enc.NextField("IsValidated"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.IsValidated); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var9 bool
+	if len(x.ValidatorDataHash) == 0 {
+		var9 = true
+	}
+	if !(var9) {
+		if err := enc.NextField("ValidatorDataHash"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.ValidatorDataHash); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var10 := true
+	var var11 bool
+	if len(x.ValidatorSigned.Purpose) == 0 {
+		var11 = true
+	}
+	var10 = var10 && var11
+	var12 := (x.ValidatorSigned.Hash == security.Hash(""))
+	var10 = var10 && var12
+	var var13 bool
+	if len(x.ValidatorSigned.R) == 0 {
+		var13 = true
+	}
+	var10 = var10 && var13
+	var var14 bool
+	if len(x.ValidatorSigned.S) == 0 {
+		var14 = true
+	}
+	var10 = var10 && var14
+	if !(var10) {
+		if err := enc.NextField("ValidatorSigned"); err != nil {
+			return err
+		}
+		if err := x.ValidatorSigned.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]Item) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]Item)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := (*x)[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // WireValidatorData is the wire form of ValidatorData.
 // It excludes the unmarshalled form of the public key.
 type WireValidatorData struct {
@@ -888,6 +1072,67 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]string) error {
 		}
 		*x = append(*x, elem)
 	}
+}
+
+func (x WireValidatorData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*WireValidatorData)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Names) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Names"); err != nil {
+			return err
+		}
+		if err := __VDLWrite2_list(enc, &x.Names); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.MarshalledPublicKey) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("MarshalledPublicKey"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.MarshalledPublicKey); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite2_list(enc vdl.Encoder, x *[]string) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString((*x)[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

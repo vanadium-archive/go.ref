@@ -384,6 +384,118 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x VClockData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*VClockData)(nil)).Elem()); err != nil {
+		return err
+	}
+	var wireValue1 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue1, x.SystemTimeAtBoot); err != nil {
+		return fmt.Errorf("error converting x.SystemTimeAtBoot to wiretype")
+	}
+
+	var2 := (wireValue1 == time_2.Time{})
+	if !(var2) {
+		if err := enc.NextField("SystemTimeAtBoot"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.SystemTimeAtBoot); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue3 time_2.Duration
+	if err := time_2.DurationFromNative(&wireValue3, x.Skew); err != nil {
+		return fmt.Errorf("error converting x.Skew to wiretype")
+	}
+
+	var4 := (wireValue3 == time_2.Duration{})
+	if !(var4) {
+		if err := enc.NextField("Skew"); err != nil {
+			return err
+		}
+		var wire time_2.Duration
+		if err := time_2.DurationFromNative(&wire, x.Skew); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue5 time_2.Duration
+	if err := time_2.DurationFromNative(&wireValue5, x.ElapsedTimeSinceBoot); err != nil {
+		return fmt.Errorf("error converting x.ElapsedTimeSinceBoot to wiretype")
+	}
+
+	var6 := (wireValue5 == time_2.Duration{})
+	if !(var6) {
+		if err := enc.NextField("ElapsedTimeSinceBoot"); err != nil {
+			return err
+		}
+		var wire time_2.Duration
+		if err := time_2.DurationFromNative(&wire, x.ElapsedTimeSinceBoot); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue7 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue7, x.LastNtpTs); err != nil {
+		return fmt.Errorf("error converting x.LastNtpTs to wiretype")
+	}
+
+	var8 := (wireValue7 == time_2.Time{})
+	if !(var8) {
+		if err := enc.NextField("LastNtpTs"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.LastNtpTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var9 := (x.NumReboots == uint16(0))
+	if !(var9) {
+		if err := enc.NextField("NumReboots"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.NumReboots)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var10 := (x.NumHops == uint16(0))
+	if !(var10) {
+		if err := enc.NextField("NumHops"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.NumHops)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

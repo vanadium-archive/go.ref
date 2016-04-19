@@ -73,6 +73,16 @@ func (x *NamedBool) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x NamedBool) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedBool)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBool(bool(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type NamedByte byte
 
 func (NamedByte) __VDLReflect(struct {
@@ -138,6 +148,16 @@ func (x *NamedByte) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = NamedByte(tmp)
 	return dec.FinishValue()
+}
+
+func (x NamedByte) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedByte)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeUint(uint64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type NamedUint16 uint16
@@ -207,6 +227,16 @@ func (x *NamedUint16) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x NamedUint16) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedUint16)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeUint(uint64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type NamedUint32 uint32
 
 func (NamedUint32) __VDLReflect(struct {
@@ -274,6 +304,16 @@ func (x *NamedUint32) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x NamedUint32) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedUint32)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeUint(uint64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type NamedUint64 uint64
 
 func (NamedUint64) __VDLReflect(struct {
@@ -335,6 +375,16 @@ func (x *NamedUint64) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = NamedUint64(tmp)
 	return dec.FinishValue()
+}
+
+func (x NamedUint64) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedUint64)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeUint(uint64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type NamedInt8 int8
@@ -404,6 +454,16 @@ func (x *NamedInt8) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x NamedInt8) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedInt8)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type NamedInt16 int16
 
 func (NamedInt16) __VDLReflect(struct {
@@ -469,6 +529,16 @@ func (x *NamedInt16) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = NamedInt16(tmp)
 	return dec.FinishValue()
+}
+
+func (x NamedInt16) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedInt16)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type NamedInt32 int32
@@ -538,6 +608,16 @@ func (x *NamedInt32) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x NamedInt32) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedInt32)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type NamedInt64 int64
 
 func (NamedInt64) __VDLReflect(struct {
@@ -599,6 +679,16 @@ func (x *NamedInt64) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = NamedInt64(tmp)
 	return dec.FinishValue()
+}
+
+func (x NamedInt64) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedInt64)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type NamedFloat32 float32
@@ -668,6 +758,16 @@ func (x *NamedFloat32) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x NamedFloat32) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedFloat32)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeFloat(float64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type NamedFloat64 float64
 
 func (NamedFloat64) __VDLReflect(struct {
@@ -731,6 +831,16 @@ func (x *NamedFloat64) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x NamedFloat64) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedFloat64)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeFloat(float64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type NamedString string
 
 func (NamedString) __VDLReflect(struct {
@@ -775,6 +885,16 @@ func (x *NamedString) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = NamedString(tmp)
 	return dec.FinishValue()
+}
+
+func (x NamedString) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedString)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeString(string(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type NamedEnum int
@@ -880,6 +1000,16 @@ func (x *NamedEnum) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x NamedEnum) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedEnum)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeString(x.String()); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type NamedArray [2]bool
 
 func (NamedArray) __VDLReflect(struct {
@@ -971,6 +1101,27 @@ func (x *NamedArray) VDLRead(dec vdl.Decoder) error {
 		}
 		index++
 	}
+}
+
+func (x NamedArray) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedArray)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < 2; i++ {
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type NamedList []uint32
@@ -1075,6 +1226,27 @@ func (x *NamedList) VDLRead(dec vdl.Decoder) error {
 		}
 		*x = append(*x, elem)
 	}
+}
+
+func (x NamedList) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedList)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(x); i++ {
+		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x[i])); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type NamedSet map[string]struct{}
@@ -1182,6 +1354,27 @@ func (x *NamedSet) VDLRead(dec vdl.Decoder) error {
 		}
 		tmpMap[key] = struct{}{}
 	}
+}
+
+func (x NamedSet) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedSet)(nil))); err != nil {
+		return err
+	}
+	for key := range x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type NamedMap map[string]float32
@@ -1318,6 +1511,36 @@ func (x *NamedMap) VDLRead(dec vdl.Decoder) error {
 		}
 		tmpMap[key] = elem
 	}
+}
+
+func (x NamedMap) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedMap)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*float32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeFloat(float64(elem)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type NamedStruct struct {
@@ -1517,6 +1740,61 @@ func (x *NamedStruct) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x NamedStruct) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedStruct)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.A == false)
+	if !(var1) {
+		if err := enc.NextField("A"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.A); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.B == "")
+	if !(var2) {
+		if err := enc.NextField("B"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.B); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.C == int32(0))
+	if !(var3) {
+		if err := enc.NextField("C"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.C)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type (
 	// NamedUnion represents any single field of the NamedUnion union type.
 	NamedUnion interface {
@@ -1529,6 +1807,7 @@ type (
 		// __VDLReflect describes the NamedUnion union type.
 		__VDLReflect(__NamedUnionReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// NamedUnionA represents field A of the NamedUnion union type.
 	NamedUnionA struct{ Value bool }
@@ -1761,6 +2040,70 @@ func VDLReadNamedUnion(dec vdl.Decoder, x *NamedUnion) error {
 		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
 	}
 	return dec.FinishValue()
+}
+
+func (x NamedUnionA) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedUnion)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("A"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBool(x.Value); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x NamedUnionB) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedUnion)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("B"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeString(x.Value); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x NamedUnionC) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NamedUnion)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("C"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x.Value)); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type Scalars struct {
@@ -2058,7 +2401,7 @@ func (m *Scalars) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var44 := m.A13 == nil || m.A13.IsNilAny()
+	var44 := m.A13 == nil || (m.A13.Type.Kind() == vdl.Any && m.A13.IsNil())
 	if var44 {
 		if err := fieldsTarget1.ZeroField("A13"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -2899,6 +3242,372 @@ func (x *Scalars) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x Scalars) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Scalars)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.A0 == false)
+	if !(var1) {
+		if err := enc.NextField("A0"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.A0); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.A1 == byte(0))
+	if !(var2) {
+		if err := enc.NextField("A1"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.A1)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.A2 == uint16(0))
+	if !(var3) {
+		if err := enc.NextField("A2"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.A2)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var4 := (x.A3 == uint32(0))
+	if !(var4) {
+		if err := enc.NextField("A3"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.A3)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var5 := (x.A4 == uint64(0))
+	if !(var5) {
+		if err := enc.NextField("A4"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.A4); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var6 := (x.A5 == int8(0))
+	if !(var6) {
+		if err := enc.NextField("A5"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int8)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.A5)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var7 := (x.A6 == int16(0))
+	if !(var7) {
+		if err := enc.NextField("A6"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int16)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.A6)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var8 := (x.A7 == int32(0))
+	if !(var8) {
+		if err := enc.NextField("A7"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.A7)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var9 := (x.A8 == int64(0))
+	if !(var9) {
+		if err := enc.NextField("A8"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.A8); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var10 := (x.A9 == float32(0))
+	if !(var10) {
+		if err := enc.NextField("A9"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*float32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeFloat(float64(x.A9)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var11 := (x.A10 == float64(0))
+	if !(var11) {
+		if err := enc.NextField("A10"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*float64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeFloat(x.A10); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var12 := (x.A11 == "")
+	if !(var12) {
+		if err := enc.NextField("A11"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.A11); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var13 := (x.A12 == (error)(nil))
+	if !(var13) {
+		if err := enc.NextField("A12"); err != nil {
+			return err
+		}
+		if err := verror.VDLWrite(enc, x.A12); err != nil {
+			return err
+		}
+	}
+	var14 := x.A13 == nil || (x.A13.Type.Kind() == vdl.Any && x.A13.IsNil())
+	if !(var14) {
+		if err := enc.NextField("A13"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.AnyType); err != nil {
+			return err
+		}
+		if x.A13.IsNil() {
+			if err := enc.NilValue(x.A13.Type); err != nil {
+				return err
+			}
+		} else {
+			if err := x.A13.VDLWrite(enc); err != nil {
+				return err
+			}
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var15 := (x.A14 == nil || x.A14 == vdl.AnyType)
+	if !(var15) {
+		if err := enc.NextField("A14"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeObjectType); err != nil {
+			return err
+		}
+		if err := enc.EncodeTypeObject(x.A14); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var16 := (x.B0 == NamedBool(false))
+	if !(var16) {
+		if err := enc.NextField("B0"); err != nil {
+			return err
+		}
+		if err := x.B0.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var17 := (x.B1 == NamedByte(0))
+	if !(var17) {
+		if err := enc.NextField("B1"); err != nil {
+			return err
+		}
+		if err := x.B1.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var18 := (x.B2 == NamedUint16(0))
+	if !(var18) {
+		if err := enc.NextField("B2"); err != nil {
+			return err
+		}
+		if err := x.B2.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var19 := (x.B3 == NamedUint32(0))
+	if !(var19) {
+		if err := enc.NextField("B3"); err != nil {
+			return err
+		}
+		if err := x.B3.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var20 := (x.B4 == NamedUint64(0))
+	if !(var20) {
+		if err := enc.NextField("B4"); err != nil {
+			return err
+		}
+		if err := x.B4.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var21 := (x.B5 == NamedInt8(0))
+	if !(var21) {
+		if err := enc.NextField("B5"); err != nil {
+			return err
+		}
+		if err := x.B5.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var22 := (x.B6 == NamedInt16(0))
+	if !(var22) {
+		if err := enc.NextField("B6"); err != nil {
+			return err
+		}
+		if err := x.B6.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var23 := (x.B7 == NamedInt32(0))
+	if !(var23) {
+		if err := enc.NextField("B7"); err != nil {
+			return err
+		}
+		if err := x.B7.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var24 := (x.B8 == NamedInt64(0))
+	if !(var24) {
+		if err := enc.NextField("B8"); err != nil {
+			return err
+		}
+		if err := x.B8.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var25 := (x.B9 == NamedFloat32(0))
+	if !(var25) {
+		if err := enc.NextField("B9"); err != nil {
+			return err
+		}
+		if err := x.B9.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var26 := (x.B10 == NamedFloat64(0))
+	if !(var26) {
+		if err := enc.NextField("B10"); err != nil {
+			return err
+		}
+		if err := x.B10.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var27 := (x.B11 == NamedString(""))
+	if !(var27) {
+		if err := enc.NextField("B11"); err != nil {
+			return err
+		}
+		if err := x.B11.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var28 := (x.B12 == NamedEnumA)
+	if !(var28) {
+		if err := enc.NextField("B12"); err != nil {
+			return err
+		}
+		if err := x.B12.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var29 bool
+	if field, ok := x.B13.(NamedUnionA); ok {
+
+		var30 := (field.Value == false)
+		var29 = var30
+	}
+	if !(var29) {
+		if err := enc.NextField("B13"); err != nil {
+			return err
+		}
+		if err := x.B13.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // These are all scalars that may be used as map or set keys.
@@ -3849,6 +4558,304 @@ func (x *KeyScalars) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x KeyScalars) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*KeyScalars)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.A0 == false)
+	if !(var1) {
+		if err := enc.NextField("A0"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.A0); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.A1 == byte(0))
+	if !(var2) {
+		if err := enc.NextField("A1"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.A1)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.A2 == uint16(0))
+	if !(var3) {
+		if err := enc.NextField("A2"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.A2)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var4 := (x.A3 == uint32(0))
+	if !(var4) {
+		if err := enc.NextField("A3"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.A3)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var5 := (x.A4 == uint64(0))
+	if !(var5) {
+		if err := enc.NextField("A4"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.A4); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var6 := (x.A5 == int8(0))
+	if !(var6) {
+		if err := enc.NextField("A5"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int8)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.A5)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var7 := (x.A6 == int16(0))
+	if !(var7) {
+		if err := enc.NextField("A6"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int16)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.A6)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var8 := (x.A7 == int32(0))
+	if !(var8) {
+		if err := enc.NextField("A7"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.A7)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var9 := (x.A8 == int64(0))
+	if !(var9) {
+		if err := enc.NextField("A8"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.A8); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var10 := (x.A9 == float32(0))
+	if !(var10) {
+		if err := enc.NextField("A9"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*float32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeFloat(float64(x.A9)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var11 := (x.A10 == float64(0))
+	if !(var11) {
+		if err := enc.NextField("A10"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*float64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeFloat(x.A10); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var12 := (x.A11 == "")
+	if !(var12) {
+		if err := enc.NextField("A11"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.A11); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var13 := (x.B0 == NamedBool(false))
+	if !(var13) {
+		if err := enc.NextField("B0"); err != nil {
+			return err
+		}
+		if err := x.B0.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var14 := (x.B1 == NamedByte(0))
+	if !(var14) {
+		if err := enc.NextField("B1"); err != nil {
+			return err
+		}
+		if err := x.B1.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var15 := (x.B2 == NamedUint16(0))
+	if !(var15) {
+		if err := enc.NextField("B2"); err != nil {
+			return err
+		}
+		if err := x.B2.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var16 := (x.B3 == NamedUint32(0))
+	if !(var16) {
+		if err := enc.NextField("B3"); err != nil {
+			return err
+		}
+		if err := x.B3.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var17 := (x.B4 == NamedUint64(0))
+	if !(var17) {
+		if err := enc.NextField("B4"); err != nil {
+			return err
+		}
+		if err := x.B4.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var18 := (x.B5 == NamedInt8(0))
+	if !(var18) {
+		if err := enc.NextField("B5"); err != nil {
+			return err
+		}
+		if err := x.B5.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var19 := (x.B6 == NamedInt16(0))
+	if !(var19) {
+		if err := enc.NextField("B6"); err != nil {
+			return err
+		}
+		if err := x.B6.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var20 := (x.B7 == NamedInt32(0))
+	if !(var20) {
+		if err := enc.NextField("B7"); err != nil {
+			return err
+		}
+		if err := x.B7.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var21 := (x.B8 == NamedInt64(0))
+	if !(var21) {
+		if err := enc.NextField("B8"); err != nil {
+			return err
+		}
+		if err := x.B8.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var22 := (x.B9 == NamedFloat32(0))
+	if !(var22) {
+		if err := enc.NextField("B9"); err != nil {
+			return err
+		}
+		if err := x.B9.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var23 := (x.B10 == NamedFloat64(0))
+	if !(var23) {
+		if err := enc.NextField("B10"); err != nil {
+			return err
+		}
+		if err := x.B10.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var24 := (x.B13 == NamedString(""))
+	if !(var24) {
+		if err := enc.NextField("B13"); err != nil {
+			return err
+		}
+		if err := x.B13.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type ScalarsArray [2]Scalars
 
 func (ScalarsArray) __VDLReflect(struct {
@@ -3937,6 +4944,21 @@ func (x *ScalarsArray) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x ScalarsArray) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ScalarsArray)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < 2; i++ {
+		if err := x[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type Composites struct {
 	A0 Scalars
 	A1 ScalarsArray
@@ -3982,7 +5004,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	var4 = var4 && var16
 	var17 := (m.A0.A12 == (error)(nil))
 	var4 = var4 && var17
-	var18 := m.A0.A13 == nil || m.A0.A13.IsNilAny()
+	var18 := m.A0.A13 == nil || (m.A0.A13.Type.Kind() == vdl.Any && m.A0.A13.IsNil())
 	var4 = var4 && var18
 	var19 := (m.A0.A14 == nil || m.A0.A14 == vdl.AnyType)
 	var4 = var4 && var19
@@ -4068,7 +5090,7 @@ func (m *Composites) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		var39 = var39 && var51
 		var52 := (elem38.A12 == (error)(nil))
 		var39 = var39 && var52
-		var53 := elem38.A13 == nil || elem38.A13.IsNilAny()
+		var53 := elem38.A13 == nil || (elem38.A13.Type.Kind() == vdl.Any && elem38.A13.IsNil())
 		var39 = var39 && var53
 		var54 := (elem38.A14 == nil || elem38.A14 == vdl.AnyType)
 		var39 = var39 && var54
@@ -4639,6 +5661,258 @@ func __VDLRead3_map(dec vdl.Decoder, x *map[string]Scalars) error {
 	}
 }
 
+func (x Composites) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Composites)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := true
+	var2 := (x.A0.A0 == false)
+	var1 = var1 && var2
+	var3 := (x.A0.A1 == byte(0))
+	var1 = var1 && var3
+	var4 := (x.A0.A2 == uint16(0))
+	var1 = var1 && var4
+	var5 := (x.A0.A3 == uint32(0))
+	var1 = var1 && var5
+	var6 := (x.A0.A4 == uint64(0))
+	var1 = var1 && var6
+	var7 := (x.A0.A5 == int8(0))
+	var1 = var1 && var7
+	var8 := (x.A0.A6 == int16(0))
+	var1 = var1 && var8
+	var9 := (x.A0.A7 == int32(0))
+	var1 = var1 && var9
+	var10 := (x.A0.A8 == int64(0))
+	var1 = var1 && var10
+	var11 := (x.A0.A9 == float32(0))
+	var1 = var1 && var11
+	var12 := (x.A0.A10 == float64(0))
+	var1 = var1 && var12
+	var13 := (x.A0.A11 == "")
+	var1 = var1 && var13
+	var14 := (x.A0.A12 == (error)(nil))
+	var1 = var1 && var14
+	var15 := x.A0.A13 == nil || (x.A0.A13.Type.Kind() == vdl.Any && x.A0.A13.IsNil())
+	var1 = var1 && var15
+	var16 := (x.A0.A14 == nil || x.A0.A14 == vdl.AnyType)
+	var1 = var1 && var16
+	var17 := (x.A0.B0 == NamedBool(false))
+	var1 = var1 && var17
+	var18 := (x.A0.B1 == NamedByte(0))
+	var1 = var1 && var18
+	var19 := (x.A0.B2 == NamedUint16(0))
+	var1 = var1 && var19
+	var20 := (x.A0.B3 == NamedUint32(0))
+	var1 = var1 && var20
+	var21 := (x.A0.B4 == NamedUint64(0))
+	var1 = var1 && var21
+	var22 := (x.A0.B5 == NamedInt8(0))
+	var1 = var1 && var22
+	var23 := (x.A0.B6 == NamedInt16(0))
+	var1 = var1 && var23
+	var24 := (x.A0.B7 == NamedInt32(0))
+	var1 = var1 && var24
+	var25 := (x.A0.B8 == NamedInt64(0))
+	var1 = var1 && var25
+	var26 := (x.A0.B9 == NamedFloat32(0))
+	var1 = var1 && var26
+	var27 := (x.A0.B10 == NamedFloat64(0))
+	var1 = var1 && var27
+	var28 := (x.A0.B11 == NamedString(""))
+	var1 = var1 && var28
+	var29 := (x.A0.B12 == NamedEnumA)
+	var1 = var1 && var29
+	var var30 bool
+	if field, ok := x.A0.B13.(NamedUnionA); ok {
+
+		var31 := (field.Value == false)
+		var30 = var31
+	}
+	var1 = var1 && var30
+	if !(var1) {
+		if err := enc.NextField("A0"); err != nil {
+			return err
+		}
+		if err := x.A0.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var32 := true
+	for _, elem33 := range x.A1 {
+
+		var34 := true
+		var35 := (elem33.A0 == false)
+		var34 = var34 && var35
+		var36 := (elem33.A1 == byte(0))
+		var34 = var34 && var36
+		var37 := (elem33.A2 == uint16(0))
+		var34 = var34 && var37
+		var38 := (elem33.A3 == uint32(0))
+		var34 = var34 && var38
+		var39 := (elem33.A4 == uint64(0))
+		var34 = var34 && var39
+		var40 := (elem33.A5 == int8(0))
+		var34 = var34 && var40
+		var41 := (elem33.A6 == int16(0))
+		var34 = var34 && var41
+		var42 := (elem33.A7 == int32(0))
+		var34 = var34 && var42
+		var43 := (elem33.A8 == int64(0))
+		var34 = var34 && var43
+		var44 := (elem33.A9 == float32(0))
+		var34 = var34 && var44
+		var45 := (elem33.A10 == float64(0))
+		var34 = var34 && var45
+		var46 := (elem33.A11 == "")
+		var34 = var34 && var46
+		var47 := (elem33.A12 == (error)(nil))
+		var34 = var34 && var47
+		var48 := elem33.A13 == nil || (elem33.A13.Type.Kind() == vdl.Any && elem33.A13.IsNil())
+		var34 = var34 && var48
+		var49 := (elem33.A14 == nil || elem33.A14 == vdl.AnyType)
+		var34 = var34 && var49
+		var50 := (elem33.B0 == NamedBool(false))
+		var34 = var34 && var50
+		var51 := (elem33.B1 == NamedByte(0))
+		var34 = var34 && var51
+		var52 := (elem33.B2 == NamedUint16(0))
+		var34 = var34 && var52
+		var53 := (elem33.B3 == NamedUint32(0))
+		var34 = var34 && var53
+		var54 := (elem33.B4 == NamedUint64(0))
+		var34 = var34 && var54
+		var55 := (elem33.B5 == NamedInt8(0))
+		var34 = var34 && var55
+		var56 := (elem33.B6 == NamedInt16(0))
+		var34 = var34 && var56
+		var57 := (elem33.B7 == NamedInt32(0))
+		var34 = var34 && var57
+		var58 := (elem33.B8 == NamedInt64(0))
+		var34 = var34 && var58
+		var59 := (elem33.B9 == NamedFloat32(0))
+		var34 = var34 && var59
+		var60 := (elem33.B10 == NamedFloat64(0))
+		var34 = var34 && var60
+		var61 := (elem33.B11 == NamedString(""))
+		var34 = var34 && var61
+		var62 := (elem33.B12 == NamedEnumA)
+		var34 = var34 && var62
+		var var63 bool
+		if field, ok := elem33.B13.(NamedUnionA); ok {
+
+			var64 := (field.Value == false)
+			var63 = var64
+		}
+		var34 = var34 && var63
+		if !var34 {
+			var32 = false
+			break
+		}
+	}
+	if !(var32) {
+		if err := enc.NextField("A1"); err != nil {
+			return err
+		}
+		if err := x.A1.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var65 bool
+	if len(x.A2) == 0 {
+		var65 = true
+	}
+	if !(var65) {
+		if err := enc.NextField("A2"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.A2); err != nil {
+			return err
+		}
+	}
+	var var66 bool
+	if len(x.A3) == 0 {
+		var66 = true
+	}
+	if !(var66) {
+		if err := enc.NextField("A3"); err != nil {
+			return err
+		}
+		if err := __VDLWrite2_set(enc, &x.A3); err != nil {
+			return err
+		}
+	}
+	var var67 bool
+	if len(x.A4) == 0 {
+		var67 = true
+	}
+	if !(var67) {
+		if err := enc.NextField("A4"); err != nil {
+			return err
+		}
+		if err := __VDLWrite3_map(enc, &x.A4); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]Scalars) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]Scalars)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := (*x)[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite2_set(enc vdl.Encoder, x *map[KeyScalars]struct{}) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[KeyScalars]struct{})(nil))); err != nil {
+		return err
+	}
+	for key := range *x {
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite3_map(enc vdl.Encoder, x *map[string]Scalars) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[string]Scalars)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range *x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := elem.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type CompositesArray [2]Composites
 
 func (CompositesArray) __VDLReflect(struct {
@@ -4727,6 +6001,21 @@ func (x *CompositesArray) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x CompositesArray) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*CompositesArray)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < 2; i++ {
+		if err := x[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type CompComp struct {
 	A0 Composites
 	A1 CompositesArray
@@ -4773,7 +6062,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	var5 = var5 && var17
 	var18 := (m.A0.A0.A12 == (error)(nil))
 	var5 = var5 && var18
-	var19 := m.A0.A0.A13 == nil || m.A0.A0.A13.IsNilAny()
+	var19 := m.A0.A0.A13 == nil || (m.A0.A0.A13.Type.Kind() == vdl.Any && m.A0.A0.A13.IsNil())
 	var5 = var5 && var19
 	var20 := (m.A0.A0.A14 == nil || m.A0.A0.A14 == vdl.AnyType)
 	var5 = var5 && var20
@@ -4841,7 +6130,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		var38 = var38 && var50
 		var51 := (elem37.A12 == (error)(nil))
 		var38 = var38 && var51
-		var52 := elem37.A13 == nil || elem37.A13.IsNilAny()
+		var52 := elem37.A13 == nil || (elem37.A13.Type.Kind() == vdl.Any && elem37.A13.IsNil())
 		var38 = var38 && var52
 		var53 := (elem37.A14 == nil || elem37.A14 == vdl.AnyType)
 		var38 = var38 && var53
@@ -4949,7 +6238,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		var77 = var77 && var89
 		var90 := (elem75.A0.A12 == (error)(nil))
 		var77 = var77 && var90
-		var91 := elem75.A0.A13 == nil || elem75.A0.A13.IsNilAny()
+		var91 := elem75.A0.A13 == nil || (elem75.A0.A13.Type.Kind() == vdl.Any && elem75.A0.A13.IsNil())
 		var77 = var77 && var91
 		var92 := (elem75.A0.A14 == nil || elem75.A0.A14 == vdl.AnyType)
 		var77 = var77 && var92
@@ -5017,7 +6306,7 @@ func (m *CompComp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			var110 = var110 && var122
 			var123 := (elem109.A12 == (error)(nil))
 			var110 = var110 && var123
-			var124 := elem109.A13 == nil || elem109.A13.IsNilAny()
+			var124 := elem109.A13 == nil || (elem109.A13.Type.Kind() == vdl.Any && elem109.A13.IsNil())
 			var110 = var110 && var124
 			var125 := (elem109.A14 == nil || elem109.A14 == vdl.AnyType)
 			var110 = var110 && var125
@@ -5832,6 +7121,456 @@ func __VDLRead7_list(dec vdl.Decoder, x *[]map[string]Composites) error {
 	}
 }
 
+func (x CompComp) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*CompComp)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := true
+	var2 := true
+	var3 := (x.A0.A0.A0 == false)
+	var2 = var2 && var3
+	var4 := (x.A0.A0.A1 == byte(0))
+	var2 = var2 && var4
+	var5 := (x.A0.A0.A2 == uint16(0))
+	var2 = var2 && var5
+	var6 := (x.A0.A0.A3 == uint32(0))
+	var2 = var2 && var6
+	var7 := (x.A0.A0.A4 == uint64(0))
+	var2 = var2 && var7
+	var8 := (x.A0.A0.A5 == int8(0))
+	var2 = var2 && var8
+	var9 := (x.A0.A0.A6 == int16(0))
+	var2 = var2 && var9
+	var10 := (x.A0.A0.A7 == int32(0))
+	var2 = var2 && var10
+	var11 := (x.A0.A0.A8 == int64(0))
+	var2 = var2 && var11
+	var12 := (x.A0.A0.A9 == float32(0))
+	var2 = var2 && var12
+	var13 := (x.A0.A0.A10 == float64(0))
+	var2 = var2 && var13
+	var14 := (x.A0.A0.A11 == "")
+	var2 = var2 && var14
+	var15 := (x.A0.A0.A12 == (error)(nil))
+	var2 = var2 && var15
+	var16 := x.A0.A0.A13 == nil || (x.A0.A0.A13.Type.Kind() == vdl.Any && x.A0.A0.A13.IsNil())
+	var2 = var2 && var16
+	var17 := (x.A0.A0.A14 == nil || x.A0.A0.A14 == vdl.AnyType)
+	var2 = var2 && var17
+	var18 := (x.A0.A0.B0 == NamedBool(false))
+	var2 = var2 && var18
+	var19 := (x.A0.A0.B1 == NamedByte(0))
+	var2 = var2 && var19
+	var20 := (x.A0.A0.B2 == NamedUint16(0))
+	var2 = var2 && var20
+	var21 := (x.A0.A0.B3 == NamedUint32(0))
+	var2 = var2 && var21
+	var22 := (x.A0.A0.B4 == NamedUint64(0))
+	var2 = var2 && var22
+	var23 := (x.A0.A0.B5 == NamedInt8(0))
+	var2 = var2 && var23
+	var24 := (x.A0.A0.B6 == NamedInt16(0))
+	var2 = var2 && var24
+	var25 := (x.A0.A0.B7 == NamedInt32(0))
+	var2 = var2 && var25
+	var26 := (x.A0.A0.B8 == NamedInt64(0))
+	var2 = var2 && var26
+	var27 := (x.A0.A0.B9 == NamedFloat32(0))
+	var2 = var2 && var27
+	var28 := (x.A0.A0.B10 == NamedFloat64(0))
+	var2 = var2 && var28
+	var29 := (x.A0.A0.B11 == NamedString(""))
+	var2 = var2 && var29
+	var30 := (x.A0.A0.B12 == NamedEnumA)
+	var2 = var2 && var30
+	var var31 bool
+	if field, ok := x.A0.A0.B13.(NamedUnionA); ok {
+
+		var32 := (field.Value == false)
+		var31 = var32
+	}
+	var2 = var2 && var31
+	var1 = var1 && var2
+	var33 := true
+	for _, elem34 := range x.A0.A1 {
+
+		var35 := true
+		var36 := (elem34.A0 == false)
+		var35 = var35 && var36
+		var37 := (elem34.A1 == byte(0))
+		var35 = var35 && var37
+		var38 := (elem34.A2 == uint16(0))
+		var35 = var35 && var38
+		var39 := (elem34.A3 == uint32(0))
+		var35 = var35 && var39
+		var40 := (elem34.A4 == uint64(0))
+		var35 = var35 && var40
+		var41 := (elem34.A5 == int8(0))
+		var35 = var35 && var41
+		var42 := (elem34.A6 == int16(0))
+		var35 = var35 && var42
+		var43 := (elem34.A7 == int32(0))
+		var35 = var35 && var43
+		var44 := (elem34.A8 == int64(0))
+		var35 = var35 && var44
+		var45 := (elem34.A9 == float32(0))
+		var35 = var35 && var45
+		var46 := (elem34.A10 == float64(0))
+		var35 = var35 && var46
+		var47 := (elem34.A11 == "")
+		var35 = var35 && var47
+		var48 := (elem34.A12 == (error)(nil))
+		var35 = var35 && var48
+		var49 := elem34.A13 == nil || (elem34.A13.Type.Kind() == vdl.Any && elem34.A13.IsNil())
+		var35 = var35 && var49
+		var50 := (elem34.A14 == nil || elem34.A14 == vdl.AnyType)
+		var35 = var35 && var50
+		var51 := (elem34.B0 == NamedBool(false))
+		var35 = var35 && var51
+		var52 := (elem34.B1 == NamedByte(0))
+		var35 = var35 && var52
+		var53 := (elem34.B2 == NamedUint16(0))
+		var35 = var35 && var53
+		var54 := (elem34.B3 == NamedUint32(0))
+		var35 = var35 && var54
+		var55 := (elem34.B4 == NamedUint64(0))
+		var35 = var35 && var55
+		var56 := (elem34.B5 == NamedInt8(0))
+		var35 = var35 && var56
+		var57 := (elem34.B6 == NamedInt16(0))
+		var35 = var35 && var57
+		var58 := (elem34.B7 == NamedInt32(0))
+		var35 = var35 && var58
+		var59 := (elem34.B8 == NamedInt64(0))
+		var35 = var35 && var59
+		var60 := (elem34.B9 == NamedFloat32(0))
+		var35 = var35 && var60
+		var61 := (elem34.B10 == NamedFloat64(0))
+		var35 = var35 && var61
+		var62 := (elem34.B11 == NamedString(""))
+		var35 = var35 && var62
+		var63 := (elem34.B12 == NamedEnumA)
+		var35 = var35 && var63
+		var var64 bool
+		if field, ok := elem34.B13.(NamedUnionA); ok {
+
+			var65 := (field.Value == false)
+			var64 = var65
+		}
+		var35 = var35 && var64
+		if !var35 {
+			var33 = false
+			break
+		}
+	}
+	var1 = var1 && var33
+	var var66 bool
+	if len(x.A0.A2) == 0 {
+		var66 = true
+	}
+	var1 = var1 && var66
+	var var67 bool
+	if len(x.A0.A3) == 0 {
+		var67 = true
+	}
+	var1 = var1 && var67
+	var var68 bool
+	if len(x.A0.A4) == 0 {
+		var68 = true
+	}
+	var1 = var1 && var68
+	if !(var1) {
+		if err := enc.NextField("A0"); err != nil {
+			return err
+		}
+		if err := x.A0.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var69 := true
+	for _, elem70 := range x.A1 {
+
+		var71 := true
+		var72 := true
+		var73 := (elem70.A0.A0 == false)
+		var72 = var72 && var73
+		var74 := (elem70.A0.A1 == byte(0))
+		var72 = var72 && var74
+		var75 := (elem70.A0.A2 == uint16(0))
+		var72 = var72 && var75
+		var76 := (elem70.A0.A3 == uint32(0))
+		var72 = var72 && var76
+		var77 := (elem70.A0.A4 == uint64(0))
+		var72 = var72 && var77
+		var78 := (elem70.A0.A5 == int8(0))
+		var72 = var72 && var78
+		var79 := (elem70.A0.A6 == int16(0))
+		var72 = var72 && var79
+		var80 := (elem70.A0.A7 == int32(0))
+		var72 = var72 && var80
+		var81 := (elem70.A0.A8 == int64(0))
+		var72 = var72 && var81
+		var82 := (elem70.A0.A9 == float32(0))
+		var72 = var72 && var82
+		var83 := (elem70.A0.A10 == float64(0))
+		var72 = var72 && var83
+		var84 := (elem70.A0.A11 == "")
+		var72 = var72 && var84
+		var85 := (elem70.A0.A12 == (error)(nil))
+		var72 = var72 && var85
+		var86 := elem70.A0.A13 == nil || (elem70.A0.A13.Type.Kind() == vdl.Any && elem70.A0.A13.IsNil())
+		var72 = var72 && var86
+		var87 := (elem70.A0.A14 == nil || elem70.A0.A14 == vdl.AnyType)
+		var72 = var72 && var87
+		var88 := (elem70.A0.B0 == NamedBool(false))
+		var72 = var72 && var88
+		var89 := (elem70.A0.B1 == NamedByte(0))
+		var72 = var72 && var89
+		var90 := (elem70.A0.B2 == NamedUint16(0))
+		var72 = var72 && var90
+		var91 := (elem70.A0.B3 == NamedUint32(0))
+		var72 = var72 && var91
+		var92 := (elem70.A0.B4 == NamedUint64(0))
+		var72 = var72 && var92
+		var93 := (elem70.A0.B5 == NamedInt8(0))
+		var72 = var72 && var93
+		var94 := (elem70.A0.B6 == NamedInt16(0))
+		var72 = var72 && var94
+		var95 := (elem70.A0.B7 == NamedInt32(0))
+		var72 = var72 && var95
+		var96 := (elem70.A0.B8 == NamedInt64(0))
+		var72 = var72 && var96
+		var97 := (elem70.A0.B9 == NamedFloat32(0))
+		var72 = var72 && var97
+		var98 := (elem70.A0.B10 == NamedFloat64(0))
+		var72 = var72 && var98
+		var99 := (elem70.A0.B11 == NamedString(""))
+		var72 = var72 && var99
+		var100 := (elem70.A0.B12 == NamedEnumA)
+		var72 = var72 && var100
+		var var101 bool
+		if field, ok := elem70.A0.B13.(NamedUnionA); ok {
+
+			var102 := (field.Value == false)
+			var101 = var102
+		}
+		var72 = var72 && var101
+		var71 = var71 && var72
+		var103 := true
+		for _, elem104 := range elem70.A1 {
+
+			var105 := true
+			var106 := (elem104.A0 == false)
+			var105 = var105 && var106
+			var107 := (elem104.A1 == byte(0))
+			var105 = var105 && var107
+			var108 := (elem104.A2 == uint16(0))
+			var105 = var105 && var108
+			var109 := (elem104.A3 == uint32(0))
+			var105 = var105 && var109
+			var110 := (elem104.A4 == uint64(0))
+			var105 = var105 && var110
+			var111 := (elem104.A5 == int8(0))
+			var105 = var105 && var111
+			var112 := (elem104.A6 == int16(0))
+			var105 = var105 && var112
+			var113 := (elem104.A7 == int32(0))
+			var105 = var105 && var113
+			var114 := (elem104.A8 == int64(0))
+			var105 = var105 && var114
+			var115 := (elem104.A9 == float32(0))
+			var105 = var105 && var115
+			var116 := (elem104.A10 == float64(0))
+			var105 = var105 && var116
+			var117 := (elem104.A11 == "")
+			var105 = var105 && var117
+			var118 := (elem104.A12 == (error)(nil))
+			var105 = var105 && var118
+			var119 := elem104.A13 == nil || (elem104.A13.Type.Kind() == vdl.Any && elem104.A13.IsNil())
+			var105 = var105 && var119
+			var120 := (elem104.A14 == nil || elem104.A14 == vdl.AnyType)
+			var105 = var105 && var120
+			var121 := (elem104.B0 == NamedBool(false))
+			var105 = var105 && var121
+			var122 := (elem104.B1 == NamedByte(0))
+			var105 = var105 && var122
+			var123 := (elem104.B2 == NamedUint16(0))
+			var105 = var105 && var123
+			var124 := (elem104.B3 == NamedUint32(0))
+			var105 = var105 && var124
+			var125 := (elem104.B4 == NamedUint64(0))
+			var105 = var105 && var125
+			var126 := (elem104.B5 == NamedInt8(0))
+			var105 = var105 && var126
+			var127 := (elem104.B6 == NamedInt16(0))
+			var105 = var105 && var127
+			var128 := (elem104.B7 == NamedInt32(0))
+			var105 = var105 && var128
+			var129 := (elem104.B8 == NamedInt64(0))
+			var105 = var105 && var129
+			var130 := (elem104.B9 == NamedFloat32(0))
+			var105 = var105 && var130
+			var131 := (elem104.B10 == NamedFloat64(0))
+			var105 = var105 && var131
+			var132 := (elem104.B11 == NamedString(""))
+			var105 = var105 && var132
+			var133 := (elem104.B12 == NamedEnumA)
+			var105 = var105 && var133
+			var var134 bool
+			if field, ok := elem104.B13.(NamedUnionA); ok {
+
+				var135 := (field.Value == false)
+				var134 = var135
+			}
+			var105 = var105 && var134
+			if !var105 {
+				var103 = false
+				break
+			}
+		}
+		var71 = var71 && var103
+		var var136 bool
+		if len(elem70.A2) == 0 {
+			var136 = true
+		}
+		var71 = var71 && var136
+		var var137 bool
+		if len(elem70.A3) == 0 {
+			var137 = true
+		}
+		var71 = var71 && var137
+		var var138 bool
+		if len(elem70.A4) == 0 {
+			var138 = true
+		}
+		var71 = var71 && var138
+		if !var71 {
+			var69 = false
+			break
+		}
+	}
+	if !(var69) {
+		if err := enc.NextField("A1"); err != nil {
+			return err
+		}
+		if err := x.A1.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var139 bool
+	if len(x.A2) == 0 {
+		var139 = true
+	}
+	if !(var139) {
+		if err := enc.NextField("A2"); err != nil {
+			return err
+		}
+		if err := __VDLWrite4_list(enc, &x.A2); err != nil {
+			return err
+		}
+	}
+	var var140 bool
+	if len(x.A3) == 0 {
+		var140 = true
+	}
+	if !(var140) {
+		if err := enc.NextField("A3"); err != nil {
+			return err
+		}
+		if err := __VDLWrite5_map(enc, &x.A3); err != nil {
+			return err
+		}
+	}
+	var var141 bool
+	if len(x.A4) == 0 {
+		var141 = true
+	}
+	if !(var141) {
+		if err := enc.NextField("A4"); err != nil {
+			return err
+		}
+		if err := __VDLWrite6_map(enc, &x.A4); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite4_list(enc vdl.Encoder, x *[]Composites) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]Composites)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := (*x)[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite5_map(enc vdl.Encoder, x *map[string]Composites) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[string]Composites)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range *x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := elem.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite6_map(enc vdl.Encoder, x *map[KeyScalars][]map[string]Composites) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[KeyScalars][]map[string]Composites)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range *x {
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+		if err := __VDLWrite7_list(enc, &elem); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite7_list(enc vdl.Encoder, x *[]map[string]Composites) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]map[string]Composites)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := __VDLWrite5_map(enc, &(*x)[i]); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // Args will be reordered to show up before NestedArgs in the generated output.
 type Args struct {
 	A int32
@@ -5994,6 +7733,46 @@ func (x *Args) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x Args) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Args)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.A == int32(0))
+	if !(var1) {
+		if err := enc.NextField("A"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.A)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.B == int32(0))
+	if !(var2) {
+		if err := enc.NextField("B"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.B)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // NestedArgs is defined before Args; that's allowed in regular Go, and also
 // allowed in our vdl files.  The compiler will re-order dependent types to ease
 // code generation in other languages.
@@ -6109,6 +7888,25 @@ func (x *NestedArgs) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x NestedArgs) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NestedArgs)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Args == Args{})
+	if !(var1) {
+		if err := enc.NextField("Args"); err != nil {
+			return err
+		}
+		if err := x.Args.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

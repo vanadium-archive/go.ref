@@ -164,6 +164,36 @@ func (x *GenVector) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x GenVector) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*GenVector)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range x {
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(elem); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // Knowledge is a mapping of syncable entities to their generation
 // vectors. These syncable entities could be data prefixes relative to a
 // Database id, or syncgroup oids.
@@ -294,6 +324,30 @@ func (x *Knowledge) VDLRead(dec vdl.Decoder) error {
 		}
 		tmpMap[key] = elem
 	}
+}
+
+func (x Knowledge) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Knowledge)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := elem.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // LogRecMetadata represents the metadata of a single log record that is
@@ -828,6 +882,187 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
 	}
 }
 
+func (x LogRecMetadata) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*LogRecMetadata)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Id == uint64(0))
+	if !(var1) {
+		if err := enc.NextField("Id"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Id); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Gen == uint64(0))
+	if !(var2) {
+		if err := enc.NextField("Gen"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Gen); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.RecType == byte(0))
+	if !(var3) {
+		if err := enc.NextField("RecType"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.RecType)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var4 := (x.ObjId == "")
+	if !(var4) {
+		if err := enc.NextField("ObjId"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.ObjId); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var5 := (x.CurVers == "")
+	if !(var5) {
+		if err := enc.NextField("CurVers"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.CurVers); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var6 bool
+	if len(x.Parents) == 0 {
+		var6 = true
+	}
+	if !(var6) {
+		if err := enc.NextField("Parents"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.Parents); err != nil {
+			return err
+		}
+	}
+	var wireValue7 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue7, x.UpdTime); err != nil {
+		return fmt.Errorf("error converting x.UpdTime to wiretype")
+	}
+
+	var8 := (wireValue7 == time_2.Time{})
+	if !(var8) {
+		if err := enc.NextField("UpdTime"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.UpdTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var9 := (x.Delete == false)
+	if !(var9) {
+		if err := enc.NextField("Delete"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.Delete); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var10 := (x.BatchId == uint64(0))
+	if !(var10) {
+		if err := enc.NextField("BatchId"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.BatchId); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var11 := (x.BatchCount == uint64(0))
+	if !(var11) {
+		if err := enc.NextField("BatchCount"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.BatchCount); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString((*x)[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // LogRec represents the on-wire representation of an entire log record: its
 // metadata and data. Value is the actual value of a store object.
 type LogRec struct {
@@ -1014,6 +1249,71 @@ func (x *LogRec) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x LogRec) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*LogRec)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := true
+	var2 := (x.Metadata.Id == uint64(0))
+	var1 = var1 && var2
+	var3 := (x.Metadata.Gen == uint64(0))
+	var1 = var1 && var3
+	var4 := (x.Metadata.RecType == byte(0))
+	var1 = var1 && var4
+	var5 := (x.Metadata.ObjId == "")
+	var1 = var1 && var5
+	var6 := (x.Metadata.CurVers == "")
+	var1 = var1 && var6
+	var var7 bool
+	if len(x.Metadata.Parents) == 0 {
+		var7 = true
+	}
+	var1 = var1 && var7
+	var wireValue8 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue8, x.Metadata.UpdTime); err != nil {
+		return fmt.Errorf("error converting x.Metadata.UpdTime to wiretype")
+	}
+
+	var9 := (wireValue8 == time_2.Time{})
+	var1 = var1 && var9
+	var10 := (x.Metadata.Delete == false)
+	var1 = var1 && var10
+	var11 := (x.Metadata.BatchId == uint64(0))
+	var1 = var1 && var11
+	var12 := (x.Metadata.BatchCount == uint64(0))
+	var1 = var1 && var12
+	if !(var1) {
+		if err := enc.NextField("Metadata"); err != nil {
+			return err
+		}
+		if err := x.Metadata.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var13 bool
+	if len(x.Value) == 0 {
+		var13 = true
+	}
+	if !(var13) {
+		if err := enc.NextField("Value"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Value); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // GroupId is a globally unique syncgroup ID.
 // It is a hash of the syncgroup name.
 type GroupId string
@@ -1060,6 +1360,16 @@ func (x *GroupId) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = GroupId(tmp)
 	return dec.FinishValue()
+}
+
+func (x GroupId) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*GroupId)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeString(string(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // Possible states for a syncgroup.
@@ -1164,6 +1474,16 @@ func (x *SyncgroupStatus) VDLRead(dec vdl.Decoder) error {
 		return err
 	}
 	return dec.FinishValue()
+}
+
+func (x SyncgroupStatus) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SyncgroupStatus)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeString(x.String()); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // Syncgroup contains the state of a syncgroup.
@@ -1628,6 +1948,143 @@ func __VDLRead2_map(dec vdl.Decoder, x *map[string]syncbase.SyncgroupMemberInfo)
 	}
 }
 
+func (x Syncgroup) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Syncgroup)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Name == "")
+	if !(var1) {
+		if err := enc.NextField("Name"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Name); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.SpecVersion == "")
+	if !(var2) {
+		if err := enc.NextField("SpecVersion"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.SpecVersion); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := true
+	var4 := (x.Spec.Description == "")
+	var3 = var3 && var4
+	var var5 bool
+	if len(x.Spec.Perms) == 0 {
+		var5 = true
+	}
+	var3 = var3 && var5
+	var var6 bool
+	if len(x.Spec.Prefixes) == 0 {
+		var6 = true
+	}
+	var3 = var3 && var6
+	var var7 bool
+	if len(x.Spec.MountTables) == 0 {
+		var7 = true
+	}
+	var3 = var3 && var7
+	var8 := (x.Spec.IsPrivate == false)
+	var3 = var3 && var8
+	if !(var3) {
+		if err := enc.NextField("Spec"); err != nil {
+			return err
+		}
+		if err := x.Spec.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var9 := (x.Creator == "")
+	if !(var9) {
+		if err := enc.NextField("Creator"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Creator); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var10 := (x.DbId == syncbase.Id{})
+	if !(var10) {
+		if err := enc.NextField("DbId"); err != nil {
+			return err
+		}
+		if err := x.DbId.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var11 := (x.Status == SyncgroupStatusPublishPending)
+	if !(var11) {
+		if err := enc.NextField("Status"); err != nil {
+			return err
+		}
+		if err := x.Status.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var12 bool
+	if len(x.Joiners) == 0 {
+		var12 = true
+	}
+	if !(var12) {
+		if err := enc.NextField("Joiners"); err != nil {
+			return err
+		}
+		if err := __VDLWrite2_map(enc, &x.Joiners); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite2_map(enc vdl.Encoder, x *map[string]syncbase.SyncgroupMemberInfo) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[string]syncbase.SyncgroupMemberInfo)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range *x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := elem.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // SgDeltaReq contains the initiator's genvectors for the syncgroups it is
 // interested in within a database when requesting deltas for those syncgroups.
 type SgDeltaReq struct {
@@ -1778,6 +2235,37 @@ func (x *SgDeltaReq) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x SgDeltaReq) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SgDeltaReq)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.DbId == syncbase.Id{})
+	if !(var1) {
+		if err := enc.NextField("DbId"); err != nil {
+			return err
+		}
+		if err := x.DbId.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Gvs) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Gvs"); err != nil {
+			return err
+		}
+		if err := x.Gvs.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // DataDeltaReq contains the initiator's genvectors and the set of syncgroups it
@@ -2053,6 +2541,64 @@ func __VDLRead3_set(dec vdl.Decoder, x *map[GroupId]struct{}) error {
 	}
 }
 
+func (x DataDeltaReq) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DataDeltaReq)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.DbId == syncbase.Id{})
+	if !(var1) {
+		if err := enc.NextField("DbId"); err != nil {
+			return err
+		}
+		if err := x.DbId.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.SgIds) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("SgIds"); err != nil {
+			return err
+		}
+		if err := __VDLWrite3_set(enc, &x.SgIds); err != nil {
+			return err
+		}
+	}
+	var var3 bool
+	if len(x.Gvs) == 0 {
+		var3 = true
+	}
+	if !(var3) {
+		if err := enc.NextField("Gvs"); err != nil {
+			return err
+		}
+		if err := x.Gvs.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite3_set(enc vdl.Encoder, x *map[GroupId]struct{}) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[GroupId]struct{})(nil))); err != nil {
+		return err
+	}
+	for key := range *x {
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type (
 	// DeltaReq represents any single field of the DeltaReq union type.
 	//
@@ -2068,6 +2614,7 @@ type (
 		// __VDLReflect describes the DeltaReq union type.
 		__VDLReflect(__DeltaReqReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// DeltaReqSgs represents field Sgs of the DeltaReq union type.
 	DeltaReqSgs struct{ Value SgDeltaReq }
@@ -2239,6 +2786,37 @@ func VDLReadDeltaReq(dec vdl.Decoder, x *DeltaReq) error {
 	return dec.FinishValue()
 }
 
+func (x DeltaReqSgs) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DeltaReq)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Sgs"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x DeltaReqData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DeltaReq)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Data"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type (
 	// DeltaResp represents any single field of the DeltaResp union type.
 	//
@@ -2254,6 +2832,7 @@ type (
 		// __VDLReflect describes the DeltaResp union type.
 		__VDLReflect(__DeltaRespReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// DeltaRespRec represents field Rec of the DeltaResp union type.
 	DeltaRespRec struct{ Value LogRec }
@@ -2423,6 +3002,37 @@ func VDLReadDeltaResp(dec vdl.Decoder, x *DeltaResp) error {
 		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
 	}
 	return dec.FinishValue()
+}
+
+func (x DeltaRespRec) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DeltaResp)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Rec"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x DeltaRespGvs) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DeltaResp)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Gvs"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // A SgPriority represents data used to decide whether to transfer blob ownership
@@ -2636,6 +3246,64 @@ func (x *SgPriority) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x SgPriority) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SgPriority)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.DevType == int32(0))
+	if !(var1) {
+		if err := enc.NextField("DevType"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.DevType)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Distance == float32(0))
+	if !(var2) {
+		if err := enc.NextField("Distance"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*float32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeFloat(float64(x.Distance)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var wireValue3 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue3, x.ServerTime); err != nil {
+		return fmt.Errorf("error converting x.ServerTime to wiretype")
+	}
+
+	var4 := (wireValue3 == time_2.Time{})
+	if !(var4) {
+		if err := enc.NextField("ServerTime"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.ServerTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // A SgPriorities maps syncgroup IDs to SgPriority structures.  It is sent and
 // received in GetDeltas calls to allow the participants to assess who has
 // higher priorities for keeping blobs.
@@ -2763,6 +3431,24 @@ func (x *SgPriorities) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x SgPriorities) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*SgPriorities)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range x {
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+		if err := elem.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // DeltaFinalResp contains the data returned at the end of a GetDeltas call.
 type DeltaFinalResp struct {
 	SgPriorities SgPriorities
@@ -2879,6 +3565,28 @@ func (x *DeltaFinalResp) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x DeltaFinalResp) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DeltaFinalResp)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.SgPriorities) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("SgPriorities"); err != nil {
+			return err
+		}
+		if err := x.SgPriorities.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // ChunkHash contains the hash of a chunk that is part of a blob's recipe.
@@ -3005,6 +3713,34 @@ func (x *ChunkHash) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x ChunkHash) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ChunkHash)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Hash) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Hash"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Hash); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // ChunkData contains the data of a chunk.
 type ChunkData struct {
 	Data []byte
@@ -3127,6 +3863,34 @@ func (x *ChunkData) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x ChunkData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ChunkData)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Data) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Data"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Data); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // TimeReq contains the send timestamp from the requester.
@@ -3257,6 +4021,34 @@ func (x *TimeReq) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x TimeReq) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*TimeReq)(nil)).Elem()); err != nil {
+		return err
+	}
+	var wireValue1 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue1, x.SendTs); err != nil {
+		return fmt.Errorf("error converting x.SendTs to wiretype")
+	}
+
+	var2 := (wireValue1 == time_2.Time{})
+	if !(var2) {
+		if err := enc.NextField("SendTs"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.SendTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // TimeResp contains information needed by the requester to estimate the
@@ -3620,6 +4412,118 @@ func (x *TimeResp) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x TimeResp) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*TimeResp)(nil)).Elem()); err != nil {
+		return err
+	}
+	var wireValue1 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue1, x.OrigTs); err != nil {
+		return fmt.Errorf("error converting x.OrigTs to wiretype")
+	}
+
+	var2 := (wireValue1 == time_2.Time{})
+	if !(var2) {
+		if err := enc.NextField("OrigTs"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.OrigTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue3 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue3, x.RecvTs); err != nil {
+		return fmt.Errorf("error converting x.RecvTs to wiretype")
+	}
+
+	var4 := (wireValue3 == time_2.Time{})
+	if !(var4) {
+		if err := enc.NextField("RecvTs"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.RecvTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue5 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue5, x.SendTs); err != nil {
+		return fmt.Errorf("error converting x.SendTs to wiretype")
+	}
+
+	var6 := (wireValue5 == time_2.Time{})
+	if !(var6) {
+		if err := enc.NextField("SendTs"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.SendTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue7 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue7, x.LastNtpTs); err != nil {
+		return fmt.Errorf("error converting x.LastNtpTs to wiretype")
+	}
+
+	var8 := (wireValue7 == time_2.Time{})
+	if !(var8) {
+		if err := enc.NextField("LastNtpTs"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.LastNtpTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var9 := (x.NumReboots == uint16(0))
+	if !(var9) {
+		if err := enc.NextField("NumReboots"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.NumReboots)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var10 := (x.NumHops == uint16(0))
+	if !(var10) {
+		if err := enc.NextField("NumHops"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.NumHops)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // A BlobSharesBySyncgroup maps syncgroup IDs to integer share numbers that a
 // syncbase instance may have for a blob.
 type BlobSharesBySyncgroup map[GroupId]int32
@@ -3751,6 +4655,30 @@ func (x *BlobSharesBySyncgroup) VDLRead(dec vdl.Decoder) error {
 		}
 		tmpMap[key] = elem
 	}
+}
+
+func (x BlobSharesBySyncgroup) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlobSharesBySyncgroup)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range x {
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(elem)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // A LocationData is the information known about a particular location in a Signpost.
@@ -3960,6 +4888,64 @@ func (x *LocationData) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x LocationData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*LocationData)(nil)).Elem()); err != nil {
+		return err
+	}
+	var wireValue1 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue1, x.WhenSeen); err != nil {
+		return fmt.Errorf("error converting x.WhenSeen to wiretype")
+	}
+
+	var2 := (wireValue1 == time_2.Time{})
+	if !(var2) {
+		if err := enc.NextField("WhenSeen"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.WhenSeen); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var3 := (x.IsProxy == false)
+	if !(var3) {
+		if err := enc.NextField("IsProxy"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.IsProxy); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var4 := (x.IsServer == false)
+	if !(var4) {
+		if err := enc.NextField("IsServer"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.IsServer); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // A PeerToLocationDataMap is a map from syncbase peer names to LocationData structures.
 type PeerToLocationDataMap map[string]LocationData
 
@@ -4088,6 +5074,30 @@ func (x *PeerToLocationDataMap) VDLRead(dec vdl.Decoder) error {
 		}
 		tmpMap[key] = elem
 	}
+}
+
+func (x PeerToLocationDataMap) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*PeerToLocationDataMap)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := elem.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // A Signpost is a hint to syncbase of the device on which a blob may be found.
@@ -4261,6 +5271,40 @@ func (x *Signpost) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x Signpost) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Signpost)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Locations) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Locations"); err != nil {
+			return err
+		}
+		if err := x.Locations.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.SgIds) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("SgIds"); err != nil {
+			return err
+		}
+		if err := __VDLWrite3_set(enc, &x.SgIds); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

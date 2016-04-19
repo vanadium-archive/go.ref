@@ -229,6 +229,45 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]security.BlessingPattern) error {
 	}
 }
 
+func (x blessingRootsState) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*blessingRootsState)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &elem); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]security.BlessingPattern) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]security.BlessingPattern)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := (*x)[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type dischargeCacheKey [32]byte
 
 func (dischargeCacheKey) __VDLReflect(struct {
@@ -272,6 +311,16 @@ func (x *dischargeCacheKey) VDLRead(dec vdl.Decoder) error {
 		return err
 	}
 	return dec.FinishValue()
+}
+
+func (x dischargeCacheKey) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*dischargeCacheKey)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeBytes([]byte(x[:])); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type CachedDischarge struct {
@@ -493,6 +542,83 @@ func (x *CachedDischarge) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x CachedDischarge) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*CachedDischarge)(nil)).Elem()); err != nil {
+		return err
+	}
+	var wireValue1 security.WireDischarge
+	if err := security.WireDischargeFromNative(&wireValue1, x.Discharge); err != nil {
+		return fmt.Errorf("error converting x.Discharge to wiretype")
+	}
+
+	var var2 bool
+	if field, ok := wireValue1.(security.WireDischargePublicKey); ok {
+
+		var3 := true
+		var4 := (field.Value.ThirdPartyCaveatId == "")
+		var3 = var3 && var4
+		var var5 bool
+		if len(field.Value.Caveats) == 0 {
+			var5 = true
+		}
+		var3 = var3 && var5
+		var6 := true
+		var var7 bool
+		if len(field.Value.Signature.Purpose) == 0 {
+			var7 = true
+		}
+		var6 = var6 && var7
+		var8 := (field.Value.Signature.Hash == security.Hash(""))
+		var6 = var6 && var8
+		var var9 bool
+		if len(field.Value.Signature.R) == 0 {
+			var9 = true
+		}
+		var6 = var6 && var9
+		var var10 bool
+		if len(field.Value.Signature.S) == 0 {
+			var10 = true
+		}
+		var6 = var6 && var10
+		var3 = var3 && var6
+		var2 = var3
+	}
+	if !(var2) {
+		if err := enc.NextField("Discharge"); err != nil {
+			return err
+		}
+		var wire security.WireDischarge
+		if err := security.WireDischargeFromNative(&wire, x.Discharge); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue11 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue11, x.CacheTime); err != nil {
+		return fmt.Errorf("error converting x.CacheTime to wiretype")
+	}
+
+	var12 := (wireValue11 == time_2.Time{})
+	if !(var12) {
+		if err := enc.NextField("CacheTime"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.CacheTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type blessingStoreState struct {
@@ -1130,6 +1256,152 @@ func __VDLRead4_map(dec vdl.Decoder, x *map[dischargeCacheKey]CachedDischarge) e
 		}
 		tmpMap[key] = elem
 	}
+}
+
+func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*blessingStoreState)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.PeerBlessings) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("PeerBlessings"); err != nil {
+			return err
+		}
+		if err := __VDLWrite2_map(enc, &x.PeerBlessings); err != nil {
+			return err
+		}
+	}
+	var wireValue2 security.WireBlessings
+	if err := security.WireBlessingsFromNative(&wireValue2, x.DefaultBlessings); err != nil {
+		return fmt.Errorf("error converting x.DefaultBlessings to wiretype")
+	}
+
+	var3 := true
+	var var4 bool
+	if len(wireValue2.CertificateChains) == 0 {
+		var4 = true
+	}
+	var3 = var3 && var4
+	if !(var3) {
+		if err := enc.NextField("DefaultBlessings"); err != nil {
+			return err
+		}
+		var wire security.WireBlessings
+		if err := security.WireBlessingsFromNative(&wire, x.DefaultBlessings); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var5 bool
+	if len(x.DischargeCache) == 0 {
+		var5 = true
+	}
+	if !(var5) {
+		if err := enc.NextField("DischargeCache"); err != nil {
+			return err
+		}
+		if err := __VDLWrite3_map(enc, &x.DischargeCache); err != nil {
+			return err
+		}
+	}
+	var var6 bool
+	if len(x.Discharges) == 0 {
+		var6 = true
+	}
+	if !(var6) {
+		if err := enc.NextField("Discharges"); err != nil {
+			return err
+		}
+		if err := __VDLWrite4_map(enc, &x.Discharges); err != nil {
+			return err
+		}
+	}
+	var7 := (x.CacheKeyFormat == uint32(0))
+	if !(var7) {
+		if err := enc.NextField("CacheKeyFormat"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.CacheKeyFormat)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite2_map(enc vdl.Encoder, x *map[security.BlessingPattern]security.Blessings) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[security.BlessingPattern]security.Blessings)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range *x {
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+		var wire security.WireBlessings
+		if err := security.WireBlessingsFromNative(&wire, elem); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite3_map(enc vdl.Encoder, x *map[dischargeCacheKey]security.Discharge) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[dischargeCacheKey]security.Discharge)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range *x {
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+		var wire security.WireDischarge
+		if err := security.WireDischargeFromNative(&wire, elem); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite4_map(enc vdl.Encoder, x *map[dischargeCacheKey]CachedDischarge) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[dischargeCacheKey]CachedDischarge)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range *x {
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+		if err := elem.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

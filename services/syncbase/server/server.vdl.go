@@ -175,6 +175,43 @@ func (x *ServiceData) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x ServiceData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ServiceData)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Version == uint64(0))
+	if !(var1) {
+		if err := enc.NextField("Version"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Version); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Perms) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Perms"); err != nil {
+			return err
+		}
+		if err := x.Perms.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // DbInfo contains information about a single Database, stored in the
 // service-level storage engine.
 type DbInfo struct {
@@ -367,6 +404,55 @@ func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DbInfo)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Id == syncbase.Id{})
+	if !(var1) {
+		if err := enc.NextField("Id"); err != nil {
+			return err
+		}
+		if err := x.Id.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var2 := (x.RootDir == "")
+	if !(var2) {
+		if err := enc.NextField("RootDir"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.RootDir); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.Engine == "")
+	if !(var3) {
+		if err := enc.NextField("Engine"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Engine); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // DatabaseData represents the persistent state of a Database, stored in the
@@ -636,6 +722,71 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DatabaseData)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Id == syncbase.Id{})
+	if !(var1) {
+		if err := enc.NextField("Id"); err != nil {
+			return err
+		}
+		if err := x.Id.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Version == uint64(0))
+	if !(var2) {
+		if err := enc.NextField("Version"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Version); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var3 bool
+	if len(x.Perms) == 0 {
+		var3 = true
+	}
+	if !(var3) {
+		if err := enc.NextField("Perms"); err != nil {
+			return err
+		}
+		if err := x.Perms.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var4 := (x.SchemaMetadata == (*syncbase.SchemaMetadata)(nil))
+	if !(var4) {
+		if err := enc.NextField("SchemaMetadata"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((**syncbase.SchemaMetadata)(nil))); err != nil {
+			return err
+		}
+		if x.SchemaMetadata == nil {
+			if err := enc.NilValue(vdl.TypeOf((**syncbase.SchemaMetadata)(nil))); err != nil {
+				return err
+			}
+		} else {
+			enc.SetNextStartValueIsOptional()
+			if err := x.SchemaMetadata.VDLWrite(enc); err != nil {
+				return err
+			}
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // CollectionPerms represent the persistent, synced permissions of a Collection.
 // Existence of CollectionPerms in the store determines existence of the
 // Collection.
@@ -772,6 +923,30 @@ func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
 		}
 		tmpMap[key] = elem
 	}
+}
+
+func (x CollectionPerms) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*CollectionPerms)(nil))); err != nil {
+		return err
+	}
+	for key, elem := range x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := elem.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

@@ -212,6 +212,46 @@ func (x *ConnInfo) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x ConnInfo) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ConnInfo)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.MinVersion == int32(0))
+	if !(var1) {
+		if err := enc.NextField("MinVersion"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.MinVersion)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.MaxVersion == int32(0))
+	if !(var2) {
+		if err := enc.NextField("MaxVersion"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.MaxVersion)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type RpcRequest struct {
 	Id      uint64
 	Method  string
@@ -407,6 +447,61 @@ func (x *RpcRequest) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*RpcRequest)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Id == uint64(0))
+	if !(var1) {
+		if err := enc.NextField("Id"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Id); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Method == "")
+	if !(var2) {
+		if err := enc.NextField("Method"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Method); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.NumArgs == uint32(0))
+	if !(var3) {
+		if err := enc.NextField("NumArgs"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.NumArgs)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type RpcResponse struct {
@@ -606,6 +701,55 @@ func (x *RpcResponse) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*RpcResponse)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Id == uint64(0))
+	if !(var1) {
+		if err := enc.NextField("Id"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Id); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Err == (error)(nil))
+	if !(var2) {
+		if err := enc.NextField("Err"); err != nil {
+			return err
+		}
+		if err := verror.VDLWrite(enc, x.Err); err != nil {
+			return err
+		}
+	}
+	var3 := (x.NumArgs == uint32(0))
+	if !(var3) {
+		if err := enc.NextField("NumArgs"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(uint64(x.NumArgs)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type (
 	// RpcMessage represents any single field of the RpcMessage union type.
 	RpcMessage interface {
@@ -618,6 +762,7 @@ type (
 		// __VDLReflect describes the RpcMessage union type.
 		__VDLReflect(__RpcMessageReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// RpcMessageReq represents field Req of the RpcMessage union type.
 	RpcMessageReq struct{ Value RpcRequest }
@@ -787,6 +932,37 @@ func VDLReadRpcMessage(dec vdl.Decoder, x *RpcMessage) error {
 		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
 	}
 	return dec.FinishValue()
+}
+
+func (x RpcMessageReq) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*RpcMessage)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Req"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x RpcMessageResp) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*RpcMessage)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Resp"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

@@ -143,6 +143,34 @@ func (x *GetOp) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x GetOp) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*GetOp)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Key) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Key"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // ScanOp represents a store scan operation.
 type ScanOp struct {
 	Start []byte
@@ -307,6 +335,52 @@ func (x *ScanOp) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x ScanOp) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ScanOp)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Start) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Start"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Start); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Limit) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Limit"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Limit); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // PutOp represents a store put operation.  The new version is written instead
@@ -477,6 +551,52 @@ func (x *PutOp) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x PutOp) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*PutOp)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Key) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Key"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Version) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Version"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Version); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // DeleteOp represents a store delete operation.
 type DeleteOp struct {
 	Key []byte
@@ -601,6 +721,34 @@ func (x *DeleteOp) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x DeleteOp) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DeleteOp)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Key) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Key"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // LogEntry represents a single store operation. This operation may have been
 // part of a transaction, as signified by the Continued boolean. Read-only
 // operations (and read-only transactions) are not logged.
@@ -630,7 +778,7 @@ func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	var4 := m.Op == nil || m.Op.IsNilAny()
+	var4 := m.Op == nil || (m.Op.Type.Kind() == vdl.Any && m.Op.IsNil())
 	if var4 {
 		if err := fieldsTarget1.ZeroField("Op"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -840,6 +988,82 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*LogEntry)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := x.Op == nil || (x.Op.Type.Kind() == vdl.Any && x.Op.IsNil())
+	if !(var1) {
+		if err := enc.NextField("Op"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.AnyType); err != nil {
+			return err
+		}
+		if x.Op.IsNil() {
+			if err := enc.NilValue(x.Op.Type); err != nil {
+				return err
+			}
+		} else {
+			if err := x.Op.VDLWrite(enc); err != nil {
+				return err
+			}
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.CommitTimestamp == int64(0))
+	if !(var2) {
+		if err := enc.NextField("CommitTimestamp"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.CommitTimestamp); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.FromSync == false)
+	if !(var3) {
+		if err := enc.NextField("FromSync"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.FromSync); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var4 := (x.Continued == false)
+	if !(var4) {
+		if err := enc.NextField("Continued"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.Continued); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

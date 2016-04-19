@@ -231,6 +231,67 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
 	}
 }
 
+func (x PackAddressTest) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*PackAddressTest)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.In) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("In"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.In); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Packed) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Packed"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Packed); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString((*x)[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // PackEncryptionKeysTest represents a test case for PackEncryptionKeys
 type PackEncryptionKeysTest struct {
 	// Algo is the algorithm that's in use.
@@ -508,6 +569,70 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]discovery.EncryptionKey) error {
 	}
 }
 
+func (x PackEncryptionKeysTest) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*PackEncryptionKeysTest)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Algo == discovery.EncryptionAlgorithm(0))
+	if !(var1) {
+		if err := enc.NextField("Algo"); err != nil {
+			return err
+		}
+		if err := x.Algo.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Keys) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Keys"); err != nil {
+			return err
+		}
+		if err := __VDLWrite2_list(enc, &x.Keys); err != nil {
+			return err
+		}
+	}
+	var var3 bool
+	if len(x.Packed) == 0 {
+		var3 = true
+	}
+	if !(var3) {
+		if err := enc.NextField("Packed"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBytes(x.Packed); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite2_list(enc vdl.Encoder, x *[]discovery.EncryptionKey) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]discovery.EncryptionKey)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := (*x)[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // UuidTestData represents the inputs and outputs for a uuid test.
 type UuidTestData struct {
 	// In is the input string.
@@ -666,6 +791,46 @@ func (x *UuidTestData) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x UuidTestData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*UuidTestData)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.In == "")
+	if !(var1) {
+		if err := enc.NextField("In"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.In); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Want == "")
+	if !(var2) {
+		if err := enc.NextField("Want"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Want); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

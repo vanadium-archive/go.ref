@@ -86,6 +86,16 @@ func (x *MyTime) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x MyTime) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*MyTime)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

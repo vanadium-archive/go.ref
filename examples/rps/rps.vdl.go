@@ -161,6 +161,31 @@ func (x *GameId) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x GameId) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*GameId)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Id == "")
+	if !(var1) {
+		if err := enc.NextField("Id"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Id); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type GameTypeTag byte
 
 func (GameTypeTag) __VDLReflect(struct {
@@ -226,6 +251,16 @@ func (x *GameTypeTag) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = GameTypeTag(tmp)
 	return dec.FinishValue()
+}
+
+func (x GameTypeTag) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*GameTypeTag)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeUint(uint64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // GameOptions specifies the parameters of a game.
@@ -383,6 +418,40 @@ func (x *GameOptions) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x GameOptions) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*GameOptions)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.NumRounds == int32(0))
+	if !(var1) {
+		if err := enc.NextField("NumRounds"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.NumRounds)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.GameType == GameTypeTag(0))
+	if !(var2) {
+		if err := enc.NextField("GameType"); err != nil {
+			return err
+		}
+		if err := x.GameType.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type unused struct {
 }
 
@@ -464,6 +533,16 @@ func (x *unused) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x unused) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*unused)(nil)).Elem()); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type (
 	// PlayerAction represents any single field of the PlayerAction union type.
 	PlayerAction interface {
@@ -476,6 +555,7 @@ type (
 		// __VDLReflect describes the PlayerAction union type.
 		__VDLReflect(__PlayerActionReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// PlayerActionMove represents field Move of the PlayerAction union type.
 	PlayerActionMove struct{ Value string } // The move that the player wants to make.
@@ -652,6 +732,43 @@ func VDLReadPlayerAction(dec vdl.Decoder, x *PlayerAction) error {
 	return dec.FinishValue()
 }
 
+func (x PlayerActionMove) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*PlayerAction)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Move"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeString(x.Value); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x PlayerActionQuit) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*PlayerAction)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Quit"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type PlayersMoves [2]string
 
 func (PlayersMoves) __VDLReflect(struct {
@@ -745,6 +862,27 @@ func (x *PlayersMoves) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x PlayersMoves) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*PlayersMoves)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < 2; i++ {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // WinnerTag is a type used to indicate whether a round or a game was a draw,
 // was won by player 1 or was won by player 2.
 type WinnerTag byte
@@ -812,6 +950,16 @@ func (x *WinnerTag) VDLRead(dec vdl.Decoder) error {
 	}
 	*x = WinnerTag(tmp)
 	return dec.FinishValue()
+}
+
+func (x WinnerTag) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*WinnerTag)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeUint(uint64(x)); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 // Round represents the state of a round.
@@ -1094,6 +1242,85 @@ func (x *Round) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x Round) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Round)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Moves == PlayersMoves{})
+	if !(var1) {
+		if err := enc.NextField("Moves"); err != nil {
+			return err
+		}
+		if err := x.Moves.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Comment == "")
+	if !(var2) {
+		if err := enc.NextField("Comment"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Comment); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.Winner == WinnerTag(0))
+	if !(var3) {
+		if err := enc.NextField("Winner"); err != nil {
+			return err
+		}
+		if err := x.Winner.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue4 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue4, x.StartTime); err != nil {
+		return fmt.Errorf("error converting x.StartTime to wiretype")
+	}
+
+	var5 := (wireValue4 == time_2.Time{})
+	if !(var5) {
+		if err := enc.NextField("StartTime"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.StartTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue6 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue6, x.EndTime); err != nil {
+		return fmt.Errorf("error converting x.EndTime to wiretype")
+	}
+
+	var7 := (wireValue6 == time_2.Time{})
+	if !(var7) {
+		if err := enc.NextField("EndTime"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.EndTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type ScoreCard struct {
@@ -1579,6 +1806,145 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]Round) error {
 	}
 }
 
+func (x ScoreCard) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ScoreCard)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Opts == GameOptions{})
+	if !(var1) {
+		if err := enc.NextField("Opts"); err != nil {
+			return err
+		}
+		if err := x.Opts.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Judge == "")
+	if !(var2) {
+		if err := enc.NextField("Judge"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Judge); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var3 bool
+	if len(x.Players) == 0 {
+		var3 = true
+	}
+	if !(var3) {
+		if err := enc.NextField("Players"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_list(enc, &x.Players); err != nil {
+			return err
+		}
+	}
+	var var4 bool
+	if len(x.Rounds) == 0 {
+		var4 = true
+	}
+	if !(var4) {
+		if err := enc.NextField("Rounds"); err != nil {
+			return err
+		}
+		if err := __VDLWrite2_list(enc, &x.Rounds); err != nil {
+			return err
+		}
+	}
+	var wireValue5 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue5, x.StartTime); err != nil {
+		return fmt.Errorf("error converting x.StartTime to wiretype")
+	}
+
+	var6 := (wireValue5 == time_2.Time{})
+	if !(var6) {
+		if err := enc.NextField("StartTime"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.StartTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue7 time_2.Time
+	if err := time_2.TimeFromNative(&wireValue7, x.EndTime); err != nil {
+		return fmt.Errorf("error converting x.EndTime to wiretype")
+	}
+
+	var8 := (wireValue7 == time_2.Time{})
+	if !(var8) {
+		if err := enc.NextField("EndTime"); err != nil {
+			return err
+		}
+		var wire time_2.Time
+		if err := time_2.TimeFromNative(&wire, x.EndTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var9 := (x.Winner == WinnerTag(0))
+	if !(var9) {
+		if err := enc.NextField("Winner"); err != nil {
+			return err
+		}
+		if err := x.Winner.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString((*x)[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite2_list(enc vdl.Encoder, x *[]Round) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]Round)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := (*x)[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type (
 	// JudgeAction represents any single field of the JudgeAction union type.
 	JudgeAction interface {
@@ -1591,6 +1957,7 @@ type (
 		// __VDLReflect describes the JudgeAction union type.
 		__VDLReflect(__JudgeActionReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// JudgeActionPlayerNum represents field PlayerNum of the JudgeAction union type.
 	JudgeActionPlayerNum struct{ Value int32 } // The player's number.
@@ -1928,6 +2295,94 @@ func VDLReadJudgeAction(dec vdl.Decoder, x *JudgeAction) error {
 	return dec.FinishValue()
 }
 
+func (x JudgeActionPlayerNum) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*JudgeAction)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("PlayerNum"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x.Value)); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x JudgeActionOpponentName) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*JudgeAction)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("OpponentName"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeString(x.Value); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x JudgeActionMoveOptions) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*JudgeAction)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("MoveOptions"); err != nil {
+		return err
+	}
+	if err := __VDLWrite1_list(enc, &x.Value); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x JudgeActionRoundResult) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*JudgeAction)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("RoundResult"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x JudgeActionScore) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*JudgeAction)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Score"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // PlayResult is the value returned by the Play method. It indicates the outcome of the game.
 type PlayResult struct {
 	YouWon bool // True if the player receiving the result won the game.
@@ -2046,6 +2501,31 @@ func (x *PlayResult) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x PlayResult) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*PlayResult)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.YouWon == false)
+	if !(var1) {
+		if err := enc.NextField("YouWon"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.YouWon); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

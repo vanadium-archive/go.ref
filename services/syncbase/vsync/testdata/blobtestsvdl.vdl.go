@@ -172,6 +172,40 @@ func (x *BlobInfo) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x BlobInfo) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlobInfo)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Info == "")
+	if !(var1) {
+		if err := enc.NextField("Info"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Info); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Br == syncbase.BlobRef(""))
+	if !(var2) {
+		if err := enc.NextField("Br"); err != nil {
+			return err
+		}
+		if err := x.Br.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type (
 	// BlobUnion represents any single field of the BlobUnion union type.
 	BlobUnion interface {
@@ -184,6 +218,7 @@ type (
 		// __VDLReflect describes the BlobUnion union type.
 		__VDLReflect(__BlobUnionReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLWrite(vdl.Encoder) error
 	}
 	// BlobUnionNum represents field Num of the BlobUnion union type.
 	BlobUnionNum struct{ Value int32 }
@@ -360,6 +395,43 @@ func VDLReadBlobUnion(dec vdl.Decoder, x *BlobUnion) error {
 		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
 	}
 	return dec.FinishValue()
+}
+
+func (x BlobUnionNum) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlobUnion)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Num"); err != nil {
+		return err
+	}
+	if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeInt(int64(x.Value)); err != nil {
+		return err
+	}
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+func (x BlobUnionBi) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlobUnion)(nil))); err != nil {
+		return err
+	}
+	if err := enc.NextField("Bi"); err != nil {
+		return err
+	}
+	if err := x.Value.VDLWrite(enc); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type BlobSet struct {
@@ -602,6 +674,58 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[syncbase.BlobRef]struct{}) error {
 	}
 }
 
+func (x BlobSet) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlobSet)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Info == "")
+	if !(var1) {
+		if err := enc.NextField("Info"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Info); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Bs) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Bs"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_set(enc, &x.Bs); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_set(enc vdl.Encoder, x *map[syncbase.BlobRef]struct{}) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[syncbase.BlobRef]struct{})(nil))); err != nil {
+		return err
+	}
+	for key := range *x {
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type BlobAny struct {
 	Info string
 	Baa  []*vom.RawBytes
@@ -833,6 +957,70 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]*vom.RawBytes) error {
 		}
 		*x = append(*x, elem)
 	}
+}
+
+func (x BlobAny) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlobAny)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Info == "")
+	if !(var1) {
+		if err := enc.NextField("Info"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Info); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Baa) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Baa"); err != nil {
+			return err
+		}
+		if err := __VDLWrite2_list(enc, &x.Baa); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite2_list(enc vdl.Encoder, x *[]*vom.RawBytes) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]*vom.RawBytes)(nil))); err != nil {
+		return err
+	}
+	for i := 0; i < len(*x); i++ {
+		if err := enc.StartValue(vdl.AnyType); err != nil {
+			return err
+		}
+		if (*x)[i].IsNil() {
+			if err := enc.NilValue((*x)[i].Type); err != nil {
+				return err
+			}
+		} else {
+			if err := (*x)[i].VDLWrite(enc); err != nil {
+				return err
+			}
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 type NonBlobSet struct {
@@ -1080,6 +1268,64 @@ func __VDLRead3_set(dec vdl.Decoder, x *map[string]struct{}) error {
 	}
 }
 
+func (x NonBlobSet) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*NonBlobSet)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Info == "")
+	if !(var1) {
+		if err := enc.NextField("Info"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Info); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.S) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("S"); err != nil {
+			return err
+		}
+		if err := __VDLWrite3_set(enc, &x.S); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite3_set(enc vdl.Encoder, x *map[string]struct{}) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[string]struct{})(nil))); err != nil {
+		return err
+	}
+	for key := range *x {
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 type BlobOpt struct {
 	Info string
 	Bo   *BlobInfo
@@ -1274,6 +1520,50 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlobOpt)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Info == "")
+	if !(var1) {
+		if err := enc.NextField("Info"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Info); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Bo == (*BlobInfo)(nil))
+	if !(var2) {
+		if err := enc.NextField("Bo"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((**BlobInfo)(nil))); err != nil {
+			return err
+		}
+		if x.Bo == nil {
+			if err := enc.NilValue(vdl.TypeOf((**BlobInfo)(nil))); err != nil {
+				return err
+			}
+		} else {
+			enc.SetNextStartValueIsOptional()
+			if err := x.Bo.VDLWrite(enc); err != nil {
+				return err
+			}
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

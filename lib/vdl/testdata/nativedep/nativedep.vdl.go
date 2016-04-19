@@ -341,6 +341,106 @@ func (x *All) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x All) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*All)(nil)).Elem()); err != nil {
+		return err
+	}
+	var wireValue1 nativetest_2.WireString
+	if err := nativetest_2.WireStringFromNative(&wireValue1, x.A); err != nil {
+		return fmt.Errorf("error converting x.A to wiretype")
+	}
+
+	var2 := (wireValue1 == nativetest_2.WireString(0))
+	if !(var2) {
+		if err := enc.NextField("A"); err != nil {
+			return err
+		}
+		var wire nativetest_2.WireString
+		if err := nativetest_2.WireStringFromNative(&wire, x.A); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue3 nativetest_2.WireMapStringInt
+	if err := nativetest_2.WireMapStringIntFromNative(&wireValue3, x.B); err != nil {
+		return fmt.Errorf("error converting x.B to wiretype")
+	}
+
+	var4 := (wireValue3 == nativetest_2.WireMapStringInt(0))
+	if !(var4) {
+		if err := enc.NextField("B"); err != nil {
+			return err
+		}
+		var wire nativetest_2.WireMapStringInt
+		if err := nativetest_2.WireMapStringIntFromNative(&wire, x.B); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue5 nativetest_2.WireTime
+	if err := nativetest_2.WireTimeFromNative(&wireValue5, x.C); err != nil {
+		return fmt.Errorf("error converting x.C to wiretype")
+	}
+
+	var6 := (wireValue5 == nativetest_2.WireTime(0))
+	if !(var6) {
+		if err := enc.NextField("C"); err != nil {
+			return err
+		}
+		var wire nativetest_2.WireTime
+		if err := nativetest_2.WireTimeFromNative(&wire, x.C); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue7 nativetest_2.WireSamePkg
+	if err := nativetest_2.WireSamePkgFromNative(&wireValue7, x.D); err != nil {
+		return fmt.Errorf("error converting x.D to wiretype")
+	}
+
+	var8 := (wireValue7 == nativetest_2.WireSamePkg(0))
+	if !(var8) {
+		if err := enc.NextField("D"); err != nil {
+			return err
+		}
+		var wire nativetest_2.WireSamePkg
+		if err := nativetest_2.WireSamePkgFromNative(&wire, x.D); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireValue9 nativetest_2.WireMultiImport
+	if err := nativetest_2.WireMultiImportFromNative(&wireValue9, x.E); err != nil {
+		return fmt.Errorf("error converting x.E to wiretype")
+	}
+
+	var10 := (wireValue9 == nativetest_2.WireMultiImport(0))
+	if !(var10) {
+		if err := enc.NextField("E"); err != nil {
+			return err
+		}
+		var wire nativetest_2.WireMultiImport
+		if err := nativetest_2.WireMultiImportFromNative(&wire, x.E); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

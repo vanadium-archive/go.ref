@@ -112,6 +112,16 @@ func (x *dataRep) VDLRead(dec vdl.Decoder) error {
 	return dec.FinishValue()
 }
 
+func (x dataRep) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*dataRep)(nil))); err != nil {
+		return err
+	}
+	if err := enc.EncodeString(x.String()); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

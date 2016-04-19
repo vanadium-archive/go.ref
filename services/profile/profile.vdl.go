@@ -218,6 +218,61 @@ func (x *Library) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x Library) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Library)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Name == "")
+	if !(var1) {
+		if err := enc.NextField("Name"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Name); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.MajorVersion == "")
+	if !(var2) {
+		if err := enc.NextField("MajorVersion"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.MajorVersion); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.MinorVersion == "")
+	if !(var3) {
+		if err := enc.NextField("MinorVersion"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.MinorVersion); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // Specification is how we represent a profile internally. It should
 // provide enough information to allow matching of binaries to devices.
 type Specification struct {
@@ -602,6 +657,100 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[Library]struct{}) error {
 		}
 		tmpMap[key] = struct{}{}
 	}
+}
+
+func (x Specification) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Specification)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Label == "")
+	if !(var1) {
+		if err := enc.NextField("Label"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Label); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Description == "")
+	if !(var2) {
+		if err := enc.NextField("Description"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Description); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var3 := (x.Arch == build.ArchitectureAmd64)
+	if !(var3) {
+		if err := enc.NextField("Arch"); err != nil {
+			return err
+		}
+		if err := x.Arch.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var4 := (x.Os == build.OperatingSystemDarwin)
+	if !(var4) {
+		if err := enc.NextField("Os"); err != nil {
+			return err
+		}
+		if err := x.Os.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var5 := (x.Format == build.FormatElf)
+	if !(var5) {
+		if err := enc.NextField("Format"); err != nil {
+			return err
+		}
+		if err := x.Format.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var6 bool
+	if len(x.Libraries) == 0 {
+		var6 = true
+	}
+	if !(var6) {
+		if err := enc.NextField("Libraries"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_set(enc, &x.Libraries); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_set(enc vdl.Encoder, x *map[Library]struct{}) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[Library]struct{})(nil))); err != nil {
+		return err
+	}
+	for key := range *x {
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

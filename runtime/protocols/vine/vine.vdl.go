@@ -180,6 +180,46 @@ func (x *PeerKey) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+func (x PeerKey) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*PeerKey)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Dialer == "")
+	if !(var1) {
+		if err := enc.NextField("Dialer"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Dialer); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Acceptor == "")
+	if !(var2) {
+		if err := enc.NextField("Acceptor"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Acceptor); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 // PeerBehavior specifies characteristics of a connection.
 type PeerBehavior struct {
 	// Reachable specifies whether the outgoing or incoming connection can be
@@ -343,6 +383,46 @@ func (x *PeerBehavior) VDLRead(dec vdl.Decoder) error {
 			}
 		}
 	}
+}
+
+func (x PeerBehavior) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*PeerBehavior)(nil)).Elem()); err != nil {
+		return err
+	}
+	var1 := (x.Reachable == false)
+	if !(var1) {
+		if err := enc.NextField("Reachable"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.Reachable); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	var2 := (x.Discoverable == false)
+	if !(var2) {
+		if err := enc.NextField("Discoverable"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.Discoverable); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

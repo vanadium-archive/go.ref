@@ -259,6 +259,55 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]struct{}
 	}
 }
 
+func (x groupData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*groupData)(nil)).Elem()); err != nil {
+		return err
+	}
+	var var1 bool
+	if len(x.Perms) == 0 {
+		var1 = true
+	}
+	if !(var1) {
+		if err := enc.NextField("Perms"); err != nil {
+			return err
+		}
+		if err := x.Perms.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var var2 bool
+	if len(x.Entries) == 0 {
+		var2 = true
+	}
+	if !(var2) {
+		if err := enc.NextField("Entries"); err != nil {
+			return err
+		}
+		if err := __VDLWrite1_set(enc, &x.Entries); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWrite1_set(enc vdl.Encoder, x *map[groups.BlessingPatternChunk]struct{}) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[groups.BlessingPatternChunk]struct{})(nil))); err != nil {
+		return err
+	}
+	for key := range *x {
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
