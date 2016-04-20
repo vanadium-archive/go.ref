@@ -93,10 +93,34 @@ func terminal(e *naming.MountEntry) bool {
 	return len(e.Name) == 0
 }
 
+func hasEndpointPrefix(name string) bool {
+	if name == "" || naming.Rooted(name) {
+		return false
+	}
+	elems := strings.SplitN(name, "/", 2)
+	_, err := v23.NewEndpoint(elems[0])
+	return err == nil
+}
+
 // Resolve implements v.io/v23/naming.Namespace.
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer apilog.LogCallf(ctx, "name=%.10s...,opts...=%v", name, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 
+	e, err := ns.resolveInternal(ctx, name, opts...)
+	// If the resolution failed and it appears that the name starts with an
+	// endpoint but was mistakenly passed in un-rooted, add a sub error to
+	// point that out to the client.
+
+	// TODO(caprita): Consider doing this also for ResolveShallow and
+	// ResolveToMountTable.
+	if err != nil && hasEndpointPrefix(name) {
+		verrorE := verror.Convert(verror.IDAction{}, ctx, err)
+		err = verror.AddSubErrs(verrorE, nil, verror.SubErr{"Did you mean", verror.E{Msg: "/" + name}, verror.Print})
+	}
+	return e, err
+}
+
+func (ns *namespace) resolveInternal(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	// If caller supplied a mount entry, use it.
 	e, skipResolution := preresolved(opts)
 	if e != nil {

@@ -310,7 +310,7 @@ func (c *client) tryConnectToName(ctx *context.T, name, method string, args []in
 	resolved, err := v23.GetNamespace(ctx).Resolve(ctx, name, getNamespaceOpts(opts)...)
 	switch {
 	case verror.ErrorID(err) == naming.ErrNoSuchName.ID:
-		return nil, verror.RetryRefetch, false, verror.New(verror.ErrNoServers, ctx, name)
+		return nil, verror.RetryRefetch, false, verror.New(verror.ErrNoServers, ctx, name, err)
 	case verror.ErrorID(err) == verror.ErrNoServers.ID:
 		return nil, verror.NoRetry, false, err // avoid unnecessary wrapping
 	case isTimeout(err):
