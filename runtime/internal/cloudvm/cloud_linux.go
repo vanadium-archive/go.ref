@@ -4,7 +4,7 @@
 
 // +build linux,!android
 
-// Package cloudvm proides functions to test whether the current process is
+// Package cloudvm provides functions to test whether the current process is
 // running on Google Compute Engine or Amazon Web Services, and to extract
 // settings from this environment.
 package cloudvm
