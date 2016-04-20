@@ -76,6 +76,7 @@ func normalizeMethod(x compile.Method) compile.Method {
 	x.Pos = parse.Pos{}
 	x.InArgs = normalizeArgs(x.InArgs)
 	x.OutArgs = normalizeArgs(x.OutArgs)
+	x.Interface = nil
 	return x
 }
 
@@ -185,5 +186,20 @@ var ifaceTests = []ifaceTest{
 	}}},
 	{"UnnamedOutArgs", ip{{"a", `type Res interface{UnnamedOutArgs() (bool, string | error)}`, nil,
 		`must name all out-args if there are more than 1`,
+	}}},
+	{"TransitiveExportArg", ip{{"a", `type t bool; type Res interface{TransExportArg(a t) error}`, nil,
+		`transitively exported`,
+	}}},
+	{"DupMethod", ip{{"a", `type t bool; type Res interface{Foo() error;Foo() error}`, nil,
+		`Foo redefined`,
+	}}},
+	{"DupMethodEmbed", ip{{"a", `type t bool; type A interface{Foo() error}; type B interface{A;Foo() error}`, nil,
+		`Foo redefined`,
+	}}},
+	{"DupMethodBothEmbed", ip{{"a", `type t bool; type A interface{Foo() error}; type B interface{Foo() error}; type Res interface {A;B}`, nil,
+		`Foo redefined`,
+	}}},
+	{"DupEmbed", ip{{"a", `type t bool; type A interface{Foo() error}; type Res interface {A;A}`, nil,
+		`duplicate embedding`,
 	}}},
 }

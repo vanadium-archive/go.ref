@@ -294,6 +294,7 @@ var errorTests = []errorTest{
 	{"MissingParamName2", ep{{"a", `error Res(bool, int32) {"en":"msg1"}`, compile.ErrorDef{}, "parameters must be named"}}},
 
 	{"UnknownType", ep{{"a", `error Res(x foo) {"en":"msg1"}`, compile.ErrorDef{}, "type foo undefined"}}},
+	{"NoTransitiveExportArg", ep{{"a", `type foo bool; error Res(x foo) {"en":"msg1"}`, compile.ErrorDef{}, "transitively exported"}}},
 	{"InvalidParam", ep{{"a", `error Res(_x foo) {"en":"msg1"}`, compile.ErrorDef{}, "param _x invalid"}}},
 	{"DupParam", ep{{"a", `error Res(x bool, x int32) {"en":"msg1"}`, compile.ErrorDef{}, "param x duplicate name"}}},
 	{"UnknownAction", ep{{"a", `error Res() {Foo,"en":"msg1"}`, compile.ErrorDef{}, "unknown action"}}},

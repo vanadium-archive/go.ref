@@ -489,6 +489,9 @@ var constTests = []struct {
 		"UnionZ",
 		cp{{"a", `type A union{X int64;Y string;Z bool}; const Res = A{Z: true}`, makeUnion("p.kg/a.A", true), ""}}},
 	{
+		"UnionEmpty",
+		cp{{"a", `type A union{X int64;Y string;Z bool}; const Res = A{}`, makeUnion("p.kg/a.A", int64(0)), ""}}},
+	{
 		"UnionInvalidFieldName",
 		cp{{"a", `type A union{X int64;Y string;Z bool}; const Res = A{1+1: true}`, nil, `invalid field name`}}},
 	{
@@ -496,10 +499,7 @@ var constTests = []struct {
 		cp{{"a", `type A union{X int64;Y string;Z bool}; const Res = A{ZZZ: true}`, nil, `unknown field "ZZZ"`}}},
 	{
 		"UnionTooManyFields",
-		cp{{"a", `type A union{X int64;Y string;Z bool}; const Res = A{X: 123, Y: "abc"}`, nil, `must have exactly one entry`}}},
-	{
-		"UnionTooFewFields",
-		cp{{"a", `type A union{X int64;Y string;Z bool}; const Res = A{}`, nil, `must have exactly one entry`}}},
+		cp{{"a", `type A union{X int64;Y string;Z bool}; const Res = A{X: 123, Y: "abc"}`, nil, `must have a single entry`}}},
 	{
 		"UnionInvalidField",
 		cp{{"a", `type A union{X int64;Y string;Z bool}; const Res = A{Y: 1}`, nil, `invalid union field`}}},
@@ -1047,4 +1047,45 @@ var constTests = []struct {
 	{"RedefinitionOfImportedName", cp{
 		{"a", `const Res = true`, vdl.BoolValue(nil, true), ""},
 		{"b", `import "p.kg/a"; const a = "test"; const Res = a`, nil, "const a name conflict"}}},
+
+	// Test transitively exported types.  Only the type of the final result matters.
+	{
+		"NoTransitiveExport",
+		cp{{"a", `type t bool; const Res = t(false)`, nil, "transitively exported"}}},
+	{
+		"NoTransitiveExportList",
+		cp{{"a", `type t bool; const Res = []t{}`, nil, "transitively exported"}}},
+	{
+		"NoTransitiveExportSet",
+		cp{{"a", `type t bool; const Res = set[t]{}`, nil, "transitively exported"}}},
+	{
+		"NoTransitiveExportMapKey",
+		cp{{"a", `type t bool; const Res = map[t]string{}`, nil, "transitively exported"}}},
+	{
+		"NoTransitiveExportMapElem",
+		cp{{"a", `type t bool; const Res = map[string]t{}`, nil, "transitively exported"}}},
+	{
+		"NoTransitiveExportArray",
+		cp{{"a", `type t [2]bool; const Res = t{}`, nil, "transitively exported"}}},
+	{
+		"NoTransitiveExportArrayElem",
+		cp{{"a", `type t bool; type X [2]t; const Res = X{}`, nil, "transitively exported"}}},
+	{
+		"NoTransitiveExportStruct",
+		cp{{"a", `type t struct{}; const Res = t{}`, nil, "transitively exported"}}},
+	{
+		"NoTransitiveExportStructField",
+		cp{{"a", `type t bool; type X struct{F t}; const Res = X{}`, nil, "transitively exported"}}},
+	{
+		"NoTransitiveExportUnion",
+		cp{{"a", `type t union{F bool}; const Res = t{}`, nil, "transitively exported"}}},
+	{
+		"NoTransitiveExportUnionField",
+		cp{{"a", `type t bool; type X union{F t}; const Res = X{}`, nil, "transitively exported"}}},
+	{
+		"NoTransitiveExportOptional",
+		cp{{"a", `type t struct {}; const Res = ?t(nil)`, nil, "transitively exported"}}},
+	{
+		"TransitiveExportInnerConversionOK",
+		cp{{"a", `type t bool; type X bool; const Res = X(t(true))`, vdl.BoolValue(vdl.NamedType("p.kg/a.X", vdl.BoolType), true), ""}}},
 }

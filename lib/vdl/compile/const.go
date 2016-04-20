@@ -125,10 +125,18 @@ func (cd constDefiner) Define() {
 	for _, ibuilder := range sorted {
 		b := ibuilder.(*constDefBuilder)
 		def, file := b.def, b.def.File
-		if value := compileConst("const", nil, b.pexpr, file, cd.env); value != nil {
-			def.Value = value
-			addConstDef(def, cd.env)
+		def.Value = compileConst("const", nil, b.pexpr, file, cd.env)
+		if def.Value == nil {
+			continue
 		}
+		// If the const is exported, make sure that the value type is exported.  We
+		// only care about the final value type; we can't perform this check while
+		// we're compiling and evaluating the const, since it's fine for sub
+		// expressions to use unexported types.
+		if def.Exported && !typeIsExported(def.Value.Type(), cd.env) {
+			cd.env.Errorf(file, def.Pos, "const %s must have a transitively exported type", def.Name)
+		}
+		addConstDef(def, cd.env)
 	}
 }
 
@@ -582,11 +590,14 @@ func evalStructLit(t *vdl.Type, lit *parse.ConstCompositeLit, file *File, env *E
 }
 
 func evalUnionLit(t *vdl.Type, lit *parse.ConstCompositeLit, file *File, env *Env) *vdl.Value {
-	// We require exactly one kv with an explicit key.
+	// We require either an empty kv list, or exactly one kv with an explicit key.
 	unionv := vdl.ZeroValue(t)
+	if len(lit.KVList) == 0 {
+		return unionv
+	}
 	desc := fmt.Sprintf("%v union literal", t)
 	if len(lit.KVList) != 1 {
-		env.Errorf(file, lit.Pos(), "invalid %s (must have exactly one entry)", desc)
+		env.Errorf(file, lit.Pos(), "invalid %s (must have a single entry)", desc)
 		return nil
 	}
 	kv := lit.KVList[0]

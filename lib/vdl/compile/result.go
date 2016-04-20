@@ -476,6 +476,7 @@ type Method struct {
 	InStream  *vdl.Type    // in-stream type, may be nil
 	OutStream *vdl.Type    // out-stream type, may be nil
 	Tags      []*vdl.Value // list of method tags
+	Interface *Interface   // parent interface
 }
 
 // Field represents method arguments and error params.
@@ -487,7 +488,6 @@ type Field struct {
 // NamePos represents a name, its associated position and documentation.
 type NamePos parse.NamePos
 
-func (x *Method) String() string  { return fmt.Sprintf("%+v", *x) }
 func (x *Field) String() string   { return fmt.Sprintf("%+v", *x) }
 func (x *NamePos) String() string { return fmt.Sprintf("%+v", *x) }
 func (x *Package) String() string {
@@ -511,6 +511,12 @@ func (x *Interface) String() string {
 	c.File = nil // avoid infinite loop
 	return fmt.Sprintf("%+v", c)
 }
+func (x *Method) String() string {
+	c := *x
+	c.Interface = nil // avoid infinite loop
+	return fmt.Sprintf("%+v", c)
+}
+
 func (x *Interface) AllMethods() []*Method {
 	result := make([]*Method, len(x.Methods))
 	copy(result, x.Methods)
@@ -519,9 +525,20 @@ func (x *Interface) AllMethods() []*Method {
 	}
 	return result
 }
+
+func (x *Interface) FindMethod(name string) *Method {
+	for _, m := range x.AllMethods() {
+		if name == m.Name {
+			return m
+		}
+	}
+	return nil
+}
+
 func (x *Interface) TransitiveEmbeds() []*Interface {
 	return x.transitiveEmbeds(make(map[*Interface]bool))
 }
+
 func (x *Interface) transitiveEmbeds(seen map[*Interface]bool) []*Interface {
 	var ret []*Interface
 	for _, e := range x.Embeds {

@@ -537,15 +537,16 @@ func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
 	return enc.FinishValue()
 }
 
-type unused struct {
+// TODO(toddw): Replace Unused with the unnamed empty struct{}.
+type Unused struct {
 }
 
-func (unused) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/examples/tunnel.unused"`
+func (Unused) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/examples/tunnel.Unused"`
 }) {
 }
 
-func (m *unused) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
+func (m *Unused) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	fieldsTarget1, err := t.StartFields(tt)
 	if err != nil {
 		return err
@@ -556,45 +557,45 @@ func (m *unused) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	return nil
 }
 
-func (m *unused) MakeVDLTarget() vdl.Target {
-	return &unusedTarget{Value: m}
+func (m *Unused) MakeVDLTarget() vdl.Target {
+	return &UnusedTarget{Value: m}
 }
 
-type unusedTarget struct {
-	Value *unused
+type UnusedTarget struct {
+	Value *Unused
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
 
-func (t *unusedTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
+func (t *UnusedTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 
-	if ttWant := vdl.TypeOf((*unused)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
+	if ttWant := vdl.TypeOf((*Unused)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
 		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
 	}
 	return t, nil
 }
-func (t *unusedTarget) StartField(name string) (key, field vdl.Target, _ error) {
+func (t *UnusedTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.unused", name)
+		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.Unused", name)
 	}
 }
-func (t *unusedTarget) FinishField(_, _ vdl.Target) error {
+func (t *UnusedTarget) FinishField(_, _ vdl.Target) error {
 	return nil
 }
-func (t *unusedTarget) ZeroField(name string) error {
+func (t *UnusedTarget) ZeroField(name string) error {
 	switch name {
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.unused", name)
+		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.Unused", name)
 	}
 }
-func (t *unusedTarget) FinishFields(_ vdl.FieldsTarget) error {
+func (t *UnusedTarget) FinishFields(_ vdl.FieldsTarget) error {
 
 	return nil
 }
 
-func (x *unused) VDLRead(dec vdl.Decoder) error {
-	*x = unused{}
+func (x *Unused) VDLRead(dec vdl.Decoder) error {
+	*x = Unused{}
 	var err error
 	if err = dec.StartValue(); err != nil {
 		return err
@@ -618,8 +619,8 @@ func (x *unused) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
-func (x unused) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*unused)(nil)).Elem()); err != nil {
+func (x Unused) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Unused)(nil)).Elem()); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {
@@ -650,7 +651,7 @@ type (
 	//
 	// Indicates that stdin should be closed. The presence of this field indicates
 	// EOF. Its actual value is ignored.
-	ClientShellPacketEndOfFile struct{ Value unused }
+	ClientShellPacketEndOfFile struct{ Value Unused }
 	// ClientShellPacketWinSize represents field WinSize of the ClientShellPacket union type.
 	//
 	// A dynamic update of the window size.
@@ -786,8 +787,8 @@ func (t *ClientShellPacketTarget) StartField(name string) (key, field vdl.Target
 		val := []byte(nil)
 		return nil, &vdl.BytesTarget{Value: &val}, nil
 	case "EndOfFile":
-		val := unused{}
-		return nil, &unusedTarget{Value: &val}, nil
+		val := Unused{}
+		return nil, &UnusedTarget{Value: &val}, nil
 	case "WinSize":
 		val := WindowSize{}
 		return nil, &WindowSizeTarget{Value: &val}, nil
@@ -800,7 +801,7 @@ func (t *ClientShellPacketTarget) FinishField(_, fieldTarget vdl.Target) error {
 	case "Stdin":
 		*t.Value = ClientShellPacketStdin{*(fieldTarget.(*vdl.BytesTarget)).Value}
 	case "EndOfFile":
-		*t.Value = ClientShellPacketEndOfFile{*(fieldTarget.(*unusedTarget)).Value}
+		*t.Value = ClientShellPacketEndOfFile{*(fieldTarget.(*UnusedTarget)).Value}
 	case "WinSize":
 		*t.Value = ClientShellPacketWinSize{*(fieldTarget.(*WindowSizeTarget)).Value}
 	}
@@ -2058,7 +2059,7 @@ func __VDLInit() struct{} {
 	// Register types.
 	vdl.Register((*WindowSize)(nil))
 	vdl.Register((*ShellOpts)(nil))
-	vdl.Register((*unused)(nil))
+	vdl.Register((*Unused)(nil))
 	vdl.Register((*ClientShellPacket)(nil))
 	vdl.Register((*ServerShellPacket)(nil))
 

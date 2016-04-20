@@ -50,7 +50,7 @@ func compileTypeDefs(pkg *Package, pfiles []*parse.File, env *Env) {
 		pkg:      pkg,
 		pfiles:   pfiles,
 		env:      env,
-		vtb:      &vdl.TypeBuilder{},
+		vtb:      new(vdl.TypeBuilder),
 		builders: make(map[string]*typeDefBuilder),
 	}
 	if td.Declare(); !env.Errors.IsEmpty() {
@@ -155,7 +155,14 @@ func attachFieldDoc(b *typeDefBuilder, fields []*parse.Field, file *File, env *E
 func (td typeDefiner) Describe() {
 	for _, b := range td.builders {
 		def, file := b.def, b.def.File
-		base := compileDefinedType(b.ptype, file, td.env, td.vtb, td.builders)
+		c := typeCompiler{
+			file:        file,
+			env:         td.env,
+			vtb:         td.vtb,
+			builders:    td.builders,
+			transExport: def.Exported,
+		}
+		base := c.compileDef(b.ptype)
 		switch tbase := base.(type) {
 		case nil:
 			continue // keep going to catch more errors
@@ -177,9 +184,13 @@ func (td typeDefiner) Describe() {
 // compileType returns the *vdl.Type corresponding to ptype.  All named types
 // referenced by ptype must already be defined.
 func compileType(ptype parse.Type, file *File, env *Env) *vdl.Type {
-	var vtb vdl.TypeBuilder
-	typeOrPending := compileLiteralType(ptype, file, env, &vtb, nil)
-	vtb.Build()
+	c := typeCompiler{
+		file: file,
+		env:  env,
+		vtb:  new(vdl.TypeBuilder),
+	}
+	typeOrPending := c.compileLit(ptype)
+	c.vtb.Build()
 	switch top := typeOrPending.(type) {
 	case nil:
 		return nil
@@ -197,26 +208,47 @@ func compileType(ptype parse.Type, file *File, env *Env) *vdl.Type {
 	}
 }
 
-// compileDefinedType compiles ptype.  It can handle definitions based on array,
-// enum, struct and union, as well as definitions based on any literal type.
-func compileDefinedType(ptype parse.Type, file *File, env *Env, vtb *vdl.TypeBuilder, builders map[string]*typeDefBuilder) vdl.TypeOrPending {
+func compileExportedType(ptype parse.Type, file *File, env *Env) *vdl.Type {
+	t := compileType(ptype, file, env)
+	if t == nil {
+		return nil
+	}
+	if !typeIsExported(t, env) {
+		env.Errorf(file, ptype.Pos(), "type must be transitively exported")
+		return nil
+	}
+	return t
+}
+
+// typeCompiler holds the state to compile a single type.
+type typeCompiler struct {
+	file        *File
+	env         *Env
+	vtb         *vdl.TypeBuilder
+	builders    map[string]*typeDefBuilder
+	transExport bool
+}
+
+// compileDef compiles the ptype defined type.  It handles definitions based on
+// array, enum, struct and union, as well as any literal type.
+func (c typeCompiler) compileDef(ptype parse.Type) vdl.TypeOrPending {
 	switch pt := ptype.(type) {
 	case *parse.TypeArray:
-		elem := compileLiteralType(pt.Elem, file, env, vtb, builders)
+		elem := c.compileLit(pt.Elem)
 		if elem == nil {
 			return nil
 		}
-		return vtb.Array().AssignLen(pt.Len).AssignElem(elem)
+		return c.vtb.Array().AssignLen(pt.Len).AssignElem(elem)
 	case *parse.TypeEnum:
-		enum := vtb.Enum()
+		enum := c.vtb.Enum()
 		for _, plabel := range pt.Labels {
 			enum.AppendLabel(plabel.Name)
 		}
 		return enum
 	case *parse.TypeStruct:
-		st := vtb.Struct()
+		st := c.vtb.Struct()
 		for _, pfield := range pt.Fields {
-			ftype := compileLiteralType(pfield.Type, file, env, vtb, builders)
+			ftype := c.compileLit(pfield.Type)
 			if ftype == nil {
 				return nil
 			}
@@ -224,9 +256,9 @@ func compileDefinedType(ptype parse.Type, file *File, env *Env, vtb *vdl.TypeBui
 		}
 		return st
 	case *parse.TypeUnion:
-		union := vtb.Union()
+		union := c.vtb.Union()
 		for _, pfield := range pt.Fields {
-			ftype := compileLiteralType(pfield.Type, file, env, vtb, builders)
+			ftype := c.compileLit(pfield.Type)
 			if ftype == nil {
 				return nil
 			}
@@ -234,7 +266,7 @@ func compileDefinedType(ptype parse.Type, file *File, env *Env, vtb *vdl.TypeBui
 		}
 		return union
 	}
-	lit := compileLiteralType(ptype, file, env, vtb, builders)
+	lit := c.compileLit(ptype)
 	if _, ok := lit.(vdl.PendingOptional); ok {
 		// Don't allow Optional at the top-level of a type definition.  The purpose
 		// of this rule is twofold:
@@ -248,57 +280,67 @@ func compileDefinedType(ptype parse.Type, file *File, env *Env, vtb *vdl.TypeBui
 		//   type C struct{X ?string} // ok
 		//   type D ?string           // bad
 		//   type E ?struct{X string} // bad
-		env.Errorf(file, ptype.Pos(), "can't define type based on top-level optional")
+		c.env.Errorf(c.file, ptype.Pos(), "can't define type based on top-level optional")
 		return nil
 	}
 	return lit
 }
 
-// compileLiteralType compiles ptype.  It can handle any literal type.  Note
-// that array, enum, struct and union are required to be defined and named,
+// compileLit compiles the ptype literal type.  It handles any literal type.
+// Note that array, enum, struct and union are required to be defined and named,
 // and aren't allowed as regular literal types.
-func compileLiteralType(ptype parse.Type, file *File, env *Env, vtb *vdl.TypeBuilder, builders map[string]*typeDefBuilder) vdl.TypeOrPending {
+func (c typeCompiler) compileLit(ptype parse.Type) vdl.TypeOrPending {
 	switch pt := ptype.(type) {
 	case *parse.TypeNamed:
-		if def, matched := env.ResolveType(pt.Name, file); def != nil {
+		// Try to resolve the named type from the already-compiled packages in env.
+		if def, matched := c.env.ResolveType(pt.Name, c.file); def != nil {
 			if len(matched) < len(pt.Name) {
-				env.Errorf(file, pt.Pos(), "type %s invalid (%s unmatched)", pt.Name, pt.Name[len(matched):])
+				c.env.Errorf(c.file, pt.Pos(), "type %s invalid (%s unmatched)", pt.Name, pt.Name[len(matched):])
 				return nil
 			}
 			return def.Type
 		}
-		if b, ok := builders[pt.Name]; ok {
+		// Try to resolve the named type from the builders in this local package.
+		// This resolve types that haven't been described yet, to handle arbitrary
+		// ordering of types within the package, as well as cyclic types.
+		if b, ok := c.builders[pt.Name]; ok {
+			// If transExport is set, ensure all subtypes are exported.  We only need
+			// to check local names, since names resolved from the packages in env
+			// could only be resolved if they were exported to begin with.
+			if c.transExport && !b.def.Exported {
+				c.env.Errorf(c.file, pt.Pos(), "type %s must be transitively exported", pt.Name)
+				return nil
+			}
 			return b.pending
 		}
-		env.Errorf(file, pt.Pos(), "type %s undefined", pt.Name)
+		c.env.Errorf(c.file, pt.Pos(), "type %s undefined", pt.Name)
 		return nil
 	case *parse.TypeList:
-		elem := compileLiteralType(pt.Elem, file, env, vtb, builders)
+		elem := c.compileLit(pt.Elem)
 		if elem == nil {
 			return nil
 		}
-		return vtb.List().AssignElem(elem)
+		return c.vtb.List().AssignElem(elem)
 	case *parse.TypeSet:
-		key := compileLiteralType(pt.Key, file, env, vtb, builders)
+		key := c.compileLit(pt.Key)
 		if key == nil {
 			return nil
 		}
-		return vtb.Set().AssignKey(key)
+		return c.vtb.Set().AssignKey(key)
 	case *parse.TypeMap:
-		key := compileLiteralType(pt.Key, file, env, vtb, builders)
-		elem := compileLiteralType(pt.Elem, file, env, vtb, builders)
+		key, elem := c.compileLit(pt.Key), c.compileLit(pt.Elem)
 		if key == nil || elem == nil {
 			return nil
 		}
-		return vtb.Map().AssignKey(key).AssignElem(elem)
+		return c.vtb.Map().AssignKey(key).AssignElem(elem)
 	case *parse.TypeOptional:
-		elem := compileLiteralType(pt.Base, file, env, vtb, builders)
+		elem := c.compileLit(pt.Base)
 		if elem == nil {
 			return nil
 		}
-		return vtb.Optional().AssignElem(elem)
+		return c.vtb.Optional().AssignElem(elem)
 	default:
-		env.Errorf(file, pt.Pos(), "unnamed %s type invalid (type must be defined)", ptype.Kind())
+		c.env.Errorf(c.file, pt.Pos(), "unnamed %s type invalid (type must be defined)", ptype.Kind())
 		return nil
 	}
 }
@@ -425,4 +467,33 @@ func (td typeDefiner) AttachDoc() {
 			}
 		}
 	}
+}
+
+// typeIsExported returns true iff t and all subtypes of t are exported.
+func typeIsExported(t *vdl.Type, env *Env) bool {
+	// Stop at the first defined type that we encounter; if it is exported, we are
+	// already guaranteed that all subtypes are also exported.
+	//
+	// Note that all types are composed of defined types; the built-in types
+	// bootstrap the whole system.
+	if def := env.FindTypeDef(t); def != nil {
+		return def.Exported
+	}
+	// Check composite types recursively.
+	switch t.Kind() {
+	case vdl.Optional, vdl.Array, vdl.List:
+		return typeIsExported(t.Elem(), env)
+	case vdl.Set:
+		return typeIsExported(t.Key(), env)
+	case vdl.Map:
+		return typeIsExported(t.Key(), env) && typeIsExported(t.Elem(), env)
+	case vdl.Struct, vdl.Union:
+		for ix := 0; ix < t.NumField(); ix++ {
+			if !typeIsExported(t.Field(ix).Type, env) {
+				return false
+			}
+		}
+		return true
+	}
+	panic(fmt.Errorf("vdl: typeIsExported unhandled type %v", t))
 }

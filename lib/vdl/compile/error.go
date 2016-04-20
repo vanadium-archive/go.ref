@@ -58,7 +58,7 @@ func compileErrorDefs(pkg *Package, pfiles []*parse.File, env *Env) {
 			id := pkg.Path + "." + name
 			ed := &ErrorDef{NamePos: NamePos(ped.NamePos), Exported: export, ID: id, File: file}
 			defineErrorActions(ed, name, ped.Actions, file, env)
-			ed.Params = defineErrorParams(name, ped.Params, file, env)
+			ed.Params = defineErrorParams(name, ped.Params, export, file, env)
 			ed.Formats = defineErrorFormats(name, ped.Formats, ed.Params, file, env)
 			// We require the "en" base language for at least one of the Formats, and
 			// favor "en-US" if it exists.  This requirement is an attempt to ensure
@@ -105,7 +105,7 @@ func defineErrorActions(ed *ErrorDef, name string, pactions []parse.StringPos, f
 	}
 }
 
-func defineErrorParams(name string, pparams []*parse.Field, file *File, env *Env) []*Field {
+func defineErrorParams(name string, pparams []*parse.Field, export bool, file *File, env *Env) []*Field {
 	var params []*Field
 	seen := make(map[string]*parse.Field)
 	for _, pparam := range pparams {
@@ -123,7 +123,13 @@ func defineErrorParams(name string, pparams []*parse.Field, file *File, env *Env
 			env.prefixErrorf(file, pos, err, "error %s param %s invalid", name, pname)
 			continue
 		}
-		param := &Field{NamePos(pparam.NamePos), compileType(pparam.Type, file, env)}
+		var paramType *vdl.Type
+		if export {
+			paramType = compileExportedType(pparam.Type, file, env)
+		} else {
+			paramType = compileType(pparam.Type, file, env)
+		}
+		param := &Field{NamePos(pparam.NamePos), paramType}
 		params = append(params, param)
 	}
 	return params

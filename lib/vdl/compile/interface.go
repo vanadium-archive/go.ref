@@ -118,12 +118,38 @@ func (id ifaceDefiner) getLocalDeps(b *ifaceBuilder) (deps []*ifaceBuilder) {
 }
 
 func (id ifaceDefiner) define(b *ifaceBuilder) {
-	id.defineEmbeds(b)
-	id.defineMethods(b)
+	// Methods must be defined before embeddings, so that we can check whether any
+	// of the embeddings add duplicate methods.
+	methods := id.defineMethods(b)
+	id.defineEmbeds(b, methods)
 }
 
-func (id ifaceDefiner) defineEmbeds(b *ifaceBuilder) {
-	// TODO(toddw): Check for duplicate methods.
+func (id ifaceDefiner) defineMethods(b *ifaceBuilder) map[string]*Method {
+	def, file := b.def, b.def.File
+	defined := make(map[string]*Method)
+	// Now validate and define each method.
+	for _, pm := range b.pdef.Methods {
+		if err := validExportedIdent(pm.Name, reservedFirstRuneLower); err != nil {
+			id.env.Errorf(file, pm.Pos, "method %s name (%s)", pm.Name, err)
+			continue // keep going to catch more errors
+		}
+		if dup := defined[pm.Name]; dup != nil {
+			id.env.Errorf(file, pm.Pos, "method %s redefined (previous at %s)", pm.Name, dup.Pos)
+			continue // keep going to catch more errors
+		}
+		m := &Method{NamePos: NamePos(pm.NamePos), Interface: def}
+		m.InArgs = id.defineArgs(in, m.NamePos, pm.InArgs, file)
+		m.OutArgs = id.defineArgs(out, m.NamePos, pm.OutArgs, file)
+		m.InStream = id.defineStreamType(pm.InStream, file)
+		m.OutStream = id.defineStreamType(pm.OutStream, file)
+		m.Tags = id.defineTags(pm.Tags, file)
+		def.Methods = append(def.Methods, m)
+		defined[pm.Name] = m
+	}
+	return defined
+}
+
+func (id ifaceDefiner) defineEmbeds(b *ifaceBuilder, methods map[string]*Method) {
 	def, file := b.def, b.def.File
 	seen := make(map[string]*parse.NamePos)
 	for _, pe := range b.pdef.Embeds {
@@ -142,30 +168,24 @@ func (id ifaceDefiner) defineEmbeds(b *ifaceBuilder) {
 			id.env.Errorf(file, pe.Pos, "interface %s invalid (%s unmatched)", pe.Name, pe.Name[len(matched):])
 			continue // keep going to catch more errors
 		}
+		// Check for method redefinition in the embeddings.
+		//
+		// TODO(toddw): We may relax this rule in the future, to allow duplicate
+		// methods with identical signatures.
+		for _, m := range embed.AllMethods() {
+			if dup := methods[m.Name]; dup != nil {
+				pos1, pos2 := m.Pos.String(), dup.Pos.String()
+				if m.Interface != def {
+					pos1 = fpString(m.Interface.File, m.Pos)
+				}
+				if dup.Interface != def {
+					pos2 = fpString(dup.Interface.File, dup.Pos)
+				}
+				id.env.Errorf(file, pe.Pos, "embedded method %s redefined (defined at %s and %s)", m.Name, pos1, pos2)
+			}
+			methods[m.Name] = m
+		}
 		def.Embeds = append(def.Embeds, embed)
-	}
-}
-
-func (id ifaceDefiner) defineMethods(b *ifaceBuilder) {
-	def, file := b.def, b.def.File
-	seen := make(map[string]*parse.Method)
-	for _, pm := range b.pdef.Methods {
-		if dup := seen[pm.Name]; dup != nil {
-			id.env.Errorf(file, pm.Pos, "method %s redefined (previous at %s)", pm.Name, dup.Pos)
-			continue // keep going to catch more errors
-		}
-		seen[pm.Name] = pm
-		if err := validExportedIdent(pm.Name, reservedFirstRuneLower); err != nil {
-			id.env.Errorf(file, pm.Pos, "method %s name (%s)", pm.Name, err)
-			continue // keep going to catch more errors
-		}
-		m := &Method{NamePos: NamePos(pm.NamePos)}
-		m.InArgs = id.defineArgs(in, m.NamePos, pm.InArgs, file)
-		m.OutArgs = id.defineArgs(out, m.NamePos, pm.OutArgs, file)
-		m.InStream = id.defineStreamType(pm.InStream, file)
-		m.OutStream = id.defineStreamType(pm.OutStream, file)
-		m.Tags = id.defineTags(pm.Tags, file)
-		def.Methods = append(def.Methods, m)
 	}
 }
 
@@ -198,7 +218,7 @@ func (id ifaceDefiner) defineArgs(io inout, method NamePos, pargs []*parse.Field
 				continue // keep going to catch more errors
 			}
 		}
-		arg := &Field{NamePos(parg.NamePos), compileType(parg.Type, file, id.env)}
+		arg := &Field{NamePos(parg.NamePos), compileExportedType(parg.Type, file, id.env)}
 		args = append(args, arg)
 	}
 	return
@@ -212,10 +232,11 @@ func (id ifaceDefiner) defineStreamType(ptype parse.Type, file *File) *vdl.Type 
 		// Special-case the _ placeholder, which means there's no stream type.
 		return nil
 	}
-	return compileType(ptype, file, id.env)
+	return compileExportedType(ptype, file, id.env)
 }
 
 func (id ifaceDefiner) defineTags(ptags []parse.ConstExpr, file *File) (tags []*vdl.Value) {
+	// TODO(toddw): Should we require that tag types are transitively exported?
 	for _, ptag := range ptags {
 		if tag := compileConst("tag", nil, ptag, file, id.env); tag != nil {
 			tags = append(tags, tag)

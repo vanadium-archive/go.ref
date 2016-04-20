@@ -58,10 +58,11 @@ const (
 
 type PlayerAction union {
   Move string  // The move that the player wants to make.
-  Quit unused  // Indicates that the player is quitting the game.
+  Quit Unused  // Indicates that the player is quitting the game.
 }
 
-type unused struct{}
+// TODO(toddw): Replace Unused with the unnamed empty struct{}.
+type Unused struct{}
 
 type JudgeAction union {
   PlayerNum    int32      // The player's number.

@@ -77,7 +77,7 @@ func matchTypeRes(t *testing.T, tname string, tpkg typePkg, tdefs []*compile.Typ
 	t.Errorf("%s couldn't find Res in package %s", tname, tpkg.Name)
 }
 
-func namedX(base *vdl.Type) *vdl.Type   { return vdl.NamedType("p.kg/a.x", base) }
+func namedX(base *vdl.Type) *vdl.Type   { return vdl.NamedType("p.kg/a.X", base) }
 func namedRes(base *vdl.Type) *vdl.Type { return vdl.NamedType("p.kg/a.Res", base) }
 
 var byteListType = vdl.ListType(vdl.ByteType)
@@ -124,45 +124,45 @@ var typeTests = []typeTest{
 	{"Map", tp{{"a", `type Res map[int32]string`, vdl.MapType(vdl.Int32Type, vdl.StringType), ""}}},
 	{"Struct", tp{{"a", `type Res struct{A int32;B string}`, vdl.StructType([]vdl.Field{{"A", vdl.Int32Type}, {"B", vdl.StringType}}...), ""}}},
 	{"Union", tp{{"a", `type Res union{A bool;B int32;C string}`, vdl.UnionType([]vdl.Field{{"A", vdl.BoolType}, {"B", vdl.Int32Type}, {"C", vdl.StringType}}...), ""}}},
-	{"Optional", tp{{"a", `type Res []?x;type x struct{A bool}`, vdl.ListType(vdl.OptionalType(namedX(vdl.StructType(vdl.Field{
+	{"Optional", tp{{"a", `type Res []?X;type X struct{A bool}`, vdl.ListType(vdl.OptionalType(namedX(vdl.StructType(vdl.Field{
 		Name: "A",
 		Type: vdl.BoolType,
 	})))), ""}}},
 
 	// Test named types based on named types.
-	{"NBool", tp{{"a", `type Res x;type x bool`, namedX(vdl.BoolType), ""}}},
-	{"NByte", tp{{"a", `type Res x;type x byte`, namedX(vdl.ByteType), ""}}},
-	{"NUint16", tp{{"a", `type Res x;type x uint16`, namedX(vdl.Uint16Type), ""}}},
-	{"NUint32", tp{{"a", `type Res x;type x uint32`, namedX(vdl.Uint32Type), ""}}},
-	{"NUint64", tp{{"a", `type Res x;type x uint64`, namedX(vdl.Uint64Type), ""}}},
-	{"NInt16", tp{{"a", `type Res x;type x int16`, namedX(vdl.Int16Type), ""}}},
-	{"NInt32", tp{{"a", `type Res x;type x int32`, namedX(vdl.Int32Type), ""}}},
-	{"NInt64", tp{{"a", `type Res x;type x int64`, namedX(vdl.Int64Type), ""}}},
-	{"NFloat32", tp{{"a", `type Res x;type x float32`, namedX(vdl.Float32Type), ""}}},
-	{"NFloat64", tp{{"a", `type Res x;type x float64`, namedX(vdl.Float64Type), ""}}},
-	{"NString", tp{{"a", `type Res x;type x string`, namedX(vdl.StringType), ""}}},
-	{"NByteList", tp{{"a", `type Res x;type x []byte`, namedX(byteListType), ""}}},
-	{"NByteArray", tp{{"a", `type Res x;type x [4]byte`, namedX(byteArrayType), ""}}},
-	{"NEnum", tp{{"a", `type Res x;type x enum{A;B;C}`, namedX(vdl.EnumType("A", "B", "C")), ""}}},
-	{"NArray", tp{{"a", `type Res x;type x [2]bool`, namedX(vdl.ArrayType(2, vdl.BoolType)), ""}}},
-	{"NList", tp{{"a", `type Res x;type x []int32`, namedX(vdl.ListType(vdl.Int32Type)), ""}}},
-	{"NSet", tp{{"a", `type Res x;type x set[int32]`, namedX(vdl.SetType(vdl.Int32Type)), ""}}},
-	{"NMap", tp{{"a", `type Res x;type x map[int32]string`, namedX(vdl.MapType(vdl.Int32Type, vdl.StringType)), ""}}},
-	{"NStruct", tp{{"a", `type Res x;type x struct{A int32;B string}`, namedX(vdl.StructType([]vdl.Field{{"A", vdl.Int32Type}, {"B", vdl.StringType}}...)), ""}}},
-	{"NUnion", tp{{"a", `type Res x; type x union{A bool;B int32;C string}`, namedX(vdl.UnionType([]vdl.Field{{"A", vdl.BoolType}, {"B", vdl.Int32Type}, {"C", vdl.StringType}}...)), ""}}},
+	{"NBool", tp{{"a", `type Res X;type X bool`, namedX(vdl.BoolType), ""}}},
+	{"NByte", tp{{"a", `type Res X;type X byte`, namedX(vdl.ByteType), ""}}},
+	{"NUint16", tp{{"a", `type Res X;type X uint16`, namedX(vdl.Uint16Type), ""}}},
+	{"NUint32", tp{{"a", `type Res X;type X uint32`, namedX(vdl.Uint32Type), ""}}},
+	{"NUint64", tp{{"a", `type Res X;type X uint64`, namedX(vdl.Uint64Type), ""}}},
+	{"NInt16", tp{{"a", `type Res X;type X int16`, namedX(vdl.Int16Type), ""}}},
+	{"NInt32", tp{{"a", `type Res X;type X int32`, namedX(vdl.Int32Type), ""}}},
+	{"NInt64", tp{{"a", `type Res X;type X int64`, namedX(vdl.Int64Type), ""}}},
+	{"NFloat32", tp{{"a", `type Res X;type X float32`, namedX(vdl.Float32Type), ""}}},
+	{"NFloat64", tp{{"a", `type Res X;type X float64`, namedX(vdl.Float64Type), ""}}},
+	{"NString", tp{{"a", `type Res X;type X string`, namedX(vdl.StringType), ""}}},
+	{"NByteList", tp{{"a", `type Res X;type X []byte`, namedX(byteListType), ""}}},
+	{"NByteArray", tp{{"a", `type Res X;type X [4]byte`, namedX(byteArrayType), ""}}},
+	{"NEnum", tp{{"a", `type Res X;type X enum{A;B;C}`, namedX(vdl.EnumType("A", "B", "C")), ""}}},
+	{"NArray", tp{{"a", `type Res X;type X [2]bool`, namedX(vdl.ArrayType(2, vdl.BoolType)), ""}}},
+	{"NList", tp{{"a", `type Res X;type X []int32`, namedX(vdl.ListType(vdl.Int32Type)), ""}}},
+	{"NSet", tp{{"a", `type Res X;type X set[int32]`, namedX(vdl.SetType(vdl.Int32Type)), ""}}},
+	{"NMap", tp{{"a", `type Res X;type X map[int32]string`, namedX(vdl.MapType(vdl.Int32Type, vdl.StringType)), ""}}},
+	{"NStruct", tp{{"a", `type Res X;type X struct{A int32;B string}`, namedX(vdl.StructType([]vdl.Field{{"A", vdl.Int32Type}, {"B", vdl.StringType}}...)), ""}}},
+	{"NUnion", tp{{"a", `type Res X;type X union{A bool;B int32;C string}`, namedX(vdl.UnionType([]vdl.Field{{"A", vdl.BoolType}, {"B", vdl.Int32Type}, {"C", vdl.StringType}}...)), ""}}},
 
 	// Test multi-package types
 	{"MultiPkgSameTypeName", tp{
 		{"a", `type Res bool`, vdl.BoolType, ""},
 		{"b", `type Res bool`, vdl.BoolType, ""}}},
 	{"MultiPkgDep", tp{
-		{"a", `type Res x;type x bool`, namedX(vdl.BoolType), ""},
+		{"a", `type Res X;type X bool`, namedX(vdl.BoolType), ""},
 		{"b", `import "p.kg/a";type Res []a.Res`, vdl.ListType(namedRes(vdl.BoolType)), ""}}},
 	{"MultiPkgDepQualifiedPath", tp{
-		{"a", `type Res x;type x bool`, namedX(vdl.BoolType), ""},
+		{"a", `type Res X;type X bool`, namedX(vdl.BoolType), ""},
 		{"b", `import "p.kg/a";type Res []"p.kg/a".Res`, vdl.ListType(namedRes(vdl.BoolType)), qual}}},
 	{"MultiPkgUnexportedType", tp{
-		{"a", `type Res x;type x bool`, namedX(vdl.BoolType), ""},
+		{"a", `type Res X;type X bool`, namedX(vdl.BoolType), ""},
 		{"b", `import "p.kg/a";type Res []a.x`, nil, "type a.x undefined"}}},
 	{"MultiPkgSamePkgName", tp{
 		{"a", `type Res bool`, vdl.BoolType, ""},
@@ -193,4 +193,16 @@ var typeTests = []typeTest{
 		{"b", `import "p.kg/a";type Res a".Res`, nil, "syntax error"}}},
 	{"ZeroLengthArray", tp{{"a", `type Res [0]int32`, nil, "negative or zero array length"}}},
 	{"InvalidOptionalFollowedByValidType", tp{{"a", `type Res struct{X ?int32};type x string`, nil, "invalid optional type"}}},
+	{"NoTransitiveExport", tp{{"a", `type t bool; type Res t`, nil, "must be transitively exported"}}},
+	{"NoTransitiveExportList", tp{{"a", `type t bool; type Res []t`, nil, "must be transitively exported"}}},
+	{"NoTransitiveExportSet", tp{{"a", `type t bool; type Res set[t]`, nil, "must be transitively exported"}}},
+	{"NoTransitiveExportMapKey", tp{{"a", `type t bool; type Res map[t]string`, nil, "must be transitively exported"}}},
+	{"NoTransitiveExportMapElem", tp{{"a", `type t bool; type Res map[string]t`, nil, "must be transitively exported"}}},
+	{"NoTransitiveExportArray", tp{{"a", `type t [2]bool; type Res t`, nil, "must be transitively exported"}}},
+	{"NoTransitiveExportArrayElem", tp{{"a", `type t bool; type X [2]t; type Res X`, nil, "must be transitively exported"}}},
+	{"NoTransitiveExportStruct", tp{{"a", `type t struct{}; type Res t`, nil, "must be transitively exported"}}},
+	{"NoTransitiveExportStructField", tp{{"a", `type t bool; type X struct{F t}; type Res X`, nil, "must be transitively exported"}}},
+	{"NoTransitiveExportUnion", tp{{"a", `type t union{F bool}; type Res t`, nil, "must be transitively exported"}}},
+	{"NoTransitiveExportUnionField", tp{{"a", `type t bool; type X union{F t}; type Res X`, nil, "must be transitively exported"}}},
+	{"NoTransitiveExportOptional", tp{{"a", `type t bool; type X struct{F ?t}; type Res X`, nil, "must be transitively exported"}}},
 }

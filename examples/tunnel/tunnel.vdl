@@ -52,12 +52,13 @@ type ClientShellPacket union {
   Stdin      []byte
   // Indicates that stdin should be closed. The presence of this field indicates
   // EOF. Its actual value is ignored.
-  EndOfFile  unused
+  EndOfFile  Unused
   // A dynamic update of the window size.
   WinSize    WindowSize
 }
 
-type unused struct {}
+// TODO(toddw): Replace Unused with the unnamed empty struct{}.
+type Unused struct {}
 
 type ServerShellPacket union {
   // Bytes coming from the shell's stdout.
