@@ -33,8 +33,10 @@ func (d *gdiscovery) Scan(ctx *context.T, query string) (<-chan discovery.Update
 		var prevFound map[discovery.AdId]*discovery.Advertisement
 		for {
 			found, err := d.doScan(ctx, target, matcher)
-			if err != nil {
-				ctx.Error(err)
+			if found == nil {
+				if err != nil {
+					ctx.Error(err)
+				}
 			} else {
 				sendUpdates(ctx, prevFound, found, updateCh)
 				prevFound = found
