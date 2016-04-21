@@ -12,10 +12,10 @@ import (
 	"testing"
 
 	"v.io/v23"
-	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/longevity_tests/client"
+	"v.io/x/ref/services/syncbase/longevity_tests/model"
 	"v.io/x/ref/services/syncbase/testutil"
 )
 
@@ -41,49 +41,44 @@ func TestWatcher(t *testing.T) {
 	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	blessingString := blessing.String()
 
-	stop := make(chan struct{})
-	dbName := "test_db"
-	collectionIds := []wire.Id{
-		wire.Id{
-			Blessing: blessingString,
-			Name:     "test_col_1",
-		},
-		wire.Id{
-			Blessing: blessingString,
-			Name:     "test_col_2",
+	dbModel := &model.Database{
+		Name:     "test_db",
+		Blessing: blessingString,
+		Collections: []model.Collection{
+			model.Collection{
+				Name:     "test_col_1",
+				Blessing: blessingString,
+			},
+			model.Collection{
+				Name:     "test_col_2",
+				Blessing: blessingString,
+			},
 		},
 	}
 
 	// Create the database and each collection.
 	// The watcher will attempt to do this as well, but doing it ourselves
 	// avoids a race condition in the tests.
-	db := testutil.CreateDatabase(t, ctx, syncbase.NewService(sbName), dbName)
-	collections := make([]syncbase.Collection, len(collectionIds))
-	for i, id := range collectionIds {
-		col := db.CollectionForId(id)
-		if err := col.Create(ctx, testutil.DefaultPerms(blessingString)); err != nil {
-			t.Fatal(err)
-		}
-		collections[i] = col
+	dbColsMap, err := client.CreateDbsAndCollections(ctx, sbName, model.DatabaseSet{dbModel})
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	// Run the watcher in a goroutine.
-	wErr := make(chan error)
-	go func() {
-		wErr <- watcher.Run(ctx, sbName, dbName, collectionIds, stop)
-	}()
+	watcher.Start(ctx, sbName, model.DatabaseSet{dbModel})
 
 	// Put 3 rows to each collection.
 	wantRows := []string{}
-	for i, col := range collections {
-		for j := 0; j < 3; j++ {
-			wg.Add(1)
-			key := fmt.Sprintf("key-%d-%d", i, j)
-			val := fmt.Sprintf("val-%d-%d", i, j)
-			if err := col.Put(ctx, key, val); err != nil {
-				t.Fatal(err)
+	for _, colSlice := range dbColsMap {
+		for i, col := range colSlice {
+			for j := 0; j < 3; j++ {
+				wg.Add(1)
+				key := fmt.Sprintf("key-%d-%d", i, j)
+				val := fmt.Sprintf("val-%d-%d", i, j)
+				if err := col.Put(ctx, key, val); err != nil {
+					t.Fatal(err)
+				}
+				wantRows = append(wantRows, key)
 			}
-			wantRows = append(wantRows, key)
 		}
 	}
 
@@ -91,16 +86,14 @@ func TestWatcher(t *testing.T) {
 	wg.Wait()
 
 	// Stop the watcher.
-	close(stop)
-
-	if err := <-wErr; err != nil {
-		t.Errorf("watcher.Run returned error: %v", err)
+	if err := watcher.Stop(); err != nil {
+		t.Fatalf("watcher.Stop() returned error: %v", err)
 	}
 
 	// Check that we got watchChanges for each row that we put to.
 	sort.Strings(wantRows)
 	sort.Strings(gotRows)
 	if !reflect.DeepEqual(wantRows, gotRows) {
-		fmt.Errorf("wanted gotRows to be %v but got %v", wantRows, gotRows)
+		t.Errorf("wanted gotRows to be %v but got %v", wantRows, gotRows)
 	}
 }

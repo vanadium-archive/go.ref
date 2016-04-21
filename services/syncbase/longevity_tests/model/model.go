@@ -12,6 +12,8 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+
+	wire "v.io/v23/services/syncbase"
 )
 
 func init() {
@@ -22,6 +24,27 @@ func randomName(prefix string) string {
 	return fmt.Sprintf("%s-%08x", prefix, rand.Int31())
 }
 
+// ===========
+// Collections
+// ===========
+
+// Collection represents a syncbase collection.
+// TODO(nlacasse): Put syncgroups in here?  It's a bit tricky because they need
+// to have a user's name in their name, and the spec depends on the mounttable.
+type Collection struct {
+	// Name of the colletion.
+	Name string
+	// Blessing of the collection.
+	Blessing string
+}
+
+func (c *Collection) Id() wire.Id {
+	return wire.Id{
+		Name:     c.Name,
+		Blessing: c.Blessing,
+	}
+}
+
 // =========
 // Databases
 // =========
@@ -29,10 +52,20 @@ func randomName(prefix string) string {
 // Database represents a syncbase database.  Each database corresponds to a
 // single app.
 // TODO(nlacasse): ACLs.
-// TODO(nlacasse): Collections.
 type Database struct {
 	// Name of the database.
 	Name string
+	// Blessing of the database.
+	Blessing string
+	// Collections.
+	Collections []Collection
+}
+
+func (db *Database) Id() wire.Id {
+	return wire.Id{
+		Name:     db.Name,
+		Blessing: db.Blessing,
+	}
 }
 
 // DatabaseSet represents a set of Databases.
@@ -40,6 +73,8 @@ type Database struct {
 type DatabaseSet []*Database
 
 // GenerateDatabaseSet generates a DatabaseSet with n databases.
+// TODO(nlacasse): Generate collections.
+// TODO(nlacasse): Generate clients.
 func GenerateDatabaseSet(n int) DatabaseSet {
 	dbs := DatabaseSet{}
 	for i := 0; i < n; i++ {
@@ -128,6 +163,9 @@ type Device struct {
 	// Current connectivity spec for the device.  This value must be included
 	// in Spec.ConnectivitySpecs.
 	CurrentConnectivity ConnectivitySpec
+	// Associated clients that will operate on this syncbase instance.  Clients
+	// must be registered with control.RegisterClient.
+	Clients []string
 }
 
 func (d Device) String() string {

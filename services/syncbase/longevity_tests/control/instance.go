@@ -8,7 +8,11 @@ import (
 	"fmt"
 	"os"
 
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/security"
 	"v.io/x/lib/gosh"
+	"v.io/x/ref/services/syncbase/longevity_tests/client"
 	"v.io/x/ref/services/syncbase/longevity_tests/model"
 	"v.io/x/ref/services/syncbase/longevity_tests/syncbased_vine"
 	"v.io/x/ref/services/syncbase/syncbaselib"
@@ -23,6 +27,12 @@ type instance struct {
 	// Name of the instance.  Syncbased will be mounted under this name.
 	name string
 
+	// Databases to host on the syncbased.
+	databases model.DatabaseSet
+
+	// Clients of the syncbase instance.
+	clients []client.Client
+
 	// Gosh command for syncbase process.  Will be nil if instance is not
 	// running.
 	cmd *gosh.Cmd
@@ -32,6 +42,9 @@ type instance struct {
 
 	// Namespace root.
 	namespaceRoot string
+
+	// Principal for syncbase instance.
+	principal security.Principal
 
 	// Gosh shell used to spawn all processes.
 	sh *gosh.Shell
@@ -43,7 +56,7 @@ type instance struct {
 	wd string
 }
 
-func (inst *instance) start() error {
+func (inst *instance) start(rootCtx *context.T) error {
 	if inst.cmd != nil {
 		return fmt.Errorf("inst %v already started", inst)
 	}
@@ -75,27 +88,52 @@ func (inst *instance) start() error {
 	if ep := vars["ENDPOINT"]; ep == "" {
 		return fmt.Errorf("error starting %q: no ENDPOINT variable sent from process", inst.name)
 	}
+
+	// Derive a context with the user's principal from rootCtx.
+	clientCtx, err := v23.WithPrincipal(rootCtx, inst.principal)
+	if err != nil {
+		return err
+	}
+
+	// Start clients
+	for _, client := range inst.clients {
+		client.Start(clientCtx, inst.name, inst.databases)
+	}
+
 	return nil
 }
 
-func (i *instance) update(d *model.Device) error {
+func (inst *instance) update(d *model.Device) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (i *instance) stop() error {
-	i.cmd.Terminate(os.Interrupt)
-	if i.cmd.Err != nil {
-		return i.cmd.Err
+func (inst *instance) stop() error {
+	// Stop clients.
+	for _, client := range inst.clients {
+		if err := client.Stop(); err != nil {
+			return err
+		}
 	}
-	i.cmd = nil
+	inst.cmd.Terminate(os.Interrupt)
+	if inst.cmd.Err != nil {
+		return inst.cmd.Err
+	}
+	inst.cmd = nil
 	return nil
 }
 
-func (i *instance) kill() error {
-	i.cmd.Terminate(os.Kill)
-	if i.cmd.Err != nil {
-		return i.cmd.Err
+func (inst *instance) kill() error {
+	inst.cmd.Terminate(os.Kill)
+	// Stop clients.
+	for _, client := range inst.clients {
+		if err := client.Stop(); err != nil {
+			// Print error but continue termination.
+			fmt.Printf("Error stopping client: %v\n", err)
+		}
 	}
-	i.cmd = nil
+	if inst.cmd.Err != nil {
+		return inst.cmd.Err
+	}
+	inst.cmd = nil
 	return nil
 }

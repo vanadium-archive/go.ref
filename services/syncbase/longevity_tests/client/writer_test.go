@@ -5,14 +5,16 @@
 package client_test
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
 	"v.io/v23"
-	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/longevity_tests/client"
+	"v.io/x/ref/services/syncbase/longevity_tests/model"
 	"v.io/x/ref/services/syncbase/testutil"
 )
 
@@ -20,71 +22,87 @@ func TestWriter(t *testing.T) {
 	ctx, sbName, cleanup := testutil.SetupOrDie(nil)
 	defer cleanup()
 
-	var writeCounter int32
+	var counter int32
+	keyValueFunc := func(_ time.Time) (string, interface{}) {
+		if counter >= 5 {
+			return "", nil
+		}
+		counter++
+		return fmt.Sprintf("%d", counter), counter
+	}
+
+	// mu is locked until Writer writes 5 rows to each collection.
+	mu := sync.Mutex{}
+	mu.Lock()
 	wroteKeys := []string{}
 	wroteVals := []interface{}{}
-	keyValueFunc := func(_ time.Time) (string, interface{}) {
-		key := string(writeCounter)
-		wroteKeys = append(wroteKeys, key)
-		value := writeCounter
-		wroteVals = append(wroteVals, value)
-		writeCounter++
-		return key, value
+	onWrite := func(_ syncbase.Collection, key string, value interface{}, err error) {
+		if err != nil {
+			t.Fatalf("error writing key: %v: %v", key, err)
+		}
+		// Only append the key if it's one we haven't seen before.  This
+		// function runs once for each collection, so we end up seeing each key
+		// twice.
+		if len(wroteKeys) == 0 || key != wroteKeys[len(wroteKeys)-1] {
+			wroteKeys = append(wroteKeys, key)
+			wroteVals = append(wroteVals, value)
+		} else if len(wroteKeys) == 5 {
+			// The 5th row has been written twice (once to each collection).
+			mu.Unlock()
+		}
 	}
 	writer := &client.Writer{
 		WriteInterval: 50 * time.Millisecond,
 		KeyValueFunc:  keyValueFunc,
+		OnWrite:       onWrite,
 	}
 
 	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	blessingString := blessing.String()
 
-	stop := make(chan struct{})
-	dbName := "test_db"
-	collectionIds := []wire.Id{
-		wire.Id{
+	dbColsMap := model.DatabaseSet{
+		&model.Database{
+			Name:     "test_db",
 			Blessing: blessingString,
-			Name:     "test_col_1",
-		},
-		wire.Id{
-			Blessing: blessingString,
-			Name:     "test_col_2",
+			Collections: []model.Collection{
+				model.Collection{
+					Name:     "test_col_1",
+					Blessing: blessingString,
+				},
+				model.Collection{
+					Name:     "test_col_2",
+					Blessing: blessingString,
+				},
+			},
 		},
 	}
 
-	// Run the writer for 2 seconds.
-	var err error
-	go func() {
-		err = writer.Run(ctx, sbName, dbName, collectionIds, stop)
-	}()
-	time.Sleep(2 * time.Second)
-	close(stop)
-	if err != nil {
-		t.Fatalf("writer error: %v", err)
+	// Run the writer.
+	writer.Start(ctx, sbName, dbColsMap)
+
+	// Wait for 5 writes to be written.
+	mu.Lock()
+
+	// Stop the writer.
+	if err := writer.Stop(); err != nil {
+		t.Fatalf("writer.Stop() returned error: %v")
 	}
 
 	// Make sure database exists.
 	service := syncbase.NewService(sbName)
-	db := service.Database(ctx, dbName, nil)
+	db := service.DatabaseForId(dbColsMap[0].Id(), nil)
 	if exists, err := db.Exists(ctx); !exists || err != nil {
 		t.Fatalf("expected db.Exists() to return true, nil but got: %v, %v", exists, err)
 	}
 
-	// Make sure collections exist.
-	for _, id := range collectionIds {
-		if exists, err := db.CollectionForId(id).Exists(ctx); !exists || err != nil {
+	// Check collections.
+	for _, colModel := range dbColsMap[0].Collections {
+		// Make sure collection exists.
+		col := db.CollectionForId(colModel.Id())
+		if exists, err := col.Exists(ctx); !exists || err != nil {
 			t.Fatalf("expected collection.Exists() to return true, nil but got: %v, %v", exists, err)
 		}
-	}
-
-	// Make sure we did at least 2 writes.
-	if writeCounter < 2 {
-		t.Errorf("expected to write at least 2 rows, but only wrote %d", writeCounter)
-	}
-
-	// Check that each collection contains the wroteKeys and wroteVals.
-	for _, id := range collectionIds {
-		col := db.CollectionForId(id)
-		testutil.CheckScan(t, ctx, col, syncbase.Range("", string(writeCounter)), wroteKeys, wroteVals)
+		// Check that collection contains the wroteKeys and wroteVals.
+		testutil.CheckScan(t, ctx, col, syncbase.Prefix(""), wroteKeys, wroteVals)
 	}
 }

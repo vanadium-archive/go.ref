@@ -5,15 +5,17 @@
 package client
 
 import (
+	"strings"
 	"sync"
 
 	"v.io/v23/context"
-	wire "v.io/v23/services/syncbase"
 	"v.io/v23/services/watch"
 	"v.io/v23/syncbase"
+	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/longevity_tests/model"
 )
 
-// Watcher is a client that watches a range of keys in a set of collections.
+// Watcher is a client that watches a range of keys in a set of database collections.
 type Watcher struct {
 	// Prefix to watch.  Defaults to empty string.
 	// TODO(nlacasse): Allow different prefixes per collection?
@@ -27,67 +29,86 @@ type Watcher struct {
 	// this will be a no-op.
 	OnChange func(syncbase.WatchChange)
 
-	ctx         *context.T
-	db          syncbase.Database
-	collections []syncbase.Collection
+	ctx *context.T
+	// Map of databases and their respective collections.
+	dbColMap map[syncbase.Database][]syncbase.Collection
+	stopChan chan struct{}
+
+	err   error
+	errMu sync.Mutex
+
+	// wg waits until all spawned goroutines stop.
+	wg sync.WaitGroup
 }
 
 var _ Client = (*Watcher)(nil)
 
 func (w *Watcher) String() string {
-	s := "Watcher"
-	if w.db != nil {
-		s += "-" + w.db.FullName()
+	dbNames := []string{}
+	for db := range w.dbColMap {
+		dbNames = append(dbNames, db.Id().Name)
 	}
-	return s
+	return strings.Join(append([]string{"Watcher"}, dbNames...), "-")
 }
-
-func (w *Watcher) Run(ctx *context.T, sbName, dbName string, collectionIds []wire.Id, stopChan <-chan struct{}) error {
+func (w *Watcher) Start(ctx *context.T, sbName string, dbModels model.DatabaseSet) {
 	w.ctx = ctx
-	var err error
-	w.db, w.collections, err = createDbAndCollections(ctx, sbName, dbName, collectionIds)
-	if err != nil {
-		return err
-	}
+	w.err = nil
+	w.stopChan = make(chan struct{})
 
-	// Get a WatchStream for each collection and spawn a goroutine to wait for
-	// changes.
-	wg := sync.WaitGroup{}
-	for _, col := range w.collections {
-		stream, err := w.db.Watch(w.ctx, col.Id(), w.Prefix, w.ResumeMarker)
-		if err != nil {
-			return err
-		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				// Call Advance() in a goroutine and send its value on
-				// advanceChan.
-				advanceChan := make(chan bool, 1)
-				go func() {
-					advanceChan <- stream.Advance()
-				}()
-				// Wait on advance and stop channels.
-				select {
-				case advance := <-advanceChan:
-					if !advance {
-						// Stream ended.
-						return
-					}
-					change := stream.Change()
-					if w.OnChange != nil {
-						w.OnChange(change)
-					}
-				case <-stopChan:
-					stream.Cancel()
-					<-advanceChan
+	w.wg.Add(1)
+	go func() {
+		defer w.wg.Done()
+		var err error
+		w.dbColMap, err = CreateDbsAndCollections(ctx, sbName, dbModels)
+		w.setError(err)
+
+		for db, colSlice := range w.dbColMap {
+			for _, col := range colSlice {
+				// Create a watch stream for the collection.
+				stream, err := db.Watch(ctx, col.Id(), w.Prefix, w.ResumeMarker)
+				if err != nil {
+					w.setError(err)
 					return
 				}
-			}
-		}()
-	}
+				defer stream.Cancel()
 
-	wg.Wait()
-	return nil
+				// Spawn a goroutine to repeatedly call stream.Advance() and
+				// process any changes.
+				w.wg.Add(1)
+				go func() {
+					defer w.wg.Done()
+					for {
+						advance := stream.Advance()
+						if !advance {
+							if err := stream.Err(); err != nil && verror.ErrorID(err) != verror.ErrCanceled.ID {
+								w.setError(err)
+							}
+							return
+						}
+						change := stream.Change()
+						if w.OnChange != nil {
+							w.OnChange(change)
+						}
+					}
+				}()
+			}
+		}
+
+		// Wait for stopChan to close.
+		<-w.stopChan
+	}()
+}
+
+func (w *Watcher) Stop() error {
+	close(w.stopChan)
+	w.wg.Wait()
+	return w.err
+}
+
+func (w *Watcher) setError(err error) {
+	w.errMu.Lock()
+	defer w.errMu.Unlock()
+	if err != nil && w.err == nil {
+		w.err = err
+	}
 }

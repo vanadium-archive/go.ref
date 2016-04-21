@@ -18,22 +18,34 @@ func (c *Controller) InternalCtx() *context.T {
 	return c.ctx
 }
 
-// GetInstance returns the instance with the given name.
+// InternalGetInstance returns the instance with the given name.
 // TODO(nlacasse): This might be a good thing to export for more than just
 // tests.
-func (c *Controller) GetInstance(name string) *instance {
+func (c *Controller) InternalGetInstance(name string) *instance {
 	c.instancesMu.Lock()
 	defer c.instancesMu.Unlock()
 	return c.instances[name]
 }
 
-// DefaultBlessingName returns the default blessing name for the instance.
+// InternalPrincipal returns the principal for the instance.
+func (i *instance) InternalPrincipal() security.Principal {
+	return i.principal
+}
+
+// InternalDefaultBlessings returns the default blessings for the instance.
 // Returns empty blessings in the case of an error.
-func (i *instance) DefaultBlessings() security.Blessings {
+func (i *instance) InternalDefaultBlessings() security.Blessings {
 	p, err := vsecurity.LoadPersistentPrincipal(i.credsDir, nil)
 	if err != nil {
 		return security.Blessings{}
 	}
 	b, _ := p.BlessingStore().Default()
 	return b
+}
+
+// InternalResetClientRegistry resets the client registry to an empty map.
+func InternalResetClientRegistry() {
+	clientRegistryMu.Lock()
+	defer clientRegistryMu.Unlock()
+	clientRegistry = make(map[string]ClientGenerator)
 }

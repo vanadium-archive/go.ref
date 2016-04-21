@@ -10,7 +10,7 @@ package client
 
 import (
 	"v.io/v23/context"
-	wire "v.io/v23/services/syncbase"
+	"v.io/x/ref/services/syncbase/longevity_tests/model"
 )
 
 // Client represents a syncbase client in a longevity test.
@@ -19,8 +19,13 @@ type Client interface {
 	// printing.
 	String() string
 
-	// Run implements the main client logic.  It is the implementation's
-	// responsibility to guarantee that the database and collections exist.
-	// Run must return when the stop channel is closed.
-	Run(ctx *context.T, sbName, dbName string, collectionIds []wire.Id, stop <-chan struct{}) error
+	// Start starts the client, which will perform operations on databases
+	// corresponding to the given models.  Start must not block.  It is the
+	// implementation's responsibility to guarantee that the databases and
+	// their collections exist.
+	// TODO(nlacasse): Should implementation panic on non-recoverable errors?
+	Start(ctx *context.T, sbName string, dbs model.DatabaseSet)
+
+	// Stop stops the client and waits for it to exit.
+	Stop() error
 }

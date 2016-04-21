@@ -43,6 +43,7 @@ import (
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/runtime/protocols/vine"
 	"v.io/x/ref/services/mounttable/mounttablelib"
+	"v.io/x/ref/services/syncbase/longevity_tests/client"
 	"v.io/x/ref/services/syncbase/longevity_tests/model"
 	"v.io/x/ref/services/syncbase/longevity_tests/mounttabled"
 	"v.io/x/ref/test/testutil"
@@ -165,8 +166,21 @@ func (c *Controller) init(ctx *context.T) error {
 
 // TearDown stops all instances and the root mounttable.
 func (c *Controller) TearDown() error {
+	var retErr error
+	c.instancesMu.Lock()
+	for _, inst := range c.instances {
+		err := inst.stop()
+		if err != nil && retErr == nil {
+			retErr = err
+		}
+	}
+	c.instancesMu.Unlock()
+
 	c.sh.Cleanup()
-	return c.sh.Err
+	if retErr == nil {
+		retErr = c.sh.Err
+	}
+	return retErr
 }
 
 // Run runs a mounttable and a number of syncbased instances with connectivity
@@ -239,7 +253,7 @@ func (c *Controller) updateInstancesForUser(user *model.User) error {
 		if err != nil {
 			return err
 		}
-		if err := inst.start(); err != nil {
+		if err := inst.start(c.ctx); err != nil {
 			return err
 		}
 		c.instances[inst.name] = inst
@@ -251,23 +265,10 @@ func (c *Controller) updateTopology(top model.Topology) error {
 	c.instancesMu.Lock()
 	defer c.instancesMu.Unlock()
 
+	// Start with empty topology map.
 	behaviorMap := map[vine.PeerKey]vine.PeerBehavior{}
 
-	// Start with all instances unreachable.
-	// TODO(nlacasse,suharshs): I should not have to do this.  If the
-	// behaviorMap is missing a PeerKey for some client and server pair, then
-	// that pair should be unreachable.
-	for _, clientInst := range c.instances {
-		for _, serverInst := range c.instances {
-			pk := vine.PeerKey{
-				Dialer:   clientInst.vineName,
-				Acceptor: serverInst.vineName,
-			}
-			behaviorMap[pk] = vine.PeerBehavior{Reachable: false}
-		}
-	}
-
-	// Overwrite the reachable pairs based on the given topology.
+	// Set the reachable pairs based on the given topology.
 	for clientDevice, serviceDevices := range top {
 		clientInst, ok := c.instances[clientDevice.Name]
 		if !ok {
@@ -325,23 +326,36 @@ func (c *Controller) newInstance(user *model.User, d *model.Device) (*instance, 
 		return nil, err
 	}
 
-	// Create principal for instance.
+	// Create persistent principal for syncbase instance on device.
 	credsDir := filepath.Join(wd, "credentials")
-	p, err := vsecurity.CreatePersistentPrincipal(credsDir, nil)
+	instancePrincipal, err := vsecurity.CreatePersistentPrincipal(credsDir, nil)
 	if err != nil {
 		return nil, err
 	}
+
 	// Bless instance's principal with name root:<user>:<device>.
 	blessingName := strings.Join([]string{user.Name, d.Name}, security.ChainSeparator)
-	if err := c.identityProvider.Bless(p, blessingName); err != nil {
+	if err := c.identityProvider.Bless(instancePrincipal, blessingName); err != nil {
 		return nil, err
+	}
+
+	clients := make([]client.Client, len(d.Clients))
+	for i, clientType := range d.Clients {
+		f := LookupClient(clientType)
+		if f == nil {
+			return nil, fmt.Errorf("no client for type %q", clientType)
+		}
+		clients[i] = f()
 	}
 
 	vineName := "vine-" + d.Name
 	inst := &instance{
+		clients:       clients,
 		credsDir:      credsDir,
+		databases:     d.Databases,
 		name:          d.Name,
 		namespaceRoot: c.namespaceRoot,
+		principal:     instancePrincipal,
 		vineName:      vineName,
 		sh:            c.sh,
 		wd:            wd,

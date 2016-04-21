@@ -7,11 +7,13 @@ package client
 import (
 	"fmt"
 	"math/rand"
+	"strings"
+	"sync"
 	"time"
 
 	"v.io/v23/context"
-	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
+	"v.io/x/ref/services/syncbase/longevity_tests/model"
 )
 
 func init() {
@@ -26,47 +28,61 @@ type Writer struct {
 	// Amount of time to wait between db writes.  Defaults to 1 second.
 	WriteInterval time.Duration
 
-	// Function that generates successive key/value pairs.  If nil, keys will
-	// be strings containing the current unix timestamp and values will be
-	// random hex strings.
+	// Function that generates successive key/value pairs.  If key is "", no
+	// row will be written.
+	// If KeyValueFunc is nil, keys will be strings containing the current unix
+	// timestamp and values will be random hex strings.
 	KeyValueFunc func(time.Time) (string, interface{})
 
-	ctx         *context.T
-	db          syncbase.Database
-	collections []syncbase.Collection
+	// Function that will run after each write with the collection, key, value,
+	// and an error if one was encountered.  Useful for tests.
+	OnWrite func(syncbase.Collection, string, interface{}, error)
+
+	ctx *context.T
+	// Map of databases and their respective collections.
+	dbColsMap map[syncbase.Database][]syncbase.Collection
+	err       error
+	stopChan  chan struct{}
+
+	// wg waits for all spawned goroutines to stop.
+	wg sync.WaitGroup
 }
 
 var _ Client = (*Writer)(nil)
 
 func defaultKeyValueFunc(t time.Time) (string, interface{}) {
-	return string(t.Unix()), fmt.Sprintf("%08x", rand.Int31())
+	return fmt.Sprintf("%d", t.UnixNano()), fmt.Sprintf("%08x", rand.Int31())
 }
 
 func (w *Writer) String() string {
-	s := "Writer"
-	if w.db != nil {
-		s += "-" + w.db.FullName()
+	dbNames := []string{}
+	for db := range w.dbColsMap {
+		dbNames = append(dbNames, db.Id().Name)
 	}
-	return s
+	return strings.Join(append([]string{"Writer"}, dbNames...), "-")
 }
 
 func (w *Writer) onTick(t time.Time) error {
 	key, value := w.KeyValueFunc(t)
-	for _, col := range w.collections {
-		if err := col.Put(w.ctx, key, value); err != nil {
-			return err
+	if key == "" {
+		return nil
+	}
+	for _, colSlice := range w.dbColsMap {
+		for _, col := range colSlice {
+			err := col.Put(w.ctx, key, value)
+			if w.OnWrite != nil {
+				w.OnWrite(col, key, value, err)
+			}
+			w.setError(err)
 		}
 	}
 	return nil
 }
 
-func (w *Writer) Run(ctx *context.T, sbName, dbName string, collectionIds []wire.Id, stopChan <-chan struct{}) error {
+func (w *Writer) Start(ctx *context.T, sbName string, databases model.DatabaseSet) {
 	w.ctx = ctx
-	var err error
-	w.db, w.collections, err = createDbAndCollections(ctx, sbName, dbName, collectionIds)
-	if err != nil {
-		return err
-	}
+	w.err = nil
+	w.stopChan = make(chan struct{})
 
 	interval := w.WriteInterval
 	if interval == 0 {
@@ -77,16 +93,37 @@ func (w *Writer) Run(ctx *context.T, sbName, dbName string, collectionIds []wire
 		w.KeyValueFunc = defaultKeyValueFunc
 	}
 
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case t := <-ticker.C:
-			if err := w.onTick(t); err != nil {
-				return err
-			}
-		case <-stopChan:
-			return nil
+	w.wg.Add(1)
+	go func() {
+		defer w.wg.Done()
+		var err error
+		w.dbColsMap, err = CreateDbsAndCollections(ctx, sbName, databases)
+		if err != nil {
+			w.setError(err)
+			return
 		}
+
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case t := <-ticker.C:
+				w.onTick(t)
+			case <-w.stopChan:
+				return
+			}
+		}
+	}()
+}
+
+func (w *Writer) Stop() error {
+	close(w.stopChan)
+	w.wg.Wait()
+	return w.err
+}
+
+func (w *Writer) setError(err error) {
+	if err != nil && w.err == nil {
+		w.err = err
 	}
 }

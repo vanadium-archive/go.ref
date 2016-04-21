@@ -7,32 +7,39 @@ package client
 import (
 	"v.io/v23"
 	"v.io/v23/context"
-	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/syncbase/longevity_tests/model"
 	"v.io/x/ref/services/syncbase/testutil"
 )
 
-// createDbAndCollections creates a database and set of collections with the
-// given names.  It does not fail if the database or any of the collections
+// CreateDbsAndCollections creates databases and collections according to the
+// given models.  It does not fail if any of the databases or collections
 // already exist.
-func createDbAndCollections(ctx *context.T, sbName, dbName string, collectionIds []wire.Id) (syncbase.Database, []syncbase.Collection, error) {
+func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.DatabaseSet) (map[syncbase.Database][]syncbase.Collection, error) {
 	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	perms := testutil.DefaultPerms(blessing.String())
 
 	service := syncbase.NewService(sbName)
-	db := service.Database(ctx, dbName, nil)
-	if err := db.Create(ctx, perms); err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
-		return nil, nil, err
+	dbColsMap := map[syncbase.Database][]syncbase.Collection{}
+	for _, dbModel := range dbModels {
+		db := service.DatabaseForId(dbModel.Id(), nil)
+		// TODO(nlacasse): Don't create the database unless its blessings match
+		// ours.
+		if err := db.Create(ctx, perms); err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
+			return nil, err
+		}
+		dbColsMap[db] = []syncbase.Collection{}
+		for _, colModel := range dbModel.Collections {
+			col := db.CollectionForId(colModel.Id())
+			// TODO(nlacasse): Don't create the collection unless its blessings
+			// match ours.
+			if err := col.Create(ctx, perms); err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
+				return nil, err
+			}
+			dbColsMap[db] = append(dbColsMap[db], col)
+		}
 	}
 
-	collections := make([]syncbase.Collection, len(collectionIds))
-	for i, id := range collectionIds {
-		col := db.CollectionForId(id)
-		if err := col.Create(ctx, perms); err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
-			return nil, nil, err
-		}
-		collections[i] = col
-	}
-	return db, collections, nil
+	return dbColsMap, nil
 }
