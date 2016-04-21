@@ -59,7 +59,7 @@ func TestWatcher(t *testing.T) {
 	// Create the database and each collection.
 	// The watcher will attempt to do this as well, but doing it ourselves
 	// avoids a race condition in the tests.
-	dbColsMap, err := client.CreateDbsAndCollections(ctx, sbName, model.DatabaseSet{dbModel})
+	dbColsMap, _, err := client.CreateDbsAndCollections(ctx, sbName, model.DatabaseSet{dbModel})
 	if err != nil {
 		t.Fatal(err)
 	}

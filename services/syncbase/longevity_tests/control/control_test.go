@@ -367,6 +367,84 @@ func TestRunUniverseSingleDeviceWithTwoClients(t *testing.T) {
 	mu.Lock()
 }
 
+func TestRunUniverseTwoDevicesWithClients(t *testing.T) {
+	c, cleanup := newController(t)
+	defer cleanup()
+
+	// mu is locked until 5 changes have been received by the watcher.
+	changesReceived := 0
+	mu := sync.Mutex{}
+	mu.Lock()
+	control.RegisterClient("test-watcher", func() client.Client {
+		return &client.Watcher{
+			OnChange: func(wc syncbase.WatchChange) {
+				changesReceived++
+				if changesReceived == 5 {
+					mu.Unlock()
+				}
+			},
+		}
+	})
+	control.RegisterClient("test-writer", func() client.Client {
+		return &client.Writer{
+			WriteInterval: 50 * time.Millisecond,
+		}
+	})
+	defer control.InternalResetClientRegistry()
+
+	// Construct model with two devices and one client each (one writer and one
+	// watcher).
+	dbModel := &model.Database{
+		Name:     "test_db",
+		Blessing: "root",
+		Collections: []model.Collection{
+			model.Collection{
+				Name:     "test_col",
+				Blessing: "root",
+			},
+		},
+	}
+	writerDev := &model.Device{
+		Name:      "writer-device",
+		Clients:   []string{"test-writer"},
+		Databases: model.DatabaseSet{dbModel},
+	}
+	watcherDev := &model.Device{
+		Name:      "watcher-device",
+		Clients:   []string{"test-watcher"},
+		Databases: model.DatabaseSet{dbModel},
+	}
+
+	// Construct a syncgroup and add it to the database.
+	sg := model.Syncgroup{
+		HostDevice:  writerDev,
+		NameSuffix:  "test_sg",
+		Collections: dbModel.Collections,
+	}
+	dbModel.Syncgroups = []model.Syncgroup{sg}
+
+	u := &model.Universe{
+		Users: model.UserSet{
+			&model.User{
+				Name:    "test-user",
+				Devices: model.DeviceSet{writerDev, watcherDev},
+			},
+		},
+		// Both devices can talk to each other.
+		Topology: model.Topology{
+			writerDev:  model.DeviceSet{watcherDev, writerDev},
+			watcherDev: model.DeviceSet{watcherDev, writerDev},
+		},
+	}
+
+	if err := c.Run(u); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for watcher to receive 5 changes.
+	mu.Lock()
+}
+
 var counter int
 
 // TODO(nlacasse): Once the controller has more client-logic built-in for

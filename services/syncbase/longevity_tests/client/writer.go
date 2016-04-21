@@ -97,7 +97,7 @@ func (w *Writer) Start(ctx *context.T, sbName string, databases model.DatabaseSe
 	go func() {
 		defer w.wg.Done()
 		var err error
-		w.dbColsMap, err = CreateDbsAndCollections(ctx, sbName, databases)
+		w.dbColsMap, _, err = CreateDbsAndCollections(ctx, sbName, databases)
 		if err != nil {
 			w.setError(err)
 			return

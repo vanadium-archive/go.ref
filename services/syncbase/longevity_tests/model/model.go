@@ -13,7 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"v.io/v23/naming"
 	wire "v.io/v23/services/syncbase"
+	"v.io/x/ref/services/syncbase/common"
 )
 
 func init() {
@@ -32,7 +34,7 @@ func randomName(prefix string) string {
 // TODO(nlacasse): Put syncgroups in here?  It's a bit tricky because they need
 // to have a user's name in their name, and the spec depends on the mounttable.
 type Collection struct {
-	// Name of the colletion.
+	// Name of the collection.
 	Name string
 	// Blessing of the collection.
 	Blessing string
@@ -42,6 +44,41 @@ func (c *Collection) Id() wire.Id {
 	return wire.Id{
 		Name:     c.Name,
 		Blessing: c.Blessing,
+	}
+}
+
+// ==========
+// Syncgroups
+// ==========
+
+// Syncgroup represents a syncgroup.
+// TODO(nlacasse): Permissions.
+// TODO(nlacasse): Allow setting IsPrivate.
+type Syncgroup struct {
+	HostDevice  *Device
+	NameSuffix  string
+	Description string
+	Collections []Collection
+}
+
+func (sg *Syncgroup) Name() string {
+	return naming.Join(sg.HostDevice.Name, common.SyncbaseSuffix, sg.NameSuffix)
+}
+
+func (sg *Syncgroup) Spec() wire.SyncgroupSpec {
+	collectionRows := make([]wire.CollectionRow, len(sg.Collections))
+	for i, col := range sg.Collections {
+		collectionRows[i] = wire.CollectionRow{
+			CollectionId: col.Id(),
+			Row:          "",
+		}
+	}
+
+	return wire.SyncgroupSpec{
+		Description: sg.Description,
+		Prefixes:    collectionRows,
+		// TODO(nlacasse): Allow other values of IsPrivate.
+		IsPrivate: false,
 	}
 }
 
@@ -59,6 +96,8 @@ type Database struct {
 	Blessing string
 	// Collections.
 	Collections []Collection
+	// Syncgroups.
+	Syncgroups []Syncgroup
 }
 
 func (db *Database) Id() wire.Id {
@@ -73,7 +112,7 @@ func (db *Database) Id() wire.Id {
 type DatabaseSet []*Database
 
 // GenerateDatabaseSet generates a DatabaseSet with n databases.
-// TODO(nlacasse): Generate collections.
+// TODO(nlacasse): Generate collections and syncgroups.
 // TODO(nlacasse): Generate clients.
 func GenerateDatabaseSet(n int) DatabaseSet {
 	dbs := DatabaseSet{}

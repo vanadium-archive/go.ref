@@ -59,8 +59,11 @@ func (w *Watcher) Start(ctx *context.T, sbName string, dbModels model.DatabaseSe
 	go func() {
 		defer w.wg.Done()
 		var err error
-		w.dbColMap, err = CreateDbsAndCollections(ctx, sbName, dbModels)
-		w.setError(err)
+		w.dbColMap, _, err = CreateDbsAndCollections(ctx, sbName, dbModels)
+		if err != nil {
+			w.setError(err)
+			return
+		}
 
 		for db, colSlice := range w.dbColMap {
 			for _, col := range colSlice {
