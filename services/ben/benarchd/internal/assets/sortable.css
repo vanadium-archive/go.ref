@@ -38,4 +38,12 @@
 .mdl-data-table__header-sortable:hover .mdl-data-table__sorticon {
     opacity: 0.26;
 }
-</style>
+
+/**
+ * .overflow-scroll
+ *
+ * Overrides mdl overflow settings so long tabular data won't be hidden.
+ */
+.overflow-scroll {
+  overflow: scroll;
+}
