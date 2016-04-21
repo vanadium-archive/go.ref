@@ -35,6 +35,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -168,8 +169,22 @@ func (c *Controller) init(ctx *context.T) error {
 func (c *Controller) TearDown() error {
 	var retErr error
 	c.instancesMu.Lock()
+
+	// Stop all instance clients.
 	for _, inst := range c.instances {
-		err := inst.stop()
+		err := inst.stopClients()
+		if err != nil && retErr == nil {
+			retErr = err
+		}
+	}
+
+	// Give syncbases a few seconds to finish processing any operations (like
+	// syncing).
+	time.Sleep(2 * time.Second)
+
+	// Stop all instance syncbases.
+	for _, inst := range c.instances {
+		err := inst.stopSyncbase()
 		if err != nil && retErr == nil {
 			retErr = err
 		}
@@ -201,27 +216,23 @@ func (c *Controller) Run(u *model.Universe) error {
 		}
 	}
 
-	// Stop all running instances that are not in the model.
-	// TODO(nlacasse): Does it make sense to allow universes to shrink like
-	// this?  Maybe once a device is in the universe, it cannot be taken out?
-	// Pausing and disconnecting should still be allowed, of course.
+	// Return an error if there are running devices that are not in the model.
+	// Universes are not allowed to shrink.
+	// TODO(nlacasse): Re-evaluate this rule once we have more examples of
+	// longevity tests.
 	c.instancesMu.Lock()
 	for _, inst := range c.instances {
-		shouldBeKilled := true
+		inModel := false
 		for _, d := range allDevices {
 			if inst.name == d.Name {
-				shouldBeKilled = false
+				inModel = true
 				break
 			}
 		}
-		if !shouldBeKilled {
-			continue
-		}
-		if err := inst.kill(); err != nil {
+		if !inModel {
 			c.instancesMu.Unlock()
-			return err
+			return fmt.Errorf("device %s is running but not in given model %v", inst.name, u)
 		}
-		delete(c.instances, inst.name)
 	}
 	c.instancesMu.Unlock()
 

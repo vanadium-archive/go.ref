@@ -141,13 +141,10 @@ func TestRunUniverseSingleDevice(t *testing.T) {
 
 	// Delete the device from the universe.
 	u.Users[0].Devices = model.DeviceSet{}
-	if err := c.Run(u); err != nil {
-		t.Fatal(err)
-	}
 
-	// Syncbase should no longer be running.
-	if syncbaseIsRunning(t, c, deviceName) {
-		t.Errorf("expected syncbase %q not to be running but it was", deviceName)
+	// Calling Run again should error.
+	if err := c.Run(u); err == nil {
+		t.Fatal("expected Run to fail with shrunk universe but it did not")
 	}
 }
 

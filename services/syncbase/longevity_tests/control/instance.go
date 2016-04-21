@@ -107,30 +107,17 @@ func (inst *instance) update(d *model.Device) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (inst *instance) stop() error {
-	// Stop clients.
+func (inst *instance) stopClients() error {
 	for _, client := range inst.clients {
 		if err := client.Stop(); err != nil {
 			return err
 		}
 	}
-	inst.cmd.Terminate(os.Interrupt)
-	if inst.cmd.Err != nil {
-		return inst.cmd.Err
-	}
-	inst.cmd = nil
 	return nil
 }
 
-func (inst *instance) kill() error {
-	inst.cmd.Terminate(os.Kill)
-	// Stop clients.
-	for _, client := range inst.clients {
-		if err := client.Stop(); err != nil {
-			// Print error but continue termination.
-			fmt.Printf("Error stopping client: %v\n", err)
-		}
-	}
+func (inst *instance) stopSyncbase() error {
+	inst.cmd.Terminate(os.Interrupt)
 	if inst.cmd.Err != nil {
 		return inst.cmd.Err
 	}
