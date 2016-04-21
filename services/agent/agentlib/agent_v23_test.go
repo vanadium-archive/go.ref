@@ -358,9 +358,6 @@ func writeScript(dstfile, tmpl string, args interface{}) error {
 // The server will have a single blessing "pingpongd".
 // The client will have a single blessing "pingpongd:client", blessed by the
 // server.
-//
-// Nearly identical to createClientAndServerCredentials in
-// v.io/x/ref/cmd/vrun/vrun_v23_test.go.
 func createClientAndServerCredentials(t *testing.T, sh *v23test.Shell) (clientDir, serverDir string) {
 	clientDir = sh.MakeTempDir()
 	serverDir = sh.MakeTempDir()
