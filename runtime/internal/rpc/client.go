@@ -44,7 +44,6 @@ var (
 	// level errors and hence {1}{2} is omitted from their format
 	// strings to avoid repeating these n-times in the final error
 	// message visible to the user.
-	// TOOD(suharshs,mattr): Make these verrors.
 	errClientCloseAlreadyCalled  = reg(".errCloseAlreadyCalled", "rpc.Client.Close has already been called")
 	errClientFinishAlreadyCalled = reg(".errFinishAlreadyCalled", "rpc.ClientCall.Finish has already been called")
 	errNonRootedName             = reg(".errNonRootedName", "{3} does not appear to contain an address")
@@ -59,6 +58,17 @@ var (
 	errBlessingAdd               = reg(".errBlessingAdd", "failed to add blessing granted to server{:3}")
 	errPeerAuthorizeFailed       = reg(".errPeerAuthorizedFailed", "failed to authorize flow with remote blessings{:3} {:4}")
 )
+
+func isTimeout(err error) bool {
+	return verror.ErrorID(err) == verror.ErrTimeout.ID
+}
+
+func preferNonTimeout(curr, prev error) error {
+	if prev != nil && isTimeout(curr) {
+		return prev
+	}
+	return curr
+}
 
 const (
 	dataFlow = 'd'
@@ -140,22 +150,26 @@ func (c *client) StartCall(ctx *context.T, name, method string, args []interface
 func (c *client) Call(ctx *context.T, name, method string, inArgs, outArgs []interface{}, opts ...rpc.CallOpt) error {
 	defer apilog.LogCallf(ctx, "name=%.10s...,method=%.10s...,inArgs=,outArgs=,opts...=%v", name, method, opts)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	connOpts := getConnectionOptions(ctx, opts)
+	var prevErr error
 	for retries := uint(0); ; retries++ {
 		call, err := c.startCall(ctx, name, method, inArgs, connOpts, opts)
 		if err != nil {
-			return err
+			// See explanation in connectToName.
+			return preferNonTimeout(err, prevErr)
 		}
 		switch err := call.Finish(outArgs...); {
 		case err == nil:
 			return nil
 		case !shouldRetryBackoff(verror.Action(err), connOpts):
 			ctx.VI(4).Infof("Cannot retry after error: %s", err)
-			return err
+			// See explanation in connectToName.
+			return preferNonTimeout(err, prevErr)
 		case !backoff(retries, connOpts.connDeadline):
 			return err
 		default:
 			ctx.VI(4).Infof("Retrying due to error: %s", err)
 		}
+		prevErr = err
 	}
 }
 
@@ -249,11 +263,12 @@ type serverStatus struct {
 	typeDec        *vom.TypeDecoder
 }
 
-// connectToName attempts too connect to the provided name. It may retry connecting
+// connectToName attempts to connect to the provided name. It may retry connecting
 // to the servers the name resolves to based on the type of error encountered.
 // Once connOpts.connDeadline is reached, it will stop retrying.
 func (c *client) connectToName(ctx *context.T, name, method string, args []interface{}, connOpts *connectionOpts, opts []rpc.CallOpt) (*serverStatus, error) {
 	span := vtrace.GetSpan(ctx)
+	var prevErr error
 	for retries := uint(0); ; retries++ {
 		r, action, requireResolve, err := c.tryConnectToName(ctx, name, method, args, connOpts, opts)
 		switch {
@@ -262,7 +277,13 @@ func (c *client) connectToName(ctx *context.T, name, method string, args []inter
 		case !shouldRetry(action, requireResolve, connOpts, opts):
 			span.Annotatef("Cannot retry after error: %s", err)
 			span.Finish()
-			return nil, err
+			// If the latest error is a timeout, prefer the
+			// retryable error from the previous iteration, both to
+			// be consistent with what we'd return if backoff were
+			// to return false, and to give a more helpful error to
+			// the client (since the current timeout error is likely
+			// just a result of the context timing out).
+			return nil, preferNonTimeout(err, prevErr)
 		case !backoff(retries, connOpts.connDeadline):
 			span.Annotatef("Retries exhausted")
 			span.Finish()
@@ -271,6 +292,7 @@ func (c *client) connectToName(ctx *context.T, name, method string, args []inter
 			span.Annotatef("Retrying due to error: %s", err)
 			ctx.VI(2).Infof("Retrying due to error: %s", err)
 		}
+		prevErr = err
 	}
 }
 
@@ -291,7 +313,7 @@ func (c *client) tryConnectToName(ctx *context.T, name, method string, args []in
 		return nil, verror.RetryRefetch, false, verror.New(verror.ErrNoServers, ctx, name)
 	case verror.ErrorID(err) == verror.ErrNoServers.ID:
 		return nil, verror.NoRetry, false, err // avoid unnecessary wrapping
-	case verror.ErrorID(err) == verror.ErrTimeout.ID:
+	case isTimeout(err):
 		return nil, verror.NoRetry, false, err // return timeout without wrapping
 	case err != nil:
 		return nil, verror.NoRetry, false, verror.New(verror.ErrNoServers, ctx, name, err)
@@ -952,14 +974,20 @@ func backoff(n uint, deadline time.Time) bool {
 		b = maxBackoff
 	}
 	r := deadline.Sub(time.Now())
+	// We need to budget some time for the call to have a chance to complete
+	// lest we'll timeout before we actually do anything.  If we just don't
+	// have enough time left, give up.
+	//
+	// The value should cover a sensible call duration (which includes name
+	// resolution and the actual server RPC) on most supported platforms;
+	// use https://vanadium.github.io/performance.html for inspiration.
+	const reserveTime = 100 * time.Millisecond
+	if r <= reserveTime {
+		return false
+	}
+	r -= reserveTime
 	if b > r {
-		// We need to leave a little time for the call to start or
-		// we'll just timeout in startCall before we actually do
-		// anything.  If we just have a millisecond left, give up.
-		if r <= time.Millisecond {
-			return false
-		}
-		b = r - time.Millisecond
+		b = r
 	}
 	time.Sleep(b)
 	return true
