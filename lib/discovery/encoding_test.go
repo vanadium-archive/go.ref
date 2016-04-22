@@ -5,23 +5,80 @@
 package discovery_test
 
 import (
+	"bytes"
 	"math/rand"
 	"reflect"
 	"testing"
 	"testing/quick"
 
-	"v.io/x/ref/lib/discovery"
+	idiscovery "v.io/x/ref/lib/discovery"
 	"v.io/x/ref/lib/discovery/testdata"
 	"v.io/x/ref/lib/security/bcrypter"
 )
 
+func TestEncodingBuffer(t *testing.T) {
+	rand := rand.New(rand.NewSource(0))
+	randBytes := func() []byte {
+		p := make([]byte, rand.Intn(128))
+		rand.Read(p)
+		return p
+	}
+
+	var data []interface{}
+
+	enc := idiscovery.NewEncodingBuffer(nil)
+	for i := 0; i < 10; i++ {
+		switch rand.Intn(3) {
+		case 0:
+			x := rand.Int()
+			enc.WriteInt(x)
+			data = append(data, x)
+		case 1:
+			p := randBytes()
+			enc.WriteBytes(p)
+			data = append(data, p)
+		case 2:
+			s := string(randBytes())
+			enc.WriteString(s)
+			data = append(data, s)
+		}
+	}
+
+	dec := idiscovery.NewEncodingBuffer(enc.Bytes())
+	for _, d := range data {
+		switch d := d.(type) {
+		case int:
+			x, err := dec.ReadInt()
+			if err != nil {
+				t.Error(err)
+			} else if x != d {
+				t.Errorf("decoded to %v, but want %v", x, d)
+			}
+		case []byte:
+			p, err := dec.ReadBytes()
+			if err != nil {
+				t.Error(err)
+			} else if !bytes.Equal(p, d) {
+				t.Errorf("decoded to %v, but want %v", p, d)
+			}
+		case string:
+			s, err := dec.ReadString()
+			if err != nil {
+				t.Error(err)
+			} else if s != d {
+				t.Errorf("decoded to %v, but want %v", s, d)
+			}
+		}
+	}
+}
+
 func TestPackAddresses(t *testing.T) {
 	for _, test := range testdata.PackAddressTestData {
-		pack := discovery.PackAddresses(test.In)
+		pack := idiscovery.PackAddresses(test.In)
 		if !reflect.DeepEqual(pack, test.Packed) {
 			t.Errorf("packed to: %v, but wanted: %v", pack, test.Packed)
 		}
-		unpack, err := discovery.UnpackAddresses(test.Packed)
+		unpack, err := idiscovery.UnpackAddresses(test.Packed)
 		if err != nil {
 			t.Errorf("unpack error: %v", err)
 			continue
@@ -34,13 +91,13 @@ func TestPackAddresses(t *testing.T) {
 
 func TestPackEncryptionKeys(t *testing.T) {
 	for _, test := range testdata.PackEncryptionKeysTestData {
-		pack := discovery.PackEncryptionKeys(test.Algo, test.Keys)
+		pack := idiscovery.PackEncryptionKeys(test.Algo, test.Keys)
 
 		if !reflect.DeepEqual(pack, test.Packed) {
 			t.Errorf("packed to: %v, but wanted: %v", pack, test.Packed)
 		}
 
-		algo, keys, err := discovery.UnpackEncryptionKeys(test.Packed)
+		algo, keys, err := idiscovery.UnpackEncryptionKeys(test.Packed)
 		if err != nil {
 			t.Errorf("unpack error: %v", err)
 			continue
@@ -64,8 +121,8 @@ func TestEncodeWireCiphertext(t *testing.T) {
 			wctext.Bytes = make(map[string][]byte)
 		}
 
-		encoded := discovery.EncodeWireCiphertext(&wctext)
-		decoded, err := discovery.DecodeWireCiphertext(encoded)
+		encoded := idiscovery.EncodeWireCiphertext(&wctext)
+		decoded, err := idiscovery.DecodeWireCiphertext(encoded)
 		if err != nil {
 			t.Errorf("decoded error: %v", err)
 			continue
