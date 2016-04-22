@@ -219,10 +219,11 @@ func init() {
 		"errorName":               errorName,
 		"nativeIdent":             nativeIdent,
 		"typeGo":                  typeGo,
-		"typeDefGo":               typeDefGo,
-		"readerGo":                readerGo,
-		"writerGo":                writerGo,
-		"constDefGo":              constDefGo,
+		"defineType":              defineType,
+		"defineIsZero":            defineIsZero,
+		"defineWrite":             defineWrite,
+		"defineRead":              defineRead,
+		"defineConst":             defineConst,
 		"genValueOf":              genValueOf,
 		"typedConst":              typedConst,
 		"embedGo":                 embedGo,
@@ -508,9 +509,10 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 //////////////////////////////////////////////////
 // Type definitions
 {{range $tdef := $pkg.TypeDefs}}
-{{typeDefGo $data $tdef}}
-{{readerGo $data $tdef}}
-{{writerGo $data $tdef}}
+{{defineType $data $tdef}}
+{{defineIsZero $data $tdef}}
+{{defineWrite $data $tdef}}
+{{defineRead $data $tdef}}
 {{end}}
 
 {{if $pkg.Config.Go.WireToNativeTypes}}
@@ -527,7 +529,7 @@ var (
 //////////////////////////////////////////////////
 // Const definitions
 {{range $cdef := $pkg.ConstDefs}}
-{{constDefGo $data $cdef}}{{end}}
+{{defineConst $data $cdef}}{{end}}
 {{end}}
 
 {{if $pkg.ErrorDefs}}

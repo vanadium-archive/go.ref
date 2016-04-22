@@ -97,19 +97,8 @@ func (t *dataRepTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	return nil
 }
 
-func (x *dataRep) VDLRead(dec vdl.Decoder) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	enum, err := dec.DecodeString()
-	if err != nil {
-		return err
-	}
-	if err = x.Set(enum); err != nil {
-		return err
-	}
-	return dec.FinishValue()
+func (x dataRep) VDLIsZero() (bool, error) {
+	return x == dataRepHex, nil
 }
 
 func (x dataRep) VDLWrite(enc vdl.Encoder) error {
@@ -120,6 +109,20 @@ func (x dataRep) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *dataRep) VDLRead(dec vdl.Decoder) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	enum, err := dec.DecodeString()
+	if err != nil {
+		return err
+	}
+	if err := x.Set(enum); err != nil {
+		return err
+	}
+	return dec.FinishValue()
 }
 
 var __VDLInitCalled bool

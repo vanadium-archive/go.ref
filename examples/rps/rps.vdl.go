@@ -126,47 +126,15 @@ func (t *GameIdTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *GameId) VDLRead(dec vdl.Decoder) error {
-	*x = GameId{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Id":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Id, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x GameId) VDLIsZero() (bool, error) {
+	return x == GameId{}, nil
 }
 
 func (x GameId) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*GameId)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Id == "")
-	if !(var1) {
+	if x.Id != "" {
 		if err := enc.NextField("Id"); err != nil {
 			return err
 		}
@@ -184,6 +152,41 @@ func (x GameId) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *GameId) VDLRead(dec vdl.Decoder) error {
+	*x = GameId{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Id":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Id, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 type GameTypeTag byte
@@ -240,17 +243,8 @@ func (t *GameTypeTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x *GameTypeTag) VDLRead(dec vdl.Decoder) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	tmp, err := dec.DecodeUint(8)
-	if err != nil {
-		return err
-	}
-	*x = GameTypeTag(tmp)
-	return dec.FinishValue()
+func (x GameTypeTag) VDLIsZero() (bool, error) {
+	return x == 0, nil
 }
 
 func (x GameTypeTag) VDLWrite(enc vdl.Encoder) error {
@@ -261,6 +255,18 @@ func (x GameTypeTag) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *GameTypeTag) VDLRead(dec vdl.Decoder) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(8)
+	if err != nil {
+		return err
+	}
+	*x = GameTypeTag(tmp)
+	return dec.FinishValue()
 }
 
 // GameOptions specifies the parameters of a game.
@@ -377,10 +383,45 @@ func (t *GameOptionsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x GameOptions) VDLIsZero() (bool, error) {
+	return x == GameOptions{}, nil
+}
+
+func (x GameOptions) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*GameOptions)(nil)).Elem()); err != nil {
+		return err
+	}
+	if x.NumRounds != 0 {
+		if err := enc.NextField("NumRounds"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(int64(x.NumRounds)); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if x.GameType != 0 {
+		if err := enc.NextField("GameType"); err != nil {
+			return err
+		}
+		if err := x.GameType.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *GameOptions) VDLRead(dec vdl.Decoder) error {
 	*x = GameOptions{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -395,7 +436,7 @@ func (x *GameOptions) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "NumRounds":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
 			tmp, err := dec.DecodeInt(32)
@@ -403,53 +444,19 @@ func (x *GameOptions) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 			x.NumRounds = int32(tmp)
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "GameType":
-			if err = x.GameType.VDLRead(dec); err != nil {
+			if err := x.GameType.VDLRead(dec); err != nil {
 				return err
 			}
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
-}
-
-func (x GameOptions) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*GameOptions)(nil)).Elem()); err != nil {
-		return err
-	}
-	var1 := (x.NumRounds == int32(0))
-	if !(var1) {
-		if err := enc.NextField("NumRounds"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(int64(x.NumRounds)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var2 := (x.GameType == GameTypeTag(0))
-	if !(var2) {
-		if err := enc.NextField("GameType"); err != nil {
-			return err
-		}
-		if err := x.GameType.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 // TODO(toddw): Replace Unused with the unnamed empty struct{}.
@@ -509,10 +516,23 @@ func (t *UnusedTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x Unused) VDLIsZero() (bool, error) {
+	return x == Unused{}, nil
+}
+
+func (x Unused) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Unused)(nil)).Elem()); err != nil {
+		return err
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *Unused) VDLRead(dec vdl.Decoder) error {
 	*x = Unused{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -527,21 +547,11 @@ func (x *Unused) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
-}
-
-func (x Unused) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*Unused)(nil)).Elem()); err != nil {
-		return err
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 type (
@@ -556,6 +566,7 @@ type (
 		// __VDLReflect describes the PlayerAction union type.
 		__VDLReflect(__PlayerActionReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLIsZero() (bool, error)
 		VDLWrite(vdl.Encoder) error
 	}
 	// PlayerActionMove represents field Move of the PlayerAction union type.
@@ -688,49 +699,12 @@ func (t playerActionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Ta
 	return nil, fmt.Errorf("got %T, want *PlayerAction", union)
 }
 
-func VDLReadPlayerAction(dec vdl.Decoder, x *PlayerAction) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x), dec.Type()) {
-		return fmt.Errorf("incompatible union %T, from %v", x, dec.Type())
-	}
-	f, err := dec.NextField()
-	if err != nil {
-		return err
-	}
-	switch f {
-	case "Move":
-		var field PlayerActionMove
-		if err = dec.StartValue(); err != nil {
-			return err
-		}
-		if field.Value, err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err = dec.FinishValue(); err != nil {
-			return err
-		}
-		*x = field
-	case "Quit":
-		var field PlayerActionQuit
-		if err = field.Value.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = field
-	case "":
-		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
-	default:
-		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
-	}
-	switch f, err := dec.NextField(); {
-	case err != nil:
-		return err
-	case f != "":
-		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
-	}
-	return dec.FinishValue()
+func (x PlayerActionMove) VDLIsZero() (bool, error) {
+	return x.Value == "", nil
+}
+
+func (x PlayerActionQuit) VDLIsZero() (bool, error) {
+	return false, nil
 }
 
 func (x PlayerActionMove) VDLWrite(enc vdl.Encoder) error {
@@ -754,6 +728,7 @@ func (x PlayerActionMove) VDLWrite(enc vdl.Encoder) error {
 	}
 	return enc.FinishValue()
 }
+
 func (x PlayerActionQuit) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*PlayerAction)(nil))); err != nil {
 		return err
@@ -768,6 +743,51 @@ func (x PlayerActionQuit) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func VDLReadPlayerAction(dec vdl.Decoder, x *PlayerAction) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x), dec.Type()) {
+		return fmt.Errorf("incompatible union %T, from %v", x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "Move":
+		var field PlayerActionMove
+		if err := dec.StartValue(); err != nil {
+			return err
+		}
+		var err error
+		if field.Value, err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err := dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "Quit":
+		var field PlayerActionQuit
+		if err := field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
 }
 
 type PlayersMoves [2]string
@@ -832,35 +852,8 @@ func (t *PlayersMovesTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x *PlayersMoves) VDLRead(dec vdl.Decoder) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
-	}
-	index := 0
-	for {
-		switch done, err := dec.NextEntry(); {
-		case err != nil:
-			return err
-		case done != (index >= len(*x)):
-			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
-		case done:
-			return dec.FinishValue()
-		}
-		if err = dec.StartValue(); err != nil {
-			return err
-		}
-		if x[index], err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err = dec.FinishValue(); err != nil {
-			return err
-		}
-		index++
-	}
+func (x PlayersMoves) VDLIsZero() (bool, error) {
+	return x == PlayersMoves{}, nil
 }
 
 func (x PlayersMoves) VDLWrite(enc vdl.Encoder) error {
@@ -885,6 +878,37 @@ func (x PlayersMoves) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *PlayersMoves) VDLRead(dec vdl.Decoder) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
+	}
+	index := 0
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done != (index >= len(*x)):
+			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
+		case done:
+			return dec.FinishValue()
+		}
+		if err := dec.StartValue(); err != nil {
+			return err
+		}
+		var err error
+		if x[index], err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err := dec.FinishValue(); err != nil {
+			return err
+		}
+		index++
+	}
 }
 
 // WinnerTag is a type used to indicate whether a round or a game was a draw,
@@ -943,17 +967,8 @@ func (t *WinnerTagTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x *WinnerTag) VDLRead(dec vdl.Decoder) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	tmp, err := dec.DecodeUint(8)
-	if err != nil {
-		return err
-	}
-	*x = WinnerTag(tmp)
-	return dec.FinishValue()
+func (x WinnerTag) VDLIsZero() (bool, error) {
+	return x == 0, nil
 }
 
 func (x WinnerTag) VDLWrite(enc vdl.Encoder) error {
@@ -964,6 +979,18 @@ func (x WinnerTag) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *WinnerTag) VDLRead(dec vdl.Decoder) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(8)
+	if err != nil {
+		return err
+	}
+	*x = WinnerTag(tmp)
+	return dec.FinishValue()
 }
 
 // Round represents the state of a round.
@@ -1189,10 +1216,100 @@ func (t *RoundTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x Round) VDLIsZero() (bool, error) {
+	if x.Moves != (PlayersMoves{}) {
+		return false, nil
+	}
+	if x.Comment != "" {
+		return false, nil
+	}
+	if x.Winner != 0 {
+		return false, nil
+	}
+	var wireStartTime time_2.Time
+	if err := time_2.TimeFromNative(&wireStartTime, x.StartTime); err != nil {
+		return false, err
+	}
+	if wireStartTime != (time_2.Time{}) {
+		return false, nil
+	}
+	var wireEndTime time_2.Time
+	if err := time_2.TimeFromNative(&wireEndTime, x.EndTime); err != nil {
+		return false, err
+	}
+	if wireEndTime != (time_2.Time{}) {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (x Round) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Round)(nil)).Elem()); err != nil {
+		return err
+	}
+	if x.Moves != (PlayersMoves{}) {
+		if err := enc.NextField("Moves"); err != nil {
+			return err
+		}
+		if err := x.Moves.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if x.Comment != "" {
+		if err := enc.NextField("Comment"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Comment); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if x.Winner != 0 {
+		if err := enc.NextField("Winner"); err != nil {
+			return err
+		}
+		if err := x.Winner.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireStartTime time_2.Time
+	if err := time_2.TimeFromNative(&wireStartTime, x.StartTime); err != nil {
+		return err
+	}
+	if wireStartTime != (time_2.Time{}) {
+		if err := enc.NextField("StartTime"); err != nil {
+			return err
+		}
+		if err := wireStartTime.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireEndTime time_2.Time
+	if err := time_2.TimeFromNative(&wireEndTime, x.EndTime); err != nil {
+		return err
+	}
+	if wireEndTime != (time_2.Time{}) {
+		if err := enc.NextField("EndTime"); err != nil {
+			return err
+		}
+		if err := wireEndTime.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *Round) VDLRead(dec vdl.Decoder) error {
 	*x = Round{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -1207,124 +1324,46 @@ func (x *Round) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Moves":
-			if err = x.Moves.VDLRead(dec); err != nil {
+			if err := x.Moves.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Comment":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Comment, err = dec.DecodeString(); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Winner":
-			if err = x.Winner.VDLRead(dec); err != nil {
+			if err := x.Winner.VDLRead(dec); err != nil {
 				return err
 			}
 		case "StartTime":
 			var wire time_2.Time
-			if err = wire.VDLRead(dec); err != nil {
+			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err = time_2.TimeToNative(wire, &x.StartTime); err != nil {
+			if err := time_2.TimeToNative(wire, &x.StartTime); err != nil {
 				return err
 			}
 		case "EndTime":
 			var wire time_2.Time
-			if err = wire.VDLRead(dec); err != nil {
+			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err = time_2.TimeToNative(wire, &x.EndTime); err != nil {
+			if err := time_2.TimeToNative(wire, &x.EndTime); err != nil {
 				return err
 			}
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
-}
-
-func (x Round) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*Round)(nil)).Elem()); err != nil {
-		return err
-	}
-	var1 := (x.Moves == PlayersMoves{})
-	if !(var1) {
-		if err := enc.NextField("Moves"); err != nil {
-			return err
-		}
-		if err := x.Moves.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var2 := (x.Comment == "")
-	if !(var2) {
-		if err := enc.NextField("Comment"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Comment); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var3 := (x.Winner == WinnerTag(0))
-	if !(var3) {
-		if err := enc.NextField("Winner"); err != nil {
-			return err
-		}
-		if err := x.Winner.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var wireValue4 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue4, x.StartTime); err != nil {
-		return fmt.Errorf("error converting x.StartTime to wiretype")
-	}
-
-	var5 := (wireValue4 == time_2.Time{})
-	if !(var5) {
-		if err := enc.NextField("StartTime"); err != nil {
-			return err
-		}
-		var wire time_2.Time
-		if err := time_2.TimeFromNative(&wire, x.StartTime); err != nil {
-			return err
-		}
-		if err := wire.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var wireValue6 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue6, x.EndTime); err != nil {
-		return fmt.Errorf("error converting x.EndTime to wiretype")
-	}
-
-	var7 := (wireValue6 == time_2.Time{})
-	if !(var7) {
-		if err := enc.NextField("EndTime"); err != nil {
-			return err
-		}
-		var wire time_2.Time
-		if err := time_2.TimeFromNative(&wire, x.EndTime); err != nil {
-			return err
-		}
-		if err := wire.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 type ScoreCard struct {
@@ -1679,10 +1718,170 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
+func (x ScoreCard) VDLIsZero() (bool, error) {
+	if x.Opts != (GameOptions{}) {
+		return false, nil
+	}
+	if x.Judge != "" {
+		return false, nil
+	}
+	if len(x.Players) != 0 {
+		return false, nil
+	}
+	if len(x.Rounds) != 0 {
+		return false, nil
+	}
+	var wireStartTime time_2.Time
+	if err := time_2.TimeFromNative(&wireStartTime, x.StartTime); err != nil {
+		return false, err
+	}
+	if wireStartTime != (time_2.Time{}) {
+		return false, nil
+	}
+	var wireEndTime time_2.Time
+	if err := time_2.TimeFromNative(&wireEndTime, x.EndTime); err != nil {
+		return false, err
+	}
+	if wireEndTime != (time_2.Time{}) {
+		return false, nil
+	}
+	if x.Winner != 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (x ScoreCard) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ScoreCard)(nil)).Elem()); err != nil {
+		return err
+	}
+	if x.Opts != (GameOptions{}) {
+		if err := enc.NextField("Opts"); err != nil {
+			return err
+		}
+		if err := x.Opts.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if x.Judge != "" {
+		if err := enc.NextField("Judge"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Judge); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if len(x.Players) != 0 {
+		if err := enc.NextField("Players"); err != nil {
+			return err
+		}
+		if err := __VDLWriteAnon_list_1(enc, x.Players); err != nil {
+			return err
+		}
+	}
+	if len(x.Rounds) != 0 {
+		if err := enc.NextField("Rounds"); err != nil {
+			return err
+		}
+		if err := __VDLWriteAnon_list_2(enc, x.Rounds); err != nil {
+			return err
+		}
+	}
+	var wireStartTime time_2.Time
+	if err := time_2.TimeFromNative(&wireStartTime, x.StartTime); err != nil {
+		return err
+	}
+	if wireStartTime != (time_2.Time{}) {
+		if err := enc.NextField("StartTime"); err != nil {
+			return err
+		}
+		if err := wireStartTime.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireEndTime time_2.Time
+	if err := time_2.TimeFromNative(&wireEndTime, x.EndTime); err != nil {
+		return err
+	}
+	if wireEndTime != (time_2.Time{}) {
+		if err := enc.NextField("EndTime"); err != nil {
+			return err
+		}
+		if err := wireEndTime.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if x.Winner != 0 {
+		if err := enc.NextField("Winner"); err != nil {
+			return err
+		}
+		if err := x.Winner.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+		return err
+	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
+	for i := 0; i < len(x); i++ {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWriteAnon_list_2(enc vdl.Encoder, x []Round) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]Round)(nil))); err != nil {
+		return err
+	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
+	for i := 0; i < len(x); i++ {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
+		if err := x[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *ScoreCard) VDLRead(dec vdl.Decoder) error {
 	*x = ScoreCard{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -1697,58 +1896,58 @@ func (x *ScoreCard) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Opts":
-			if err = x.Opts.VDLRead(dec); err != nil {
+			if err := x.Opts.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Judge":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Judge, err = dec.DecodeString(); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Players":
-			if err = __VDLRead1_list(dec, &x.Players); err != nil {
+			if err := __VDLReadAnon_list_1(dec, &x.Players); err != nil {
 				return err
 			}
 		case "Rounds":
-			if err = __VDLRead2_list(dec, &x.Rounds); err != nil {
+			if err := __VDLReadAnon_list_2(dec, &x.Rounds); err != nil {
 				return err
 			}
 		case "StartTime":
 			var wire time_2.Time
-			if err = wire.VDLRead(dec); err != nil {
+			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err = time_2.TimeToNative(wire, &x.StartTime); err != nil {
+			if err := time_2.TimeToNative(wire, &x.StartTime); err != nil {
 				return err
 			}
 		case "EndTime":
 			var wire time_2.Time
-			if err = wire.VDLRead(dec); err != nil {
+			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err = time_2.TimeToNative(wire, &x.EndTime); err != nil {
+			if err := time_2.TimeToNative(wire, &x.EndTime); err != nil {
 				return err
 			}
 		case "Winner":
-			if err = x.Winner.VDLRead(dec); err != nil {
+			if err := x.Winner.VDLRead(dec); err != nil {
 				return err
 			}
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
+func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -1768,22 +1967,22 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
 			return dec.FinishValue()
 		}
 		var elem string
-		if err = dec.StartValue(); err != nil {
+		if err := dec.StartValue(); err != nil {
 			return err
 		}
+		var err error
 		if elem, err = dec.DecodeString(); err != nil {
 			return err
 		}
-		if err = dec.FinishValue(); err != nil {
+		if err := dec.FinishValue(); err != nil {
 			return err
 		}
 		*x = append(*x, elem)
 	}
 }
 
-func __VDLRead2_list(dec vdl.Decoder, x *[]Round) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
+func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]Round) error {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -1803,162 +2002,11 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]Round) error {
 			return dec.FinishValue()
 		}
 		var elem Round
-		if err = elem.VDLRead(dec); err != nil {
+		if err := elem.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = append(*x, elem)
 	}
-}
-
-func (x ScoreCard) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*ScoreCard)(nil)).Elem()); err != nil {
-		return err
-	}
-	var1 := (x.Opts == GameOptions{})
-	if !(var1) {
-		if err := enc.NextField("Opts"); err != nil {
-			return err
-		}
-		if err := x.Opts.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var2 := (x.Judge == "")
-	if !(var2) {
-		if err := enc.NextField("Judge"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Judge); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var var3 bool
-	if len(x.Players) == 0 {
-		var3 = true
-	}
-	if !(var3) {
-		if err := enc.NextField("Players"); err != nil {
-			return err
-		}
-		if err := __VDLWrite1_list(enc, &x.Players); err != nil {
-			return err
-		}
-	}
-	var var4 bool
-	if len(x.Rounds) == 0 {
-		var4 = true
-	}
-	if !(var4) {
-		if err := enc.NextField("Rounds"); err != nil {
-			return err
-		}
-		if err := __VDLWrite2_list(enc, &x.Rounds); err != nil {
-			return err
-		}
-	}
-	var wireValue5 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue5, x.StartTime); err != nil {
-		return fmt.Errorf("error converting x.StartTime to wiretype")
-	}
-
-	var6 := (wireValue5 == time_2.Time{})
-	if !(var6) {
-		if err := enc.NextField("StartTime"); err != nil {
-			return err
-		}
-		var wire time_2.Time
-		if err := time_2.TimeFromNative(&wire, x.StartTime); err != nil {
-			return err
-		}
-		if err := wire.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var wireValue7 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue7, x.EndTime); err != nil {
-		return fmt.Errorf("error converting x.EndTime to wiretype")
-	}
-
-	var8 := (wireValue7 == time_2.Time{})
-	if !(var8) {
-		if err := enc.NextField("EndTime"); err != nil {
-			return err
-		}
-		var wire time_2.Time
-		if err := time_2.TimeFromNative(&wire, x.EndTime); err != nil {
-			return err
-		}
-		if err := wire.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var9 := (x.Winner == WinnerTag(0))
-	if !(var9) {
-		if err := enc.NextField("Winner"); err != nil {
-			return err
-		}
-		if err := x.Winner.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
-}
-
-func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
-		return err
-	}
-	if err := enc.SetLenHint(len(*x)); err != nil {
-		return err
-	}
-	for i := 0; i < len(*x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeString((*x)[i]); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextEntry(true); err != nil {
-		return err
-	}
-	return enc.FinishValue()
-}
-
-func __VDLWrite2_list(enc vdl.Encoder, x *[]Round) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]Round)(nil))); err != nil {
-		return err
-	}
-	if err := enc.SetLenHint(len(*x)); err != nil {
-		return err
-	}
-	for i := 0; i < len(*x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := (*x)[i].VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextEntry(true); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 type (
@@ -1973,6 +2021,7 @@ type (
 		// __VDLReflect describes the JudgeAction union type.
 		__VDLReflect(__JudgeActionReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLIsZero() (bool, error)
 		VDLWrite(vdl.Encoder) error
 	}
 	// JudgeActionPlayerNum represents field PlayerNum of the JudgeAction union type.
@@ -2240,75 +2289,24 @@ func (t judgeActionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Tar
 	return nil, fmt.Errorf("got %T, want *JudgeAction", union)
 }
 
-func VDLReadJudgeAction(dec vdl.Decoder, x *JudgeAction) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x), dec.Type()) {
-		return fmt.Errorf("incompatible union %T, from %v", x, dec.Type())
-	}
-	f, err := dec.NextField()
-	if err != nil {
-		return err
-	}
-	switch f {
-	case "PlayerNum":
-		var field JudgeActionPlayerNum
-		if err = dec.StartValue(); err != nil {
-			return err
-		}
-		tmp, err := dec.DecodeInt(32)
-		if err != nil {
-			return err
-		}
-		field.Value = int32(tmp)
-		if err = dec.FinishValue(); err != nil {
-			return err
-		}
-		*x = field
-	case "OpponentName":
-		var field JudgeActionOpponentName
-		if err = dec.StartValue(); err != nil {
-			return err
-		}
-		if field.Value, err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err = dec.FinishValue(); err != nil {
-			return err
-		}
-		*x = field
-	case "MoveOptions":
-		var field JudgeActionMoveOptions
-		if err = __VDLRead1_list(dec, &field.Value); err != nil {
-			return err
-		}
-		*x = field
-	case "RoundResult":
-		var field JudgeActionRoundResult
-		if err = field.Value.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = field
-	case "Score":
-		var field JudgeActionScore
-		if err = field.Value.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = field
-	case "":
-		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
-	default:
-		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
-	}
-	switch f, err := dec.NextField(); {
-	case err != nil:
-		return err
-	case f != "":
-		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
-	}
-	return dec.FinishValue()
+func (x JudgeActionPlayerNum) VDLIsZero() (bool, error) {
+	return x.Value == 0, nil
+}
+
+func (x JudgeActionOpponentName) VDLIsZero() (bool, error) {
+	return false, nil
+}
+
+func (x JudgeActionMoveOptions) VDLIsZero() (bool, error) {
+	return false, nil
+}
+
+func (x JudgeActionRoundResult) VDLIsZero() (bool, error) {
+	return false, nil
+}
+
+func (x JudgeActionScore) VDLIsZero() (bool, error) {
+	return false, nil
 }
 
 func (x JudgeActionPlayerNum) VDLWrite(enc vdl.Encoder) error {
@@ -2332,6 +2330,7 @@ func (x JudgeActionPlayerNum) VDLWrite(enc vdl.Encoder) error {
 	}
 	return enc.FinishValue()
 }
+
 func (x JudgeActionOpponentName) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*JudgeAction)(nil))); err != nil {
 		return err
@@ -2353,6 +2352,7 @@ func (x JudgeActionOpponentName) VDLWrite(enc vdl.Encoder) error {
 	}
 	return enc.FinishValue()
 }
+
 func (x JudgeActionMoveOptions) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*JudgeAction)(nil))); err != nil {
 		return err
@@ -2360,7 +2360,7 @@ func (x JudgeActionMoveOptions) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.NextField("MoveOptions"); err != nil {
 		return err
 	}
-	if err := __VDLWrite1_list(enc, &x.Value); err != nil {
+	if err := __VDLWriteAnon_list_1(enc, x.Value); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {
@@ -2368,6 +2368,7 @@ func (x JudgeActionMoveOptions) VDLWrite(enc vdl.Encoder) error {
 	}
 	return enc.FinishValue()
 }
+
 func (x JudgeActionRoundResult) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*JudgeAction)(nil))); err != nil {
 		return err
@@ -2383,6 +2384,7 @@ func (x JudgeActionRoundResult) VDLWrite(enc vdl.Encoder) error {
 	}
 	return enc.FinishValue()
 }
+
 func (x JudgeActionScore) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*JudgeAction)(nil))); err != nil {
 		return err
@@ -2397,6 +2399,77 @@ func (x JudgeActionScore) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func VDLReadJudgeAction(dec vdl.Decoder, x *JudgeAction) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x), dec.Type()) {
+		return fmt.Errorf("incompatible union %T, from %v", x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "PlayerNum":
+		var field JudgeActionPlayerNum
+		if err := dec.StartValue(); err != nil {
+			return err
+		}
+		tmp, err := dec.DecodeInt(32)
+		if err != nil {
+			return err
+		}
+		field.Value = int32(tmp)
+		if err := dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "OpponentName":
+		var field JudgeActionOpponentName
+		if err := dec.StartValue(); err != nil {
+			return err
+		}
+		var err error
+		if field.Value, err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err := dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = field
+	case "MoveOptions":
+		var field JudgeActionMoveOptions
+		if err := __VDLReadAnon_list_1(dec, &field.Value); err != nil {
+			return err
+		}
+		*x = field
+	case "RoundResult":
+		var field JudgeActionRoundResult
+		if err := field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "Score":
+		var field JudgeActionScore
+		if err := field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
 }
 
 // PlayResult is the value returned by the Play method. It indicates the outcome of the game.
@@ -2484,47 +2557,15 @@ func (t *PlayResultTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *PlayResult) VDLRead(dec vdl.Decoder) error {
-	*x = PlayResult{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "YouWon":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.YouWon, err = dec.DecodeBool(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x PlayResult) VDLIsZero() (bool, error) {
+	return x == PlayResult{}, nil
 }
 
 func (x PlayResult) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*PlayResult)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.YouWon == false)
-	if !(var1) {
+	if x.YouWon {
 		if err := enc.NextField("YouWon"); err != nil {
 			return err
 		}
@@ -2542,6 +2583,41 @@ func (x PlayResult) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *PlayResult) VDLRead(dec vdl.Decoder) error {
+	*x = PlayResult{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "YouWon":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.YouWon, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////////

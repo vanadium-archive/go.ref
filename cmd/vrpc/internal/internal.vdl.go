@@ -133,61 +133,15 @@ func (t *StructTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *Struct) VDLRead(dec vdl.Decoder) error {
-	*x = Struct{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "X":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			tmp, err := dec.DecodeInt(32)
-			if err != nil {
-				return err
-			}
-			x.X = int32(tmp)
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Y":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			tmp, err := dec.DecodeInt(32)
-			if err != nil {
-				return err
-			}
-			x.Y = int32(tmp)
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x Struct) VDLIsZero() (bool, error) {
+	return x == Struct{}, nil
 }
 
 func (x Struct) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*Struct)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.X == int32(0))
-	if !(var1) {
+	if x.X != 0 {
 		if err := enc.NextField("X"); err != nil {
 			return err
 		}
@@ -201,8 +155,7 @@ func (x Struct) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Y == int32(0))
-	if !(var2) {
+	if x.Y != 0 {
 		if err := enc.NextField("Y"); err != nil {
 			return err
 		}
@@ -220,6 +173,54 @@ func (x Struct) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *Struct) VDLRead(dec vdl.Decoder) error {
+	*x = Struct{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "X":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.X = int32(tmp)
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Y":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.Y = int32(tmp)
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 type Array2Int [2]int32
@@ -284,37 +285,8 @@ func (t *Array2IntTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x *Array2Int) VDLRead(dec vdl.Decoder) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
-	}
-	index := 0
-	for {
-		switch done, err := dec.NextEntry(); {
-		case err != nil:
-			return err
-		case done != (index >= len(*x)):
-			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
-		case done:
-			return dec.FinishValue()
-		}
-		if err = dec.StartValue(); err != nil {
-			return err
-		}
-		tmp, err := dec.DecodeInt(32)
-		if err != nil {
-			return err
-		}
-		x[index] = int32(tmp)
-		if err = dec.FinishValue(); err != nil {
-			return err
-		}
-		index++
-	}
+func (x Array2Int) VDLIsZero() (bool, error) {
+	return x == Array2Int{}, nil
 }
 
 func (x Array2Int) VDLWrite(enc vdl.Encoder) error {
@@ -339,6 +311,38 @@ func (x Array2Int) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *Array2Int) VDLRead(dec vdl.Decoder) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible array %T, from %v", *x, dec.Type())
+	}
+	index := 0
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done != (index >= len(*x)):
+			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
+		case done:
+			return dec.FinishValue()
+		}
+		if err := dec.StartValue(); err != nil {
+			return err
+		}
+		tmp, err := dec.DecodeInt(32)
+		if err != nil {
+			return err
+		}
+		x[index] = int32(tmp)
+		if err := dec.FinishValue(); err != nil {
+			return err
+		}
+		index++
+	}
 }
 
 //////////////////////////////////////////////////

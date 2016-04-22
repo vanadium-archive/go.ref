@@ -123,8 +123,8 @@ func shouldUseVdlValueForAny(pkg *compile.Package) bool {
 	return false
 }
 
-// typeDefGo prints the type definition for a type.
-func typeDefGo(data *goData, def *compile.TypeDef) string {
+// defineType returns the type definition for def.
+func defineType(data *goData, def *compile.TypeDef) string {
 	s := fmt.Sprintf("%stype %s ", def.Doc, def.Name)
 	switch t := def.Type; t.Kind() {
 	case vdl.Enum:
@@ -211,6 +211,7 @@ func typeDefGo(data *goData, def *compile.TypeDef) string {
 			"\n\t\t// __VDLReflect describes the %[1]s union type."+
 			"\n\t\t__VDLReflect(__%[1]sReflect)"+
 			"\n\t\tFillVDLTarget(%[4]sTarget, *%[4]sType) error"+
+			"\n\t\tVDLIsZero() (bool, error)"+
 			"\n\t\tVDLWrite(%[4]sEncoder) error"+
 			"\n\t}%[3]s", def.Name, docBreak(def.Doc), def.DocSuffix, data.Pkg("v.io/v23/vdl"))
 		for ix := 0; ix < t.NumField(); ix++ {

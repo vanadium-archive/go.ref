@@ -162,69 +162,15 @@ func (t *CpuTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *Cpu) VDLRead(dec vdl.Decoder) error {
-	*x = Cpu{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Architecture":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Architecture, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Description":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Description, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "ClockSpeedMhz":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			tmp, err := dec.DecodeUint(32)
-			if err != nil {
-				return err
-			}
-			x.ClockSpeedMhz = uint32(tmp)
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x Cpu) VDLIsZero() (bool, error) {
+	return x == Cpu{}, nil
 }
 
 func (x Cpu) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*Cpu)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Architecture == "")
-	if !(var1) {
+	if x.Architecture != "" {
 		if err := enc.NextField("Architecture"); err != nil {
 			return err
 		}
@@ -238,8 +184,7 @@ func (x Cpu) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Description == "")
-	if !(var2) {
+	if x.Description != "" {
 		if err := enc.NextField("Description"); err != nil {
 			return err
 		}
@@ -253,8 +198,7 @@ func (x Cpu) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var3 := (x.ClockSpeedMhz == uint32(0))
-	if !(var3) {
+	if x.ClockSpeedMhz != 0 {
 		if err := enc.NextField("ClockSpeedMhz"); err != nil {
 			return err
 		}
@@ -272,6 +216,64 @@ func (x Cpu) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *Cpu) VDLRead(dec vdl.Decoder) error {
+	*x = Cpu{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Architecture":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Architecture, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Description":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Description, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "ClockSpeedMhz":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(32)
+			if err != nil {
+				return err
+			}
+			x.ClockSpeedMhz = uint32(tmp)
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // Os describes the Operating System on which the microbenchmarks were run.
@@ -387,57 +389,15 @@ func (t *OsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *Os) VDLRead(dec vdl.Decoder) error {
-	*x = Os{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Name":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Name, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Version":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Version, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x Os) VDLIsZero() (bool, error) {
+	return x == Os{}, nil
 }
 
 func (x Os) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*Os)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Name == "")
-	if !(var1) {
+	if x.Name != "" {
 		if err := enc.NextField("Name"); err != nil {
 			return err
 		}
@@ -451,8 +411,7 @@ func (x Os) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Version == "")
-	if !(var2) {
+	if x.Version != "" {
 		if err := enc.NextField("Version"); err != nil {
 			return err
 		}
@@ -470,6 +429,52 @@ func (x Os) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *Os) VDLRead(dec vdl.Decoder) error {
+	*x = Os{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Name":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Name, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Version":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Version, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // Scenario encapsulates the conditions on the machine on which the microbenchmarks were run.
@@ -615,55 +620,15 @@ func (t *ScenarioTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *Scenario) VDLRead(dec vdl.Decoder) error {
-	*x = Scenario{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Cpu":
-			if err = x.Cpu.VDLRead(dec); err != nil {
-				return err
-			}
-		case "Os":
-			if err = x.Os.VDLRead(dec); err != nil {
-				return err
-			}
-		case "Label":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Label, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x Scenario) VDLIsZero() (bool, error) {
+	return x == Scenario{}, nil
 }
 
 func (x Scenario) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*Scenario)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Cpu == Cpu{})
-	if !(var1) {
+	if x.Cpu != (Cpu{}) {
 		if err := enc.NextField("Cpu"); err != nil {
 			return err
 		}
@@ -671,8 +636,7 @@ func (x Scenario) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Os == Os{})
-	if !(var2) {
+	if x.Os != (Os{}) {
 		if err := enc.NextField("Os"); err != nil {
 			return err
 		}
@@ -680,8 +644,7 @@ func (x Scenario) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var3 := (x.Label == "")
-	if !(var3) {
+	if x.Label != "" {
 		if err := enc.NextField("Label"); err != nil {
 			return err
 		}
@@ -699,6 +662,49 @@ func (x Scenario) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *Scenario) VDLRead(dec vdl.Decoder) error {
+	*x = Scenario{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Cpu":
+			if err := x.Cpu.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Os":
+			if err := x.Os.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Label":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Label, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // SourceCode represents the state of the source code used to build the
@@ -740,17 +746,8 @@ func (t *SourceCodeTarget) FromString(src string, tt *vdl.Type) error {
 	return nil
 }
 
-func (x *SourceCode) VDLRead(dec vdl.Decoder) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	tmp, err := dec.DecodeString()
-	if err != nil {
-		return err
-	}
-	*x = SourceCode(tmp)
-	return dec.FinishValue()
+func (x SourceCode) VDLIsZero() (bool, error) {
+	return x == "", nil
 }
 
 func (x SourceCode) VDLWrite(enc vdl.Encoder) error {
@@ -761,6 +758,18 @@ func (x SourceCode) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *SourceCode) VDLRead(dec vdl.Decoder) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeString()
+	if err != nil {
+		return err
+	}
+	*x = SourceCode(tmp)
+	return dec.FinishValue()
 }
 
 // Run encapsulates the results of a single microbenchmark run.
@@ -1016,109 +1025,15 @@ func (t *RunTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *Run) VDLRead(dec vdl.Decoder) error {
-	*x = Run{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Name":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Name, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Iterations":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Iterations, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "NanoSecsPerOp":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.NanoSecsPerOp, err = dec.DecodeFloat(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "AllocsPerOp":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.AllocsPerOp, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "AllocedBytesPerOp":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.AllocedBytesPerOp, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "MegaBytesPerSec":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.MegaBytesPerSec, err = dec.DecodeFloat(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Parallelism":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			tmp, err := dec.DecodeUint(32)
-			if err != nil {
-				return err
-			}
-			x.Parallelism = uint32(tmp)
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x Run) VDLIsZero() (bool, error) {
+	return x == Run{}, nil
 }
 
 func (x Run) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*Run)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Name == "")
-	if !(var1) {
+	if x.Name != "" {
 		if err := enc.NextField("Name"); err != nil {
 			return err
 		}
@@ -1132,8 +1047,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Iterations == uint64(0))
-	if !(var2) {
+	if x.Iterations != 0 {
 		if err := enc.NextField("Iterations"); err != nil {
 			return err
 		}
@@ -1147,8 +1061,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var3 := (x.NanoSecsPerOp == float64(0))
-	if !(var3) {
+	if x.NanoSecsPerOp != 0 {
 		if err := enc.NextField("NanoSecsPerOp"); err != nil {
 			return err
 		}
@@ -1162,8 +1075,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var4 := (x.AllocsPerOp == uint64(0))
-	if !(var4) {
+	if x.AllocsPerOp != 0 {
 		if err := enc.NextField("AllocsPerOp"); err != nil {
 			return err
 		}
@@ -1177,8 +1089,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var5 := (x.AllocedBytesPerOp == uint64(0))
-	if !(var5) {
+	if x.AllocedBytesPerOp != 0 {
 		if err := enc.NextField("AllocedBytesPerOp"); err != nil {
 			return err
 		}
@@ -1192,8 +1103,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var6 := (x.MegaBytesPerSec == float64(0))
-	if !(var6) {
+	if x.MegaBytesPerSec != 0 {
 		if err := enc.NextField("MegaBytesPerSec"); err != nil {
 			return err
 		}
@@ -1207,8 +1117,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var7 := (x.Parallelism == uint32(0))
-	if !(var7) {
+	if x.Parallelism != 0 {
 		if err := enc.NextField("Parallelism"); err != nil {
 			return err
 		}
@@ -1226,6 +1135,108 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *Run) VDLRead(dec vdl.Decoder) error {
+	*x = Run{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Name":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Name, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Iterations":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Iterations, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "NanoSecsPerOp":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.NanoSecsPerOp, err = dec.DecodeFloat(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "AllocsPerOp":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.AllocsPerOp, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "AllocedBytesPerOp":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.AllocedBytesPerOp, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "MegaBytesPerSec":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.MegaBytesPerSec, err = dec.DecodeFloat(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Parallelism":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(32)
+			if err != nil {
+				return err
+			}
+			x.Parallelism = uint32(tmp)
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 var __VDLInitCalled bool

@@ -245,135 +245,29 @@ func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x *AdConversionTestCase) VDLRead(dec vdl.Decoder) error {
-	*x = AdConversionTestCase{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
+func (x AdConversionTestCase) VDLIsZero() (bool, error) {
+	isZeroAdInfo, err := x.AdInfo.VDLIsZero()
+	if err != nil {
+		return false, err
 	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	if !isZeroAdInfo {
+		return false, nil
 	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "AdInfo":
-			if err = x.AdInfo.VDLRead(dec); err != nil {
-				return err
-			}
-		case "GattAttrs":
-			if err = __VDLRead1_map(dec, &x.GattAttrs); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
+	if len(x.GattAttrs) != 0 {
+		return false, nil
 	}
-}
-
-func __VDLRead1_map(dec vdl.Decoder, x *map[string][]byte) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
-	}
-	var tmpMap map[string][]byte
-	if len := dec.LenHint(); len > 0 {
-		tmpMap = make(map[string][]byte, len)
-	}
-	for {
-		switch done, err := dec.NextEntry(); {
-		case err != nil:
-			return err
-		case done:
-			*x = tmpMap
-			return dec.FinishValue()
-		}
-		var key string
-		{
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if key, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		}
-		var elem []byte
-		{
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if err = dec.DecodeBytes(-1, &elem); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		}
-		if tmpMap == nil {
-			tmpMap = make(map[string][]byte)
-		}
-		tmpMap[key] = elem
-	}
+	return true, nil
 }
 
 func (x AdConversionTestCase) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*AdConversionTestCase)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := true
-	var2 := true
-	var3 := (x.AdInfo.Ad.Id == discovery.AdId{})
-	var2 = var2 && var3
-	var4 := (x.AdInfo.Ad.InterfaceName == "")
-	var2 = var2 && var4
-	var var5 bool
-	if len(x.AdInfo.Ad.Addresses) == 0 {
-		var5 = true
+	isZeroAdInfo, err := x.AdInfo.VDLIsZero()
+	if err != nil {
+		return err
 	}
-	var2 = var2 && var5
-	var var6 bool
-	if len(x.AdInfo.Ad.Attributes) == 0 {
-		var6 = true
-	}
-	var2 = var2 && var6
-	var var7 bool
-	if len(x.AdInfo.Ad.Attachments) == 0 {
-		var7 = true
-	}
-	var2 = var2 && var7
-	var1 = var1 && var2
-	var8 := (x.AdInfo.EncryptionAlgorithm == discovery_2.EncryptionAlgorithm(0))
-	var1 = var1 && var8
-	var var9 bool
-	if len(x.AdInfo.EncryptionKeys) == 0 {
-		var9 = true
-	}
-	var1 = var1 && var9
-	var10 := (x.AdInfo.Hash == discovery_2.AdHash{})
-	var1 = var1 && var10
-	var var11 bool
-	if len(x.AdInfo.DirAddrs) == 0 {
-		var11 = true
-	}
-	var1 = var1 && var11
-	var12 := (x.AdInfo.Status == discovery_2.AdStatus(0))
-	var1 = var1 && var12
-	var13 := (x.AdInfo.Lost == false)
-	var1 = var1 && var13
-	if !(var1) {
+	if !isZeroAdInfo {
 		if err := enc.NextField("AdInfo"); err != nil {
 			return err
 		}
@@ -381,15 +275,11 @@ func (x AdConversionTestCase) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var var14 bool
-	if len(x.GattAttrs) == 0 {
-		var14 = true
-	}
-	if !(var14) {
+	if len(x.GattAttrs) != 0 {
 		if err := enc.NextField("GattAttrs"); err != nil {
 			return err
 		}
-		if err := __VDLWrite1_map(enc, &x.GattAttrs); err != nil {
+		if err := __VDLWriteAnon_map_1(enc, x.GattAttrs); err != nil {
 			return err
 		}
 	}
@@ -399,14 +289,14 @@ func (x AdConversionTestCase) VDLWrite(enc vdl.Encoder) error {
 	return enc.FinishValue()
 }
 
-func __VDLWrite1_map(enc vdl.Encoder, x *map[string][]byte) error {
+func __VDLWriteAnon_map_1(enc vdl.Encoder, x map[string][]byte) error {
 	if err := enc.StartValue(vdl.TypeOf((*map[string][]byte)(nil))); err != nil {
 		return err
 	}
-	if err := enc.SetLenHint(len(*x)); err != nil {
+	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for key, elem := range *x {
+	for key, elem := range x {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
@@ -433,6 +323,89 @@ func __VDLWrite1_map(enc vdl.Encoder, x *map[string][]byte) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *AdConversionTestCase) VDLRead(dec vdl.Decoder) error {
+	*x = AdConversionTestCase{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "AdInfo":
+			if err := x.AdInfo.VDLRead(dec); err != nil {
+				return err
+			}
+		case "GattAttrs":
+			if err := __VDLReadAnon_map_1(dec, &x.GattAttrs); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLReadAnon_map_1(dec vdl.Decoder, x *map[string][]byte) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	var tmpMap map[string][]byte
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(map[string][]byte, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			*x = tmpMap
+			return dec.FinishValue()
+		}
+		var key string
+		{
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if key, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		var elem []byte
+		{
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			if err := dec.DecodeBytes(-1, &elem); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		if tmpMap == nil {
+			tmpMap = make(map[string][]byte)
+		}
+		tmpMap[key] = elem
+	}
 }
 
 //////////////////////////////////////////////////

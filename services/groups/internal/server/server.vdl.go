@@ -193,10 +193,66 @@ func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 	return nil
 }
 
+func (x groupData) VDLIsZero() (bool, error) {
+	if len(x.Perms) != 0 {
+		return false, nil
+	}
+	if len(x.Entries) != 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (x groupData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*groupData)(nil)).Elem()); err != nil {
+		return err
+	}
+	if len(x.Perms) != 0 {
+		if err := enc.NextField("Perms"); err != nil {
+			return err
+		}
+		if err := x.Perms.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if len(x.Entries) != 0 {
+		if err := enc.NextField("Entries"); err != nil {
+			return err
+		}
+		if err := __VDLWriteAnon_set_1(enc, x.Entries); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWriteAnon_set_1(enc vdl.Encoder, x map[groups.BlessingPatternChunk]struct{}) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[groups.BlessingPatternChunk]struct{})(nil))); err != nil {
+		return err
+	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
+	for key := range x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *groupData) VDLRead(dec vdl.Decoder) error {
 	*x = groupData{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -211,24 +267,23 @@ func (x *groupData) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Perms":
-			if err = x.Perms.VDLRead(dec); err != nil {
+			if err := x.Perms.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Entries":
-			if err = __VDLRead1_set(dec, &x.Entries); err != nil {
+			if err := __VDLReadAnon_set_1(dec, &x.Entries); err != nil {
 				return err
 			}
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func __VDLRead1_set(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]struct{}) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
+func __VDLReadAnon_set_1(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]struct{}) error {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -248,7 +303,7 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]struct{}
 		}
 		var key groups.BlessingPatternChunk
 		{
-			if err = key.VDLRead(dec); err != nil {
+			if err := key.VDLRead(dec); err != nil {
 				return err
 			}
 		}
@@ -257,61 +312,6 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]struct{}
 		}
 		tmpMap[key] = struct{}{}
 	}
-}
-
-func (x groupData) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*groupData)(nil)).Elem()); err != nil {
-		return err
-	}
-	var var1 bool
-	if len(x.Perms) == 0 {
-		var1 = true
-	}
-	if !(var1) {
-		if err := enc.NextField("Perms"); err != nil {
-			return err
-		}
-		if err := x.Perms.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var var2 bool
-	if len(x.Entries) == 0 {
-		var2 = true
-	}
-	if !(var2) {
-		if err := enc.NextField("Entries"); err != nil {
-			return err
-		}
-		if err := __VDLWrite1_set(enc, &x.Entries); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
-}
-
-func __VDLWrite1_set(enc vdl.Encoder, x *map[groups.BlessingPatternChunk]struct{}) error {
-	if err := enc.StartValue(vdl.TypeOf((*map[groups.BlessingPatternChunk]struct{})(nil))); err != nil {
-		return err
-	}
-	if err := enc.SetLenHint(len(*x)); err != nil {
-		return err
-	}
-	for key := range *x {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := key.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextEntry(true); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

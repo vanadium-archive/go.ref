@@ -163,61 +163,15 @@ func (t *ConnInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *ConnInfo) VDLRead(dec vdl.Decoder) error {
-	*x = ConnInfo{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "MinVersion":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			tmp, err := dec.DecodeInt(32)
-			if err != nil {
-				return err
-			}
-			x.MinVersion = int32(tmp)
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "MaxVersion":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			tmp, err := dec.DecodeInt(32)
-			if err != nil {
-				return err
-			}
-			x.MaxVersion = int32(tmp)
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x ConnInfo) VDLIsZero() (bool, error) {
+	return x == ConnInfo{}, nil
 }
 
 func (x ConnInfo) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*ConnInfo)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.MinVersion == int32(0))
-	if !(var1) {
+	if x.MinVersion != 0 {
 		if err := enc.NextField("MinVersion"); err != nil {
 			return err
 		}
@@ -231,8 +185,7 @@ func (x ConnInfo) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.MaxVersion == int32(0))
-	if !(var2) {
+	if x.MaxVersion != 0 {
 		if err := enc.NextField("MaxVersion"); err != nil {
 			return err
 		}
@@ -250,6 +203,54 @@ func (x ConnInfo) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *ConnInfo) VDLRead(dec vdl.Decoder) error {
+	*x = ConnInfo{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "MinVersion":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.MinVersion = int32(tmp)
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "MaxVersion":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeInt(32)
+			if err != nil {
+				return err
+			}
+			x.MaxVersion = int32(tmp)
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 type RpcRequest struct {
@@ -392,69 +393,15 @@ func (t *RpcRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *RpcRequest) VDLRead(dec vdl.Decoder) error {
-	*x = RpcRequest{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Id":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Id, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Method":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Method, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "NumArgs":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			tmp, err := dec.DecodeUint(32)
-			if err != nil {
-				return err
-			}
-			x.NumArgs = uint32(tmp)
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x RpcRequest) VDLIsZero() (bool, error) {
+	return x == RpcRequest{}, nil
 }
 
 func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*RpcRequest)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Id == uint64(0))
-	if !(var1) {
+	if x.Id != 0 {
 		if err := enc.NextField("Id"); err != nil {
 			return err
 		}
@@ -468,8 +415,7 @@ func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Method == "")
-	if !(var2) {
+	if x.Method != "" {
 		if err := enc.NextField("Method"); err != nil {
 			return err
 		}
@@ -483,8 +429,7 @@ func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var3 := (x.NumArgs == uint32(0))
-	if !(var3) {
+	if x.NumArgs != 0 {
 		if err := enc.NextField("NumArgs"); err != nil {
 			return err
 		}
@@ -502,6 +447,64 @@ func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *RpcRequest) VDLRead(dec vdl.Decoder) error {
+	*x = RpcRequest{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Id":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Id, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Method":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Method, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "NumArgs":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(32)
+			if err != nil {
+				return err
+			}
+			x.NumArgs = uint32(tmp)
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 type RpcResponse struct {
@@ -650,63 +653,15 @@ func (t *RpcResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *RpcResponse) VDLRead(dec vdl.Decoder) error {
-	*x = RpcResponse{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Id":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Id, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Err":
-			if err = verror.VDLRead(dec, &x.Err); err != nil {
-				return err
-			}
-		case "NumArgs":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			tmp, err := dec.DecodeUint(32)
-			if err != nil {
-				return err
-			}
-			x.NumArgs = uint32(tmp)
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x RpcResponse) VDLIsZero() (bool, error) {
+	return x == RpcResponse{}, nil
 }
 
 func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*RpcResponse)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Id == uint64(0))
-	if !(var1) {
+	if x.Id != 0 {
 		if err := enc.NextField("Id"); err != nil {
 			return err
 		}
@@ -720,8 +675,7 @@ func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Err == (error)(nil))
-	if !(var2) {
+	if x.Err != nil {
 		if err := enc.NextField("Err"); err != nil {
 			return err
 		}
@@ -729,8 +683,7 @@ func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var3 := (x.NumArgs == uint32(0))
-	if !(var3) {
+	if x.NumArgs != 0 {
 		if err := enc.NextField("NumArgs"); err != nil {
 			return err
 		}
@@ -750,6 +703,57 @@ func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
 	return enc.FinishValue()
 }
 
+func (x *RpcResponse) VDLRead(dec vdl.Decoder) error {
+	*x = RpcResponse{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Id":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Id, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Err":
+			if err := verror.VDLRead(dec, &x.Err); err != nil {
+				return err
+			}
+		case "NumArgs":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(32)
+			if err != nil {
+				return err
+			}
+			x.NumArgs = uint32(tmp)
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
 type (
 	// RpcMessage represents any single field of the RpcMessage union type.
 	RpcMessage interface {
@@ -762,6 +766,7 @@ type (
 		// __VDLReflect describes the RpcMessage union type.
 		__VDLReflect(__RpcMessageReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
+		VDLIsZero() (bool, error)
 		VDLWrite(vdl.Encoder) error
 	}
 	// RpcMessageReq represents field Req of the RpcMessage union type.
@@ -895,43 +900,12 @@ func (t rpcMessageTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Targ
 	return nil, fmt.Errorf("got %T, want *RpcMessage", union)
 }
 
-func VDLReadRpcMessage(dec vdl.Decoder, x *RpcMessage) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x), dec.Type()) {
-		return fmt.Errorf("incompatible union %T, from %v", x, dec.Type())
-	}
-	f, err := dec.NextField()
-	if err != nil {
-		return err
-	}
-	switch f {
-	case "Req":
-		var field RpcMessageReq
-		if err = field.Value.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = field
-	case "Resp":
-		var field RpcMessageResp
-		if err = field.Value.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = field
-	case "":
-		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
-	default:
-		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
-	}
-	switch f, err := dec.NextField(); {
-	case err != nil:
-		return err
-	case f != "":
-		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
-	}
-	return dec.FinishValue()
+func (x RpcMessageReq) VDLIsZero() (bool, error) {
+	return x.Value == RpcRequest{}, nil
+}
+
+func (x RpcMessageResp) VDLIsZero() (bool, error) {
+	return false, nil
 }
 
 func (x RpcMessageReq) VDLWrite(enc vdl.Encoder) error {
@@ -949,6 +923,7 @@ func (x RpcMessageReq) VDLWrite(enc vdl.Encoder) error {
 	}
 	return enc.FinishValue()
 }
+
 func (x RpcMessageResp) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*RpcMessage)(nil))); err != nil {
 		return err
@@ -963,6 +938,44 @@ func (x RpcMessageResp) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func VDLReadRpcMessage(dec vdl.Decoder, x *RpcMessage) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x), dec.Type()) {
+		return fmt.Errorf("incompatible union %T, from %v", x, dec.Type())
+	}
+	f, err := dec.NextField()
+	if err != nil {
+		return err
+	}
+	switch f {
+	case "Req":
+		var field RpcMessageReq
+		if err := field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "Resp":
+		var field RpcMessageResp
+		if err := field.Value.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = field
+	case "":
+		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
+	default:
+		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
+	}
+	switch f, err := dec.NextField(); {
+	case err != nil:
+		return err
+	case f != "":
+		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	}
+	return dec.FinishValue()
 }
 
 //////////////////////////////////////////////////

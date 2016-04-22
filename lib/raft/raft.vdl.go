@@ -74,17 +74,8 @@ func (t *TermTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x *Term) VDLRead(dec vdl.Decoder) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	tmp, err := dec.DecodeUint(64)
-	if err != nil {
-		return err
-	}
-	*x = Term(tmp)
-	return dec.FinishValue()
+func (x Term) VDLIsZero() (bool, error) {
+	return x == 0, nil
 }
 
 func (x Term) VDLWrite(enc vdl.Encoder) error {
@@ -95,6 +86,18 @@ func (x Term) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *Term) VDLRead(dec vdl.Decoder) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(64)
+	if err != nil {
+		return err
+	}
+	*x = Term(tmp)
+	return dec.FinishValue()
 }
 
 // Index is an index into the log.  The log entries are numbered sequentially.  At the moment
@@ -151,17 +154,8 @@ func (t *IndexTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x *Index) VDLRead(dec vdl.Decoder) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	tmp, err := dec.DecodeUint(64)
-	if err != nil {
-		return err
-	}
-	*x = Index(tmp)
-	return dec.FinishValue()
+func (x Index) VDLIsZero() (bool, error) {
+	return x == 0, nil
 }
 
 func (x Index) VDLWrite(enc vdl.Encoder) error {
@@ -172,6 +166,18 @@ func (x Index) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *Index) VDLRead(dec vdl.Decoder) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeUint(64)
+	if err != nil {
+		return err
+	}
+	*x = Index(tmp)
+	return dec.FinishValue()
 }
 
 // The LogEntry is what the log consists of.  'error' starts nil and is never written to stable
@@ -351,67 +357,27 @@ func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
-	*x = LogEntry{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
+func (x LogEntry) VDLIsZero() (bool, error) {
+	if x.Term != 0 {
+		return false, nil
 	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	if x.Index != 0 {
+		return false, nil
 	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Term":
-			if err = x.Term.VDLRead(dec); err != nil {
-				return err
-			}
-		case "Index":
-			if err = x.Index.VDLRead(dec); err != nil {
-				return err
-			}
-		case "Cmd":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if err = dec.DecodeBytes(-1, &x.Cmd); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Type":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			tmp, err := dec.DecodeUint(8)
-			if err != nil {
-				return err
-			}
-			x.Type = byte(tmp)
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
+	if len(x.Cmd) != 0 {
+		return false, nil
 	}
+	if x.Type != 0 {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*LogEntry)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Term == Term(0))
-	if !(var1) {
+	if x.Term != 0 {
 		if err := enc.NextField("Term"); err != nil {
 			return err
 		}
@@ -419,8 +385,7 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Index == Index(0))
-	if !(var2) {
+	if x.Index != 0 {
 		if err := enc.NextField("Index"); err != nil {
 			return err
 		}
@@ -428,11 +393,7 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var var3 bool
-	if len(x.Cmd) == 0 {
-		var3 = true
-	}
-	if !(var3) {
+	if len(x.Cmd) != 0 {
 		if err := enc.NextField("Cmd"); err != nil {
 			return err
 		}
@@ -446,8 +407,7 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var4 := (x.Type == byte(0))
-	if !(var4) {
+	if x.Type != 0 {
 		if err := enc.NextField("Type"); err != nil {
 			return err
 		}
@@ -465,6 +425,60 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
+	*x = LogEntry{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Term":
+			if err := x.Term.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Index":
+			if err := x.Index.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Cmd":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			if err := dec.DecodeBytes(-1, &x.Cmd); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Type":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			tmp, err := dec.DecodeUint(8)
+			if err != nil {
+				return err
+			}
+			x.Type = byte(tmp)
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////////

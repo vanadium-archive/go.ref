@@ -73,17 +73,8 @@ func (t *MyTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x *MyTime) VDLRead(dec vdl.Decoder) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	tmp, err := dec.DecodeInt(32)
-	if err != nil {
-		return err
-	}
-	*x = MyTime(tmp)
-	return dec.FinishValue()
+func (x MyTime) VDLIsZero() (bool, error) {
+	return x == 0, nil
 }
 
 func (x MyTime) VDLWrite(enc vdl.Encoder) error {
@@ -94,6 +85,18 @@ func (x MyTime) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *MyTime) VDLRead(dec vdl.Decoder) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	tmp, err := dec.DecodeInt(32)
+	if err != nil {
+		return err
+	}
+	*x = MyTime(tmp)
+	return dec.FinishValue()
 }
 
 var __VDLInitCalled bool

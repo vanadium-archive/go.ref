@@ -163,67 +163,15 @@ func (t *LibraryTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *Library) VDLRead(dec vdl.Decoder) error {
-	*x = Library{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Name":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Name, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "MajorVersion":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.MajorVersion, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "MinorVersion":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.MinorVersion, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x Library) VDLIsZero() (bool, error) {
+	return x == Library{}, nil
 }
 
 func (x Library) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*Library)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Name == "")
-	if !(var1) {
+	if x.Name != "" {
 		if err := enc.NextField("Name"); err != nil {
 			return err
 		}
@@ -237,8 +185,7 @@ func (x Library) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.MajorVersion == "")
-	if !(var2) {
+	if x.MajorVersion != "" {
 		if err := enc.NextField("MajorVersion"); err != nil {
 			return err
 		}
@@ -252,8 +199,7 @@ func (x Library) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var3 := (x.MinorVersion == "")
-	if !(var3) {
+	if x.MinorVersion != "" {
 		if err := enc.NextField("MinorVersion"); err != nil {
 			return err
 		}
@@ -271,6 +217,63 @@ func (x Library) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *Library) VDLRead(dec vdl.Decoder) error {
+	*x = Library{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Name":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Name, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "MajorVersion":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.MajorVersion, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "MinorVersion":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.MinorVersion, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // Specification is how we represent a profile internally. It should
@@ -565,10 +568,122 @@ func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 	return nil
 }
 
+func (x Specification) VDLIsZero() (bool, error) {
+	if x.Label != "" {
+		return false, nil
+	}
+	if x.Description != "" {
+		return false, nil
+	}
+	if x.Arch != build.ArchitectureAmd64 {
+		return false, nil
+	}
+	if x.Os != build.OperatingSystemDarwin {
+		return false, nil
+	}
+	if x.Format != build.FormatElf {
+		return false, nil
+	}
+	if len(x.Libraries) != 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (x Specification) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Specification)(nil)).Elem()); err != nil {
+		return err
+	}
+	if x.Label != "" {
+		if err := enc.NextField("Label"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Label); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if x.Description != "" {
+		if err := enc.NextField("Description"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Description); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if x.Arch != build.ArchitectureAmd64 {
+		if err := enc.NextField("Arch"); err != nil {
+			return err
+		}
+		if err := x.Arch.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if x.Os != build.OperatingSystemDarwin {
+		if err := enc.NextField("Os"); err != nil {
+			return err
+		}
+		if err := x.Os.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if x.Format != build.FormatElf {
+		if err := enc.NextField("Format"); err != nil {
+			return err
+		}
+		if err := x.Format.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if len(x.Libraries) != 0 {
+		if err := enc.NextField("Libraries"); err != nil {
+			return err
+		}
+		if err := __VDLWriteAnon_set_1(enc, x.Libraries); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWriteAnon_set_1(enc vdl.Encoder, x map[Library]struct{}) error {
+	if err := enc.StartValue(vdl.TypeOf((*map[Library]struct{})(nil))); err != nil {
+		return err
+	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
+	for key := range x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
+		if err := key.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *Specification) VDLRead(dec vdl.Decoder) error {
 	*x = Specification{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -583,52 +698,53 @@ func (x *Specification) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Label":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Label, err = dec.DecodeString(); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Description":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Description, err = dec.DecodeString(); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Arch":
-			if err = x.Arch.VDLRead(dec); err != nil {
+			if err := x.Arch.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Os":
-			if err = x.Os.VDLRead(dec); err != nil {
+			if err := x.Os.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Format":
-			if err = x.Format.VDLRead(dec); err != nil {
+			if err := x.Format.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Libraries":
-			if err = __VDLRead1_set(dec, &x.Libraries); err != nil {
+			if err := __VDLReadAnon_set_1(dec, &x.Libraries); err != nil {
 				return err
 			}
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func __VDLRead1_set(dec vdl.Decoder, x *map[Library]struct{}) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
+func __VDLReadAnon_set_1(dec vdl.Decoder, x *map[Library]struct{}) error {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -648,7 +764,7 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[Library]struct{}) error {
 		}
 		var key Library
 		{
-			if err = key.VDLRead(dec); err != nil {
+			if err := key.VDLRead(dec); err != nil {
 				return err
 			}
 		}
@@ -657,106 +773,6 @@ func __VDLRead1_set(dec vdl.Decoder, x *map[Library]struct{}) error {
 		}
 		tmpMap[key] = struct{}{}
 	}
-}
-
-func (x Specification) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*Specification)(nil)).Elem()); err != nil {
-		return err
-	}
-	var1 := (x.Label == "")
-	if !(var1) {
-		if err := enc.NextField("Label"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Label); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var2 := (x.Description == "")
-	if !(var2) {
-		if err := enc.NextField("Description"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Description); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var3 := (x.Arch == build.ArchitectureAmd64)
-	if !(var3) {
-		if err := enc.NextField("Arch"); err != nil {
-			return err
-		}
-		if err := x.Arch.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var4 := (x.Os == build.OperatingSystemDarwin)
-	if !(var4) {
-		if err := enc.NextField("Os"); err != nil {
-			return err
-		}
-		if err := x.Os.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var5 := (x.Format == build.FormatElf)
-	if !(var5) {
-		if err := enc.NextField("Format"); err != nil {
-			return err
-		}
-		if err := x.Format.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var var6 bool
-	if len(x.Libraries) == 0 {
-		var6 = true
-	}
-	if !(var6) {
-		if err := enc.NextField("Libraries"); err != nil {
-			return err
-		}
-		if err := __VDLWrite1_set(enc, &x.Libraries); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
-}
-
-func __VDLWrite1_set(enc vdl.Encoder, x *map[Library]struct{}) error {
-	if err := enc.StartValue(vdl.TypeOf((*map[Library]struct{})(nil))); err != nil {
-		return err
-	}
-	if err := enc.SetLenHint(len(*x)); err != nil {
-		return err
-	}
-	for key := range *x {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := key.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextEntry(true); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

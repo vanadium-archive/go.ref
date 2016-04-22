@@ -133,57 +133,15 @@ func (t *HistogramBucketTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
-	*x = HistogramBucket{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "LowBound":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.LowBound, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Count":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Count, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x HistogramBucket) VDLIsZero() (bool, error) {
+	return x == HistogramBucket{}, nil
 }
 
 func (x HistogramBucket) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*HistogramBucket)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.LowBound == int64(0))
-	if !(var1) {
+	if x.LowBound != 0 {
 		if err := enc.NextField("LowBound"); err != nil {
 			return err
 		}
@@ -197,8 +155,7 @@ func (x HistogramBucket) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Count == int64(0))
-	if !(var2) {
+	if x.Count != 0 {
 		if err := enc.NextField("Count"); err != nil {
 			return err
 		}
@@ -216,6 +173,52 @@ func (x HistogramBucket) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
+	*x = HistogramBucket{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "LowBound":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.LowBound, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Count":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Count, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // HistogramValue is the value of Histogram objects.
@@ -474,10 +477,123 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
+func (x HistogramValue) VDLIsZero() (bool, error) {
+	if x.Count != 0 {
+		return false, nil
+	}
+	if x.Sum != 0 {
+		return false, nil
+	}
+	if x.Min != 0 {
+		return false, nil
+	}
+	if x.Max != 0 {
+		return false, nil
+	}
+	if len(x.Buckets) != 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*HistogramValue)(nil)).Elem()); err != nil {
+		return err
+	}
+	if x.Count != 0 {
+		if err := enc.NextField("Count"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.Count); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if x.Sum != 0 {
+		if err := enc.NextField("Sum"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.Sum); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if x.Min != 0 {
+		if err := enc.NextField("Min"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.Min); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if x.Max != 0 {
+		if err := enc.NextField("Max"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.Max); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if len(x.Buckets) != 0 {
+		if err := enc.NextField("Buckets"); err != nil {
+			return err
+		}
+		if err := __VDLWriteAnon_list_1(enc, x.Buckets); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWriteAnon_list_1(enc vdl.Encoder, x []HistogramBucket) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]HistogramBucket)(nil))); err != nil {
+		return err
+	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
+	for i := 0; i < len(x); i++ {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
+		if err := x[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 	*x = HistogramValue{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -492,60 +608,63 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Count":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Count, err = dec.DecodeInt(64); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Sum":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Sum, err = dec.DecodeInt(64); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Min":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Min, err = dec.DecodeInt(64); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Max":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Max, err = dec.DecodeInt(64); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Buckets":
-			if err = __VDLRead1_list(dec, &x.Buckets); err != nil {
+			if err := __VDLReadAnon_list_1(dec, &x.Buckets); err != nil {
 				return err
 			}
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func __VDLRead1_list(dec vdl.Decoder, x *[]HistogramBucket) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
+func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]HistogramBucket) error {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -565,114 +684,11 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]HistogramBucket) error {
 			return dec.FinishValue()
 		}
 		var elem HistogramBucket
-		if err = elem.VDLRead(dec); err != nil {
+		if err := elem.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = append(*x, elem)
 	}
-}
-
-func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*HistogramValue)(nil)).Elem()); err != nil {
-		return err
-	}
-	var1 := (x.Count == int64(0))
-	if !(var1) {
-		if err := enc.NextField("Count"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.Count); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var2 := (x.Sum == int64(0))
-	if !(var2) {
-		if err := enc.NextField("Sum"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.Sum); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var3 := (x.Min == int64(0))
-	if !(var3) {
-		if err := enc.NextField("Min"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.Min); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var4 := (x.Max == int64(0))
-	if !(var4) {
-		if err := enc.NextField("Max"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.Max); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var var5 bool
-	if len(x.Buckets) == 0 {
-		var5 = true
-	}
-	if !(var5) {
-		if err := enc.NextField("Buckets"); err != nil {
-			return err
-		}
-		if err := __VDLWrite1_list(enc, &x.Buckets); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
-}
-
-func __VDLWrite1_list(enc vdl.Encoder, x *[]HistogramBucket) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]HistogramBucket)(nil))); err != nil {
-		return err
-	}
-	if err := enc.SetLenHint(len(*x)); err != nil {
-		return err
-	}
-	for i := 0; i < len(*x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := (*x)[i].VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextEntry(true); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool

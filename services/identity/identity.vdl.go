@@ -158,98 +158,29 @@ func (t *BlessingRootResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *BlessingRootResponse) VDLRead(dec vdl.Decoder) error {
-	*x = BlessingRootResponse{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
+func (x BlessingRootResponse) VDLIsZero() (bool, error) {
+	if len(x.Names) != 0 {
+		return false, nil
 	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	if x.PublicKey != "" {
+		return false, nil
 	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Names":
-			if err = __VDLRead1_list(dec, &x.Names); err != nil {
-				return err
-			}
-		case "PublicKey":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.PublicKey, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
-}
-
-func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
-	}
-	switch len := dec.LenHint(); {
-	case len > 0:
-		*x = make([]string, 0, len)
-	default:
-		*x = nil
-	}
-	for {
-		switch done, err := dec.NextEntry(); {
-		case err != nil:
-			return err
-		case done:
-			return dec.FinishValue()
-		}
-		var elem string
-		if err = dec.StartValue(); err != nil {
-			return err
-		}
-		if elem, err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err = dec.FinishValue(); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
-	}
+	return true, nil
 }
 
 func (x BlessingRootResponse) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*BlessingRootResponse)(nil)).Elem()); err != nil {
 		return err
 	}
-	var var1 bool
-	if len(x.Names) == 0 {
-		var1 = true
-	}
-	if !(var1) {
+	if len(x.Names) != 0 {
 		if err := enc.NextField("Names"); err != nil {
 			return err
 		}
-		if err := __VDLWrite1_list(enc, &x.Names); err != nil {
+		if err := __VDLWriteAnon_list_1(enc, x.Names); err != nil {
 			return err
 		}
 	}
-	var2 := (x.PublicKey == "")
-	if !(var2) {
+	if x.PublicKey != "" {
 		if err := enc.NextField("PublicKey"); err != nil {
 			return err
 		}
@@ -269,21 +200,21 @@ func (x BlessingRootResponse) VDLWrite(enc vdl.Encoder) error {
 	return enc.FinishValue()
 }
 
-func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
+func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
 		return err
 	}
-	if err := enc.SetLenHint(len(*x)); err != nil {
+	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(*x); i++ {
+	for i := 0; i < len(x); i++ {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
 		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
 			return err
 		}
-		if err := enc.EncodeString((*x)[i]); err != nil {
+		if err := enc.EncodeString(x[i]); err != nil {
 			return err
 		}
 		if err := enc.FinishValue(); err != nil {
@@ -294,6 +225,80 @@ func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *BlessingRootResponse) VDLRead(dec vdl.Decoder) error {
+	*x = BlessingRootResponse{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Names":
+			if err := __VDLReadAnon_list_1(dec, &x.Names); err != nil {
+				return err
+			}
+		case "PublicKey":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.PublicKey, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len > 0:
+		*x = make([]string, 0, len)
+	default:
+		*x = nil
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem string
+		if err := dec.StartValue(); err != nil {
+			return err
+		}
+		var err error
+		if elem, err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err := dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
 }
 
 //////////////////////////////////////////////////

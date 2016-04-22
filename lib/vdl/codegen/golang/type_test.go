@@ -228,7 +228,7 @@ func (m TestUnionB) MakeVDLTarget() vdl.Target {
 			def.FieldDoc = make([]string, test.T.NumField())
 			def.FieldDocSuffix = make([]string, test.T.NumField())
 		}
-		if got, want := typeDefGo(data, def), test.Want; got != want {
+		if got, want := defineType(data, def), test.Want; got != want {
 			// TIP: Try https://gist.github.com/bprosnitz/60d93bdcc53d8148b8f9 for debugging
 			// invisible differences.
 			t.Errorf("%s\n GOT %s\nWANT %s", test.T, got, want)

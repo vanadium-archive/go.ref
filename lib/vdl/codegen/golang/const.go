@@ -12,7 +12,7 @@ import (
 	"v.io/x/ref/lib/vdl/compile"
 )
 
-func constDefGo(data *goData, def *compile.ConstDef) string {
+func defineConst(data *goData, def *compile.ConstDef) string {
 	v := def.Value
 	return fmt.Sprintf("%s%s %s = %s%s", def.Doc, constOrVar(v.Kind()), def.Name, typedConst(data, v), def.DocSuffix)
 }

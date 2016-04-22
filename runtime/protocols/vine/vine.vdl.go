@@ -135,57 +135,15 @@ func (t *PeerKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *PeerKey) VDLRead(dec vdl.Decoder) error {
-	*x = PeerKey{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Dialer":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Dialer, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Acceptor":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Acceptor, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x PeerKey) VDLIsZero() (bool, error) {
+	return x == PeerKey{}, nil
 }
 
 func (x PeerKey) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*PeerKey)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Dialer == "")
-	if !(var1) {
+	if x.Dialer != "" {
 		if err := enc.NextField("Dialer"); err != nil {
 			return err
 		}
@@ -199,8 +157,7 @@ func (x PeerKey) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Acceptor == "")
-	if !(var2) {
+	if x.Acceptor != "" {
 		if err := enc.NextField("Acceptor"); err != nil {
 			return err
 		}
@@ -218,6 +175,52 @@ func (x PeerKey) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *PeerKey) VDLRead(dec vdl.Decoder) error {
+	*x = PeerKey{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Dialer":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Dialer, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Acceptor":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Acceptor, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // PeerBehavior specifies characteristics of a connection.
@@ -340,57 +343,15 @@ func (t *PeerBehaviorTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *PeerBehavior) VDLRead(dec vdl.Decoder) error {
-	*x = PeerBehavior{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Reachable":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Reachable, err = dec.DecodeBool(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Discoverable":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Discoverable, err = dec.DecodeBool(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x PeerBehavior) VDLIsZero() (bool, error) {
+	return x == PeerBehavior{}, nil
 }
 
 func (x PeerBehavior) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*PeerBehavior)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Reachable == false)
-	if !(var1) {
+	if x.Reachable {
 		if err := enc.NextField("Reachable"); err != nil {
 			return err
 		}
@@ -404,8 +365,7 @@ func (x PeerBehavior) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Discoverable == false)
-	if !(var2) {
+	if x.Discoverable {
 		if err := enc.NextField("Discoverable"); err != nil {
 			return err
 		}
@@ -423,6 +383,52 @@ func (x PeerBehavior) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *PeerBehavior) VDLRead(dec vdl.Decoder) error {
+	*x = PeerBehavior{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Reachable":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Reachable, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Discoverable":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Discoverable, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////////

@@ -157,101 +157,29 @@ func (t *PackAddressTestTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *PackAddressTest) VDLRead(dec vdl.Decoder) error {
-	*x = PackAddressTest{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
+func (x PackAddressTest) VDLIsZero() (bool, error) {
+	if len(x.In) != 0 {
+		return false, nil
 	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	if len(x.Packed) != 0 {
+		return false, nil
 	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "In":
-			if err = __VDLRead1_list(dec, &x.In); err != nil {
-				return err
-			}
-		case "Packed":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if err = dec.DecodeBytes(-1, &x.Packed); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
-}
-
-func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
-	}
-	switch len := dec.LenHint(); {
-	case len > 0:
-		*x = make([]string, 0, len)
-	default:
-		*x = nil
-	}
-	for {
-		switch done, err := dec.NextEntry(); {
-		case err != nil:
-			return err
-		case done:
-			return dec.FinishValue()
-		}
-		var elem string
-		if err = dec.StartValue(); err != nil {
-			return err
-		}
-		if elem, err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err = dec.FinishValue(); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
-	}
+	return true, nil
 }
 
 func (x PackAddressTest) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*PackAddressTest)(nil)).Elem()); err != nil {
 		return err
 	}
-	var var1 bool
-	if len(x.In) == 0 {
-		var1 = true
-	}
-	if !(var1) {
+	if len(x.In) != 0 {
 		if err := enc.NextField("In"); err != nil {
 			return err
 		}
-		if err := __VDLWrite1_list(enc, &x.In); err != nil {
+		if err := __VDLWriteAnon_list_1(enc, x.In); err != nil {
 			return err
 		}
 	}
-	var var2 bool
-	if len(x.Packed) == 0 {
-		var2 = true
-	}
-	if !(var2) {
+	if len(x.Packed) != 0 {
 		if err := enc.NextField("Packed"); err != nil {
 			return err
 		}
@@ -271,21 +199,21 @@ func (x PackAddressTest) VDLWrite(enc vdl.Encoder) error {
 	return enc.FinishValue()
 }
 
-func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
+func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
 		return err
 	}
-	if err := enc.SetLenHint(len(*x)); err != nil {
+	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(*x); i++ {
+	for i := 0; i < len(x); i++ {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
 		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
 			return err
 		}
-		if err := enc.EncodeString((*x)[i]); err != nil {
+		if err := enc.EncodeString(x[i]); err != nil {
 			return err
 		}
 		if err := enc.FinishValue(); err != nil {
@@ -296,6 +224,79 @@ func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *PackAddressTest) VDLRead(dec vdl.Decoder) error {
+	*x = PackAddressTest{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "In":
+			if err := __VDLReadAnon_list_1(dec, &x.In); err != nil {
+				return err
+			}
+		case "Packed":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			if err := dec.DecodeBytes(-1, &x.Packed); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len > 0:
+		*x = make([]string, 0, len)
+	default:
+		*x = nil
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem string
+		if err := dec.StartValue(); err != nil {
+			return err
+		}
+		var err error
+		if elem, err = dec.DecodeString(); err != nil {
+			return err
+		}
+		if err := dec.FinishValue(); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
 }
 
 // PackEncryptionKeysTest represents a test case for PackEncryptionKeys
@@ -503,84 +504,24 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x *PackEncryptionKeysTest) VDLRead(dec vdl.Decoder) error {
-	*x = PackEncryptionKeysTest{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
+func (x PackEncryptionKeysTest) VDLIsZero() (bool, error) {
+	if x.Algo != 0 {
+		return false, nil
 	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	if len(x.Keys) != 0 {
+		return false, nil
 	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Algo":
-			if err = x.Algo.VDLRead(dec); err != nil {
-				return err
-			}
-		case "Keys":
-			if err = __VDLRead2_list(dec, &x.Keys); err != nil {
-				return err
-			}
-		case "Packed":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if err = dec.DecodeBytes(-1, &x.Packed); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
+	if len(x.Packed) != 0 {
+		return false, nil
 	}
-}
-
-func __VDLRead2_list(dec vdl.Decoder, x *[]discovery.EncryptionKey) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
-	}
-	switch len := dec.LenHint(); {
-	case len > 0:
-		*x = make([]discovery.EncryptionKey, 0, len)
-	default:
-		*x = nil
-	}
-	for {
-		switch done, err := dec.NextEntry(); {
-		case err != nil:
-			return err
-		case done:
-			return dec.FinishValue()
-		}
-		var elem discovery.EncryptionKey
-		if err = elem.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
-	}
+	return true, nil
 }
 
 func (x PackEncryptionKeysTest) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*PackEncryptionKeysTest)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Algo == discovery.EncryptionAlgorithm(0))
-	if !(var1) {
+	if x.Algo != 0 {
 		if err := enc.NextField("Algo"); err != nil {
 			return err
 		}
@@ -588,23 +529,15 @@ func (x PackEncryptionKeysTest) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var var2 bool
-	if len(x.Keys) == 0 {
-		var2 = true
-	}
-	if !(var2) {
+	if len(x.Keys) != 0 {
 		if err := enc.NextField("Keys"); err != nil {
 			return err
 		}
-		if err := __VDLWrite2_list(enc, &x.Keys); err != nil {
+		if err := __VDLWriteAnon_list_2(enc, x.Keys); err != nil {
 			return err
 		}
 	}
-	var var3 bool
-	if len(x.Packed) == 0 {
-		var3 = true
-	}
-	if !(var3) {
+	if len(x.Packed) != 0 {
 		if err := enc.NextField("Packed"); err != nil {
 			return err
 		}
@@ -624,18 +557,18 @@ func (x PackEncryptionKeysTest) VDLWrite(enc vdl.Encoder) error {
 	return enc.FinishValue()
 }
 
-func __VDLWrite2_list(enc vdl.Encoder, x *[]discovery.EncryptionKey) error {
+func __VDLWriteAnon_list_2(enc vdl.Encoder, x []discovery.EncryptionKey) error {
 	if err := enc.StartValue(vdl.TypeOf((*[]discovery.EncryptionKey)(nil))); err != nil {
 		return err
 	}
-	if err := enc.SetLenHint(len(*x)); err != nil {
+	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(*x); i++ {
+	for i := 0; i < len(x); i++ {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := (*x)[i].VDLWrite(enc); err != nil {
+		if err := x[i].VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -643,6 +576,76 @@ func __VDLWrite2_list(enc vdl.Encoder, x *[]discovery.EncryptionKey) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *PackEncryptionKeysTest) VDLRead(dec vdl.Decoder) error {
+	*x = PackEncryptionKeysTest{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Algo":
+			if err := x.Algo.VDLRead(dec); err != nil {
+				return err
+			}
+		case "Keys":
+			if err := __VDLReadAnon_list_2(dec, &x.Keys); err != nil {
+				return err
+			}
+		case "Packed":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			if err := dec.DecodeBytes(-1, &x.Packed); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]discovery.EncryptionKey) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
+	}
+	switch len := dec.LenHint(); {
+	case len > 0:
+		*x = make([]discovery.EncryptionKey, 0, len)
+	default:
+		*x = nil
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		}
+		var elem discovery.EncryptionKey
+		if err := elem.VDLRead(dec); err != nil {
+			return err
+		}
+		*x = append(*x, elem)
+	}
 }
 
 // UuidTestData represents the inputs and outputs for a uuid test.
@@ -760,57 +763,15 @@ func (t *UuidTestDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *UuidTestData) VDLRead(dec vdl.Decoder) error {
-	*x = UuidTestData{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "In":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.In, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Want":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Want, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x UuidTestData) VDLIsZero() (bool, error) {
+	return x == UuidTestData{}, nil
 }
 
 func (x UuidTestData) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*UuidTestData)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.In == "")
-	if !(var1) {
+	if x.In != "" {
 		if err := enc.NextField("In"); err != nil {
 			return err
 		}
@@ -824,8 +785,7 @@ func (x UuidTestData) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.Want == "")
-	if !(var2) {
+	if x.Want != "" {
 		if err := enc.NextField("Want"); err != nil {
 			return err
 		}
@@ -843,6 +803,52 @@ func (x UuidTestData) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *UuidTestData) VDLRead(dec vdl.Decoder) error {
+	*x = UuidTestData{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "In":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.In, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Want":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Want, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////////

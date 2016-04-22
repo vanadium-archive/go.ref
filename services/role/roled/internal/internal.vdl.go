@@ -357,10 +357,155 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
+func (x Config) VDLIsZero() (bool, error) {
+	if len(x.ImportMembers) != 0 {
+		return false, nil
+	}
+	if len(x.Members) != 0 {
+		return false, nil
+	}
+	if x.Extend {
+		return false, nil
+	}
+	if x.Audit {
+		return false, nil
+	}
+	if x.Expiry != "" {
+		return false, nil
+	}
+	if len(x.Peers) != 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (x Config) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*Config)(nil)).Elem()); err != nil {
+		return err
+	}
+	if len(x.ImportMembers) != 0 {
+		if err := enc.NextField("ImportMembers"); err != nil {
+			return err
+		}
+		if err := __VDLWriteAnon_list_1(enc, x.ImportMembers); err != nil {
+			return err
+		}
+	}
+	if len(x.Members) != 0 {
+		if err := enc.NextField("Members"); err != nil {
+			return err
+		}
+		if err := __VDLWriteAnon_list_2(enc, x.Members); err != nil {
+			return err
+		}
+	}
+	if x.Extend {
+		if err := enc.NextField("Extend"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.Extend); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if x.Audit {
+		if err := enc.NextField("Audit"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeBool(x.Audit); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if x.Expiry != "" {
+		if err := enc.NextField("Expiry"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x.Expiry); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if len(x.Peers) != 0 {
+		if err := enc.NextField("Peers"); err != nil {
+			return err
+		}
+		if err := __VDLWriteAnon_list_2(enc, x.Peers); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+		return err
+	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
+	for i := 0; i < len(x); i++ {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(x[i]); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWriteAnon_list_2(enc vdl.Encoder, x []security.BlessingPattern) error {
+	if err := enc.StartValue(vdl.TypeOf((*[]security.BlessingPattern)(nil))); err != nil {
+		return err
+	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
+	for i := 0; i < len(x); i++ {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
+		if err := x[i].VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *Config) VDLRead(dec vdl.Decoder) error {
 	*x = Config{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -375,58 +520,60 @@ func (x *Config) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "ImportMembers":
-			if err = __VDLRead1_list(dec, &x.ImportMembers); err != nil {
+			if err := __VDLReadAnon_list_1(dec, &x.ImportMembers); err != nil {
 				return err
 			}
 		case "Members":
-			if err = __VDLRead2_list(dec, &x.Members); err != nil {
+			if err := __VDLReadAnon_list_2(dec, &x.Members); err != nil {
 				return err
 			}
 		case "Extend":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Extend, err = dec.DecodeBool(); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Audit":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Audit, err = dec.DecodeBool(); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Expiry":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Expiry, err = dec.DecodeString(); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Peers":
-			if err = __VDLRead2_list(dec, &x.Peers); err != nil {
+			if err := __VDLReadAnon_list_2(dec, &x.Peers); err != nil {
 				return err
 			}
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
+func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -446,22 +593,22 @@ func __VDLRead1_list(dec vdl.Decoder, x *[]string) error {
 			return dec.FinishValue()
 		}
 		var elem string
-		if err = dec.StartValue(); err != nil {
+		if err := dec.StartValue(); err != nil {
 			return err
 		}
+		var err error
 		if elem, err = dec.DecodeString(); err != nil {
 			return err
 		}
-		if err = dec.FinishValue(); err != nil {
+		if err := dec.FinishValue(); err != nil {
 			return err
 		}
 		*x = append(*x, elem)
 	}
 }
 
-func __VDLRead2_list(dec vdl.Decoder, x *[]security.BlessingPattern) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
+func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]security.BlessingPattern) error {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -481,150 +628,11 @@ func __VDLRead2_list(dec vdl.Decoder, x *[]security.BlessingPattern) error {
 			return dec.FinishValue()
 		}
 		var elem security.BlessingPattern
-		if err = elem.VDLRead(dec); err != nil {
+		if err := elem.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = append(*x, elem)
 	}
-}
-
-func (x Config) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*Config)(nil)).Elem()); err != nil {
-		return err
-	}
-	var var1 bool
-	if len(x.ImportMembers) == 0 {
-		var1 = true
-	}
-	if !(var1) {
-		if err := enc.NextField("ImportMembers"); err != nil {
-			return err
-		}
-		if err := __VDLWrite1_list(enc, &x.ImportMembers); err != nil {
-			return err
-		}
-	}
-	var var2 bool
-	if len(x.Members) == 0 {
-		var2 = true
-	}
-	if !(var2) {
-		if err := enc.NextField("Members"); err != nil {
-			return err
-		}
-		if err := __VDLWrite2_list(enc, &x.Members); err != nil {
-			return err
-		}
-	}
-	var3 := (x.Extend == false)
-	if !(var3) {
-		if err := enc.NextField("Extend"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.Extend); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var4 := (x.Audit == false)
-	if !(var4) {
-		if err := enc.NextField("Audit"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.Audit); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var5 := (x.Expiry == "")
-	if !(var5) {
-		if err := enc.NextField("Expiry"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Expiry); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var var6 bool
-	if len(x.Peers) == 0 {
-		var6 = true
-	}
-	if !(var6) {
-		if err := enc.NextField("Peers"); err != nil {
-			return err
-		}
-		if err := __VDLWrite2_list(enc, &x.Peers); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
-}
-
-func __VDLWrite1_list(enc vdl.Encoder, x *[]string) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
-		return err
-	}
-	if err := enc.SetLenHint(len(*x)); err != nil {
-		return err
-	}
-	for i := 0; i < len(*x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeString((*x)[i]); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextEntry(true); err != nil {
-		return err
-	}
-	return enc.FinishValue()
-}
-
-func __VDLWrite2_list(enc vdl.Encoder, x *[]security.BlessingPattern) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]security.BlessingPattern)(nil))); err != nil {
-		return err
-	}
-	if err := enc.SetLenHint(len(*x)); err != nil {
-		return err
-	}
-	for i := 0; i < len(*x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := (*x)[i].VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextEntry(true); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 //////////////////////////////////////////////////

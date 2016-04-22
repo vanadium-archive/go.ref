@@ -9,11 +9,10 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
-// readerGo generates the VDLRead method for the def type.
-func readerGo(data *goData, def *compile.TypeDef) string {
+// defineRead returns VDLRead method for the def type.
+func defineRead(data *goData, def *compile.TypeDef) string {
 	g := genRead{goData: data}
 	return g.Gen(def)
 }
@@ -29,24 +28,52 @@ type genRead struct {
 func (g *genRead) Gen(def *compile.TypeDef) string {
 	var s string
 	if def.Type.Kind() == vdl.Union {
-		// Unions are a special-case, since we can't attach methods to a pointer
-		// receiver interface.  Instead we create a package-level function.
-		s += fmt.Sprintf(`
-func %[1]s(dec %[2]sDecoder, x *%[3]s) error {`,
-			unionReadFuncName(def), g.Pkg("v.io/v23/vdl"), def.Name)
+		s += g.genUnionDef(def)
 	} else {
-		s += fmt.Sprintf(`
-func (x *%[1]s) VDLRead(dec %[2]sDecoder) error {`,
-			def.Name, g.Pkg("v.io/v23/vdl"))
+		s += g.genDef(def)
 	}
+	s += g.genAnonDef()
+	return s
+}
+
+func (g *genRead) genDef(def *compile.TypeDef) string {
+	s := fmt.Sprintf(`
+func (x *%[1]s) VDLRead(dec %[2]sDecoder) error {`, def.Name, g.Pkg("v.io/v23/vdl"))
 	// Structs need to be zeroed, since some of the fields may be missing.
 	if def.Type.Kind() == vdl.Struct {
 		s += fmt.Sprintf(`
 	*x = %[1]s`, typedConstWire(g.goData, vdl.ZeroValue(def.Type)))
 	}
-	s += `
-	var err error` + g.body(def.Type, namedArg{"x", true}, true) + `
-}`
+	s += g.body(def.Type, namedArg{"x", true}, true) + `
+}
+`
+	return s
+}
+
+// genUnionDef is a special-case, since we can't attach methods to a pointer
+// receiver interface.  Instead we create a package-level function.
+func (g *genRead) genUnionDef(def *compile.TypeDef) string {
+	s := fmt.Sprintf(`
+func %[1]s(dec %[2]sDecoder, x *%[3]s) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}`, unionReadFuncName(def), g.Pkg("v.io/v23/vdl"), def.Name)
+	s += g.bodyUnion(def.Type, namedArg{"x", true}) + `
+	return dec.FinishValue()
+}
+`
+	return s
+}
+
+func unionReadFuncName(def *compile.TypeDef) string {
+	if def.Exported {
+		return "VDLRead" + def.Name
+	}
+	return "__VDLRead_" + def.Name
+}
+
+func (g *genRead) genAnonDef() string {
+	var s string
 	// Generate the __VDLRead functions for anonymous types.  Creating the
 	// function for one type may cause us to need more, e.g. [][]Certificate.  So
 	// we just keep looping until there are no new functions to generate.  There's
@@ -57,11 +84,10 @@ func (x *%[1]s) VDLRead(dec %[2]sDecoder) error {`,
 		g.anonReaders = nil
 		for _, anon := range anons {
 			s += fmt.Sprintf(`
-
-func %[1]s(dec %[2]sDecoder, x *%[3]s) error {
-	var err error`, g.anonReaderName(anon), g.Pkg("v.io/v23/vdl"), typeGo(g.goData, anon))
+func %[1]s(dec %[2]sDecoder, x *%[3]s) error {`, g.anonReaderName(anon), g.Pkg("v.io/v23/vdl"), typeGo(g.goData, anon))
 			s += g.body(anon, namedArg{"x", true}, true) + `
-}`
+}
+`
 		}
 	}
 	return s
@@ -70,11 +96,11 @@ func %[1]s(dec %[2]sDecoder, x *%[3]s) error {
 func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 	kind := tt.Kind()
 	sta := `
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}`
 	fin := `
-	if err = dec.FinishValue(); err != nil {
+	if err := dec.FinishValue(); err != nil {
 		return err
 	}`
 	if topLevel {
@@ -139,18 +165,16 @@ func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 		return sta + g.bodySetMap(tt, arg)
 	case vdl.Struct:
 		return sta + g.bodyStruct(tt, arg)
-	case vdl.Union:
-		return sta + g.bodyUnion(tt, arg) + fin
 	case vdl.Any:
 		return g.bodyAny(tt, arg)
 	default:
-		panic(fmt.Errorf("vom: unhandled type %s", tt))
+		panic(fmt.Errorf("VDLRead unhandled type %s", tt))
 	}
 }
 
 func (g *genRead) bodyError(arg namedArg) string {
 	return fmt.Sprintf(`
-	if err = %[1]sVDLRead(dec, &%[2]s); err != nil {
+	if err := %[1]sVDLRead(dec, &%[2]s); err != nil {
 		return err
 	}`, g.Pkg("v.io/v23/verror"), arg.Name)
 }
@@ -158,7 +182,7 @@ func (g *genRead) bodyError(arg namedArg) string {
 func (g *genRead) bodyNative(tt *vdl.Type, arg namedArg) string {
 	return fmt.Sprintf(`
 	var wire %[1]s%[2]s
-	if err = %[1]sToNative(wire, %[3]s); err != nil {
+	if err := %[1]sToNative(wire, %[3]s); err != nil {
 		return err
 	}`, typeGoWire(g.goData, tt), g.bodyCallVDLRead(tt, typedArg("wire", tt)), arg.Ptr())
 }
@@ -169,25 +193,18 @@ func (g *genRead) bodyCallVDLRead(tt *vdl.Type, arg namedArg) string {
 		// receiver interface.  Instead we call the package-level function.
 		def := g.Env.FindTypeDef(tt)
 		return fmt.Sprintf(`
-	if err = %[1]s%[2]s(dec, %[3]s); err != nil {
+	if err := %[1]s%[2]s(dec, %[3]s); err != nil {
 		return err
 	}`, g.Pkg(def.File.Package.GenPath), unionReadFuncName(def), arg.Ptr())
 	}
 	return fmt.Sprintf(`
-	if err = %[1]s.VDLRead(dec); err != nil {
+	if err := %[1]s.VDLRead(dec); err != nil {
 		return err
 	}`, arg.Name)
 }
 
-func unionReadFuncName(def *compile.TypeDef) string {
-	if def.Exported {
-		return "VDLRead" + def.Name
-	}
-	return "vdlRead" + vdlutil.FirstRuneToUpper(def.Name)
-}
-
 func (g *genRead) anonReaderName(tt *vdl.Type) string {
-	return fmt.Sprintf("__VDLRead%d_%s", g.goData.anonReaders[tt], tt.Kind())
+	return fmt.Sprintf("__VDLReadAnon_%s_%d", tt.Kind(), g.goData.anonReaders[tt])
 }
 
 func (g *genRead) bodyAnon(tt *vdl.Type, arg namedArg) string {
@@ -199,7 +216,7 @@ func (g *genRead) bodyAnon(tt *vdl.Type, arg namedArg) string {
 		g.anonReaders = append(g.anonReaders, tt)
 	}
 	return fmt.Sprintf(`
-	if err = %[1]s(dec, %[2]s); err != nil {
+	if err := %[1]s(dec, %[2]s); err != nil {
 		return err
 	}`, g.anonReaderName(tt), arg.Ptr())
 }
@@ -214,6 +231,7 @@ func (g *genRead) bodyScalar(tt, exact *vdl.Type, arg namedArg, method string, p
 	}
 	if tt == exact {
 		return fmt.Sprintf(`
+	var err error
 	if %[1]s, err = dec.Decode%[2]s(%[3]s); err != nil {
 		return err
 	}`, arg.Ref(), method, paramStr)
@@ -241,7 +259,7 @@ func (g *genRead) bodyEnum(arg namedArg) string {
 	if err != nil {
 		return err
 	}
-	if err = %[1]s.Set(enum); err != nil {
+	if err := %[1]s.Set(enum); err != nil {
 		return err
 	}`, arg.Name)
 }
@@ -264,7 +282,7 @@ func (g *genRead) bodyBytes(tt *vdl.Type, arg namedArg) string {
 		}
 	}
 	s += fmt.Sprintf(`
-	if err = dec.DecodeBytes(%[1]d, %[2]s); err != nil {
+	if err := dec.DecodeBytes(%[1]d, %[2]s); err != nil {
 		return err
 	}`, max, decodeVar)
 	if assignEnd {
@@ -378,7 +396,7 @@ func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {
 	}
 	return s + `
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -399,7 +417,7 @@ func (g *genRead) bodyUnion(tt *vdl.Type, arg namedArg) string {
 		s += fmt.Sprintf(`
 	case %[1]q:
 		var field %[2]s%[1]s`, field.Name, typeGoWire(g.goData, tt))
-		s += g.body(field.Type, namedArg{"field.Value", field.Type.Kind() == vdl.Optional}, false)
+		s += g.body(field.Type, typedArg("field.Value", field.Type), false)
 		s += fmt.Sprintf(`
 		%[1]s = field`, arg.Ref())
 	}
@@ -421,15 +439,15 @@ func (g *genRead) bodyOptional(tt *vdl.Type, arg namedArg) string {
 	// NOTE: arg.IsPtr is always true here, since tt is optional.
 	s := `
 	if dec.IsNil() {`
-	s += g.checkCompat(tt.Kind(), arg.Ptr())
+	s += g.checkCompat(tt.Kind(), arg.Name)
 	s += fmt.Sprintf(`
 		%[1]s = nil
-		if err = dec.FinishValue(); err != nil {
+		if err := dec.FinishValue(); err != nil {
 			return err
 		}
 	} else {
 		%[1]s = new(%[2]s)
-		dec.IgnoreNextStartValue()`, arg.Ptr(), typeGo(g.goData, tt.Elem()))
+		dec.IgnoreNextStartValue()`, arg.Name, typeGo(g.goData, tt.Elem()))
 	return s + g.body(tt.Elem(), arg, false) + `
 	}`
 }
@@ -460,6 +478,10 @@ type namedArg struct {
 	IsPtr bool   // is the variable a pointer type
 }
 
+func (arg namedArg) IsValid() bool {
+	return arg.Name != ""
+}
+
 func (arg namedArg) Ptr() string {
 	if arg.IsPtr {
 		return arg.Name
@@ -486,7 +508,7 @@ func (arg namedArg) Field(field vdl.Field) namedArg {
 }
 
 func (arg namedArg) Index(index string, tt *vdl.Type) namedArg {
-	return typedArg(fmt.Sprintf("%s[%s]", arg.SafeRef(), index), tt)
+	return typedArg(arg.SafeRef()+"["+index+"]", tt)
 }
 
 func typedArg(name string, tt *vdl.Type) namedArg {

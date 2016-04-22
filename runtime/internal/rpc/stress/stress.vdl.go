@@ -166,67 +166,24 @@ func (t *SumArgTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *SumArg) VDLRead(dec vdl.Decoder) error {
-	*x = SumArg{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
+func (x SumArg) VDLIsZero() (bool, error) {
+	if x.ABool {
+		return false, nil
 	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	if x.AInt64 != 0 {
+		return false, nil
 	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "ABool":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.ABool, err = dec.DecodeBool(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "AInt64":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.AInt64, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "AListOfBytes":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if err = dec.DecodeBytes(-1, &x.AListOfBytes); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
+	if len(x.AListOfBytes) != 0 {
+		return false, nil
 	}
+	return true, nil
 }
 
 func (x SumArg) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*SumArg)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.ABool == false)
-	if !(var1) {
+	if x.ABool {
 		if err := enc.NextField("ABool"); err != nil {
 			return err
 		}
@@ -240,8 +197,7 @@ func (x SumArg) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.AInt64 == int64(0))
-	if !(var2) {
+	if x.AInt64 != 0 {
 		if err := enc.NextField("AInt64"); err != nil {
 			return err
 		}
@@ -255,11 +211,7 @@ func (x SumArg) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var var3 bool
-	if len(x.AListOfBytes) == 0 {
-		var3 = true
-	}
-	if !(var3) {
+	if len(x.AListOfBytes) != 0 {
 		if err := enc.NextField("AListOfBytes"); err != nil {
 			return err
 		}
@@ -277,6 +229,62 @@ func (x SumArg) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *SumArg) VDLRead(dec vdl.Decoder) error {
+	*x = SumArg{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "ABool":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.ABool, err = dec.DecodeBool(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "AInt64":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.AInt64, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "AListOfBytes":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			if err := dec.DecodeBytes(-1, &x.AListOfBytes); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 type SumStats struct {
@@ -447,77 +455,15 @@ func (t *SumStatsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *SumStats) VDLRead(dec vdl.Decoder) error {
-	*x = SumStats{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "SumCount":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.SumCount, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "SumStreamCount":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.SumStreamCount, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "BytesRecv":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.BytesRecv, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "BytesSent":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.BytesSent, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x SumStats) VDLIsZero() (bool, error) {
+	return x == SumStats{}, nil
 }
 
 func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*SumStats)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.SumCount == uint64(0))
-	if !(var1) {
+	if x.SumCount != 0 {
 		if err := enc.NextField("SumCount"); err != nil {
 			return err
 		}
@@ -531,8 +477,7 @@ func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.SumStreamCount == uint64(0))
-	if !(var2) {
+	if x.SumStreamCount != 0 {
 		if err := enc.NextField("SumStreamCount"); err != nil {
 			return err
 		}
@@ -546,8 +491,7 @@ func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var3 := (x.BytesRecv == uint64(0))
-	if !(var3) {
+	if x.BytesRecv != 0 {
 		if err := enc.NextField("BytesRecv"); err != nil {
 			return err
 		}
@@ -561,8 +505,7 @@ func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var4 := (x.BytesSent == uint64(0))
-	if !(var4) {
+	if x.BytesSent != 0 {
 		if err := enc.NextField("BytesSent"); err != nil {
 			return err
 		}
@@ -580,6 +523,74 @@ func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *SumStats) VDLRead(dec vdl.Decoder) error {
+	*x = SumStats{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "SumCount":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.SumCount, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "SumStreamCount":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.SumStreamCount, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "BytesRecv":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.BytesRecv, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "BytesSent":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.BytesSent, err = dec.DecodeUint(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 //////////////////////////////////////////////////

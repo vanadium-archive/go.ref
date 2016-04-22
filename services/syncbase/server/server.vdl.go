@@ -136,10 +136,51 @@ func (t *ServiceDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x ServiceData) VDLIsZero() (bool, error) {
+	if x.Version != 0 {
+		return false, nil
+	}
+	if len(x.Perms) != 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (x ServiceData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*ServiceData)(nil)).Elem()); err != nil {
+		return err
+	}
+	if x.Version != 0 {
+		if err := enc.NextField("Version"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Version); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if len(x.Perms) != 0 {
+		if err := enc.NextField("Perms"); err != nil {
+			return err
+		}
+		if err := x.Perms.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *ServiceData) VDLRead(dec vdl.Decoder) error {
 	*x = ServiceData{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -154,62 +195,26 @@ func (x *ServiceData) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Version":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Version, err = dec.DecodeUint(64); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Perms":
-			if err = x.Perms.VDLRead(dec); err != nil {
+			if err := x.Perms.VDLRead(dec); err != nil {
 				return err
 			}
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
-}
-
-func (x ServiceData) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*ServiceData)(nil)).Elem()); err != nil {
-		return err
-	}
-	var1 := (x.Version == uint64(0))
-	if !(var1) {
-		if err := enc.NextField("Version"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.Version); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var var2 bool
-	if len(x.Perms) == 0 {
-		var2 = true
-	}
-	if !(var2) {
-		if err := enc.NextField("Perms"); err != nil {
-			return err
-		}
-		if err := x.Perms.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 // DbInfo contains information about a single Database, stored in the
@@ -357,61 +362,15 @@ func (t *DbInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
-	*x = DbInfo{}
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
-	}
-	for {
-		f, err := dec.NextField()
-		if err != nil {
-			return err
-		}
-		switch f {
-		case "":
-			return dec.FinishValue()
-		case "Id":
-			if err = x.Id.VDLRead(dec); err != nil {
-				return err
-			}
-		case "RootDir":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.RootDir, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		case "Engine":
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if x.Engine, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		default:
-			if err = dec.SkipValue(); err != nil {
-				return err
-			}
-		}
-	}
+func (x DbInfo) VDLIsZero() (bool, error) {
+	return x == DbInfo{}, nil
 }
 
 func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*DbInfo)(nil)).Elem()); err != nil {
 		return err
 	}
-	var1 := (x.Id == syncbase.Id{})
-	if !(var1) {
+	if x.Id != (syncbase.Id{}) {
 		if err := enc.NextField("Id"); err != nil {
 			return err
 		}
@@ -419,8 +378,7 @@ func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var2 := (x.RootDir == "")
-	if !(var2) {
+	if x.RootDir != "" {
 		if err := enc.NextField("RootDir"); err != nil {
 			return err
 		}
@@ -434,8 +392,7 @@ func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var3 := (x.Engine == "")
-	if !(var3) {
+	if x.Engine != "" {
 		if err := enc.NextField("Engine"); err != nil {
 			return err
 		}
@@ -453,6 +410,56 @@ func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
+	*x = DbInfo{}
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Id":
+			if err := x.Id.VDLRead(dec); err != nil {
+				return err
+			}
+		case "RootDir":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.RootDir, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		case "Engine":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.Engine, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // DatabaseData represents the persistent state of a Database, stored in the
@@ -660,10 +667,77 @@ func (t *__VDLTarget1_optional) FromNil(tt *vdl.Type) error {
 	return nil
 }
 
+func (x DatabaseData) VDLIsZero() (bool, error) {
+	if x.Id != (syncbase.Id{}) {
+		return false, nil
+	}
+	if x.Version != 0 {
+		return false, nil
+	}
+	if len(x.Perms) != 0 {
+		return false, nil
+	}
+	if x.SchemaMetadata != nil {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*DatabaseData)(nil)).Elem()); err != nil {
+		return err
+	}
+	if x.Id != (syncbase.Id{}) {
+		if err := enc.NextField("Id"); err != nil {
+			return err
+		}
+		if err := x.Id.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if x.Version != 0 {
+		if err := enc.NextField("Version"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+			return err
+		}
+		if err := enc.EncodeUint(x.Version); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+	}
+	if len(x.Perms) != 0 {
+		if err := enc.NextField("Perms"); err != nil {
+			return err
+		}
+		if err := x.Perms.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if x.SchemaMetadata != nil {
+		if err := enc.NextField("SchemaMetadata"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.TypeOf((**syncbase.SchemaMetadata)(nil))); err != nil {
+			return err
+		}
+		enc.SetNextStartValueIsOptional()
+		if err := (*x.SchemaMetadata).VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 	*x = DatabaseData{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -678,25 +752,26 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Id":
-			if err = x.Id.VDLRead(dec); err != nil {
+			if err := x.Id.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Version":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
+			var err error
 			if x.Version, err = dec.DecodeUint(64); err != nil {
 				return err
 			}
-			if err = dec.FinishValue(); err != nil {
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "Perms":
-			if err = x.Perms.VDLRead(dec); err != nil {
+			if err := x.Perms.VDLRead(dec); err != nil {
 				return err
 			}
 		case "SchemaMetadata":
-			if err = dec.StartValue(); err != nil {
+			if err := dec.StartValue(); err != nil {
 				return err
 			}
 			if dec.IsNil() {
@@ -704,87 +779,22 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 					return fmt.Errorf("incompatible optional %T, from %v", x.SchemaMetadata, dec.Type())
 				}
 				x.SchemaMetadata = nil
-				if err = dec.FinishValue(); err != nil {
+				if err := dec.FinishValue(); err != nil {
 					return err
 				}
 			} else {
 				x.SchemaMetadata = new(syncbase.SchemaMetadata)
 				dec.IgnoreNextStartValue()
-				if err = x.SchemaMetadata.VDLRead(dec); err != nil {
+				if err := x.SchemaMetadata.VDLRead(dec); err != nil {
 					return err
 				}
 			}
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
-}
-
-func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*DatabaseData)(nil)).Elem()); err != nil {
-		return err
-	}
-	var1 := (x.Id == syncbase.Id{})
-	if !(var1) {
-		if err := enc.NextField("Id"); err != nil {
-			return err
-		}
-		if err := x.Id.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var2 := (x.Version == uint64(0))
-	if !(var2) {
-		if err := enc.NextField("Version"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.Version); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-	}
-	var var3 bool
-	if len(x.Perms) == 0 {
-		var3 = true
-	}
-	if !(var3) {
-		if err := enc.NextField("Perms"); err != nil {
-			return err
-		}
-		if err := x.Perms.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var4 := (x.SchemaMetadata == (*syncbase.SchemaMetadata)(nil))
-	if !(var4) {
-		if err := enc.NextField("SchemaMetadata"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.TypeOf((**syncbase.SchemaMetadata)(nil))); err != nil {
-			return err
-		}
-		if x.SchemaMetadata == nil {
-			if err := enc.NilValue(vdl.TypeOf((**syncbase.SchemaMetadata)(nil))); err != nil {
-				return err
-			}
-		} else {
-			enc.SetNextStartValueIsOptional()
-			if err := x.SchemaMetadata.VDLWrite(enc); err != nil {
-				return err
-			}
-		}
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 // CollectionPerms represent the persistent, synced permissions of a Collection.
@@ -880,49 +890,8 @@ func (t *CollectionPermsTarget) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
-	var err error
-	if err = dec.StartValue(); err != nil {
-		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
-	}
-	var tmpMap CollectionPerms
-	if len := dec.LenHint(); len > 0 {
-		tmpMap = make(CollectionPerms, len)
-	}
-	for {
-		switch done, err := dec.NextEntry(); {
-		case err != nil:
-			return err
-		case done:
-			*x = tmpMap
-			return dec.FinishValue()
-		}
-		var key string
-		{
-			if err = dec.StartValue(); err != nil {
-				return err
-			}
-			if key, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err = dec.FinishValue(); err != nil {
-				return err
-			}
-		}
-		var elem access.AccessList
-		{
-			if err = elem.VDLRead(dec); err != nil {
-				return err
-			}
-		}
-		if tmpMap == nil {
-			tmpMap = make(CollectionPerms)
-		}
-		tmpMap[key] = elem
-	}
+func (x CollectionPerms) VDLIsZero() (bool, error) {
+	return len(x) == 0, nil
 }
 
 func (x CollectionPerms) VDLWrite(enc vdl.Encoder) error {
@@ -953,6 +922,51 @@ func (x CollectionPerms) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	return enc.FinishValue()
+}
+
+func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
+	if err := dec.StartValue(); err != nil {
+		return err
+	}
+	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
+		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
+	}
+	var tmpMap CollectionPerms
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(CollectionPerms, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			*x = tmpMap
+			return dec.FinishValue()
+		}
+		var key string
+		{
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if key, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		var elem access.AccessList
+		{
+			if err := elem.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		if tmpMap == nil {
+			tmpMap = make(CollectionPerms)
+		}
+		tmpMap[key] = elem
+	}
 }
 
 var __VDLInitCalled bool

@@ -194,10 +194,72 @@ func (t *BlobMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x BlobMetadata) VDLIsZero() (bool, error) {
+	if len(x.OwnerShares) != 0 {
+		return false, nil
+	}
+	var wireReferenced time_2.Time
+	if err := time_2.TimeFromNative(&wireReferenced, x.Referenced); err != nil {
+		return false, err
+	}
+	if wireReferenced != (time_2.Time{}) {
+		return false, nil
+	}
+	var wireAccessed time_2.Time
+	if err := time_2.TimeFromNative(&wireAccessed, x.Accessed); err != nil {
+		return false, err
+	}
+	if wireAccessed != (time_2.Time{}) {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (x BlobMetadata) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*BlobMetadata)(nil)).Elem()); err != nil {
+		return err
+	}
+	if len(x.OwnerShares) != 0 {
+		if err := enc.NextField("OwnerShares"); err != nil {
+			return err
+		}
+		if err := x.OwnerShares.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireReferenced time_2.Time
+	if err := time_2.TimeFromNative(&wireReferenced, x.Referenced); err != nil {
+		return err
+	}
+	if wireReferenced != (time_2.Time{}) {
+		if err := enc.NextField("Referenced"); err != nil {
+			return err
+		}
+		if err := wireReferenced.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	var wireAccessed time_2.Time
+	if err := time_2.TimeFromNative(&wireAccessed, x.Accessed); err != nil {
+		return err
+	}
+	if wireAccessed != (time_2.Time{}) {
+		if err := enc.NextField("Accessed"); err != nil {
+			return err
+		}
+		if err := wireAccessed.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *BlobMetadata) VDLRead(dec vdl.Decoder) error {
 	*x = BlobMetadata{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -212,89 +274,31 @@ func (x *BlobMetadata) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "OwnerShares":
-			if err = x.OwnerShares.VDLRead(dec); err != nil {
+			if err := x.OwnerShares.VDLRead(dec); err != nil {
 				return err
 			}
 		case "Referenced":
 			var wire time_2.Time
-			if err = wire.VDLRead(dec); err != nil {
+			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err = time_2.TimeToNative(wire, &x.Referenced); err != nil {
+			if err := time_2.TimeToNative(wire, &x.Referenced); err != nil {
 				return err
 			}
 		case "Accessed":
 			var wire time_2.Time
-			if err = wire.VDLRead(dec); err != nil {
+			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err = time_2.TimeToNative(wire, &x.Accessed); err != nil {
+			if err := time_2.TimeToNative(wire, &x.Accessed); err != nil {
 				return err
 			}
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
-}
-
-func (x BlobMetadata) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlobMetadata)(nil)).Elem()); err != nil {
-		return err
-	}
-	var var1 bool
-	if len(x.OwnerShares) == 0 {
-		var1 = true
-	}
-	if !(var1) {
-		if err := enc.NextField("OwnerShares"); err != nil {
-			return err
-		}
-		if err := x.OwnerShares.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var wireValue2 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue2, x.Referenced); err != nil {
-		return fmt.Errorf("error converting x.Referenced to wiretype")
-	}
-
-	var3 := (wireValue2 == time_2.Time{})
-	if !(var3) {
-		if err := enc.NextField("Referenced"); err != nil {
-			return err
-		}
-		var wire time_2.Time
-		if err := time_2.TimeFromNative(&wire, x.Referenced); err != nil {
-			return err
-		}
-		if err := wire.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	var wireValue4 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue4, x.Accessed); err != nil {
-		return fmt.Errorf("error converting x.Accessed to wiretype")
-	}
-
-	var5 := (wireValue4 == time_2.Time{})
-	if !(var5) {
-		if err := enc.NextField("Accessed"); err != nil {
-			return err
-		}
-		var wire time_2.Time
-		if err := time_2.TimeFromNative(&wire, x.Accessed); err != nil {
-			return err
-		}
-		if err := wire.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 // A PerSyncgroup is blob-related data stored per syncgroup.
@@ -385,10 +389,42 @@ func (t *PerSyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
+func (x PerSyncgroup) VDLIsZero() (bool, error) {
+	isZeroPriority, err := x.Priority.VDLIsZero()
+	if err != nil {
+		return false, err
+	}
+	if !isZeroPriority {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (x PerSyncgroup) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(vdl.TypeOf((*PerSyncgroup)(nil)).Elem()); err != nil {
+		return err
+	}
+	isZeroPriority, err := x.Priority.VDLIsZero()
+	if err != nil {
+		return err
+	}
+	if !isZeroPriority {
+		if err := enc.NextField("Priority"); err != nil {
+			return err
+		}
+		if err := x.Priority.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
 func (x *PerSyncgroup) VDLRead(dec vdl.Decoder) error {
 	*x = PerSyncgroup{}
-	var err error
-	if err = dec.StartValue(); err != nil {
+	if err := dec.StartValue(); err != nil {
 		return err
 	}
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
@@ -403,34 +439,15 @@ func (x *PerSyncgroup) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Priority":
-			if err = x.Priority.VDLRead(dec); err != nil {
+			if err := x.Priority.VDLRead(dec); err != nil {
 				return err
 			}
 		default:
-			if err = dec.SkipValue(); err != nil {
+			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
 	}
-}
-
-func (x PerSyncgroup) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*PerSyncgroup)(nil)).Elem()); err != nil {
-		return err
-	}
-	var1 := (x.Priority == interfaces.SgPriority{})
-	if !(var1) {
-		if err := enc.NextField("Priority"); err != nil {
-			return err
-		}
-		if err := x.Priority.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextField(""); err != nil {
-		return err
-	}
-	return enc.FinishValue()
 }
 
 var __VDLInitCalled bool
