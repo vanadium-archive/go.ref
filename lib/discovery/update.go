@@ -53,15 +53,7 @@ func (u *update) fetchAttachment(ctx *context.T, name string, ch chan<- discover
 
 	dir := newDirClient(u.dirAddrs)
 	data, err := dir.GetAttachment(ctx, u.ad.Id, name)
-	if err != nil {
-		select {
-		case <-ctx.Done():
-		default:
-			ctx.Error(err)
-		}
-		return
-	}
-	ch <- discovery.DataOrError{Data: data}
+	ch <- discovery.DataOrError{data, err}
 }
 
 func (u *update) Advertisement() discovery.Advertisement {
