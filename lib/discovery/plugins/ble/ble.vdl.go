@@ -23,6 +23,13 @@ const DirAddrsUuid = "7d8b5c56-0d05-5a7a-a21e-6c0c3c31245e"      // NewAttribute
 // The prefix for encoded attachment names.
 const AttachmentNamePrefix = "__"
 
+// The Vanadium service base uuid and mask.
+const VanadiumUuidBase = "3dd1d5a8-0000-5000-0000-000000000000"
+const VanadiumUuidMask = "ffffffff-0000-f000-0000-000000000000"
+
+// All the Vanadium service start with this prefix.
+const VanadiumUuidPrefix = "3dd1d5a8"
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.

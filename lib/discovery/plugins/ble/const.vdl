@@ -16,4 +16,11 @@ const (
 
 	// The prefix for encoded attachment names.
 	AttachmentNamePrefix = "__"
+
+	// The Vanadium service base uuid and mask.
+	VanadiumUuidBase = "3dd1d5a8-0000-5000-0000-000000000000"
+	VanadiumUuidMask = "ffffffff-0000-f000-0000-000000000000"
+
+	// All the Vanadium service start with this prefix.
+	VanadiumUuidPrefix = "3dd1d5a8"
 )
