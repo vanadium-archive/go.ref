@@ -113,6 +113,9 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 		permsStore: permStore,
 		mtAddress:  mtAddress,
 	}
+	// TODO(caprita): Now that we're using local key manager, there's no
+	// reason to couple using key manager with using the agent: we should be
+	// able to use key manager regardless.
 
 	// If we're in 'security agent mode', set up the key manager agent.
 	if path := os.Getenv(ref.EnvAgentPath); len(path) > 0 {
@@ -131,8 +134,13 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 		// We ought to hook into the logic inside rt/security.go when
 		// deciding if we're in agent mode, and figuring out what path
 		// the agent socket is at.
-		if km, err := keymgr.NewKeyManager(path); err != nil {
-			return nil, nil, verror.New(errNewAgentFailed, ctx, err)
+		keyDir := filepath.Join(config.Root, "keymgr")
+		perm := os.FileMode(0700)
+		if err := os.MkdirAll(keyDir, perm); err != nil {
+			return nil, nil, fmt.Errorf("MkdirAll(%v, %v) failed: %v", keyDir, perm, err)
+		}
+		if km, err := keymgr.NewLocalAgent(keyDir, nil); err != nil {
+			return nil, nil, err
 		} else {
 			d.internal.securityAgent = &securityAgentState{
 				keyMgr: km,

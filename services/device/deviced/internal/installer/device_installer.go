@@ -27,7 +27,6 @@ package installer
 //     creation_info           - json-encoded info about the binary that created the directory tree
 //     agent_deviced.sh        - script to launch device manager under agent
 //     security/               - security agent keeps credentials here
-//       keys/
 //       principal/
 //     agent_logs/             - security agent logs
 //       STDERR-<timestamp>
@@ -205,13 +204,9 @@ func SelfInstall(ctx *context.T, installDir, suidHelper, agent, initHelper, orig
 func generateAgentScript(workspace, agent, currLink string, singleUser, sessionMode bool) error {
 	securityDir := filepath.Join(workspace, "security")
 	principalDir := filepath.Join(securityDir, "principal")
-	keyDir := filepath.Join(securityDir, "keys")
 	perm := os.FileMode(0700)
 	if _, err := security.CreatePersistentPrincipal(principalDir, nil); err != nil {
 		return fmt.Errorf("CreatePersistentPrincipal(%v, nil) failed: %v", principalDir, err)
-	}
-	if err := os.MkdirAll(keyDir, perm); err != nil {
-		return fmt.Errorf("MkdirAll(%v, %v) failed: %v", keyDir, perm, err)
 	}
 	logs := filepath.Join(workspace, "agent_logs")
 	if err := os.MkdirAll(logs, perm); err != nil {
@@ -237,7 +232,7 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	if !sessionMode {
 		output += fmt.Sprintf("--restart-exit-code=!0 ")
 	}
-	output += fmt.Sprintf("--additional-principals=%q %q", keyDir, currLink)
+	output += fmt.Sprintf("%q", currLink)
 	path := filepath.Join(workspace, "agent_deviced.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0700); err != nil {
 		return fmt.Errorf("WriteFile(%v) failed: %v", path, err)

@@ -68,6 +68,7 @@ package impl
 //     ...
 //   app-<hash 2>(711d)
 //   ...
+//   keymgr/                              - the key manager stores keys here
 //   socks(711d)/                         - agent sockets
 //     <id X>(711d)/                      - one for each app instance
 //       s(660d)                          - the socket file
