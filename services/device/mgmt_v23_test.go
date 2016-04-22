@@ -74,7 +74,6 @@ func init() {
 }
 
 func TestV23DeviceManagerSingleUser(t *testing.T) {
-	t.Skip("https://github.com/vanadium/build/issues/58")
 	v23test.SkipUnlessRunningIntegrationTests(t)
 	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
@@ -87,7 +86,6 @@ func TestV23DeviceManagerSingleUser(t *testing.T) {
 }
 
 func TestV23DeviceManagerMultiUser(t *testing.T) {
-	t.Skip("https://github.com/vanadium/build/issues/58")
 	v23test.SkipUnlessRunningIntegrationTests(t)
 	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
@@ -278,7 +276,12 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 		break
 	}
 	// Claim the device as "root:u:alice:myworkstation".
-	withArgs(claimDeviceBin, "claim", claimableEP, "myworkstation").Run()
+	claimCmd := withArgs(claimDeviceBin, "claim", claimableEP, "myworkstation")
+	// TODO(caprita): Sometimes, the claim RPC fails to complete, even
+	// though the server-side claiming seems to succeed.  See
+	// https://github.com/vanadium/build/issues/58
+	claimCmd.ExitErrorIsOk = true
+	claimCmd.Run()
 
 	resolve := func(name string) string {
 		res := ""
