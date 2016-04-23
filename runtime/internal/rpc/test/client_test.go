@@ -213,6 +213,10 @@ func TestMultipleEndpoints(t *testing.T) {
 	sh, ctx, _, cleanup := testInit(t, false)
 	defer cleanup()
 
+	// Disable the cache so that the repeated lookups we do don't hang on
+	// cached values.
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
 	cmd, _ := startEchoServer(t, sh, "echoServer", "echoServer", "")
 
 	// Verify that there is 1 entry for echoServer in the mount table.
