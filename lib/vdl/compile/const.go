@@ -196,7 +196,10 @@ func compileConst(what string, implicit *vdl.Type, pexpr parse.ConstExpr, file *
 	if !c.IsValid() {
 		return nil
 	}
-	if implicit != nil && c.Type() == nil {
+	if implicit != nil &&
+		(c.Type() == nil ||
+			(implicit.CanBeOptional() && vdl.OptionalType(implicit) == c.Type()) ||
+			(c.Type().CanBeOptional() && vdl.OptionalType(c.Type()) == implicit)) {
 		// Convert untyped const into the implicit type.
 		conv, err := c.Convert(implicit)
 		if err != nil {

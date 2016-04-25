@@ -12,7 +12,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/internal/vdltest"
+	"v.io/x/ref/lib/vdl/internal/vdltestutil"
 	"v.io/x/ref/lib/vdl/parse"
 )
 
@@ -30,9 +30,9 @@ func testError(t *testing.T, test errorTest) {
 		files := map[string]string{
 			epkg.Name + ".vdl": "package " + epkg.Name + "\n" + epkg.Data,
 		}
-		buildPkg := vdltest.FakeBuildPackage(epkg.Name, epkg.Name, files)
+		buildPkg := vdltestutil.FakeBuildPackage(epkg.Name, epkg.Name, files)
 		pkg := build.BuildPackage(buildPkg, env)
-		vdltest.ExpectResult(t, env.Errors, test.Name, epkg.ErrRE)
+		vdltestutil.ExpectResult(t, env.Errors, test.Name, epkg.ErrRE)
 		if pkg == nil || epkg.ErrRE != "" {
 			continue
 		}

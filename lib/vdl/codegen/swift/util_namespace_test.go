@@ -15,7 +15,7 @@ import (
 	"v.io/x/lib/gosh"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/internal/vdltest"
+	"v.io/x/ref/lib/vdl/internal/vdltestutil"
 )
 
 const (
@@ -122,7 +122,7 @@ func createPackagesAndSwiftContext(t *testing.T, modules []moduleConfig, pkgs []
 	env := compile.NewEnv(-1)
 	genPathToDir := map[string]string{}
 	for _, pkg := range pkgs {
-		buildPkg := vdltest.FakeBuildPackage(pkg.Name, pkg.Path, pkg.Files)
+		buildPkg := vdltestutil.FakeBuildPackage(pkg.Name, pkg.Path, pkg.Files)
 		built[i] = build.BuildPackage(buildPkg, env)
 		built[i].GenPath = built[i].Path
 		genPathToDir[built[i].GenPath] = filepath.Join(vdlPath, pkg.Path)

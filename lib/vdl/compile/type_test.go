@@ -10,7 +10,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/internal/vdltest"
+	"v.io/x/ref/lib/vdl/internal/vdltestutil"
 )
 
 const qual = "package path qualified identifier"
@@ -28,7 +28,7 @@ func testType(t *testing.T, test typeTest, qualifiedPaths bool) {
 			tpkg.Name + ".vdl": "package " + tpkg.Name + "\n" + tpkg.Data,
 		}
 		pkgPath := "p.kg/" + tpkg.Name // use dots in pkgpath to test tricky cases
-		buildPkg := vdltest.FakeBuildPackage(tpkg.Name, pkgPath, files)
+		buildPkg := vdltestutil.FakeBuildPackage(tpkg.Name, pkgPath, files)
 		pkg := build.BuildPackage(buildPkg, env)
 		if tpkg.ErrRE == qual {
 			if qualifiedPaths {
@@ -37,7 +37,7 @@ func testType(t *testing.T, test typeTest, qualifiedPaths bool) {
 				tpkg.ExpectBase = nil // otherwise the test should fail
 			}
 		}
-		vdltest.ExpectResult(t, env.Errors, test.Name, tpkg.ErrRE)
+		vdltestutil.ExpectResult(t, env.Errors, test.Name, tpkg.ErrRE)
 		if pkg == nil || tpkg.ErrRE != "" {
 			continue
 		}

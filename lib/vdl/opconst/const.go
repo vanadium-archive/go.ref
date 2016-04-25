@@ -23,7 +23,7 @@ var (
 	bigRatAbsMax32 = new(big.Rat).SetFloat64(math.MaxFloat32)
 	bigRatAbsMin64 = new(big.Rat).SetFloat64(math.SmallestNonzeroFloat64)
 	bigRatAbsMax64 = new(big.Rat).SetFloat64(math.MaxFloat64)
-	maxShiftSize   = big.NewInt(463) // use the same max as Go
+	maxShiftSize   = big.NewInt(2000) // arbitrary large value
 
 	errInvalidConst = errors.New("invalid const")
 	errConvertNil   = errors.New("invalid conversion to untyped const")

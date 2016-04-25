@@ -172,7 +172,6 @@ var nativeTypePackageWhitelist = map[string]bool{
 	"time": true,
 	"v.io/x/ref/lib/vdl/testdata/nativetest": true,
 	"v.io/v23/security":                      true,
-	"v.io/vdlroot/math":                      true,
 }
 
 func validateGoConfig(pkg *compile.Package, env *compile.Env) {

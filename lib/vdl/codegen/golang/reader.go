@@ -130,7 +130,7 @@ func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 		// Appears before bytes, so that we use the defined method rather than
 		// re-generating extra code.
 		return g.bodyCallVDLRead(tt, arg)
-	case tt.IsBytes():
+	case tt.IsBytes() && tt.Elem() == vdl.ByteType:
 		// Bytes use the special Decoder.DecodeBytes method.  Appears before
 		// anonymous types, to avoid processing bytes as a list or array.
 		return sta + g.bodyBytes(tt, arg) + fin
@@ -148,11 +148,11 @@ func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 	case vdl.String:
 		return sta + g.bodyScalar(tt, vdl.StringType, arg, "String") + fin
 	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
-		return sta + g.bodyScalar(tt, vdl.Uint64Type, arg, "Uint", bitlen(kind)) + fin
+		return sta + g.bodyScalar(tt, vdl.Uint64Type, arg, "Uint", kind.BitLen()) + fin
 	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
-		return sta + g.bodyScalar(tt, vdl.Int64Type, arg, "Int", bitlen(kind)) + fin
+		return sta + g.bodyScalar(tt, vdl.Int64Type, arg, "Int", kind.BitLen()) + fin
 	case vdl.Float32, vdl.Float64:
-		return sta + g.bodyScalar(tt, vdl.Float64Type, arg, "Float", bitlen(kind)) + fin
+		return sta + g.bodyScalar(tt, vdl.Float64Type, arg, "Float", kind.BitLen()) + fin
 	case vdl.TypeObject:
 		return sta + g.bodyScalar(tt, vdl.TypeObjectType, arg, "TypeObject") + fin
 	case vdl.Enum:
@@ -180,11 +180,13 @@ func (g *genRead) bodyError(arg namedArg) string {
 }
 
 func (g *genRead) bodyNative(tt *vdl.Type, arg namedArg) string {
+	wireArg := typedArg("wire", tt)
+	wireBody := g.bodyCallVDLRead(tt, wireArg)
 	return fmt.Sprintf(`
-	var wire %[1]s%[2]s
-	if err := %[1]sToNative(wire, %[3]s); err != nil {
+	var %[1]s %[2]s%[3]s
+	if err := %[2]sToNative(%[1]s, %[4]s); err != nil {
 		return err
-	}`, typeGoWire(g.goData, tt), g.bodyCallVDLRead(tt, typedArg("wire", tt)), arg.Ptr())
+	}`, wireArg.Name, typeGoWire(g.goData, tt), wireBody, arg.Ptr())
 }
 
 func (g *genRead) bodyCallVDLRead(tt *vdl.Type, arg namedArg) string {
@@ -292,7 +294,7 @@ func (g *genRead) bodyBytes(tt *vdl.Type, arg namedArg) string {
 	return s
 }
 
-func (g *genRead) checkCompat(kind vdl.Kind, varName string) string {
+func (g *genRead) checkCompatible(kind vdl.Kind, varName string) string {
 	return fmt.Sprintf(`
 	if (dec.StackDepth() == 1 || dec.IsAny()) && !%[1]sCompatible(%[1]sTypeOf(%[4]s), dec.Type()) {
 		return %[2]sErrorf("incompatible %[3]s %%T, from %%v", %[4]s, dec.Type())
@@ -300,28 +302,29 @@ func (g *genRead) checkCompat(kind vdl.Kind, varName string) string {
 }
 
 func (g *genRead) bodyArray(tt *vdl.Type, arg namedArg) string {
-	s := g.checkCompat(tt.Kind(), arg.Ref())
-	s += fmt.Sprintf(`
+	s := g.checkCompatible(tt.Kind(), arg.Ref())
+	elemArg := arg.ArrayIndex("index", tt.Elem())
+	elemBody := g.body(tt.Elem(), elemArg, false)
+	return s + fmt.Sprintf(`
 	index := 0
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
-		case done != (index >= len(*x)):
+		case done != (index >= len(%[2]s)):
 			return %[1]sErrorf("array len mismatch, got %%d, want %%T", index, %[2]s)
 		case done:
 			return dec.FinishValue()
-		}`, g.Pkg("fmt"), arg.Ref())
-	elem := fmt.Sprintf(`%[1]s[index]`, arg.Name)
-	s += g.body(tt.Elem(), typedArg(elem, tt.Elem()), false)
-	return s + `
+		}%[3]s
 		index++
-	}`
+	}`, g.Pkg("fmt"), arg.Ref(), elemBody)
 }
 
 func (g *genRead) bodyList(tt *vdl.Type, arg namedArg) string {
-	s := g.checkCompat(tt.Kind(), arg.Ref())
-	s += fmt.Sprintf(`
+	s := g.checkCompatible(tt.Kind(), arg.Ref())
+	elemArg := typedArg("elem", tt.Elem())
+	elemBody := g.body(tt.Elem(), elemArg, false)
+	return s + fmt.Sprintf(`
 	switch len := dec.LenHint(); {
 	case len > 0:
 		%[1]s = make(%[2]s, 0, len)
@@ -335,51 +338,51 @@ func (g *genRead) bodyList(tt *vdl.Type, arg namedArg) string {
 		case done:
 			return dec.FinishValue()
 		}
-		var elem %[3]s`, arg.Ref(), typeGo(g.goData, tt), typeGo(g.goData, tt.Elem()))
-	s += g.body(tt.Elem(), typedArg("elem", tt.Elem()), false)
-	return s + fmt.Sprintf(`
+		var elem %[3]s%[4]s
 		%[1]s = append(%[1]s, elem)
-	}`, arg.Ref())
+	}`, arg.Ref(), typeGo(g.goData, tt), typeGo(g.goData, tt.Elem()), elemBody)
 }
 
 func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
-	s := g.checkCompat(tt.Kind(), arg.Ref())
+	s := g.checkCompatible(tt.Kind(), arg.Ref())
+	keyArg := typedArg("key", tt.Key())
+	keyBody := g.body(tt.Key(), keyArg, false)
 	s += fmt.Sprintf(`
-	var tmpMap %[2]s
+	var tmpMap %[1]s
 	if len := dec.LenHint(); len > 0 {
-		tmpMap = make(%[2]s, len)
+		tmpMap = make(%[1]s, len)
   }
 	for {
 		switch done, err := dec.NextEntry(); {
 		case err != nil:
 			return err
 		case done:
-			%[1]s = tmpMap
+			%[2]s = tmpMap
 			return dec.FinishValue()
 		}
 		var key %[3]s
-		{`, arg.Ref(), typeGo(g.goData, tt), typeGo(g.goData, tt.Key()))
-	s += g.body(tt.Key(), typedArg("key", tt.Key()), false) + `
-		}`
-	elemVar := "struct{}{}"
+		{%[4]s
+		}`, typeGo(g.goData, tt), arg.Ref(), typeGo(g.goData, tt.Key()), keyBody)
+	elemValue := "struct{}{}"
 	if tt.Kind() == vdl.Map {
-		elemVar = "elem"
+		elemValue = "elem"
+		elemArg := typedArg("elem", tt.Elem())
+		elemBody := g.body(tt.Elem(), elemArg, false)
 		s += fmt.Sprintf(`
 		var elem %[1]s
-		{`, typeGo(g.goData, tt.Elem()))
-		s += g.body(tt.Elem(), typedArg("elem", tt.Elem()), false) + `
-		}`
+		{%[2]s
+		}`, typeGo(g.goData, tt.Elem()), elemBody)
 	}
 	return s + fmt.Sprintf(`
 		if tmpMap == nil {
 			tmpMap = make(%[1]s)
 		}
 		tmpMap[key] = %[2]s
-	}`, typeGo(g.goData, tt), elemVar)
+	}`, typeGo(g.goData, tt), elemValue)
 }
 
 func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {
-	s := g.checkCompat(tt.Kind(), arg.Ref()) + `
+	s := g.checkCompatible(tt.Kind(), arg.Ref()) + `
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -390,9 +393,9 @@ func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {
 			return dec.FinishValue()`
 	for f := 0; f < tt.NumField(); f++ {
 		field := tt.Field(f)
+		fieldBody := g.body(field.Type, arg.Field(field), false)
 		s += fmt.Sprintf(`
-		case %[1]q:`, field.Name)
-		s += g.body(field.Type, arg.Field(field), false)
+		case %[1]q:%[2]s`, field.Name, fieldBody)
 	}
 	return s + `
 		default:
@@ -404,7 +407,7 @@ func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {
 }
 
 func (g *genRead) bodyUnion(tt *vdl.Type, arg namedArg) string {
-	s := g.checkCompat(tt.Kind(), arg.Ptr()) + `
+	s := g.checkCompatible(tt.Kind(), arg.Ptr()) + `
 	f, err := dec.NextField()
 	if err != nil {
 		return err
@@ -414,12 +417,12 @@ func (g *genRead) bodyUnion(tt *vdl.Type, arg namedArg) string {
 		// TODO(toddw): Change to using pointers to the union field structs, to
 		// resolve https://v.io/i/455
 		field := tt.Field(f)
+		fieldArg := typedArg("field.Value", field.Type)
+		fieldBody := g.body(field.Type, fieldArg, false)
 		s += fmt.Sprintf(`
 	case %[1]q:
-		var field %[2]s%[1]s`, field.Name, typeGoWire(g.goData, tt))
-		s += g.body(field.Type, typedArg("field.Value", field.Type), false)
-		s += fmt.Sprintf(`
-		%[1]s = field`, arg.Ref())
+		var field %[2]s%[1]s%[3]s
+		%[4]s = field`, field.Name, typeGoWire(g.goData, tt), fieldBody, arg.Ref())
 	}
 	return s + fmt.Sprintf(`
 	case "":
@@ -437,19 +440,18 @@ func (g *genRead) bodyUnion(tt *vdl.Type, arg namedArg) string {
 
 func (g *genRead) bodyOptional(tt *vdl.Type, arg namedArg) string {
 	// NOTE: arg.IsPtr is always true here, since tt is optional.
-	s := `
-	if dec.IsNil() {`
-	s += g.checkCompat(tt.Kind(), arg.Name)
-	s += fmt.Sprintf(`
-		%[1]s = nil
+	compat := g.checkCompatible(tt.Kind(), arg.Name)
+	body := g.body(tt.Elem(), arg, false)
+	return fmt.Sprintf(`
+	if dec.IsNil() {%[1]s
+		%[2]s = nil
 		if err := dec.FinishValue(); err != nil {
 			return err
 		}
 	} else {
-		%[1]s = new(%[2]s)
-		dec.IgnoreNextStartValue()`, arg.Name, typeGo(g.goData, tt.Elem()))
-	return s + g.body(tt.Elem(), arg, false) + `
-	}`
+		%[2]s = new(%[3]s)
+		dec.IgnoreNextStartValue()%[4]s
+	}`, compat, arg.Name, typeGo(g.goData, tt.Elem()), body)
 }
 
 func (g *genRead) bodyAny(tt *vdl.Type, arg namedArg) string {
@@ -469,62 +471,4 @@ func (g *genRead) bodyAny(tt *vdl.Type, arg namedArg) string {
 	%[1]s = new(%[2]sValue)`, arg.Ref(), g.Pkg("v.io/v23/vdl"))
 	}
 	return s + g.bodyCallVDLRead(tt, arg)
-}
-
-// namedArg represents a named argument, with methods to conveniently return the
-// pointer or non-pointer form of the argument.
-type namedArg struct {
-	Name  string // variable name
-	IsPtr bool   // is the variable a pointer type
-}
-
-func (arg namedArg) IsValid() bool {
-	return arg.Name != ""
-}
-
-func (arg namedArg) Ptr() string {
-	if arg.IsPtr {
-		return arg.Name
-	}
-	return "&" + arg.Name
-}
-
-func (arg namedArg) Ref() string {
-	if arg.IsPtr {
-		return "*" + arg.Name
-	}
-	return arg.Name
-}
-
-func (arg namedArg) SafeRef() string {
-	if arg.IsPtr {
-		return "(*" + arg.Name + ")"
-	}
-	return arg.Name
-}
-
-func (arg namedArg) Field(field vdl.Field) namedArg {
-	return typedArg(arg.Name+"."+field.Name, field.Type)
-}
-
-func (arg namedArg) Index(index string, tt *vdl.Type) namedArg {
-	return typedArg(arg.SafeRef()+"["+index+"]", tt)
-}
-
-func typedArg(name string, tt *vdl.Type) namedArg {
-	return namedArg{name, tt.Kind() == vdl.Optional}
-}
-
-func bitlen(k vdl.Kind) int {
-	switch k {
-	case vdl.Byte, vdl.Int8:
-		return 8
-	case vdl.Uint16, vdl.Int16:
-		return 16
-	case vdl.Uint32, vdl.Int32, vdl.Float32:
-		return 32
-	case vdl.Uint64, vdl.Int64, vdl.Float64:
-		return 64
-	}
-	panic(fmt.Errorf("bitlen kind %v not handled", k))
 }

@@ -725,7 +725,7 @@ func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 		enc.SetNextStartValueIsOptional()
-		if err := (*x.SchemaMetadata).VDLWrite(enc); err != nil {
+		if err := x.SchemaMetadata.VDLWrite(enc); err != nil {
 			return err
 		}
 	}

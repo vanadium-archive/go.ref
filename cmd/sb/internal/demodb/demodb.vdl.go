@@ -4810,7 +4810,7 @@ func (x Recursive) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 		enc.SetNextStartValueIsOptional()
-		if err := (*x.Maybe).VDLWrite(enc); err != nil {
+		if err := x.Maybe.VDLWrite(enc); err != nil {
 			return err
 		}
 	}

@@ -18,7 +18,7 @@ import (
 	"v.io/v23/vdlroot/vdltool"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/internal/vdltest"
+	"v.io/x/ref/lib/vdl/internal/vdltestutil"
 	"v.io/x/ref/lib/vdl/testdata/base"
 	"v.io/x/ref/lib/vdl/vdlutil"
 )
@@ -83,7 +83,7 @@ func TestSrcDirsVDLRoot(t *testing.T) {
 		name := fmt.Sprintf("%+v", test)
 		errs := vdlutil.NewErrors(-1)
 		got := build.SrcDirs(errs)
-		vdltest.ExpectResult(t, errs, name, test.ErrRE)
+		vdltestutil.ExpectResult(t, errs, name, test.ErrRE)
 		// Every result will have our valid VDLPATH srcdir.
 		var want []string
 		if test.Want != "" {
@@ -139,7 +139,7 @@ func TestSrcDirsVDLPath(t *testing.T) {
 		if test.Want == nil {
 			errRE = "No src dirs; set VDLPATH to a valid value"
 		}
-		vdltest.ExpectResult(t, errs, name, errRE)
+		vdltestutil.ExpectResult(t, errs, name, errRE)
 		// Every result will have our valid VDLROOT srcdir.
 		want := append([]string{abs(defaultVDLRoot)}, test.Want...)
 		if !reflect.DeepEqual(got, want) {
@@ -383,7 +383,7 @@ func testTransitivePackages(t *testing.T) {
 			name := fmt.Sprintf("%v %v", mode, test.InPaths)
 			errs := vdlutil.NewErrors(-1)
 			pkgs := build.TransitivePackages(test.InPaths, mode, build.Opts{}, errs)
-			vdltest.ExpectResult(t, errs, name, "")
+			vdltestutil.ExpectResult(t, errs, name, "")
 			var paths []string
 			for _, pkg := range pkgs {
 				paths = append(paths, pkg.Path)
@@ -484,7 +484,7 @@ func testTransitivePackagesUnknownPathError(t *testing.T) {
 				// Ignore mode returns success, while error mode returns error.
 				errRE = ""
 			}
-			vdltest.ExpectResult(t, errs, name, errRE)
+			vdltestutil.ExpectResult(t, errs, name, errRE)
 			if pkgs != nil {
 				t.Errorf("%v got unexpected packages %v", name, pkgs)
 			}
@@ -511,7 +511,7 @@ func TestPackageConfig(t *testing.T) {
 		name := path.Base(test.Path)
 		env := compile.NewEnv(-1)
 		deps := build.TransitivePackages([]string{test.Path}, build.UnknownPathIsError, build.Opts{}, env.Errors)
-		vdltest.ExpectResult(t, env.Errors, name, "")
+		vdltestutil.ExpectResult(t, env.Errors, name, "")
 		if len(deps) != 1 {
 			t.Fatalf("TransitivePackages(%q) got %v, want 1 dep", name, deps)
 		}
@@ -554,7 +554,7 @@ func TestBuildConfig(t *testing.T) {
 		for _, dep := range deps {
 			build.BuildPackage(dep, env)
 		}
-		vdltest.ExpectResult(t, env.Errors, test.Src, "")
+		vdltestutil.ExpectResult(t, env.Errors, test.Src, "")
 		// Test BuildConfig
 		wantV := vdl.ZeroValue(vdl.TypeOf(test.Value))
 		if err := vdl.Convert(wantV, test.Value); err != nil {
@@ -564,14 +564,14 @@ func TestBuildConfig(t *testing.T) {
 		if !vdl.EqualValue(gotV, wantV) {
 			t.Errorf("BuildConfig(%v) got %v, want %v", test.Src, gotV, wantV)
 		}
-		vdltest.ExpectResult(t, env.Errors, test.Src, "")
+		vdltestutil.ExpectResult(t, env.Errors, test.Src, "")
 		// TestBuildConfigValue
 		gotRV := reflect.New(reflect.TypeOf(test.Value))
 		build.BuildConfigValue("file", strings.NewReader(test.Src), nil, env, gotRV.Interface())
 		if got, want := gotRV.Elem().Interface(), test.Value; !reflect.DeepEqual(got, want) {
 			t.Errorf("BuildConfigValue(%v) got %v, want %v", test.Src, got, want)
 		}
-		vdltest.ExpectResult(t, env.Errors, test.Src, "")
+		vdltestutil.ExpectResult(t, env.Errors, test.Src, "")
 	}
 }
 
@@ -624,7 +624,7 @@ func TestBuildExprs(t *testing.T) {
 	for _, test := range tests {
 		env := compile.NewEnv(-1)
 		values := build.BuildExprs(test.Data, test.Types, env)
-		vdltest.ExpectResult(t, env.Errors, test.Data, test.Err)
+		vdltestutil.ExpectResult(t, env.Errors, test.Data, test.Err)
 		if got, want := len(values), len(test.Want); got != want {
 			t.Errorf("%s got len %d, want %d", test.Data, got, want)
 		}

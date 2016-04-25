@@ -1545,7 +1545,7 @@ func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 		enc.SetNextStartValueIsOptional()
-		if err := (*x.Bo).VDLWrite(enc); err != nil {
+		if err := x.Bo.VDLWrite(enc); err != nil {
 			return err
 		}
 	}

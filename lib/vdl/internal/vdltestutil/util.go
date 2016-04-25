@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package vdltest provides testing utilities for v.io/x/ref/lib/vdl/...
-package vdltest
+// Package vdltestutil provides testing utilities for v.io/x/ref/lib/vdl/...
+package vdltestutil
 
 import (
 	"io"

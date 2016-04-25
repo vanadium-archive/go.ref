@@ -11,7 +11,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/internal/vdltest"
+	"v.io/x/ref/lib/vdl/internal/vdltestutil"
 	"v.io/x/ref/lib/vdl/parse"
 )
 
@@ -25,9 +25,9 @@ func TestInterface(t *testing.T) {
 				tpkg.Name + ".vdl": "package " + tpkg.Name + "\n" + tpkg.Data,
 			}
 			pkgPath := "p.kg/" + tpkg.Name // use dots in pkgpath to test tricky cases
-			buildPkg := vdltest.FakeBuildPackage(tpkg.Name, pkgPath, files)
+			buildPkg := vdltestutil.FakeBuildPackage(tpkg.Name, pkgPath, files)
 			pkg := build.BuildPackage(buildPkg, env)
-			vdltest.ExpectResult(t, env.Errors, test.Name, tpkg.ErrRE)
+			vdltestutil.ExpectResult(t, env.Errors, test.Name, tpkg.ErrRE)
 			if pkg == nil || tpkg.ErrRE != "" {
 				continue
 			}

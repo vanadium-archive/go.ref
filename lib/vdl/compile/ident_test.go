@@ -9,7 +9,7 @@ import (
 
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/internal/vdltest"
+	"v.io/x/ref/lib/vdl/internal/vdltestutil"
 )
 
 func TestIdentConflict(t *testing.T) {
@@ -50,10 +50,10 @@ func TestIdentConflict(t *testing.T) {
 		files := map[string]string{
 			test.Name + ".vdl": "package a\n" + test.Data,
 		}
-		buildPkg := vdltest.FakeBuildPackage(test.Name, test.Name, files)
+		buildPkg := vdltestutil.FakeBuildPackage(test.Name, test.Name, files)
 		if pkg := build.BuildPackage(buildPkg, env); pkg != nil {
 			t.Errorf("%s got package, want nil", test.Name)
 		}
-		vdltest.ExpectResult(t, env.Errors, test.Name, "name conflict")
+		vdltestutil.ExpectResult(t, env.Errors, test.Name, "name conflict")
 	}
 }

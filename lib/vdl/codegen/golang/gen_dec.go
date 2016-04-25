@@ -495,7 +495,7 @@ func (t *%[1]s) FromEnumLabel(src string, tt *%[4]sType) error {
 func genTargetDef(data *goData, t *vdl.Type) string {
 	if !data.createdTargets[t] {
 		data.createdTargets[t] = true
-		if t.IsBytes() {
+		if t.IsBytes() && t.Elem() == vdl.ByteType {
 			return genBytesDef(data, t)
 		}
 		switch t.Kind() {

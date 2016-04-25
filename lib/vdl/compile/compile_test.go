@@ -12,7 +12,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/internal/vdltest"
+	"v.io/x/ref/lib/vdl/internal/vdltestutil"
 )
 
 type f map[string]string
@@ -29,10 +29,10 @@ func TestParseAndCompile(t *testing.T) {
 	}
 	for _, test := range tests {
 		path := path.Join("a/b", test.name)
-		buildPkg := vdltest.FakeBuildPackage(test.name, path, test.files)
+		buildPkg := vdltestutil.FakeBuildPackage(test.name, path, test.files)
 		env := compile.NewEnv(-1)
 		pkg := build.BuildPackage(buildPkg, env)
-		vdltest.ExpectResult(t, env.Errors, test.name, test.errRE)
+		vdltestutil.ExpectResult(t, env.Errors, test.name, test.errRE)
 		if pkg == nil {
 			continue
 		}
@@ -49,7 +49,7 @@ func TestParseAndCompile(t *testing.T) {
 func TestParseAndCompileExprs(t *testing.T) {
 	env := compile.NewEnv(-1)
 	path := path.Join("a/b/test1")
-	buildPkg := vdltest.FakeBuildPackage("test1", path, f{"1.vdl": pkg1file1, "2.vdl": pkg1file2})
+	buildPkg := vdltestutil.FakeBuildPackage("test1", path, f{"1.vdl": pkg1file1, "2.vdl": pkg1file2})
 	pkg := build.BuildPackage(buildPkg, env)
 	if pkg == nil {
 		t.Fatal("failed to build package")

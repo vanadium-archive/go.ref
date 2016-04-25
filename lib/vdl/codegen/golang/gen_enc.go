@@ -68,7 +68,11 @@ func genEncDefInternal(data *goData, t *vdl.Type, instName, targetName, unionFie
 		}
 
 	case vdl.Array, vdl.List:
-		if t.Elem().Kind() == vdl.Byte {
+		// Check for special-cases []byte and [N]byte, which can use FromBytes.
+		// Note that []X and [N]X cannot use this special-case, since Go doesn't
+		// allow conversion from []X to []byte, even if the underlying type of X is
+		// byte.
+		if t.Elem() == vdl.ByteType {
 			var arrayModifier string
 			if t.Kind() == vdl.Array {
 				arrayModifier = "[:]"

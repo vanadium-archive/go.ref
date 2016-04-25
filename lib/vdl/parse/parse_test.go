@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/x/ref/lib/vdl/internal/vdltest"
+	"v.io/x/ref/lib/vdl/internal/vdltestutil"
 	"v.io/x/ref/lib/vdl/parse"
 	"v.io/x/ref/lib/vdl/vdlutil"
 )
@@ -49,17 +49,17 @@ func cl(lit interface{}, line, col int) *parse.ConstLit {
 }
 
 // Tests of vdl imports and file parsing.
-type vdlTest struct {
+type vdlParseTest struct {
 	name   string
 	src    string
 	expect *parse.File
 	errors []string
 }
 
-func testParseVDL(t *testing.T, test vdlTest, opts parse.Opts) {
+func testParseVDL(t *testing.T, test vdlParseTest, opts parse.Opts) {
 	errs := vdlutil.NewErrors(-1)
 	actual := parse.ParseFile("testfile", strings.NewReader(test.src), opts, errs)
-	vdltest.ExpectResult(t, errs, test.name, test.errors...)
+	vdltestutil.ExpectResult(t, errs, test.name, test.errors...)
 	if !reflect.DeepEqual(test.expect, actual) {
 		t.Errorf("%v\nEXPECT %+v\nACTUAL %+v", test.name, test.expect, actual)
 	}
@@ -76,7 +76,7 @@ func TestParseVDLImports(t *testing.T) {
 		//
 		// The imports-only parser isn't supposed to fill in fields after the
 		// imports, so we clear them from the expected result.  We must copy the
-		// file to ensure the actual vdlTests isn't overwritten since the
+		// file to ensure the actual vdlFileTests isn't overwritten since the
 		// full-parser tests needs the full expectations.  The test itself doesn't
 		// need to be copied, since it's already copied in the range-for.
 		if test.expect != nil {
@@ -108,7 +108,7 @@ type configTest struct {
 func testParseConfig(t *testing.T, test configTest, opts parse.Opts) {
 	errs := vdlutil.NewErrors(-1)
 	actual := parse.ParseConfig("testfile", strings.NewReader(test.src), opts, errs)
-	vdltest.ExpectResult(t, errs, test.name, test.errors...)
+	vdltestutil.ExpectResult(t, errs, test.name, test.errors...)
 	if !reflect.DeepEqual(test.expect, actual) {
 		t.Errorf("%v\nEXPECT %+v\nACTUAL %+v", test.name, test.expect, actual)
 	}
@@ -142,7 +142,7 @@ func TestParseConfig(t *testing.T) {
 }
 
 // vdlImportsTests contains tests of stuff up to and including the imports.
-var vdlImportsTests = []vdlTest{
+var vdlImportsTests = []vdlParseTest{
 	// Empty file isn't allowed (need at least a package clause).
 	{
 		"FAILEmptyFile",
@@ -278,7 +278,7 @@ import (
 }
 
 // vdlFileTests contains tests of stuff after the imports.
-var vdlFileTests = []vdlTest{
+var vdlFileTests = []vdlParseTest{
 	// Data type tests.
 	{
 		"TypeNamed",
@@ -1497,7 +1497,7 @@ func TestParseExprs(t *testing.T) {
 	for _, test := range tests {
 		errs := vdlutil.NewErrors(-1)
 		exprs := parse.ParseExprs(test.Data, errs)
-		vdltest.ExpectResult(t, errs, test.Data, test.Err)
+		vdltestutil.ExpectResult(t, errs, test.Data, test.Err)
 		if got, want := exprs, test.Exprs; !reflect.DeepEqual(got, want) {
 			t.Errorf("%s got %v, want %v", test.Data, got, want)
 		}

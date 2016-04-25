@@ -13,7 +13,7 @@ type BinaryOp uint
 const (
 	InvalidUnaryOp UnaryOp = iota
 	LogicNot               //  ! logical not
-	Pos                    //  + positive
+	Pos                    //  + positive (nop)
 	Neg                    //  - negate
 	BitNot                 //  ^ bitwise not
 )

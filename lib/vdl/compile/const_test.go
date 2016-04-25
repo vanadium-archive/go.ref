@@ -12,7 +12,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/internal/vdltest"
+	"v.io/x/ref/lib/vdl/internal/vdltestutil"
 )
 
 func testConstPackage(t *testing.T, name string, tpkg constPkg, env *compile.Env) *compile.Package {
@@ -22,9 +22,9 @@ func testConstPackage(t *testing.T, name string, tpkg constPkg, env *compile.Env
 		tpkg.Name + ".vdl": "package " + tpkg.Name + "\n" + tpkg.Data,
 	}
 	pkgPath := "p.kg/" + tpkg.Name // use dots in pkgpath to test tricky cases
-	buildPkg := vdltest.FakeBuildPackage(tpkg.Name, pkgPath, files)
+	buildPkg := vdltestutil.FakeBuildPackage(tpkg.Name, pkgPath, files)
 	pkg := build.BuildPackage(buildPkg, env)
-	vdltest.ExpectResult(t, env.Errors, name, tpkg.ErrRE)
+	vdltestutil.ExpectResult(t, env.Errors, name, tpkg.ErrRE)
 	if pkg == nil || tpkg.ErrRE != "" {
 		return nil
 	}
@@ -55,7 +55,7 @@ func testConfigFile(t *testing.T, name string, tpkg constPkg, env *compile.Env) 
 	fname := tpkg.Name + ".config"
 	data := "config = Res\n" + tpkg.Data
 	config := build.BuildConfig(fname, strings.NewReader(data), nil, nil, env)
-	vdltest.ExpectResult(t, env.Errors, name, tpkg.ErrRE)
+	vdltestutil.ExpectResult(t, env.Errors, name, tpkg.ErrRE)
 	if config == nil || tpkg.ErrRE != "" {
 		return
 	}
@@ -524,11 +524,11 @@ var constTests = []struct {
 		"OptionalCyclicExplicitType",
 		cp{{"a", `type A struct{X string;Z ?A}; const Res = A{"a",?A{"b",?A{"c",nil}}}`, makeCyclicStruct("a", makeCyclicStruct("b", makeCyclicStruct("c", nil))), ""}}},
 	{
+		"OptionalCyclicExplicitTypeAssignable",
+		cp{{"a", `type A struct{X string;Z ?A}; const Res = A{"a",A{}}`, makeCyclicStruct("a", makeCyclicStruct("", nil)), ""}}},
+	{
 		"OptionalCyclicTypeMismatch",
 		cp{{"a", `type A struct{X string;Z ?A}; const Res = A{"a","b"}`, nil, `can't convert "b" to \?p.kg/a.A`}}},
-	{
-		"OptionalCyclicExplicitTypeMismatch",
-		cp{{"a", `type A struct{X string;Z ?A}; const Res = A{"a",A{}}`, nil, `not assignable from p.kg/a.A`}}},
 
 	// Test enums.
 	{
