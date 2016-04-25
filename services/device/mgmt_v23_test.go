@@ -52,6 +52,7 @@ import (
 
 	"v.io/x/ref"
 	_ "v.io/x/ref/runtime/factories/generic"
+	"v.io/x/ref/services/internal/dirprinter"
 	"v.io/x/ref/test/testutil"
 	"v.io/x/ref/test/v23test"
 )
@@ -86,6 +87,7 @@ func TestV23DeviceManagerSingleUser(t *testing.T) {
 }
 
 func TestV23DeviceManagerMultiUser(t *testing.T) {
+	t.Skip("Permissions need to be configured properly on credentials.")
 	v23test.SkipUnlessRunningIntegrationTests(t)
 	sh := v23test.NewShell(t, nil)
 	defer sh.Cleanup()
@@ -163,6 +165,17 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 
 		mtName = "devices/" + hostname // Name under which the device manager will publish itself.
 	)
+
+	defer func() {
+		if !t.Failed() {
+			return
+		}
+		fmt.Fprintf(os.Stderr, "--------------- START DUMP %s ---------------\n", workDir)
+		if err := dirprinter.DumpDir(os.Stderr, workDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed: %v\n", err)
+		}
+		fmt.Fprintf(os.Stderr, "--------------- END DUMP %s ---------------\n", workDir)
+	}()
 	deviceScript.Vars["V23_DEVICE_DIR"] = dmInstallDir
 	// Make sure the devicex command is not provided with credentials. Note, this
 	// is analogous to what's done in
@@ -363,7 +376,7 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 	sampleAppName := appDName + "/testapp"
 	appPubName := "testbinaryd"
 	appEnvelopeFilename := filepath.Join(workDir, "app.envelope")
-	appEnvelope := fmt.Sprintf("{\"Title\":\"BINARYD\", \"Args\":[\"--name=%s\", \"--root-dir=./binstore\", \"--v23.tcp.address=127.0.0.1:0\", \"--http=127.0.0.1:0\"], \"Binary\":{\"File\":%q}, \"Env\":[]}", appPubName, sampleAppBinName)
+	appEnvelope := fmt.Sprintf("{\"Title\":\"BINARYD\", \"Args\":[\"--name=%s\", \"--root-dir=./binstore\", \"--v23.tcp.address=127.0.0.1:0\", \"--http=127.0.0.1:0\"], \"Binary\":{\"File\":%q}, \"Env\":[ \"%s=1\", \"PATH=%s\"]}", appPubName, sampleAppBinName, ref.EnvCredentialsNoAgent, os.Getenv("PATH"))
 	ioutil.WriteFile(appEnvelopeFilename, []byte(appEnvelope), 0666)
 	defer os.Remove(appEnvelopeFilename)
 
@@ -466,7 +479,7 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 
 	// Upload a device manager envelope.
 	devicedEnvelopeFilename := filepath.Join(workDir, "deviced.envelope")
-	devicedEnvelope := fmt.Sprintf("{\"Title\":\"device manager\", \"Binary\":{\"File\":%q}}", devicedAppBinName)
+	devicedEnvelope := fmt.Sprintf("{\"Title\":\"device manager\", \"Binary\":{\"File\":%q}, \"Env\":[ \"%s=1\", \"PATH=%s\"]}", devicedAppBinName, ref.EnvCredentialsNoAgent, os.Getenv("PATH"))
 	ioutil.WriteFile(devicedEnvelopeFilename, []byte(devicedEnvelope), 0666)
 	defer os.Remove(devicedEnvelopeFilename)
 	withArgs(applicationBin, "put", devicedAppName, deviceProfile, devicedEnvelopeFilename).Run()

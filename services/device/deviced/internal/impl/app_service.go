@@ -68,12 +68,6 @@ package impl
 //     ...
 //   app-<hash 2>(711d)
 //   ...
-//   keymgr/                              - the key manager stores keys here
-//   socks(711d)/                         - agent sockets
-//     <id X>(711d)/                      - one for each app instance
-//       s(660d)                          - the socket file
-//     <id Y>
-//     ...
 //
 // The device manager uses the suid helper binary to invoke an application as a
 // specified user.  The path to the helper is specified as config.Helper.
@@ -153,9 +147,7 @@ import (
 	"v.io/x/ref"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
-	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/agent"
-	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/internal/packages"
@@ -169,24 +161,9 @@ type instanceInfo struct {
 
 	// Blessings to provide the AppCycleManager in the app with so that it can talk
 	// to the device manager.
-	AppCycleBlessings string
-	// TODO(caprita): Change to [agent.PrincipalHandleByteSize]byte and
-	// remove handle() and setHandle() converters.
-	SecurityAgentHandle []byte
-	Restarts            int32
-	RestartWindowBegan  time.Time
-}
-
-func (i *instanceInfo) handle() (ret [agent.PrincipalHandleByteSize]byte) {
-	if len(i.SecurityAgentHandle) != agent.PrincipalHandleByteSize {
-		panic(fmt.Sprintf("Handle of unexpected length (%d): %v", len(i.SecurityAgentHandle), i.SecurityAgentHandle))
-	}
-	copy(ret[:], i.SecurityAgentHandle[0:agent.PrincipalHandleByteSize])
-	return
-}
-
-func (i *instanceInfo) setHandle(h [agent.PrincipalHandleByteSize]byte) {
-	i.SecurityAgentHandle = h[:]
+	AppCycleBlessings  string
+	Restarts           int32
+	RestartWindowBegan time.Time
 }
 
 func saveInstanceInfo(ctx *context.T, dir string, info *instanceInfo) error {
@@ -212,18 +189,12 @@ func loadInstanceInfo(ctx *context.T, dir string) (*instanceInfo, error) {
 	return info, nil
 }
 
-type securityAgentState struct {
-	// Security agent key manager client.
-	keyMgr agent.KeyManager
-}
-
 // appRunner is the subset of the appService object needed to
 // (re)start an application.
 type appRunner struct {
 	callback *callbackState
-	// securityAgent holds state related to the security agent (nil if not
-	// using the agent).
-	securityAgent *securityAgentState
+	// principalMgr handles principals for the apps.
+	principalMgr principalManager
 	// reap is the app process monitoring subsystem.
 	reap *reaper
 	// mtAddress is the address of the local mounttable.
@@ -542,47 +513,20 @@ func installationDirCore(components []string, root string) (string, error) {
 }
 
 // setupPrincipal sets up the instance's principal, with the right blessings.
-func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationInstantiateServerCall, securityAgent *securityAgentState, info *instanceInfo, rootDir string) error {
-	var p security.Principal
-	switch {
-	case securityAgent != nil && securityAgent.keyMgr != nil:
-		// TODO(caprita): Part of the cleanup upon destroying an
-		// instance, we should tell the agent to drop the principal.
-		handle, err := securityAgent.keyMgr.NewPrincipal(false)
-		if err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, "NewPrincipal() failed", err)
-		}
-		info.setHandle(handle)
-		sockDir, err := generateAgentSockDir(rootDir)
-		if err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, "generateAgentSockDir() failed", err)
-		}
-		sockLink := filepath.Join(instanceDir, "agent-sock-dir")
-		if err := os.Symlink(sockDir, sockLink); err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, "Symlink failed", err)
-		}
-		// TODO(caprita): Add a check to ensure that len(sockPath) < 108.
-		sockPath := filepath.Join(sockDir, "s")
-		if err := securityAgent.keyMgr.ServePrincipal(handle, sockPath); err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, "ServePrincipal failed", err)
-		}
-		defer func() {
-			if err := securityAgent.keyMgr.StopServing(handle); err != nil {
-				ctx.Errorf("StopServing failed: %v", err)
-			}
-		}()
-		if p, err = agentlib.NewAgentPrincipalX(sockPath); err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, "NewAgentPrincipalX failed", err)
-		}
-	default:
-		credentialsDir := filepath.Join(instanceDir, "credentials")
-		// TODO(caprita): The app's system user id needs access to this dir.
-		// Use the suidhelper to chown it.
-		var err error
-		if p, err = vsecurity.CreatePersistentPrincipal(credentialsDir, nil); err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err))
-		}
+func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationInstantiateServerCall, principalMgr principalManager, info *instanceInfo, rootDir string) error {
+	if err := principalMgr.Create(instanceDir); err != nil {
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Create(%v) failed: %v", instanceDir, err))
 	}
+	if err := principalMgr.Serve(instanceDir, nil); err != nil {
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Serve(%v) failed: %v", instanceDir, err))
+	}
+	defer principalMgr.StopServing(instanceDir)
+	p, err := principalMgr.Load(instanceDir)
+	if err != nil {
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Load(%v) failed: %v", instanceDir, err))
+	}
+	defer p.Close()
+
 	mPubKey, err := p.PublicKey().MarshalBinary()
 	if err != nil {
 		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("PublicKey().MarshalBinary() failed: %v", err))
@@ -737,7 +681,7 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationInstanti
 		return instanceDir, instanceID, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", packagesDir, packagesLink, err))
 	}
 	instanceInfo := new(instanceInfo)
-	if err := setupPrincipal(ctx, instanceDir, call, i.runner.securityAgent, instanceInfo, i.config.Root); err != nil {
+	if err := setupPrincipal(ctx, instanceDir, call, i.runner.principalMgr, instanceInfo, i.config.Root); err != nil {
 		return instanceDir, instanceID, err
 	}
 	if err := saveInstanceInfo(ctx, instanceDir, instanceInfo); err != nil {
@@ -760,7 +704,7 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationInstanti
 	return instanceDir, instanceID, nil
 }
 
-func genCmd(ctx *context.T, instanceDir, nsRoot string, usingSocketAgent bool) (*exec.Cmd, error) {
+func genCmd(ctx *context.T, instanceDir, nsRoot string) (*exec.Cmd, error) {
 	systemName, err := readSystemNameForInstance(instanceDir)
 	if err != nil {
 		return nil, err
@@ -781,11 +725,6 @@ func genCmd(ctx *context.T, instanceDir, nsRoot string, usingSocketAgent bool) (
 	}
 
 	saArgs := suidAppCmdArgs{targetUser: systemName, binpath: binPath}
-	if usingSocketAgent {
-		if saArgs.sockPath, err = sockPath(instanceDir); err != nil {
-			return nil, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("failed to obtain agent socket path: %v", err))
-		}
-	}
 
 	// Pass the displayed name of the program (argv0 as seen in ps output)
 	// Envelope data comes from the user so we sanitize it for safety
@@ -897,37 +836,18 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	}
 	defer handshaker.cleanup()
 
-	// Set up any agent-specific state.
-	// NOTE(caprita): This ought to belong in genCmd.
-	var agentCleaner func()
-	stopServingAgentSocket := true
-	switch sa := i.securityAgent; {
-	case sa != nil && sa.keyMgr != nil:
-		sockPath, err := sockPath(instanceDir)
-		if err != nil {
-			return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("failed to obtain socket path: %v", err))
-		}
-		if err := sa.keyMgr.ServePrincipal(info.handle(), sockPath); err != nil {
-			// TODO(caprita): Consider only logging a warning for
-			// verror.ErrExist errors if the principal is already
-			// serving.  This may point to some unhandled corner
-			// cases, but at lest we'd not prevent the app from
-			// running.
-			return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("ServePrincipal failed: %v", err))
-		}
-		cfg.Set(mgmt.SecurityAgentPathConfigKey, sockPath)
-		defer func() {
-			if !stopServingAgentSocket {
-				return
-			}
-			if err := sa.keyMgr.StopServing(info.handle()); err != nil {
-				ctx.Errorf("StopServing failed: %v", err)
-			}
-		}()
-	default:
-		cmd.Env = append(cmd.Env, ref.EnvCredentials+"="+filepath.Join(instanceDir, "credentials"))
+	if err := i.principalMgr.Serve(instanceDir, cfg); err != nil {
+		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Serve(%v) failed: %v", instanceDir, err))
 	}
-
+	stopServing := true
+	defer func() {
+		if !stopServing {
+			return
+		}
+		if err := i.principalMgr.StopServing(instanceDir); err != nil {
+			ctx.Errorf("StopServing failed: %v", err)
+		}
+	}()
 	env, err := vexec.WriteConfigToEnv(cfg, cmd.Env)
 	if err != nil {
 		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("encoding config failed %v", err))
@@ -935,14 +855,7 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	cmd.Env = env
 
 	// Start the child process.
-	startErr := cmd.Start()
-	// Perform unconditional cleanup before dealing with any error from
-	// cmd.Start()
-	if agentCleaner != nil {
-		agentCleaner()
-	}
-	// Now react to any error in cmd.Start()
-	if startErr != nil {
+	if startErr := cmd.Start(); startErr != nil {
 		return 0, verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Start() failed: %v", err))
 	}
 
@@ -963,12 +876,8 @@ func (i *appRunner) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) 
 	if err := saveInstanceInfo(ctx, instanceDir, info); err != nil {
 		return 0, err
 	}
-	stopServingAgentSocket = false
+	stopServing = false
 	return pid, nil
-}
-
-func (i *appRunner) usingSocketAgent() bool {
-	return i.securityAgent != nil && i.securityAgent.keyMgr != nil
 }
 
 func (i *appRunner) run(ctx *context.T, instanceDir string) error {
@@ -977,7 +886,7 @@ func (i *appRunner) run(ctx *context.T, instanceDir string) error {
 	}
 	var pid int
 
-	cmd, err := genCmd(ctx, instanceDir, i.mtAddress, i.usingSocketAgent())
+	cmd, err := genCmd(ctx, instanceDir, i.mtAddress)
 	if err == nil {
 		pid, err = i.startCmd(ctx, instanceDir, cmd)
 	}
@@ -1229,10 +1138,8 @@ func (i *appService) Kill(ctx *context.T, _ rpc.ServerCall, deadline time.Durati
 		ctx.Errorf("stop %v ultimately succeeded, but had encountered an error: %v", instanceDir, err)
 	}
 	// The app exited, so we can stop serving the principal.
-	if sa := i.runner.securityAgent; sa != nil && sa.keyMgr != nil {
-		if err := sa.keyMgr.StopServing(info.handle()); err != nil {
-			ctx.Errorf("StopServing failed: %v", err)
-		}
+	if err := i.runner.principalMgr.StopServing(instanceDir); err != nil {
+		ctx.Errorf("StopServing(%v) failed: %v", instanceDir, err)
 	}
 	return transitionInstance(instanceDir, device.InstanceStateDying, device.InstanceStateNotRunning)
 }
@@ -1651,7 +1558,7 @@ Envelope: {{printf "%+v" .Envelope}}
 
 Info: {{printf "%+v" .Info}}
 
-Principal: {{.PrincipalType}}
+Principal: {{.PrincipalDebug}}
 Public Key: {{.Principal.PublicKey}}
 Blessing Store: {{.Principal.BlessingStore.DebugString}}
 Roots: {{.Principal.Roots.DebugString}}
@@ -1670,8 +1577,8 @@ Roots: {{.Principal.Roots.DebugString}}
 		Cmd                                      *exec.Cmd
 		Envelope                                 *application.Envelope
 		Info                                     *instanceInfo
-		Principal                                security.Principal
-		PrincipalType                            string
+		Principal                                agent.Principal
+		PrincipalDebug                           string
 	}{}
 	debugInfo.InstanceDir = instanceDir
 
@@ -1687,7 +1594,7 @@ Roots: {{.Principal.Roots.DebugString}}
 	} else {
 		debugInfo.Info = info
 	}
-	if cmd, err := genCmd(ctx, instanceDir, i.runner.mtAddress, i.runner.usingSocketAgent()); err != nil {
+	if cmd, err := genCmd(ctx, instanceDir, i.runner.mtAddress); err != nil {
 		return "", err
 	} else {
 		debugInfo.Cmd = cmd
@@ -1698,43 +1605,12 @@ Roots: {{.Principal.Roots.DebugString}}
 	} else {
 		debugInfo.Envelope = envelope
 	}
-
-	switch sa := i.runner.securityAgent; {
-	case sa != nil && sa.keyMgr != nil:
-		// Try connecting to principal, if fails try serving, then
-		// connect, then stop serving.
-		// TODO(caprita): This is brittle.
-		sockPath, err := sockPath(instanceDir)
-		if err != nil {
-			return "", err
-		}
-		if debugInfo.Principal, err = agentlib.NewAgentPrincipalX(sockPath); err != nil {
-			agentHandle := debugInfo.Info.handle()
-			// TODO(caprita): This will interfere with the
-			// ServePrincipal call when Run'ning the instance.  We
-			// should instead ref count the principal and
-			// StopServing when the last user goes away.
-			if err := sa.keyMgr.ServePrincipal(agentHandle, sockPath); err != nil {
-				return "", err
-			}
-			if debugInfo.Principal, err = agentlib.NewAgentPrincipalX(sockPath); err != nil {
-				return "", err
-			}
-			defer func() {
-				if err := sa.keyMgr.StopServing(agentHandle); err != nil {
-					ctx.Errorf("StopServing failed: %v", err)
-				}
-			}()
-		}
-		debugInfo.PrincipalType = "Agent-based"
-	default:
-		credentialsDir := filepath.Join(instanceDir, "credentials")
-		var err error
-		if debugInfo.Principal, err = vsecurity.LoadPersistentPrincipal(credentialsDir, nil); err != nil {
-			return "", err
-		}
-		debugInfo.PrincipalType = fmt.Sprintf("Credentials dir-based (%v)", credentialsDir)
+	// TODO(caprita): Load requires that the principal be Serve-ing.
+	if debugInfo.Principal, err = i.runner.principalMgr.Load(instanceDir); err != nil {
+		return "", err
 	}
+	defer debugInfo.Principal.Close()
+	debugInfo.PrincipalDebug = i.runner.principalMgr.Debug(instanceDir)
 	var buf bytes.Buffer
 	if err := instanceDebugTemplate.Execute(&buf, debugInfo); err != nil {
 		return "", err

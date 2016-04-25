@@ -63,8 +63,6 @@ import (
 	"v.io/v23/verror"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
-	vsecurity "v.io/x/ref/lib/security"
-	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/errors"
 	"v.io/x/ref/services/profile"
@@ -107,7 +105,7 @@ type deviceService struct {
 	config         *config.State
 	disp           *dispatcher
 	uat            BlessingSystemAssociationStore
-	securityAgent  *securityAgentState
+	principalMgr   principalManager
 	tidying        chan<- tidyRequests
 }
 
@@ -275,43 +273,20 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	cfg.Set(mgmt.ProtocolConfigKey, "tcp")
 	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
 
-	var p security.Principal
-
-	switch sa := s.securityAgent; {
-	case sa != nil && sa.keyMgr != nil:
-		handle, err := sa.keyMgr.NewPrincipal(true)
-		if err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, "NewPrincipal() failed", err)
-		}
-		sockDir, err := generateAgentSockDir(s.config.Root)
-		if err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, "generateAgentSockDir() failed", err)
-		}
-		// TODO(caprita): Add a check to ensure that len(sockPath) < 108.
-		sockPath := filepath.Join(sockDir, "s")
-		if err := sa.keyMgr.ServePrincipal(handle, sockPath); err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, "ServePrincipal failed", err)
-		}
-		cfg.Set(mgmt.SecurityAgentPathConfigKey, sockPath)
-		defer func() {
-			if err := sa.keyMgr.StopServing(handle); err != nil {
-				ctx.Errorf("StopServing failed: %v", err)
-			}
-			if err := sa.keyMgr.DeletePrincipal(handle); err != nil {
-				ctx.Errorf("DeletePrincipal failed: %v", err)
-			}
-		}()
-		if p, err = agentlib.NewAgentPrincipalX(sockPath); err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, "NewAgentPrincipalX failed", err)
-		}
-	default:
-		credentialsDir := filepath.Join(workspace, "credentials")
-		var err error
-		if p, err = vsecurity.CreatePersistentPrincipal(credentialsDir, nil); err != nil {
-			return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err))
-		}
-		cfg.Set("v23.credentials", credentialsDir)
+	principalMgr := s.principalMgr
+	if err := principalMgr.Create(workspace); err != nil {
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Create(%v) failed: %v", workspace, err))
 	}
+	defer principalMgr.Delete(workspace)
+	if err := principalMgr.Serve(workspace, cfg); err != nil {
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Serve(%v) failed: %v", workspace, err))
+	}
+	defer principalMgr.StopServing(workspace)
+	p, err := principalMgr.Load(workspace)
+	if err != nil {
+		return verror.New(errors.ErrOperationFailed, ctx, fmt.Sprintf("Load(%v) failed: %v", workspace, err))
+	}
+	defer p.Close()
 	dmPrincipal := v23.GetPrincipal(ctx)
 	dmBlessings, _ := dmPrincipal.BlessingStore().Default()
 	testDmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmBlessings, "testdm", security.UnconstrainedUse())

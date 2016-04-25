@@ -6,7 +6,6 @@ package impl
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -23,8 +22,6 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
-	"v.io/x/ref"
-	"v.io/x/ref/services/agent/keymgr"
 	s_device "v.io/x/ref/services/device"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/errors"
@@ -37,7 +34,7 @@ import (
 type internalState struct {
 	callback       *callbackState
 	updating       *updatingState
-	securityAgent  *securityAgentState
+	principalMgr   principalManager
 	restartHandler func()
 	stats          *stats
 	testMode       bool
@@ -107,49 +104,16 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 			stats:          newStats("device-manager"),
 			testMode:       testMode,
 			tidying:        newTidyingDaemon(ctx, config.Root),
+			principalMgr:   newPrincipalManager(),
 		},
 		config:     config,
 		uat:        uat,
 		permsStore: permStore,
 		mtAddress:  mtAddress,
 	}
-	// TODO(caprita): Now that we're using local key manager, there's no
-	// reason to couple using key manager with using the agent: we should be
-	// able to use key manager regardless.
-
-	// If we're in 'security agent mode', set up the key manager agent.
-	if path := os.Getenv(ref.EnvAgentPath); len(path) > 0 {
-		// TODO(caprita): Making the decision to be in agent mode based
-		// on the presence of this env var is approximate for two
-		// reasons:
-		//
-		// 1. the device manager may have its agent path set using a
-		// config key/value instead of an env var.
-		//
-		// 2. the device manager may have this env var set, but a
-		// higher-precedence setting like the V23_CREDENTIALS env var
-		// may still have configured the device manager to operate in
-		// non-agent mode.
-		//
-		// We ought to hook into the logic inside rt/security.go when
-		// deciding if we're in agent mode, and figuring out what path
-		// the agent socket is at.
-		keyDir := filepath.Join(config.Root, "keymgr")
-		perm := os.FileMode(0700)
-		if err := os.MkdirAll(keyDir, perm); err != nil {
-			return nil, nil, fmt.Errorf("MkdirAll(%v, %v) failed: %v", keyDir, perm, err)
-		}
-		if km, err := keymgr.NewLocalAgent(keyDir, nil); err != nil {
-			return nil, nil, err
-		} else {
-			d.internal.securityAgent = &securityAgentState{
-				keyMgr: km,
-			}
-		}
-	}
 	runner := &appRunner{
 		callback:       d.internal.callback,
-		securityAgent:  d.internal.securityAgent,
+		principalMgr:   d.internal.principalMgr,
 		appServiceName: naming.Join(d.config.Name, appsSuffix),
 		mtAddress:      d.mtAddress,
 		stats:          d.internal.stats,
@@ -275,7 +239,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 			config:         d.config,
 			disp:           d,
 			uat:            d.uat,
-			securityAgent:  d.internal.securityAgent,
+			principalMgr:   d.internal.principalMgr,
 			tidying:        d.internal.tidying,
 		})
 		return receiver, auth, nil

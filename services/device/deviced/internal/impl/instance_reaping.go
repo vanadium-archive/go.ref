@@ -52,14 +52,8 @@ func newReaper(ctx *context.T, root string, appRunner *appRunner) (*reaper, erro
 }
 
 func markNotRunning(ctx *context.T, runner *appRunner, idir string) error {
-	if sa := runner.securityAgent; sa != nil && sa.keyMgr != nil {
-		info, err := loadInstanceInfo(ctx, idir)
-		if err != nil {
-			return fmt.Errorf("failed to load instance info: %v", err)
-		}
-		if err := sa.keyMgr.StopServing(info.handle()); err != nil {
-			return fmt.Errorf("StopServing failed: %v", err)
-		}
+	if err := runner.principalMgr.StopServing(idir); err != nil {
+		return fmt.Errorf("StopServing(%v) failed: %v", idir, err)
 	}
 
 	if instanceStateIs(idir, device.InstanceStateNotRunning) {
