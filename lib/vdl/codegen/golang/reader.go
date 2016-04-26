@@ -455,8 +455,19 @@ func (g *genRead) bodyOptional(tt *vdl.Type, arg namedArg) string {
 }
 
 func (g *genRead) bodyAny(tt *vdl.Type, arg namedArg) string {
+	mode := goAnyRepMode(g.Package)
+	// Handle interface{} special-case.
+	if mode == goAnyRepInterface {
+		return fmt.Sprintf(`
+	var readAny interface{}
+	if err := %[1]sRead(dec, &readAny); err != nil {
+		return err
+	}
+	%[2]s = readAny`, g.Pkg("v.io/v23/vdl"), arg.Ref())
+	}
+	// Handle vdl.Value and vom.RawBytes representations.
 	var s string
-	if shouldUseVdlValueForAny(g.Package) {
+	if mode == goAnyRepValue {
 		// Hack to deal with top-level any.  Any values in the generated code are
 		// initialized to vdl.ZeroValue(AnyType), so when we call vdl.Value.VDLRead
 		// on the value, the type of the value is always top-level any.  We create a

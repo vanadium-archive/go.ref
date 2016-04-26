@@ -63,8 +63,8 @@ func (t *UuidTarget) FromBytes(src []byte, tt *vdl.Type) error {
 	return nil
 }
 
-func (x Uuid) VDLIsZero() (bool, error) {
-	return len(x) == 0, nil
+func (x Uuid) VDLIsZero() bool {
+	return len(x) == 0
 }
 
 func (x Uuid) VDLWrite(enc vdl.Encoder) error {
@@ -143,8 +143,8 @@ func (t *EncryptionAlgorithmTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x EncryptionAlgorithm) VDLIsZero() (bool, error) {
-	return x == 0, nil
+func (x EncryptionAlgorithm) VDLIsZero() bool {
+	return x == 0
 }
 
 func (x EncryptionAlgorithm) VDLWrite(enc vdl.Encoder) error {
@@ -207,8 +207,8 @@ func (t *EncryptionKeyTarget) FromBytes(src []byte, tt *vdl.Type) error {
 	return nil
 }
 
-func (x EncryptionKey) VDLIsZero() (bool, error) {
-	return len(x) == 0, nil
+func (x EncryptionKey) VDLIsZero() bool {
+	return len(x) == 0
 }
 
 func (x EncryptionKey) VDLWrite(enc vdl.Encoder) error {
@@ -287,8 +287,8 @@ func (t *AdStatusTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x AdStatus) VDLIsZero() (bool, error) {
-	return x == 0, nil
+func (x AdStatus) VDLIsZero() bool {
+	return x == 0
 }
 
 func (x AdStatus) VDLWrite(enc vdl.Encoder) error {
@@ -347,8 +347,8 @@ func (t *AdHashTarget) FromBytes(src []byte, tt *vdl.Type) error {
 	return nil
 }
 
-func (x AdHash) VDLIsZero() (bool, error) {
-	return x == AdHash{}, nil
+func (x AdHash) VDLIsZero() bool {
+	return x == AdHash{}
 }
 
 func (x AdHash) VDLWrite(enc vdl.Encoder) error {
@@ -732,44 +732,36 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x AdInfo) VDLIsZero() (bool, error) {
-	isZeroAd, err := x.Ad.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	if !isZeroAd {
-		return false, nil
+func (x AdInfo) VDLIsZero() bool {
+	if !x.Ad.VDLIsZero() {
+		return false
 	}
 	if x.EncryptionAlgorithm != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.EncryptionKeys) != 0 {
-		return false, nil
+		return false
 	}
 	if x.Hash != (AdHash{}) {
-		return false, nil
+		return false
 	}
 	if len(x.DirAddrs) != 0 {
-		return false, nil
+		return false
 	}
 	if x.Status != 0 {
-		return false, nil
+		return false
 	}
 	if x.Lost {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*AdInfo)(nil)).Elem()); err != nil {
 		return err
 	}
-	isZeroAd, err := x.Ad.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroAd {
+	if !x.Ad.VDLIsZero() {
 		if err := enc.NextField("Ad"); err != nil {
 			return err
 		}
@@ -821,7 +813,7 @@ func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Lost"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.Lost); err != nil {
@@ -869,7 +861,7 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []string) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x[i]); err != nil {

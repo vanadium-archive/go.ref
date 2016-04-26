@@ -24,10 +24,13 @@ func genIsZeroBlock(data *goData, t *vdl.Type, inName string, varCount *int) (ou
 func genIsZeroBlockWiretype(data *goData, t *vdl.Type, inName string, varCount *int) (outName, body string) {
 	outName = createUniqueName("var", varCount)
 	if t.Kind() == vdl.Any {
-		if shouldUseVdlValueForAny(data.Package) {
+		switch goAnyRepMode(data.Package) {
+		case goAnyRepValue:
 			body = fmt.Sprintf("\n%[1]s := %[2]s == nil || (%[2]s.Kind() == %[3]sAny && %[2]s.IsZero())", outName, inName, data.Pkg("v.io/v23/vdl"))
-		} else {
+		case goAnyRepRawBytes:
 			body = fmt.Sprintf("\n%[1]s := %[2]s == nil || (%[2]s.Type.Kind() == %[3]sAny && %[2]s.IsNil())", outName, inName, data.Pkg("v.io/v23/vdl"))
+		default:
+			body = fmt.Sprintf("\n%[1]s := %[2]s == nil", outName, inName)
 		}
 		return
 	}

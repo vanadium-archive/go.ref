@@ -37,7 +37,7 @@ func (g *genWrite) Gen(def *compile.TypeDef) string {
 }
 
 func (g *genWrite) genDef(def *compile.TypeDef) string {
-	body := g.body(def.Type, namedArg{"x", false}, namedArg{}, false, true)
+	body := g.body(def.Type, namedArg{"x", false}, false, true)
 	return fmt.Sprintf(`
 func (x %[1]s) VDLWrite(enc %[2]sEncoder) error {%[3]s
 }
@@ -75,7 +75,7 @@ func (g *genWrite) genAnonDef() string {
 		anons := g.anonWriters
 		g.anonWriters = nil
 		for _, anon := range anons {
-			body := g.body(anon, namedArg{"x", false}, namedArg{}, false, true)
+			body := g.body(anon, namedArg{"x", false}, false, true)
 			s += fmt.Sprintf(`
 func %[1]s(enc %[2]sEncoder, x %[3]s) error {%[4]s
 }
@@ -85,7 +85,7 @@ func %[1]s(enc %[2]sEncoder, x %[3]s) error {%[4]s
 	return s
 }
 
-func (g *genWrite) body(tt *vdl.Type, arg, wireArg namedArg, skipNilCheck, topLevel bool) string {
+func (g *genWrite) body(tt *vdl.Type, arg namedArg, skipNilCheck, topLevel bool) string {
 	kind := tt.Kind()
 	sta := fmt.Sprintf(`
 	if err := enc.StartValue(%[1]s); err != nil {
@@ -109,13 +109,13 @@ func (g *genWrite) body(tt *vdl.Type, arg, wireArg namedArg, skipNilCheck, topLe
 	case kind == vdl.Optional:
 		// Optional types need special nil handling.  Appears before native types,
 		// to allow native types to be optional.
-		return sta + g.bodyOptional(tt, arg, skipNilCheck)
+		return g.bodyOptional(tt, arg, skipNilCheck)
 	case !topLevel && isNativeType(g.Env, tt):
 		// Non-top-level native types need an initial native conversion, while
 		// top-level native types use the regular logic to create VDLWrite for the
 		// wire type.  Appears as early as possible, so that all subsequent cases
 		// have nativity handled correctly.
-		return g.bodyNative(tt, arg, wireArg, skipNilCheck)
+		return g.bodyNative(tt, arg, skipNilCheck)
 	case !topLevel && tt.Name() != "":
 		// Non-top-level named types call the VDLWrite method defined on the arg.
 		// The top-level type is always named, and needs a real body generated.
@@ -160,7 +160,7 @@ func (g *genWrite) body(tt *vdl.Type, arg, wireArg namedArg, skipNilCheck, topLe
 	case vdl.Struct:
 		return sta + g.bodyStruct(tt, arg) + fin
 	case vdl.Any:
-		return sta + g.bodyAny(arg, skipNilCheck) + fin
+		return g.bodyAny(arg, skipNilCheck)
 	default:
 		panic(fmt.Errorf("VDLWrite unhandled type %s", tt))
 	}
@@ -173,13 +173,7 @@ func (g *genWrite) bodyError(arg namedArg) string {
 	}`, g.Pkg("v.io/v23/verror"), arg.Name)
 }
 
-func (g *genWrite) bodyNative(tt *vdl.Type, arg, wireArg namedArg, skipNilCheck bool) string {
-	if wireArg.IsValid() {
-		// We've already performed the conversion to the wire type, so just call it
-		// directly.  This occurs when a struct field is a native type, and we've
-		// already performed the wire type conversion to do the zero check.
-		return g.bodyCallVDLWrite(tt, wireArg, skipNilCheck)
-	}
+func (g *genWrite) bodyNative(tt *vdl.Type, arg namedArg, skipNilCheck bool) string {
 	s := fmt.Sprintf(`
 	var wire %[1]s
 	if err := %[1]sFromNative(&wire, %[2]s); err != nil {
@@ -280,7 +274,7 @@ func (g *genWrite) bodyArray(tt *vdl.Type, arg namedArg) string {
 	s := fmt.Sprintf(`
 	for i := 0; i < %[1]d; i++ {`, tt.Len())
 	s += encNextEntry
-	s += g.body(tt.Elem(), elemArg, namedArg{}, false, false)
+	s += g.body(tt.Elem(), elemArg, false, false)
 	s += `
 	}` + encNextEntryDone
 	return s
@@ -294,7 +288,7 @@ func (g *genWrite) bodyList(tt *vdl.Type, arg namedArg) string {
 	}
 	for i := 0; i < len(%[1]s); i++ {`, arg.Ref())
 	s += encNextEntry
-	s += g.body(tt.Elem(), elemArg, namedArg{}, false, false)
+	s += g.body(tt.Elem(), elemArg, false, false)
 	s += `
 	}` + encNextEntryDone
 	return s
@@ -308,7 +302,7 @@ func (g *genWrite) bodySet(tt *vdl.Type, arg namedArg) string {
 	}
 	for key := range %[1]s {`, arg.Ref())
 	s += encNextEntry
-	s += g.body(tt.Key(), keyArg, namedArg{}, false, false)
+	s += g.body(tt.Key(), keyArg, false, false)
 	s += `
 	}` + encNextEntryDone
 	return s
@@ -322,8 +316,8 @@ func (g *genWrite) bodyMap(tt *vdl.Type, arg namedArg) string {
 	}
 	for key, elem := range %[1]s {`, arg.Ref())
 	s += encNextEntry
-	s += g.body(tt.Key(), keyArg, namedArg{}, false, false)
-	s += g.body(tt.Elem(), elemArg, namedArg{}, false, false)
+	s += g.body(tt.Key(), keyArg, false, false)
+	s += g.body(tt.Elem(), elemArg, false, false)
 	s += `
 	}` + encNextEntryDone
 	return s
@@ -335,19 +329,16 @@ func (g *genWrite) bodyStruct(tt *vdl.Type, arg namedArg) string {
 		field := tt.Field(i)
 		fieldArg := arg.Field(field)
 		zero := genIsZero{g.goData}
-		setup, expr, wireArg := zero.Expr(neZero, field.Type, fieldArg, field.Name, false)
-		// The wireArg is valid iff the zero expression above already performed the
-		// native-to-wire conversion.  We use it to avoid performing another
-		// conversion when writing the field.  The true parameter after that
-		// indicates that nil checks can be skipped, since we've already ensured the
-		// field isn't zero here.
-		fieldBody := g.body(field.Type, fieldArg, wireArg, true, false)
-		s += fmt.Sprintf(`%[1]s
-	if %[2]s {
-		if err := enc.NextField(%[3]q); err != nil {
+		expr := zero.Expr(neZero, field.Type, fieldArg, field.Name, false)
+		// The second-to-last true parameter indicates that nil checks can be
+		// skipped, since we've already ensured the field isn't zero here.
+		fieldBody := g.body(field.Type, fieldArg, true, false)
+		s += fmt.Sprintf(`
+	if %[1]s {
+		if err := enc.NextField(%[2]q); err != nil {
 			return err
-		}%[4]s
-	}`, setup, expr, field.Name, fieldBody)
+		}%[3]s
+	}`, expr, field.Name, fieldBody)
 	}
 	s += encNextFieldDone
 	return s
@@ -359,15 +350,21 @@ func (g *genWrite) bodyUnion(field vdl.Field, arg namedArg) string {
 	if err := enc.NextField(%[1]q); err != nil {
 			return err
 	}`, field.Name)
-	s += g.body(field.Type, fieldArg, namedArg{}, false, false)
+	s += g.body(field.Type, fieldArg, false, false)
 	s += encNextFieldDone
 	return s
 }
 
 func (g *genWrite) bodyOptional(tt *vdl.Type, arg namedArg, skipNilCheck bool) string {
-	s := `
-	enc.SetNextStartValueIsOptional()`
-	s += g.body(tt.Elem(), arg, namedArg{}, false, false)
+	body := g.body(tt.Elem(), arg, false, false)
+	s := fmt.Sprintf(`
+	enc.SetNextStartValueIsOptional()
+	if err := enc.StartValue(%[1]s); err != nil {
+		return err
+	}%[2]s
+	if err := enc.FinishValue(); err != nil {
+		return err
+	}`, typedConst(g.goData, vdl.TypeObjectValue(tt.Elem())), body)
 	if !skipNilCheck {
 		s = fmt.Sprintf(`
 	if %[1]s == nil {
@@ -381,28 +378,27 @@ func (g *genWrite) bodyOptional(tt *vdl.Type, arg namedArg, skipNilCheck bool) s
 }
 
 func (g *genWrite) bodyAny(arg namedArg, skipNilCheck bool) string {
-	var selector string = "Type"
-	if shouldUseVdlValueForAny(g.goData.Package) {
-		selector = "Type()"
+	mode := goAnyRepMode(g.Package)
+	// Handle interface{} special-case.
+	if mode == goAnyRepInterface {
+		return fmt.Sprintf(`
+	if err := %[1]sWrite(enc, %[2]s); err != nil {
+		return err
+	}`, g.Pkg("v.io/v23/vdl"), arg.Ref())
 	}
-	s := `
-	switch {`
+	// Handle vdl.Value and vom.RawBytes representations.
+	s := fmt.Sprintf(`
+	if err := %[1]s.VDLWrite(enc); err != nil {
+		return err
+	}`, arg.Name)
 	if !skipNilCheck {
-		s += fmt.Sprintf(`
-	case %[1]s == nil:
+		s = fmt.Sprintf(`
+	if %[1]s == nil {
 		if err := enc.NilValue(%[2]sAnyType); err != nil {
 			return err
-		}`, arg.Ref(), g.Pkg("v.io/v23/vdl"))
+		}
+	} else {%[3]s
+	}`, arg.Ref(), g.Pkg("v.io/v23/vdl"), s)
 	}
-	s += fmt.Sprintf(`
-	case %[1]s.IsNil():
-		if err := enc.NilValue(%[1]s.%[2]s); err != nil {
-			return err
-		}
-	default:
-		if err := %[1]s.VDLWrite(enc); err != nil {
-			return err
-		}
-	}`, arg.Name, selector)
 	return s
 }

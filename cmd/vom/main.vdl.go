@@ -97,8 +97,8 @@ func (t *dataRepTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	return nil
 }
 
-func (x dataRep) VDLIsZero() (bool, error) {
-	return x == dataRepHex, nil
+func (x dataRep) VDLIsZero() bool {
+	return x == dataRepHex
 }
 
 func (x dataRep) VDLWrite(enc vdl.Encoder) error {

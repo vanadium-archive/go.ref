@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"v.io/v23/vdl"
+	"v.io/v23/vdlroot/vdltool"
 	"v.io/x/ref/lib/vdl/compile"
 )
 
@@ -36,7 +37,7 @@ func genValueOf(data *goData, v *vdl.Value) string {
 }
 
 func typedConst(data *goData, v *vdl.Value) string {
-	if native := nativeConst(data, v); native != "" {
+	if native := typedConstNative(data, v); native != "" {
 		return native
 	}
 	return typedConstWire(data, v)
@@ -81,7 +82,7 @@ func typedConstWire(data *goData, v *vdl.Value) string {
 }
 
 func untypedConst(data *goData, v *vdl.Value) string {
-	if native := nativeConst(data, v); native != "" {
+	if native := untypedConstNative(data, v); native != "" {
 		return native
 	}
 	return untypedConstWire(data, v)
@@ -99,27 +100,37 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 	switch k {
 	case vdl.Any:
 		if elem := v.Elem(); elem != nil {
-			// We need to generate a Go expression of type *vom.RawBytes or *vdl.Value
-			// that represents elem.  Since the rest of our logic can already generate
-			// the Go code for any value, we just wrap it in vom.RawBytesOf /
-			// vdl.ValueOf to produce the final result.
+			// For the interface{} case, we just return a Go expression representing
+			// the typed elem value.  If the elem type is native, we need to return a
+			// value of the native type.
+			//
+			// Otherwise we need to generate a Go expression of type *vom.RawBytes or
+			// *vdl.Value.  Since the rest of our logic can already generate the Go
+			// code for any value, we just wrap it in vom.RawBytesOf / vdl.ValueOf to
+			// produce the final result.  We don't need to generate the native
+			// representation, since it'll just be converted back to a wire
+			// representation in RawBytesOf / ValueOf anyways.
 			//
 			// This may seem like a strange roundtrip, but results in less generator
 			// and generated code.
-			//
-			// There's no need to convert the value to its native representation,
-			// since it'll just be converted back in vom.RawBytesOf / vdl.ValueOf.
-			if shouldUseVdlValueForAny(data.Package) {
-				return data.Pkg("v.io/v23/vdl") + "ValueOf(" + typedConstWire(data, elem) + ")"
-			} else {
+			switch goAnyRepMode(data.Package) {
+			case goAnyRepRawBytes:
 				return data.Pkg("v.io/v23/vom") + "RawBytesOf(" + typedConstWire(data, elem) + ")"
+			case goAnyRepValue:
+				return data.Pkg("v.io/v23/vdl") + "ValueOf(" + typedConstWire(data, elem) + ")"
+			default:
+				// We need the final result to be the native type.
+				return typedConst(data, elem)
 			}
 		}
-		if shouldUseVdlValueForAny(data.Package) {
-			return data.Pkg("v.io/v23/vdl") + "ZeroValue(vdl.AnyType)"
-		} else {
+		switch goAnyRepMode(data.Package) {
+		case goAnyRepRawBytes:
 			// TODO(bprosnitz) Can this just be vom.RawBytesOf(nil)
 			return data.Pkg("v.io/v23/vom") + "RawBytesOf(" + data.Pkg("v.io/v23/vdl") + "ZeroValue(vdl.AnyType)" + ")"
+		case goAnyRepValue:
+			return data.Pkg("v.io/v23/vdl") + "ZeroValue(vdl.AnyType)"
+		default:
+			return "nil"
 		}
 	case vdl.Optional:
 		if elem := v.Elem(); elem != nil {
@@ -127,13 +138,9 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 		}
 		return "nil"
 	case vdl.TypeObject:
-		// We special-case Any and TypeObject, since they cannot be named by the
-		// user, and are simple to return statically.
-		switch v.TypeObject().Kind() {
-		case vdl.Any:
-			return data.Pkg("v.io/v23/vdl") + "AnyType"
-		case vdl.TypeObject:
-			return data.Pkg("v.io/v23/vdl") + "TypeObjectType"
+		// Special-case all types that are simple to return statically.
+		if typeVar := constBuiltInTypeVar(v.TypeObject()); typeVar != "" {
+			return data.Pkg("v.io/v23/vdl") + typeVar
 		}
 		// We need to generate a Go expression of type *vdl.Type that represents the
 		// type.  Since the rest of our logic can already generate the Go code for
@@ -163,10 +170,9 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 	case vdl.Enum:
 		return typestr + v.EnumLabel()
 	case vdl.Array:
-		if v.IsZero() && !t.ContainsKind(vdl.WalkInline, vdl.TypeObject, vdl.Union) {
-			// We can't rely on the golang zero-value array if t contains inline
-			// typeobject or union, since the golang zero-value for these types is
-			// different from the vdl zero-value for these types.
+		if v.IsZero() && isGoZeroValueCanonical(data, t.Elem()) {
+			// If the array is zero and the element type represents zero using the go
+			// zero value, we can special-case using the go zero value.
 			return "{}"
 		}
 		s := "{"
@@ -202,11 +208,10 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 		hasFields := false
 		for ix := 0; ix < t.NumField(); ix++ {
 			vf := v.StructField(ix)
-			if !vf.IsZero() || vf.Type().ContainsKind(vdl.WalkInline, vdl.TypeObject, vdl.Any, vdl.Union) {
-				// We can't rely on the golang zero-value for this field, even if it's a
-				// vdl zero value, if the field contains inline typeobject or union,
-				// since the golang zero-value for these types is different from the vdl
-				// zero-value for these types.
+			if !vf.IsZero() || !isGoZeroValueCanonical(data, vf.Type()) {
+				// Only set the field if the field isn't zero or the field type doesn't
+				// represent zero using the go zero value.  Otherwise simply skip the
+				// field, letting the default go zero value occur.
 				s += "\n" + t.Field(ix).Name + ": " + fieldConst(data, vf) + ","
 				hasFields = true
 			}
@@ -218,10 +223,10 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 	case vdl.Union:
 		ix, vf := v.UnionField()
 		var inner string
-		if !vf.IsZero() || vf.Type().ContainsKind(vdl.WalkInline, vdl.TypeObject, vdl.Any, vdl.Union) {
-			// We can't rely on the golang zero-value array if t contains inline
-			// typeobject or union, since the golang zero-value for these types is
-			// different from the vdl zero-value for these types.
+		if !vf.IsZero() || !isGoZeroValueCanonical(data, vf.Type()) {
+			// Only set the field if the field isn't zero or the field type doesn't
+			// represent zero using the go zero value.  Otherwise simply skip the
+			// field, letting the default go zero value occur.
 			inner = fieldConst(data, vf)
 		}
 		return typestr + t.Field(ix).Name + "{" + inner + "}"
@@ -240,6 +245,12 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 // ensures typedConst is only called when the field itself will result in
 // another Go composite literal.
 func fieldConst(data *goData, v *vdl.Value) string {
+	if native, _, ok := findNativeType(data.Env, v.Type()); ok {
+		switch native.Kind {
+		case vdltool.GoKindArray, vdltool.GoKindSlice, vdltool.GoKindMap, vdltool.GoKindStruct:
+			return typedConst(data, v)
+		}
+	}
 	switch v.Kind() {
 	case vdl.Array, vdl.List, vdl.Set, vdl.Map, vdl.Struct, vdl.Optional:
 		return typedConst(data, v)
@@ -249,6 +260,44 @@ func fieldConst(data *goData, v *vdl.Value) string {
 	// attached to it, and we don't need to convert this to the union interface
 	// type, since the concrete union struct is assignable to the union interface.
 	return untypedConst(data, v)
+}
+
+func constBuiltInTypeVar(tt *vdl.Type) string {
+	// Only return exact matches against the built-in types; named and composite
+	// types need special handling to generate the correct type.
+	switch tt {
+	case vdl.AnyType:
+		return "AnyType"
+	case vdl.BoolType:
+		return "BoolType"
+	case vdl.ByteType:
+		return "ByteType"
+	case vdl.Uint16Type:
+		return "Uint16Type"
+	case vdl.Uint32Type:
+		return "Uint32Type"
+	case vdl.Uint64Type:
+		return "Uint64Type"
+	case vdl.Int8Type:
+		return "Int8Type"
+	case vdl.Int16Type:
+		return "Int16Type"
+	case vdl.Int32Type:
+		return "Int32Type"
+	case vdl.Int64Type:
+		return "Int64Type"
+	case vdl.Float32Type:
+		return "Float32Type"
+	case vdl.Float64Type:
+		return "Float64Type"
+	case vdl.StringType:
+		return "StringType"
+	case vdl.TypeObjectType:
+		return "TypeObjectType"
+	case vdl.ErrorType:
+		return "ErrorType"
+	}
+	return ""
 }
 
 func formatFloat(x float64, kind vdl.Kind) string {
@@ -264,23 +313,74 @@ func formatFloat(x float64, kind vdl.Kind) string {
 	return strconv.FormatFloat(x, 'g', -1, bitSize)
 }
 
-// nativeConst returns an inline function that returns the typed const for a
-// native type.  Returns the empty string if v isn't a native type.
-func nativeConst(data *goData, v *vdl.Value) string {
-	def := data.Env.FindTypeDef(v.Type())
-	if def == nil {
-		return ""
+// typedConstNative returns a typed native constant, or returns the empty string
+// if v isn't a native type.
+func typedConstNative(data *goData, v *vdl.Value) string {
+	if native, wirePkg, ok := findNativeType(data.Env, v.Type()); ok {
+		nType := nativeType(data, native, wirePkg)
+		if native.Zero.Mode != vdltool.GoZeroModeUnknown && v.IsZero() {
+			// This is the case where the value is zero, and the zero mode is either
+			// Canonical or Unique, which means that the Go zero value of the native
+			// type is sufficient to represent the value.
+			return typedConstNativeZero(native.Kind, nType)
+		}
+		return constNativeConversion(data, v, nType)
 	}
-	pkg := def.File.Package
-	native, ok := pkg.Config.Go.WireToNativeTypes[def.Name]
-	if !ok {
-		return ""
+	return ""
+}
+
+// untypedConstNative returns an untyped native constant, or returns the empty
+// string if v isn't a native type.
+func untypedConstNative(data *goData, v *vdl.Value) string {
+	if native, wirePkg, ok := findNativeType(data.Env, v.Type()); ok {
+		if native.Zero.Mode != vdltool.GoZeroModeUnknown && v.IsZero() {
+			// This is the case where the value is zero, and the zero mode is either
+			// Canonical or Unique, which means that the Go zero value of the native
+			// type is sufficient to represent the value.
+			return untypedConstNativeZero(native.Kind)
+		}
+		return constNativeConversion(data, v, nativeType(data, native, wirePkg))
 	}
+	return ""
+}
+
+func constNativeConversion(data *goData, v *vdl.Value, nType string) string {
+	// TODO(toddw): Change const generation to use the same style as
+	// genIsZero, which creates separate setup and expr code, so that we can
+	// handle errors without panicing.
 	return fmt.Sprintf(`func() %[1]s {
 	var native %[1]s
-	if err := %[2]sConvert(&native, %[3]s); err != nil {
+	wire := %[2]s
+	if err := %[3]sToNative(wire, &native); err != nil {
 		panic(err)
 	}
 	return native
-}()`, nativeIdent(data, native, pkg), data.Pkg("v.io/v23/vdl"), typedConstWire(data, v))
+}()`, nType, typedConstWire(data, v), typeGoWire(data, v.Type()))
+}
+
+func typedConstNativeZero(kind vdltool.GoKind, nType string) string {
+	zero := untypedConstNativeZero(kind)
+	switch kind {
+	case vdltool.GoKindStruct, vdltool.GoKindArray:
+		return nType + zero // e.g. NativeType{}
+	case vdltool.GoKindPointer:
+		return "(" + nType + ")(" + zero + ")" // e.g. (*NativeType)(nil)
+	default:
+		return nType + "(" + zero + ")" // e.g. NativeType(0)
+	}
+}
+
+func untypedConstNativeZero(kind vdltool.GoKind) string {
+	switch kind {
+	case vdltool.GoKindStruct, vdltool.GoKindArray:
+		return "{}"
+	case vdltool.GoKindBool:
+		return "false"
+	case vdltool.GoKindNumber:
+		return "0"
+	case vdltool.GoKindString:
+		return `""`
+	default:
+		return "nil"
+	}
 }

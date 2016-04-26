@@ -183,17 +183,17 @@ func (t *SyncgroupOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x SyncgroupOp) VDLIsZero() (bool, error) {
+func (x SyncgroupOp) VDLIsZero() bool {
 	if x.SgId != "" {
-		return false, nil
+		return false
 	}
 	if len(x.Prefixes) != 0 {
-		return false, nil
+		return false
 	}
 	if x.Remove {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x SyncgroupOp) VDLWrite(enc vdl.Encoder) error {
@@ -220,7 +220,7 @@ func (x SyncgroupOp) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Remove"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.Remove); err != nil {
@@ -247,7 +247,7 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x[i]); err != nil {
@@ -468,14 +468,14 @@ func (t *SyncSnapshotOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x SyncSnapshotOp) VDLIsZero() (bool, error) {
+func (x SyncSnapshotOp) VDLIsZero() bool {
 	if len(x.Key) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Version) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x SyncSnapshotOp) VDLWrite(enc vdl.Encoder) error {
@@ -641,8 +641,8 @@ func (t *StateChangeTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	return nil
 }
 
-func (x StateChange) VDLIsZero() (bool, error) {
-	return x == StateChangePauseSync, nil
+func (x StateChange) VDLIsZero() bool {
+	return x == StateChangePauseSync
 }
 
 func (x StateChange) VDLWrite(enc vdl.Encoder) error {
@@ -759,8 +759,8 @@ func (t *DbStateChangeRequestOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x DbStateChangeRequestOp) VDLIsZero() (bool, error) {
-	return x == DbStateChangeRequestOp{}, nil
+func (x DbStateChangeRequestOp) VDLIsZero() bool {
+	return x == DbStateChangeRequestOp{}
 }
 
 func (x DbStateChangeRequestOp) VDLWrite(enc vdl.Encoder) error {

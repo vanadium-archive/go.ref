@@ -245,29 +245,21 @@ func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x AdConversionTestCase) VDLIsZero() (bool, error) {
-	isZeroAdInfo, err := x.AdInfo.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	if !isZeroAdInfo {
-		return false, nil
+func (x AdConversionTestCase) VDLIsZero() bool {
+	if !x.AdInfo.VDLIsZero() {
+		return false
 	}
 	if len(x.GattAttrs) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x AdConversionTestCase) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*AdConversionTestCase)(nil)).Elem()); err != nil {
 		return err
 	}
-	isZeroAdInfo, err := x.AdInfo.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroAdInfo {
+	if !x.AdInfo.VDLIsZero() {
 		if err := enc.NextField("AdInfo"); err != nil {
 			return err
 		}
@@ -300,7 +292,7 @@ func __VDLWriteAnon_map_1(enc vdl.Encoder, x map[string][]byte) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(key); err != nil {

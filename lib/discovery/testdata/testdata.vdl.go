@@ -157,14 +157,14 @@ func (t *PackAddressTestTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x PackAddressTest) VDLIsZero() (bool, error) {
+func (x PackAddressTest) VDLIsZero() bool {
 	if len(x.In) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Packed) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x PackAddressTest) VDLWrite(enc vdl.Encoder) error {
@@ -210,7 +210,7 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x[i]); err != nil {
@@ -504,17 +504,17 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x PackEncryptionKeysTest) VDLIsZero() (bool, error) {
+func (x PackEncryptionKeysTest) VDLIsZero() bool {
 	if x.Algo != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Keys) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Packed) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x PackEncryptionKeysTest) VDLWrite(enc vdl.Encoder) error {
@@ -763,8 +763,8 @@ func (t *UuidTestDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x UuidTestData) VDLIsZero() (bool, error) {
-	return x == UuidTestData{}, nil
+func (x UuidTestData) VDLIsZero() bool {
+	return x == UuidTestData{}
 }
 
 func (x UuidTestData) VDLWrite(enc vdl.Encoder) error {
@@ -775,7 +775,7 @@ func (x UuidTestData) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("In"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.In); err != nil {
@@ -789,7 +789,7 @@ func (x UuidTestData) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Want"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Want); err != nil {

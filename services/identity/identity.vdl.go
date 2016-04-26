@@ -158,14 +158,14 @@ func (t *BlessingRootResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x BlessingRootResponse) VDLIsZero() (bool, error) {
+func (x BlessingRootResponse) VDLIsZero() bool {
 	if len(x.Names) != 0 {
-		return false, nil
+		return false
 	}
 	if x.PublicKey != "" {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x BlessingRootResponse) VDLWrite(enc vdl.Encoder) error {
@@ -184,7 +184,7 @@ func (x BlessingRootResponse) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("PublicKey"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.PublicKey); err != nil {
@@ -211,7 +211,7 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x[i]); err != nil {

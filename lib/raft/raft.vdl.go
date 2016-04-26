@@ -74,8 +74,8 @@ func (t *TermTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x Term) VDLIsZero() (bool, error) {
-	return x == 0, nil
+func (x Term) VDLIsZero() bool {
+	return x == 0
 }
 
 func (x Term) VDLWrite(enc vdl.Encoder) error {
@@ -154,8 +154,8 @@ func (t *IndexTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x Index) VDLIsZero() (bool, error) {
-	return x == 0, nil
+func (x Index) VDLIsZero() bool {
+	return x == 0
 }
 
 func (x Index) VDLWrite(enc vdl.Encoder) error {
@@ -357,20 +357,20 @@ func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x LogEntry) VDLIsZero() (bool, error) {
+func (x LogEntry) VDLIsZero() bool {
 	if x.Term != 0 {
-		return false, nil
+		return false
 	}
 	if x.Index != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Cmd) != 0 {
-		return false, nil
+		return false
 	}
 	if x.Type != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
@@ -411,7 +411,7 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Type"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*byte)(nil))); err != nil {
+		if err := enc.StartValue(vdl.ByteType); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.Type)); err != nil {

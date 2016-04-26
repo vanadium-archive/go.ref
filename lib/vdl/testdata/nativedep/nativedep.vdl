@@ -8,8 +8,7 @@ import "v.io/x/ref/lib/vdl/testdata/nativetest"
 
 type All struct {
 	A nativetest.WireString
-	B nativetest.WireMapStringInt
-	C nativetest.WireTime
-	D nativetest.WireSamePkg
-	E nativetest.WireMultiImport
+	B nativetest.WireTime
+	C nativetest.WireSamePkg
+	D nativetest.WireMultiImport
 }

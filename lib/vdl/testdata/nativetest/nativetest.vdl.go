@@ -85,8 +85,8 @@ func (t *WireStringTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x WireString) VDLIsZero() (bool, error) {
-	return x == 0, nil
+func (x WireString) VDLIsZero() bool {
+	return x == 0
 }
 
 func (x WireString) VDLWrite(enc vdl.Encoder) error {
@@ -108,96 +108,6 @@ func (x *WireString) VDLRead(dec vdl.Decoder) error {
 		return err
 	}
 	*x = string(tmp)
-	return dec.FinishValue()
-}
-
-type WireMapStringInt int32
-
-func (WireMapStringInt) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/nativetest.WireMapStringInt"`
-}) {
-}
-
-func (m *WireMapStringInt) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), tt); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *WireMapStringInt) MakeVDLTarget() vdl.Target {
-	return nil
-}
-
-type WireMapStringIntTarget struct {
-	Value     *map[string]int
-	wireValue WireMapStringInt
-	vdl.TargetBase
-}
-
-func (t *WireMapStringIntTarget) FromUint(src uint64, tt *vdl.Type) error {
-	t.wireValue = WireMapStringInt(0)
-	val, err := vdlconv.Uint64ToInt32(src)
-	if err != nil {
-		return err
-	}
-	t.wireValue = map[string]int(val)
-
-	if err := WireMapStringIntToNative(t.wireValue, t.Value); err != nil {
-		return err
-	}
-	return nil
-}
-func (t *WireMapStringIntTarget) FromInt(src int64, tt *vdl.Type) error {
-	t.wireValue = WireMapStringInt(0)
-	val, err := vdlconv.Int64ToInt32(src)
-	if err != nil {
-		return err
-	}
-	t.wireValue = map[string]int(val)
-
-	if err := WireMapStringIntToNative(t.wireValue, t.Value); err != nil {
-		return err
-	}
-	return nil
-}
-func (t *WireMapStringIntTarget) FromFloat(src float64, tt *vdl.Type) error {
-	t.wireValue = WireMapStringInt(0)
-	val, err := vdlconv.Float64ToInt32(src)
-	if err != nil {
-		return err
-	}
-	t.wireValue = map[string]int(val)
-
-	if err := WireMapStringIntToNative(t.wireValue, t.Value); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (x WireMapStringInt) VDLIsZero() (bool, error) {
-	return x == 0, nil
-}
-
-func (x WireMapStringInt) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*WireMapStringInt)(nil))); err != nil {
-		return err
-	}
-	if err := enc.EncodeInt(int64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
-}
-
-func (x *WireMapStringInt) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
-		return err
-	}
-	tmp, err := dec.DecodeInt(32)
-	if err != nil {
-		return err
-	}
-	*x = map[string]int(tmp)
 	return dec.FinishValue()
 }
 
@@ -265,8 +175,8 @@ func (t *WireTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x WireTime) VDLIsZero() (bool, error) {
-	return x == 0, nil
+func (x WireTime) VDLIsZero() bool {
+	return x == 0
 }
 
 func (x WireTime) VDLWrite(enc vdl.Encoder) error {
@@ -355,8 +265,8 @@ func (t *WireSamePkgTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x WireSamePkg) VDLIsZero() (bool, error) {
-	return x == 0, nil
+func (x WireSamePkg) VDLIsZero() bool {
+	return x == 0
 }
 
 func (x WireSamePkg) VDLWrite(enc vdl.Encoder) error {
@@ -445,8 +355,8 @@ func (t *WireMultiImportTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x WireMultiImport) VDLIsZero() (bool, error) {
-	return x == 0, nil
+func (x WireMultiImport) VDLIsZero() bool {
+	return x == 0
 }
 
 func (x WireMultiImport) VDLWrite(enc vdl.Encoder) error {
@@ -525,8 +435,8 @@ func (t *WireRenameMeTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x WireRenameMe) VDLIsZero() (bool, error) {
-	return x == 0, nil
+func (x WireRenameMe) VDLIsZero() bool {
+	return x == 0
 }
 
 func (x WireRenameMe) VDLWrite(enc vdl.Encoder) error {
@@ -553,11 +463,10 @@ func (x *WireRenameMe) VDLRead(dec vdl.Decoder) error {
 
 type WireAll struct {
 	A string
-	B map[string]int
-	C time.Time
-	D nativetest.NativeSamePkg
-	E map[nativetest.NativeSamePkg]time.Time
-	F WireRenameMe
+	B time.Time
+	C nativetest.NativeSamePkg
+	D map[nativetest.NativeSamePkg]time.Time
+	E WireRenameMe
 }
 
 func (WireAll) __VDLReflect(struct {
@@ -595,12 +504,12 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue6 WireMapStringInt
-	if err := WireMapStringIntFromNative(&wireValue6, m.B); err != nil {
+	var wireValue6 WireTime
+	if err := WireTimeFromNative(&wireValue6, m.B); err != nil {
 		return err
 	}
 
-	var9 := (wireValue6 == WireMapStringInt(0))
+	var9 := (wireValue6 == WireTime(0))
 	if var9 {
 		if err := fieldsTarget1.ZeroField("B"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -620,12 +529,12 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue10 WireTime
-	if err := WireTimeFromNative(&wireValue10, m.C); err != nil {
+	var wireValue10 WireSamePkg
+	if err := WireSamePkgFromNative(&wireValue10, m.C); err != nil {
 		return err
 	}
 
-	var13 := (wireValue10 == WireTime(0))
+	var13 := (wireValue10 == WireSamePkg(0))
 	if var13 {
 		if err := fieldsTarget1.ZeroField("C"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -645,12 +554,12 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue14 WireSamePkg
-	if err := WireSamePkgFromNative(&wireValue14, m.D); err != nil {
+	var wireValue14 WireMultiImport
+	if err := WireMultiImportFromNative(&wireValue14, m.D); err != nil {
 		return err
 	}
 
-	var17 := (wireValue14 == WireSamePkg(0))
+	var17 := (wireValue14 == WireMultiImport(0))
 	if var17 {
 		if err := fieldsTarget1.ZeroField("D"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -670,47 +579,22 @@ func (m *WireAll) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue18 WireMultiImport
-	if err := WireMultiImportFromNative(&wireValue18, m.E); err != nil {
-		return err
-	}
-
-	var21 := (wireValue18 == WireMultiImport(0))
-	if var21 {
+	var20 := (m.E == WireRenameMe(0))
+	if var20 {
 		if err := fieldsTarget1.ZeroField("E"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("E")
+		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("E")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
 
-			if err := wireValue18.FillVDLTarget(fieldTarget20, tt.NonOptional().Field(4).Type); err != nil {
+			if err := m.E.FillVDLTarget(fieldTarget19, tt.NonOptional().Field(4).Type); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
-				return err
-			}
-		}
-	}
-	var24 := (m.F == WireRenameMe(0))
-	if var24 {
-		if err := fieldsTarget1.ZeroField("F"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("F")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := m.F.FillVDLTarget(fieldTarget23, tt.NonOptional().Field(5).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
 				return err
 			}
 		}
@@ -728,11 +612,10 @@ func (m *WireAll) MakeVDLTarget() vdl.Target {
 type WireAllTarget struct {
 	Value   *WireAll
 	aTarget WireStringTarget
-	bTarget WireMapStringIntTarget
-	cTarget WireTimeTarget
-	dTarget WireSamePkgTarget
-	eTarget WireMultiImportTarget
-	fTarget WireRenameMeTarget
+	bTarget WireTimeTarget
+	cTarget WireSamePkgTarget
+	dTarget WireMultiImportTarget
+	eTarget WireRenameMeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -766,10 +649,6 @@ func (t *WireAllTarget) StartField(name string) (key, field vdl.Target, _ error)
 		t.eTarget.Value = &t.Value.E
 		target, err := &t.eTarget, error(nil)
 		return nil, target, err
-	case "F":
-		t.fTarget.Value = &t.Value.F
-		target, err := &t.fTarget, error(nil)
-		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/nativetest.WireAll", name)
 	}
@@ -780,52 +659,19 @@ func (t *WireAllTarget) FinishField(_, _ vdl.Target) error {
 func (t *WireAllTarget) ZeroField(name string) error {
 	switch name {
 	case "A":
-		t.Value.A = func() string {
-			var native string
-			if err := vdl.Convert(&native, WireString(0)); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.A = string("")
 		return nil
 	case "B":
-		t.Value.B = func() map[string]int {
-			var native map[string]int
-			if err := vdl.Convert(&native, WireMapStringInt(0)); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.B = time.Time{}
 		return nil
 	case "C":
-		t.Value.C = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, WireTime(0)); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.C = nativetest.NativeSamePkg("")
 		return nil
 	case "D":
-		t.Value.D = func() nativetest.NativeSamePkg {
-			var native nativetest.NativeSamePkg
-			if err := vdl.Convert(&native, WireSamePkg(0)); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.D = map[nativetest.NativeSamePkg]time.Time(nil)
 		return nil
 	case "E":
-		t.Value.E = func() map[nativetest.NativeSamePkg]time.Time {
-			var native map[nativetest.NativeSamePkg]time.Time
-			if err := vdl.Convert(&native, WireMultiImport(0)); err != nil {
-				panic(err)
-			}
-			return native
-		}()
-		return nil
-	case "F":
-		t.Value.F = WireRenameMe(0)
+		t.Value.E = WireRenameMe(0)
 		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/nativetest.WireAll", name)
@@ -836,117 +682,82 @@ func (t *WireAllTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x WireAll) VDLIsZero() (bool, error) {
-	var wireA WireString
-	if err := WireStringFromNative(&wireA, x.A); err != nil {
-		return false, err
+func (x WireAll) VDLIsZero() bool {
+	if x.A != string("") {
+		return false
 	}
-	if wireA != 0 {
-		return false, nil
+	if !x.B.IsZero() {
+		return false
 	}
-	var wireB WireMapStringInt
-	if err := WireMapStringIntFromNative(&wireB, x.B); err != nil {
-		return false, err
+	if x.C != nativetest.NativeSamePkg("") {
+		return false
 	}
-	if wireB != 0 {
-		return false, nil
+	if x.D != map[nativetest.NativeSamePkg]time.Time(nil) {
+		return false
 	}
-	var wireC WireTime
-	if err := WireTimeFromNative(&wireC, x.C); err != nil {
-		return false, err
+	if x.E != 0 {
+		return false
 	}
-	if wireC != 0 {
-		return false, nil
-	}
-	var wireD WireSamePkg
-	if err := WireSamePkgFromNative(&wireD, x.D); err != nil {
-		return false, err
-	}
-	if wireD != 0 {
-		return false, nil
-	}
-	var wireE WireMultiImport
-	if err := WireMultiImportFromNative(&wireE, x.E); err != nil {
-		return false, err
-	}
-	if wireE != 0 {
-		return false, nil
-	}
-	if x.F != 0 {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x WireAll) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*WireAll)(nil)).Elem()); err != nil {
 		return err
 	}
-	var wireA WireString
-	if err := WireStringFromNative(&wireA, x.A); err != nil {
-		return err
-	}
-	if wireA != 0 {
+	if x.A != string("") {
 		if err := enc.NextField("A"); err != nil {
 			return err
 		}
-		if err := wireA.VDLWrite(enc); err != nil {
+		var wire WireString
+		if err := WireStringFromNative(&wire, x.A); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireB WireMapStringInt
-	if err := WireMapStringIntFromNative(&wireB, x.B); err != nil {
-		return err
-	}
-	if wireB != 0 {
+	if !x.B.IsZero() {
 		if err := enc.NextField("B"); err != nil {
 			return err
 		}
-		if err := wireB.VDLWrite(enc); err != nil {
+		var wire WireTime
+		if err := WireTimeFromNative(&wire, x.B); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireC WireTime
-	if err := WireTimeFromNative(&wireC, x.C); err != nil {
-		return err
-	}
-	if wireC != 0 {
+	if x.C != nativetest.NativeSamePkg("") {
 		if err := enc.NextField("C"); err != nil {
 			return err
 		}
-		if err := wireC.VDLWrite(enc); err != nil {
+		var wire WireSamePkg
+		if err := WireSamePkgFromNative(&wire, x.C); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireD WireSamePkg
-	if err := WireSamePkgFromNative(&wireD, x.D); err != nil {
-		return err
-	}
-	if wireD != 0 {
+	if x.D != map[nativetest.NativeSamePkg]time.Time(nil) {
 		if err := enc.NextField("D"); err != nil {
 			return err
 		}
-		if err := wireD.VDLWrite(enc); err != nil {
+		var wire WireMultiImport
+		if err := WireMultiImportFromNative(&wire, x.D); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireE WireMultiImport
-	if err := WireMultiImportFromNative(&wireE, x.E); err != nil {
-		return err
-	}
-	if wireE != 0 {
+	if x.E != 0 {
 		if err := enc.NextField("E"); err != nil {
 			return err
 		}
-		if err := wireE.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if x.F != 0 {
-		if err := enc.NextField("F"); err != nil {
-			return err
-		}
-		if err := x.F.VDLWrite(enc); err != nil {
+		if err := x.E.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -981,39 +792,31 @@ func (x *WireAll) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "B":
-			var wire WireMapStringInt
-			if err := wire.VDLRead(dec); err != nil {
-				return err
-			}
-			if err := WireMapStringIntToNative(wire, &x.B); err != nil {
-				return err
-			}
-		case "C":
 			var wire WireTime
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := WireTimeToNative(wire, &x.C); err != nil {
+			if err := WireTimeToNative(wire, &x.B); err != nil {
 				return err
 			}
-		case "D":
+		case "C":
 			var wire WireSamePkg
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := WireSamePkgToNative(wire, &x.D); err != nil {
+			if err := WireSamePkgToNative(wire, &x.C); err != nil {
 				return err
 			}
-		case "E":
+		case "D":
 			var wire WireMultiImport
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := WireMultiImportToNative(wire, &x.E); err != nil {
+			if err := WireMultiImportToNative(wire, &x.D); err != nil {
 				return err
 			}
-		case "F":
-			if err := x.F.VDLRead(dec); err != nil {
+		case "E":
+			if err := x.E.VDLRead(dec); err != nil {
 				return err
 			}
 		default:
@@ -1057,8 +860,8 @@ func (t *ignoremeTarget) FromString(src string, tt *vdl.Type) error {
 	return nil
 }
 
-func (x ignoreme) VDLIsZero() (bool, error) {
-	return x == "", nil
+func (x ignoreme) VDLIsZero() bool {
+	return x == ""
 }
 
 func (x ignoreme) VDLWrite(enc vdl.Encoder) error {
@@ -1085,8 +888,6 @@ func (x *ignoreme) VDLRead(dec vdl.Decoder) error {
 
 // Type-check native conversion functions.
 var (
-	_ func(WireMapStringInt, *map[string]int) error                        = WireMapStringIntToNative
-	_ func(*WireMapStringInt, map[string]int) error                        = WireMapStringIntFromNative
 	_ func(WireMultiImport, *map[nativetest.NativeSamePkg]time.Time) error = WireMultiImportToNative
 	_ func(*WireMultiImport, map[nativetest.NativeSamePkg]time.Time) error = WireMultiImportFromNative
 	_ func(WireSamePkg, *nativetest.NativeSamePkg) error                   = WireSamePkgToNative
@@ -1119,7 +920,6 @@ func __VDLInit() struct{} {
 	__VDLInitCalled = true
 
 	// Register native type conversions first, so that vdl.TypeOf works.
-	vdl.RegisterNative(WireMapStringIntToNative, WireMapStringIntFromNative)
 	vdl.RegisterNative(WireMultiImportToNative, WireMultiImportFromNative)
 	vdl.RegisterNative(WireSamePkgToNative, WireSamePkgFromNative)
 	vdl.RegisterNative(WireStringToNative, WireStringFromNative)
@@ -1127,7 +927,6 @@ func __VDLInit() struct{} {
 
 	// Register types.
 	vdl.Register((*WireString)(nil))
-	vdl.Register((*WireMapStringInt)(nil))
 	vdl.Register((*WireTime)(nil))
 	vdl.Register((*WireSamePkg)(nil))
 	vdl.Register((*WireMultiImport)(nil))

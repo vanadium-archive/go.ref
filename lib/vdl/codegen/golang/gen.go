@@ -200,6 +200,9 @@ func validateGoConfig(pkg *compile.Package, env *compile.Env) {
 				env.Errors.Errorf("%s: type %s specified in Go.WireToNativeTypes invalid (native type %q doesn't contain import prefix %q)", vdlconfig, wire, native.Type, importPrefix)
 			}
 		}
+		if native.Zero.Mode != vdltool.GoZeroModeUnique && native.Zero.IsZero == "" {
+			env.Errors.Errorf("%s: type %s specified in Go.WireToNativeTypes invalid (native type %q must be either Mode:Unique or have a non-empty IsZero)", vdlconfig, wire, native.Type)
+		}
 	}
 }
 
@@ -216,7 +219,7 @@ func init() {
 		"firstRuneToLower":        vdlutil.FirstRuneToLower,
 		"vdlZeroValue":            vdl.ZeroValue,
 		"errorName":               errorName,
-		"nativeIdent":             nativeIdent,
+		"nativeType":              nativeType,
 		"typeGo":                  typeGo,
 		"defineType":              defineType,
 		"defineIsZero":            defineIsZero,
@@ -517,7 +520,7 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 {{if $pkg.Config.Go.WireToNativeTypes}}
 // Type-check native conversion functions.
 var (
-{{range $wire, $native := $pkg.Config.Go.WireToNativeTypes}}{{$nat := nativeIdent $data $native $pkg}}
+{{range $wire, $native := $pkg.Config.Go.WireToNativeTypes}}{{$nat := nativeType $data $native $pkg}}
 	_ func({{$wire}}, *{{$nat}}) error = {{$wire}}ToNative
 	_ func(*{{$wire}}, {{$nat}}) error = {{$wire}}FromNative{{end}}
 )

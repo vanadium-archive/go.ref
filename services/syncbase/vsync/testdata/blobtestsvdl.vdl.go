@@ -133,8 +133,8 @@ func (t *BlobInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x BlobInfo) VDLIsZero() (bool, error) {
-	return x == BlobInfo{}, nil
+func (x BlobInfo) VDLIsZero() bool {
+	return x == BlobInfo{}
 }
 
 func (x BlobInfo) VDLWrite(enc vdl.Encoder) error {
@@ -145,7 +145,7 @@ func (x BlobInfo) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Info"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Info); err != nil {
@@ -220,7 +220,7 @@ type (
 		// __VDLReflect describes the BlobUnion union type.
 		__VDLReflect(__BlobUnionReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// BlobUnionNum represents field Num of the BlobUnion union type.
@@ -353,12 +353,12 @@ func (t blobUnionTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Targe
 	return nil, fmt.Errorf("got %T, want *BlobUnion", union)
 }
 
-func (x BlobUnionNum) VDLIsZero() (bool, error) {
-	return x.Value == 0, nil
+func (x BlobUnionNum) VDLIsZero() bool {
+	return x.Value == 0
 }
 
-func (x BlobUnionBi) VDLIsZero() (bool, error) {
-	return false, nil
+func (x BlobUnionBi) VDLIsZero() bool {
+	return false
 }
 
 func (x BlobUnionNum) VDLWrite(enc vdl.Encoder) error {
@@ -368,7 +368,7 @@ func (x BlobUnionNum) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.NextField("Num"); err != nil {
 		return err
 	}
-	if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+	if err := enc.StartValue(vdl.Int32Type); err != nil {
 		return err
 	}
 	if err := enc.EncodeInt(int64(x.Value)); err != nil {
@@ -613,14 +613,14 @@ func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 	return nil
 }
 
-func (x BlobSet) VDLIsZero() (bool, error) {
+func (x BlobSet) VDLIsZero() bool {
 	if x.Info != "" {
-		return false, nil
+		return false
 	}
 	if len(x.Bs) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x BlobSet) VDLWrite(enc vdl.Encoder) error {
@@ -631,7 +631,7 @@ func (x BlobSet) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Info"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Info); err != nil {
@@ -912,14 +912,14 @@ func (t *__VDLTarget2_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x BlobAny) VDLIsZero() (bool, error) {
+func (x BlobAny) VDLIsZero() bool {
 	if x.Info != "" {
-		return false, nil
+		return false
 	}
 	if len(x.Baa) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x BlobAny) VDLWrite(enc vdl.Encoder) error {
@@ -930,7 +930,7 @@ func (x BlobAny) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Info"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Info); err != nil {
@@ -965,25 +965,14 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []*vom.RawBytes) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.AnyType); err != nil {
-			return err
-		}
-		switch {
-		case x[i] == nil:
+		if x[i] == nil {
 			if err := enc.NilValue(vdl.AnyType); err != nil {
 				return err
 			}
-		case x[i].IsNil():
-			if err := enc.NilValue(x[i].Type); err != nil {
-				return err
-			}
-		default:
+		} else {
 			if err := x[i].VDLWrite(enc); err != nil {
 				return err
 			}
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
 		}
 	}
 	if err := enc.NextEntry(true); err != nil {
@@ -1226,14 +1215,14 @@ func (t *__VDLTarget3_set) FinishSet(list vdl.SetTarget) error {
 	return nil
 }
 
-func (x NonBlobSet) VDLIsZero() (bool, error) {
+func (x NonBlobSet) VDLIsZero() bool {
 	if x.Info != "" {
-		return false, nil
+		return false
 	}
 	if len(x.S) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x NonBlobSet) VDLWrite(enc vdl.Encoder) error {
@@ -1244,7 +1233,7 @@ func (x NonBlobSet) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Info"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Info); err != nil {
@@ -1279,7 +1268,7 @@ func __VDLWriteAnon_set_3(enc vdl.Encoder, x map[string]struct{}) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(key); err != nil {
@@ -1515,8 +1504,8 @@ func (t *__VDLTarget4_optional) FromNil(tt *vdl.Type) error {
 	return nil
 }
 
-func (x BlobOpt) VDLIsZero() (bool, error) {
-	return x == BlobOpt{}, nil
+func (x BlobOpt) VDLIsZero() bool {
+	return x == BlobOpt{}
 }
 
 func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
@@ -1527,7 +1516,7 @@ func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Info"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Info); err != nil {
@@ -1541,11 +1530,14 @@ func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Bo"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((**BlobInfo)(nil))); err != nil {
+		enc.SetNextStartValueIsOptional()
+		if err := enc.StartValue(vdl.TypeOf((*BlobInfo)(nil)).Elem()); err != nil {
 			return err
 		}
-		enc.SetNextStartValueIsOptional()
 		if err := x.Bo.VDLWrite(enc); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
 			return err
 		}
 	}

@@ -133,8 +133,8 @@ func (t *HistogramBucketTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x HistogramBucket) VDLIsZero() (bool, error) {
-	return x == HistogramBucket{}, nil
+func (x HistogramBucket) VDLIsZero() bool {
+	return x == HistogramBucket{}
 }
 
 func (x HistogramBucket) VDLWrite(enc vdl.Encoder) error {
@@ -145,7 +145,7 @@ func (x HistogramBucket) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("LowBound"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.LowBound); err != nil {
@@ -159,7 +159,7 @@ func (x HistogramBucket) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Count"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.Count); err != nil {
@@ -477,23 +477,23 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x HistogramValue) VDLIsZero() (bool, error) {
+func (x HistogramValue) VDLIsZero() bool {
 	if x.Count != 0 {
-		return false, nil
+		return false
 	}
 	if x.Sum != 0 {
-		return false, nil
+		return false
 	}
 	if x.Min != 0 {
-		return false, nil
+		return false
 	}
 	if x.Max != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Buckets) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
@@ -504,7 +504,7 @@ func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Count"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.Count); err != nil {
@@ -518,7 +518,7 @@ func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Sum"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.Sum); err != nil {
@@ -532,7 +532,7 @@ func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Min"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.Min); err != nil {
@@ -546,7 +546,7 @@ func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Max"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.Max); err != nil {

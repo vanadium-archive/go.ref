@@ -22,10 +22,9 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 
 type All struct {
 	A string
-	B map[string]int
-	C time.Time
-	D nativetest.NativeSamePkg
-	E map[nativetest.NativeSamePkg]time.Time
+	B time.Time
+	C nativetest.NativeSamePkg
+	D map[nativetest.NativeSamePkg]time.Time
 }
 
 func (All) __VDLReflect(struct {
@@ -63,12 +62,12 @@ func (m *All) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue6 nativetest_2.WireMapStringInt
-	if err := nativetest_2.WireMapStringIntFromNative(&wireValue6, m.B); err != nil {
+	var wireValue6 nativetest_2.WireTime
+	if err := nativetest_2.WireTimeFromNative(&wireValue6, m.B); err != nil {
 		return err
 	}
 
-	var9 := (wireValue6 == nativetest_2.WireMapStringInt(0))
+	var9 := (wireValue6 == nativetest_2.WireTime(0))
 	if var9 {
 		if err := fieldsTarget1.ZeroField("B"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -88,12 +87,12 @@ func (m *All) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue10 nativetest_2.WireTime
-	if err := nativetest_2.WireTimeFromNative(&wireValue10, m.C); err != nil {
+	var wireValue10 nativetest_2.WireSamePkg
+	if err := nativetest_2.WireSamePkgFromNative(&wireValue10, m.C); err != nil {
 		return err
 	}
 
-	var13 := (wireValue10 == nativetest_2.WireTime(0))
+	var13 := (wireValue10 == nativetest_2.WireSamePkg(0))
 	if var13 {
 		if err := fieldsTarget1.ZeroField("C"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -113,12 +112,12 @@ func (m *All) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue14 nativetest_2.WireSamePkg
-	if err := nativetest_2.WireSamePkgFromNative(&wireValue14, m.D); err != nil {
+	var wireValue14 nativetest_2.WireMultiImport
+	if err := nativetest_2.WireMultiImportFromNative(&wireValue14, m.D); err != nil {
 		return err
 	}
 
-	var17 := (wireValue14 == nativetest_2.WireSamePkg(0))
+	var17 := (wireValue14 == nativetest_2.WireMultiImport(0))
 	if var17 {
 		if err := fieldsTarget1.ZeroField("D"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -138,31 +137,6 @@ func (m *All) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue18 nativetest_2.WireMultiImport
-	if err := nativetest_2.WireMultiImportFromNative(&wireValue18, m.E); err != nil {
-		return err
-	}
-
-	var21 := (wireValue18 == nativetest_2.WireMultiImport(0))
-	if var21 {
-		if err := fieldsTarget1.ZeroField("E"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("E")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := wireValue18.FillVDLTarget(fieldTarget20, tt.NonOptional().Field(4).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
-				return err
-			}
-		}
-	}
 	if err := t.FinishFields(fieldsTarget1); err != nil {
 		return err
 	}
@@ -176,10 +150,9 @@ func (m *All) MakeVDLTarget() vdl.Target {
 type AllTarget struct {
 	Value   *All
 	aTarget nativetest_2.WireStringTarget
-	bTarget nativetest_2.WireMapStringIntTarget
-	cTarget nativetest_2.WireTimeTarget
-	dTarget nativetest_2.WireSamePkgTarget
-	eTarget nativetest_2.WireMultiImportTarget
+	bTarget nativetest_2.WireTimeTarget
+	cTarget nativetest_2.WireSamePkgTarget
+	dTarget nativetest_2.WireMultiImportTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -209,10 +182,6 @@ func (t *AllTarget) StartField(name string) (key, field vdl.Target, _ error) {
 		t.dTarget.Value = &t.Value.D
 		target, err := &t.dTarget, error(nil)
 		return nil, target, err
-	case "E":
-		t.eTarget.Value = &t.Value.E
-		target, err := &t.eTarget, error(nil)
-		return nil, target, err
 	default:
 		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/nativedep.All", name)
 	}
@@ -223,49 +192,16 @@ func (t *AllTarget) FinishField(_, _ vdl.Target) error {
 func (t *AllTarget) ZeroField(name string) error {
 	switch name {
 	case "A":
-		t.Value.A = func() string {
-			var native string
-			if err := vdl.Convert(&native, nativetest_2.WireString(0)); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.A = string("")
 		return nil
 	case "B":
-		t.Value.B = func() map[string]int {
-			var native map[string]int
-			if err := vdl.Convert(&native, nativetest_2.WireMapStringInt(0)); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.B = time.Time{}
 		return nil
 	case "C":
-		t.Value.C = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, nativetest_2.WireTime(0)); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.C = nativetest.NativeSamePkg("")
 		return nil
 	case "D":
-		t.Value.D = func() nativetest.NativeSamePkg {
-			var native nativetest.NativeSamePkg
-			if err := vdl.Convert(&native, nativetest_2.WireSamePkg(0)); err != nil {
-				panic(err)
-			}
-			return native
-		}()
-		return nil
-	case "E":
-		t.Value.E = func() map[nativetest.NativeSamePkg]time.Time {
-			var native map[nativetest.NativeSamePkg]time.Time
-			if err := vdl.Convert(&native, nativetest_2.WireMultiImport(0)); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.D = map[nativetest.NativeSamePkg]time.Time(nil)
 		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/nativedep.All", name)
@@ -276,106 +212,71 @@ func (t *AllTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x All) VDLIsZero() (bool, error) {
-	var wireA nativetest_2.WireString
-	if err := nativetest_2.WireStringFromNative(&wireA, x.A); err != nil {
-		return false, err
+func (x All) VDLIsZero() bool {
+	if x.A != string("") {
+		return false
 	}
-	if wireA != 0 {
-		return false, nil
+	if !x.B.IsZero() {
+		return false
 	}
-	var wireB nativetest_2.WireMapStringInt
-	if err := nativetest_2.WireMapStringIntFromNative(&wireB, x.B); err != nil {
-		return false, err
+	if x.C != nativetest.NativeSamePkg("") {
+		return false
 	}
-	if wireB != 0 {
-		return false, nil
+	if x.D != map[nativetest.NativeSamePkg]time.Time(nil) {
+		return false
 	}
-	var wireC nativetest_2.WireTime
-	if err := nativetest_2.WireTimeFromNative(&wireC, x.C); err != nil {
-		return false, err
-	}
-	if wireC != 0 {
-		return false, nil
-	}
-	var wireD nativetest_2.WireSamePkg
-	if err := nativetest_2.WireSamePkgFromNative(&wireD, x.D); err != nil {
-		return false, err
-	}
-	if wireD != 0 {
-		return false, nil
-	}
-	var wireE nativetest_2.WireMultiImport
-	if err := nativetest_2.WireMultiImportFromNative(&wireE, x.E); err != nil {
-		return false, err
-	}
-	if wireE != 0 {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x All) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*All)(nil)).Elem()); err != nil {
 		return err
 	}
-	var wireA nativetest_2.WireString
-	if err := nativetest_2.WireStringFromNative(&wireA, x.A); err != nil {
-		return err
-	}
-	if wireA != 0 {
+	if x.A != string("") {
 		if err := enc.NextField("A"); err != nil {
 			return err
 		}
-		if err := wireA.VDLWrite(enc); err != nil {
+		var wire nativetest_2.WireString
+		if err := nativetest_2.WireStringFromNative(&wire, x.A); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireB nativetest_2.WireMapStringInt
-	if err := nativetest_2.WireMapStringIntFromNative(&wireB, x.B); err != nil {
-		return err
-	}
-	if wireB != 0 {
+	if !x.B.IsZero() {
 		if err := enc.NextField("B"); err != nil {
 			return err
 		}
-		if err := wireB.VDLWrite(enc); err != nil {
+		var wire nativetest_2.WireTime
+		if err := nativetest_2.WireTimeFromNative(&wire, x.B); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireC nativetest_2.WireTime
-	if err := nativetest_2.WireTimeFromNative(&wireC, x.C); err != nil {
-		return err
-	}
-	if wireC != 0 {
+	if x.C != nativetest.NativeSamePkg("") {
 		if err := enc.NextField("C"); err != nil {
 			return err
 		}
-		if err := wireC.VDLWrite(enc); err != nil {
+		var wire nativetest_2.WireSamePkg
+		if err := nativetest_2.WireSamePkgFromNative(&wire, x.C); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireD nativetest_2.WireSamePkg
-	if err := nativetest_2.WireSamePkgFromNative(&wireD, x.D); err != nil {
-		return err
-	}
-	if wireD != 0 {
+	if x.D != map[nativetest.NativeSamePkg]time.Time(nil) {
 		if err := enc.NextField("D"); err != nil {
 			return err
 		}
-		if err := wireD.VDLWrite(enc); err != nil {
+		var wire nativetest_2.WireMultiImport
+		if err := nativetest_2.WireMultiImportFromNative(&wire, x.D); err != nil {
 			return err
 		}
-	}
-	var wireE nativetest_2.WireMultiImport
-	if err := nativetest_2.WireMultiImportFromNative(&wireE, x.E); err != nil {
-		return err
-	}
-	if wireE != 0 {
-		if err := enc.NextField("E"); err != nil {
-			return err
-		}
-		if err := wireE.VDLWrite(enc); err != nil {
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -410,35 +311,27 @@ func (x *All) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "B":
-			var wire nativetest_2.WireMapStringInt
-			if err := wire.VDLRead(dec); err != nil {
-				return err
-			}
-			if err := nativetest_2.WireMapStringIntToNative(wire, &x.B); err != nil {
-				return err
-			}
-		case "C":
 			var wire nativetest_2.WireTime
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := nativetest_2.WireTimeToNative(wire, &x.C); err != nil {
+			if err := nativetest_2.WireTimeToNative(wire, &x.B); err != nil {
 				return err
 			}
-		case "D":
+		case "C":
 			var wire nativetest_2.WireSamePkg
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := nativetest_2.WireSamePkgToNative(wire, &x.D); err != nil {
+			if err := nativetest_2.WireSamePkgToNative(wire, &x.C); err != nil {
 				return err
 			}
-		case "E":
+		case "D":
 			var wire nativetest_2.WireMultiImport
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := nativetest_2.WireMultiImportToNative(wire, &x.E); err != nil {
+			if err := nativetest_2.WireMultiImportToNative(wire, &x.D); err != nil {
 				return err
 			}
 		default:

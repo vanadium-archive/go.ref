@@ -133,8 +133,8 @@ func (t *StructTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Struct) VDLIsZero() (bool, error) {
-	return x == Struct{}, nil
+func (x Struct) VDLIsZero() bool {
+	return x == Struct{}
 }
 
 func (x Struct) VDLWrite(enc vdl.Encoder) error {
@@ -145,7 +145,7 @@ func (x Struct) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("X"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(x.X)); err != nil {
@@ -159,7 +159,7 @@ func (x Struct) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Y"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(x.Y)); err != nil {
@@ -285,8 +285,8 @@ func (t *Array2IntTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x Array2Int) VDLIsZero() (bool, error) {
-	return x == Array2Int{}, nil
+func (x Array2Int) VDLIsZero() bool {
+	return x == Array2Int{}
 }
 
 func (x Array2Int) VDLWrite(enc vdl.Encoder) error {
@@ -297,7 +297,7 @@ func (x Array2Int) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(x[i])); err != nil {

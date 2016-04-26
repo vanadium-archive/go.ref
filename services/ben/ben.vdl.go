@@ -162,8 +162,8 @@ func (t *CpuTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Cpu) VDLIsZero() (bool, error) {
-	return x == Cpu{}, nil
+func (x Cpu) VDLIsZero() bool {
+	return x == Cpu{}
 }
 
 func (x Cpu) VDLWrite(enc vdl.Encoder) error {
@@ -174,7 +174,7 @@ func (x Cpu) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Architecture"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Architecture); err != nil {
@@ -188,7 +188,7 @@ func (x Cpu) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Description"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Description); err != nil {
@@ -202,7 +202,7 @@ func (x Cpu) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("ClockSpeedMhz"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.ClockSpeedMhz)); err != nil {
@@ -389,8 +389,8 @@ func (t *OsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Os) VDLIsZero() (bool, error) {
-	return x == Os{}, nil
+func (x Os) VDLIsZero() bool {
+	return x == Os{}
 }
 
 func (x Os) VDLWrite(enc vdl.Encoder) error {
@@ -401,7 +401,7 @@ func (x Os) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Name"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Name); err != nil {
@@ -415,7 +415,7 @@ func (x Os) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Version"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Version); err != nil {
@@ -620,8 +620,8 @@ func (t *ScenarioTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Scenario) VDLIsZero() (bool, error) {
-	return x == Scenario{}, nil
+func (x Scenario) VDLIsZero() bool {
+	return x == Scenario{}
 }
 
 func (x Scenario) VDLWrite(enc vdl.Encoder) error {
@@ -648,7 +648,7 @@ func (x Scenario) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Label"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Label); err != nil {
@@ -746,8 +746,8 @@ func (t *SourceCodeTarget) FromString(src string, tt *vdl.Type) error {
 	return nil
 }
 
-func (x SourceCode) VDLIsZero() (bool, error) {
-	return x == "", nil
+func (x SourceCode) VDLIsZero() bool {
+	return x == ""
 }
 
 func (x SourceCode) VDLWrite(enc vdl.Encoder) error {
@@ -1025,8 +1025,8 @@ func (t *RunTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Run) VDLIsZero() (bool, error) {
-	return x == Run{}, nil
+func (x Run) VDLIsZero() bool {
+	return x == Run{}
 }
 
 func (x Run) VDLWrite(enc vdl.Encoder) error {
@@ -1037,7 +1037,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Name"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Name); err != nil {
@@ -1051,7 +1051,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Iterations"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.Iterations); err != nil {
@@ -1065,7 +1065,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("NanoSecsPerOp"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*float64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Float64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeFloat(x.NanoSecsPerOp); err != nil {
@@ -1079,7 +1079,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("AllocsPerOp"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.AllocsPerOp); err != nil {
@@ -1093,7 +1093,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("AllocedBytesPerOp"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.AllocedBytesPerOp); err != nil {
@@ -1107,7 +1107,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("MegaBytesPerSec"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*float64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Float64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeFloat(x.MegaBytesPerSec); err != nil {
@@ -1121,7 +1121,7 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Parallelism"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.Parallelism)); err != nil {

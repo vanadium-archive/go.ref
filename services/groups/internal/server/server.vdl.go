@@ -193,14 +193,14 @@ func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 	return nil
 }
 
-func (x groupData) VDLIsZero() (bool, error) {
+func (x groupData) VDLIsZero() bool {
 	if len(x.Perms) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Entries) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x groupData) VDLWrite(enc vdl.Encoder) error {

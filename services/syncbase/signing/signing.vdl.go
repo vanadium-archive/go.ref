@@ -42,7 +42,7 @@ type (
 		// __VDLReflect describes the Item union type.
 		__VDLReflect(__ItemReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// ItemData represents field Data of the Item union type.
@@ -176,12 +176,12 @@ func (t itemTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, er
 	return nil, fmt.Errorf("got %T, want *Item", union)
 }
 
-func (x ItemData) VDLIsZero() (bool, error) {
-	return len(x.Value) == 0, nil
+func (x ItemData) VDLIsZero() bool {
+	return len(x.Value) == 0
 }
 
-func (x ItemHash) VDLIsZero() (bool, error) {
-	return false, nil
+func (x ItemHash) VDLIsZero() bool {
+	return false
 }
 
 func (x ItemData) VDLWrite(enc vdl.Encoder) error {
@@ -635,34 +635,26 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x DataWithSignature) VDLIsZero() (bool, error) {
+func (x DataWithSignature) VDLIsZero() bool {
 	if len(x.Data) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.BlessingsHash) != 0 {
-		return false, nil
+		return false
 	}
-	isZeroAuthorSigned, err := x.AuthorSigned.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	if !isZeroAuthorSigned {
-		return false, nil
+	if !x.AuthorSigned.VDLIsZero() {
+		return false
 	}
 	if x.IsValidated {
-		return false, nil
+		return false
 	}
 	if len(x.ValidatorDataHash) != 0 {
-		return false, nil
+		return false
 	}
-	isZeroValidatorSigned, err := x.ValidatorSigned.VDLIsZero()
-	if err != nil {
-		return false, err
+	if !x.ValidatorSigned.VDLIsZero() {
+		return false
 	}
-	if !isZeroValidatorSigned {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x DataWithSignature) VDLWrite(enc vdl.Encoder) error {
@@ -691,11 +683,7 @@ func (x DataWithSignature) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	isZeroAuthorSigned, err := x.AuthorSigned.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroAuthorSigned {
+	if !x.AuthorSigned.VDLIsZero() {
 		if err := enc.NextField("AuthorSigned"); err != nil {
 			return err
 		}
@@ -707,7 +695,7 @@ func (x DataWithSignature) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("IsValidated"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.IsValidated); err != nil {
@@ -731,11 +719,7 @@ func (x DataWithSignature) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	isZeroValidatorSigned, err := x.ValidatorSigned.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroValidatorSigned {
+	if !x.ValidatorSigned.VDLIsZero() {
 		if err := enc.NextField("ValidatorSigned"); err != nil {
 			return err
 		}
@@ -1014,14 +998,14 @@ func (t *WireValidatorDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x WireValidatorData) VDLIsZero() (bool, error) {
+func (x WireValidatorData) VDLIsZero() bool {
 	if len(x.Names) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.MarshalledPublicKey) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x WireValidatorData) VDLWrite(enc vdl.Encoder) error {
@@ -1067,7 +1051,7 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []string) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x[i]); err != nil {

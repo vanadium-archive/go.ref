@@ -135,13 +135,7 @@ func (t *BlessingsTarget) FinishField(_, _ vdl.Target) error {
 func (t *BlessingsTarget) ZeroField(name string) error {
 	switch name {
 	case "Blessings":
-		t.Value.Blessings = func() security.Blessings {
-			var native security.Blessings
-			if err := vdl.Convert(&native, security.WireBlessings{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.Blessings = security.Blessings{}
 		return nil
 	case "BKey":
 		t.Value.BKey = uint64(0)
@@ -155,41 +149,29 @@ func (t *BlessingsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Blessings) VDLIsZero() (bool, error) {
-	var wireBlessings security.WireBlessings
-	if err := security.WireBlessingsFromNative(&wireBlessings, x.Blessings); err != nil {
-		return false, err
-	}
-	isZeroBlessings, err := wireBlessings.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	if !isZeroBlessings {
-		return false, nil
+func (x Blessings) VDLIsZero() bool {
+	if !x.Blessings.IsZero() {
+		return false
 	}
 	if x.BKey != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x Blessings) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*Blessings)(nil)).Elem()); err != nil {
 		return err
 	}
-	var wireBlessings security.WireBlessings
-	if err := security.WireBlessingsFromNative(&wireBlessings, x.Blessings); err != nil {
-		return err
-	}
-	isZeroBlessings, err := wireBlessings.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroBlessings {
+	if !x.Blessings.IsZero() {
 		if err := enc.NextField("Blessings"); err != nil {
 			return err
 		}
-		if err := wireBlessings.VDLWrite(enc); err != nil {
+		var wire security.WireBlessings
+		if err := security.WireBlessingsFromNative(&wire, x.Blessings); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -197,7 +179,7 @@ func (x Blessings) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("BKey"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.BKey); err != nil {
@@ -428,14 +410,14 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x EncryptedBlessings) VDLIsZero() (bool, error) {
+func (x EncryptedBlessings) VDLIsZero() bool {
 	if len(x.Ciphertexts) != 0 {
-		return false, nil
+		return false
 	}
 	if x.BKey != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x EncryptedBlessings) VDLWrite(enc vdl.Encoder) error {
@@ -454,7 +436,7 @@ func (x EncryptedBlessings) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("BKey"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.BKey); err != nil {
@@ -767,17 +749,17 @@ func (t *__VDLTarget2_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x Discharges) VDLIsZero() (bool, error) {
+func (x Discharges) VDLIsZero() bool {
 	if len(x.Discharges) != 0 {
-		return false, nil
+		return false
 	}
 	if x.DKey != 0 {
-		return false, nil
+		return false
 	}
 	if x.BKey != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x Discharges) VDLWrite(enc vdl.Encoder) error {
@@ -796,7 +778,7 @@ func (x Discharges) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("DKey"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.DKey); err != nil {
@@ -810,7 +792,7 @@ func (x Discharges) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("BKey"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.BKey); err != nil {
@@ -1113,17 +1095,17 @@ func (t *EncryptedDischargesTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x EncryptedDischarges) VDLIsZero() (bool, error) {
+func (x EncryptedDischarges) VDLIsZero() bool {
 	if len(x.Ciphertexts) != 0 {
-		return false, nil
+		return false
 	}
 	if x.DKey != 0 {
-		return false, nil
+		return false
 	}
 	if x.BKey != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x EncryptedDischarges) VDLWrite(enc vdl.Encoder) error {
@@ -1142,7 +1124,7 @@ func (x EncryptedDischarges) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("DKey"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.DKey); err != nil {
@@ -1156,7 +1138,7 @@ func (x EncryptedDischarges) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("BKey"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.BKey); err != nil {
@@ -1237,7 +1219,7 @@ type (
 		// __VDLReflect describes the BlessingsFlowMessage union type.
 		__VDLReflect(__BlessingsFlowMessageReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// BlessingsFlowMessageBlessings represents field Blessings of the BlessingsFlowMessage union type.
@@ -1451,24 +1433,20 @@ func (t blessingsFlowMessageTargetFactory) VDLMakeUnionTarget(union interface{})
 	return nil, fmt.Errorf("got %T, want *BlessingsFlowMessage", union)
 }
 
-func (x BlessingsFlowMessageBlessings) VDLIsZero() (bool, error) {
-	isZero, err := x.Value.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	return isZero, nil
+func (x BlessingsFlowMessageBlessings) VDLIsZero() bool {
+	return x.Value.VDLIsZero()
 }
 
-func (x BlessingsFlowMessageDischarges) VDLIsZero() (bool, error) {
-	return false, nil
+func (x BlessingsFlowMessageDischarges) VDLIsZero() bool {
+	return false
 }
 
-func (x BlessingsFlowMessageEncryptedBlessings) VDLIsZero() (bool, error) {
-	return false, nil
+func (x BlessingsFlowMessageEncryptedBlessings) VDLIsZero() bool {
+	return false
 }
 
-func (x BlessingsFlowMessageEncryptedDischarges) VDLIsZero() (bool, error) {
-	return false, nil
+func (x BlessingsFlowMessageEncryptedDischarges) VDLIsZero() bool {
+	return false
 }
 
 func (x BlessingsFlowMessageBlessings) VDLWrite(enc vdl.Encoder) error {

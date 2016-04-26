@@ -214,14 +214,14 @@ func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x WireCiphertext) VDLIsZero() (bool, error) {
+func (x WireCiphertext) VDLIsZero() bool {
 	if x.PatternId != "" {
-		return false, nil
+		return false
 	}
 	if len(x.Bytes) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x WireCiphertext) VDLWrite(enc vdl.Encoder) error {
@@ -232,7 +232,7 @@ func (x WireCiphertext) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("PatternId"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.PatternId); err != nil {
@@ -267,7 +267,7 @@ func __VDLWriteAnon_map_1(enc vdl.Encoder, x map[string][]byte) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(key); err != nil {
@@ -505,14 +505,14 @@ func (t *WireParamsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x WireParams) VDLIsZero() (bool, error) {
+func (x WireParams) VDLIsZero() bool {
 	if x.Blessing != "" {
-		return false, nil
+		return false
 	}
 	if len(x.Params) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x WireParams) VDLWrite(enc vdl.Encoder) error {
@@ -523,7 +523,7 @@ func (x WireParams) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Blessing"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Blessing); err != nil {
@@ -819,21 +819,17 @@ func (t *__VDLTarget2_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x WirePrivateKey) VDLIsZero() (bool, error) {
+func (x WirePrivateKey) VDLIsZero() bool {
 	if x.Blessing != "" {
-		return false, nil
+		return false
 	}
-	isZeroParams, err := x.Params.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	if !isZeroParams {
-		return false, nil
+	if !x.Params.VDLIsZero() {
+		return false
 	}
 	if len(x.Keys) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x WirePrivateKey) VDLWrite(enc vdl.Encoder) error {
@@ -844,7 +840,7 @@ func (x WirePrivateKey) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Blessing"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Blessing); err != nil {
@@ -854,11 +850,7 @@ func (x WirePrivateKey) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	isZeroParams, err := x.Params.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroParams {
+	if !x.Params.VDLIsZero() {
 		if err := enc.NextField("Params"); err != nil {
 			return err
 		}

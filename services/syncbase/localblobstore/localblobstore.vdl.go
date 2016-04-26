@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"time"
 	"v.io/v23/vdl"
-	time_2 "v.io/v23/vdlroot/time"
+	vdltime "v.io/v23/vdlroot/time"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 )
 
@@ -65,12 +65,12 @@ func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue5 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue5, m.Referenced); err != nil {
+	var wireValue5 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue5, m.Referenced); err != nil {
 		return err
 	}
 
-	var8 := (wireValue5 == time_2.Time{})
+	var8 := (wireValue5 == vdltime.Time{})
 	if var8 {
 		if err := fieldsTarget1.ZeroField("Referenced"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -90,12 +90,12 @@ func (m *BlobMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue9 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue9, m.Accessed); err != nil {
+	var wireValue9 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue9, m.Accessed); err != nil {
 		return err
 	}
 
-	var12 := (wireValue9 == time_2.Time{})
+	var12 := (wireValue9 == vdltime.Time{})
 	if var12 {
 		if err := fieldsTarget1.ZeroField("Accessed"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -128,8 +128,8 @@ func (m *BlobMetadata) MakeVDLTarget() vdl.Target {
 type BlobMetadataTarget struct {
 	Value             *BlobMetadata
 	ownerSharesTarget interfaces.BlobSharesBySyncgroupTarget
-	referencedTarget  time_2.TimeTarget
-	accessedTarget    time_2.TimeTarget
+	referencedTarget  vdltime.TimeTarget
+	accessedTarget    vdltime.TimeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -168,22 +168,10 @@ func (t *BlobMetadataTarget) ZeroField(name string) error {
 		t.Value.OwnerShares = interfaces.BlobSharesBySyncgroup(nil)
 		return nil
 	case "Referenced":
-		t.Value.Referenced = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.Referenced = time.Time{}
 		return nil
 	case "Accessed":
-		t.Value.Accessed = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.Accessed = time.Time{}
 		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/localblobstore.BlobMetadata", name)
@@ -194,25 +182,17 @@ func (t *BlobMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x BlobMetadata) VDLIsZero() (bool, error) {
+func (x BlobMetadata) VDLIsZero() bool {
 	if len(x.OwnerShares) != 0 {
-		return false, nil
+		return false
 	}
-	var wireReferenced time_2.Time
-	if err := time_2.TimeFromNative(&wireReferenced, x.Referenced); err != nil {
-		return false, err
+	if !x.Referenced.IsZero() {
+		return false
 	}
-	if wireReferenced != (time_2.Time{}) {
-		return false, nil
+	if !x.Accessed.IsZero() {
+		return false
 	}
-	var wireAccessed time_2.Time
-	if err := time_2.TimeFromNative(&wireAccessed, x.Accessed); err != nil {
-		return false, err
-	}
-	if wireAccessed != (time_2.Time{}) {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x BlobMetadata) VDLWrite(enc vdl.Encoder) error {
@@ -227,27 +207,27 @@ func (x BlobMetadata) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var wireReferenced time_2.Time
-	if err := time_2.TimeFromNative(&wireReferenced, x.Referenced); err != nil {
-		return err
-	}
-	if wireReferenced != (time_2.Time{}) {
+	if !x.Referenced.IsZero() {
 		if err := enc.NextField("Referenced"); err != nil {
 			return err
 		}
-		if err := wireReferenced.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.Referenced); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireAccessed time_2.Time
-	if err := time_2.TimeFromNative(&wireAccessed, x.Accessed); err != nil {
-		return err
-	}
-	if wireAccessed != (time_2.Time{}) {
+	if !x.Accessed.IsZero() {
 		if err := enc.NextField("Accessed"); err != nil {
 			return err
 		}
-		if err := wireAccessed.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.Accessed); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -278,19 +258,19 @@ func (x *BlobMetadata) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Referenced":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.Referenced); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.Referenced); err != nil {
 				return err
 			}
 		case "Accessed":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.Accessed); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.Accessed); err != nil {
 				return err
 			}
 		default:
@@ -389,26 +369,18 @@ func (t *PerSyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x PerSyncgroup) VDLIsZero() (bool, error) {
-	isZeroPriority, err := x.Priority.VDLIsZero()
-	if err != nil {
-		return false, err
+func (x PerSyncgroup) VDLIsZero() bool {
+	if !x.Priority.VDLIsZero() {
+		return false
 	}
-	if !isZeroPriority {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x PerSyncgroup) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*PerSyncgroup)(nil)).Elem()); err != nil {
 		return err
 	}
-	isZeroPriority, err := x.Priority.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroPriority {
+	if !x.Priority.VDLIsZero() {
 		if err := enc.NextField("Priority"); err != nil {
 			return err
 		}

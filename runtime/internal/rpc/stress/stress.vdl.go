@@ -166,17 +166,17 @@ func (t *SumArgTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x SumArg) VDLIsZero() (bool, error) {
+func (x SumArg) VDLIsZero() bool {
 	if x.ABool {
-		return false, nil
+		return false
 	}
 	if x.AInt64 != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.AListOfBytes) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x SumArg) VDLWrite(enc vdl.Encoder) error {
@@ -187,7 +187,7 @@ func (x SumArg) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("ABool"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.ABool); err != nil {
@@ -201,7 +201,7 @@ func (x SumArg) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("AInt64"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.AInt64); err != nil {
@@ -455,8 +455,8 @@ func (t *SumStatsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x SumStats) VDLIsZero() (bool, error) {
-	return x == SumStats{}, nil
+func (x SumStats) VDLIsZero() bool {
+	return x == SumStats{}
 }
 
 func (x SumStats) VDLWrite(enc vdl.Encoder) error {
@@ -467,7 +467,7 @@ func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("SumCount"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.SumCount); err != nil {
@@ -481,7 +481,7 @@ func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("SumStreamCount"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.SumStreamCount); err != nil {
@@ -495,7 +495,7 @@ func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("BytesRecv"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.BytesRecv); err != nil {
@@ -509,7 +509,7 @@ func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("BytesSent"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.BytesSent); err != nil {

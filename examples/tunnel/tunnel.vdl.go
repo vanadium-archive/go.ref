@@ -136,8 +136,8 @@ func (t *WindowSizeTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x WindowSize) VDLIsZero() (bool, error) {
-	return x == WindowSize{}, nil
+func (x WindowSize) VDLIsZero() bool {
+	return x == WindowSize{}
 }
 
 func (x WindowSize) VDLWrite(enc vdl.Encoder) error {
@@ -148,7 +148,7 @@ func (x WindowSize) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Rows"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint16Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.Rows)); err != nil {
@@ -162,7 +162,7 @@ func (x WindowSize) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Cols"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint16Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.Cols)); err != nil {
@@ -387,17 +387,17 @@ func (t *ShellOptsTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x ShellOpts) VDLIsZero() (bool, error) {
+func (x ShellOpts) VDLIsZero() bool {
 	if x.UsePty {
-		return false, nil
+		return false
 	}
 	if len(x.Environment) != 0 {
-		return false, nil
+		return false
 	}
 	if x.WinSize != (WindowSize{}) {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x ShellOpts) VDLWrite(enc vdl.Encoder) error {
@@ -408,7 +408,7 @@ func (x ShellOpts) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("UsePty"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.UsePty); err != nil {
@@ -451,7 +451,7 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x[i]); err != nil {
@@ -602,8 +602,8 @@ func (t *UnusedTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Unused) VDLIsZero() (bool, error) {
-	return x == Unused{}, nil
+func (x Unused) VDLIsZero() bool {
+	return x == Unused{}
 }
 
 func (x Unused) VDLWrite(enc vdl.Encoder) error {
@@ -652,7 +652,7 @@ type (
 		// __VDLReflect describes the ClientShellPacket union type.
 		__VDLReflect(__ClientShellPacketReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// ClientShellPacketStdin represents field Stdin of the ClientShellPacket union type.
@@ -833,16 +833,16 @@ func (t clientShellPacketTargetFactory) VDLMakeUnionTarget(union interface{}) (v
 	return nil, fmt.Errorf("got %T, want *ClientShellPacket", union)
 }
 
-func (x ClientShellPacketStdin) VDLIsZero() (bool, error) {
-	return len(x.Value) == 0, nil
+func (x ClientShellPacketStdin) VDLIsZero() bool {
+	return len(x.Value) == 0
 }
 
-func (x ClientShellPacketEndOfFile) VDLIsZero() (bool, error) {
-	return false, nil
+func (x ClientShellPacketEndOfFile) VDLIsZero() bool {
+	return false
 }
 
-func (x ClientShellPacketWinSize) VDLIsZero() (bool, error) {
-	return false, nil
+func (x ClientShellPacketWinSize) VDLIsZero() bool {
+	return false
 }
 
 func (x ClientShellPacketStdin) VDLWrite(enc vdl.Encoder) error {
@@ -961,7 +961,7 @@ type (
 		// __VDLReflect describes the ServerShellPacket union type.
 		__VDLReflect(__ServerShellPacketReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// ServerShellPacketStdout represents field Stdout of the ServerShellPacket union type.
@@ -1099,12 +1099,12 @@ func (t serverShellPacketTargetFactory) VDLMakeUnionTarget(union interface{}) (v
 	return nil, fmt.Errorf("got %T, want *ServerShellPacket", union)
 }
 
-func (x ServerShellPacketStdout) VDLIsZero() (bool, error) {
-	return len(x.Value) == 0, nil
+func (x ServerShellPacketStdout) VDLIsZero() bool {
+	return len(x.Value) == 0
 }
 
-func (x ServerShellPacketStderr) VDLIsZero() (bool, error) {
-	return false, nil
+func (x ServerShellPacketStderr) VDLIsZero() bool {
+	return false
 }
 
 func (x ServerShellPacketStdout) VDLWrite(enc vdl.Encoder) error {

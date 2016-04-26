@@ -102,8 +102,8 @@ func (t *SignedHeaderTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x SignedHeader) VDLIsZero() (bool, error) {
-	return x == SignedHeader{}, nil
+func (x SignedHeader) VDLIsZero() bool {
+	return x == SignedHeader{}
 }
 
 func (x SignedHeader) VDLWrite(enc vdl.Encoder) error {
@@ -114,7 +114,7 @@ func (x SignedHeader) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("ChunkSizeBytes"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.ChunkSizeBytes); err != nil {
@@ -198,8 +198,8 @@ func (t *HashCodeTarget) FromBytes(src []byte, tt *vdl.Type) error {
 	return nil
 }
 
-func (x HashCode) VDLIsZero() (bool, error) {
-	return x == HashCode{}, nil
+func (x HashCode) VDLIsZero() bool {
+	return x == HashCode{}
 }
 
 func (x HashCode) VDLWrite(enc vdl.Encoder) error {
@@ -237,7 +237,7 @@ type (
 		// __VDLReflect describes the SignedData union type.
 		__VDLReflect(__SignedDataReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// SignedDataSignature represents field Signature of the SignedData union type.
@@ -371,16 +371,12 @@ func (t signedDataTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Targ
 	return nil, fmt.Errorf("got %T, want *SignedData", union)
 }
 
-func (x SignedDataSignature) VDLIsZero() (bool, error) {
-	isZero, err := x.Value.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	return isZero, nil
+func (x SignedDataSignature) VDLIsZero() bool {
+	return x.Value.VDLIsZero()
 }
 
-func (x SignedDataHash) VDLIsZero() (bool, error) {
-	return false, nil
+func (x SignedDataHash) VDLIsZero() bool {
+	return false
 }
 
 func (x SignedDataSignature) VDLWrite(enc vdl.Encoder) error {

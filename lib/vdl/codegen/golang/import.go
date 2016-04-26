@@ -81,10 +81,18 @@ func (im importMap) Sort() []goImport {
 //   uniqueImport("_", "v.io/a", {"a", "a_2"}) -> goImport{"_", "v.io/a", ""}
 func uniqueImport(pkgName, pkgPath string, seen map[string]bool) goImport {
 	if pkgName == "_" {
+		// This is a forced import that isn't otherwise used.
 		return goImport{"_", pkgPath, ""}
 	}
-	name := ""
-	iter := 1
+	name, iter := "", 1
+	// Add special-cases to always use named imports for time and math, since they
+	// are easily mistaken for the go standard time and math packages.
+	switch pkgPath {
+	case "v.io/v23/vdlroot/time":
+		name, pkgName = "vdltime", "vdltime"
+	case "v.io/v23/vdlroot/math":
+		name, pkgName = "vdlmath", "vdlmath"
+	}
 	for {
 		local := pkgName
 		if iter > 1 {

@@ -73,8 +73,8 @@ func (t *MyTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
 	return nil
 }
 
-func (x MyTime) VDLIsZero() (bool, error) {
-	return x == 0, nil
+func (x MyTime) VDLIsZero() bool {
+	return x == 0
 }
 
 func (x MyTime) VDLWrite(enc vdl.Encoder) error {

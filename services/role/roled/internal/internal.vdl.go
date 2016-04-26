@@ -357,26 +357,26 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x Config) VDLIsZero() (bool, error) {
+func (x Config) VDLIsZero() bool {
 	if len(x.ImportMembers) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Members) != 0 {
-		return false, nil
+		return false
 	}
 	if x.Extend {
-		return false, nil
+		return false
 	}
 	if x.Audit {
-		return false, nil
+		return false
 	}
 	if x.Expiry != "" {
-		return false, nil
+		return false
 	}
 	if len(x.Peers) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x Config) VDLWrite(enc vdl.Encoder) error {
@@ -403,7 +403,7 @@ func (x Config) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Extend"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.Extend); err != nil {
@@ -417,7 +417,7 @@ func (x Config) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Audit"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.Audit); err != nil {
@@ -431,7 +431,7 @@ func (x Config) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Expiry"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Expiry); err != nil {
@@ -466,7 +466,7 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x[i]); err != nil {

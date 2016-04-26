@@ -13,7 +13,7 @@ import (
 	"time"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
-	time_2 "v.io/v23/vdlroot/time"
+	vdltime "v.io/v23/vdlroot/time"
 )
 
 var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
@@ -155,8 +155,8 @@ func (t *__VDLTarget1_list) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x blessingRootsState) VDLIsZero() (bool, error) {
-	return len(x) == 0, nil
+func (x blessingRootsState) VDLIsZero() bool {
+	return len(x) == 0
 }
 
 func (x blessingRootsState) VDLWrite(enc vdl.Encoder) error {
@@ -170,7 +170,7 @@ func (x blessingRootsState) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(key); err != nil {
@@ -316,8 +316,8 @@ func (t *dischargeCacheKeyTarget) FromBytes(src []byte, tt *vdl.Type) error {
 	return nil
 }
 
-func (x dischargeCacheKey) VDLIsZero() (bool, error) {
-	return x == dischargeCacheKey{}, nil
+func (x dischargeCacheKey) VDLIsZero() bool {
+	return x == dischargeCacheKey{}
 }
 
 func (x dischargeCacheKey) VDLWrite(enc vdl.Encoder) error {
@@ -417,12 +417,12 @@ func (m *CachedDischarge) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue15 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue15, m.CacheTime); err != nil {
+	var wireValue15 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue15, m.CacheTime); err != nil {
 		return err
 	}
 
-	var18 := (wireValue15 == time_2.Time{})
+	var18 := (wireValue15 == vdltime.Time{})
 	if var18 {
 		if err := fieldsTarget1.ZeroField("CacheTime"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -455,7 +455,7 @@ func (m *CachedDischarge) MakeVDLTarget() vdl.Target {
 type CachedDischargeTarget struct {
 	Value           *CachedDischarge
 	dischargeTarget security.WireDischargeTarget
-	cacheTimeTarget time_2.TimeTarget
+	cacheTimeTarget vdltime.TimeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -487,22 +487,10 @@ func (t *CachedDischargeTarget) FinishField(_, _ vdl.Target) error {
 func (t *CachedDischargeTarget) ZeroField(name string) error {
 	switch name {
 	case "Discharge":
-		t.Value.Discharge = func() security.Discharge {
-			var native security.Discharge
-			if err := vdl.Convert(&native, security.WireDischarge(security.WireDischargePublicKey{})); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.Discharge = security.Discharge{}
 		return nil
 	case "CacheTime":
-		t.Value.CacheTime = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.CacheTime = time.Time{}
 		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/security.CachedDischarge", name)
@@ -513,63 +501,41 @@ func (t *CachedDischargeTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x CachedDischarge) VDLIsZero() (bool, error) {
-	var wireDischarge security.WireDischarge
-	if err := security.WireDischargeFromNative(&wireDischarge, x.Discharge); err != nil {
-		return false, err
+func (x CachedDischarge) VDLIsZero() bool {
+	if !x.Discharge.VDLIsZero() {
+		return false
 	}
-	var isZeroDischarge bool
-	if wireDischarge != nil {
-		var err error
-		if isZeroDischarge, err = wireDischarge.VDLIsZero(); err != nil {
-			return false, err
-		}
+	if !x.CacheTime.IsZero() {
+		return false
 	}
-	if wireDischarge != nil && !isZeroDischarge {
-		return false, nil
-	}
-	var wireCacheTime time_2.Time
-	if err := time_2.TimeFromNative(&wireCacheTime, x.CacheTime); err != nil {
-		return false, err
-	}
-	if wireCacheTime != (time_2.Time{}) {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x CachedDischarge) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*CachedDischarge)(nil)).Elem()); err != nil {
 		return err
 	}
-	var wireDischarge security.WireDischarge
-	if err := security.WireDischargeFromNative(&wireDischarge, x.Discharge); err != nil {
-		return err
-	}
-	var isZeroDischarge bool
-	if wireDischarge != nil {
-		var err error
-		if isZeroDischarge, err = wireDischarge.VDLIsZero(); err != nil {
-			return err
-		}
-	}
-	if wireDischarge != nil && !isZeroDischarge {
+	if !x.Discharge.VDLIsZero() {
 		if err := enc.NextField("Discharge"); err != nil {
 			return err
 		}
-		if err := wireDischarge.VDLWrite(enc); err != nil {
+		var wire security.WireDischarge
+		if err := security.WireDischargeFromNative(&wire, x.Discharge); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireCacheTime time_2.Time
-	if err := time_2.TimeFromNative(&wireCacheTime, x.CacheTime); err != nil {
-		return err
-	}
-	if wireCacheTime != (time_2.Time{}) {
+	if !x.CacheTime.IsZero() {
 		if err := enc.NextField("CacheTime"); err != nil {
 			return err
 		}
-		if err := wireCacheTime.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.CacheTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -580,15 +546,7 @@ func (x CachedDischarge) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *CachedDischarge) VDLRead(dec vdl.Decoder) error {
-	*x = CachedDischarge{
-		Discharge: func() security.Discharge {
-			var native security.Discharge
-			if err := vdl.Convert(&native, security.WireDischarge(security.WireDischargePublicKey{})); err != nil {
-				panic(err)
-			}
-			return native
-		}(),
-	}
+	*x = CachedDischarge{}
 	if err := dec.StartValue(); err != nil {
 		return err
 	}
@@ -612,11 +570,11 @@ func (x *CachedDischarge) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "CacheTime":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.CacheTime); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.CacheTime); err != nil {
 				return err
 			}
 		default:
@@ -927,13 +885,7 @@ func (t *blessingStoreStateTarget) ZeroField(name string) error {
 		t.Value.PeerBlessings = map[security.BlessingPattern]security.Blessings(nil)
 		return nil
 	case "DefaultBlessings":
-		t.Value.DefaultBlessings = func() security.Blessings {
-			var native security.Blessings
-			if err := vdl.Convert(&native, security.WireBlessings{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.DefaultBlessings = security.Blessings{}
 		return nil
 	case "DischargeCache":
 		t.Value.DischargeCache = map[dischargeCacheKey]security.Discharge(nil)
@@ -1082,31 +1034,23 @@ func (t *__VDLTarget4_map) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x blessingStoreState) VDLIsZero() (bool, error) {
+func (x blessingStoreState) VDLIsZero() bool {
 	if len(x.PeerBlessings) != 0 {
-		return false, nil
+		return false
 	}
-	var wireDefaultBlessings security.WireBlessings
-	if err := security.WireBlessingsFromNative(&wireDefaultBlessings, x.DefaultBlessings); err != nil {
-		return false, err
-	}
-	isZeroDefaultBlessings, err := wireDefaultBlessings.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	if !isZeroDefaultBlessings {
-		return false, nil
+	if !x.DefaultBlessings.IsZero() {
+		return false
 	}
 	if len(x.DischargeCache) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Discharges) != 0 {
-		return false, nil
+		return false
 	}
 	if x.CacheKeyFormat != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
@@ -1121,19 +1065,15 @@ func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var wireDefaultBlessings security.WireBlessings
-	if err := security.WireBlessingsFromNative(&wireDefaultBlessings, x.DefaultBlessings); err != nil {
-		return err
-	}
-	isZeroDefaultBlessings, err := wireDefaultBlessings.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroDefaultBlessings {
+	if !x.DefaultBlessings.IsZero() {
 		if err := enc.NextField("DefaultBlessings"); err != nil {
 			return err
 		}
-		if err := wireDefaultBlessings.VDLWrite(enc); err != nil {
+		var wire security.WireBlessings
+		if err := security.WireBlessingsFromNative(&wire, x.DefaultBlessings); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -1157,7 +1097,7 @@ func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("CacheKeyFormat"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.CacheKeyFormat)); err != nil {

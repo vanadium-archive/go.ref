@@ -136,14 +136,14 @@ func (t *ServiceDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x ServiceData) VDLIsZero() (bool, error) {
+func (x ServiceData) VDLIsZero() bool {
 	if x.Version != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Perms) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x ServiceData) VDLWrite(enc vdl.Encoder) error {
@@ -154,7 +154,7 @@ func (x ServiceData) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Version"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.Version); err != nil {
@@ -362,8 +362,8 @@ func (t *DbInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x DbInfo) VDLIsZero() (bool, error) {
-	return x == DbInfo{}, nil
+func (x DbInfo) VDLIsZero() bool {
+	return x == DbInfo{}
 }
 
 func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
@@ -382,7 +382,7 @@ func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("RootDir"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.RootDir); err != nil {
@@ -396,7 +396,7 @@ func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Engine"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Engine); err != nil {
@@ -667,20 +667,20 @@ func (t *__VDLTarget1_optional) FromNil(tt *vdl.Type) error {
 	return nil
 }
 
-func (x DatabaseData) VDLIsZero() (bool, error) {
+func (x DatabaseData) VDLIsZero() bool {
 	if x.Id != (syncbase.Id{}) {
-		return false, nil
+		return false
 	}
 	if x.Version != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Perms) != 0 {
-		return false, nil
+		return false
 	}
 	if x.SchemaMetadata != nil {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
@@ -699,7 +699,7 @@ func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Version"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.Version); err != nil {
@@ -721,11 +721,14 @@ func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("SchemaMetadata"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((**syncbase.SchemaMetadata)(nil))); err != nil {
+		enc.SetNextStartValueIsOptional()
+		if err := enc.StartValue(vdl.TypeOf((*syncbase.SchemaMetadata)(nil)).Elem()); err != nil {
 			return err
 		}
-		enc.SetNextStartValueIsOptional()
 		if err := x.SchemaMetadata.VDLWrite(enc); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
 			return err
 		}
 	}
@@ -890,8 +893,8 @@ func (t *CollectionPermsTarget) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x CollectionPerms) VDLIsZero() (bool, error) {
-	return len(x) == 0, nil
+func (x CollectionPerms) VDLIsZero() bool {
+	return len(x) == 0
 }
 
 func (x CollectionPerms) VDLWrite(enc vdl.Encoder) error {
@@ -905,7 +908,7 @@ func (x CollectionPerms) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(key); err != nil {

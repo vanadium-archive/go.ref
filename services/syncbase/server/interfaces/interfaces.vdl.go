@@ -19,7 +19,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/syncbase"
 	"v.io/v23/vdl"
-	time_2 "v.io/v23/vdlroot/time"
+	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 )
 
@@ -113,8 +113,8 @@ func (t *GenVectorTarget) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x GenVector) VDLIsZero() (bool, error) {
-	return len(x) == 0, nil
+func (x GenVector) VDLIsZero() bool {
+	return len(x) == 0
 }
 
 func (x GenVector) VDLWrite(enc vdl.Encoder) error {
@@ -128,7 +128,7 @@ func (x GenVector) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(key); err != nil {
@@ -137,7 +137,7 @@ func (x GenVector) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.FinishValue(); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(elem); err != nil {
@@ -292,8 +292,8 @@ func (t *KnowledgeTarget) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x Knowledge) VDLIsZero() (bool, error) {
-	return len(x) == 0, nil
+func (x Knowledge) VDLIsZero() bool {
+	return len(x) == 0
 }
 
 func (x Knowledge) VDLWrite(enc vdl.Encoder) error {
@@ -307,7 +307,7 @@ func (x Knowledge) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(key); err != nil {
@@ -538,12 +538,12 @@ func (m *LogRecMetadata) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue23 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue23, m.UpdTime); err != nil {
+	var wireValue23 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue23, m.UpdTime); err != nil {
 		return err
 	}
 
-	var26 := (wireValue23 == time_2.Time{})
+	var26 := (wireValue23 == vdltime.Time{})
 	if var26 {
 		if err := fieldsTarget1.ZeroField("UpdTime"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -638,7 +638,7 @@ type LogRecMetadataTarget struct {
 	objIdTarget      vdl.StringTarget
 	curVersTarget    vdl.StringTarget
 	parentsTarget    vdl.StringSliceTarget
-	updTimeTarget    time_2.TimeTarget
+	updTimeTarget    vdltime.TimeTarget
 	deleteTarget     vdl.BoolTarget
 	batchIdTarget    vdl.Uint64Target
 	batchCountTarget vdl.Uint64Target
@@ -723,13 +723,7 @@ func (t *LogRecMetadataTarget) ZeroField(name string) error {
 		t.Value.Parents = []string(nil)
 		return nil
 	case "UpdTime":
-		t.Value.UpdTime = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.UpdTime = time.Time{}
 		return nil
 	case "Delete":
 		t.Value.Delete = false
@@ -749,42 +743,38 @@ func (t *LogRecMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x LogRecMetadata) VDLIsZero() (bool, error) {
+func (x LogRecMetadata) VDLIsZero() bool {
 	if x.Id != 0 {
-		return false, nil
+		return false
 	}
 	if x.Gen != 0 {
-		return false, nil
+		return false
 	}
 	if x.RecType != 0 {
-		return false, nil
+		return false
 	}
 	if x.ObjId != "" {
-		return false, nil
+		return false
 	}
 	if x.CurVers != "" {
-		return false, nil
+		return false
 	}
 	if len(x.Parents) != 0 {
-		return false, nil
+		return false
 	}
-	var wireUpdTime time_2.Time
-	if err := time_2.TimeFromNative(&wireUpdTime, x.UpdTime); err != nil {
-		return false, err
-	}
-	if wireUpdTime != (time_2.Time{}) {
-		return false, nil
+	if !x.UpdTime.IsZero() {
+		return false
 	}
 	if x.Delete {
-		return false, nil
+		return false
 	}
 	if x.BatchId != 0 {
-		return false, nil
+		return false
 	}
 	if x.BatchCount != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x LogRecMetadata) VDLWrite(enc vdl.Encoder) error {
@@ -795,7 +785,7 @@ func (x LogRecMetadata) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Id"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.Id); err != nil {
@@ -809,7 +799,7 @@ func (x LogRecMetadata) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Gen"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.Gen); err != nil {
@@ -823,7 +813,7 @@ func (x LogRecMetadata) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("RecType"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*byte)(nil))); err != nil {
+		if err := enc.StartValue(vdl.ByteType); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.RecType)); err != nil {
@@ -837,7 +827,7 @@ func (x LogRecMetadata) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("ObjId"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.ObjId); err != nil {
@@ -851,7 +841,7 @@ func (x LogRecMetadata) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("CurVers"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.CurVers); err != nil {
@@ -869,15 +859,15 @@ func (x LogRecMetadata) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var wireUpdTime time_2.Time
-	if err := time_2.TimeFromNative(&wireUpdTime, x.UpdTime); err != nil {
-		return err
-	}
-	if wireUpdTime != (time_2.Time{}) {
+	if !x.UpdTime.IsZero() {
 		if err := enc.NextField("UpdTime"); err != nil {
 			return err
 		}
-		if err := wireUpdTime.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.UpdTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -885,7 +875,7 @@ func (x LogRecMetadata) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Delete"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.Delete); err != nil {
@@ -899,7 +889,7 @@ func (x LogRecMetadata) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("BatchId"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.BatchId); err != nil {
@@ -913,7 +903,7 @@ func (x LogRecMetadata) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("BatchCount"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.BatchCount); err != nil {
@@ -940,7 +930,7 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x[i]); err != nil {
@@ -1033,11 +1023,11 @@ func (x *LogRecMetadata) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "UpdTime":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.UpdTime); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.UpdTime); err != nil {
 				return err
 			}
 		case "Delete":
@@ -1149,12 +1139,12 @@ func (m *LogRec) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 		var10 = true
 	}
 	var4 = var4 && var10
-	var wireValue11 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue11, m.Metadata.UpdTime); err != nil {
+	var wireValue11 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue11, m.Metadata.UpdTime); err != nil {
 		return fmt.Errorf("error converting m.Metadata.UpdTime to wiretype")
 	}
 
-	var12 := (wireValue11 == time_2.Time{})
+	var12 := (wireValue11 == vdltime.Time{})
 	var4 = var4 && var12
 	var13 := (m.Metadata.Delete == false)
 	var4 = var4 && var13
@@ -1263,29 +1253,21 @@ func (t *LogRecTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x LogRec) VDLIsZero() (bool, error) {
-	isZeroMetadata, err := x.Metadata.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	if !isZeroMetadata {
-		return false, nil
+func (x LogRec) VDLIsZero() bool {
+	if !x.Metadata.VDLIsZero() {
+		return false
 	}
 	if len(x.Value) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x LogRec) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*LogRec)(nil)).Elem()); err != nil {
 		return err
 	}
-	isZeroMetadata, err := x.Metadata.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroMetadata {
+	if !x.Metadata.VDLIsZero() {
 		if err := enc.NextField("Metadata"); err != nil {
 			return err
 		}
@@ -1386,8 +1368,8 @@ func (t *GroupIdTarget) FromString(src string, tt *vdl.Type) error {
 	return nil
 }
 
-func (x GroupId) VDLIsZero() (bool, error) {
-	return x == "", nil
+func (x GroupId) VDLIsZero() bool {
+	return x == ""
 }
 
 func (x GroupId) VDLWrite(enc vdl.Encoder) error {
@@ -1501,8 +1483,8 @@ func (t *SyncgroupStatusTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	return nil
 }
 
-func (x SyncgroupStatus) VDLIsZero() (bool, error) {
-	return x == SyncgroupStatusPublishPending, nil
+func (x SyncgroupStatus) VDLIsZero() bool {
+	return x == SyncgroupStatusPublishPending
 }
 
 func (x SyncgroupStatus) VDLWrite(enc vdl.Encoder) error {
@@ -1875,33 +1857,29 @@ func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x Syncgroup) VDLIsZero() (bool, error) {
+func (x Syncgroup) VDLIsZero() bool {
 	if x.Name != "" {
-		return false, nil
+		return false
 	}
 	if x.SpecVersion != "" {
-		return false, nil
+		return false
 	}
-	isZeroSpec, err := x.Spec.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	if !isZeroSpec {
-		return false, nil
+	if !x.Spec.VDLIsZero() {
+		return false
 	}
 	if x.Creator != "" {
-		return false, nil
+		return false
 	}
 	if x.DbId != (syncbase.Id{}) {
-		return false, nil
+		return false
 	}
 	if x.Status != SyncgroupStatusPublishPending {
-		return false, nil
+		return false
 	}
 	if len(x.Joiners) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x Syncgroup) VDLWrite(enc vdl.Encoder) error {
@@ -1912,7 +1890,7 @@ func (x Syncgroup) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Name"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Name); err != nil {
@@ -1926,7 +1904,7 @@ func (x Syncgroup) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("SpecVersion"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.SpecVersion); err != nil {
@@ -1936,11 +1914,7 @@ func (x Syncgroup) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	isZeroSpec, err := x.Spec.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroSpec {
+	if !x.Spec.VDLIsZero() {
 		if err := enc.NextField("Spec"); err != nil {
 			return err
 		}
@@ -1952,7 +1926,7 @@ func (x Syncgroup) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Creator"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Creator); err != nil {
@@ -2003,7 +1977,7 @@ func __VDLWriteAnon_map_2(enc vdl.Encoder, x map[string]syncbase.SyncgroupMember
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(key); err != nil {
@@ -2259,14 +2233,14 @@ func (t *SgDeltaReqTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x SgDeltaReq) VDLIsZero() (bool, error) {
+func (x SgDeltaReq) VDLIsZero() bool {
 	if x.DbId != (syncbase.Id{}) {
-		return false, nil
+		return false
 	}
 	if len(x.Gvs) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x SgDeltaReq) VDLWrite(enc vdl.Encoder) error {
@@ -2530,17 +2504,17 @@ func (t *__VDLTarget2_set) FinishSet(list vdl.SetTarget) error {
 	return nil
 }
 
-func (x DataDeltaReq) VDLIsZero() (bool, error) {
+func (x DataDeltaReq) VDLIsZero() bool {
 	if x.DbId != (syncbase.Id{}) {
-		return false, nil
+		return false
 	}
 	if len(x.SgIds) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Gvs) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x DataDeltaReq) VDLWrite(enc vdl.Encoder) error {
@@ -2681,7 +2655,7 @@ type (
 		// __VDLReflect describes the DeltaReq union type.
 		__VDLReflect(__DeltaReqReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// DeltaReqSgs represents field Sgs of the DeltaReq union type.
@@ -2815,16 +2789,12 @@ func (t deltaReqTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target
 	return nil, fmt.Errorf("got %T, want *DeltaReq", union)
 }
 
-func (x DeltaReqSgs) VDLIsZero() (bool, error) {
-	isZero, err := x.Value.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	return isZero, nil
+func (x DeltaReqSgs) VDLIsZero() bool {
+	return x.Value.VDLIsZero()
 }
 
-func (x DeltaReqData) VDLIsZero() (bool, error) {
-	return false, nil
+func (x DeltaReqData) VDLIsZero() bool {
+	return false
 }
 
 func (x DeltaReqSgs) VDLWrite(enc vdl.Encoder) error {
@@ -2912,7 +2882,7 @@ type (
 		// __VDLReflect describes the DeltaResp union type.
 		__VDLReflect(__DeltaRespReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// DeltaRespRec represents field Rec of the DeltaResp union type.
@@ -3046,16 +3016,12 @@ func (t deltaRespTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Targe
 	return nil, fmt.Errorf("got %T, want *DeltaResp", union)
 }
 
-func (x DeltaRespRec) VDLIsZero() (bool, error) {
-	isZero, err := x.Value.VDLIsZero()
-	if err != nil {
-		return false, err
-	}
-	return isZero, nil
+func (x DeltaRespRec) VDLIsZero() bool {
+	return x.Value.VDLIsZero()
 }
 
-func (x DeltaRespGvs) VDLIsZero() (bool, error) {
-	return false, nil
+func (x DeltaRespGvs) VDLIsZero() bool {
+	return false
 }
 
 func (x DeltaRespRec) VDLWrite(enc vdl.Encoder) error {
@@ -3184,12 +3150,12 @@ func (m *SgPriority) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue8 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue8, m.ServerTime); err != nil {
+	var wireValue8 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue8, m.ServerTime); err != nil {
 		return err
 	}
 
-	var11 := (wireValue8 == time_2.Time{})
+	var11 := (wireValue8 == vdltime.Time{})
 	if var11 {
 		if err := fieldsTarget1.ZeroField("ServerTime"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -3223,7 +3189,7 @@ type SgPriorityTarget struct {
 	Value            *SgPriority
 	devTypeTarget    vdl.Int32Target
 	distanceTarget   vdl.Float32Target
-	serverTimeTarget time_2.TimeTarget
+	serverTimeTarget vdltime.TimeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -3265,13 +3231,7 @@ func (t *SgPriorityTarget) ZeroField(name string) error {
 		t.Value.Distance = float32(0)
 		return nil
 	case "ServerTime":
-		t.Value.ServerTime = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.ServerTime = time.Time{}
 		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.SgPriority", name)
@@ -3282,21 +3242,17 @@ func (t *SgPriorityTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x SgPriority) VDLIsZero() (bool, error) {
+func (x SgPriority) VDLIsZero() bool {
 	if x.DevType != 0 {
-		return false, nil
+		return false
 	}
 	if x.Distance != 0 {
-		return false, nil
+		return false
 	}
-	var wireServerTime time_2.Time
-	if err := time_2.TimeFromNative(&wireServerTime, x.ServerTime); err != nil {
-		return false, err
+	if !x.ServerTime.IsZero() {
+		return false
 	}
-	if wireServerTime != (time_2.Time{}) {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x SgPriority) VDLWrite(enc vdl.Encoder) error {
@@ -3307,7 +3263,7 @@ func (x SgPriority) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("DevType"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(x.DevType)); err != nil {
@@ -3321,7 +3277,7 @@ func (x SgPriority) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Distance"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*float32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Float32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeFloat(float64(x.Distance)); err != nil {
@@ -3331,15 +3287,15 @@ func (x SgPriority) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var wireServerTime time_2.Time
-	if err := time_2.TimeFromNative(&wireServerTime, x.ServerTime); err != nil {
-		return err
-	}
-	if wireServerTime != (time_2.Time{}) {
+	if !x.ServerTime.IsZero() {
 		if err := enc.NextField("ServerTime"); err != nil {
 			return err
 		}
-		if err := wireServerTime.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.ServerTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -3390,11 +3346,11 @@ func (x *SgPriority) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "ServerTime":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.ServerTime); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.ServerTime); err != nil {
 				return err
 			}
 		default:
@@ -3493,8 +3449,8 @@ func (t *SgPrioritiesTarget) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x SgPriorities) VDLIsZero() (bool, error) {
-	return len(x) == 0, nil
+func (x SgPriorities) VDLIsZero() bool {
+	return len(x) == 0
 }
 
 func (x SgPriorities) VDLWrite(enc vdl.Encoder) error {
@@ -3648,11 +3604,11 @@ func (t *DeltaFinalRespTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x DeltaFinalResp) VDLIsZero() (bool, error) {
+func (x DeltaFinalResp) VDLIsZero() bool {
 	if len(x.SgPriorities) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x DeltaFinalResp) VDLWrite(enc vdl.Encoder) error {
@@ -3790,11 +3746,11 @@ func (t *ChunkHashTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x ChunkHash) VDLIsZero() (bool, error) {
+func (x ChunkHash) VDLIsZero() bool {
 	if len(x.Hash) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x ChunkHash) VDLWrite(enc vdl.Encoder) error {
@@ -3944,11 +3900,11 @@ func (t *ChunkDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x ChunkData) VDLIsZero() (bool, error) {
+func (x ChunkData) VDLIsZero() bool {
 	if len(x.Data) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x ChunkData) VDLWrite(enc vdl.Encoder) error {
@@ -4024,12 +3980,12 @@ func (m *TimeReq) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	var wireValue2 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue2, m.SendTs); err != nil {
+	var wireValue2 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue2, m.SendTs); err != nil {
 		return err
 	}
 
-	var5 := (wireValue2 == time_2.Time{})
+	var5 := (wireValue2 == vdltime.Time{})
 	if var5 {
 		if err := fieldsTarget1.ZeroField("SendTs"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -4061,7 +4017,7 @@ func (m *TimeReq) MakeVDLTarget() vdl.Target {
 
 type TimeReqTarget struct {
 	Value        *TimeReq
-	sendTsTarget time_2.TimeTarget
+	sendTsTarget vdltime.TimeTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -4089,13 +4045,7 @@ func (t *TimeReqTarget) FinishField(_, _ vdl.Target) error {
 func (t *TimeReqTarget) ZeroField(name string) error {
 	switch name {
 	case "SendTs":
-		t.Value.SendTs = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.SendTs = time.Time{}
 		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.TimeReq", name)
@@ -4106,30 +4056,26 @@ func (t *TimeReqTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x TimeReq) VDLIsZero() (bool, error) {
-	var wireSendTs time_2.Time
-	if err := time_2.TimeFromNative(&wireSendTs, x.SendTs); err != nil {
-		return false, err
+func (x TimeReq) VDLIsZero() bool {
+	if !x.SendTs.IsZero() {
+		return false
 	}
-	if wireSendTs != (time_2.Time{}) {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x TimeReq) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*TimeReq)(nil)).Elem()); err != nil {
 		return err
 	}
-	var wireSendTs time_2.Time
-	if err := time_2.TimeFromNative(&wireSendTs, x.SendTs); err != nil {
-		return err
-	}
-	if wireSendTs != (time_2.Time{}) {
+	if !x.SendTs.IsZero() {
 		if err := enc.NextField("SendTs"); err != nil {
 			return err
 		}
-		if err := wireSendTs.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.SendTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -4156,11 +4102,11 @@ func (x *TimeReq) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "SendTs":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.SendTs); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.SendTs); err != nil {
 				return err
 			}
 		default:
@@ -4198,12 +4144,12 @@ func (m *TimeResp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	var wireValue2 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue2, m.OrigTs); err != nil {
+	var wireValue2 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue2, m.OrigTs); err != nil {
 		return err
 	}
 
-	var5 := (wireValue2 == time_2.Time{})
+	var5 := (wireValue2 == vdltime.Time{})
 	if var5 {
 		if err := fieldsTarget1.ZeroField("OrigTs"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -4223,12 +4169,12 @@ func (m *TimeResp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue6 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue6, m.RecvTs); err != nil {
+	var wireValue6 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue6, m.RecvTs); err != nil {
 		return err
 	}
 
-	var9 := (wireValue6 == time_2.Time{})
+	var9 := (wireValue6 == vdltime.Time{})
 	if var9 {
 		if err := fieldsTarget1.ZeroField("RecvTs"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -4248,12 +4194,12 @@ func (m *TimeResp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue10 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue10, m.SendTs); err != nil {
+	var wireValue10 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue10, m.SendTs); err != nil {
 		return err
 	}
 
-	var13 := (wireValue10 == time_2.Time{})
+	var13 := (wireValue10 == vdltime.Time{})
 	if var13 {
 		if err := fieldsTarget1.ZeroField("SendTs"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -4273,12 +4219,12 @@ func (m *TimeResp) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue14 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue14, m.LastNtpTs); err != nil {
+	var wireValue14 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue14, m.LastNtpTs); err != nil {
 		return err
 	}
 
-	var17 := (wireValue14 == time_2.Time{})
+	var17 := (wireValue14 == vdltime.Time{})
 	if var17 {
 		if err := fieldsTarget1.ZeroField("LastNtpTs"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -4348,10 +4294,10 @@ func (m *TimeResp) MakeVDLTarget() vdl.Target {
 
 type TimeRespTarget struct {
 	Value            *TimeResp
-	origTsTarget     time_2.TimeTarget
-	recvTsTarget     time_2.TimeTarget
-	sendTsTarget     time_2.TimeTarget
-	lastNtpTsTarget  time_2.TimeTarget
+	origTsTarget     vdltime.TimeTarget
+	recvTsTarget     vdltime.TimeTarget
+	sendTsTarget     vdltime.TimeTarget
+	lastNtpTsTarget  vdltime.TimeTarget
 	numRebootsTarget vdl.Uint16Target
 	numHopsTarget    vdl.Uint16Target
 	vdl.TargetBase
@@ -4401,40 +4347,16 @@ func (t *TimeRespTarget) FinishField(_, _ vdl.Target) error {
 func (t *TimeRespTarget) ZeroField(name string) error {
 	switch name {
 	case "OrigTs":
-		t.Value.OrigTs = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.OrigTs = time.Time{}
 		return nil
 	case "RecvTs":
-		t.Value.RecvTs = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.RecvTs = time.Time{}
 		return nil
 	case "SendTs":
-		t.Value.SendTs = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.SendTs = time.Time{}
 		return nil
 	case "LastNtpTs":
-		t.Value.LastNtpTs = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.LastNtpTs = time.Time{}
 		return nil
 	case "NumReboots":
 		t.Value.NumReboots = uint16(0)
@@ -4451,93 +4373,77 @@ func (t *TimeRespTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x TimeResp) VDLIsZero() (bool, error) {
-	var wireOrigTs time_2.Time
-	if err := time_2.TimeFromNative(&wireOrigTs, x.OrigTs); err != nil {
-		return false, err
+func (x TimeResp) VDLIsZero() bool {
+	if !x.OrigTs.IsZero() {
+		return false
 	}
-	if wireOrigTs != (time_2.Time{}) {
-		return false, nil
+	if !x.RecvTs.IsZero() {
+		return false
 	}
-	var wireRecvTs time_2.Time
-	if err := time_2.TimeFromNative(&wireRecvTs, x.RecvTs); err != nil {
-		return false, err
+	if !x.SendTs.IsZero() {
+		return false
 	}
-	if wireRecvTs != (time_2.Time{}) {
-		return false, nil
-	}
-	var wireSendTs time_2.Time
-	if err := time_2.TimeFromNative(&wireSendTs, x.SendTs); err != nil {
-		return false, err
-	}
-	if wireSendTs != (time_2.Time{}) {
-		return false, nil
-	}
-	var wireLastNtpTs time_2.Time
-	if err := time_2.TimeFromNative(&wireLastNtpTs, x.LastNtpTs); err != nil {
-		return false, err
-	}
-	if wireLastNtpTs != (time_2.Time{}) {
-		return false, nil
+	if !x.LastNtpTs.IsZero() {
+		return false
 	}
 	if x.NumReboots != 0 {
-		return false, nil
+		return false
 	}
 	if x.NumHops != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x TimeResp) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*TimeResp)(nil)).Elem()); err != nil {
 		return err
 	}
-	var wireOrigTs time_2.Time
-	if err := time_2.TimeFromNative(&wireOrigTs, x.OrigTs); err != nil {
-		return err
-	}
-	if wireOrigTs != (time_2.Time{}) {
+	if !x.OrigTs.IsZero() {
 		if err := enc.NextField("OrigTs"); err != nil {
 			return err
 		}
-		if err := wireOrigTs.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.OrigTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireRecvTs time_2.Time
-	if err := time_2.TimeFromNative(&wireRecvTs, x.RecvTs); err != nil {
-		return err
-	}
-	if wireRecvTs != (time_2.Time{}) {
+	if !x.RecvTs.IsZero() {
 		if err := enc.NextField("RecvTs"); err != nil {
 			return err
 		}
-		if err := wireRecvTs.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.RecvTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireSendTs time_2.Time
-	if err := time_2.TimeFromNative(&wireSendTs, x.SendTs); err != nil {
-		return err
-	}
-	if wireSendTs != (time_2.Time{}) {
+	if !x.SendTs.IsZero() {
 		if err := enc.NextField("SendTs"); err != nil {
 			return err
 		}
-		if err := wireSendTs.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.SendTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireLastNtpTs time_2.Time
-	if err := time_2.TimeFromNative(&wireLastNtpTs, x.LastNtpTs); err != nil {
-		return err
-	}
-	if wireLastNtpTs != (time_2.Time{}) {
+	if !x.LastNtpTs.IsZero() {
 		if err := enc.NextField("LastNtpTs"); err != nil {
 			return err
 		}
-		if err := wireLastNtpTs.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.LastNtpTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -4545,7 +4451,7 @@ func (x TimeResp) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("NumReboots"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint16Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.NumReboots)); err != nil {
@@ -4559,7 +4465,7 @@ func (x TimeResp) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("NumHops"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint16Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.NumHops)); err != nil {
@@ -4592,35 +4498,35 @@ func (x *TimeResp) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "OrigTs":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.OrigTs); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.OrigTs); err != nil {
 				return err
 			}
 		case "RecvTs":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.RecvTs); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.RecvTs); err != nil {
 				return err
 			}
 		case "SendTs":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.SendTs); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.SendTs); err != nil {
 				return err
 			}
 		case "LastNtpTs":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.LastNtpTs); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.LastNtpTs); err != nil {
 				return err
 			}
 		case "NumReboots":
@@ -4741,8 +4647,8 @@ func (t *BlobSharesBySyncgroupTarget) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x BlobSharesBySyncgroup) VDLIsZero() (bool, error) {
-	return len(x) == 0, nil
+func (x BlobSharesBySyncgroup) VDLIsZero() bool {
+	return len(x) == 0
 }
 
 func (x BlobSharesBySyncgroup) VDLWrite(enc vdl.Encoder) error {
@@ -4759,7 +4665,7 @@ func (x BlobSharesBySyncgroup) VDLWrite(enc vdl.Encoder) error {
 		if err := key.VDLWrite(enc); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(elem)); err != nil {
@@ -4839,12 +4745,12 @@ func (m *LocationData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	var wireValue2 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue2, m.WhenSeen); err != nil {
+	var wireValue2 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue2, m.WhenSeen); err != nil {
 		return err
 	}
 
-	var5 := (wireValue2 == time_2.Time{})
+	var5 := (wireValue2 == vdltime.Time{})
 	if var5 {
 		if err := fieldsTarget1.ZeroField("WhenSeen"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -4914,7 +4820,7 @@ func (m *LocationData) MakeVDLTarget() vdl.Target {
 
 type LocationDataTarget struct {
 	Value          *LocationData
-	whenSeenTarget time_2.TimeTarget
+	whenSeenTarget vdltime.TimeTarget
 	isProxyTarget  vdl.BoolTarget
 	isServerTarget vdl.BoolTarget
 	vdl.TargetBase
@@ -4952,13 +4858,7 @@ func (t *LocationDataTarget) FinishField(_, _ vdl.Target) error {
 func (t *LocationDataTarget) ZeroField(name string) error {
 	switch name {
 	case "WhenSeen":
-		t.Value.WhenSeen = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.WhenSeen = time.Time{}
 		return nil
 	case "IsProxy":
 		t.Value.IsProxy = false
@@ -4975,36 +4875,32 @@ func (t *LocationDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x LocationData) VDLIsZero() (bool, error) {
-	var wireWhenSeen time_2.Time
-	if err := time_2.TimeFromNative(&wireWhenSeen, x.WhenSeen); err != nil {
-		return false, err
-	}
-	if wireWhenSeen != (time_2.Time{}) {
-		return false, nil
+func (x LocationData) VDLIsZero() bool {
+	if !x.WhenSeen.IsZero() {
+		return false
 	}
 	if x.IsProxy {
-		return false, nil
+		return false
 	}
 	if x.IsServer {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x LocationData) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*LocationData)(nil)).Elem()); err != nil {
 		return err
 	}
-	var wireWhenSeen time_2.Time
-	if err := time_2.TimeFromNative(&wireWhenSeen, x.WhenSeen); err != nil {
-		return err
-	}
-	if wireWhenSeen != (time_2.Time{}) {
+	if !x.WhenSeen.IsZero() {
 		if err := enc.NextField("WhenSeen"); err != nil {
 			return err
 		}
-		if err := wireWhenSeen.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.WhenSeen); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -5012,7 +4908,7 @@ func (x LocationData) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("IsProxy"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.IsProxy); err != nil {
@@ -5026,7 +4922,7 @@ func (x LocationData) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("IsServer"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.IsServer); err != nil {
@@ -5059,11 +4955,11 @@ func (x *LocationData) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "WhenSeen":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.WhenSeen); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.WhenSeen); err != nil {
 				return err
 			}
 		case "IsProxy":
@@ -5181,8 +5077,8 @@ func (t *PeerToLocationDataMapTarget) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x PeerToLocationDataMap) VDLIsZero() (bool, error) {
-	return len(x) == 0, nil
+func (x PeerToLocationDataMap) VDLIsZero() bool {
+	return len(x) == 0
 }
 
 func (x PeerToLocationDataMap) VDLWrite(enc vdl.Encoder) error {
@@ -5196,7 +5092,7 @@ func (x PeerToLocationDataMap) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(key); err != nil {
@@ -5400,14 +5296,14 @@ func (t *SignpostTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Signpost) VDLIsZero() (bool, error) {
+func (x Signpost) VDLIsZero() bool {
 	if len(x.Locations) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.SgIds) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x Signpost) VDLWrite(enc vdl.Encoder) error {

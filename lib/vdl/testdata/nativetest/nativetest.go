@@ -19,9 +19,6 @@ func WireStringFromNative(x *WireString, native string) error {
 	return err
 }
 
-func WireMapStringIntToNative(WireMapStringInt, *map[string]int) error   { return nil }
-func WireMapStringIntFromNative(*WireMapStringInt, map[string]int) error { return nil }
-
 func WireTimeToNative(WireTime, *time.Time) error   { return nil }
 func WireTimeFromNative(*WireTime, time.Time) error { return nil }
 

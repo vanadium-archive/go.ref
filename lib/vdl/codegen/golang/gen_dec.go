@@ -241,10 +241,14 @@ func genUnionTargetDef(data *goData, t *vdl.Type) string {
 	var anyValueField = ""
 	for i := 0; i < t.NumField(); i++ {
 		if t.Field(i).Type == vdl.AnyType {
-			if shouldUseVdlValueForAny(data.Package) {
+			switch goAnyRepMode(data.Package) {
+			case goAnyRepValue:
 				anyValueField = fmt.Sprintf("anyValue %sValue", data.Pkg("v.io/v23/vdl"))
-			} else {
+			case goAnyRepRawBytes:
 				anyValueField = fmt.Sprintf("anyValue %sRawBytes", data.Pkg("v.io/v23/vom"))
+			default:
+				// TODO(toddw): the interface{} any representation isn't supported; this
+				// entire file will be removed soon anyways.
 			}
 			break
 		}
@@ -269,17 +273,21 @@ func (t *%[1]s) StartField(name string) (key, field %[4]sTarget, _ error) {
 	for i := 0; i < t.NumField(); i++ {
 		fld := t.Field(i)
 		if fld.Type == vdl.AnyType {
-			if shouldUseVdlValueForAny(data.Package) {
+			switch goAnyRepMode(data.Package) {
+			case goAnyRepValue:
 				s += fmt.Sprintf(`
 		case %[1]q:
 	t.anyValue = %[2]sValue{}
 	target, err := %[2]sValueTarget(&t.anyValue)
 	return nil, target, err`, fld.Name, data.Pkg("v.io/v23/vdl"))
-			} else {
+			case goAnyRepRawBytes:
 				s += fmt.Sprintf(`
 		case %[1]q:
 	t.anyValue = %[2]sRawBytes{}
 	return nil, t.anyValue.MakeVDLTarget(), nil`, fld.Name, data.Pkg("v.io/v23/vom"))
+			default:
+				// TODO(toddw): the interface{} any representation isn't supported; this
+				// entire file will be removed soon anyways.
 			}
 		} else {
 			ref, body := genTargetRef(data, fld.Type)

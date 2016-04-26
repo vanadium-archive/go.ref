@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"time"
 	"v.io/v23/vdl"
-	time_2 "v.io/v23/vdlroot/time"
+	vdltime "v.io/v23/vdlroot/time"
 )
 
 var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
@@ -50,12 +50,12 @@ func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	var wireValue2 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue2, m.SystemTimeAtBoot); err != nil {
+	var wireValue2 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue2, m.SystemTimeAtBoot); err != nil {
 		return err
 	}
 
-	var5 := (wireValue2 == time_2.Time{})
+	var5 := (wireValue2 == vdltime.Time{})
 	if var5 {
 		if err := fieldsTarget1.ZeroField("SystemTimeAtBoot"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -75,12 +75,12 @@ func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue6 time_2.Duration
-	if err := time_2.DurationFromNative(&wireValue6, m.Skew); err != nil {
+	var wireValue6 vdltime.Duration
+	if err := vdltime.DurationFromNative(&wireValue6, m.Skew); err != nil {
 		return err
 	}
 
-	var9 := (wireValue6 == time_2.Duration{})
+	var9 := (wireValue6 == vdltime.Duration{})
 	if var9 {
 		if err := fieldsTarget1.ZeroField("Skew"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -100,12 +100,12 @@ func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue10 time_2.Duration
-	if err := time_2.DurationFromNative(&wireValue10, m.ElapsedTimeSinceBoot); err != nil {
+	var wireValue10 vdltime.Duration
+	if err := vdltime.DurationFromNative(&wireValue10, m.ElapsedTimeSinceBoot); err != nil {
 		return err
 	}
 
-	var13 := (wireValue10 == time_2.Duration{})
+	var13 := (wireValue10 == vdltime.Duration{})
 	if var13 {
 		if err := fieldsTarget1.ZeroField("ElapsedTimeSinceBoot"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -125,12 +125,12 @@ func (m *VClockData) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue14 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue14, m.LastNtpTs); err != nil {
+	var wireValue14 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue14, m.LastNtpTs); err != nil {
 		return err
 	}
 
-	var17 := (wireValue14 == time_2.Time{})
+	var17 := (wireValue14 == vdltime.Time{})
 	if var17 {
 		if err := fieldsTarget1.ZeroField("LastNtpTs"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -200,10 +200,10 @@ func (m *VClockData) MakeVDLTarget() vdl.Target {
 
 type VClockDataTarget struct {
 	Value                      *VClockData
-	systemTimeAtBootTarget     time_2.TimeTarget
-	skewTarget                 time_2.DurationTarget
-	elapsedTimeSinceBootTarget time_2.DurationTarget
-	lastNtpTsTarget            time_2.TimeTarget
+	systemTimeAtBootTarget     vdltime.TimeTarget
+	skewTarget                 vdltime.DurationTarget
+	elapsedTimeSinceBootTarget vdltime.DurationTarget
+	lastNtpTsTarget            vdltime.TimeTarget
 	numRebootsTarget           vdl.Uint16Target
 	numHopsTarget              vdl.Uint16Target
 	vdl.TargetBase
@@ -253,40 +253,16 @@ func (t *VClockDataTarget) FinishField(_, _ vdl.Target) error {
 func (t *VClockDataTarget) ZeroField(name string) error {
 	switch name {
 	case "SystemTimeAtBoot":
-		t.Value.SystemTimeAtBoot = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.SystemTimeAtBoot = time.Time{}
 		return nil
 	case "Skew":
-		t.Value.Skew = func() time.Duration {
-			var native time.Duration
-			if err := vdl.Convert(&native, time_2.Duration{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.Skew = time.Duration(0)
 		return nil
 	case "ElapsedTimeSinceBoot":
-		t.Value.ElapsedTimeSinceBoot = func() time.Duration {
-			var native time.Duration
-			if err := vdl.Convert(&native, time_2.Duration{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.ElapsedTimeSinceBoot = time.Duration(0)
 		return nil
 	case "LastNtpTs":
-		t.Value.LastNtpTs = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.LastNtpTs = time.Time{}
 		return nil
 	case "NumReboots":
 		t.Value.NumReboots = uint16(0)
@@ -303,93 +279,77 @@ func (t *VClockDataTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x VClockData) VDLIsZero() (bool, error) {
-	var wireSystemTimeAtBoot time_2.Time
-	if err := time_2.TimeFromNative(&wireSystemTimeAtBoot, x.SystemTimeAtBoot); err != nil {
-		return false, err
+func (x VClockData) VDLIsZero() bool {
+	if !x.SystemTimeAtBoot.IsZero() {
+		return false
 	}
-	if wireSystemTimeAtBoot != (time_2.Time{}) {
-		return false, nil
+	if x.Skew != time.Duration(0) {
+		return false
 	}
-	var wireSkew time_2.Duration
-	if err := time_2.DurationFromNative(&wireSkew, x.Skew); err != nil {
-		return false, err
+	if x.ElapsedTimeSinceBoot != time.Duration(0) {
+		return false
 	}
-	if wireSkew != (time_2.Duration{}) {
-		return false, nil
-	}
-	var wireElapsedTimeSinceBoot time_2.Duration
-	if err := time_2.DurationFromNative(&wireElapsedTimeSinceBoot, x.ElapsedTimeSinceBoot); err != nil {
-		return false, err
-	}
-	if wireElapsedTimeSinceBoot != (time_2.Duration{}) {
-		return false, nil
-	}
-	var wireLastNtpTs time_2.Time
-	if err := time_2.TimeFromNative(&wireLastNtpTs, x.LastNtpTs); err != nil {
-		return false, err
-	}
-	if wireLastNtpTs != (time_2.Time{}) {
-		return false, nil
+	if !x.LastNtpTs.IsZero() {
+		return false
 	}
 	if x.NumReboots != 0 {
-		return false, nil
+		return false
 	}
 	if x.NumHops != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*VClockData)(nil)).Elem()); err != nil {
 		return err
 	}
-	var wireSystemTimeAtBoot time_2.Time
-	if err := time_2.TimeFromNative(&wireSystemTimeAtBoot, x.SystemTimeAtBoot); err != nil {
-		return err
-	}
-	if wireSystemTimeAtBoot != (time_2.Time{}) {
+	if !x.SystemTimeAtBoot.IsZero() {
 		if err := enc.NextField("SystemTimeAtBoot"); err != nil {
 			return err
 		}
-		if err := wireSystemTimeAtBoot.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.SystemTimeAtBoot); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireSkew time_2.Duration
-	if err := time_2.DurationFromNative(&wireSkew, x.Skew); err != nil {
-		return err
-	}
-	if wireSkew != (time_2.Duration{}) {
+	if x.Skew != time.Duration(0) {
 		if err := enc.NextField("Skew"); err != nil {
 			return err
 		}
-		if err := wireSkew.VDLWrite(enc); err != nil {
+		var wire vdltime.Duration
+		if err := vdltime.DurationFromNative(&wire, x.Skew); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireElapsedTimeSinceBoot time_2.Duration
-	if err := time_2.DurationFromNative(&wireElapsedTimeSinceBoot, x.ElapsedTimeSinceBoot); err != nil {
-		return err
-	}
-	if wireElapsedTimeSinceBoot != (time_2.Duration{}) {
+	if x.ElapsedTimeSinceBoot != time.Duration(0) {
 		if err := enc.NextField("ElapsedTimeSinceBoot"); err != nil {
 			return err
 		}
-		if err := wireElapsedTimeSinceBoot.VDLWrite(enc); err != nil {
+		var wire vdltime.Duration
+		if err := vdltime.DurationFromNative(&wire, x.ElapsedTimeSinceBoot); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireLastNtpTs time_2.Time
-	if err := time_2.TimeFromNative(&wireLastNtpTs, x.LastNtpTs); err != nil {
-		return err
-	}
-	if wireLastNtpTs != (time_2.Time{}) {
+	if !x.LastNtpTs.IsZero() {
 		if err := enc.NextField("LastNtpTs"); err != nil {
 			return err
 		}
-		if err := wireLastNtpTs.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.LastNtpTs); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -397,7 +357,7 @@ func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("NumReboots"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint16Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.NumReboots)); err != nil {
@@ -411,7 +371,7 @@ func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("NumHops"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint16Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.NumHops)); err != nil {
@@ -444,35 +404,35 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "SystemTimeAtBoot":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.SystemTimeAtBoot); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.SystemTimeAtBoot); err != nil {
 				return err
 			}
 		case "Skew":
-			var wire time_2.Duration
+			var wire vdltime.Duration
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.DurationToNative(wire, &x.Skew); err != nil {
+			if err := vdltime.DurationToNative(wire, &x.Skew); err != nil {
 				return err
 			}
 		case "ElapsedTimeSinceBoot":
-			var wire time_2.Duration
+			var wire vdltime.Duration
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.DurationToNative(wire, &x.ElapsedTimeSinceBoot); err != nil {
+			if err := vdltime.DurationToNative(wire, &x.ElapsedTimeSinceBoot); err != nil {
 				return err
 			}
 		case "LastNtpTs":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.LastNtpTs); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.LastNtpTs); err != nil {
 				return err
 			}
 		case "NumReboots":

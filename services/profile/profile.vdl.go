@@ -163,8 +163,8 @@ func (t *LibraryTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Library) VDLIsZero() (bool, error) {
-	return x == Library{}, nil
+func (x Library) VDLIsZero() bool {
+	return x == Library{}
 }
 
 func (x Library) VDLWrite(enc vdl.Encoder) error {
@@ -175,7 +175,7 @@ func (x Library) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Name"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Name); err != nil {
@@ -189,7 +189,7 @@ func (x Library) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("MajorVersion"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.MajorVersion); err != nil {
@@ -203,7 +203,7 @@ func (x Library) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("MinorVersion"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.MinorVersion); err != nil {
@@ -568,26 +568,26 @@ func (t *__VDLTarget1_set) FinishSet(list vdl.SetTarget) error {
 	return nil
 }
 
-func (x Specification) VDLIsZero() (bool, error) {
+func (x Specification) VDLIsZero() bool {
 	if x.Label != "" {
-		return false, nil
+		return false
 	}
 	if x.Description != "" {
-		return false, nil
+		return false
 	}
 	if x.Arch != build.ArchitectureAmd64 {
-		return false, nil
+		return false
 	}
 	if x.Os != build.OperatingSystemDarwin {
-		return false, nil
+		return false
 	}
 	if x.Format != build.FormatElf {
-		return false, nil
+		return false
 	}
 	if len(x.Libraries) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x Specification) VDLWrite(enc vdl.Encoder) error {
@@ -598,7 +598,7 @@ func (x Specification) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Label"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Label); err != nil {
@@ -612,7 +612,7 @@ func (x Specification) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Description"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Description); err != nil {

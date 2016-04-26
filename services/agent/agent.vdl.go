@@ -163,8 +163,8 @@ func (t *ConnInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x ConnInfo) VDLIsZero() (bool, error) {
-	return x == ConnInfo{}, nil
+func (x ConnInfo) VDLIsZero() bool {
+	return x == ConnInfo{}
 }
 
 func (x ConnInfo) VDLWrite(enc vdl.Encoder) error {
@@ -175,7 +175,7 @@ func (x ConnInfo) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("MinVersion"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(x.MinVersion)); err != nil {
@@ -189,7 +189,7 @@ func (x ConnInfo) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("MaxVersion"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(x.MaxVersion)); err != nil {
@@ -393,8 +393,8 @@ func (t *RpcRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x RpcRequest) VDLIsZero() (bool, error) {
-	return x == RpcRequest{}, nil
+func (x RpcRequest) VDLIsZero() bool {
+	return x == RpcRequest{}
 }
 
 func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
@@ -405,7 +405,7 @@ func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Id"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.Id); err != nil {
@@ -419,7 +419,7 @@ func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Method"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Method); err != nil {
@@ -433,7 +433,7 @@ func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("NumArgs"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.NumArgs)); err != nil {
@@ -653,8 +653,8 @@ func (t *RpcResponseTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x RpcResponse) VDLIsZero() (bool, error) {
-	return x == RpcResponse{}, nil
+func (x RpcResponse) VDLIsZero() bool {
+	return x == RpcResponse{}
 }
 
 func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
@@ -665,7 +665,7 @@ func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Id"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.Id); err != nil {
@@ -687,7 +687,7 @@ func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("NumArgs"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.NumArgs)); err != nil {
@@ -766,7 +766,7 @@ type (
 		// __VDLReflect describes the RpcMessage union type.
 		__VDLReflect(__RpcMessageReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// RpcMessageReq represents field Req of the RpcMessage union type.
@@ -900,12 +900,12 @@ func (t rpcMessageTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Targ
 	return nil, fmt.Errorf("got %T, want *RpcMessage", union)
 }
 
-func (x RpcMessageReq) VDLIsZero() (bool, error) {
-	return x.Value == RpcRequest{}, nil
+func (x RpcMessageReq) VDLIsZero() bool {
+	return x.Value == RpcRequest{}
 }
 
-func (x RpcMessageResp) VDLIsZero() (bool, error) {
-	return false, nil
+func (x RpcMessageResp) VDLIsZero() bool {
+	return false
 }
 
 func (x RpcMessageReq) VDLWrite(enc vdl.Encoder) error {

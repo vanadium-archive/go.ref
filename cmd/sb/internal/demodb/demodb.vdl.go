@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"time"
 	"v.io/v23/vdl"
-	time_2 "v.io/v23/vdlroot/time"
+	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/vom"
 )
 
@@ -189,8 +189,8 @@ func (t *AddressInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x AddressInfo) VDLIsZero() (bool, error) {
-	return x == AddressInfo{}, nil
+func (x AddressInfo) VDLIsZero() bool {
+	return x == AddressInfo{}
 }
 
 func (x AddressInfo) VDLWrite(enc vdl.Encoder) error {
@@ -201,7 +201,7 @@ func (x AddressInfo) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Street"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Street); err != nil {
@@ -215,7 +215,7 @@ func (x AddressInfo) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("City"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.City); err != nil {
@@ -229,7 +229,7 @@ func (x AddressInfo) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("State"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.State); err != nil {
@@ -243,7 +243,7 @@ func (x AddressInfo) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Zip"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Zip); err != nil {
@@ -415,8 +415,8 @@ func (t *CreditAgencyTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	return nil
 }
 
-func (x CreditAgency) VDLIsZero() (bool, error) {
-	return x == CreditAgencyEquifax, nil
+func (x CreditAgency) VDLIsZero() bool {
+	return x == CreditAgencyEquifax
 }
 
 func (x CreditAgency) VDLWrite(enc vdl.Encoder) error {
@@ -523,8 +523,8 @@ func (t *ExperianRatingTarget) FromEnumLabel(src string, tt *vdl.Type) error {
 	return nil
 }
 
-func (x ExperianRating) VDLIsZero() (bool, error) {
-	return x == ExperianRatingGood, nil
+func (x ExperianRating) VDLIsZero() bool {
+	return x == ExperianRatingGood
 }
 
 func (x ExperianRating) VDLWrite(enc vdl.Encoder) error {
@@ -635,8 +635,8 @@ func (t *EquifaxCreditReportTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x EquifaxCreditReport) VDLIsZero() (bool, error) {
-	return x == EquifaxCreditReport{}, nil
+func (x EquifaxCreditReport) VDLIsZero() bool {
+	return x == EquifaxCreditReport{}
 }
 
 func (x EquifaxCreditReport) VDLWrite(enc vdl.Encoder) error {
@@ -647,7 +647,7 @@ func (x EquifaxCreditReport) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Rating"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*byte)(nil))); err != nil {
+		if err := enc.StartValue(vdl.ByteType); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.Rating)); err != nil {
@@ -784,8 +784,8 @@ func (t *ExperianCreditReportTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x ExperianCreditReport) VDLIsZero() (bool, error) {
-	return x == ExperianCreditReport{}, nil
+func (x ExperianCreditReport) VDLIsZero() bool {
+	return x == ExperianCreditReport{}
 }
 
 func (x ExperianCreditReport) VDLWrite(enc vdl.Encoder) error {
@@ -918,8 +918,8 @@ func (t *TransUnionCreditReportTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x TransUnionCreditReport) VDLIsZero() (bool, error) {
-	return x == TransUnionCreditReport{}, nil
+func (x TransUnionCreditReport) VDLIsZero() bool {
+	return x == TransUnionCreditReport{}
 }
 
 func (x TransUnionCreditReport) VDLWrite(enc vdl.Encoder) error {
@@ -930,7 +930,7 @@ func (x TransUnionCreditReport) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Rating"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int16)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int16Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(x.Rating)); err != nil {
@@ -994,7 +994,7 @@ type (
 		// __VDLReflect describes the AgencyReport union type.
 		__VDLReflect(__AgencyReportReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// AgencyReportEquifaxReport represents field EquifaxReport of the AgencyReport union type.
@@ -1168,16 +1168,16 @@ func (t agencyReportTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Ta
 	return nil, fmt.Errorf("got %T, want *AgencyReport", union)
 }
 
-func (x AgencyReportEquifaxReport) VDLIsZero() (bool, error) {
-	return x.Value == EquifaxCreditReport{}, nil
+func (x AgencyReportEquifaxReport) VDLIsZero() bool {
+	return x.Value == EquifaxCreditReport{}
 }
 
-func (x AgencyReportExperianReport) VDLIsZero() (bool, error) {
-	return false, nil
+func (x AgencyReportExperianReport) VDLIsZero() bool {
+	return false
 }
 
-func (x AgencyReportTransUnionReport) VDLIsZero() (bool, error) {
-	return false, nil
+func (x AgencyReportTransUnionReport) VDLIsZero() bool {
+	return false
 }
 
 func (x AgencyReportEquifaxReport) VDLWrite(enc vdl.Encoder) error {
@@ -1395,21 +1395,14 @@ func (t *CreditReportTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x CreditReport) VDLIsZero() (bool, error) {
+func (x CreditReport) VDLIsZero() bool {
 	if x.Agency != CreditAgencyEquifax {
-		return false, nil
+		return false
 	}
-	var isZeroReport bool
-	if x.Report != nil {
-		var err error
-		if isZeroReport, err = x.Report.VDLIsZero(); err != nil {
-			return false, err
-		}
+	if x.Report != nil && !x.Report.VDLIsZero() {
+		return false
 	}
-	if x.Report != nil && !isZeroReport {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x CreditReport) VDLWrite(enc vdl.Encoder) error {
@@ -1424,14 +1417,7 @@ func (x CreditReport) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var isZeroReport bool
-	if x.Report != nil {
-		var err error
-		if isZeroReport, err = x.Report.VDLIsZero(); err != nil {
-			return err
-		}
-	}
-	if x.Report != nil && !isZeroReport {
+	if x.Report != nil && !x.Report.VDLIsZero() {
 		if err := enc.NextField("Report"); err != nil {
 			return err
 		}
@@ -1681,27 +1667,23 @@ func (t *CustomerTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Customer) VDLIsZero() (bool, error) {
+func (x Customer) VDLIsZero() bool {
 	if x.Name != "" {
-		return false, nil
+		return false
 	}
 	if x.Id != 0 {
-		return false, nil
+		return false
 	}
 	if x.Active {
-		return false, nil
+		return false
 	}
 	if x.Address != (AddressInfo{}) {
-		return false, nil
+		return false
 	}
-	isZeroCredit, err := x.Credit.VDLIsZero()
-	if err != nil {
-		return false, err
+	if !x.Credit.VDLIsZero() {
+		return false
 	}
-	if !isZeroCredit {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x Customer) VDLWrite(enc vdl.Encoder) error {
@@ -1712,7 +1694,7 @@ func (x Customer) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Name"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Name); err != nil {
@@ -1726,7 +1708,7 @@ func (x Customer) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Id"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.Id); err != nil {
@@ -1740,7 +1722,7 @@ func (x Customer) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Active"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.Active); err != nil {
@@ -1758,11 +1740,7 @@ func (x Customer) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	isZeroCredit, err := x.Credit.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroCredit {
+	if !x.Credit.VDLIsZero() {
 		if err := enc.NextField("Credit"); err != nil {
 			return err
 		}
@@ -2014,8 +1992,8 @@ func (t *InvoiceTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Invoice) VDLIsZero() (bool, error) {
-	return x == Invoice{}, nil
+func (x Invoice) VDLIsZero() bool {
+	return x == Invoice{}
 }
 
 func (x Invoice) VDLWrite(enc vdl.Encoder) error {
@@ -2026,7 +2004,7 @@ func (x Invoice) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("CustId"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.CustId); err != nil {
@@ -2040,7 +2018,7 @@ func (x Invoice) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("InvoiceNum"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.InvoiceNum); err != nil {
@@ -2054,7 +2032,7 @@ func (x Invoice) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Amount"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.Amount); err != nil {
@@ -2447,8 +2425,8 @@ func (t *NumbersTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Numbers) VDLIsZero() (bool, error) {
-	return x == Numbers{}, nil
+func (x Numbers) VDLIsZero() bool {
+	return x == Numbers{}
 }
 
 func (x Numbers) VDLWrite(enc vdl.Encoder) error {
@@ -2459,7 +2437,7 @@ func (x Numbers) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("B"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*byte)(nil))); err != nil {
+		if err := enc.StartValue(vdl.ByteType); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.B)); err != nil {
@@ -2473,7 +2451,7 @@ func (x Numbers) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Ui16"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint16Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.Ui16)); err != nil {
@@ -2487,7 +2465,7 @@ func (x Numbers) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Ui32"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(uint64(x.Ui32)); err != nil {
@@ -2501,7 +2479,7 @@ func (x Numbers) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Ui64"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*uint64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Uint64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeUint(x.Ui64); err != nil {
@@ -2515,7 +2493,7 @@ func (x Numbers) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("I16"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int16)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int16Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(x.I16)); err != nil {
@@ -2529,7 +2507,7 @@ func (x Numbers) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("I32"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(x.I32)); err != nil {
@@ -2543,7 +2521,7 @@ func (x Numbers) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("I64"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.I64); err != nil {
@@ -2557,7 +2535,7 @@ func (x Numbers) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("F32"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*float32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Float32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeFloat(float64(x.F32)); err != nil {
@@ -2571,7 +2549,7 @@ func (x Numbers) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("F64"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*float64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Float64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeFloat(x.F64); err != nil {
@@ -2728,7 +2706,7 @@ type (
 		// __VDLReflect describes the TitleOrValueType union type.
 		__VDLReflect(__TitleOrValueTypeReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// TitleOrValueTypeTitle represents field Title of the TitleOrValueType union type.
@@ -2860,12 +2838,12 @@ func (t titleOrValueTypeTargetFactory) VDLMakeUnionTarget(union interface{}) (vd
 	return nil, fmt.Errorf("got %T, want *TitleOrValueType", union)
 }
 
-func (x TitleOrValueTypeTitle) VDLIsZero() (bool, error) {
-	return x.Value == "", nil
+func (x TitleOrValueTypeTitle) VDLIsZero() bool {
+	return x.Value == ""
 }
 
-func (x TitleOrValueTypeValue) VDLIsZero() (bool, error) {
-	return false, nil
+func (x TitleOrValueTypeValue) VDLIsZero() bool {
+	return false
 }
 
 func (x TitleOrValueTypeTitle) VDLWrite(enc vdl.Encoder) error {
@@ -2875,7 +2853,7 @@ func (x TitleOrValueTypeTitle) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.NextField("Title"); err != nil {
 		return err
 	}
-	if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+	if err := enc.StartValue(vdl.StringType); err != nil {
 		return err
 	}
 	if err := enc.EncodeString(x.Value); err != nil {
@@ -2897,7 +2875,7 @@ func (x TitleOrValueTypeValue) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.NextField("Value"); err != nil {
 		return err
 	}
-	if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+	if err := enc.StartValue(vdl.Int64Type); err != nil {
 		return err
 	}
 	if err := enc.EncodeInt(x.Value); err != nil {
@@ -3086,21 +3064,14 @@ func (t *BazTypeTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x BazType) VDLIsZero() (bool, error) {
+func (x BazType) VDLIsZero() bool {
 	if x.Name != "" {
-		return false, nil
+		return false
 	}
-	var isZeroTitleOrValue bool
-	if x.TitleOrValue != nil {
-		var err error
-		if isZeroTitleOrValue, err = x.TitleOrValue.VDLIsZero(); err != nil {
-			return false, err
-		}
+	if x.TitleOrValue != nil && !x.TitleOrValue.VDLIsZero() {
+		return false
 	}
-	if x.TitleOrValue != nil && !isZeroTitleOrValue {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x BazType) VDLWrite(enc vdl.Encoder) error {
@@ -3111,7 +3082,7 @@ func (x BazType) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Name"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Name); err != nil {
@@ -3121,14 +3092,7 @@ func (x BazType) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var isZeroTitleOrValue bool
-	if x.TitleOrValue != nil {
-		var err error
-		if isZeroTitleOrValue, err = x.TitleOrValue.VDLIsZero(); err != nil {
-			return err
-		}
-	}
-	if x.TitleOrValue != nil && !isZeroTitleOrValue {
+	if x.TitleOrValue != nil && !x.TitleOrValue.VDLIsZero() {
 		if err := enc.NextField("TitleOrValue"); err != nil {
 			return err
 		}
@@ -3272,26 +3236,18 @@ func (t *BarTypeTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x BarType) VDLIsZero() (bool, error) {
-	isZeroBaz, err := x.Baz.VDLIsZero()
-	if err != nil {
-		return false, err
+func (x BarType) VDLIsZero() bool {
+	if !x.Baz.VDLIsZero() {
+		return false
 	}
-	if !isZeroBaz {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x BarType) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*BarType)(nil)).Elem()); err != nil {
 		return err
 	}
-	isZeroBaz, err := x.Baz.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroBaz {
+	if !x.Baz.VDLIsZero() {
 		if err := enc.NextField("Baz"); err != nil {
 			return err
 		}
@@ -3430,26 +3386,18 @@ func (t *FooTypeTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x FooType) VDLIsZero() (bool, error) {
-	isZeroBar, err := x.Bar.VDLIsZero()
-	if err != nil {
-		return false, err
+func (x FooType) VDLIsZero() bool {
+	if !x.Bar.VDLIsZero() {
+		return false
 	}
-	if !isZeroBar {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x FooType) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*FooType)(nil)).Elem()); err != nil {
 		return err
 	}
-	isZeroBar, err := x.Bar.VDLIsZero()
-	if err != nil {
-		return err
-	}
-	if !isZeroBar {
+	if !x.Bar.VDLIsZero() {
 		if err := enc.NextField("Bar"); err != nil {
 			return err
 		}
@@ -3559,8 +3507,8 @@ func (t *Array2StringTarget) FinishList(elem vdl.ListTarget) error {
 	return nil
 }
 
-func (x Array2String) VDLIsZero() (bool, error) {
-	return x == Array2String{}, nil
+func (x Array2String) VDLIsZero() bool {
+	return x == Array2String{}
 }
 
 func (x Array2String) VDLWrite(enc vdl.Encoder) error {
@@ -3571,7 +3519,7 @@ func (x Array2String) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x[i]); err != nil {
@@ -3965,20 +3913,20 @@ func (t *__VDLTarget3_map) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x Composite) VDLIsZero() (bool, error) {
+func (x Composite) VDLIsZero() bool {
 	if x.Arr != (Array2String{}) {
-		return false, nil
+		return false
 	}
 	if len(x.ListInt) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.MySet) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Map) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x Composite) VDLWrite(enc vdl.Encoder) error {
@@ -4034,7 +3982,7 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []int32) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(x[i])); err != nil {
@@ -4061,7 +4009,7 @@ func __VDLWriteAnon_set_2(enc vdl.Encoder, x map[int32]struct{}) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(key)); err != nil {
@@ -4088,7 +4036,7 @@ func __VDLWriteAnon_map_3(enc vdl.Encoder, x map[string]int32) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(key); err != nil {
@@ -4097,7 +4045,7 @@ func __VDLWriteAnon_map_3(enc vdl.Encoder, x map[string]int32) error {
 		if err := enc.FinishValue(); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int32)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(int64(elem)); err != nil {
@@ -4297,12 +4245,12 @@ func (m *Times) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	var wireValue2 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue2, m.Stamp); err != nil {
+	var wireValue2 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue2, m.Stamp); err != nil {
 		return err
 	}
 
-	var5 := (wireValue2 == time_2.Time{})
+	var5 := (wireValue2 == vdltime.Time{})
 	if var5 {
 		if err := fieldsTarget1.ZeroField("Stamp"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -4322,12 +4270,12 @@ func (m *Times) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue6 time_2.Duration
-	if err := time_2.DurationFromNative(&wireValue6, m.Interval); err != nil {
+	var wireValue6 vdltime.Duration
+	if err := vdltime.DurationFromNative(&wireValue6, m.Interval); err != nil {
 		return err
 	}
 
-	var9 := (wireValue6 == time_2.Duration{})
+	var9 := (wireValue6 == vdltime.Duration{})
 	if var9 {
 		if err := fieldsTarget1.ZeroField("Interval"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -4359,8 +4307,8 @@ func (m *Times) MakeVDLTarget() vdl.Target {
 
 type TimesTarget struct {
 	Value          *Times
-	stampTarget    time_2.TimeTarget
-	intervalTarget time_2.DurationTarget
+	stampTarget    vdltime.TimeTarget
+	intervalTarget vdltime.DurationTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
 }
@@ -4392,22 +4340,10 @@ func (t *TimesTarget) FinishField(_, _ vdl.Target) error {
 func (t *TimesTarget) ZeroField(name string) error {
 	switch name {
 	case "Stamp":
-		t.Value.Stamp = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.Stamp = time.Time{}
 		return nil
 	case "Interval":
-		t.Value.Interval = func() time.Duration {
-			var native time.Duration
-			if err := vdl.Convert(&native, time_2.Duration{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.Interval = time.Duration(0)
 		return nil
 	default:
 		return fmt.Errorf("field %s not in struct v.io/x/ref/cmd/sb/internal/demodb.Times", name)
@@ -4418,49 +4354,41 @@ func (t *TimesTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Times) VDLIsZero() (bool, error) {
-	var wireStamp time_2.Time
-	if err := time_2.TimeFromNative(&wireStamp, x.Stamp); err != nil {
-		return false, err
+func (x Times) VDLIsZero() bool {
+	if !x.Stamp.IsZero() {
+		return false
 	}
-	if wireStamp != (time_2.Time{}) {
-		return false, nil
+	if x.Interval != time.Duration(0) {
+		return false
 	}
-	var wireInterval time_2.Duration
-	if err := time_2.DurationFromNative(&wireInterval, x.Interval); err != nil {
-		return false, err
-	}
-	if wireInterval != (time_2.Duration{}) {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x Times) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*Times)(nil)).Elem()); err != nil {
 		return err
 	}
-	var wireStamp time_2.Time
-	if err := time_2.TimeFromNative(&wireStamp, x.Stamp); err != nil {
-		return err
-	}
-	if wireStamp != (time_2.Time{}) {
+	if !x.Stamp.IsZero() {
 		if err := enc.NextField("Stamp"); err != nil {
 			return err
 		}
-		if err := wireStamp.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.Stamp); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var wireInterval time_2.Duration
-	if err := time_2.DurationFromNative(&wireInterval, x.Interval); err != nil {
-		return err
-	}
-	if wireInterval != (time_2.Duration{}) {
+	if x.Interval != time.Duration(0) {
 		if err := enc.NextField("Interval"); err != nil {
 			return err
 		}
-		if err := wireInterval.VDLWrite(enc); err != nil {
+		var wire vdltime.Duration
+		if err := vdltime.DurationFromNative(&wire, x.Interval); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -4487,19 +4415,19 @@ func (x *Times) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Stamp":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.Stamp); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.Stamp); err != nil {
 				return err
 			}
 		case "Interval":
-			var wire time_2.Duration
+			var wire vdltime.Duration
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.DurationToNative(wire, &x.Interval); err != nil {
+			if err := vdltime.DurationToNative(wire, &x.Interval); err != nil {
 				return err
 			}
 		default:
@@ -4750,55 +4678,28 @@ func (t *__VDLTarget5_map) FinishMap(elem vdl.MapTarget) error {
 	return nil
 }
 
-func (x Recursive) VDLIsZero() (bool, error) {
-	var isZeroAny bool
-	if x.Any != nil {
-		var err error
-		if isZeroAny, err = x.Any.VDLIsZero(); err != nil {
-			return false, err
-		}
-	}
-	if x.Any != nil && !isZeroAny {
-		return false, nil
+func (x Recursive) VDLIsZero() bool {
+	if x.Any != nil && !x.Any.VDLIsZero() {
+		return false
 	}
 	if x.Maybe != nil {
-		return false, nil
+		return false
 	}
 	if len(x.Rec) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x Recursive) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*Recursive)(nil)).Elem()); err != nil {
 		return err
 	}
-	var isZeroAny bool
-	if x.Any != nil {
-		var err error
-		if isZeroAny, err = x.Any.VDLIsZero(); err != nil {
-			return err
-		}
-	}
-	if x.Any != nil && !isZeroAny {
+	if x.Any != nil && !x.Any.VDLIsZero() {
 		if err := enc.NextField("Any"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.AnyType); err != nil {
-			return err
-		}
-		switch {
-		case x.Any.IsNil():
-			if err := enc.NilValue(x.Any.Type); err != nil {
-				return err
-			}
-		default:
-			if err := x.Any.VDLWrite(enc); err != nil {
-				return err
-			}
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := x.Any.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -4806,11 +4707,14 @@ func (x Recursive) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Maybe"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((**Times)(nil))); err != nil {
+		enc.SetNextStartValueIsOptional()
+		if err := enc.StartValue(vdl.TypeOf((*Times)(nil)).Elem()); err != nil {
 			return err
 		}
-		enc.SetNextStartValueIsOptional()
 		if err := x.Maybe.VDLWrite(enc); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
 			return err
 		}
 	}
@@ -4955,7 +4859,7 @@ type (
 		// __VDLReflect describes the ActOrSatScore union type.
 		__VDLReflect(__ActOrSatScoreReflect)
 		FillVDLTarget(vdl.Target, *vdl.Type) error
-		VDLIsZero() (bool, error)
+		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
 	// ActOrSatScoreActScore represents field ActScore of the ActOrSatScore union type.
@@ -5087,12 +4991,12 @@ func (t actOrSatScoreTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.T
 	return nil, fmt.Errorf("got %T, want *ActOrSatScore", union)
 }
 
-func (x ActOrSatScoreActScore) VDLIsZero() (bool, error) {
-	return x.Value == 0, nil
+func (x ActOrSatScoreActScore) VDLIsZero() bool {
+	return x.Value == 0
 }
 
-func (x ActOrSatScoreSatScore) VDLIsZero() (bool, error) {
-	return false, nil
+func (x ActOrSatScoreSatScore) VDLIsZero() bool {
+	return false
 }
 
 func (x ActOrSatScoreActScore) VDLWrite(enc vdl.Encoder) error {
@@ -5102,7 +5006,7 @@ func (x ActOrSatScoreActScore) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.NextField("ActScore"); err != nil {
 		return err
 	}
-	if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+	if err := enc.StartValue(vdl.Uint16Type); err != nil {
 		return err
 	}
 	if err := enc.EncodeUint(uint64(x.Value)); err != nil {
@@ -5124,7 +5028,7 @@ func (x ActOrSatScoreSatScore) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.NextField("SatScore"); err != nil {
 		return err
 	}
-	if err := enc.StartValue(vdl.TypeOf((*uint16)(nil))); err != nil {
+	if err := enc.StartValue(vdl.Uint16Type); err != nil {
 		return err
 	}
 	if err := enc.EncodeUint(uint64(x.Value)); err != nil {
@@ -5228,12 +5132,12 @@ func (m *Student) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var wireValue5 time_2.Time
-	if err := time_2.TimeFromNative(&wireValue5, m.TestTime); err != nil {
+	var wireValue5 vdltime.Time
+	if err := vdltime.TimeFromNative(&wireValue5, m.TestTime); err != nil {
 		return err
 	}
 
-	var8 := (wireValue5 == time_2.Time{})
+	var8 := (wireValue5 == vdltime.Time{})
 	if var8 {
 		if err := fieldsTarget1.ZeroField("TestTime"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -5295,7 +5199,7 @@ func (m *Student) MakeVDLTarget() vdl.Target {
 type StudentTarget struct {
 	Value          *Student
 	nameTarget     vdl.StringTarget
-	testTimeTarget time_2.TimeTarget
+	testTimeTarget vdltime.TimeTarget
 	scoreTarget    ActOrSatScoreTarget
 	vdl.TargetBase
 	vdl.FieldsTargetBase
@@ -5335,13 +5239,7 @@ func (t *StudentTarget) ZeroField(name string) error {
 		t.Value.Name = ""
 		return nil
 	case "TestTime":
-		t.Value.TestTime = func() time.Time {
-			var native time.Time
-			if err := vdl.Convert(&native, time_2.Time{}); err != nil {
-				panic(err)
-			}
-			return native
-		}()
+		t.Value.TestTime = time.Time{}
 		return nil
 	case "Score":
 		t.Value.Score = ActOrSatScore(ActOrSatScoreActScore{})
@@ -5355,28 +5253,17 @@ func (t *StudentTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x Student) VDLIsZero() (bool, error) {
+func (x Student) VDLIsZero() bool {
 	if x.Name != "" {
-		return false, nil
+		return false
 	}
-	var wireTestTime time_2.Time
-	if err := time_2.TimeFromNative(&wireTestTime, x.TestTime); err != nil {
-		return false, err
+	if !x.TestTime.IsZero() {
+		return false
 	}
-	if wireTestTime != (time_2.Time{}) {
-		return false, nil
+	if x.Score != nil && !x.Score.VDLIsZero() {
+		return false
 	}
-	var isZeroScore bool
-	if x.Score != nil {
-		var err error
-		if isZeroScore, err = x.Score.VDLIsZero(); err != nil {
-			return false, err
-		}
-	}
-	if x.Score != nil && !isZeroScore {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x Student) VDLWrite(enc vdl.Encoder) error {
@@ -5387,7 +5274,7 @@ func (x Student) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Name"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Name); err != nil {
@@ -5397,26 +5284,19 @@ func (x Student) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var wireTestTime time_2.Time
-	if err := time_2.TimeFromNative(&wireTestTime, x.TestTime); err != nil {
-		return err
-	}
-	if wireTestTime != (time_2.Time{}) {
+	if !x.TestTime.IsZero() {
 		if err := enc.NextField("TestTime"); err != nil {
 			return err
 		}
-		if err := wireTestTime.VDLWrite(enc); err != nil {
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.TestTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	var isZeroScore bool
-	if x.Score != nil {
-		var err error
-		if isZeroScore, err = x.Score.VDLIsZero(); err != nil {
-			return err
-		}
-	}
-	if x.Score != nil && !isZeroScore {
+	if x.Score != nil && !x.Score.VDLIsZero() {
 		if err := enc.NextField("Score"); err != nil {
 			return err
 		}
@@ -5460,11 +5340,11 @@ func (x *Student) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "TestTime":
-			var wire time_2.Time
+			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
-			if err := time_2.TimeToNative(wire, &x.TestTime); err != nil {
+			if err := vdltime.TimeToNative(wire, &x.TestTime); err != nil {
 				return err
 			}
 		case "Score":
@@ -5591,21 +5471,14 @@ func (t *AnythingGoesTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x AnythingGoes) VDLIsZero() (bool, error) {
+func (x AnythingGoes) VDLIsZero() bool {
 	if x.NameOfType != "" {
-		return false, nil
+		return false
 	}
-	var isZeroAnything bool
-	if x.Anything != nil {
-		var err error
-		if isZeroAnything, err = x.Anything.VDLIsZero(); err != nil {
-			return false, err
-		}
+	if x.Anything != nil && !x.Anything.VDLIsZero() {
+		return false
 	}
-	if x.Anything != nil && !isZeroAnything {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 func (x AnythingGoes) VDLWrite(enc vdl.Encoder) error {
@@ -5616,7 +5489,7 @@ func (x AnythingGoes) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("NameOfType"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.NameOfType); err != nil {
@@ -5626,31 +5499,11 @@ func (x AnythingGoes) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	var isZeroAnything bool
-	if x.Anything != nil {
-		var err error
-		if isZeroAnything, err = x.Anything.VDLIsZero(); err != nil {
-			return err
-		}
-	}
-	if x.Anything != nil && !isZeroAnything {
+	if x.Anything != nil && !x.Anything.VDLIsZero() {
 		if err := enc.NextField("Anything"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.AnyType); err != nil {
-			return err
-		}
-		switch {
-		case x.Anything.IsNil():
-			if err := enc.NilValue(x.Anything.Type); err != nil {
-				return err
-			}
-		default:
-			if err := x.Anything.VDLWrite(enc); err != nil {
-				return err
-			}
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := x.Anything.VDLWrite(enc); err != nil {
 			return err
 		}
 	}

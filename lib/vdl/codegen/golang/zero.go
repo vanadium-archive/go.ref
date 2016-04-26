@@ -6,20 +6,13 @@ package golang
 
 import (
 	"fmt"
+	"path"
+	"strings"
 
 	"v.io/v23/vdl"
+	"v.io/v23/vdlroot/vdltool"
 	"v.io/x/ref/lib/vdl/compile"
 )
-
-// goZeroValueWire returns the Go expression that creates a zero value of wire
-// type tt.
-func goZeroValueWire(data *goData, tt *vdl.Type) string {
-	// TODO(toddw): For native types, allow the user to tell us whether the Go
-	// zero value is a valid zero representation in vdl.config, and if so, just
-	// use the Go zero value.  This will be much faster than performing the
-	// conversion, e.g. for time.Time.
-	return typedConstWire(data, vdl.ZeroValue(tt))
-}
 
 // defineIsZero returns the VDLIsZero method for the def type.
 func defineIsZero(data *goData, def *compile.TypeDef) string {
@@ -31,40 +24,6 @@ type genIsZero struct {
 	*goData
 }
 
-// isGoZeroValueUnique returns true iff the Go zero value of the wire type tt
-// represents the VDL zero value, and is the *only* value that represents the
-// VDL zero value.
-func isGoZeroValueUnique(data *goData, tt *vdl.Type) bool {
-	// Not unique if tt contains types where there is more than one VDL zero value
-	// representation:
-	//   Any:            nil, or VDLIsZero on vdl.Value/vom.RawBytes
-	//   TypeObject:     nil, or AnyType
-	//   Union:          nil, or zero value of field 0
-	//   List, Set, Map: nil, or empty
-	if tt.ContainsKind(vdl.WalkInline, vdl.Any, vdl.TypeObject, vdl.Union, vdl.List, vdl.Set, vdl.Map) {
-		return false
-	}
-	// Not unique if tt contains inline native subtypes, since native types can
-	// choose to represent VDL zero values however they want.  This doesn't apply
-	// if the type itself is native, but has no inline native subtypes, since
-	// we're only considering the wire type form of tt.
-	if containsInlineNativeSubTypes(data, tt) {
-		return false
-	}
-	return true
-}
-
-func containsInlineNativeSubTypes(data *goData, tt *vdl.Type) bool {
-	// The walk early-exits if the visitor functor returns false.  We want the
-	// early-exit when we detect the first native type, so we use false to mean
-	// that we've seen a native type, and true if we haven't.
-	return !tt.Walk(vdl.WalkInline, func(visit *vdl.Type) bool {
-		// We don't want the native check to fire for tt itself, so we return true
-		// when we visit tt, meaning we haven't detected a native type yet.
-		return visit == tt || !isNativeType(data.Env, visit)
-	})
-}
-
 func (g *genIsZero) Gen(def *compile.TypeDef) string {
 	// Special-case array and struct to check each elem or field for zero.
 	// Special-case union to generate methods for each concrete union struct.
@@ -73,7 +32,7 @@ func (g *genIsZero) Gen(def *compile.TypeDef) string {
 	// perform a direct comparison against that zero value.  Note that def.Type
 	// always represents a wire type here, since we're generating the VDLIsZero
 	// method on the wire type.
-	if !isGoZeroValueUnique(g.goData, def.Type) {
+	if !isGoZeroValueUniqueWire(g.goData, def.Type) {
 		switch def.Type.Kind() {
 		case vdl.Array:
 			return g.genArrayDef(def)
@@ -88,7 +47,7 @@ func (g *genIsZero) Gen(def *compile.TypeDef) string {
 
 func (g *genIsZero) genDef(def *compile.TypeDef) string {
 	tt, arg := def.Type, namedArg{"x", false}
-	setup, expr := g.ExprWire(eqZero, tt, arg, "", true, vdl.BoolType)
+	expr := g.ExprWire(eqZero, tt, arg, "", true)
 	if tt.Kind() == vdl.Bool {
 		// Special-case named bool types, since we'll get an expression like "x",
 		// but we need an explicit conversion since the type of x is the named bool
@@ -96,42 +55,42 @@ func (g *genIsZero) genDef(def *compile.TypeDef) string {
 		expr = "bool(" + expr + ")"
 	}
 	return fmt.Sprintf(`
-func (x %[1]s) VDLIsZero() (bool, error) {%[2]s
-	return %[3]s, nil
+func (x %[1]s) VDLIsZero() bool {
+	return %[2]s
 }
-`, def.Name, setup, expr)
+`, def.Name, expr)
 }
 
 func (g *genIsZero) genArrayDef(def *compile.TypeDef) string {
 	tt := def.Type
 	elemArg := typedArg("elem", tt.Elem())
-	setup, expr, _ := g.Expr(neZero, tt.Elem(), elemArg, "", false, vdl.BoolType)
+	expr := g.Expr(neZero, tt.Elem(), elemArg, "", false)
 	return fmt.Sprintf(`
-func (x %[1]s) VDLIsZero() (bool, error) {
-	for _, elem := range x {%[2]s
-		if %[3]s {
-			return false, nil
+func (x %[1]s) VDLIsZero() bool {
+	for _, elem := range x {
+		if %[2]s {
+			return false
 		}
 	}
-	return true, nil
+	return true
 }
-`, def.Name, setup, expr)
+`, def.Name, expr)
 }
 
 func (g *genIsZero) genStructDef(def *compile.TypeDef) string {
 	tt, arg := def.Type, namedArg{"x", false}
 	s := fmt.Sprintf(`
-func (x %[1]s) VDLIsZero() (bool, error) {`, def.Name)
+func (x %[1]s) VDLIsZero() bool {`, def.Name)
 	for ix := 0; ix < tt.NumField(); ix++ {
 		field := tt.Field(ix)
-		setup, expr, _ := g.Expr(neZero, field.Type, arg.Field(field), field.Name, false, vdl.BoolType)
-		s += fmt.Sprintf(`%[1]s
-	if %[2]s {
-		return false, nil
-	}`, setup, expr)
+		expr := g.Expr(neZero, field.Type, arg.Field(field), field.Name, false)
+		s += fmt.Sprintf(`
+	if %[1]s {
+		return false
+	}`, expr)
 	}
 	s += `
-	return true, nil
+	return true
 }
 `
 	return s
@@ -142,31 +101,21 @@ func (g *genIsZero) genUnionDef(def *compile.TypeDef) string {
 	tt := def.Type
 	field0 := tt.Field(0)
 	fieldArg := typedArg("x.Value", field0.Type)
-	setup, expr, _ := g.Expr(eqZero, field0.Type, fieldArg, "", true, vdl.BoolType)
+	expr := g.Expr(eqZero, field0.Type, fieldArg, "", true)
 	s := fmt.Sprintf(`
-func (x %[1]s%[2]s) VDLIsZero() (bool, error) {%[3]s
-	return %[4]s, nil
+func (x %[1]s%[2]s) VDLIsZero() bool {
+	return %[3]s
 }
-`, def.Name, field0.Name, setup, expr)
+`, def.Name, field0.Name, expr)
 	// All other fields simply return false.
 	for ix := 1; ix < tt.NumField(); ix++ {
 		s += fmt.Sprintf(`
-func (x %[1]s%[2]s) VDLIsZero() (bool, error) {
-	return false, nil
+func (x %[1]s%[2]s) VDLIsZero() bool {
+	return false
 }
 `, def.Name, tt.Field(ix).Name)
 	}
 	return s
-}
-
-// returnErr creates the return statement when an error occurs.  Zero values of
-// the given returnTypes are included before the final "err" variable.
-func (g *genIsZero) returnErr(returnTypes []*vdl.Type) string {
-	s := "return "
-	for _, tt := range returnTypes {
-		s += goZeroValueWire(g.goData, tt) + ", "
-	}
-	return s + "err"
 }
 
 type zeroExpr int
@@ -178,21 +127,16 @@ const (
 
 // Expr generates the Go code to check whether the arg, which has type tt, is
 // equal or not equal to zero.  The tmp string is appended to temporary variable
-// names to make them unique.  The returnTypes specify the output types of the
-// enclosing function, used to generating return statements when an error
-// occurs.
+// names to make them unique.
 //
-// The returned setup and expr are meant to be used in the following fashion in
+// The returned expression is a boolean Go expression that evaluates whether arg
+// is zero or non-zero.  It is meant to be used in the following fashion in
 // generated code:
 //
 //   func foo() {
-//     <setup>
 //     if <expr> {
 //       ...
 //     }
-//
-// I.e. setup is a possibly-empty block of Go statements, while expr is a
-// boolean Go expression that evalutes whether arg is zero or non-zero.
 //
 // If the pretty flag is true, we return a prettier form of expr, with the
 // downside that expr is not valid in all contexts.  Examples:
@@ -210,28 +154,34 @@ const (
 //
 // The problem with using the pretty expr in the first example is that a parsing
 // failure will occur in the generated Go code.
-//
-// The returned wireArg is valid iff a native conversion was performed, and the
-// wireArg holds the converted wire value.
-func (g *genIsZero) Expr(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string, pretty bool, returnTypes ...*vdl.Type) (setup, expr string, wireArg namedArg) {
-	if isNativeType(g.Env, tt) {
-		// TODO(toddw): Allow the user to configure an IsZero function or VDLIsZero
-		// method in vdl.config, and call it directly.  That's faster for time.Time.
-		wireArg = typedArg("wire"+tmp, tt)
-		nativeSetup := fmt.Sprintf(`
-	var %[1]s %[2]s
-	if err := %[2]sFromNative(&%[1]s, %[3]s); err != nil {
-		%[4]s
-	}`, wireArg.Name, typeGoWire(g.goData, tt), arg.Ref(), g.returnErr(returnTypes))
-		wireSetup, wireExpr := g.ExprWire(ze, tt, wireArg, tmp, pretty, returnTypes...)
-		return nativeSetup + wireSetup, wireExpr, wireArg
+func (g *genIsZero) Expr(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string, pretty bool) string {
+	if native, wirePkg, ok := findNativeType(g.Env, tt); ok {
+		opNot, eq, ref := "", "==", arg.Ref()
+		if ze == neZero {
+			opNot, eq = "!", "!="
+		}
+		switch {
+		case native.Zero.Mode == vdltool.GoZeroModeUnique:
+			nType := nativeType(g.goData, native, wirePkg)
+			zeroValue := typedConstNativeZero(native.Kind, nType)
+			if k := native.Kind; !pretty && (k == vdltool.GoKindStruct || k == vdltool.GoKindArray) {
+				zeroValue = "(" + zeroValue + ")"
+			}
+			return ref + eq + zeroValue
+		case strings.HasPrefix(native.Zero.IsZero, "."):
+			return opNot + arg.Name + native.Zero.IsZero
+		case native.Zero.IsZero != "":
+			// TODO(toddw): Handle the function form of IsZero, including IsZeroImports.
+			vdlconfig := path.Join(wirePkg.GenPath, "vdl.config")
+			g.Env.Errors.Errorf("%s: native type %s uses function form of IsZero, which isn't implemented", vdlconfig, native.Type)
+			return ""
+		}
 	}
-	wireSetup, wireExpr := g.ExprWire(ze, tt, arg, tmp, pretty, returnTypes...)
-	return wireSetup, wireExpr, namedArg{}
+	return g.ExprWire(ze, tt, arg, tmp, pretty)
 }
 
 // ExprWire is like Expr, but generates code for the wire type tt.
-func (g *genIsZero) ExprWire(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string, pretty bool, returnTypes ...*vdl.Type) (setup, expr string) {
+func (g *genIsZero) ExprWire(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string, pretty bool) string {
 	opNot, eq, cond, ref := "", "==", "||", arg.Ref()
 	if ze == neZero {
 		opNot, eq, cond = "!", "!=", "&&"
@@ -240,57 +190,159 @@ func (g *genIsZero) ExprWire(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string
 	switch tt.Kind() {
 	case vdl.Bool:
 		if ze == neZero {
-			return "", ref
+			return ref
 		}
-		return "", "!" + ref // false is zero, while true is non-zero
+		return "!" + ref // false is zero, while true is non-zero
 	case vdl.String:
-		return "", ref + eq + `""`
+		return ref + eq + `""`
 	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64:
-		return "", ref + eq + "0"
+		return ref + eq + "0"
 	case vdl.Enum:
-		return "", ref + eq + typeGoWire(g.goData, tt) + tt.EnumLabel(0)
+		return ref + eq + typeGoWire(g.goData, tt) + tt.EnumLabel(0)
 	case vdl.TypeObject:
-		return "", ref + eq + "nil" + cond + ref + eq + g.Pkg("v.io/v23/vdl") + "AnyType"
+		return ref + eq + "nil" + cond + ref + eq + g.Pkg("v.io/v23/vdl") + "AnyType"
 	case vdl.List, vdl.Set, vdl.Map:
-		return "", "len(" + ref + ")" + eq + "0"
+		return "len(" + ref + ")" + eq + "0"
 	case vdl.Optional:
-		return "", arg.Name + eq + "nil"
+		return arg.Name + eq + "nil"
+	}
+	// The interface{} representation of any is special-cased, since it behaves
+	// differently than the *vdl.Value and *vom.RawBytes representations.
+	if tt.Kind() == vdl.Any && goAnyRepMode(g.Package) == goAnyRepInterface {
+		return ref + eq + "nil"
+	}
+	switch tt.Kind() {
 	case vdl.Union, vdl.Any:
 		// Union is always named, and Any is either *vdl.Value or *vom.RawBytes, so
 		// we call VDLIsZero directly.  A slight complication is the fact that all
 		// of these might be nil, which we need to protect against before making the
 		// VDLIsZero call.
-		zeroVar := "isZero" + tmp
-		wireSetup := fmt.Sprintf(`
-	var %[1]s bool
-	if %[2]s != nil {
-		var err error
-		if %[1]s, err = %[2]s.VDLIsZero(); err != nil {
-			%[3]s
-		}
-	}`, zeroVar, arg.Name, g.returnErr(returnTypes))
-		return wireSetup, arg.Name + eq + "nil" + cond + opNot + zeroVar
+		return ref + eq + "nil" + cond + opNot + arg.Name + ".VDLIsZero()"
 	}
 	// Only Array and Struct are left.
 	//
 	// If there is a unique Go zero value, we generate a fastpath that simply
 	// compares against that value.  Note that tt always represents a wire type
 	// here, since native types were handled in Expr.
-	if isGoZeroValueUnique(g.goData, tt) {
-		zeroVal := goZeroValueWire(g.goData, tt)
+	if isGoZeroValueUniqueWire(g.goData, tt) {
+		zeroValue := typedConstWire(g.goData, vdl.ZeroValue(tt))
 		if !pretty {
-			zeroVal = "(" + zeroVal + ")"
+			zeroValue = "(" + zeroValue + ")"
 		}
-		return "", ref + eq + zeroVal
+		return ref + eq + zeroValue
 	}
 	// Otherwise we call VDLIsZero directly.  This takes advantage of the fact
 	// that Array and Struct are always named, so will always have a VDLIsZero
 	// method defined.
-	zeroVar := "isZero" + tmp
-	wireSetup := fmt.Sprintf(`
-	%[1]s, err := %[2]s.VDLIsZero()
-	if err != nil {
-		%[3]s
-	}`, zeroVar, arg.Name, g.returnErr(returnTypes))
-	return wireSetup, opNot + zeroVar
+	return opNot + arg.Name + ".VDLIsZero()"
+}
+
+// isGoZeroValueUniqueWire returns true iff the Go zero value of the wire type
+// tt represents the VDL zero value, and is the *only* value that represents the
+// VDL zero value.
+func isGoZeroValueUniqueWire(data *goData, tt *vdl.Type) bool {
+	// Not unique if tt contains inline native subtypes that don't have a unique
+	// zero representation.  This doesn't apply if tt itself is native, but has no
+	// inline native subtypes, since this function only considers the wire type
+	// form of tt.
+	if containsInlineNativeNonUniqueSubTypes(data, tt, true) {
+		return false
+	}
+	// Not unique if tt contains types where there is more than one VDL zero value
+	// representation:
+	//   Any:            nil, or VDLIsZero on vdl.Value/vom.RawBytes
+	//   TypeObject:     nil, or AnyType
+	//   Union:          nil, or zero value of field 0
+	//   List, Set, Map: nil, or empty
+	//
+	// Note that the interface{} representation of Any uses nil as the only VDL
+	// zero value, while the vdl.Value/vom.RawBytes pointers can either be nil, or
+	// represent VDL zero through their non-nil pointer.
+	kkNotUnique := []vdl.Kind{vdl.TypeObject, vdl.Union, vdl.List, vdl.Set, vdl.Map}
+	if goAnyRepMode(data.Package) != goAnyRepInterface {
+		kkNotUnique = append(kkNotUnique, vdl.Any)
+	}
+	if tt.ContainsKind(vdl.WalkInline, kkNotUnique...) {
+		return false
+	}
+	return true
+}
+
+// isGoZeroValueCanonical returns true iff the Go zero value of the type tt
+// (which may be a native type) is the canonical representation of the VDL zero
+// value.  This differs from isGoZeroValueUniqueWire since e.g. the canonical
+// zero value of list is nil, which is the Go zero value, but it isn't unique
+// since it isn't the only zero value representation.  Also this checks if tt is
+// a native type, while isGoZeroValueUniqueWire assumes tt is a wire type.
+func isGoZeroValueCanonical(data *goData, tt *vdl.Type) bool {
+	// If tt is a native type in either Canonical or Unique zero mode, the Go zero
+	// value is canonical.  Note that Unique zero mode is stronger than Canonical;
+	// not only is the Go zero value canonical, it's the only representation.
+	if native, _, ok := findNativeType(data.Env, tt); ok {
+		if native.Zero.Mode != vdltool.GoZeroModeUnknown {
+			return true
+		}
+	}
+	// Not canonical if tt contains inline native subtypes that don't have a
+	// Canonical or Unique zero mode.
+	if containsInlineNativeUnknownSubTypes(data, tt, false) {
+		return false
+	}
+	// Not canonical if tt contains types where the Go zero value isn't the
+	// canonical VDL zero value.
+	//
+	// Note that The interface{} representation of Any uses nil as the only VDL
+	// zero value, while the vdl.Value/vom.RawBytes pointers use a non-nil pointer
+	// as the canonical VDL zero value.
+	kkNotCanonical := []vdl.Kind{vdl.TypeObject, vdl.Union}
+	if goAnyRepMode(data.Package) != goAnyRepInterface {
+		kkNotCanonical = append(kkNotCanonical, vdl.Any)
+	}
+	if tt.ContainsKind(vdl.WalkInline, kkNotCanonical...) {
+		return false
+	}
+	return true
+}
+
+func containsInlineNativeNonUniqueSubTypes(data *goData, tt *vdl.Type, wireOnly bool) bool {
+	// The walk early-exits if the visitor functor returns false.  We want the
+	// early-exit when we detect the first native type, so we use false to mean
+	// that we've seen a native type, and true if we haven't.
+	return !tt.Walk(vdl.WalkInline, func(visit *vdl.Type) bool {
+		if wireOnly && visit == tt {
+			// We don't want the native check to fire for tt itself, so we return true
+			// when we visit tt, meaning we haven't detected a native type yet.
+			return true
+		}
+		if native, _, ok := findNativeType(data.Env, visit); ok {
+			return native.Zero.Mode == vdltool.GoZeroModeUnique
+		}
+		return true
+	})
+}
+
+func containsInlineNativeUnknownSubTypes(data *goData, tt *vdl.Type, wireOnly bool) bool {
+	// The walk early-exits if the visitor functor returns false.  We want the
+	// early-exit when we detect the first native type, so we use false to mean
+	// that we've seen a native type, and true if we haven't.
+	return !tt.Walk(vdl.WalkInline, func(visit *vdl.Type) bool {
+		if wireOnly && visit == tt {
+			// We don't want the native check to fire for tt itself, so we return true
+			// when we visit tt, meaning we haven't detected a native type yet.
+			return true
+		}
+		if native, _, ok := findNativeType(data.Env, visit); ok {
+			return native.Zero.Mode != vdltool.GoZeroModeUnknown
+		}
+		return true
+	})
+}
+
+func findNativeType(env *compile.Env, tt *vdl.Type) (vdltool.GoType, *compile.Package, bool) {
+	if def := env.FindTypeDef(tt); def != nil {
+		pkg := def.File.Package
+		native, ok := pkg.Config.Go.WireToNativeTypes[def.Name]
+		return native, pkg, ok
+	}
+	return vdltool.GoType{}, nil, false
 }

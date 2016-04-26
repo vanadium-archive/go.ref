@@ -135,8 +135,8 @@ func (t *PeerKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x PeerKey) VDLIsZero() (bool, error) {
-	return x == PeerKey{}, nil
+func (x PeerKey) VDLIsZero() bool {
+	return x == PeerKey{}
 }
 
 func (x PeerKey) VDLWrite(enc vdl.Encoder) error {
@@ -147,7 +147,7 @@ func (x PeerKey) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Dialer"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Dialer); err != nil {
@@ -161,7 +161,7 @@ func (x PeerKey) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Acceptor"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*string)(nil))); err != nil {
+		if err := enc.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		if err := enc.EncodeString(x.Acceptor); err != nil {
@@ -343,8 +343,8 @@ func (t *PeerBehaviorTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x PeerBehavior) VDLIsZero() (bool, error) {
-	return x == PeerBehavior{}, nil
+func (x PeerBehavior) VDLIsZero() bool {
+	return x == PeerBehavior{}
 }
 
 func (x PeerBehavior) VDLWrite(enc vdl.Encoder) error {
@@ -355,7 +355,7 @@ func (x PeerBehavior) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Reachable"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.Reachable); err != nil {
@@ -369,7 +369,7 @@ func (x PeerBehavior) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Discoverable"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.Discoverable); err != nil {

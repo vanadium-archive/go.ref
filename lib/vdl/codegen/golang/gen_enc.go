@@ -55,16 +55,21 @@ func genEncDefInternal(data *goData, t *vdl.Type, instName, targetName, unionFie
 		}`, targetName, instName, typeObjectValName, data.Pkg("v.io/v23/vdl"))
 
 	case vdl.Any:
-		if shouldUseVdlValueForAny(data.Package) {
+		switch goAnyRepMode(data.Package) {
+		case goAnyRepValue:
 			return fmt.Sprintf(`
 		if err := %[3]sFromValue(%[1]s, %[2]s); err != nil {
 			return err
 		}`, targetName, instName, data.Pkg("v.io/v23/vdl"))
-		} else {
+		case goAnyRepRawBytes:
 			return fmt.Sprintf(`
 		if err := %[2]s.FillVDLTarget(%[1]s, %[3]s); err != nil {
 			return err
 		}`, targetName, instName, ttVar)
+		default:
+			// TODO(toddw): the interface{} any representation isn't supported; this
+			// entire file will be removed soon anyways.
+			return ""
 		}
 
 	case vdl.Array, vdl.List:

@@ -22,18 +22,18 @@ func localIdent(data *goData, file *compile.File, ident string) string {
 	return data.Pkg(file.Package.GenPath) + ident
 }
 
-func nativeIdent(data *goData, native vdltool.GoType, wirePkg *compile.Package) string {
-	ident := native.Type
+func nativeType(data *goData, native vdltool.GoType, wirePkg *compile.Package) string {
+	result := native.Type
 	for _, imp := range native.Imports {
 		// Translate the packages specified in the native type into local package
 		// identifiers.  E.g. if the native type is "foo.Type" with import
-		// "path/foo", we need replace "foo." in the native type with the local
-		// package identifier for "path/foo".
+		// "path/to/foo", we need to replace "foo." in the native type with the
+		// local package identifier for "path/to/foo".
 		pkg := data.Pkg(imp.Path)
-		ident = strings.Replace(ident, imp.Name+".", pkg, -1)
+		result = strings.Replace(result, imp.Name+".", pkg, -1)
 	}
 	data.AddForcedPkg(wirePkg.GenPath)
-	return ident
+	return result
 }
 
 func packageIdent(file *compile.File, ident string) string {
@@ -55,7 +55,7 @@ func typeGo(data *goData, t *vdl.Type) string {
 	if def := data.Env.FindTypeDef(t); def != nil {
 		pkg := def.File.Package
 		if native, ok := pkg.Config.Go.WireToNativeTypes[def.Name]; ok {
-			return nativeIdent(data, native, pkg)
+			return nativeType(data, native, pkg)
 		}
 	}
 	return typeGoWire(data, t)
@@ -72,10 +72,14 @@ func typeGoWire(data *goData, t *vdl.Type) string {
 	if def := data.Env.FindTypeDef(t); def != nil {
 		switch {
 		case t == vdl.AnyType:
-			if shouldUseVdlValueForAny(data.Package) {
+			switch goAnyRepMode(data.Package) {
+			case goAnyRepRawBytes:
+				return "*" + data.Pkg("v.io/v23/vom") + "RawBytes"
+			case goAnyRepValue:
 				return "*" + data.Pkg("v.io/v23/vdl") + "Value"
+			default:
+				return "interface{}"
 			}
-			return "*" + data.Pkg("v.io/v23/vom") + "RawBytes"
 		case t == vdl.TypeObjectType:
 			return "*" + data.Pkg("v.io/v23/vdl") + "Type"
 		case def.File == compile.BuiltInFile:
@@ -101,26 +105,42 @@ func typeGoWire(data *goData, t *vdl.Type) string {
 	}
 }
 
-func shouldUseVdlValueForAny(pkg *compile.Package) bool {
-	// The vdl package uses vdl.Value due to an import cycle:  vom imports vdl
-	if pkg.Path == "v.io/v23/vdl" {
-		return true
+type goAnyRep int
+
+const (
+	goAnyRepRawBytes  goAnyRep = iota // Use vom.RawBytes to represent any.
+	goAnyRepValue                     // Use vdl.Value to represent any.
+	goAnyRepInterface                 // Use interface{} to represent any.
+)
+
+// goAnyRepMode returns the representation of the any type.  By default we use
+// vom.RawBytes, but for some hard-coded cases we use vdl.Value or interface{}.
+//
+// This is hard-coded because we don't want to allow the user to configure this
+// behavior, since it's subtle and tricky.  E.g. if the user picks the
+// interface{} representation, their generated server stub would fail on vom
+// decoding if the type isn't registered.
+func goAnyRepMode(pkg *compile.Package) goAnyRep {
+	switch {
+	case pkg.Path == "v.io/v23/vdl":
+		// The vdl package uses vdl.Value due to an import cycle: vom imports vdl.
+		return goAnyRepValue
+	case pkg.Path == "signature":
+		// The signature package uses vdl.Value for two reasons:
+		// - an import cycle: vom imports vdlroot imports signature
+		// - any is used for method tags, and these are used via reflection,
+		//   although interface{} is a reasonable alternative.
+		return goAnyRepValue
+	case strings.HasPrefix(pkg.Path, "v.io/v23/vom/testdata"):
+		// The vom/testdata/... packages use vdl.Value due to an import cycle: vom
+		// imports testdata/...
+		return goAnyRepValue
+	case pkg.Path == "v.io/v23/vdl/vdltest":
+		// The vdltest package uses interface{} for convenience in setting up test
+		// values.
+		return goAnyRepInterface
 	}
-	// The signature package uses vdl.Value for two reasons:
-	// - an import cycle (vom imports vdlroot imports signature) to register
-	// important types
-	// - any is only used in the signature package for method tags, and these
-	// will likely be used in a reflective manner anyways (though interface{}
-	// may be a good alternative for this case)
-	if pkg.Path == "signature" {
-		return true
-	}
-	// The testdata package uses vdl.Value due to an import cycle:
-	// vom imports testdata/*
-	if strings.HasPrefix(pkg.Path, "v.io/v23/vom/testdata") {
-		return true
-	}
-	return false
+	return goAnyRepRawBytes
 }
 
 // defineType returns the type definition for def.
@@ -211,7 +231,7 @@ func defineType(data *goData, def *compile.TypeDef) string {
 			"\n\t\t// __VDLReflect describes the %[1]s union type."+
 			"\n\t\t__VDLReflect(__%[1]sReflect)"+
 			"\n\t\tFillVDLTarget(%[4]sTarget, *%[4]sType) error"+
-			"\n\t\tVDLIsZero() (bool, error)"+
+			"\n\t\tVDLIsZero() bool"+
 			"\n\t\tVDLWrite(%[4]sEncoder) error"+
 			"\n\t}%[3]s", def.Name, docBreak(def.Doc), def.DocSuffix, data.Pkg("v.io/v23/vdl"))
 		for ix := 0; ix < t.NumField(); ix++ {

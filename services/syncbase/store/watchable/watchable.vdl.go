@@ -108,11 +108,11 @@ func (t *GetOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x GetOp) VDLIsZero() (bool, error) {
+func (x GetOp) VDLIsZero() bool {
 	if len(x.Key) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x GetOp) VDLWrite(enc vdl.Encoder) error {
@@ -294,14 +294,14 @@ func (t *ScanOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x ScanOp) VDLIsZero() (bool, error) {
+func (x ScanOp) VDLIsZero() bool {
 	if len(x.Start) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Limit) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x ScanOp) VDLWrite(enc vdl.Encoder) error {
@@ -509,14 +509,14 @@ func (t *PutOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x PutOp) VDLIsZero() (bool, error) {
+func (x PutOp) VDLIsZero() bool {
 	if len(x.Key) != 0 {
-		return false, nil
+		return false
 	}
 	if len(x.Version) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x PutOp) VDLWrite(enc vdl.Encoder) error {
@@ -690,11 +690,11 @@ func (t *DeleteOpTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x DeleteOp) VDLIsZero() (bool, error) {
+func (x DeleteOp) VDLIsZero() bool {
 	if len(x.Key) != 0 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x DeleteOp) VDLWrite(enc vdl.Encoder) error {
@@ -935,58 +935,31 @@ func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
 	return nil
 }
 
-func (x LogEntry) VDLIsZero() (bool, error) {
-	var isZeroOp bool
-	if x.Op != nil {
-		var err error
-		if isZeroOp, err = x.Op.VDLIsZero(); err != nil {
-			return false, err
-		}
-	}
-	if x.Op != nil && !isZeroOp {
-		return false, nil
+func (x LogEntry) VDLIsZero() bool {
+	if x.Op != nil && !x.Op.VDLIsZero() {
+		return false
 	}
 	if x.CommitTimestamp != 0 {
-		return false, nil
+		return false
 	}
 	if x.FromSync {
-		return false, nil
+		return false
 	}
 	if x.Continued {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*LogEntry)(nil)).Elem()); err != nil {
 		return err
 	}
-	var isZeroOp bool
-	if x.Op != nil {
-		var err error
-		if isZeroOp, err = x.Op.VDLIsZero(); err != nil {
-			return err
-		}
-	}
-	if x.Op != nil && !isZeroOp {
+	if x.Op != nil && !x.Op.VDLIsZero() {
 		if err := enc.NextField("Op"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.AnyType); err != nil {
-			return err
-		}
-		switch {
-		case x.Op.IsNil():
-			if err := enc.NilValue(x.Op.Type); err != nil {
-				return err
-			}
-		default:
-			if err := x.Op.VDLWrite(enc); err != nil {
-				return err
-			}
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := x.Op.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -994,7 +967,7 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("CommitTimestamp"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*int64)(nil))); err != nil {
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
 			return err
 		}
 		if err := enc.EncodeInt(x.CommitTimestamp); err != nil {
@@ -1008,7 +981,7 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("FromSync"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.FromSync); err != nil {
@@ -1022,7 +995,7 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Continued"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*bool)(nil))); err != nil {
+		if err := enc.StartValue(vdl.BoolType); err != nil {
 			return err
 		}
 		if err := enc.EncodeBool(x.Continued); err != nil {
