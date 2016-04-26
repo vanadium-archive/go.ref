@@ -10,9 +10,8 @@ import (
 
 	"v.io/v23/security"
 	libsec "v.io/x/ref/lib/security"
-	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/agentlib"
-	"v.io/x/ref/services/agent/keymgr"
+	"v.io/x/ref/services/agent/server"
 )
 
 // Credentials represents a principal with a set of blessings. It is designed to
@@ -109,33 +108,43 @@ func (m *filesystemPrincipalManager) Principal(handle string) (security.Principa
 ////////////////////////////////////////
 // agentPrincipalManager
 
+// agentPrincipalManager creates filesystem-based credentials, starts an agent
+// per credentials directory, and passes back the agent socket file as the
+// 'handle'.
+//
+// TODO(caprita): We should pass back the credentials directory itself as the
+// handle, and not the socket: clients can use agentlib.LoadPrincipal to
+// transparently find the socket and load the credentials.  However, some tests
+// currently expect v23test.Shell to set V23_AGENT_PATH instead of
+// V23_CREDENTIALS on the commands it starts, and we need to fix those tests
+// first.
+
 type agentPrincipalManager struct {
 	rootDir string
-	agent   agent.KeyManager
 }
 
 func newAgentPrincipalManager(rootDir string) (principalManager, error) {
-	agent, err := keymgr.NewLocalAgent(rootDir, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &agentPrincipalManager{rootDir: rootDir, agent: agent}, nil
+	return &agentPrincipalManager{rootDir: rootDir}, nil
 }
 
 func (pm *agentPrincipalManager) New() (string, error) {
-	id, err := pm.agent.NewPrincipal(true)
+	credsDir, err := ioutil.TempDir(pm.rootDir, "")
 	if err != nil {
 		return "", err
 	}
-	dir, err := ioutil.TempDir(pm.rootDir, "")
+	p, err := libsec.CreatePersistentPrincipal(credsDir, nil)
 	if err != nil {
 		return "", err
 	}
-	path := filepath.Join(dir, "sock")
-	if err := pm.agent.ServePrincipal(id, path); err != nil {
+	sockDir, err := ioutil.TempDir(pm.rootDir, "")
+	if err != nil {
 		return "", err
 	}
-	return path, nil
+	sockPath := filepath.Join(sockDir, "s")
+	if _, err = server.Serve(p, sockPath); err != nil {
+		return "", err
+	}
+	return sockPath, nil
 }
 
 func (m *agentPrincipalManager) Principal(handle string) (security.Principal, error) {
