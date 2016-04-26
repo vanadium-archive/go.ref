@@ -21,14 +21,14 @@ type vkubeConfig struct {
 	// The name of the Kubernetes cluster.
 	Cluster string `json:"cluster"`
 
-	ClusterAgent clusterAgentConfig `json:"clusterAgent",omitempty`
-	PodAgent     podAgentConfig     `json:"podAgent",omitempty`
+	ClusterAgent clusterAgentConfig `json:"clusterAgent,omitempty"`
+	PodAgent     podAgentConfig     `json:"podAgent,omitempty"`
 }
 
 type clusterAgentConfig struct {
 	// The Kubernetes namespace of the cluster agent. An empty
 	// value is equivalent to "default".
-	Namespace string `json:"namespace",omitempty`
+	Namespace string `json:"namespace,omitempty"`
 	// The name of the docker image for the cluster agent.
 	Image string `json:"image"`
 	// The amount of CPU to reserve for the cluster agent.
@@ -42,23 +42,23 @@ type clusterAgentConfig struct {
 	Admin string `json:"admin"`
 	// The external IP address of the cluster agent. An empty value
 	// means that an ephemeral address will be used.
-	ExternalIP string `json:"externalIP",omitempty`
+	ExternalIP string `json:"externalIP,omitempty"`
 	// The name of the GCE Persistent Disk of the cluster agent. An empty
 	// value means that the cluster agent won't use a GCE persistent disk.
 	// PersistentDisk and PersistentVolumeClaim are mutually exclusive.
-	PersistentDisk string `json:"persistentDisk",omitempty`
+	PersistentDisk string `json:"persistentDisk,omitempty"`
 	// The name of the Persistent Volume Claim of the cluster agent. An
 	// empty value means that the cluster agent won't use a persistent
 	// volume claim.
-	PersistentVolumeClaim string `json:"persistentVolumeClaim",omitempty`
+	PersistentVolumeClaim string `json:"persistentVolumeClaim,omitempty"`
 	// When true, indicates that the cluster agent should only have an
 	// IP address that is reachable from within the kubernetes cluster.
-	InternalOnly bool `json:"internalOnly",omitempty`
+	InternalOnly bool `json:"internalOnly,omitempty"`
 }
 
 type podAgentConfig struct {
 	// The name of the docker image for the pod agent.
-	Image string `json:"image",omitempty`
+	Image string `json:"image,omitempty"`
 }
 
 // readConfig reads a config file.
