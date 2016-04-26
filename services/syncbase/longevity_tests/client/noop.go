@@ -37,19 +37,11 @@ func (noop *Noop) Start(ctx *context.T, sbName string, dbModels model.DatabaseSe
 	noop.wg.Add(1)
 	go func() {
 		defer noop.wg.Done()
-		var err error
-		noop.dbColMap, _, err = CreateDbsAndCollections(ctx, sbName, dbModels)
-		noop.setError(err)
+		noop.dbColMap, _, noop.err = CreateDbsAndCollections(ctx, sbName, dbModels)
 	}()
 }
 
 func (noop *Noop) Stop() error {
 	noop.wg.Wait()
 	return noop.err
-}
-
-func (noop *Noop) setError(err error) {
-	if err != nil && noop.err == nil {
-		noop.err = err
-	}
 }
