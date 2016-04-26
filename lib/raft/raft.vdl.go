@@ -328,7 +328,7 @@ func (t *LogEntryTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.typeTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/raft.LogEntry", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *LogEntryTarget) FinishField(_, _ vdl.Target) error {
@@ -349,7 +349,7 @@ func (t *LogEntryTarget) ZeroField(name string) error {
 		t.Value.Type = byte(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/raft.LogEntry", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {

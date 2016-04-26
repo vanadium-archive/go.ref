@@ -140,7 +140,7 @@ func (t *ConnInfoTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.maxVersionTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/agent.ConnInfo", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *ConnInfoTarget) FinishField(_, _ vdl.Target) error {
@@ -155,7 +155,7 @@ func (t *ConnInfoTarget) ZeroField(name string) error {
 		t.Value.MaxVersion = int32(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/agent.ConnInfo", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *ConnInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -367,7 +367,7 @@ func (t *RpcRequestTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.numArgsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/agent.RpcRequest", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *RpcRequestTarget) FinishField(_, _ vdl.Target) error {
@@ -385,7 +385,7 @@ func (t *RpcRequestTarget) ZeroField(name string) error {
 		t.Value.NumArgs = uint32(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/agent.RpcRequest", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *RpcRequestTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -627,7 +627,7 @@ func (t *RpcResponseTarget) StartField(name string) (key, field vdl.Target, _ er
 		target, err := &t.numArgsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/agent.RpcResponse", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *RpcResponseTarget) FinishField(_, _ vdl.Target) error {
@@ -645,7 +645,7 @@ func (t *RpcResponseTarget) ZeroField(name string) error {
 		t.Value.NumArgs = uint32(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/agent.RpcResponse", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *RpcResponseTarget) FinishFields(_ vdl.FieldsTarget) error {

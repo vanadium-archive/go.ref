@@ -148,7 +148,7 @@ func (t *WireCiphertextTarget) StartField(name string) (key, field vdl.Target, _
 		target, err := &t.bytesTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/security/bcrypter.WireCiphertext", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *WireCiphertextTarget) FinishField(_, _ vdl.Target) error {
@@ -163,7 +163,7 @@ func (t *WireCiphertextTarget) ZeroField(name string) error {
 		t.Value.Bytes = map[string][]byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/security/bcrypter.WireCiphertext", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *WireCiphertextTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -482,7 +482,7 @@ func (t *WireParamsTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.paramsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/security/bcrypter.WireParams", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *WireParamsTarget) FinishField(_, _ vdl.Target) error {
@@ -497,7 +497,7 @@ func (t *WireParamsTarget) ZeroField(name string) error {
 		t.Value.Params = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/security/bcrypter.WireParams", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *WireParamsTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -760,7 +760,7 @@ func (t *WirePrivateKeyTarget) StartField(name string) (key, field vdl.Target, _
 		target, err := &t.keysTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/security/bcrypter.WirePrivateKey", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *WirePrivateKeyTarget) FinishField(_, _ vdl.Target) error {
@@ -778,7 +778,7 @@ func (t *WirePrivateKeyTarget) ZeroField(name string) error {
 		t.Value.Keys = [][]byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/security/bcrypter.WirePrivateKey", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *WirePrivateKeyTarget) FinishFields(_ vdl.FieldsTarget) error {

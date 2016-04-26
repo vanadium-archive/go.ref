@@ -113,7 +113,7 @@ func (t *ServiceDataTarget) StartField(name string) (key, field vdl.Target, _ er
 		target, err := &t.permsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.ServiceData", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *ServiceDataTarget) FinishField(_, _ vdl.Target) error {
@@ -128,7 +128,7 @@ func (t *ServiceDataTarget) ZeroField(name string) error {
 		t.Value.Perms = access.Permissions(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.ServiceData", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *ServiceDataTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -336,7 +336,7 @@ func (t *DbInfoTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.engineTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.DbInfo", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *DbInfoTarget) FinishField(_, _ vdl.Target) error {
@@ -354,7 +354,7 @@ func (t *DbInfoTarget) ZeroField(name string) error {
 		t.Value.Engine = ""
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.DbInfo", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *DbInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -609,7 +609,7 @@ func (t *DatabaseDataTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.schemaMetadataTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.DatabaseData", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *DatabaseDataTarget) FinishField(_, _ vdl.Target) error {
@@ -630,7 +630,7 @@ func (t *DatabaseDataTarget) ZeroField(name string) error {
 		t.Value.SchemaMetadata = (*syncbase.SchemaMetadata)(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server.DatabaseData", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *DatabaseDataTarget) FinishFields(_ vdl.FieldsTarget) error {

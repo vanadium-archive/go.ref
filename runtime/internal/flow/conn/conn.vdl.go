@@ -126,7 +126,7 @@ func (t *BlessingsTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.bKeyTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/flow/conn.Blessings", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *BlessingsTarget) FinishField(_, _ vdl.Target) error {
@@ -141,7 +141,7 @@ func (t *BlessingsTarget) ZeroField(name string) error {
 		t.Value.BKey = uint64(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/flow/conn.Blessings", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *BlessingsTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -354,7 +354,7 @@ func (t *EncryptedBlessingsTarget) StartField(name string) (key, field vdl.Targe
 		target, err := &t.bKeyTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/flow/conn.EncryptedBlessings", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *EncryptedBlessingsTarget) FinishField(_, _ vdl.Target) error {
@@ -369,7 +369,7 @@ func (t *EncryptedBlessingsTarget) ZeroField(name string) error {
 		t.Value.BKey = uint64(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/flow/conn.EncryptedBlessings", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *EncryptedBlessingsTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -690,7 +690,7 @@ func (t *DischargesTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.bKeyTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/flow/conn.Discharges", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *DischargesTarget) FinishField(_, _ vdl.Target) error {
@@ -708,7 +708,7 @@ func (t *DischargesTarget) ZeroField(name string) error {
 		t.Value.BKey = uint64(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/flow/conn.Discharges", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *DischargesTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -1069,7 +1069,7 @@ func (t *EncryptedDischargesTarget) StartField(name string) (key, field vdl.Targ
 		target, err := &t.bKeyTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/flow/conn.EncryptedDischarges", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *EncryptedDischargesTarget) FinishField(_, _ vdl.Target) error {
@@ -1087,7 +1087,7 @@ func (t *EncryptedDischargesTarget) ZeroField(name string) error {
 		t.Value.BKey = uint64(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/flow/conn.EncryptedDischarges", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *EncryptedDischargesTarget) FinishFields(_ vdl.FieldsTarget) error {

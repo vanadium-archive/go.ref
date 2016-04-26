@@ -135,7 +135,7 @@ func (t *groupDataTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.entriesTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/groups/internal/server.groupData", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *groupDataTarget) FinishField(_, _ vdl.Target) error {
@@ -150,7 +150,7 @@ func (t *groupDataTarget) ZeroField(name string) error {
 		t.Value.Entries = map[groups.BlessingPatternChunk]struct{}(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/groups/internal/server.groupData", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *groupDataTarget) FinishFields(_ vdl.FieldsTarget) error {

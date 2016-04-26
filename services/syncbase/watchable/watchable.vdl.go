@@ -157,7 +157,7 @@ func (t *SyncgroupOpTarget) StartField(name string) (key, field vdl.Target, _ er
 		target, err := &t.removeTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/watchable.SyncgroupOp", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SyncgroupOpTarget) FinishField(_, _ vdl.Target) error {
@@ -175,7 +175,7 @@ func (t *SyncgroupOpTarget) ZeroField(name string) error {
 		t.Value.Remove = false
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/watchable.SyncgroupOp", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SyncgroupOpTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -445,7 +445,7 @@ func (t *SyncSnapshotOpTarget) StartField(name string) (key, field vdl.Target, _
 		target, err := &t.versionTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/watchable.SyncSnapshotOp", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SyncSnapshotOpTarget) FinishField(_, _ vdl.Target) error {
@@ -460,7 +460,7 @@ func (t *SyncSnapshotOpTarget) ZeroField(name string) error {
 		t.Value.Version = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/watchable.SyncSnapshotOp", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SyncSnapshotOpTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -739,7 +739,7 @@ func (t *DbStateChangeRequestOpTarget) StartField(name string) (key, field vdl.T
 		target, err := &t.requestTypeTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/watchable.DbStateChangeRequestOp", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *DbStateChangeRequestOpTarget) FinishField(_, _ vdl.Target) error {
@@ -751,7 +751,7 @@ func (t *DbStateChangeRequestOpTarget) ZeroField(name string) error {
 		t.Value.RequestType = StateChangePauseSync
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/watchable.DbStateChangeRequestOp", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *DbStateChangeRequestOpTarget) FinishFields(_ vdl.FieldsTarget) error {

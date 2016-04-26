@@ -661,7 +661,7 @@ func (t *AdInfoTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.lostTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery.AdInfo", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *AdInfoTarget) FinishField(_, _ vdl.Target) error {
@@ -691,7 +691,7 @@ func (t *AdInfoTarget) ZeroField(name string) error {
 		t.Value.Lost = false
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery.AdInfo", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *AdInfoTarget) FinishFields(_ vdl.FieldsTarget) error {

@@ -650,7 +650,7 @@ func (t *WireAllTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.eTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/nativetest.WireAll", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *WireAllTarget) FinishField(_, _ vdl.Target) error {
@@ -674,7 +674,7 @@ func (t *WireAllTarget) ZeroField(name string) error {
 		t.Value.E = WireRenameMe(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/nativetest.WireAll", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *WireAllTarget) FinishFields(_ vdl.FieldsTarget) error {

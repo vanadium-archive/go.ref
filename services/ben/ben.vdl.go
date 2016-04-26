@@ -136,7 +136,7 @@ func (t *CpuTarget) StartField(name string) (key, field vdl.Target, _ error) {
 		target, err := &t.clockSpeedMhzTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/ben.Cpu", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *CpuTarget) FinishField(_, _ vdl.Target) error {
@@ -154,7 +154,7 @@ func (t *CpuTarget) ZeroField(name string) error {
 		t.Value.ClockSpeedMhz = uint32(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/ben.Cpu", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *CpuTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -366,7 +366,7 @@ func (t *OsTarget) StartField(name string) (key, field vdl.Target, _ error) {
 		target, err := &t.versionTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/ben.Os", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *OsTarget) FinishField(_, _ vdl.Target) error {
@@ -381,7 +381,7 @@ func (t *OsTarget) ZeroField(name string) error {
 		t.Value.Version = ""
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/ben.Os", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *OsTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -594,7 +594,7 @@ func (t *ScenarioTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.labelTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/ben.Scenario", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *ScenarioTarget) FinishField(_, _ vdl.Target) error {
@@ -612,7 +612,7 @@ func (t *ScenarioTarget) ZeroField(name string) error {
 		t.Value.Label = ""
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/ben.Scenario", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *ScenarioTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -987,7 +987,7 @@ func (t *RunTarget) StartField(name string) (key, field vdl.Target, _ error) {
 		target, err := &t.parallelismTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/ben.Run", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *RunTarget) FinishField(_, _ vdl.Target) error {
@@ -1017,7 +1017,7 @@ func (t *RunTarget) ZeroField(name string) error {
 		t.Value.Parallelism = uint32(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/ben.Run", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *RunTarget) FinishFields(_ vdl.FieldsTarget) error {

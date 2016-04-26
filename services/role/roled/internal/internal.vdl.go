@@ -289,7 +289,7 @@ func (t *ConfigTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.peersTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/role/roled/internal.Config", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *ConfigTarget) FinishField(_, _ vdl.Target) error {
@@ -316,7 +316,7 @@ func (t *ConfigTarget) ZeroField(name string) error {
 		t.Value.Peers = []security.BlessingPattern(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/role/roled/internal.Config", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *ConfigTarget) FinishFields(_ vdl.FieldsTarget) error {

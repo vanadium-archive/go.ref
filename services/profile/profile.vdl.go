@@ -137,7 +137,7 @@ func (t *LibraryTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.minorVersionTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/profile.Library", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *LibraryTarget) FinishField(_, _ vdl.Target) error {
@@ -155,7 +155,7 @@ func (t *LibraryTarget) ZeroField(name string) error {
 		t.Value.MinorVersion = ""
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/profile.Library", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *LibraryTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -498,7 +498,7 @@ func (t *SpecificationTarget) StartField(name string) (key, field vdl.Target, _ 
 		target, err := &t.librariesTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/profile.Specification", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SpecificationTarget) FinishField(_, _ vdl.Target) error {
@@ -525,7 +525,7 @@ func (t *SpecificationTarget) ZeroField(name string) error {
 		t.Value.Libraries = map[Library]struct{}(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/profile.Specification", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SpecificationTarget) FinishFields(_ vdl.FieldsTarget) error {

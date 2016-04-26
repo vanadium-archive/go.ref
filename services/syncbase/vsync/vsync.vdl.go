@@ -84,7 +84,7 @@ func (t *SyncDataTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.idTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.SyncData", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SyncDataTarget) FinishField(_, _ vdl.Target) error {
@@ -96,7 +96,7 @@ func (t *SyncDataTarget) ZeroField(name string) error {
 		t.Value.Id = uint64(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.SyncData", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SyncDataTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -290,7 +290,7 @@ func (t *DbSyncStateTarget) StartField(name string) (key, field vdl.Target, _ er
 		target, err := &t.isPausedTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.DbSyncState", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *DbSyncStateTarget) FinishField(_, _ vdl.Target) error {
@@ -308,7 +308,7 @@ func (t *DbSyncStateTarget) ZeroField(name string) error {
 		t.Value.IsPaused = false
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.DbSyncState", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *DbSyncStateTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -532,7 +532,7 @@ func (t *LocalLogRecTarget) StartField(name string) (key, field vdl.Target, _ er
 		target, err := &t.posTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.LocalLogRec", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *LocalLogRecTarget) FinishField(_, _ vdl.Target) error {
@@ -547,7 +547,7 @@ func (t *LocalLogRecTarget) ZeroField(name string) error {
 		t.Value.Pos = uint64(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.LocalLogRec", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *LocalLogRecTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -834,7 +834,7 @@ func (t *SgLocalStateTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.pendingGenVecTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.SgLocalState", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SgLocalStateTarget) FinishField(_, _ vdl.Target) error {
@@ -858,7 +858,7 @@ func (t *SgLocalStateTarget) ZeroField(name string) error {
 		t.Value.PendingGenVec = interfaces.GenVector(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.SgLocalState", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SgLocalStateTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -1270,7 +1270,7 @@ func (t *DagNodeTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.permVersTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.DagNode", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *DagNodeTarget) FinishField(_, _ vdl.Target) error {
@@ -1300,7 +1300,7 @@ func (t *DagNodeTarget) ZeroField(name string) error {
 		t.Value.PermVers = ""
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.DagNode", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *DagNodeTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -1770,7 +1770,7 @@ func (t *BatchInfoTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.countTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.BatchInfo", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *BatchInfoTarget) FinishField(_, _ vdl.Target) error {
@@ -1788,7 +1788,7 @@ func (t *BatchInfoTarget) ZeroField(name string) error {
 		t.Value.Count = uint64(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync.BatchInfo", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *BatchInfoTarget) FinishFields(_ vdl.FieldsTarget) error {

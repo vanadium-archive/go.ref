@@ -113,7 +113,7 @@ func (t *WindowSizeTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.colsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.WindowSize", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *WindowSizeTarget) FinishField(_, _ vdl.Target) error {
@@ -128,7 +128,7 @@ func (t *WindowSizeTarget) ZeroField(name string) error {
 		t.Value.Cols = uint16(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.WindowSize", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *WindowSizeTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -361,7 +361,7 @@ func (t *ShellOptsTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.winSizeTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.ShellOpts", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *ShellOptsTarget) FinishField(_, _ vdl.Target) error {
@@ -379,7 +379,7 @@ func (t *ShellOptsTarget) ZeroField(name string) error {
 		t.Value.WinSize = WindowSize{}
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.ShellOpts", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *ShellOptsTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -585,7 +585,7 @@ func (t *UnusedTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *UnusedTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.Unused", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *UnusedTarget) FinishField(_, _ vdl.Target) error {
@@ -594,7 +594,7 @@ func (t *UnusedTarget) FinishField(_, _ vdl.Target) error {
 func (t *UnusedTarget) ZeroField(name string) error {
 	switch name {
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/tunnel.Unused", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *UnusedTarget) FinishFields(_ vdl.FieldsTarget) error {

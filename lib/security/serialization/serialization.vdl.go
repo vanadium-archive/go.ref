@@ -82,7 +82,7 @@ func (t *SignedHeaderTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.chunkSizeBytesTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/security/serialization.SignedHeader", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SignedHeaderTarget) FinishField(_, _ vdl.Target) error {
@@ -94,7 +94,7 @@ func (t *SignedHeaderTarget) ZeroField(name string) error {
 		t.Value.ChunkSizeBytes = int64(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/security/serialization.SignedHeader", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SignedHeaderTarget) FinishFields(_ vdl.FieldsTarget) error {

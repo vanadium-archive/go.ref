@@ -696,7 +696,7 @@ func (t *LogRecMetadataTarget) StartField(name string) (key, field vdl.Target, _
 		target, err := &t.batchCountTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *LogRecMetadataTarget) FinishField(_, _ vdl.Target) error {
@@ -735,7 +735,7 @@ func (t *LogRecMetadataTarget) ZeroField(name string) error {
 		t.Value.BatchCount = uint64(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *LogRecMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -1230,7 +1230,7 @@ func (t *LogRecTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.valueTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.LogRec", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *LogRecTarget) FinishField(_, _ vdl.Target) error {
@@ -1245,7 +1245,7 @@ func (t *LogRecTarget) ZeroField(name string) error {
 		t.Value.Value = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.LogRec", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *LogRecTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -1776,7 +1776,7 @@ func (t *SyncgroupTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.joinersTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.Syncgroup", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SyncgroupTarget) FinishField(_, _ vdl.Target) error {
@@ -1806,7 +1806,7 @@ func (t *SyncgroupTarget) ZeroField(name string) error {
 		t.Value.Joiners = map[string]syncbase.SyncgroupMemberInfo(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.Syncgroup", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -2210,7 +2210,7 @@ func (t *SgDeltaReqTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.gvsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.SgDeltaReq", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SgDeltaReqTarget) FinishField(_, _ vdl.Target) error {
@@ -2225,7 +2225,7 @@ func (t *SgDeltaReqTarget) ZeroField(name string) error {
 		t.Value.Gvs = Knowledge(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.SgDeltaReq", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SgDeltaReqTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -2443,7 +2443,7 @@ func (t *DataDeltaReqTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.gvsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.DataDeltaReq", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *DataDeltaReqTarget) FinishField(_, _ vdl.Target) error {
@@ -2461,7 +2461,7 @@ func (t *DataDeltaReqTarget) ZeroField(name string) error {
 		t.Value.Gvs = Knowledge(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.DataDeltaReq", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *DataDeltaReqTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -3216,7 +3216,7 @@ func (t *SgPriorityTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.serverTimeTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.SgPriority", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SgPriorityTarget) FinishField(_, _ vdl.Target) error {
@@ -3234,7 +3234,7 @@ func (t *SgPriorityTarget) ZeroField(name string) error {
 		t.Value.ServerTime = time.Time{}
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.SgPriority", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SgPriorityTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -3584,7 +3584,7 @@ func (t *DeltaFinalRespTarget) StartField(name string) (key, field vdl.Target, _
 		target, err := &t.sgPrioritiesTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.DeltaFinalResp", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *DeltaFinalRespTarget) FinishField(_, _ vdl.Target) error {
@@ -3596,7 +3596,7 @@ func (t *DeltaFinalRespTarget) ZeroField(name string) error {
 		t.Value.SgPriorities = SgPriorities(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.DeltaFinalResp", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *DeltaFinalRespTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -3726,7 +3726,7 @@ func (t *ChunkHashTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.hashTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.ChunkHash", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *ChunkHashTarget) FinishField(_, _ vdl.Target) error {
@@ -3738,7 +3738,7 @@ func (t *ChunkHashTarget) ZeroField(name string) error {
 		t.Value.Hash = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.ChunkHash", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *ChunkHashTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -3880,7 +3880,7 @@ func (t *ChunkDataTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.dataTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.ChunkData", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *ChunkDataTarget) FinishField(_, _ vdl.Target) error {
@@ -3892,7 +3892,7 @@ func (t *ChunkDataTarget) ZeroField(name string) error {
 		t.Value.Data = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.ChunkData", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *ChunkDataTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -4036,7 +4036,7 @@ func (t *TimeReqTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.sendTsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.TimeReq", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *TimeReqTarget) FinishField(_, _ vdl.Target) error {
@@ -4048,7 +4048,7 @@ func (t *TimeReqTarget) ZeroField(name string) error {
 		t.Value.SendTs = time.Time{}
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.TimeReq", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *TimeReqTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -4338,7 +4338,7 @@ func (t *TimeRespTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.numHopsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.TimeResp", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *TimeRespTarget) FinishField(_, _ vdl.Target) error {
@@ -4365,7 +4365,7 @@ func (t *TimeRespTarget) ZeroField(name string) error {
 		t.Value.NumHops = uint16(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.TimeResp", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *TimeRespTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -4849,7 +4849,7 @@ func (t *LocationDataTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.isServerTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.LocationData", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *LocationDataTarget) FinishField(_, _ vdl.Target) error {
@@ -4867,7 +4867,7 @@ func (t *LocationDataTarget) ZeroField(name string) error {
 		t.Value.IsServer = false
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.LocationData", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *LocationDataTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -5273,7 +5273,7 @@ func (t *SignpostTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.sgIdsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.Signpost", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SignpostTarget) FinishField(_, _ vdl.Target) error {
@@ -5288,7 +5288,7 @@ func (t *SignpostTarget) ZeroField(name string) error {
 		t.Value.SgIds = map[GroupId]struct{}(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/server/interfaces.Signpost", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SignpostTarget) FinishFields(_ vdl.FieldsTarget) error {

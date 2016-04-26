@@ -110,7 +110,7 @@ func (t *HistogramBucketTarget) StartField(name string) (key, field vdl.Target, 
 		target, err := &t.countTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/stats.HistogramBucket", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *HistogramBucketTarget) FinishField(_, _ vdl.Target) error {
@@ -125,7 +125,7 @@ func (t *HistogramBucketTarget) ZeroField(name string) error {
 		t.Value.Count = int64(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/stats.HistogramBucket", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *HistogramBucketTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -412,7 +412,7 @@ func (t *HistogramValueTarget) StartField(name string) (key, field vdl.Target, _
 		target, err := &t.bucketsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/stats.HistogramValue", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *HistogramValueTarget) FinishField(_, _ vdl.Target) error {
@@ -436,7 +436,7 @@ func (t *HistogramValueTarget) ZeroField(name string) error {
 		t.Value.Buckets = []HistogramBucket(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/stats.HistogramValue", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *HistogramValueTarget) FinishFields(_ vdl.FieldsTarget) error {

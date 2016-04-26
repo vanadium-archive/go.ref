@@ -179,7 +179,7 @@ func (t *AdConversionTestCaseTarget) StartField(name string) (key, field vdl.Tar
 		target, err := &t.gattAttrsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/plugins/ble/testdata.AdConversionTestCase", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *AdConversionTestCaseTarget) FinishField(_, _ vdl.Target) error {
@@ -194,7 +194,7 @@ func (t *AdConversionTestCaseTarget) ZeroField(name string) error {
 		t.Value.GattAttrs = map[string][]byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/plugins/ble/testdata.AdConversionTestCase", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *AdConversionTestCaseTarget) FinishFields(_ vdl.FieldsTarget) error {

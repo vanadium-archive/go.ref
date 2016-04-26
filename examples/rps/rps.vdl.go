@@ -106,7 +106,7 @@ func (t *GameIdTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.idTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.GameId", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *GameIdTarget) FinishField(_, _ vdl.Target) error {
@@ -118,7 +118,7 @@ func (t *GameIdTarget) ZeroField(name string) error {
 		t.Value.Id = ""
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.GameId", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *GameIdTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -360,7 +360,7 @@ func (t *GameOptionsTarget) StartField(name string) (key, field vdl.Target, _ er
 		target, err := &t.gameTypeTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.GameOptions", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *GameOptionsTarget) FinishField(_, _ vdl.Target) error {
@@ -375,7 +375,7 @@ func (t *GameOptionsTarget) ZeroField(name string) error {
 		t.Value.GameType = GameTypeTag(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.GameOptions", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *GameOptionsTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -499,7 +499,7 @@ func (t *UnusedTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 func (t *UnusedTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.Unused", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *UnusedTarget) FinishField(_, _ vdl.Target) error {
@@ -508,7 +508,7 @@ func (t *UnusedTarget) FinishField(_, _ vdl.Target) error {
 func (t *UnusedTarget) ZeroField(name string) error {
 	switch name {
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.Unused", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *UnusedTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -1172,7 +1172,7 @@ func (t *RoundTarget) StartField(name string) (key, field vdl.Target, _ error) {
 		target, err := &t.endTimeTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.Round", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *RoundTarget) FinishField(_, _ vdl.Target) error {
@@ -1196,7 +1196,7 @@ func (t *RoundTarget) ZeroField(name string) error {
 		t.Value.EndTime = time.Time{}
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.Round", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *RoundTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -1615,7 +1615,7 @@ func (t *ScoreCardTarget) StartField(name string) (key, field vdl.Target, _ erro
 		target, err := &t.winnerTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.ScoreCard", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *ScoreCardTarget) FinishField(_, _ vdl.Target) error {
@@ -1645,7 +1645,7 @@ func (t *ScoreCardTarget) ZeroField(name string) error {
 		t.Value.Winner = WinnerTag(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.ScoreCard", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *ScoreCardTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -2497,7 +2497,7 @@ func (t *PlayResultTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.youWonTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.PlayResult", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *PlayResultTarget) FinishField(_, _ vdl.Target) error {
@@ -2509,7 +2509,7 @@ func (t *PlayResultTarget) ZeroField(name string) error {
 		t.Value.YouWon = false
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/examples/rps.PlayResult", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *PlayResultTarget) FinishFields(_ vdl.FieldsTarget) error {

@@ -156,7 +156,7 @@ func (t *BlobMetadataTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.accessedTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/localblobstore.BlobMetadata", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *BlobMetadataTarget) FinishField(_, _ vdl.Target) error {
@@ -174,7 +174,7 @@ func (t *BlobMetadataTarget) ZeroField(name string) error {
 		t.Value.Accessed = time.Time{}
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/localblobstore.BlobMetadata", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *BlobMetadataTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -349,7 +349,7 @@ func (t *PerSyncgroupTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.priorityTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/localblobstore.PerSyncgroup", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *PerSyncgroupTarget) FinishField(_, _ vdl.Target) error {
@@ -361,7 +361,7 @@ func (t *PerSyncgroupTarget) ZeroField(name string) error {
 		t.Value.Priority = interfaces.SgPriority{}
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/localblobstore.PerSyncgroup", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *PerSyncgroupTarget) FinishFields(_ vdl.FieldsTarget) error {

@@ -112,7 +112,7 @@ func (t *PeerKeyTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.acceptorTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.PeerKey", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *PeerKeyTarget) FinishField(_, _ vdl.Target) error {
@@ -127,7 +127,7 @@ func (t *PeerKeyTarget) ZeroField(name string) error {
 		t.Value.Acceptor = ""
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.PeerKey", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *PeerKeyTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -320,7 +320,7 @@ func (t *PeerBehaviorTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.discoverableTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.PeerBehavior", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *PeerBehaviorTarget) FinishField(_, _ vdl.Target) error {
@@ -335,7 +335,7 @@ func (t *PeerBehaviorTarget) ZeroField(name string) error {
 		t.Value.Discoverable = false
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/runtime/protocols/vine.PeerBehavior", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *PeerBehaviorTarget) FinishFields(_ vdl.FieldsTarget) error {

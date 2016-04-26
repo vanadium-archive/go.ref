@@ -478,7 +478,7 @@ func (t *CachedDischargeTarget) StartField(name string) (key, field vdl.Target, 
 		target, err := &t.cacheTimeTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/security.CachedDischarge", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *CachedDischargeTarget) FinishField(_, _ vdl.Target) error {
@@ -493,7 +493,7 @@ func (t *CachedDischargeTarget) ZeroField(name string) error {
 		t.Value.CacheTime = time.Time{}
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/security.CachedDischarge", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *CachedDischargeTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -873,7 +873,7 @@ func (t *blessingStoreStateTarget) StartField(name string) (key, field vdl.Targe
 		target, err := &t.cacheKeyFormatTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/security.blessingStoreState", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *blessingStoreStateTarget) FinishField(_, _ vdl.Target) error {
@@ -897,7 +897,7 @@ func (t *blessingStoreStateTarget) ZeroField(name string) error {
 		t.Value.CacheKeyFormat = uint32(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/security.blessingStoreState", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *blessingStoreStateTarget) FinishFields(_ vdl.FieldsTarget) error {

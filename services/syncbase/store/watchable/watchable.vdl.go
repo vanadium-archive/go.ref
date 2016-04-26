@@ -88,7 +88,7 @@ func (t *GetOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
 		target, err := &t.keyTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.GetOp", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *GetOpTarget) FinishField(_, _ vdl.Target) error {
@@ -100,7 +100,7 @@ func (t *GetOpTarget) ZeroField(name string) error {
 		t.Value.Key = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.GetOp", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *GetOpTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -271,7 +271,7 @@ func (t *ScanOpTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.limitTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.ScanOp", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *ScanOpTarget) FinishField(_, _ vdl.Target) error {
@@ -286,7 +286,7 @@ func (t *ScanOpTarget) ZeroField(name string) error {
 		t.Value.Limit = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.ScanOp", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *ScanOpTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -486,7 +486,7 @@ func (t *PutOpTarget) StartField(name string) (key, field vdl.Target, _ error) {
 		target, err := &t.versionTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.PutOp", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *PutOpTarget) FinishField(_, _ vdl.Target) error {
@@ -501,7 +501,7 @@ func (t *PutOpTarget) ZeroField(name string) error {
 		t.Value.Version = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.PutOp", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *PutOpTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -670,7 +670,7 @@ func (t *DeleteOpTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.keyTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.DeleteOp", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *DeleteOpTarget) FinishField(_, _ vdl.Target) error {
@@ -682,7 +682,7 @@ func (t *DeleteOpTarget) ZeroField(name string) error {
 		t.Value.Key = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.DeleteOp", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *DeleteOpTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -906,7 +906,7 @@ func (t *LogEntryTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.continuedTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.LogEntry", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *LogEntryTarget) FinishField(_, _ vdl.Target) error {
@@ -927,7 +927,7 @@ func (t *LogEntryTarget) ZeroField(name string) error {
 		t.Value.Continued = false
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/store/watchable.LogEntry", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {

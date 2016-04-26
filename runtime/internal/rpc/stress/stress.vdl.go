@@ -140,7 +140,7 @@ func (t *SumArgTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.aListOfBytesTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/rpc/stress.SumArg", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SumArgTarget) FinishField(_, _ vdl.Target) error {
@@ -158,7 +158,7 @@ func (t *SumArgTarget) ZeroField(name string) error {
 		t.Value.AListOfBytes = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/rpc/stress.SumArg", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SumArgTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -426,7 +426,7 @@ func (t *SumStatsTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.bytesSentTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/rpc/stress.SumStats", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *SumStatsTarget) FinishField(_, _ vdl.Target) error {
@@ -447,7 +447,7 @@ func (t *SumStatsTarget) ZeroField(name string) error {
 		t.Value.BytesSent = uint64(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/runtime/internal/rpc/stress.SumStats", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *SumStatsTarget) FinishFields(_ vdl.FieldsTarget) error {

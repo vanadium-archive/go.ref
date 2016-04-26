@@ -1732,7 +1732,7 @@ func (t *NamedStructTarget) StartField(name string) (key, field vdl.Target, _ er
 		target, err := &t.cTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.NamedStruct", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *NamedStructTarget) FinishField(_, _ vdl.Target) error {
@@ -1750,7 +1750,7 @@ func (t *NamedStructTarget) ZeroField(name string) error {
 		t.Value.C = int32(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.NamedStruct", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *NamedStructTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -2996,7 +2996,7 @@ func (t *ScalarsTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.b13Target, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.Scalars", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *ScalarsTarget) FinishField(_, _ vdl.Target) error {
@@ -3092,7 +3092,7 @@ func (t *ScalarsTarget) ZeroField(name string) error {
 		t.Value.B13 = NamedUnion(NamedUnionA{})
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.Scalars", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *ScalarsTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -4399,7 +4399,7 @@ func (t *KeyScalarsTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.b13Target, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.KeyScalars", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *KeyScalarsTarget) FinishField(_, _ vdl.Target) error {
@@ -4480,7 +4480,7 @@ func (t *KeyScalarsTarget) ZeroField(name string) error {
 		t.Value.B13 = NamedString("")
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.KeyScalars", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *KeyScalarsTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -5461,7 +5461,7 @@ func (t *CompositesTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.a4Target, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.Composites", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *CompositesTarget) FinishField(_, _ vdl.Target) error {
@@ -5500,7 +5500,7 @@ func (t *CompositesTarget) ZeroField(name string) error {
 		t.Value.A4 = map[string]Scalars(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.Composites", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *CompositesTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -6644,7 +6644,7 @@ func (t *CompCompTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.a4Target, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.CompComp", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *CompCompTarget) FinishField(_, _ vdl.Target) error {
@@ -6725,7 +6725,7 @@ func (t *CompCompTarget) ZeroField(name string) error {
 		t.Value.A4 = map[KeyScalars][]map[string]Composites(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.CompComp", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *CompCompTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -7401,7 +7401,7 @@ func (t *ArgsTarget) StartField(name string) (key, field vdl.Target, _ error) {
 		target, err := &t.bTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.Args", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *ArgsTarget) FinishField(_, _ vdl.Target) error {
@@ -7416,7 +7416,7 @@ func (t *ArgsTarget) ZeroField(name string) error {
 		t.Value.B = int32(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.Args", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *ArgsTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -7582,7 +7582,7 @@ func (t *NestedArgsTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.argsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.NestedArgs", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *NestedArgsTarget) FinishField(_, _ vdl.Target) error {
@@ -7594,7 +7594,7 @@ func (t *NestedArgsTarget) ZeroField(name string) error {
 		t.Value.Args = Args{}
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/base.NestedArgs", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *NestedArgsTarget) FinishFields(_ vdl.FieldsTarget) error {

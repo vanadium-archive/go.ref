@@ -183,7 +183,7 @@ func (t *AllTarget) StartField(name string) (key, field vdl.Target, _ error) {
 		target, err := &t.dTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/nativedep.All", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *AllTarget) FinishField(_, _ vdl.Target) error {
@@ -204,7 +204,7 @@ func (t *AllTarget) ZeroField(name string) error {
 		t.Value.D = map[nativetest.NativeSamePkg]time.Time(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/vdl/testdata/nativedep.All", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *AllTarget) FinishFields(_ vdl.FieldsTarget) error {

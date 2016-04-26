@@ -135,7 +135,7 @@ func (t *BlessingRootResponseTarget) StartField(name string) (key, field vdl.Tar
 		target, err := &t.publicKeyTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/identity.BlessingRootResponse", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *BlessingRootResponseTarget) FinishField(_, _ vdl.Target) error {
@@ -150,7 +150,7 @@ func (t *BlessingRootResponseTarget) ZeroField(name string) error {
 		t.Value.PublicKey = ""
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/identity.BlessingRootResponse", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *BlessingRootResponseTarget) FinishFields(_ vdl.FieldsTarget) error {

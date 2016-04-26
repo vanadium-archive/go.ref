@@ -567,7 +567,7 @@ func (t *DataWithSignatureTarget) StartField(name string) (key, field vdl.Target
 		target, err := &t.validatorSignedTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/signing.DataWithSignature", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *DataWithSignatureTarget) FinishField(_, _ vdl.Target) error {
@@ -594,7 +594,7 @@ func (t *DataWithSignatureTarget) ZeroField(name string) error {
 		t.Value.ValidatorSigned = security.Signature{}
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/signing.DataWithSignature", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *DataWithSignatureTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -975,7 +975,7 @@ func (t *WireValidatorDataTarget) StartField(name string) (key, field vdl.Target
 		target, err := &t.marshalledPublicKeyTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/signing.WireValidatorData", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *WireValidatorDataTarget) FinishField(_, _ vdl.Target) error {
@@ -990,7 +990,7 @@ func (t *WireValidatorDataTarget) ZeroField(name string) error {
 		t.Value.MarshalledPublicKey = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/signing.WireValidatorData", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *WireValidatorDataTarget) FinishFields(_ vdl.FieldsTarget) error {

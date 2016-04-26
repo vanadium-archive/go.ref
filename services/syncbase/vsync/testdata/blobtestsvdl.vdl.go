@@ -110,7 +110,7 @@ func (t *BlobInfoTarget) StartField(name string) (key, field vdl.Target, _ error
 		target, err := &t.brTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync/testdata.BlobInfo", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *BlobInfoTarget) FinishField(_, _ vdl.Target) error {
@@ -125,7 +125,7 @@ func (t *BlobInfoTarget) ZeroField(name string) error {
 		t.Value.Br = syncbase.BlobRef("")
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync/testdata.BlobInfo", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *BlobInfoTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -555,7 +555,7 @@ func (t *BlobSetTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.bsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync/testdata.BlobSet", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *BlobSetTarget) FinishField(_, _ vdl.Target) error {
@@ -570,7 +570,7 @@ func (t *BlobSetTarget) ZeroField(name string) error {
 		t.Value.Bs = map[syncbase.BlobRef]struct{}(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync/testdata.BlobSet", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *BlobSetTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -857,7 +857,7 @@ func (t *BlobAnyTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.baaTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync/testdata.BlobAny", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *BlobAnyTarget) FinishField(_, _ vdl.Target) error {
@@ -872,7 +872,7 @@ func (t *BlobAnyTarget) ZeroField(name string) error {
 		t.Value.Baa = []*vom.RawBytes(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync/testdata.BlobAny", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *BlobAnyTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -1157,7 +1157,7 @@ func (t *NonBlobSetTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.sTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync/testdata.NonBlobSet", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *NonBlobSetTarget) FinishField(_, _ vdl.Target) error {
@@ -1172,7 +1172,7 @@ func (t *NonBlobSetTarget) ZeroField(name string) error {
 		t.Value.S = map[string]struct{}(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync/testdata.NonBlobSet", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *NonBlobSetTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -1452,7 +1452,7 @@ func (t *BlobOptTarget) StartField(name string) (key, field vdl.Target, _ error)
 		target, err := &t.boTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync/testdata.BlobOpt", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *BlobOptTarget) FinishField(_, _ vdl.Target) error {
@@ -1467,7 +1467,7 @@ func (t *BlobOptTarget) ZeroField(name string) error {
 		t.Value.Bo = (*BlobInfo)(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vsync/testdata.BlobOpt", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *BlobOptTarget) FinishFields(_ vdl.FieldsTarget) error {

@@ -165,9 +165,9 @@ func (t *%[1]s) StartField(name string) (key, field %[4]sTarget, _ error) {
 	}
 	s += fmt.Sprintf(`
 	default:
-		return nil, nil, %sErrorf("field %%s not in struct %s", name)
+		return nil, nil, %[1]sErrFieldNoExist
 	}
-}`, data.Pkg("fmt"), t.Name())
+}`, data.Pkg("v.io/v23/vdl"))
 	s += fmt.Sprintf(`
 func (t *%[1]s) FinishField(_, _ %[2]sTarget) error {
 	return nil
@@ -183,13 +183,13 @@ func (t *%[1]s) ZeroField(name string) error {
 	}
 	s += fmt.Sprintf(`
 	default:
-		return %[5]sErrorf("field %%s not in struct %[6]s", name)
+		return %[2]sErrFieldNoExist
 	}
 }
 func (t *%[1]s) FinishFields(_ %[2]sFieldsTarget) error {
 	%[4]s
 	return nil
-}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), valueAssn, genWireToNativeConversion(data, t), data.Pkg("fmt"), t.Name())
+}`, targetTypeName(data, t), data.Pkg("v.io/v23/vdl"), valueAssn, genWireToNativeConversion(data, t), data.Pkg("fmt"))
 	s += additionalBodies
 	return s
 }

@@ -110,7 +110,7 @@ func (t *StructTarget) StartField(name string) (key, field vdl.Target, _ error) 
 		target, err := &t.yTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/cmd/vrpc/internal.Struct", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *StructTarget) FinishField(_, _ vdl.Target) error {
@@ -125,7 +125,7 @@ func (t *StructTarget) ZeroField(name string) error {
 		t.Value.Y = int32(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/cmd/vrpc/internal.Struct", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *StructTarget) FinishFields(_ vdl.FieldsTarget) error {

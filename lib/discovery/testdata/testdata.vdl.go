@@ -134,7 +134,7 @@ func (t *PackAddressTestTarget) StartField(name string) (key, field vdl.Target, 
 		target, err := &t.packedTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/testdata.PackAddressTest", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *PackAddressTestTarget) FinishField(_, _ vdl.Target) error {
@@ -149,7 +149,7 @@ func (t *PackAddressTestTarget) ZeroField(name string) error {
 		t.Value.Packed = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/testdata.PackAddressTest", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *PackAddressTestTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -445,7 +445,7 @@ func (t *PackEncryptionKeysTestTarget) StartField(name string) (key, field vdl.T
 		target, err := &t.packedTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/testdata.PackEncryptionKeysTest", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *PackEncryptionKeysTestTarget) FinishField(_, _ vdl.Target) error {
@@ -463,7 +463,7 @@ func (t *PackEncryptionKeysTestTarget) ZeroField(name string) error {
 		t.Value.Packed = []byte(nil)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/testdata.PackEncryptionKeysTest", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *PackEncryptionKeysTestTarget) FinishFields(_ vdl.FieldsTarget) error {
@@ -740,7 +740,7 @@ func (t *UuidTestDataTarget) StartField(name string) (key, field vdl.Target, _ e
 		target, err := &t.wantTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/testdata.UuidTestData", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *UuidTestDataTarget) FinishField(_, _ vdl.Target) error {
@@ -755,7 +755,7 @@ func (t *UuidTestDataTarget) ZeroField(name string) error {
 		t.Value.Want = ""
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/lib/discovery/testdata.UuidTestData", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *UuidTestDataTarget) FinishFields(_ vdl.FieldsTarget) error {

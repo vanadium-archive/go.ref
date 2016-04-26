@@ -244,7 +244,7 @@ func (t *VClockDataTarget) StartField(name string) (key, field vdl.Target, _ err
 		target, err := &t.numHopsTarget, error(nil)
 		return nil, target, err
 	default:
-		return nil, nil, fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vclock.VClockData", name)
+		return nil, nil, vdl.ErrFieldNoExist
 	}
 }
 func (t *VClockDataTarget) FinishField(_, _ vdl.Target) error {
@@ -271,7 +271,7 @@ func (t *VClockDataTarget) ZeroField(name string) error {
 		t.Value.NumHops = uint16(0)
 		return nil
 	default:
-		return fmt.Errorf("field %s not in struct v.io/x/ref/services/syncbase/vclock.VClockData", name)
+		return vdl.ErrFieldNoExist
 	}
 }
 func (t *VClockDataTarget) FinishFields(_ vdl.FieldsTarget) error {
