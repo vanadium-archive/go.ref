@@ -43,10 +43,14 @@ type clusterAgentConfig struct {
 	// The external IP address of the cluster agent. An empty value
 	// means that an ephemeral address will be used.
 	ExternalIP string `json:"externalIP"`
-	// The name of the Persistent Disk of the cluster agent. An
-	// value means that the cluster agent won't use a persistent
-	// disk.
+	// The name of the GCE Persistent Disk of the cluster agent. An empty
+	// value means that the cluster agent won't use a GCE persistent disk.
+	// PersistentDisk and PersistentVolumeClaim are mutually exclusive.
 	PersistentDisk string `json:"persistentDisk"`
+	// The name of the Persistent Volume Claim of the cluster agent. An
+	// empty value means that the cluster agent won't use a persistent
+	// volume claim.
+	PersistentVolumeClaim string `json:"persistentVolumeClaim"`
 	// When true, indicates that the cluster agent should only have an
 	// IP address that is reachable from within the kubernetes cluster.
 	InternalOnly bool `json:"internalOnly"`

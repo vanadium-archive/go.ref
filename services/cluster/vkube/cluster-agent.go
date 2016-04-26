@@ -135,18 +135,26 @@ func makeClusterAgentObject(config *vkubeConfig, rootBlessings string) object {
 			},
 		},
 	}
-	if config.ClusterAgent.PersistentDisk == "" {
-		ca.append("spec.template.spec.volumes", object{
-			"name":     "data",
-			"emptyDir": object{},
-		})
-	} else {
+	switch {
+	case config.ClusterAgent.PersistentDisk != "":
 		ca.append("spec.template.spec.volumes", object{
 			"name": "data",
 			"gcePersistentDisk": object{
 				"pdName": config.ClusterAgent.PersistentDisk,
 				"fsType": "ext4",
 			},
+		})
+	case config.ClusterAgent.PersistentVolumeClaim != "":
+		ca.append("spec.template.spec.volumes", object{
+			"name": "data",
+			"persistentVolumeClaim": object{
+				"claimName": config.ClusterAgent.PersistentVolumeClaim,
+			},
+		})
+	default:
+		ca.append("spec.template.spec.volumes", object{
+			"name":     "data",
+			"emptyDir": object{},
 		})
 	}
 
