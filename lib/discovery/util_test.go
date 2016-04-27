@@ -135,7 +135,7 @@ func TestHashAdCoverage(t *testing.T) {
 		fieldName := reflect.TypeOf(ad).Field(i).Name
 
 		switch fieldName {
-		case "Ad", "Hash", "DirAddrs", "Status", "Lost":
+		case "Ad", "Hash", "TimestampNs", "DirAddrs", "Status", "Lost":
 			continue
 		}
 

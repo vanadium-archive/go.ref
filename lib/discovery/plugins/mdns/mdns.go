@@ -42,6 +42,7 @@ const (
 	attrAddresses  = "_a"
 	attrEncryption = "_e"
 	attrHash       = "_h"
+	attrTimestamp  = "_t"
 	attrDirAddrs   = "_d"
 	attrStatus     = "_s"
 
@@ -250,6 +251,7 @@ func packTxtRecords(status idiscovery.AdStatus, vtxts ...[]string) ([]string, er
 func newTxtRecords(adinfo *idiscovery.AdInfo) ([]string, error) {
 	core, xseq := appendTxtRecord(nil, attrInterface, adinfo.Ad.InterfaceName, 0)
 	core, xseq = appendTxtRecord(core, attrHash, adinfo.Hash[:], xseq)
+	core, xseq = appendTxtRecord(core, attrTimestamp, idiscovery.EncodeTimestamp(adinfo.TimestampNs), xseq)
 	coreLen := sizeOfTxtRecords(core)
 
 	dir, xseq := appendTxtRecord(nil, attrDirAddrs, idiscovery.PackAddresses(adinfo.DirAddrs), xseq)
@@ -362,6 +364,10 @@ func newAdInfo(service mdns.ServiceInstance) (*idiscovery.AdInfo, error) {
 				}
 			case attrHash:
 				copy(adinfo.Hash[:], []byte(v))
+			case attrTimestamp:
+				if adinfo.TimestampNs, err = idiscovery.DecodeTimestamp([]byte(v)); err != nil {
+					return nil, err
+				}
 			case attrDirAddrs:
 				if adinfo.DirAddrs, err = idiscovery.UnpackAddresses([]byte(v)); err != nil {
 					return nil, err

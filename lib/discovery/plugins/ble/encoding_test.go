@@ -58,6 +58,7 @@ func TestEncode(t *testing.T) {
 		}
 
 		copy(adinfo.Hash[:], randBytes(16))
+		adinfo.TimestampNs = rand.Int63()
 
 		adinfo.DirAddrs = make([]string, rand.Intn(3)+1)
 		for i, _ := range adinfo.DirAddrs {
@@ -85,7 +86,7 @@ func TestEncode(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(decoded, &adinfo) {
-			t.Errorf("decoded to %v, but want %v", *decoded, adinfo)
+			t.Errorf("decoded to %#v, but want %#v", *decoded, adinfo)
 		}
 	}
 }

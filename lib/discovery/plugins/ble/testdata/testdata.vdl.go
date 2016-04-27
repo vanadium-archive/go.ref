@@ -68,15 +68,17 @@ func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	var4 = var4 && var12
 	var13 := (m.AdInfo.Hash == discovery_2.AdHash{})
 	var4 = var4 && var13
-	var var14 bool
-	if len(m.AdInfo.DirAddrs) == 0 {
-		var14 = true
-	}
+	var14 := (m.AdInfo.TimestampNs == int64(0))
 	var4 = var4 && var14
-	var15 := (m.AdInfo.Status == discovery_2.AdStatus(0))
+	var var15 bool
+	if len(m.AdInfo.DirAddrs) == 0 {
+		var15 = true
+	}
 	var4 = var4 && var15
-	var16 := (m.AdInfo.Lost == false)
+	var16 := (m.AdInfo.Status == discovery_2.AdStatus(0))
 	var4 = var4 && var16
+	var17 := (m.AdInfo.Lost == false)
+	var4 = var4 && var17
 	if var4 {
 		if err := fieldsTarget1.ZeroField("AdInfo"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -96,49 +98,49 @@ func (m *AdConversionTestCase) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var var19 bool
+	var var20 bool
 	if len(m.GattAttrs) == 0 {
-		var19 = true
+		var20 = true
 	}
-	if var19 {
+	if var20 {
 		if err := fieldsTarget1.ZeroField("GattAttrs"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget17, fieldTarget18, err := fieldsTarget1.StartField("GattAttrs")
+		keyTarget18, fieldTarget19, err := fieldsTarget1.StartField("GattAttrs")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
 
-			mapTarget20, err := fieldTarget18.StartMap(tt.NonOptional().Field(1).Type, len(m.GattAttrs))
+			mapTarget21, err := fieldTarget19.StartMap(tt.NonOptional().Field(1).Type, len(m.GattAttrs))
 			if err != nil {
 				return err
 			}
-			for key22, value24 := range m.GattAttrs {
-				keyTarget21, err := mapTarget20.StartKey()
+			for key23, value25 := range m.GattAttrs {
+				keyTarget22, err := mapTarget21.StartKey()
 				if err != nil {
 					return err
 				}
-				if err := keyTarget21.FromString(string(key22), tt.NonOptional().Field(1).Type.Key()); err != nil {
+				if err := keyTarget22.FromString(string(key23), tt.NonOptional().Field(1).Type.Key()); err != nil {
 					return err
 				}
-				valueTarget23, err := mapTarget20.FinishKeyStartField(keyTarget21)
+				valueTarget24, err := mapTarget21.FinishKeyStartField(keyTarget22)
 				if err != nil {
 					return err
 				}
 
-				if err := valueTarget23.FromBytes([]byte(value24), tt.NonOptional().Field(1).Type.Elem()); err != nil {
+				if err := valueTarget24.FromBytes([]byte(value25), tt.NonOptional().Field(1).Type.Elem()); err != nil {
 					return err
 				}
-				if err := mapTarget20.FinishField(keyTarget21, valueTarget23); err != nil {
+				if err := mapTarget21.FinishField(keyTarget22, valueTarget24); err != nil {
 					return err
 				}
 			}
-			if err := fieldTarget18.FinishMap(mapTarget20); err != nil {
+			if err := fieldTarget19.FinishMap(mapTarget21); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget17, fieldTarget18); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget18, fieldTarget19); err != nil {
 				return err
 			}
 		}

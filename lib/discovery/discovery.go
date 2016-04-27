@@ -20,6 +20,7 @@ type idiscovery struct {
 	wg     sync.WaitGroup
 
 	adMu          sync.Mutex
+	adTimestampNs int64                         // GUARDED_BY(adMu)
 	adSessions    map[discovery.AdId]sessionId  // GUARDED_BY(adMu)
 	adSubtasks    map[discovery.AdId]*adSubtask // GUARDED_BY(adMu)
 	adStopTrigger *Trigger

@@ -383,6 +383,8 @@ type AdInfo struct {
 	EncryptionKeys []EncryptionKey
 	// Hash of the current advertisement. This does not include the fields below.
 	Hash AdHash
+	// Unix time in nanoseconds at which the advertisement was created.
+	TimestampNs int64
 	// The addresses (vanadium object names) that the advertisement directory service
 	// is served on. See directory.vdl.
 	DirAddrs []string
@@ -522,38 +524,18 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var var24 bool
-	if len(m.DirAddrs) == 0 {
-		var24 = true
-	}
+	var24 := (m.TimestampNs == int64(0))
 	if var24 {
-		if err := fieldsTarget1.ZeroField("DirAddrs"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("TimestampNs"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("DirAddrs")
+		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("TimestampNs")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-
-			listTarget25, err := fieldTarget23.StartList(tt.NonOptional().Field(4).Type, len(m.DirAddrs))
-			if err != nil {
-				return err
-			}
-			for i, elem27 := range m.DirAddrs {
-				elemTarget26, err := listTarget25.StartElem(i)
-				if err != nil {
-					return err
-				}
-				if err := elemTarget26.FromString(string(elem27), tt.NonOptional().Field(4).Type.Elem()); err != nil {
-					return err
-				}
-				if err := listTarget25.FinishElem(elemTarget26); err != nil {
-					return err
-				}
-			}
-			if err := fieldTarget23.FinishList(listTarget25); err != nil {
+			if err := fieldTarget23.FromInt(int64(m.TimestampNs), tt.NonOptional().Field(4).Type); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
@@ -561,41 +543,80 @@ func (m *AdInfo) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var30 := (m.Status == AdStatus(0))
-	if var30 {
-		if err := fieldsTarget1.ZeroField("Status"); err != nil && err != vdl.ErrFieldNoExist {
+	var var27 bool
+	if len(m.DirAddrs) == 0 {
+		var27 = true
+	}
+	if var27 {
+		if err := fieldsTarget1.ZeroField("DirAddrs"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget28, fieldTarget29, err := fieldsTarget1.StartField("Status")
+		keyTarget25, fieldTarget26, err := fieldsTarget1.StartField("DirAddrs")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
 
-			if err := m.Status.FillVDLTarget(fieldTarget29, tt.NonOptional().Field(5).Type); err != nil {
+			listTarget28, err := fieldTarget26.StartList(tt.NonOptional().Field(5).Type, len(m.DirAddrs))
+			if err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget28, fieldTarget29); err != nil {
+			for i, elem30 := range m.DirAddrs {
+				elemTarget29, err := listTarget28.StartElem(i)
+				if err != nil {
+					return err
+				}
+				if err := elemTarget29.FromString(string(elem30), tt.NonOptional().Field(5).Type.Elem()); err != nil {
+					return err
+				}
+				if err := listTarget28.FinishElem(elemTarget29); err != nil {
+					return err
+				}
+			}
+			if err := fieldTarget26.FinishList(listTarget28); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget25, fieldTarget26); err != nil {
 				return err
 			}
 		}
 	}
-	var33 := (m.Lost == false)
+	var33 := (m.Status == AdStatus(0))
 	if var33 {
-		if err := fieldsTarget1.ZeroField("Lost"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("Status"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget31, fieldTarget32, err := fieldsTarget1.StartField("Lost")
+		keyTarget31, fieldTarget32, err := fieldsTarget1.StartField("Status")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget32.FromBool(bool(m.Lost), tt.NonOptional().Field(6).Type); err != nil {
+
+			if err := m.Status.FillVDLTarget(fieldTarget32, tt.NonOptional().Field(6).Type); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget31, fieldTarget32); err != nil {
+				return err
+			}
+		}
+	}
+	var36 := (m.Lost == false)
+	if var36 {
+		if err := fieldsTarget1.ZeroField("Lost"); err != nil && err != vdl.ErrFieldNoExist {
+			return err
+		}
+	} else {
+		keyTarget34, fieldTarget35, err := fieldsTarget1.StartField("Lost")
+		if err != vdl.ErrFieldNoExist {
+			if err != nil {
+				return err
+			}
+			if err := fieldTarget35.FromBool(bool(m.Lost), tt.NonOptional().Field(7).Type); err != nil {
+				return err
+			}
+			if err := fieldsTarget1.FinishField(keyTarget34, fieldTarget35); err != nil {
 				return err
 			}
 		}
@@ -616,6 +637,7 @@ type AdInfoTarget struct {
 	encryptionAlgorithmTarget EncryptionAlgorithmTarget
 	encryptionKeysTarget      __VDLTarget1_list
 	hashTarget                AdHashTarget
+	timestampNsTarget         vdl.Int64Target
 	dirAddrsTarget            vdl.StringSliceTarget
 	statusTarget              AdStatusTarget
 	lostTarget                vdl.BoolTarget
@@ -647,6 +669,10 @@ func (t *AdInfoTarget) StartField(name string) (key, field vdl.Target, _ error) 
 	case "Hash":
 		t.hashTarget.Value = &t.Value.Hash
 		target, err := &t.hashTarget, error(nil)
+		return nil, target, err
+	case "TimestampNs":
+		t.timestampNsTarget.Value = &t.Value.TimestampNs
+		target, err := &t.timestampNsTarget, error(nil)
 		return nil, target, err
 	case "DirAddrs":
 		t.dirAddrsTarget.Value = &t.Value.DirAddrs
@@ -680,6 +706,9 @@ func (t *AdInfoTarget) ZeroField(name string) error {
 		return nil
 	case "Hash":
 		t.Value.Hash = AdHash{}
+		return nil
+	case "TimestampNs":
+		t.Value.TimestampNs = int64(0)
 		return nil
 	case "DirAddrs":
 		t.Value.DirAddrs = []string(nil)
@@ -745,6 +774,9 @@ func (x AdInfo) VDLIsZero() bool {
 	if x.Hash != (AdHash{}) {
 		return false
 	}
+	if x.TimestampNs != 0 {
+		return false
+	}
 	if len(x.DirAddrs) != 0 {
 		return false
 	}
@@ -790,6 +822,20 @@ func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 		if err := x.Hash.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if x.TimestampNs != 0 {
+		if err := enc.NextField("TimestampNs"); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.Int64Type); err != nil {
+			return err
+		}
+		if err := enc.EncodeInt(x.TimestampNs); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
 			return err
 		}
 	}
@@ -907,6 +953,17 @@ func (x *AdInfo) VDLRead(dec vdl.Decoder) error {
 			}
 		case "Hash":
 			if err := x.Hash.VDLRead(dec); err != nil {
+				return err
+			}
+		case "TimestampNs":
+			if err := dec.StartValue(); err != nil {
+				return err
+			}
+			var err error
+			if x.TimestampNs, err = dec.DecodeInt(64); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
 				return err
 			}
 		case "DirAddrs":

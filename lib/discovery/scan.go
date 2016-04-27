@@ -165,6 +165,8 @@ func newUpdates(seen map[discovery.AdId]*AdInfo, adinfo *AdInfo) []discovery.Upd
 		case prev == nil:
 			updates = []discovery.Update{NewUpdate(adinfo)}
 			seen[adinfo.Ad.Id] = adinfo
+		case prev.TimestampNs > adinfo.TimestampNs:
+			// Ignore the old advertisement.
 		case prev.Hash != adinfo.Hash || (prev.Status != AdReady && !sortedStringsEqual(prev.DirAddrs, adinfo.DirAddrs)):
 			prev.Lost = true
 			updates = []discovery.Update{NewUpdate(prev), NewUpdate(adinfo)}

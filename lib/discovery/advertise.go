@@ -6,10 +6,16 @@ package discovery
 
 import (
 	"sync"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 	"v.io/v23/security"
+)
+
+const (
+	msPerSec = int64(time.Second / time.Millisecond)
+	nsPerMs  = int64(time.Millisecond / time.Nanosecond)
 )
 
 func (d *idiscovery) advertise(ctx *context.T, session sessionId, ad *discovery.Advertisement, visibility []security.BlessingPattern) (<-chan struct{}, error) {
@@ -28,6 +34,7 @@ func (d *idiscovery) advertise(ctx *context.T, session sessionId, ad *discovery.
 		return nil, err
 	}
 	hashAd(adinfo)
+	adinfo.TimestampNs = d.newAdTimestampNs()
 
 	ctx, cancel, err := d.addTask(ctx)
 	if err != nil {
@@ -68,6 +75,18 @@ func (d *idiscovery) advertise(ctx *context.T, session sessionId, ad *discovery.
 	}
 	d.adStopTrigger.Add(stop, ctx.Done())
 	return done, nil
+}
+
+func (d *idiscovery) newAdTimestampNs() int64 {
+	now := time.Now()
+	timestampNs := now.UnixNano()
+	d.adMu.Lock()
+	if d.adTimestampNs >= timestampNs {
+		timestampNs = d.adTimestampNs + 1
+	}
+	d.adTimestampNs = timestampNs
+	d.adMu.Unlock()
+	return timestampNs
 }
 
 func (d *idiscovery) addAd(id discovery.AdId, session sessionId) bool {

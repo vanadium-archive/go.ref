@@ -41,6 +41,9 @@ type AdInfo struct {
 	// Hash of the current advertisement. This does not include the fields below.
 	Hash AdHash
 
+	// Unix time in nanoseconds at which the advertisement was created.
+	TimestampNs int64
+
 	// The addresses (vanadium object names) that the advertisement directory service
 	// is served on. See directory.vdl.
 	DirAddrs []string

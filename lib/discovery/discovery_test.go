@@ -266,6 +266,51 @@ func TestMerge(t *testing.T) {
 	}
 }
 
+func TestTimestamp(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	p1, p2 := mock.New(), mock.New()
+	df, _ := idiscovery.NewFactory(ctx, p1, p2)
+	defer df.Shutdown()
+
+	adinfo := idiscovery.AdInfo{
+		Ad: discovery.Advertisement{
+			Id:            discovery.AdId{1, 2, 3},
+			InterfaceName: "v.io/v23/a",
+			Addresses:     []string{"/h1:123/x"},
+		},
+		Hash:        idiscovery.AdHash{1, 2, 3},
+		TimestampNs: 1001,
+	}
+
+	d, _ := df.New(ctx)
+	scanCh, scanStop, err := testutil.Scan(ctx, d, ``)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer scanStop()
+
+	// A plugin returns an advertisement and we should see it.
+	p1.RegisterAd(&adinfo)
+	update := <-scanCh
+	if !testutil.MatchFound(ctx, []discovery.Update{update}, adinfo.Ad) {
+		t.Errorf("unexpected scan: %v", update)
+	}
+
+	// The other plugin returns an old advertisement, but we should not see it.
+	oldAdinfo := adinfo
+	oldAdinfo.Ad.Addresses = []string{"/h0:123/x"}
+	oldAdinfo.Hash = idiscovery.AdHash{0, 1, 2}
+	oldAdinfo.TimestampNs = 1000
+	p2.RegisterAd(&oldAdinfo)
+	select {
+	case update = <-scanCh:
+		t.Errorf("unexpected scan: %v", update)
+	case <-time.After(5 * time.Millisecond):
+	}
+}
+
 func TestLargeAdvertisement(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()

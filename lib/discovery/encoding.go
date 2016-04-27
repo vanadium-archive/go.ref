@@ -7,6 +7,7 @@ package discovery
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"io"
 
 	"v.io/x/ref/lib/security/bcrypter"
@@ -183,4 +184,19 @@ func DecodeWireCiphertext(data []byte) (*bcrypter.WireCiphertext, error) {
 		wctext.Bytes[k] = v
 	}
 	return &wctext, nil
+}
+
+// EncodeTimestamp encodes the timestamp into a 8-byte byte slice.
+func EncodeTimestamp(ts int64) []byte {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(ts))
+	return buf
+}
+
+// DecodeTimestamp decodes the timestamp from a 8-byte byte slice.
+func DecodeTimestamp(data []byte) (int64, error) {
+	if len(data) != 8 {
+		return 0, errors.New("invalid length")
+	}
+	return int64(binary.LittleEndian.Uint64(data)), nil
 }

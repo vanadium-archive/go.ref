@@ -17,7 +17,7 @@ type Plugin interface {
 	// The advertisement will not be changed while it is being advertised.
 	//
 	// If the advertisement is too large, the plugin may drop any information
-	// except Id, InterfaceName, Hash, and DirAddrs.
+	// except Id, InterfaceName, Hash, Timestamp, and DirAddrs.
 	//
 	// Advertising should continue until the context is canceled or exceeds
 	// its deadline. done should be called once when advertising is done or

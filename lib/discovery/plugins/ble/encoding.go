@@ -42,6 +42,7 @@ func encodeAdInfo(adinfo *idiscovery.AdInfo) (map[string][]byte, error) {
 	//	<#Attributes>[<AttributeKey><AttributeValue>...]
 	//	<EncryptionAlgorithm>[<#EncryptionKeys><EncryptionKey>...]
 	//	<Hash>
+	//	<TimestampNs>
 	//	<#DirAddrs>[<DirAddr>...]
 	//	<Status>
 	//
@@ -72,6 +73,7 @@ func encodeAdInfo(adinfo *idiscovery.AdInfo) (map[string][]byte, error) {
 	}
 
 	buf.Write(adinfo.Hash[:])
+	buf.Write(idiscovery.EncodeTimestamp(adinfo.TimestampNs))
 
 	if len(adinfo.Ad.Attachments) == 0 {
 		buf.WriteInt(0) // No DirAddrs is necessary.
@@ -152,6 +154,13 @@ func decodeAdInfo(cs map[string][]byte) (*idiscovery.AdInfo, error) {
 			s, err = buf.ReadString()
 			return
 		}
+		readTimestamp = func() (ts int64) {
+			if err != nil {
+				return
+			}
+			ts, err = idiscovery.DecodeTimestamp(buf.Next(8))
+			return
+		}
 	)
 
 	adinfo := &idiscovery.AdInfo{}
@@ -183,6 +192,7 @@ func decodeAdInfo(cs map[string][]byte) (*idiscovery.AdInfo, error) {
 	}
 
 	read(adinfo.Hash[:])
+	adinfo.TimestampNs = readTimestamp()
 
 	if n := readInt(); n > 0 {
 		adinfo.DirAddrs = make([]string, n)
