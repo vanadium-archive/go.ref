@@ -242,7 +242,7 @@ install() {
     fi
   done
 
-  BIN_NAMES="deviced suidhelper agentd"
+  BIN_NAMES="deviced suidhelper restarter v23agentd"
   if [[ ${INIT_MODE} == true ]]; then
     BIN_NAMES="${BIN_NAMES} inithelper"
   fi
@@ -291,7 +291,8 @@ install() {
   echo "V23_DEVICE_DIR=${V23_DEVICE_DIR}"
   run "${BIN_INSTALL}/deviced" install \
     --suid_helper="${SETUID_SCRIPT}" \
-    --agent="${BIN_INSTALL}/agentd" \
+    --restarter="${BIN_INSTALL}/restarter" \
+    --agent="${BIN_INSTALL}/v23agentd" \
     --init_helper="${INIT_SCRIPT}" "$@"
   echo "Device manager installed."
 }

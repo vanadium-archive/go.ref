@@ -568,9 +568,9 @@ func GenerateSuidHelperScript(t *testing.T, root string) string {
 	return path
 }
 
-// GenerateAgentScript creates a simple script that acts as the security agent
-// for tests.  It blackholes arguments meant for the agent.
-func GenerateAgentScript(t *testing.T, root string) string {
+// GenerateRestarter creates a simple script that acts as the restarter
+// for tests.  It blackholes arguments meant for the restarter.
+func GenerateRestarter(t *testing.T, root string) string {
 	output := "#!" + impl.ShellPath + "\n" +
 		`
 ARGS=$*

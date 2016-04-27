@@ -25,10 +25,10 @@ package installer
 //       logs/                 - device manager logs will go here
 //     current                 - set as <Config.CurrentLink>
 //     creation_info           - json-encoded info about the binary that created the directory tree
-//     agent_deviced.sh        - script to launch device manager under agent
+//     deviced.sh              - script to launch device manager under restarter
 //     security/               - security agent keeps credentials here
 //       principal/
-//     agent_logs/             - security agent logs
+//     dm_logs/                - restarter logs
 //       STDERR-<timestamp>
 //       STDOUT-<timestamp>
 //     service_description     - json-encoded sysinit device manager config
@@ -51,6 +51,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/application"
+	"v.io/x/lib/envvar"
 	"v.io/x/ref"
 	"v.io/x/ref/lib/security"
 	"v.io/x/ref/services/device/deviced/internal/impl"
@@ -59,18 +60,18 @@ import (
 	"v.io/x/ref/services/device/internal/sysinit"
 )
 
-// restartExitCode is the exit code that the device manager should return when it
-// wants to be restarted by its parent (i.e., the security agent).
-// This number is picked quasi-arbitrarily from the set of
-// exit codes without prior special meanings.
+// restartExitCode is the exit code that the device manager should return when
+// it wants to be restarted by its parent (i.e., the restarter).  This number is
+// picked quasi-arbitrarily from the set of exit codes without prior special
+// meanings.
 const restartExitCode = 140
 
 // dmRoot is the directory name where the device manager installs itself.
 const dmRoot = "dmroot"
 
-// InstallFrom takes a vanadium object name denoting an application service where
-// a device manager application envelope can be obtained.  It downloads the
-// latest version of the device manager and installs it.
+// InstallFrom takes a vanadium object name denoting an application service
+// where a device manager application envelope can be obtained.  It downloads
+// the latest version of the device manager and installs it.
 func InstallFrom(origin string) error {
 	// TODO(caprita): Implement.
 	return nil
@@ -101,11 +102,21 @@ func initCommand(root, command string, stderr, stdout io.Writer) (bool, error) {
 	return true, nil
 }
 
+func addToPATH(env []string, dir string) []string {
+	e := envvar.VarsFromSlice(env)
+	if !e.Contains("PATH") {
+		e.Set("PATH", dir)
+	} else {
+		e.Set("PATH", dir+":"+e.Get("PATH"))
+	}
+	return e.ToSlice()
+}
+
 // SelfInstall installs the device manager and configures it using the
 // environment and the supplied command-line flags.
-func SelfInstall(ctx *context.T, installDir, suidHelper, agent, initHelper, origin string, singleUser, sessionMode, init bool, args, env []string, stderr, stdout io.Writer) error {
+func SelfInstall(ctx *context.T, installDir, suidHelper, restarter, agent, initHelper, origin string, singleUser, sessionMode, init bool, args, env []string, stderr, stdout io.Writer) error {
 	if os.Getenv(ref.EnvCredentials) != "" {
-		return fmt.Errorf("Attempting to install device manager under agent with the %q environment variable set.", ref.EnvCredentials)
+		return fmt.Errorf("Attempting to install device manager with the %q environment variable set.", ref.EnvCredentials)
 	}
 	root := filepath.Join(installDir, dmRoot)
 	if _, err := os.Stat(root); err == nil || !os.IsNotExist(err) {
@@ -140,6 +151,14 @@ func SelfInstall(ctx *context.T, installDir, suidHelper, agent, initHelper, orig
 	if !sessionMode {
 		extraArgs = append(extraArgs, fmt.Sprintf("--restart-exit-code=%d", restartExitCode))
 	}
+	if agent != "" {
+		if agentBinName := filepath.Base(agent); agentBinName != "v23agentd" {
+			return fmt.Errorf("agent must be called v23agentd; got %v instead", agentBinName)
+		}
+		// Make the agent available in the PATH when the device manager
+		// loads the credentials from disk.
+		env = addToPATH(env, filepath.Dir(agent))
+	}
 	envelope := &application.Envelope{
 		Args: append(extraArgs, args...),
 		// TODO(caprita): Cleaning up env vars to avoid picking up all
@@ -168,11 +187,11 @@ func SelfInstall(ctx *context.T, installDir, suidHelper, agent, initHelper, orig
 		return err
 	}
 
-	if err := generateAgentScript(root, agent, currLink, singleUser, sessionMode); err != nil {
+	if err := generateDMScript(root, restarter, agent, currLink, singleUser, sessionMode); err != nil {
 		return err
 	}
 	if init {
-		agentScript := filepath.Join(root, "agent_deviced.sh")
+		dmScript := filepath.Join(root, "deviced.sh")
 		currentUser, err := user.Current()
 		if err != nil {
 			return err
@@ -180,8 +199,8 @@ func SelfInstall(ctx *context.T, installDir, suidHelper, agent, initHelper, orig
 		sd := &sysinit.ServiceDescription{
 			Service:     "deviced",
 			Description: "Vanadium Device Manager",
-			Binary:      agentScript,
-			Command:     []string{agentScript},
+			Binary:      dmScript,
+			Command:     []string{dmScript},
 			User:        currentUser.Username,
 		}
 		sdFile := filepath.Join(root, "service_description")
@@ -201,14 +220,14 @@ func SelfInstall(ctx *context.T, installDir, suidHelper, agent, initHelper, orig
 	return nil
 }
 
-func generateAgentScript(workspace, agent, currLink string, singleUser, sessionMode bool) error {
+func generateDMScript(workspace, restarter, agent, currLink string, singleUser, sessionMode bool) error {
 	securityDir := filepath.Join(workspace, "security")
 	principalDir := filepath.Join(securityDir, "principal")
 	perm := os.FileMode(0700)
 	if _, err := security.CreatePersistentPrincipal(principalDir, nil); err != nil {
 		return fmt.Errorf("CreatePersistentPrincipal(%v, nil) failed: %v", principalDir, err)
 	}
-	logs := filepath.Join(workspace, "agent_logs")
+	logs := filepath.Join(workspace, "dm_logs")
 	if err := os.MkdirAll(logs, perm); err != nil {
 		return fmt.Errorf("MkdirAll(%v, %v) failed: %v", logs, perm, err)
 	}
@@ -225,15 +244,12 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	//
 	// TODO(caprita/rthellend): expose and use shellEscape (from
 	// v.io/x/ref/services/debug/debug/impl.go) instead.
-	output += fmt.Sprintf("exec %q --log_dir=%q ", agent, logs)
-	if singleUser {
-		output += "--with-passphrase=false "
-	}
+	output += fmt.Sprintf("exec %q ", restarter)
 	if !sessionMode {
 		output += fmt.Sprintf("--restart-exit-code=!0 ")
 	}
 	output += fmt.Sprintf("%q", currLink)
-	path := filepath.Join(workspace, "agent_deviced.sh")
+	path := filepath.Join(workspace, "deviced.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0700); err != nil {
 		return fmt.Errorf("WriteFile(%v) failed: %v", path, err)
 	}
@@ -267,10 +283,10 @@ func Start(ctx *context.T, installDir string, stderr, stdout io.Writer) error {
 	}
 
 	if os.Getenv(ref.EnvCredentials) != "" {
-		return fmt.Errorf("Attempting to run device manager under agent with the %q environment variable set.", ref.EnvCredentials)
+		return fmt.Errorf("Attempting to run device manager with the %q environment variable set.", ref.EnvCredentials)
 	}
-	agentScript := filepath.Join(root, "agent_deviced.sh")
-	cmd := exec.Command(agentScript)
+	dmScript := filepath.Join(root, "deviced.sh")
+	cmd := exec.Command(dmScript)
 	if stderr != nil {
 		cmd.Stderr = stderr
 	}
@@ -281,16 +297,16 @@ func Start(ctx *context.T, installDir string, stderr, stdout io.Writer) error {
 		return fmt.Errorf("Start failed: %v", err)
 	}
 
-	// Save away the agent's pid to be used for stopping later ...
+	// Save away the restarter's pid to be used for stopping later ...
 	if cmd.Process.Pid == 0 {
-		fmt.Fprintf(stderr, "Unable to get a pid for successfully-started agent!")
+		fmt.Fprintf(stderr, "Unable to get a pid for successfully-started restarterr!")
 		return nil // We tolerate the error, at the expense of being able to stop later
 	}
 	mi := &impl.ManagerInfo{
 		Pid: cmd.Process.Pid,
 	}
-	if err := impl.SaveManagerInfo(filepath.Join(root, "agent-deviced"), mi); err != nil {
-		return fmt.Errorf("failed to save info for agent-deviced: %v", err)
+	if err := impl.SaveManagerInfo(filepath.Join(root, "restarter-deviced"), mi); err != nil {
+		return fmt.Errorf("failed to save info for restarter-deviced: %v", err)
 	}
 
 	return nil
@@ -305,15 +321,15 @@ func Stop(ctx *context.T, installDir string, stderr, stdout io.Writer) error {
 		return nil
 	}
 
-	agentPid, devmgrPid := 0, 0
+	restarterPid, devmgrPid := 0, 0
 
-	// Load the agent pid
-	info, err := impl.LoadManagerInfo(filepath.Join(root, "agent-deviced"))
+	// Load the restarter pid
+	info, err := impl.LoadManagerInfo(filepath.Join(root, "restarter-deviced"))
 	if err != nil {
-		return fmt.Errorf("loadManagerInfo failed for agent-deviced: %v", err)
+		return fmt.Errorf("loadManagerInfo failed for restarter-deviced: %v", err)
 	}
 	if syscall.Kill(info.Pid, 0) == nil { // Save the pid if it's currently live
-		agentPid = info.Pid
+		restarterPid = info.Pid
 	}
 
 	// Load the device manager pid
@@ -325,16 +341,17 @@ func Stop(ctx *context.T, installDir string, stderr, stdout io.Writer) error {
 		devmgrPid = info.Pid
 	}
 
-	if agentPid == 0 && devmgrPid == 0 {
+	if restarterPid == 0 && devmgrPid == 0 {
 		return fmt.Errorf("stop could not find any live pids to stop")
 	}
 
-	// Set up waiters for each nonzero pid. This ensures that exiting processes are reaped when
-	// the agent or device manager happen to be children of this process. (Not commonly the case,
-	// but it does occur in the impl test.)
-	if agentPid != 0 {
+	// Set up waiters for each nonzero pid. This ensures that exiting
+	// processes are reaped when the restarter or device manager happen to
+	// be children of this process. (Not commonly the case, but it does
+	// occur in the impl test.)
+	if restarterPid != 0 {
 		go func() {
-			if p, err := os.FindProcess(agentPid); err == nil {
+			if p, err := os.FindProcess(restarterPid); err == nil {
 				p.Wait()
 			}
 		}()
@@ -347,22 +364,22 @@ func Stop(ctx *context.T, installDir string, stderr, stdout io.Writer) error {
 		}()
 	}
 
-	// First, send SIGINT to the agent. We expect both the agent and the device manager to
+	// First, send SIGINT to the restarter. We expect both the restarter and the device manager to
 	// exit as a result within 15 seconds
-	if agentPid != 0 {
-		if err = syscall.Kill(agentPid, syscall.SIGINT); err != nil {
-			return fmt.Errorf("sending SIGINT to %d: %v", agentPid, err)
+	if restarterPid != 0 {
+		if err = syscall.Kill(restarterPid, syscall.SIGINT); err != nil {
+			return fmt.Errorf("sending SIGINT to %d: %v", restarterPid, err)
 		}
-		for i := 0; i < 30 && syscall.Kill(agentPid, 0) == nil; i++ {
+		for i := 0; i < 30 && syscall.Kill(restarterPid, 0) == nil; i++ {
 			time.Sleep(500 * time.Millisecond)
 			if i%5 == 4 {
-				fmt.Fprintf(stderr, "waiting for agent (pid %d) to die...\n", agentPid)
+				fmt.Fprintf(stderr, "waiting for restarter (pid %d) to die...\n", restarterPid)
 			}
 		}
-		if syscall.Kill(agentPid, 0) == nil { // agent is still alive, resort to brute force
-			fmt.Fprintf(stderr, "sending SIGKILL to agent %d\n", agentPid)
-			if err = syscall.Kill(agentPid, syscall.SIGKILL); err != nil {
-				fmt.Fprintf(stderr, "Sending SIGKILL to %d: %v\n", agentPid, err)
+		if syscall.Kill(restarterPid, 0) == nil { // restarter is still alive, resort to brute force
+			fmt.Fprintf(stderr, "sending SIGKILL to restarter %d\n", restarterPid)
+			if err = syscall.Kill(restarterPid, syscall.SIGKILL); err != nil {
+				fmt.Fprintf(stderr, "Sending SIGKILL to %d: %v\n", restarterPid, err)
 				// not returning here, so that we check & kill the device manager too
 			}
 		}
@@ -377,21 +394,21 @@ func Stop(ctx *context.T, installDir string, stderr, stdout io.Writer) error {
 	}
 
 	// By now, nothing should be alive. Check and report
-	if agentPid != 0 && syscall.Kill(agentPid, 0) == nil {
-		return fmt.Errorf("multiple attempts to kill agent pid %d have failed", agentPid)
+	if restarterPid != 0 && syscall.Kill(restarterPid, 0) == nil {
+		return fmt.Errorf("multiple attempts to kill restarter pid %d have failed", restarterPid)
 	}
 	if devmgrPid != 0 && syscall.Kill(devmgrPid, 0) == nil {
 		return fmt.Errorf("multiple attempts to kill device manager pid %d have failed", devmgrPid)
 	}
 
-	// Should we remove the agentd and deviced info files here? Not removing them
+	// Should we remove the restarter and deviced info files here? Not removing them
 	// increases the chances that we later rerun stop and shoot some random process. Removing
 	// them makes it impossible to run stop a second time (although that shouldn't be necessary)
-	// and also introduces the potential for a race condition if a new agent/deviced are started
+	// and also introduces the potential for a race condition if a new restarter/deviced are started
 	// right after these ones get killed.
 	//
 	// TODO: Reconsider this when we add stronger protection to make sure that the pids being
-	// signalled are in fact the agent and/or device manager
+	// signalled are in fact the restarter and/or device manager
 
 	// Process was killed succesfully
 	return nil

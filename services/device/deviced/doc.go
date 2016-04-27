@@ -143,6 +143,8 @@ The deviced install flags are:
    if set, installs the device manager with the system init service manager
  -origin=
    if specified, self-updates will use this origin
+ -restarter=
+   path to restarter
  -session_mode=false
    if set, installs the device manager to run a single session. Otherwise, the
    device manager is configured to get restarted upon exit

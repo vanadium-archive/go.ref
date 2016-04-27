@@ -218,7 +218,8 @@ func testCore(t *testing.T, sh *v23test.Shell, appUser, deviceUser string, withS
 	buildAndCopyBinaries(
 		t, sh, binStagingDir,
 		"v.io/x/ref/services/device/deviced",
-		"v.io/x/ref/services/agent/agentd",
+		"v.io/x/ref/services/device/restarter",
+		"v.io/x/ref/services/agent/v23agentd",
 		"v.io/x/ref/services/device/suidhelper",
 		"v.io/x/ref/services/device/inithelper")
 

@@ -34,7 +34,7 @@ const (
 	EnvCredentialsNoAgent = "V23_CREDENTIALS_NO_AGENT"
 
 	// EnvAgentPath is the name of the environment variable pointing to a
-	// socket of the agentd process containing all the credentials for a
+	// socket of the agent process containing all the credentials for a
 	// principal (the blessing store, the blessing roots, possibly the
 	// private key etc.).
 	//

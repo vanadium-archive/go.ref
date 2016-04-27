@@ -68,7 +68,8 @@ var (
 
 var dmBins = [...]string{
 	"v.io/x/ref/services/device/deviced",
-	"v.io/x/ref/services/agent/agentd",
+	"v.io/x/ref/services/device/restarter",
+	"v.io/x/ref/services/agent/v23agentd",
 	"v.io/x/ref/services/device/inithelper",
 	"v.io/x/ref/services/device/suidhelper",
 }
@@ -404,8 +405,8 @@ func main() {
 		cleanupOnDeath = nil
 	} else {
 		cleanupOnDeath = func() {
-			fmt.Fprintf(os.Stderr, "Attempting to stop agentd/deviced ...\n")
-			vm.RunCommand("sudo", "killall", "-9", "agentd", "deviced") // errors are ignored
+			fmt.Fprintf(os.Stderr, "Attempting to stop restarter/deviced ...\n")
+			vm.RunCommand("sudo", "killall", "-9", "restarter", "deviced") // errors are ignored
 			fmt.Fprintf(os.Stderr, "Cleaning up VM instance ...\n")
 			err := vm.Delete()
 			fmt.Fprintf(os.Stderr, "Removing local tmp files ...\n")
@@ -432,6 +433,6 @@ func main() {
 
 	fmt.Println("Clean up the VM instance:")
 	fmt.Printf("\t${JIRI_ROOT}/release/go/bin/device kill %s\n", instanceName)
-	fmt.Printf("\t%s\n", vm.RunCommandForUser("sudo", "killall", "-9", "agentd", "deviced"))
+	fmt.Printf("\t%s\n", vm.RunCommandForUser("sudo", "killall", "-9", "restarter", "deviced"))
 	fmt.Printf("\t%s\n", vm.DeleteCommandForUser())
 }

@@ -109,7 +109,7 @@ type deviceService struct {
 	tidying        chan<- tidyRequests
 }
 
-// ManagerInfo holds state about a running device manager or a running agentd
+// ManagerInfo holds state about a running device manager or a running restarter
 type ManagerInfo struct {
 	Pid int
 }

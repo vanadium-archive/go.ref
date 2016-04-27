@@ -313,8 +313,8 @@ func TestDeviceManagerInstallation(t *testing.T) {
 
 	// Create a script wrapping the test target that implements suidhelper.
 	suidHelperPath := utiltest.GenerateSuidHelperScript(t, testDir)
-	// Create a dummy script mascarading as the security agent.
-	agentPath := utiltest.GenerateAgentScript(t, testDir)
+	// Create a dummy script mascarading as the restarter.
+	restarterPath := utiltest.GenerateRestarter(t, testDir)
 	initHelperPath := ""
 
 	// Create an 'envelope' for the device manager that we can pass to the
@@ -324,7 +324,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	dmDir := filepath.Join(testDir, "dm")
 	// TODO(caprita): Add test logic when initMode = true.
 	singleUser, sessionMode, initMode := true, true, false
-	if err := installer.SelfInstall(ctx, dmDir, suidHelperPath, agentPath, initHelperPath, "", singleUser, sessionMode, initMode, dmCmd.Args[1:], envvar.MapToSlice(dmCmd.Vars), os.Stderr, os.Stdout); err != nil {
+	if err := installer.SelfInstall(ctx, dmDir, suidHelperPath, restarterPath, "", initHelperPath, "", singleUser, sessionMode, initMode, dmCmd.Args[1:], envvar.MapToSlice(dmCmd.Vars), os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("SelfInstall failed: %v", err)
 	}
 

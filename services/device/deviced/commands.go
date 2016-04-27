@@ -18,6 +18,7 @@ import (
 var (
 	installFrom string
 	suidHelper  string
+	restarter   string
 	agent       string
 	initHelper  string
 	devUserName string
@@ -54,6 +55,7 @@ Arguments to be passed to the installed device manager`,
 func init() {
 	cmdInstall.Flags.StringVar(&installFrom, "from", "", "if specified, performs the installation from the provided application envelope object name")
 	cmdInstall.Flags.StringVar(&suidHelper, "suid_helper", "", "path to suid helper")
+	cmdInstall.Flags.StringVar(&restarter, "restarter", "", "path to restarter")
 	cmdInstall.Flags.StringVar(&agent, "agent", "", "path to security agent")
 	cmdInstall.Flags.StringVar(&initHelper, "init_helper", "", "path to sysinit helper")
 	cmdInstall.Flags.StringVar(&origin, "origin", "", "if specified, self-updates will use this origin")
@@ -75,13 +77,16 @@ func runInstall(ctx *context.T, env *cmdline.Env, args []string) error {
 	if suidHelper == "" {
 		return env.UsageErrorf("--suid_helper must be set")
 	}
+	if restarter == "" {
+		return env.UsageErrorf("--restarter must be set")
+	}
 	if agent == "" {
 		return env.UsageErrorf("--agent must be set")
 	}
 	if initMode && initHelper == "" {
 		return env.UsageErrorf("--init_helper must be set")
 	}
-	if err := installer.SelfInstall(ctx, installationDir(ctx, env), suidHelper, agent, initHelper, origin, singleUser, sessionMode, initMode, args, os.Environ(), env.Stderr, env.Stdout); err != nil {
+	if err := installer.SelfInstall(ctx, installationDir(ctx, env), suidHelper, restarter, agent, initHelper, origin, singleUser, sessionMode, initMode, args, os.Environ(), env.Stderr, env.Stdout); err != nil {
 		ctx.Errorf("SelfInstall failed: %v", err)
 		return err
 	}
