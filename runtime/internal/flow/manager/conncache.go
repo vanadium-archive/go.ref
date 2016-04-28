@@ -114,15 +114,15 @@ func (c *ConnCache) InsertWithRoutingID(conn *conn.Conn, proxy bool) error {
 
 // Find returns a Conn based only on the RoutingID of remote.
 func (c *ConnCache) FindWithRoutingID(ctx *context.T, remote naming.Endpoint,
-	auth flow.PeerAuthorizer) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
+	auth flow.PeerAuthorizer) (conn *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
 		return nil, nil, nil, NewErrCacheClosed(nil)
 	}
 	if rid := remote.RoutingID(); rid != naming.NullRoutingID {
-		if entry, names, rejected := c.removeUndialable(ctx, remote, c.ridCache[rid], auth); entry != nil {
-			return entry, names, rejected, nil
+		if conn, names, rejected := c.removeAndFilterConnBreaksCriticalSection(ctx, remote, c.ridCache[rid], auth); conn != nil {
+			return conn, names, rejected, nil
 		}
 	}
 	return nil, nil, nil, nil
@@ -139,15 +139,15 @@ func (c *ConnCache) FindWithRoutingID(ctx *context.T, remote naming.Endpoint,
 // until the corresponding Unreserve call is made.
 // p is used to check the cache for resolved protocols.
 func (c *ConnCache) Find(ctx *context.T, remote naming.Endpoint, network, address string, auth flow.PeerAuthorizer,
-	p flow.Protocol) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
+	p flow.Protocol) (conn *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	if c.addrCache == nil {
 		return nil, nil, nil, NewErrCacheClosed(nil)
 	}
 	if rid := remote.RoutingID(); rid != naming.NullRoutingID {
-		if entry, names, rejected := c.removeUndialable(ctx, remote, c.ridCache[rid], auth); entry != nil {
-			return entry, names, rejected, nil
+		if conn, names, rejected := c.removeAndFilterConnBreaksCriticalSection(ctx, remote, c.ridCache[rid], auth); conn != nil {
+			return conn, names, rejected, nil
 		}
 	}
 	k := key(network, address)
@@ -158,15 +158,14 @@ func (c *ConnCache) Find(ctx *context.T, remote naming.Endpoint, network, addres
 		}
 	}
 	c.started[k] = true
-	entry, names, rejected = c.removeUndialable(ctx, remote, c.addrCache[k], auth)
-	if entry != nil {
-		return entry, names, rejected, nil
+	if conn, names, rejected = c.removeAndFilterConnBreaksCriticalSection(ctx, remote, c.addrCache[k], auth); conn != nil {
+		return conn, names, rejected, nil
 	}
 	return c.findResolvedLocked(ctx, remote, network, address, auth, p)
 }
 
 func (c *ConnCache) findResolvedLocked(ctx *context.T, remote naming.Endpoint, unresNetwork string, unresAddress string,
-	auth flow.PeerAuthorizer, p flow.Protocol) (entry *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
+	auth flow.PeerAuthorizer, p flow.Protocol) (conn *conn.Conn, names []string, rejected []security.RejectedBlessing, err error) {
 	network, addresses, err := resolve(ctx, p, unresNetwork, unresAddress)
 	if err != nil {
 		c.unreserveLocked(unresNetwork, unresAddress)
@@ -174,9 +173,8 @@ func (c *ConnCache) findResolvedLocked(ctx *context.T, remote naming.Endpoint, u
 	}
 	for _, address := range addresses {
 		k := key(network, address)
-		entry, names, rejected = c.removeUndialable(ctx, remote, c.addrCache[k], auth)
-		if entry != nil {
-			return entry, names, rejected, nil
+		if conn, names, rejected = c.removeAndFilterConnBreaksCriticalSection(ctx, remote, c.addrCache[k], auth); conn != nil {
+			return conn, names, rejected, nil
 		}
 	}
 	// No entries for any of the addresses were in the cache.
@@ -218,14 +216,24 @@ func (c *ConnCache) Close(ctx *context.T) {
 	c.iterateOnConnsLocked(ctx, func(e *connEntry) { e.conn.Close(ctx, err) })
 }
 
-// removeUndialable removes connections that are:
+// TODO(suharshs): This function starts and ends holding the lock, but releases the lock
+// during its execution.
+func (c *ConnCache) removeAndFilterConnBreaksCriticalSection(ctx *context.T, remote naming.Endpoint, e *connEntry, auth flow.PeerAuthorizer) (*conn.Conn, []string, []security.RejectedBlessing) {
+	if c.removeUndialableLocked(e) {
+		return nil, nil, nil
+	}
+	defer c.mu.Lock()
+	c.mu.Unlock()
+	return c.filterUnauthorized(ctx, remote, e, auth)
+}
+
+// removeUndialableLocked removes connections that are:
 // - closed
 // - lameducked
-// and filters connections that are:
-// - non-proxied and fail to authorize.
-func (c *ConnCache) removeUndialable(ctx *context.T, remote naming.Endpoint, e *connEntry, auth flow.PeerAuthorizer) (*conn.Conn, []string, []security.RejectedBlessing) {
+// returns true if the connection was removed.
+func (c *ConnCache) removeUndialableLocked(e *connEntry) bool {
 	if e == nil {
-		return nil, nil, nil
+		return true
 	}
 	if status := e.conn.Status(); status >= conn.Closing || e.conn.RemoteLameDuck() {
 		delete(c.addrCache, e.addrKey)
@@ -233,8 +241,19 @@ func (c *ConnCache) removeUndialable(ctx *context.T, remote naming.Endpoint, e *
 		if status < conn.Closing {
 			c.unmappedConns[e] = true
 		}
-		return nil, nil, nil
+		return true
 	}
+	return false
+}
+
+// filterUnauthorized connections that are non-proxied and fail to authorize.
+// We only filter unauthorized connections here, rather than removing them from
+// the cache because a connection may authorize in regards to another authorizer
+// for a different RPC call.
+// IMPORTANT: ConnCache.mu.lock should not be held during this function because
+// AuthorizePeer calls conn.RemoteDischarges which can hang if a misbehaving
+// client fails to send its discharges.
+func (c *ConnCache) filterUnauthorized(ctx *context.T, remote naming.Endpoint, e *connEntry, auth flow.PeerAuthorizer) (*conn.Conn, []string, []security.RejectedBlessing) {
 	if !e.proxy && auth != nil {
 		names, rejected, err := auth.AuthorizePeer(ctx,
 			e.conn.LocalEndpoint(),
@@ -284,7 +303,7 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 
 func (c *ConnCache) removeUndialableConnsLocked(ctx *context.T) {
 	for _, e := range c.ridCache {
-		c.removeUndialable(ctx, nil, e, nil)
+		c.removeUndialableLocked(e)
 	}
 	for d := range c.unmappedConns {
 		if status := d.conn.Status(); status == conn.Closed {

@@ -451,8 +451,7 @@ func (c *Conn) Dial(ctx *context.T, blessings security.Blessings, discharges map
 	// It may happen that in the case of bidirectional RPC the dialer of the connection
 	// has sent blessings,  but not yet discharges.  In this case we will wait for them
 	// to send the discharges before allowing a bidirectional flow dial.
-	if len(c.remoteDischarges) == 0 && len(c.remoteBlessings.ThirdPartyCaveats()) > 0 {
-		valid := c.remoteValid
+	if valid := c.remoteValid; valid != nil && len(c.remoteDischarges) == 0 && len(c.remoteBlessings.ThirdPartyCaveats()) > 0 {
 		c.mu.Unlock()
 		<-valid
 		c.mu.Lock()
@@ -518,8 +517,7 @@ func (c *Conn) RemoteDischarges() map[string]security.Discharge {
 	// It may happen that in the case of bidirectional RPC the dialer of the connection
 	// has sent blessings,  but not yet discharges.  In this case we will wait for them
 	// to send the discharges instead of returning the initial nil discharges.
-	if len(c.remoteDischarges) == 0 && len(c.remoteBlessings.ThirdPartyCaveats()) > 0 {
-		valid := c.remoteValid
+	if valid := c.remoteValid; valid != nil && len(c.remoteDischarges) == 0 && len(c.remoteBlessings.ThirdPartyCaveats()) > 0 {
 		c.mu.Unlock()
 		<-valid
 		c.mu.Lock()
@@ -629,6 +627,10 @@ func (c *Conn) internalCloseLocked(ctx *context.T, closedRemotely bool, err erro
 		close(c.lameDucked)
 	}
 	c.status = Closing
+	if c.remoteValid != nil {
+		close(c.remoteValid)
+		c.remoteValid = nil
+	}
 
 	go func(c *Conn) {
 		if c.hcstate != nil {
@@ -845,8 +847,10 @@ func (c *Conn) handleMessage(ctx *context.T, m message.Message) error {
 		c.mu.Lock()
 		c.remoteBlessings = blessings
 		c.remoteDischarges = discharges
-		close(c.remoteValid)
-		c.remoteValid = make(chan struct{})
+		if c.remoteValid != nil {
+			close(c.remoteValid)
+			c.remoteValid = make(chan struct{})
+		}
 		c.mu.Unlock()
 	default:
 		return NewErrUnexpectedMsg(ctx, reflect.TypeOf(msg).String())
