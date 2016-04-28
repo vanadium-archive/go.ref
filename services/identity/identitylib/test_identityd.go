@@ -16,7 +16,6 @@ import (
 	"v.io/x/lib/gosh"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/identity/internal/auditor"
-	"v.io/x/ref/services/identity/internal/blesser"
 	"v.io/x/ref/services/identity/internal/caveats"
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/revocation"
@@ -68,31 +67,15 @@ var TestIdentityd = gosh.RegisterFunc("TestIdentityd", func() error {
 		}
 	}
 
-	mockClientID := "test-client-id"
-	mockClientName := "test-client"
-
 	auditor, reader := auditor.NewMockBlessingAuditor()
 	revocationManager := revocation.NewMockRevocationManager(ctx)
-	oauthProvider := oauth.NewMockOAuth("testemail@example.com", mockClientID)
-
-	params := blesser.OAuthBlesserParams{
-		OAuthProvider:     oauthProvider,
-		BlessingDuration:  duration,
-		RevocationManager: revocationManager,
-		AccessTokenClients: []oauth.AccessTokenClient{
-			oauth.AccessTokenClient{
-				Name:     mockClientName,
-				ClientID: mockClientID,
-			},
-		},
-	}
+	oauthProvider := oauth.NewMockOAuth("testemail@example.com", "test-client-id")
 
 	s := server.NewIdentityServer(
 		oauthProvider,
 		auditor,
 		reader,
 		revocationManager,
-		params,
 		caveats.NewMockCaveatSelector(),
 		"",
 		"identity",

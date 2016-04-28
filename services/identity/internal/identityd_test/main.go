@@ -21,7 +21,6 @@ import (
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/identity/internal/auditor"
-	"v.io/x/ref/services/identity/internal/blesser"
 	"v.io/x/ref/services/identity/internal/caveats"
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/revocation"
@@ -162,24 +161,9 @@ func runIdentityDTest(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 	}
 
-	mockClientID := "test-client-id"
-	mockClientName := "test-client"
-
 	auditor, reader := auditor.NewMockBlessingAuditor()
 	revocationManager := revocation.NewMockRevocationManager(ctx)
-	oauthProvider := oauth.NewMockOAuth(oauthEmail, mockClientID)
-
-	params := blesser.OAuthBlesserParams{
-		OAuthProvider:     oauthProvider,
-		BlessingDuration:  duration,
-		RevocationManager: revocationManager,
-		AccessTokenClients: []oauth.AccessTokenClient{
-			oauth.AccessTokenClient{
-				Name:     mockClientName,
-				ClientID: mockClientID,
-			},
-		},
-	}
+	oauthProvider := oauth.NewMockOAuth(oauthEmail, "test-client-id")
 
 	caveatSelector := caveats.NewMockCaveatSelector()
 	if browser {
@@ -191,7 +175,6 @@ func runIdentityDTest(ctx *context.T, env *cmdline.Env, args []string) error {
 		auditor,
 		reader,
 		revocationManager,
-		params,
 		caveatSelector,
 		assetsPrefix,
 		mountPrefix,

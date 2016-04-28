@@ -24,7 +24,6 @@ import (
 
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/identity"
-	"v.io/x/ref/services/identity/internal/blesser"
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/revocation"
 	"v.io/x/ref/test"
@@ -188,13 +187,13 @@ func TestBless(t *testing.T) {
 	oauthProvider := oauth.NewMockOAuth(testEmail, testClientID)
 
 	testcases := []struct {
-		params   blesser.OAuthBlesserParams
+		params   OAuthBlesserParams
 		caveats  []security.Caveat
 		clients  RegisteredAppMap
 		blessing string
 	}{
 		{
-			blesser.OAuthBlesserParams{
+			OAuthBlesserParams{
 				OAuthProvider:     oauthProvider,
 				RevocationManager: revocationManager,
 			},
@@ -207,7 +206,7 @@ func TestBless(t *testing.T) {
 			"blesser:foo@bar.com:trusted-client",
 		},
 		{
-			blesser.OAuthBlesserParams{
+			OAuthBlesserParams{
 				OAuthProvider:    oauthProvider,
 				BlessingDuration: 24 * time.Hour,
 			},
@@ -216,7 +215,7 @@ func TestBless(t *testing.T) {
 			"blesser:test-client-id:foo@bar.com",
 		},
 		{
-			blesser.OAuthBlesserParams{
+			OAuthBlesserParams{
 				OAuthProvider:     oauthProvider,
 				RevocationManager: revocationManager,
 			},
@@ -225,7 +224,7 @@ func TestBless(t *testing.T) {
 			"blesser:test-client-id:foo@bar.com",
 		},
 		{
-			blesser.OAuthBlesserParams{
+			OAuthBlesserParams{
 				OAuthProvider:     oauthProvider,
 				RevocationManager: revocationManager,
 			},

@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -22,7 +21,6 @@ import (
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/identity/internal/auditor"
-	"v.io/x/ref/services/identity/internal/blesser"
 	"v.io/x/ref/services/identity/internal/caveats"
 	"v.io/x/ref/services/identity/internal/handlers"
 	"v.io/x/ref/services/identity/internal/oauth"
@@ -32,7 +30,7 @@ import (
 )
 
 var (
-	googleConfigWeb, googleConfigChrome, googleConfigAndroid         string
+	googleConfigWeb                                                  string
 	externalHttpAddr, httpAddr, tlsConfig, assetsPrefix, mountPrefix string
 	dischargerLocation                                               string
 	remoteSignerBlessings                                            string
@@ -44,8 +42,6 @@ var (
 func init() {
 	// Configuration for various Google OAuth-based clients.
 	cmdIdentityD.Flags.StringVar(&googleConfigWeb, "google-config-web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
-	cmdIdentityD.Flags.StringVar(&googleConfigChrome, "google-config-chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
-	cmdIdentityD.Flags.StringVar(&googleConfigAndroid, "google-config-android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 
 	// Configuration using the remote signer
 	cmdIdentityD.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
@@ -165,7 +161,6 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		auditor,
 		reader,
 		revocationManager,
-		googleOAuthBlesserParams(ctx, googleoauth, revocationManager),
 		caveats.NewBrowserCaveatSelector(assetsPrefix),
 		assetsPrefix,
 		mountPrefix,
@@ -173,38 +168,6 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		registeredApps)
 	s.Serve(ctx, oauthCtx, externalHttpAddr, httpAddr, tlsConfig)
 	return nil
-}
-
-func googleOAuthBlesserParams(ctx *context.T, oauthProvider oauth.OAuthProvider, revocationManager revocation.RevocationManager) blesser.OAuthBlesserParams {
-	params := blesser.OAuthBlesserParams{
-		OAuthProvider:     oauthProvider,
-		BlessingDuration:  365 * 24 * time.Hour,
-		RevocationManager: revocationManager,
-	}
-	if clientID, err := getOAuthClientID(googleConfigChrome); err != nil {
-		ctx.Info(err)
-	} else {
-		params.AccessTokenClients = append(params.AccessTokenClients, oauth.AccessTokenClient{Name: "chrome", ClientID: clientID})
-	}
-	if clientID, err := getOAuthClientID(googleConfigAndroid); err != nil {
-		ctx.Info(err)
-	} else {
-		params.AccessTokenClients = append(params.AccessTokenClients, oauth.AccessTokenClient{Name: "android", ClientID: clientID})
-	}
-	return params
-}
-
-func getOAuthClientID(configFile string) (clientID string, err error) {
-	f, err := os.Open(configFile)
-	if err != nil {
-		return "", fmt.Errorf("failed to open %q: %v", configFile, err)
-	}
-	defer f.Close()
-	clientID, err = oauth.ClientIDFromJSON(f)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode JSON in %q: %v", configFile, err)
-	}
-	return clientID, nil
 }
 
 func readRegisteredAppsConfig() (registeredApps handlers.RegisteredAppMap, err error) {

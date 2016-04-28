@@ -36,14 +36,6 @@ The identityd flags are:
  -external-http-addr=
    External address on which the HTTP server listens on.  If none is provided
    the server will only listen on -http-addr.
- -google-config-android=
-   Path to the JSON-encoded OAuth client configuration for Android applications
-   that obtain blessings from this server (via the
-   OAuthBlesser.BlessUsingAccessToken RPC) from this server.
- -google-config-chrome=
-   Path to the JSON-encoded OAuth client configuration for Chrome browser
-   applications that obtain blessings from this server (via the
-   OAuthBlesser.BlessUsingAccessToken RPC) from this server.
  -google-config-web=
    Path to JSON-encoded OAuth client configuration for the web application that
    renders the audit log for blessings provided by this provider.

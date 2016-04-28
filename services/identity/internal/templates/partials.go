@@ -80,18 +80,6 @@ var sidebarPartial = `{{define "sidebar"}}
     </p>
   </div>
 
-  {{if .GoogleServers}}
-    <div class="provider-info-section">
-      <h5>Blessings</h5>
-      <p>
-        Provided via Vanadium RPC to:
-        <span class="provider-address">
-          {{range .GoogleServers}}{{.}}{{end}}
-        </span>
-      </p>
-    </div>
-  {{end}}
-
   {{if .DischargeServers}}
     <div class="provider-info-section">
       <h5>Discharges</h5>

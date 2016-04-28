@@ -10,10 +10,8 @@ import (
 	mrand "math/rand"
 	"net"
 	"net/http"
-	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -37,15 +35,8 @@ import (
 )
 
 const (
-	// TODO(ataly, ashankar, suharshs): The name "google" for the oauthBlesserService does
-	// not seem appropriate given our modular construction of the identity server. The
-	// oauthBlesserService can use any oauthProvider of its choosing, i.e., it does not
-	// always have to be "google". One option would be change the value to "oauth". This
-	// would also make the name analogous to that of macaroonService. Note that this option
-	// also requires changing the extension.
-	oauthBlesserService = "google"
-	macaroonService     = "macaroon"
-	dischargerService   = "discharger"
+	macaroonService   = "macaroon"
+	dischargerService = "discharger"
 )
 
 type IdentityServer struct {
@@ -53,7 +44,6 @@ type IdentityServer struct {
 	auditor            audit.Auditor
 	blessingLogReader  auditor.BlessingLogReader
 	revocationManager  revocation.RevocationManager
-	oauthBlesserParams blesser.OAuthBlesserParams
 	caveatSelector     caveats.CaveatSelector
 	rootedObjectAddrs  []naming.Endpoint
 	assetsPrefix       string
@@ -66,14 +56,12 @@ type IdentityServer struct {
 // - uses oauthProvider to authenticate users
 // - auditor and blessingLogReader to audit the root principal and read audit logs
 // - revocationManager to store revocation data and grant discharges
-// - oauthBlesserParams to configure the identity.OAuthBlesser service
-func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, assetsPrefix, mountNamePrefix, dischargerLocation string, registeredApps handlers.RegisteredAppMap) *IdentityServer {
+func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, caveatSelector caveats.CaveatSelector, assetsPrefix, mountNamePrefix, dischargerLocation string, registeredApps handlers.RegisteredAppMap) *IdentityServer {
 	return &IdentityServer{
 		oauthProvider:      oauthProvider,
 		auditor:            auditor,
 		blessingLogReader:  blessingLogReader,
 		revocationManager:  revocationManager,
-		oauthBlesserParams: oauthBlesserParams,
 		caveatSelector:     caveatSelector,
 		assetsPrefix:       assetsPrefix,
 		mountNamePrefix:    mountNamePrefix,
@@ -175,23 +163,18 @@ func (s *IdentityServer) Listen(ctx, oauthCtx *context.T, externalHttpAddr, http
 	if s.revocationManager != nil {
 		args.DischargeServers = appendSuffixTo(published, dischargerService)
 	}
-	var emptyParams blesser.OAuthBlesserParams
-	if !reflect.DeepEqual(s.oauthBlesserParams, emptyParams) {
-		args.GoogleServers = appendSuffixTo(published, oauthBlesserService)
-	}
 	http.Handle(n, oauth.NewHandler(ctx, args))
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		self, _ := principal.BlessingStore().Default()
 		tmplArgs := struct {
-			Self                            security.Blessings
-			GoogleServers, DischargeServers []string
-			ListBlessingsRoute              string
-			AssetsPrefix                    string
-			Email                           string
+			Self               security.Blessings
+			DischargeServers   []string
+			ListBlessingsRoute string
+			AssetsPrefix       string
+			Email              string
 		}{
 			Self:               self,
-			GoogleServers:      args.GoogleServers,
 			DischargeServers:   args.DischargeServers,
 			ListBlessingsRoute: oauth.ListBlessingsRoute,
 			AssetsPrefix:       s.assetsPrefix,
@@ -216,7 +199,7 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 // Starts the Vanadium and HTTP services for blessing, and the Vanadium service for discharging.
 // All Vanadium services are started on the same port.
 func (s *IdentityServer) setupBlessingServices(ctx, oauthCtx *context.T) (rpc.Server, []string, error) {
-	disp := newDispatcher(s.oauthBlesserParams)
+	disp := newDispatcher()
 	p := v23.GetPrincipal(ctx)
 	b, _ := p.BlessingStore().Default()
 	blessingNames := security.BlessingNames(p, b)
@@ -243,43 +226,26 @@ func (s *IdentityServer) setupBlessingServices(ctx, oauthCtx *context.T) (rpc.Se
 	if s.dischargerLocation == "" {
 		s.dischargerLocation = naming.Join(rootedObjectAddr, dischargerService)
 	}
-	disp.activate(s.dischargerLocation)
 	ctx.Infof("Vanadium Blessing and discharger services will be published at %v", rootedObjectAddr)
 	// Start the HTTP Handler for the OAuth2 access token based blesser.
-	s.oauthBlesserParams.DischargerLocation = s.dischargerLocation
-	http.Handle("/auth/google/bless", handlers.NewOAuthBlessingHandler(oauthCtx, s.oauthBlesserParams, s.registeredApps))
+	handlerParams := handlers.OAuthBlesserParams{
+		OAuthProvider:      s.oauthProvider,
+		BlessingDuration:   365 * 24 * time.Hour,
+		RevocationManager:  s.revocationManager,
+		DischargerLocation: s.dischargerLocation,
+	}
+	http.Handle("/auth/google/bless", handlers.NewOAuthBlessingHandler(oauthCtx, handlerParams, s.registeredApps))
 	return server, []string{rootedObjectAddr}, nil
 }
 
-// newDispatcher returns a dispatcher for both the blessing and the
-// discharging service.
-func newDispatcher(blesserParams blesser.OAuthBlesserParams) *dispatcher {
-	d := &dispatcher{}
-	d.blesserParams = blesserParams
-	d.wg.Add(1) // Will be removed at activate.
-	return d
-}
-
-type dispatcher struct {
-	m             map[string]interface{}
-	wg            sync.WaitGroup
-	blesserParams blesser.OAuthBlesserParams
-}
-
-func (d *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
-	d.wg.Wait() // Wait until activate is called.
-	if invoker := d.m[suffix]; invoker != nil {
-		return invoker, security.AllowEveryone(), nil
-	}
-	return nil, nil, verror.New(verror.ErrNoExist, ctx, suffix)
-}
-
-func (d *dispatcher) activate(dischargerLocation string) {
-	d.blesserParams.DischargerLocation = dischargerLocation
-	d.m = map[string]interface{}{
-		macaroonService:     blesser.NewMacaroonBlesserServer(),
-		dischargerService:   discharger.DischargerServer(dischargerlib.NewDischarger()),
-		oauthBlesserService: blesser.NewOAuthBlesserServer(d.blesserParams),
+// newDispatcher returns a dispatcher for both the blessing and the discharging
+// service.
+func newDispatcher() *dispatcher {
+	d := &dispatcher{
+		m: map[string]interface{}{
+			macaroonService:   blesser.NewMacaroonBlesserServer(),
+			dischargerService: discharger.DischargerServer(dischargerlib.NewDischarger()),
+		},
 	}
 	// Set up the glob invoker.
 	var children []string
@@ -287,7 +253,18 @@ func (d *dispatcher) activate(dischargerLocation string) {
 		children = append(children, k)
 	}
 	d.m[""] = rpc.ChildrenGlobberInvoker(children...)
-	d.wg.Done() // Trigger any pending lookups.
+	return d
+}
+
+type dispatcher struct {
+	m map[string]interface{}
+}
+
+func (d *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
+	if invoker := d.m[suffix]; invoker != nil {
+		return invoker, security.AllowEveryone(), nil
+	}
+	return nil, nil, verror.New(verror.ErrNoExist, ctx, suffix)
 }
 
 func runHTTPSServer(ctx *context.T, addr, tlsConfig string) {
