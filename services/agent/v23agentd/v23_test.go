@@ -31,7 +31,7 @@ func upComesAgentd(t *testing.T, sh *v23test.Shell, credsDir, password string) {
 	}
 	agentC.ExtraFiles = append(agentC.ExtraFiles, agentWrite)
 	pipeFD := 3 + len(agentC.ExtraFiles) - 1
-	agentC.Vars["V23_AGENT_PARENT_PIPE_FD"] = strconv.Itoa(pipeFD)
+	agentC.Vars[constants.EnvAgentParentPipeFD] = strconv.Itoa(pipeFD)
 	agentC.Vars["PATH"] = os.Getenv("PATH")
 	agentC.Start()
 	agentWrite.Close()
@@ -96,4 +96,49 @@ func TestV23EncryptedPrincipal(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	v23test.TestMain(m)
+}
+
+func upComesAgentdDaemon(t *testing.T, sh *v23test.Shell, credsDir, password string) {
+	agentd := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/v23agentd")
+
+	agentC := sh.Cmd(agentd, "--daemon", credsDir)
+	if len(password) > 0 {
+		agentC.SetStdinReader(strings.NewReader(password))
+	}
+	agentC.Run()
+}
+
+func downComesAgentd(t *testing.T, sh *v23test.Shell, credsDir string) {
+	agentd := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/v23agentd")
+
+	agentC := sh.Cmd(agentd, "--stop", credsDir)
+	agentC.Run()
+}
+
+func TestV23Daemon(t *testing.T) {
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, nil)
+	sh.PropagateChildOutput = true
+	defer sh.Cleanup()
+
+	testbin := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/internal/test_principal")
+
+	credsDir := sh.MakeTempDir()
+	principal, err := security.CreatePersistentPrincipal(credsDir, []byte("P@SsW0rd"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := security.InitDefaultBlessings(principal, "grumpy"); err != nil {
+		t.Fatal(err)
+	}
+
+	upComesAgentdDaemon(t, sh, credsDir, "P@SsW0rd")
+
+	testC := sh.Cmd(testbin, "--expect-blessing=grumpy")
+	testC.Vars[ref.EnvAgentPath] = constants.SocketPath(credsDir)
+	testC.Run()
+
+	// Since we started the agent as a daemon, we need to explicitly stop it
+	// (since the Shell won't do it for us).
+	downComesAgentd(t, sh, credsDir)
 }

@@ -26,6 +26,13 @@ Usage:
 The path for the directory containing the credentials to be served by the agent.
 
 The v23agentd flags are:
+ -daemon=false
+   Run the agent as a daemon (returns right away but leaves the agent running in
+   the background)
+ -stop=false
+   Stop the agent serving the credentials, if any is running
+ -timeout=1m0s
+   How long the agent stays alive without any client connections
  -with-version=0
    Version that the agent should use.  Will fail if the version is not in the
    range of supported versions (obtained from the --metadata flag)

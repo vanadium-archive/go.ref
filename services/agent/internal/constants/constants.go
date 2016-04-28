@@ -8,9 +8,13 @@ package constants
 import "path/filepath"
 
 const (
-	agentDir   = "agent"
-	socketFile = "sock"
-	ServingMsg = "serving"
+	agentDir                = "agent"
+	socketFile              = "sock"
+	ServingMsg              = "serving"
+	DaemonFlag              = "daemon"
+	VersionFlag             = "with-version"
+	EnvAgentParentPipeFD    = "V23_AGENT_PARENT_PIPE_FD"
+	EnvAgentNoPrintCredsEnv = "V23_AGENT_NO_PRINT_CREDS_ENV"
 )
 
 // SocketPath returns the location where the agent generates the socket file.

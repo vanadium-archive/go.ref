@@ -8,9 +8,13 @@
 package main
 
 import (
+	"bufio"
 	"errors"
+	"flag"
 	"fmt"
+	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -20,30 +24,40 @@ import (
 	"v.io/x/ref"
 	vsignals "v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/agent/internal/constants"
+	"v.io/x/ref/services/agent/internal/launcher"
 	"v.io/x/ref/services/agent/internal/lock"
 	"v.io/x/ref/services/agent/internal/version"
 	"v.io/x/ref/services/agent/server"
 )
-
-const idleGrace = time.Minute
 
 func init() {
 	metadata.Insert("v23agentd.VersionMin", version.Supported.Min.String())
 	metadata.Insert("v23agentd.VersionMax", version.Supported.Max.String())
 }
 
-var versionToUse = version.Supported.Max
+var (
+	versionToUse = version.Supported.Max
+	idleGrace    time.Duration
+	daemon       bool
+	stop         bool
+)
 
 func main() {
-	cmdAgentD.Flags.Var(&versionToUse, "with-version", "Version that the agent should use.  Will fail if the version is not in the range of supported versions (obtained from the --metadata flag)")
+	cmdAgentD.Flags.Var(&versionToUse, constants.VersionFlag, "Version that the agent should use.  Will fail if the version is not in the range of supported versions (obtained from the --metadata flag)")
+	cmdAgentD.Flags.BoolVar(&daemon, constants.DaemonFlag, false, "Run the agent as a daemon (returns right away but leaves the agent running in the background)")
+	cmdAgentD.Flags.BoolVar(&stop, "stop", false, "Stop the agent serving the credentials, if any is running")
+	cmdAgentD.Flags.DurationVar(&idleGrace, "timeout", time.Minute, "How long the agent stays alive without any client connections")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdAgentD)
 }
 
+func init() {
+	cmdAgentD.Runner = cmdline.RunnerFunc(runAgentD)
+}
+
 var cmdAgentD = &cmdline.Command{
-	Runner: cmdline.RunnerFunc(runAgentD),
-	Name:   "v23agentd",
-	Short:  "Holds a private key in memory and makes it available to other processes",
+	Name:  "v23agentd",
+	Short: "Holds a private key in memory and makes it available to other processes",
 	Long: `
 Command v23agentd runs the security agent daemon, which holds the private key,
 blessings and recognized roots of a principal in memory and makes the principal
@@ -65,6 +79,39 @@ The path for the directory containing the credentials to be served by the agent.
 `,
 }
 
+func flagsFor(cmd *cmdline.Command) (ret []string) {
+	cmdAgentD.ParsedFlags.Visit(func(f *flag.Flag) {
+		if f.Name != constants.DaemonFlag {
+			ret = append(ret, fmt.Sprintf("--%s=%s", f.Name, f.Value))
+		}
+	})
+	return
+}
+
+func stopAgent(env *cmdline.Env, credsDir string) error {
+	commandsSock := filepath.Join(constants.AgentDir(credsDir), "commands")
+	switch _, err := os.Stat(commandsSock); {
+	case os.IsNotExist(err):
+		fmt.Fprintln(env.Stdout, "No agent appears to be running.")
+		return nil
+	case err != nil:
+		return err
+	}
+	cmds, err := net.Dial("unix", filepath.Join(constants.AgentDir(credsDir), "commands"))
+	if err != nil {
+		return err
+	}
+	defer cmds.Close()
+	if _, err := cmds.Write([]byte("EXIT\n")); err != nil {
+		return err
+	}
+	cmdsRead := bufio.NewScanner(cmds)
+	if cmdsRead.Scan() && cmdsRead.Text() != "OK" {
+		return fmt.Errorf("unexpected reply for EXIT command: %v", cmdsRead.Text())
+	}
+	return cmdsRead.Err()
+}
+
 func runAgentD(env *cmdline.Env, args []string) error {
 	if !version.Supported.Contains(versionToUse) {
 		return fmt.Errorf("version %v not in the supported range %v", versionToUse, version.Supported)
@@ -72,24 +119,32 @@ func runAgentD(env *cmdline.Env, args []string) error {
 	if len(args) != 1 {
 		return env.UsageErrorf("Expected exactly one argument: credentials")
 	}
-	notifyParent, detachIO, err := setupNotifyParent()
+	credentials := args[0]
+
+	switch {
+	case stop:
+		return stopAgent(env, credentials)
+	case daemon:
+		return launcher.LaunchAgent(credentials, os.Args[0], true, flagsFor(cmdAgentD)...)
+	}
+
+	notifyParent, detachIO, err := setupNotifyParent(env)
 	if err != nil {
 		return err
 	}
 
 	// Create principal from credentials dir.  This is safe to do outside of
 	// lock since it doesn't mutate the principal.
-	credentials := args[0]
 	p, err := server.LoadPrincipal(credentials)
 	if err != nil {
 		return fmt.Errorf("failed to create new principal from dir(%s): %v", credentials, err)
 	}
-	cleanup, commandChannels, ipc, err := initialize(p, credentials, detachIO)
+	cleanup, commandChannels, ipc, err := initialize(env, p, credentials)
 	switch err {
 	case nil, errAlreadyRunning:
 		notifyParent(constants.ServingMsg)
-		if !detachIO {
-			fmt.Printf("%v=%v\n", ref.EnvAgentPath, constants.SocketPath(credentials))
+		if os.Getenv(constants.EnvAgentNoPrintCredsEnv) == "" {
+			fmt.Fprintf(env.Stdout, "%v=%v\n", ref.EnvAgentPath, constants.SocketPath(credentials))
 		}
 		if err == errAlreadyRunning {
 			return nil
@@ -98,17 +153,23 @@ func runAgentD(env *cmdline.Env, args []string) error {
 		return err
 	}
 	defer cleanup()
+	if detachIO {
+		if err := detachStdInOutErr(constants.AgentDir(credentials)); err != nil {
+			return err
+		}
+		// TODO(caprita): Consider ignoring SIGHUP.
+	}
 
 	noConnections := make(chan struct{})
-	go idleWatch(ipc, noConnections, commandChannels)
+	go idleWatch(env, ipc, noConnections, commandChannels)
 
 	select {
 	case sig := <-vsignals.ShutdownOnSignals(nil):
-		fmt.Fprintln(os.Stderr, "Received signal", sig)
+		fmt.Fprintln(env.Stderr, "Received signal", sig)
 	case <-noConnections:
-		fmt.Fprintln(os.Stderr, "Idle timeout")
+		fmt.Fprintln(env.Stderr, "Idle timeout")
 	case <-commandChannels.exit:
-		fmt.Fprintln(os.Stderr, "Received exit command")
+		fmt.Fprintln(env.Stderr, "Received exit command")
 	}
 	return nil
 }
@@ -118,7 +179,7 @@ var errAlreadyRunning = errors.New("already running")
 // initialize sets up the service to serve the principal.  Upon success, the
 // agent lock is locked and a cleanup function is returned (which includes
 // unlocking the agent lock).  Otherwise, an error is returned.
-func initialize(p security.Principal, credentials string, detachIO bool) (func(), commandChannels, server.IPCState, error) {
+func initialize(env *cmdline.Env, p security.Principal, credentials string) (func(), commandChannels, server.IPCState, error) {
 	agentDir := constants.AgentDir(credentials)
 	// Lock the credentials dir and then try to grab the agent lock.  We
 	// need to first lock the credentials dir before the agent lock in order
@@ -140,12 +201,6 @@ func initialize(p security.Principal, credentials string, detachIO bool) (func()
 	if err := os.MkdirAll(agentDir, 0700); err != nil {
 		return nil, commandChannels{}, nil, err
 	}
-	if detachIO {
-		if err := detachStdInOutErr(agentDir); err != nil {
-			return nil, commandChannels{}, nil, err
-		}
-		// TODO(caprita): Consider ignoring SIGHUP.
-	}
 	if !agentLock.TryLock() {
 		// Another agent is already serving the credentials.
 		return nil, commandChannels{}, nil, errAlreadyRunning
@@ -163,7 +218,7 @@ func initialize(p security.Principal, credentials string, detachIO bool) (func()
 	}
 	cleanup = push(cleanup, func() {
 		if err := closeCommands(); err != nil {
-			fmt.Fprintf(os.Stderr, "closeCommands failed: %v\n", err)
+			fmt.Fprintf(env.Stderr, "closeCommands failed: %v\n", err)
 		}
 	})
 	cleanup = push(cleanup, credsLock.Lock)
@@ -187,8 +242,8 @@ func push(a, b func()) func() {
 // If so, it returns a function that should be called to send the status.  It
 // also returns whether the agent should detach from stdout, stderr, and stdin
 // following its initialization.
-func setupNotifyParent() (func(string), bool, error) {
-	parentPipeFD := os.Getenv("V23_AGENT_PARENT_PIPE_FD")
+func setupNotifyParent(env *cmdline.Env) (func(string), bool, error) {
+	parentPipeFD := os.Getenv(constants.EnvAgentParentPipeFD)
 	if parentPipeFD == "" {
 		return func(string) {}, false, nil
 	}
@@ -202,12 +257,12 @@ func setupNotifyParent() (func(string), bool, error) {
 		if n, err := fmt.Fprintln(parentPipe, message); n != len(message)+1 || err != nil {
 			// No need to stop the agent if we fail to write back to
 			// the parent.  The agent is otherwise healthy.
-			fmt.Fprintf(os.Stderr, "Failed to write %v to parent: (%d, %v)\n", message, n, err)
+			fmt.Fprintf(env.Stderr, "Failed to write %v to parent: (%d, %v)\n", message, n, err)
 		}
 	}, true, nil
 }
 
-func idleWatch(ipc server.IPCState, noConnections chan struct{}, channels commandChannels) {
+func idleWatch(env *cmdline.Env, ipc server.IPCState, noConnections chan struct{}, channels commandChannels) {
 	defer close(noConnections)
 	grace := idleGrace
 	var idleStartOverride time.Time
@@ -224,7 +279,7 @@ func idleWatch(ipc server.IPCState, noConnections chan struct{}, channels comman
 	for {
 		idle := idleDuration()
 		if idle > grace {
-			fmt.Fprintln(os.Stderr, "IDLE for", idle, "exiting.")
+			fmt.Fprintln(env.Stderr, "IDLE for", idle, "exiting.")
 			return
 		}
 		sleepFor := grace - idle

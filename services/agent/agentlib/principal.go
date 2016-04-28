@@ -5,13 +5,11 @@
 package agentlib
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"v.io/v23/security"
@@ -22,13 +20,13 @@ import (
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/internal/constants"
+	"v.io/x/ref/services/agent/internal/launcher"
 	"v.io/x/ref/services/agent/internal/lock"
 	"v.io/x/ref/services/agent/internal/version"
 )
 
 var (
 	errNotADirectory = verror.Register(pkgPath+".errNotADirectory", verror.NoRetry, "{1:}{2:} {3} is not a directory{:_}")
-	errCantCreate    = verror.Register(pkgPath+".errCantCreate", verror.NoRetry, "{1:}{2:} failed to create {3}{:_}")
 	errFilepathAbs   = verror.Register(pkgPath+".errAbsFailed", verror.NoRetry, "{1:}{2:} filepath.Abs failed for {3}")
 	errFindAgent     = verror.Register(pkgPath+".errFindAgent", verror.NoRetry, "{1:}{2:} couldn't find a suitable agent binary ({3}) or load principal in the address space of the current process ({4})")
 	errLaunchAgent   = verror.Register(pkgPath+".errLaunchAgent", verror.NoRetry, "{1:}{2:} couldn't launch agent ({3}) or load principal locally ({4})")
@@ -98,7 +96,7 @@ func LoadPrincipal(credsDir string) (agent.Principal, error) {
 	}
 	sockPath := constants.SocketPath(credsDir)
 
-	// Since we don't hold a lock between launchAgent and
+	// Since we don't hold a lock between LaunchAgent and
 	// NewAgentPrincipal, the agent could go away by the time we try to
 	// connect to it (e.g. it decides there are no clients and exits
 	// voluntarily); even if we held a lock, the agent could still crash in
@@ -148,8 +146,7 @@ func LoadPrincipal(credsDir string) (agent.Principal, error) {
 				return p, nil
 			}
 		}
-		if err := launchAgent(credsDir, agentBin, agentVersion); err != nil {
-
+		if err := launcher.LaunchAgent(credsDir, agentBin, false, fmt.Sprintf("--%s=%v", constants.VersionFlag, agentVersion)); err != nil {
 			// Try loading the principal in memory without an
 			// external agent.
 			// NOTE(caprita): If the agent fails to start because of
@@ -218,61 +215,4 @@ func findAgent() (string, version.T, error) {
 		return "", defaultVersion, fmt.Errorf("%v version incompatible: %v", cmd.Args, err)
 	}
 	return agentBin, versionToUse, nil
-}
-
-// launchAgent launches the agent as a separate process and waits for it to
-// serve the principal.
-func launchAgent(credsDir, agentBin string, agentVersion version.T) error {
-	agentRead, agentWrite, err := os.Pipe()
-	if err != nil {
-		return fmt.Errorf("failed to create pipe: %v", err)
-	}
-	defer agentRead.Close()
-	cmd := exec.Command(agentBin, fmt.Sprintf("--with-version=%v", agentVersion), credsDir)
-	agentDir := constants.AgentDir(credsDir)
-	cmd.Dir = agentDir
-	if err := os.MkdirAll(agentDir, 0700); err != nil {
-		return verror.New(errCantCreate, nil, agentDir, err)
-	}
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.SysProcAttr = new(syscall.SysProcAttr)
-	cmd.SysProcAttr.Setsid = true
-	// The agentRead/Write pipe is used to get notification from the agent
-	// when it's ready to serve the principal.
-	cmd.ExtraFiles = append(cmd.ExtraFiles, agentWrite)
-	cmd.Env = []string{"V23_AGENT_PARENT_PIPE_FD=3", "PATH=" + os.Getenv("PATH")}
-	err = cmd.Start()
-	agentWrite.Close()
-	if err != nil {
-		return fmt.Errorf("failed to run %v: %v", cmd.Args, err)
-	}
-	pid := cmd.Process.Pid
-	vlog.Infof("Started agent for credentials %v with PID %d", credsDir, pid)
-	// Make sure we don't leave a disfunctional or zombie agent behind upon
-	// error.
-	cleanUpAgent := func() {
-		defer cmd.Wait()
-		if err := syscall.Kill(pid, syscall.SIGINT); err == syscall.ESRCH {
-			return
-		}
-		for i := 0; i < 10; i++ {
-			time.Sleep(100 * time.Millisecond)
-			if err := syscall.Kill(pid, 0); err == syscall.ESRCH {
-				return
-			}
-		}
-		syscall.Kill(pid, syscall.SIGKILL)
-	}
-	scanner := bufio.NewScanner(agentRead)
-	if !scanner.Scan() || scanner.Text() != constants.ServingMsg {
-		cleanUpAgent()
-		return fmt.Errorf("failed to receive \"%s\" from agent", constants.ServingMsg)
-	}
-	if err := scanner.Err(); err != nil {
-		cleanUpAgent()
-		return fmt.Errorf("failed reading status from agent: %v", err)
-	}
-	return nil
 }
