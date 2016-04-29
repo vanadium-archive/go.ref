@@ -12,6 +12,7 @@ const (
 	socketFile              = "sock"
 	ServingMsg              = "serving"
 	DaemonFlag              = "daemon"
+	TimeoutFlag             = "timeout"
 	VersionFlag             = "with-version"
 	EnvAgentParentPipeFD    = "V23_AGENT_PARENT_PIPE_FD"
 	EnvAgentNoPrintCredsEnv = "V23_AGENT_NO_PRINT_CREDS_ENV"

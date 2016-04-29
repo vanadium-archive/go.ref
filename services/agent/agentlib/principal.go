@@ -146,7 +146,12 @@ func LoadPrincipal(credsDir string) (agent.Principal, error) {
 				return p, nil
 			}
 		}
-		if err := launcher.LaunchAgent(credsDir, agentBin, false, fmt.Sprintf("--%s=%v", constants.VersionFlag, agentVersion)); err != nil {
+		if err := launcher.LaunchAgent(
+			credsDir,
+			agentBin,
+			false,
+			fmt.Sprintf("--%s=%s", constants.TimeoutFlag, time.Minute),
+			fmt.Sprintf("--%s=%v", constants.VersionFlag, agentVersion)); err != nil {
 			// Try loading the principal in memory without an
 			// external agent.
 			// NOTE(caprita): If the agent fails to start because of

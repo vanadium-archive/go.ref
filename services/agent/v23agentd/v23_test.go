@@ -21,7 +21,7 @@ import (
 func upComesAgentd(t *testing.T, sh *v23test.Shell, credsDir, password string) {
 	agentd := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/v23agentd")
 
-	agentC := sh.Cmd(agentd, credsDir)
+	agentC := sh.Cmd(agentd, "--daemon=false", credsDir)
 	if len(password) > 0 {
 		agentC.SetStdinReader(strings.NewReader(password))
 	}

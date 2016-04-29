@@ -44,9 +44,9 @@ var (
 
 func main() {
 	cmdAgentD.Flags.Var(&versionToUse, constants.VersionFlag, "Version that the agent should use.  Will fail if the version is not in the range of supported versions (obtained from the --metadata flag)")
-	cmdAgentD.Flags.BoolVar(&daemon, constants.DaemonFlag, false, "Run the agent as a daemon (returns right away but leaves the agent running in the background)")
+	cmdAgentD.Flags.BoolVar(&daemon, constants.DaemonFlag, true, "Run the agent as a daemon (returns right away but leaves the agent running in the background)")
 	cmdAgentD.Flags.BoolVar(&stop, "stop", false, "Stop the agent serving the credentials, if any is running")
-	cmdAgentD.Flags.DurationVar(&idleGrace, "timeout", time.Minute, "How long the agent stays alive without any client connections")
+	cmdAgentD.Flags.DurationVar(&idleGrace, constants.TimeoutFlag, 0, "How long the agent stays alive without any client connections. Zero implies no timeout.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdAgentD)
 }
@@ -277,17 +277,21 @@ func idleWatch(env *cmdline.Env, ipc server.IPCState, noConnections chan struct{
 		return time.Now().Sub(idleStart)
 	}
 	for {
-		idle := idleDuration()
-		if idle > grace {
-			fmt.Fprintln(env.Stderr, "IDLE for", idle, "exiting.")
-			return
-		}
-		sleepFor := grace - idle
-		if sleepFor < time.Millisecond {
-			sleepFor = time.Millisecond
+		var sleepCh <-chan time.Time
+		if grace > 0 {
+			idle := idleDuration()
+			if idle > grace {
+				fmt.Fprintln(env.Stderr, "IDLE for", idle, "exiting.")
+				return
+			}
+			sleepFor := grace - idle
+			if sleepFor < time.Millisecond {
+				sleepFor = time.Millisecond
+			}
+			sleepCh = time.After(sleepFor)
 		}
 		select {
-		case <-time.After(sleepFor):
+		case <-sleepCh:
 		case newGrace := <-channels.graceChange:
 			grace = newGrace
 		case graceReport := <-channels.graceQuery:
