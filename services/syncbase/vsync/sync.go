@@ -162,7 +162,7 @@ var (
 // that the syncer can pick from. In addition, the sync module responds to
 // incoming RPCs from remote sync modules and local clients.
 func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string, cl *vclock.VClock, publishInNh bool) (*syncService, error) {
-	discovery, err := v23.NewDiscovery(ctx)
+	discovery, err := v23.NewDiscovery(v23.WithListenSpec(ctx, rpc.ListenSpec{}))
 	if err != nil {
 		return nil, err
 	}
