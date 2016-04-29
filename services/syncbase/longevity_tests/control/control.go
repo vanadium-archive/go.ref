@@ -18,10 +18,13 @@
 //  u = ...
 //  err := c.Run(u)
 //
-//  // Pause all instances.
+//  // Pause all clients.
 //  err := c.Pause()
 //
-//  // Resume all instances.
+//  // Run checker.
+//  err := c.RunChecker(Checker)
+//
+//  // Resume all clients.
 //  err := c.Resume()
 //
 //  // Tear it all down.
@@ -44,6 +47,7 @@ import (
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/runtime/protocols/vine"
 	"v.io/x/ref/services/mounttable/mounttablelib"
+	"v.io/x/ref/services/syncbase/longevity_tests/checker"
 	"v.io/x/ref/services/syncbase/longevity_tests/client"
 	"v.io/x/ref/services/syncbase/longevity_tests/model"
 	"v.io/x/ref/services/syncbase/longevity_tests/mounttabled"
@@ -84,6 +88,9 @@ type Controller struct {
 	// acts as a client, it needs to run a vine server so that other servers
 	// can be configured to allow RPCs from the controller.
 	vineName string
+
+	// Universe model that the controller is currently simulating.
+	universe *model.Universe
 }
 
 // Opts is used to configure the Controller.
@@ -236,17 +243,45 @@ func (c *Controller) Run(u *model.Universe) error {
 	}
 	c.instancesMu.Unlock()
 
-	return c.updateTopology(u.Topology)
+	if err := c.updateTopology(u.Topology); err != nil {
+		return err
+	}
+
+	c.universe = u
+	return nil
 }
 
-// PauseUniverse stops all instances "gracefully".
+// RunChecker runs the given Checker.
+func (c *Controller) RunChecker(checker checker.Checker) error {
+	return checker.Run(c.ctx, *c.universe)
+}
+
+// PauseUniverse stops all clients but leaves syncbases running.
 func (c *Controller) PauseUniverse() error {
-	return fmt.Errorf("not implemented")
+	var retErr error
+	c.instancesMu.Lock()
+	defer c.instancesMu.Unlock()
+	for _, inst := range c.instances {
+		err := inst.stopClients()
+		if err != nil && retErr == nil {
+			retErr = err
+		}
+	}
+	return retErr
 }
 
-// ResumeUniverse restarts all instances.
+// ResumeUniverse restarts all clients.
 func (c *Controller) ResumeUniverse() error {
-	return fmt.Errorf("not implemented")
+	var retErr error
+	c.instancesMu.Lock()
+	defer c.instancesMu.Unlock()
+	for _, inst := range c.instances {
+		err := inst.startClients()
+		if err != nil && retErr == nil {
+			retErr = err
+		}
+	}
+	return retErr
 }
 
 func (c *Controller) updateInstancesForUser(user *model.User) error {

@@ -30,6 +30,9 @@ type instance struct {
 	// Databases to host on the syncbased.
 	databases model.DatabaseSet
 
+	// Context used by clients.
+	clientCtx *context.T
+
 	// Clients of the syncbase instance.
 	clients []client.Client
 
@@ -94,17 +97,21 @@ func (inst *instance) start(rootCtx *context.T) error {
 	if err != nil {
 		return err
 	}
+	inst.clientCtx = clientCtx
 
-	// Start clients
-	for _, client := range inst.clients {
-		client.Start(clientCtx, inst.name, inst.databases)
-	}
-
-	return nil
+	// Start clients.
+	return inst.startClients()
 }
 
 func (inst *instance) update(d *model.Device) error {
 	return fmt.Errorf("not implemented")
+}
+
+func (inst *instance) startClients() error {
+	for _, client := range inst.clients {
+		client.Start(inst.clientCtx, inst.name, inst.databases)
+	}
+	return nil
 }
 
 func (inst *instance) stopClients() error {
