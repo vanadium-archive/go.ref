@@ -20,12 +20,12 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
+	"v.io/x/lib/netconfig"
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/pubsub"
 	slib "v.io/x/ref/lib/security"
 	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
-	"v.io/x/ref/runtime/internal/lib/roaming"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
 	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/version"
@@ -63,7 +63,6 @@ type listenState struct {
 	proxyEndpoints  []naming.Endpoint
 	proxyErrors     map[string]error
 	netChange       chan struct{}
-	roaming         bool
 	stopRoaming     func()
 	proxyFlows      map[string]flow.Flow // keyed by ep.String()
 }
@@ -212,14 +211,92 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 		tmplEndpoint: local,
 		roaming:      roam,
 	})
-	if !m.ls.roaming && m.ls.dhcpPublisher != nil && roam {
-		m.ls.roaming = true
-		m.ls.stopRoaming = roaming.ReadRoamingStream(ctx, m.ls.dhcpPublisher, m.rmAddrs, m.addAddrs)
+	if m.ls.stopRoaming == nil && m.ls.dhcpPublisher != nil && roam {
+		ctx2, cancel := context.WithCancel(ctx)
+		ch := make(chan struct{})
+		m.ls.stopRoaming = func() {
+			cancel()
+			<-ch
+		}
+		go m.monitorNetworkChanges(ctx2, ch)
 	}
 
 	m.ls.listenLoops.Add(1)
 	go m.lnAcceptLoop(ctx, ln, local)
 	return nil
+}
+
+func (m *manager) monitorNetworkChanges(ctx *context.T, done chan<- struct{}) {
+	defer close(done)
+	change, err := netconfig.NotifyChange()
+	if err != nil {
+		ctx.Errorf("endpoints will not be updated if the network configuration changes, failed to monitor network changes: %v", err)
+		return
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-change:
+			netstate.InvalidateCache()
+			addrs, err := netstate.GetAccessibleIPs()
+			if err != nil {
+				ctx.Errorf("failed to read network state: %v", err)
+				continue
+			}
+			if ctx.V(2) {
+				ctx.Infof("Network configuration changed: %v", addrs)
+			}
+			m.updateRoamingEndpoints(addrs)
+			if change, err = netconfig.NotifyChange(); err != nil {
+				ctx.Errorf("endpoints will not be updated if the network configuration changes, failed to monitor network changes: %v", err)
+				return
+			}
+		}
+	}
+}
+
+func (m *manager) updateRoamingEndpoints(addrs netstate.AddrList) {
+	hosts := make(map[string]bool, len(addrs))
+	for _, addr := range addrs {
+		h, _ := getHostPort(addr)
+		hosts[h] = true
+	}
+	changed := false
+	m.ls.mu.Lock()
+	defer m.ls.mu.Unlock()
+	for _, epState := range m.ls.endpoints {
+		if !epState.roaming {
+			continue
+		}
+		if len(hosts) != len(epState.leps) {
+			changed = true
+		}
+		_, port := getHostPort(epState.tmplEndpoint.Addr())
+		newleps := make([]*inaming.Endpoint, 0, len(hosts))
+		for h, _ := range hosts {
+			nep := *epState.tmplEndpoint
+			nep.Address = net.JoinHostPort(h, port)
+			newleps = append(newleps, &nep)
+
+			if !changed {
+				found := false
+				for _, oldep := range epState.leps {
+					oldh, _ := getHostPort(oldep.Addr())
+					if h == oldh {
+						found = true
+						break
+					}
+				}
+				changed = !found
+			}
+		}
+		epState.leps = newleps
+	}
+	if changed {
+		close(m.ls.netChange)
+		m.ls.netChange = make(chan struct{})
+	}
 }
 
 func (m *manager) createEndpoints(ctx *context.T, lep naming.Endpoint) ([]*inaming.Endpoint, bool, error) {
@@ -248,69 +325,6 @@ func (m *manager) createEndpoints(ctx *context.T, lep naming.Endpoint) ([]*inami
 		ieps = append(ieps, n)
 	}
 	return ieps, unspecified, nil
-}
-
-func (m *manager) addAddrs(addrs []net.Addr) {
-	defer m.ls.mu.Unlock()
-	m.ls.mu.Lock()
-	changed := false
-	for _, addr := range netstate.ConvertToAddresses(addrs) {
-		if !netstate.IsAccessibleIP(addr) {
-			continue
-		}
-		host, _ := getHostPort(addr)
-		for _, epState := range m.ls.endpoints {
-			if !epState.roaming {
-				continue
-			}
-			tmplEndpoint := epState.tmplEndpoint
-			_, port := getHostPort(tmplEndpoint.Addr())
-			if i := findEndpoint(epState, host); i < 0 {
-				nep := *tmplEndpoint
-				nep.Address = net.JoinHostPort(host, port)
-				epState.leps = append(epState.leps, &nep)
-				changed = true
-			}
-		}
-	}
-	if changed && m.ls.netChange != nil {
-		close(m.ls.netChange)
-		m.ls.netChange = make(chan struct{})
-	}
-}
-
-func findEndpoint(epState *endpointState, host string) int {
-	for i, ep := range epState.leps {
-		epHost, _ := getHostPort(ep.Addr())
-		if epHost == host {
-			return i
-		}
-	}
-	return -1
-}
-
-func (m *manager) rmAddrs(addrs []net.Addr) {
-	defer m.ls.mu.Unlock()
-	m.ls.mu.Lock()
-	changed := false
-	for _, addr := range netstate.ConvertToAddresses(addrs) {
-		host, _ := getHostPort(addr)
-		for _, epState := range m.ls.endpoints {
-			if !epState.roaming {
-				continue
-			}
-			if i := findEndpoint(epState, host); i >= 0 {
-				n := len(epState.leps) - 1
-				epState.leps[i], epState.leps[n] = epState.leps[n], nil
-				epState.leps = epState.leps[:n]
-				changed = true
-			}
-		}
-	}
-	if changed && m.ls.netChange != nil {
-		close(m.ls.netChange)
-		m.ls.netChange = make(chan struct{})
-	}
 }
 
 func (m *manager) updateEndpointBlessingsLocked(names []string) {

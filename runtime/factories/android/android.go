@@ -29,7 +29,6 @@ import (
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/runtime/internal"
 	"v.io/x/ref/runtime/internal/lib/appcycle"
-	"v.io/x/ref/runtime/internal/lib/roaming"
 	inamespace "v.io/x/ref/runtime/internal/naming/namespace"
 	"v.io/x/ref/runtime/internal/rt"
 	"v.io/x/ref/runtime/protocols/lib/websocket"
@@ -87,6 +86,12 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		discoveryFactory.Shutdown()
 	}
 
+	// TODO(ashankar): As of April 2016, the only purpose this non-nil
+	// publisher was serving was to enable roaming in RPC servers (see
+	// runtime/internal/flow/manager/manager.go).  Once
+	// https://vanadium-review.googlesource.com/#/c/21954/ has been merged,
+	// I will try to remove the use of the publisher from here downstream
+	// completely (and enable "roaming" for all servers by default).
 	publisher := pubsub.NewPublisher()
 
 	runtime, ctx, shutdown, err := rt.Init(ctx, ac, discoveryFactory, namespaceFactory, nil, &listenSpec, publisher, commonFlags.RuntimeFlags(), reservedDispatcher, connIdleExpiry)
@@ -95,15 +100,9 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		return nil, nil, nil, err
 	}
 
-	stopRoaming, err := roaming.CreateRoamingStream(ctx, publisher, listenSpec)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
 	runtimeFactoryShutdown := func() {
 		ishutdown()
 		shutdown()
-		stopRoaming()
 	}
 	return runtime, ctx, runtimeFactoryShutdown, nil
 }

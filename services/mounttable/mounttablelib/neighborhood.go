@@ -43,7 +43,7 @@ const addressPrefix = "address:"
 type neighborhood struct {
 	mdns             *mdns.MDNS
 	nelems           int
-	nw               netconfig.NetConfigWatcher
+	stopWatch        chan struct{}
 	lastSubscription time.Time
 }
 
@@ -132,17 +132,20 @@ func newNeighborhood(host string, addresses []string, loopback bool) (*neighborh
 
 	// Watch the network configuration so that we can make MDNS reattach to
 	// interfaces when the network changes.
-	nh.nw, err = netconfig.NewNetConfigWatcher()
-	if err != nil {
-		logger.Global().Errorf("nighborhood can't watch network: %s", err)
-		return nh, nil
-	}
+	nh.stopWatch = make(chan struct{}, 1)
 	go func() {
-		if _, ok := <-nh.nw.Channel(); !ok {
+		ch, err := netconfig.NotifyChange()
+		if err != nil {
+			logger.Global().Errorf("neighborhood can't watch network: %v", err)
 			return
 		}
-		if _, err := nh.mdns.ScanInterfaces(); err != nil {
-			logger.Global().Errorf("nighborhood can't scan interfaces: %s", err)
+		select {
+		case <-nh.stopWatch:
+			return
+		case <-ch:
+			if _, err := nh.mdns.ScanInterfaces(); err != nil {
+				logger.Global().Errorf("nighborhood can't scan interfaces: %s", err)
+			}
 		}
 	}()
 
@@ -184,9 +187,7 @@ func (nh *neighborhood) Authorize(*context.T, security.Call) error {
 
 // Stop performs cleanup.
 func (nh *neighborhood) Stop() {
-	if nh.nw != nil {
-		nh.nw.Stop()
-	}
+	close(nh.stopWatch)
 	nh.mdns.Stop()
 }
 
