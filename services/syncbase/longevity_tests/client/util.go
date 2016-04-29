@@ -23,7 +23,7 @@ import (
 // join those as well.
 func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.DatabaseSet) (map[syncbase.Database][]syncbase.Collection, []syncbase.Syncgroup, error) {
 	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
-	perms := testutil.DefaultPerms(blessing.String())
+	perms := testutil.DefaultPerms(blessing.String(), "root:checker")
 	nsRoots := v23.GetNamespace(ctx).Roots()
 
 	service := syncbase.NewService(sbName)

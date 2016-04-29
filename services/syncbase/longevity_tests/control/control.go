@@ -64,6 +64,9 @@ type Controller struct {
 	// Context used to send RPCs to vine servers.
 	ctx *context.T
 
+	// Context used by Checkers to verify syncbase data.
+	checkerCtx *context.T
+
 	// identityProvider used to bless mounttable and all syncbase instances.
 	identityProvider *testutil.IDProvider
 
@@ -143,7 +146,6 @@ func (c *Controller) init(ctx *context.T) error {
 
 	// Create blessings for mounttable.
 	mtCreds := filepath.Join(c.rootDir, "mounttable-creds")
-	var p security.Principal
 	p, err := vsecurity.CreatePersistentPrincipal(mtCreds, nil)
 	if err != nil {
 		return err
@@ -167,7 +169,13 @@ func (c *Controller) init(ctx *context.T) error {
 	}
 	c.namespaceRoot = name
 
-	// Configure context.
+	// Configure context for checker.
+	c.checkerCtx, err = c.configureContext(ctx, "checker")
+	if err != nil {
+		return err
+	}
+
+	// Configure context for controller.
 	c.ctx, err = c.configureContext(ctx, "controller")
 	return err
 }
@@ -253,7 +261,7 @@ func (c *Controller) Run(u *model.Universe) error {
 
 // RunChecker runs the given Checker.
 func (c *Controller) RunChecker(checker checker.Checker) error {
-	return checker.Run(c.ctx, *c.universe)
+	return checker.Run(c.checkerCtx, *c.universe)
 }
 
 // PauseUniverse stops all clients but leaves syncbases running.
