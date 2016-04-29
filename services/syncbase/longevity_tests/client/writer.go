@@ -95,7 +95,10 @@ func (w *Writer) Start(ctx *context.T, sbName string, databases model.DatabaseSe
 
 	w.wg.Add(1)
 	go func() {
-		defer w.wg.Done()
+		defer func() {
+			w.wg.Done()
+			w.stopChan = nil
+		}()
 		var err error
 		w.dbColsMap, _, err = CreateDbsAndCollections(ctx, sbName, databases)
 		if err != nil {
@@ -117,7 +120,9 @@ func (w *Writer) Start(ctx *context.T, sbName string, databases model.DatabaseSe
 }
 
 func (w *Writer) Stop() error {
-	close(w.stopChan)
+	if w.stopChan != nil {
+		close(w.stopChan)
+	}
 	w.wg.Wait()
 	return w.err
 }
