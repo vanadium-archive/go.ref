@@ -59,7 +59,7 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 				spec.MountTables = nsRoots
 				// TODO(nlacasse): Set this to something real.
 				spec.Perms = testutil.DefaultPerms("root")
-				if err := sg.Create(ctx, spec, wire.SyncgroupMemberInfo{}); err != nil {
+				if err := sg.Create(ctx, spec, wire.SyncgroupMemberInfo{}); err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
 					return nil, nil, err
 				}
 				syncgroups = append(syncgroups, sg)
