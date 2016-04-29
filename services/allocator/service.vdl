@@ -1,0 +1,18 @@
+// Copyright 2016 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package allocator
+
+type Allocator interface {
+	// Create creates a new instance of the service. The instance's
+	// blessings will be an extension of the blessings granted on this RPC.
+	// It returns the object name of the new instance.
+	Create() (name string | error)
+
+	// Delete deletes the instance with the given name.
+	Delete(name string) error
+
+	// List returns a list of all the instances owned by the caller.
+	List() (names []string | error)
+}
