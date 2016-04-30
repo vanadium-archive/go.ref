@@ -549,8 +549,20 @@ func TestV23Create(t *testing.T) {
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
 
+	checkBlessing := func(want string) {
+		if p, err := security.LoadPersistentPrincipal(aliceDir, nil); err != nil {
+			t.Fatalf("Failed loading principal: %v", err)
+		} else {
+			defaultBlessings, _ := p.BlessingStore().Default()
+			if got := defaultBlessings.String(); got != want {
+				t.Fatalf("expected blessings \"%v\", got \"%v\" instead", want, got)
+			}
+		}
+	}
+
 	// Creating a principal should succeed the first time.
 	sh.Cmd(bin, "create", aliceDir, "alice").Run()
+	checkBlessing("alice")
 
 	// The second time should fail (the create command won't override an existing principal).
 	cmd := sh.Cmd(bin, "create", aliceDir, "alice")
@@ -561,6 +573,11 @@ func TestV23Create(t *testing.T) {
 
 	// If we specify -overwrite, it will.
 	sh.Cmd(bin, "create", "--overwrite", aliceDir, "alice").Run()
+	checkBlessing("alice")
+
+	// If we create a principal without specifying a blessing name, it will have no blessing.
+	sh.Cmd(bin, "create", "--overwrite", aliceDir).Run()
+	checkBlessing("")
 }
 
 func TestV23CreateWithPassphrase(t *testing.T) {

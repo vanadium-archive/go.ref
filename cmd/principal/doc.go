@@ -90,8 +90,8 @@ The global flags are:
 
 Principal create - Create a new principal and persist it into a directory
 
-Creates a new principal with a single self-blessed blessing and writes it out to
-the provided directory. The same directory can then be used to set the
+Creates a new principal with a single optional self-blessed blessing and writes
+it out to the provided directory. The same directory can then be used to set the
 V23_CREDENTIALS environment variable for other vanadium applications.
 
 The operation fails if the directory already contains a principal. In this case
@@ -99,12 +99,13 @@ the --overwrite flag can be provided to clear the directory and write out the
 new principal.
 
 Usage:
-   principal create [flags] <directory> <blessing>
+   principal create [flags] <directory> [<blessing>]
 
 <directory> is the directory to which the new principal will be persisted.
 
-<blessing> is the self-blessed blessing that the principal will be setup to use
-by default.
+<blessing> is the optional self-blessed blessing that the principal will be
+setup to use by default.  If a blessing argument is not provided, the new
+principal will have no blessings.
 
 The principal create flags are:
  -overwrite=false

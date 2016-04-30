@@ -583,25 +583,27 @@ this tool. - is used for STDIN.
 		Name:  "create",
 		Short: "Create a new principal and persist it into a directory",
 		Long: `
-Creates a new principal with a single self-blessed blessing and writes it out
-to the provided directory. The same directory can then be used to set the
+Creates a new principal with a single optional self-blessed blessing and writes
+it out to the provided directory. The same directory can then be used to set the
 V23_CREDENTIALS environment variable for other vanadium applications.
 
 The operation fails if the directory already contains a principal. In this case
 the --overwrite flag can be provided to clear the directory and write out the
 new principal.
 `,
-		ArgsName: "<directory> <blessing>",
+		ArgsName: "<directory> [<blessing>]",
 		ArgsLong: `
 <directory> is the directory to which the new principal will be persisted.
 
-<blessing> is the self-blessed blessing that the principal will be setup to use by default.
+<blessing> is the optional self-blessed blessing that the principal will be
+setup to use by default.  If a blessing argument is not provided, the new
+principal will have no blessings.
 	`,
 		Runner: cmdline.RunnerFunc(func(env *cmdline.Env, args []string) error {
-			if len(args) != 2 {
-				return fmt.Errorf("requires exactly two arguments: <directory> and <blessing>, provided %d", len(args))
+			if len(args) < 1 || len(args) > 2 {
+				return fmt.Errorf("requires one or two arguments: <directory> [and optional <blessing>], provided %d", len(args))
 			}
-			dir, name := args[0], args[1]
+			dir := args[0]
 			if flagCreateOverwrite {
 				if err := os.RemoveAll(dir); err != nil {
 					return err
@@ -618,12 +620,15 @@ new principal.
 			if err != nil {
 				return err
 			}
-			blessings, err := p.BlessSelf(name)
-			if err != nil {
-				return fmt.Errorf("BlessSelf(%q) failed: %v", name, err)
-			}
-			if err := vsecurity.SetDefaultBlessings(p, blessings); err != nil {
-				return fmt.Errorf("could not set blessings %v as default: %v", blessings, err)
+			if len(args) == 2 {
+				name := args[1]
+				blessings, err := p.BlessSelf(name)
+				if err != nil {
+					return fmt.Errorf("BlessSelf(%q) failed: %v", name, err)
+				}
+				if err := vsecurity.SetDefaultBlessings(p, blessings); err != nil {
+					return fmt.Errorf("could not set blessings %v as default: %v", blessings, err)
+				}
 			}
 			return nil
 		}),
