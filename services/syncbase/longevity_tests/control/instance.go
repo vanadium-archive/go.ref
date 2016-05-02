@@ -82,6 +82,10 @@ func (inst *instance) start(rootCtx *context.T) error {
 		"--v23.namespace.root="+inst.namespaceRoot,
 		"--v23.credentials="+inst.credsDir,
 		"--v23.permissions.literal="+perms,
+		// NOTE(nlacasse): We must set the tcp address to an ipv4 address to
+		// prevent the runtime from trying to listen on an ipv6 address, which
+		// is not supported on GCE.
+		"--v23.tcp.address=127.0.0.1:0",
 		//"--vmodule=*=2",
 	)
 	if inst.cmd.Start(); inst.cmd.Err != nil {

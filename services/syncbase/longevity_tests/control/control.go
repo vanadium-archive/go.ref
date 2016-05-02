@@ -160,7 +160,13 @@ func (c *Controller) init(ctx *context.T) error {
 	if c.sh.Err != nil {
 		return c.sh.Err
 	}
-	c.mtCmd.Args = append(c.mtCmd.Args, "--v23.credentials="+mtCreds)
+	c.mtCmd.Args = append(c.mtCmd.Args,
+		"--v23.credentials="+mtCreds,
+		// NOTE(nlacasse): We must set the tcp address to an ipv4 address to
+		// prevent the runtime from trying to listen on an ipv6 address, which
+		// is not supported on GCE.
+		"--v23.tcp.address=127.0.0.1:0",
+	)
 	c.mtCmd.Start()
 	vars := c.mtCmd.AwaitVars("NAME")
 	name := vars["NAME"]
