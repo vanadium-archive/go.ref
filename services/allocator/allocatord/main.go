@@ -20,7 +20,12 @@ import (
 )
 
 var (
-	nameFlag string
+	nameFlag                string
+	serverNameFlag          string
+	trimMountNamePrefixFlag string
+	deploymentTemplateFlag  string
+	vkubeBinFlag            string
+	vkubeCfgFlag            string
 
 	cmdRoot = &cmdline.Command{
 		Runner: v23cmd.RunnerFunc(runAllocator),
@@ -32,6 +37,11 @@ var (
 
 func main() {
 	cmdRoot.Flags.StringVar(&nameFlag, "name", "", "Name to publish for this service.")
+	cmdRoot.Flags.StringVar(&serverNameFlag, "server-name", "", "Name of the servers to allocate.")
+	cmdRoot.Flags.StringVar(&deploymentTemplateFlag, "deployment-template", "", "The template for the deployment of the servers to allocate.")
+	cmdRoot.Flags.StringVar(&trimMountNamePrefixFlag, "trim-mount-prefix", "dev.v.io:u:", "The server's mount name is users/<userid>, where <userid> is the caller's blessing names minus the value of --trim-mount-prefix.")
+	cmdRoot.Flags.StringVar(&vkubeBinFlag, "vkube", "vkube", "The vkube binary to use.")
+	cmdRoot.Flags.StringVar(&vkubeCfgFlag, "vkube-cfg", "vkube.cfg", "The vkube.cfg to use.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }

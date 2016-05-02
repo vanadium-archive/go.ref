@@ -6,25 +6,20 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Runs the allocator service
+Command allocator interacts with the allocator service.
 
 Usage:
-   allocatord [flags]
+   allocator [flags] <command>
 
-The allocatord flags are:
- -deployment-template=
-   The template for the deployment of the servers to allocate.
- -name=
-   Name to publish for this service.
- -server-name=
-   Name of the servers to allocate.
- -trim-mount-prefix=dev.v.io:u:
-   The server's mount name is users/<userid>, where <userid> is the caller's
-   blessing names minus the value of --trim-mount-prefix.
- -vkube=vkube
-   The vkube binary to use.
- -vkube-cfg=vkube.cfg
-   The vkube.cfg to use.
+The allocator commands are:
+   create      Create a new server instance.
+   delete      Deletes an existing server instance.
+   list        Lists existing server instances.
+   help        Display help for commands or topics
+
+The allocator flags are:
+ -allocator=
+   The name or address of the allocator server.
 
 The global flags are:
  -alsologtostderr=true
@@ -82,5 +77,68 @@ The global flags are:
    comma-separated list of regexppattern=N settings for file pathname-filtered
    logging (without the .go suffix).  E.g. foo/bar/baz.go is matched by patterns
    foo/bar/baz or fo.*az or oo/ba or b.z but not by foo/bar/baz.go or fo*az
+
+Allocator create
+
+Create a new server instance.
+
+Usage:
+   allocator create [flags] <extension>
+
+<extension> is the blessing name extension to give to the new server instance.
+
+The allocator create flags are:
+ -allocator=
+   The name or address of the allocator server.
+
+Allocator delete
+
+Deletes an existing server instance.
+
+Usage:
+   allocator delete [flags] <name>
+
+<name> is the name of the server to delete.
+
+The allocator delete flags are:
+ -allocator=
+   The name or address of the allocator server.
+
+Allocator list
+
+Lists existing server instances.
+
+Usage:
+   allocator list [flags]
+
+The allocator list flags are:
+ -allocator=
+   The name or address of the allocator server.
+
+Allocator help - Display help for commands or topics
+
+Help with no args displays the usage of the parent command.
+
+Help with args displays the usage of the specified sub-command or help topic.
+
+"help ..." recursively displays help for all commands and topics.
+
+Usage:
+   allocator help [flags] [command/topic ...]
+
+[command/topic ...] optionally identifies a specific sub-command or help topic.
+
+The allocator help flags are:
+ -style=compact
+   The formatting style for help output:
+      compact   - Good for compact cmdline output.
+      full      - Good for cmdline output, shows all global flags.
+      godoc     - Good for godoc processing.
+      shortonly - Only output short description.
+   Override the default by setting the CMDLINE_STYLE environment variable.
+ -width=<terminal width>
+   Format output to this target width in runes, or unlimited if width < 0.
+   Defaults to the terminal width if available.  Override the default by setting
+   the CMDLINE_WIDTH environment variable.
 */
 package main
