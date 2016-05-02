@@ -19,7 +19,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/x/ref/runtime/factories/roaming"
-	"v.io/x/ref/services/syncbase/server"
+	bridge "v.io/x/ref/services/syncbase/bridge_mojo"
 	"v.io/x/ref/services/syncbase/syncbaselib"
 )
 
@@ -40,7 +40,7 @@ func (d *delegate) Initialize(actx application.Context) {
 	opts.InitFlags(flag.CommandLine)
 	roaming.SetArgs(actx)
 	d.ctx, d.shutdown = v23.Init() // calls flag.Parse
-	if err := setBlessings(d.ctx, actx); err != nil {
+	if err := bridge.SetBlessings(d.ctx, actx); err != nil {
 		panic(err)
 	}
 	d.srv, d.disp, d.cleanup = syncbaselib.Serve(d.ctx, opts)
@@ -49,7 +49,7 @@ func (d *delegate) Initialize(actx application.Context) {
 const numGoroutines = 100
 
 func (d *delegate) Create(req syncbase.Syncbase_Request) {
-	impl := server.NewMojoImpl(d.ctx, d.srv, d.disp)
+	impl := bridge.NewMojoImpl(d.ctx, d.srv, d.disp)
 	stub := syncbase.NewSyncbaseStub(req, impl, bindings.GetAsyncWaiter())
 	d.stubs = append(d.stubs, stub)
 	// Spawn a bunch of goroutines to handle incoming requests concurrently.

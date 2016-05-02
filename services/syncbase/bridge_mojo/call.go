@@ -4,7 +4,7 @@
 
 // +build mojo
 
-package server
+package bridge_mojo
 
 import (
 	"v.io/v23"

@@ -11,7 +11,7 @@
 // stub responses. As part of this procedure, we synthesize "fake" ctx and call
 // objects to pass to the Vanadium stubs.
 
-package server
+package bridge_mojo
 
 import (
 	"bytes"

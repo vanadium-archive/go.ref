@@ -49,7 +49,7 @@
 // (https://github.com/domokit/mojo/blob/master/mojo/services/vanadium/security/interfaces/principal.mojom).
 // But more on that when we get there.
 
-package main
+package bridge_mojo
 
 import (
 	"encoding/base64"
@@ -74,7 +74,7 @@ type selectAccountFailed struct {
 	error
 }
 
-func setBlessings(v23ctx *context.T, appctx application.Context) error {
+func SetBlessings(v23ctx *context.T, appctx application.Context) error {
 	// Get an OAuth2 token from the mojo authentication service.
 	// At the time of this writing, the mojo authentication
 	// service was implemented only for Android, so in absence
