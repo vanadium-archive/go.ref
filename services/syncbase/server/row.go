@@ -9,6 +9,7 @@ import (
 	"v.io/v23/rpc"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
@@ -33,8 +34,8 @@ func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle
 	return util.ErrorToExists(err)
 }
 
-func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) ([]byte, error) {
-	var res []byte
+func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (*vom.RawBytes, error) {
+	var res *vom.RawBytes
 	impl := func(sntx store.SnapshotOrTransaction) (err error) {
 		res, err = r.get(ctx, call, sntx)
 		return err
@@ -45,7 +46,7 @@ func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (
 	return res, nil
 }
 
-func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, value []byte) error {
+func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, value *vom.RawBytes) error {
 	impl := func(tx *watchable.Transaction) error {
 		return r.put(ctx, call, tx, value)
 	}
@@ -72,27 +73,35 @@ func (r *rowReq) stKeyPart() string {
 
 // get reads data from the storage engine.
 // Performs authorization check.
-func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) ([]byte, error) {
+func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) (*vom.RawBytes, error) {
 	if err := r.c.checkAccess(ctx, call, sntx); err != nil {
 		return nil, err
 	}
 	value, err := sntx.Get([]byte(r.stKey()), nil)
+	var valueAsRawBytes vom.RawBytes
+	if err == nil {
+		err = vom.Decode(value, &valueAsRawBytes)
+	}
 	if err != nil {
 		if verror.ErrorID(err) == store.ErrUnknownKey.ID {
 			return nil, verror.New(verror.ErrNoExist, ctx, r.stKey())
 		}
 		return nil, verror.New(verror.ErrInternal, ctx, err)
 	}
-	return value, nil
+	return &valueAsRawBytes, nil
 }
 
 // put writes data to the storage engine.
 // Performs authorization check.
-func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx *watchable.Transaction, value []byte) error {
+func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx *watchable.Transaction, value *vom.RawBytes) error {
 	if err := r.c.checkAccess(ctx, call, tx); err != nil {
 		return err
 	}
-	if err := tx.Put([]byte(r.stKey()), value); err != nil {
+	valueAsBytes, err := vom.Encode(value)
+	if err != nil {
+		return err
+	}
+	if err = tx.Put([]byte(r.stKey()), valueAsBytes); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil

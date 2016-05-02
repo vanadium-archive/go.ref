@@ -11,6 +11,7 @@ import (
 	"v.io/v23/context"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -220,7 +221,8 @@ func processResInfos(ctx *context.T, iSt *initiationState, results map[string]*w
 			// the new value is equal to local or remote. If so dont use
 			// createNew.
 			res.ty = createNew
-			res.val = rInfo.Result.Bytes
+			// TODO(m3b): What should this routine do if there's an encoding error?
+			res.val, _ = vom.Encode(rInfo.Result.Bytes)
 			// TODO(jlodhia):[correctness] Use vclock to create the write
 			// timestamp.
 			timestamp := time.Now()
@@ -346,13 +348,16 @@ func createValueObj(ctx *context.T, iSt *initiationState, oid, ver string, isAnc
 	var bytes []byte = nil
 	valueState := wire.ValueStateDeleted
 
+	var rawBytes *vom.RawBytes = nil
 	if !dagNode.Deleted {
 		bytes = getObjectAtVer(ctx, iSt, oid, ver)
+		// TODO(m3b): What should this routine do if there's a decoding error?
+		vom.Decode(bytes, &rawBytes)
 		valueState = wire.ValueStateExists
 	}
 	return &wire.Value{
 		State:   valueState,
-		Bytes:   bytes,
+		Bytes:   rawBytes,
 		WriteTs: getLocalLogRec(ctx, iSt, oid, ver).Metadata.UpdTime,
 	}
 }

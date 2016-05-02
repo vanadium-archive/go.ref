@@ -13,6 +13,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
@@ -73,9 +74,11 @@ func TestWatchLogPerms(t *testing.T) {
 		if err := c.SetPermissions(ctx, call, "", perms); err != nil {
 			t.Fatalf("c.SetPermissions failed: %v", err)
 		}
+		var encodedValue *vom.RawBytes
+		encodedValue, _ = vom.RawBytesFromValue("value")
 		// Put.
 		row := &rowReq{key: "foo", c: c}
-		if err := row.Put(ctx, call, "", []byte("value")); err != nil {
+		if err := row.Put(ctx, call, "", encodedValue); err != nil {
 			t.Fatalf("row.Put failed: %v", err)
 		}
 		expected = append(expected, putOp(st, row.stKey()))
@@ -88,7 +91,7 @@ func TestWatchLogPerms(t *testing.T) {
 		}
 		expected = append(expected, deleteOp)
 		// DeleteRange.
-		if err := row.Put(ctx, call, "", []byte("value")); err != nil {
+		if err := row.Put(ctx, call, "", encodedValue); err != nil {
 			t.Fatalf("row.Put failed: %v", err)
 		}
 		if err := c.DeleteRange(ctx, call, "", []byte("foo"), nil); err != nil {

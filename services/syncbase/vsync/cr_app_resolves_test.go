@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store/watchable"
 )
@@ -350,6 +351,8 @@ func writeVersionedValues(t *testing.T, iSt *initiationState) {
 }
 
 func setResInfoData(mockCrs *conflictResolverStream) {
+	var newValue *vom.RawBytes
+	newValue, _ = vom.RawBytesFromValue("newValue")
 	// group1
 	addResInfo(mockCrs, x, wire.ValueSelectionLocal, nil, false)
 	// group2
@@ -357,14 +360,14 @@ func setResInfoData(mockCrs *conflictResolverStream) {
 	// group3
 	addResInfo(mockCrs, c, wire.ValueSelectionRemote, nil, false)
 	// group4
-	addResInfo(mockCrs, p, wire.ValueSelectionOther, []byte("newValue"), false)
+	addResInfo(mockCrs, p, wire.ValueSelectionOther, newValue, false)
 	// group5
 	addResInfo(mockCrs, y, wire.ValueSelectionRemote, nil, true)
 	addResInfo(mockCrs, z, wire.ValueSelectionRemote, nil, true)
-	addResInfo(mockCrs, e, wire.ValueSelectionOther, []byte("newValue"), true)
+	addResInfo(mockCrs, e, wire.ValueSelectionOther, newValue, true)
 	addResInfo(mockCrs, f, wire.ValueSelectionLocal, nil, true)
 	addResInfo(mockCrs, g, wire.ValueSelectionLocal, nil, true)
-	addResInfo(mockCrs, a, wire.ValueSelectionOther, []byte("newValue"), false)
+	addResInfo(mockCrs, a, wire.ValueSelectionOther, newValue, false)
 	// group6
 	addResInfo(mockCrs, la1, wire.ValueSelectionLocal, nil, true)
 	addResInfo(mockCrs, lb1, wire.ValueSelectionLocal, nil, true)
@@ -374,9 +377,9 @@ func setResInfoData(mockCrs *conflictResolverStream) {
 	addResInfo(mockCrs, lb2, wire.ValueSelectionRemote, nil, true)
 	addResInfo(mockCrs, lc2, wire.ValueSelectionRemote, nil, false)
 	// group8
-	addResInfo(mockCrs, la3, wire.ValueSelectionOther, []byte("newValue"), true)
-	addResInfo(mockCrs, lb3, wire.ValueSelectionOther, []byte("newValue"), true)
-	addResInfo(mockCrs, lc3, wire.ValueSelectionOther, []byte("newValue"), false)
+	addResInfo(mockCrs, la3, wire.ValueSelectionOther, newValue, true)
+	addResInfo(mockCrs, lb3, wire.ValueSelectionOther, newValue, true)
+	addResInfo(mockCrs, lc3, wire.ValueSelectionOther, newValue, false)
 	// group9
 	addResInfo(mockCrs, la4, wire.ValueSelectionLocal, nil, true)
 	addResInfo(mockCrs, lb4, wire.ValueSelectionLocal, nil, true)
@@ -635,27 +638,46 @@ func checkConflictRow(t *testing.T, oid string, ci wire.ConflictInfo, batchIds [
 	ciData := ci.Data.(wire.ConflictDataRow).Value
 	writeOp := ciData.Op.(wire.OperationWrite).Value
 	st, _ := updObjectsAppResolves[oid]
-	if (st.ancestor != NoVersion) && !bytes.Equal(makeValue(oid, st.ancestor), writeOp.AncestorValue.Bytes) {
-		t.Errorf("Oid: %v, Ancestor value expected: %v, actual: %v", oid, string(makeValue(oid, st.ancestor)), string(writeOp.AncestorValue.Bytes))
+	var err error
+	var ancestorValueBytes []byte
+	if writeOp.AncestorValue.Bytes != nil {
+		if err = writeOp.AncestorValue.Bytes.ToValue(&ancestorValueBytes); err != nil {
+			t.Errorf("Oid: %v: error decoding writeOp.AncestorValue.Bytes: %v", oid, err)
+		}
+	}
+	if (st.ancestor != NoVersion) && !bytes.Equal(makeValue(oid, st.ancestor), ancestorValueBytes) {
+		t.Errorf("Oid: %v, Ancestor value expected: %v, actual: %v", oid, string(makeValue(oid, st.ancestor)), string(ancestorValueBytes))
 	}
 	if remoteDeleted && writeOp.RemoteValue == nil {
 		t.Errorf("Oid: %v, for remote deleted remote value is expected to have an instance with no bytes", oid)
 	}
-	if !remoteDeleted && (st.newHead != NoVersion) && !bytes.Equal(makeValue(oid, st.newHead), writeOp.RemoteValue.Bytes) {
-		t.Errorf("Oid: %v, Remote value expected: %v, actual: %v", oid, string(makeValue(oid, st.newHead)), string(writeOp.RemoteValue.Bytes))
+	var remoteValueBytes []byte
+	if writeOp.RemoteValue.Bytes != nil {
+		if err = writeOp.RemoteValue.Bytes.ToValue(&remoteValueBytes); err != nil {
+			t.Errorf("Oid: %v: error decoding writeOp.RemoteValue.Bytes: %v", oid, err)
+		}
+	}
+	if !remoteDeleted && (st.newHead != NoVersion) && !bytes.Equal(makeValue(oid, st.newHead), remoteValueBytes) {
+		t.Errorf("Oid: %v, Remote value expected: %v, actual: %v", oid, string(makeValue(oid, st.newHead)), string(remoteValueBytes))
 	}
 	if localDeleted && writeOp.LocalValue == nil {
 		t.Errorf("Oid: %v, for local deleted local value is expected to have an instance with no bytes", oid)
 	}
-	if !localDeleted && (st.oldHead != NoVersion) && !bytes.Equal(makeValue(oid, st.oldHead), writeOp.LocalValue.Bytes) {
-		t.Errorf("Oid: %v, Local value expected: %v, actual: %v", oid, string(makeValue(oid, st.oldHead)), string(writeOp.LocalValue.Bytes))
+	var localValueBytes []byte
+	if writeOp.LocalValue.Bytes != nil {
+		if err = writeOp.LocalValue.Bytes.ToValue(&localValueBytes); err != nil {
+			t.Errorf("Oid: %v: error decoding writeOp.LocalValue.Bytes: %v", oid, err)
+		}
+	}
+	if !localDeleted && (st.oldHead != NoVersion) && !bytes.Equal(makeValue(oid, st.oldHead), localValueBytes) {
+		t.Errorf("Oid: %v, Local value expected: %v, actual: %v", oid, string(makeValue(oid, st.oldHead)), string(localValueBytes))
 	}
 	if !uint64ArrayEq(batchIds, ciData.BatchIds) {
 		t.Errorf("Oid: %v, BatchIds expected: %v, actual: %v", oid, batchIds, ciData.BatchIds)
 	}
 }
 
-func addResInfo(crs *conflictResolverStream, oid string, sel wire.ValueSelection, val []byte, cntd bool) {
+func addResInfo(crs *conflictResolverStream, oid string, sel wire.ValueSelection, val *vom.RawBytes, cntd bool) {
 	var valRes *wire.Value
 	if val != nil {
 		valRes = &wire.Value{
@@ -672,7 +694,11 @@ func addResInfo(crs *conflictResolverStream, oid string, sel wire.ValueSelection
 }
 
 func saveValue(t *testing.T, tx *watchable.Transaction, oid, version string) {
-	if err := watchable.PutAtVersion(nil, tx, []byte(oid), makeValue(oid, version), []byte(version)); err != nil {
+	encodedValue, err := vom.Encode(makeValue(oid, version))
+	if err != nil {
+		t.Errorf("Error encoding %s,%s: %v", oid, version, err)
+	}
+	if err := watchable.PutAtVersion(nil, tx, []byte(oid), encodedValue, []byte(version)); err != nil {
 		t.Errorf("Failed to write versioned value for oid,ver: %s,%s", oid, version)
 		t.FailNow()
 	}

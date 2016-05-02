@@ -12,6 +12,7 @@ import (
 	wire "v.io/v23/services/syncbase"
 	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
@@ -156,7 +157,13 @@ func (c *collectionReq) Scan(ctx *context.T, call wire.CollectionScanServerCall,
 			// See comment in util/constants.go for why we use SplitNKeyParts.
 			parts := common.SplitNKeyParts(string(key), 3)
 			externalKey := parts[2]
-			if err := sender.Send(wire.KeyValue{Key: externalKey, Value: value}); err != nil {
+			var rawBytes *vom.RawBytes
+			if err := vom.Decode(value, &rawBytes); err != nil {
+				// TODO(m3b): Is this the correct behaviour on an encoding error here?
+				it.Cancel()
+				return err
+			}
+			if err := sender.Send(wire.KeyValue{Key: externalKey, Value: rawBytes}); err != nil {
 				it.Cancel()
 				return err
 			}

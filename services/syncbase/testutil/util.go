@@ -206,8 +206,8 @@ func WatchChangeEq(got *syncbase.WatchChange, want *WatchChangeTest) (eq bool) {
 		} else {
 			var wantValue interface{}
 			var gotValue interface{}
-			gotErr := got.Value(gotValue)
-			wantErr := want.ValueBytes.ToValue(wantValue)
+			gotErr := got.Value(&gotValue)
+			wantErr := want.ValueBytes.ToValue(&wantValue)
 			eq = ((gotErr == nil) == (wantErr == nil)) &&
 				reflect.DeepEqual(gotValue, wantValue)
 		}
