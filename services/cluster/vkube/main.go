@@ -8,10 +8,12 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"reflect"
 	"strings"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -31,6 +34,7 @@ var (
 	flagGpg               string
 	flagGetCredentials    bool
 	flagNoBlessings       bool
+	flagBaseBlessings     string
 	flagNoHeaders         bool
 	flagResourceFile      string
 	flagVerbose           bool
@@ -77,6 +81,7 @@ func main() {
 	cmd.Flags.BoolVar(&flagNoHeaders, "no-headers", false, "When true, suppress the 'Project: ... Zone: ... Cluster: ...' headers.")
 
 	cmdStart.Flags.BoolVar(&flagNoBlessings, "noblessings", false, "Do not pass blessings to the application.")
+	cmdStart.Flags.StringVar(&flagBaseBlessings, "base-blessings", "", "Base blessings to extend, base64url-vom-encoded. If empty, the default blessings are used.")
 	cmdStart.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to create the kubernetes resource.")
 	cmdStart.Flags.BoolVar(&flagWait, "wait", false, "Wait for all the replicas to be ready.")
 	cmdStart.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 5*time.Minute, "How long to wait for the start to make progress.")
@@ -176,8 +181,23 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 		if err != nil {
 			return err
 		}
+		var baseBlessings security.Blessings
+		if flagBaseBlessings == "" {
+			baseBlessings, _ = v23.GetPrincipal(ctx).BlessingStore().Default()
+		} else {
+			b64, err := base64.URLEncoding.DecodeString(flagBaseBlessings)
+			if err != nil {
+				return err
+			}
+			if err := vom.Decode(b64, &baseBlessings); err != nil {
+				return err
+			}
+			if !reflect.DeepEqual(baseBlessings.PublicKey(), v23.GetPrincipal(ctx).PublicKey()) {
+				return fmt.Errorf("--base-blessings must match the principal's public key")
+			}
+		}
 		extension := args[0]
-		if err := createSecret(ctx, secretName, namespace, agentAddr, extension); err != nil {
+		if err := createSecret(ctx, secretName, namespace, agentAddr, baseBlessings, extension); err != nil {
 			return err
 		}
 		fmt.Fprintln(env.Stdout, "Created secret successfully.")

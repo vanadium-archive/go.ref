@@ -120,8 +120,8 @@ func addPodAgent(ctx *context.T, config *vkubeConfig, obj object, secretName, ro
 
 // createSecret gets a new secret key from the cluster agent, and then creates a
 // Secret object on kubernetes with it.
-func createSecret(ctx *context.T, secretName, namespace, agentAddr, extension string) error {
-	secret, err := cluster.ClusterAgentAdminClient(agentAddr).NewSecret(ctx, &granter{extension: extension})
+func createSecret(ctx *context.T, secretName, namespace, agentAddr string, baseBlessings security.Blessings, extension string) error {
+	secret, err := cluster.ClusterAgentAdminClient(agentAddr).NewSecret(ctx, &granter{blessings: baseBlessings, extension: extension})
 	if err != nil {
 		return err
 	}
@@ -144,13 +144,12 @@ func createSecret(ctx *context.T, secretName, namespace, agentAddr, extension st
 
 type granter struct {
 	rpc.CallOpt
+	blessings security.Blessings
 	extension string
 }
 
 func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings, error) {
-	p := call.LocalPrincipal()
-	b, _ := p.BlessingStore().Default()
-	return p.Bless(call.RemoteBlessings().PublicKey(), b, g.extension, security.UnconstrainedUse())
+	return call.LocalPrincipal().Bless(call.RemoteBlessings().PublicKey(), g.blessings, g.extension, security.UnconstrainedUse())
 }
 
 // deleteSecret deletes a Secret object and its associated secret key and

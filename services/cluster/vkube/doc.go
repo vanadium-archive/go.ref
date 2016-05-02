@@ -104,6 +104,9 @@ Usage:
 If --noblessings is set, this argument is not needed.
 
 The vkube start flags are:
+ -base-blessings=
+   Base blessings to extend, base64url-vom-encoded. If empty, the default
+   blessings are used.
  -f=
    Filename to use to create the kubernetes resource.
  -noblessings=false

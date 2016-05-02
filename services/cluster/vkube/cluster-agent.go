@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/services/device"
@@ -302,7 +303,8 @@ func claimClusterAgent(ctx *context.T, config *vkubeConfig, extension string) er
 	if err != nil {
 		return err
 	}
-	if err := device.ClaimableClient(addr).Claim(ctx, "", &granter{extension: extension}); err != nil {
+	baseBlessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	if err := device.ClaimableClient(addr).Claim(ctx, "", &granter{blessings: baseBlessings, extension: extension}); err != nil {
 		return err
 	}
 	return nil
