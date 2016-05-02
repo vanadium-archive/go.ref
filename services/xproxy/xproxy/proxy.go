@@ -200,6 +200,47 @@ func (p *proxy) MultipleProxyEndpoints() []naming.Endpoint {
 	return eps
 }
 
+func (p *proxy) handleConnection(ctx *context.T, f flow.Flow) {
+	defer p.wg.Done()
+	msg, err := readMessage(ctx, f)
+	if err != nil {
+		ctx.Errorf("reading message failed: %v", err)
+		return
+	}
+
+	switch m := msg.(type) {
+	case *message.Setup:
+		err = p.startRouting(ctx, f, m)
+		if err == nil {
+			ctx.VI(1).Infof("Routing client flow from %v", f.RemoteEndpoint())
+		} else {
+			ctx.Errorf("failed to handle incoming client flow from %v: %v", f.RemoteEndpoint(), err)
+		}
+	case *message.MultiProxyRequest:
+		p.mu.Lock()
+		err = p.replyToProxyLocked(ctx, f)
+		if err == nil {
+			p.proxiedProxies = append(p.proxiedProxies, f)
+			ctx.Infof("Proxying proxy at %v", f.RemoteEndpoint())
+		} else {
+			ctx.Errorf("failed to multi-proxy proxy at %v: %v", f.RemoteEndpoint(), err)
+		}
+		p.mu.Unlock()
+	case *message.ProxyServerRequest:
+		p.mu.Lock()
+		err = p.replyToServerLocked(ctx, f)
+		if err == nil {
+			p.proxiedServers = append(p.proxiedServers, f)
+			ctx.Infof("Proxying server at %v", f.RemoteEndpoint())
+		} else {
+			ctx.Errorf("failed to proxy server at %v: %v", f.RemoteEndpoint(), err)
+		}
+		p.mu.Unlock()
+	default:
+		ctx.VI(1).Infof("Ignoring unexpected proxy message: %#v", msg)
+	}
+}
+
 func (p *proxy) listenLoop(ctx *context.T) {
 	defer p.wg.Done()
 	for {
@@ -208,41 +249,14 @@ func (p *proxy) listenLoop(ctx *context.T) {
 			ctx.Infof("p.m.Accept failed: %v", err)
 			break
 		}
-		msg, err := readMessage(ctx, f)
-		if err != nil {
-			ctx.Errorf("reading message failed: %v", err)
-		}
-		switch m := msg.(type) {
-		case *message.Setup:
-			err = p.startRouting(ctx, f, m)
-			if err == nil {
-				ctx.VI(1).Infof("Routing client flow from %v", f.RemoteEndpoint())
-			} else {
-				ctx.Errorf("failed to handle incoming client flow from %v: %v", f.RemoteEndpoint(), err)
-			}
-		case *message.MultiProxyRequest:
-			p.mu.Lock()
-			err = p.replyToProxyLocked(ctx, f)
-			if err == nil {
-				p.proxiedProxies = append(p.proxiedProxies, f)
-				ctx.Infof("Proxying proxy at %v", f.RemoteEndpoint())
-			} else {
-				ctx.Errorf("failed to multi-proxy proxy at %v: %v", f.RemoteEndpoint(), err)
-			}
+		p.mu.Lock()
+		if p.closing {
 			p.mu.Unlock()
-		case *message.ProxyServerRequest:
-			p.mu.Lock()
-			err = p.replyToServerLocked(ctx, f)
-			if err == nil {
-				p.proxiedServers = append(p.proxiedServers, f)
-				ctx.Infof("Proxying server at %v", f.RemoteEndpoint())
-			} else {
-				ctx.Errorf("failed to proxy server at %v: %v", f.RemoteEndpoint(), err)
-			}
-			p.mu.Unlock()
-		default:
-			continue
+			break
 		}
+		p.wg.Add(1)
+		p.mu.Unlock()
+		go p.handleConnection(ctx, f)
 	}
 }
 
