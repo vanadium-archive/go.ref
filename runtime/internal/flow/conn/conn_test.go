@@ -65,11 +65,10 @@ func doRead(t *testing.T, f flow.Flow, want []byte, wg *sync.WaitGroup) {
 
 func TestLargeWrite(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
-
 	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	df, flows, cl := setupFlow(t, "local", "", ctx, ctx, true)
 	defer cl()
-	defer shutdown()
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -85,9 +84,9 @@ func TestConnRTT(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	payload := []byte{0}
 	ctx, shutdown := test.V23Init()
+	defer shutdown()
 	df, flows, cl := setupFlow(t, "local", "", ctx, ctx, true)
 	defer cl()
-	defer shutdown()
 
 	go doWrite(t, df, payload)
 	af := <-flows

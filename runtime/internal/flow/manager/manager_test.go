@@ -25,6 +25,7 @@ const leakWaitTime = 250 * time.Millisecond
 func TestDirectConnection(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
+	ctx, cancel := context.WithCancel(ctx)
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -34,14 +35,16 @@ func TestDirectConnection(t *testing.T) {
 
 	testFlows(t, ctx, dm, am, flowtest.AllowAllPeersAuthorizer{})
 
-	shutdown()
+	cancel()
 	<-am.Closed()
 	<-dm.Closed()
+	shutdown()
 }
 
 func TestDialCachedConn(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
+	ctx, cancel := context.WithCancel(ctx)
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -69,14 +72,16 @@ func TestDialCachedConn(t *testing.T) {
 		t.Errorf("got %v want %v", c, old)
 	}
 
-	shutdown()
+	cancel()
 	<-am.Closed()
 	<-dm.Closed()
+	shutdown()
 }
 
 func TestBidirectionalListeningEndpoint(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
+	ctx, cancel := context.WithCancel(ctx)
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -88,14 +93,16 @@ func TestBidirectionalListeningEndpoint(t *testing.T) {
 	// Now am should be able to make a flow to dm even though dm is not listening.
 	testFlows(t, ctx, am, dm, flowtest.AllowAllPeersAuthorizer{})
 
-	shutdown()
+	cancel()
 	<-am.Closed()
 	<-dm.Closed()
+	shutdown()
 }
 
 func TestPublicKeyOnlyClientBlessings(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
+	ctx, cancel := context.WithCancel(ctx)
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -116,15 +123,17 @@ func TestPublicKeyOnlyClientBlessings(t *testing.T) {
 		t.Errorf("got %v, want full blessings", rBlessings)
 	}
 
-	shutdown()
+	cancel()
 	<-am.Closed()
 	<-dm.Closed()
 	<-nulldm.Closed()
+	shutdown()
 }
 
 func TestStopListening(t *testing.T) {
 	defer goroutines.NoLeaks(t, leakWaitTime)()
 	ctx, shutdown := test.V23Init()
+	ctx, cancel := context.WithCancel(ctx)
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
 	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
@@ -140,9 +149,10 @@ func TestStopListening(t *testing.T) {
 		t.Errorf("dialing a lame duck should fail, but didn't %#v.", f)
 	}
 
-	shutdown()
+	cancel()
 	<-am.Closed()
 	<-dm.Closed()
+	shutdown()
 }
 
 func testFlows(t testing.TB, ctx *context.T, dm, am flow.Manager, auth flow.PeerAuthorizer) (df, af flow.Flow) {
