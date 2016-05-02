@@ -4,7 +4,8 @@
 
 // +build mojo
 
-// TODO(sadovsky): Update to reflect new, simplified API.
+// TODO(sadovsky): Finish updating to reflect new, simplified API. Some, but not
+// all, has been updated.
 
 // Implementation of Syncbase Mojo stubs. Our strategy is to translate Mojo stub
 // requests into Vanadium stub requests, and Vanadium stub responses into Mojo
@@ -29,17 +30,13 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/permissions"
 	wire "v.io/v23/services/syncbase"
-	nosqlwire "v.io/v23/services/syncbase/nosql"
 	watchwire "v.io/v23/services/watch"
-	"v.io/v23/syncbase/nosql"
 	"v.io/v23/syncbase/util"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 )
-
-const noSchema int32 = -1
 
 type mojoImpl struct {
 	ctx  *context.T
@@ -91,29 +88,29 @@ func toMojoPerms(vPerms access.Permissions) (mojom.Perms, error) {
 	return mojom.Perms{Json: b.String()}, nil
 }
 
-func toV23SyncgroupMemberInfo(mInfo mojom.SyncgroupMemberInfo) nosqlwire.SyncgroupMemberInfo {
-	return nosqlwire.SyncgroupMemberInfo{
+func toV23SyncgroupMemberInfo(mInfo mojom.SyncgroupMemberInfo) wire.SyncgroupMemberInfo {
+	return wire.SyncgroupMemberInfo{
 		SyncPriority: mInfo.SyncPriority,
 	}
 }
 
-func toMojoSyncgroupMemberInfo(vInfo nosqlwire.SyncgroupMemberInfo) mojom.SyncgroupMemberInfo {
+func toMojoSyncgroupMemberInfo(vInfo wire.SyncgroupMemberInfo) mojom.SyncgroupMemberInfo {
 	return mojom.SyncgroupMemberInfo{
 		SyncPriority: vInfo.SyncPriority,
 	}
 }
 
-func toV23SyncgroupSpec(mSpec mojom.SyncgroupSpec) (nosqlwire.SyncgroupSpec, error) {
+func toV23SyncgroupSpec(mSpec mojom.SyncgroupSpec) (wire.SyncgroupSpec, error) {
 	v23Perms, err := toV23Perms(mSpec.Perms)
 	if err != nil {
-		return nosqlwire.SyncgroupSpec{}, err
+		return wire.SyncgroupSpec{}, err
 	}
-	prefixes := make([]nosqlwire.CollectionRow, len(mSpec.Prefixes))
+	prefixes := make([]wire.CollectionRow, len(mSpec.Prefixes))
 	for i, v := range mSpec.Prefixes {
 		prefixes[i].CollectionName = v.CollectionName
 		prefixes[i].Row = v.Row
 	}
-	return nosqlwire.SyncgroupSpec{
+	return wire.SyncgroupSpec{
 		Description: mSpec.Description,
 		Perms:       v23Perms,
 		Prefixes:    prefixes,
@@ -122,7 +119,7 @@ func toV23SyncgroupSpec(mSpec mojom.SyncgroupSpec) (nosqlwire.SyncgroupSpec, err
 	}, nil
 }
 
-func toMojoSyncgroupSpec(vSpec nosqlwire.SyncgroupSpec) (mojom.SyncgroupSpec, error) {
+func toMojoSyncgroupSpec(vSpec wire.SyncgroupSpec) (mojom.SyncgroupSpec, error) {
 	mPerms, err := toMojoPerms(vSpec.Perms)
 	if err != nil {
 		return mojom.SyncgroupSpec{}, err
@@ -167,24 +164,12 @@ func (m *mojoImpl) getService(ctx *context.T, call rpc.ServerCall) (wire.Service
 	}
 }
 
-func (m *mojoImpl) getApp(ctx *context.T, call rpc.ServerCall, name string) (wire.AppServerStubMethods, error) {
+func (m *mojoImpl) getDb(ctx *context.T, call rpc.ServerCall, name string) (wire.DatabaseServerStubMethods, error) {
 	resInt, err := m.lookupAndAuthorize(ctx, call, name)
 	if err != nil {
 		return nil, err
 	}
-	if res, ok := resInt.(wire.AppServerStubMethods); !ok {
-		return nil, verror.NewErrInternal(ctx)
-	} else {
-		return res, nil
-	}
-}
-
-func (m *mojoImpl) getDb(ctx *context.T, call rpc.ServerCall, name string) (nosqlwire.DatabaseServerStubMethods, error) {
-	resInt, err := m.lookupAndAuthorize(ctx, call, name)
-	if err != nil {
-		return nil, err
-	}
-	if res, ok := resInt.(nosqlwire.DatabaseServerStubMethods); !ok {
+	if res, ok := resInt.(wire.DatabaseServerStubMethods); !ok {
 		return nil, verror.NewErrInternal(ctx)
 	} else {
 		return res, nil
@@ -205,24 +190,24 @@ func (m *mojoImpl) getGlobber(ctx *context.T, call rpc.ServerCall, name string) 
 	}
 }
 
-func (m *mojoImpl) getCollection(ctx *context.T, call rpc.ServerCall, name string) (nosqlwire.CollectionServerStubMethods, error) {
+func (m *mojoImpl) getCollection(ctx *context.T, call rpc.ServerCall, name string) (wire.CollectionServerStubMethods, error) {
 	resInt, err := m.lookupAndAuthorize(ctx, call, name)
 	if err != nil {
 		return nil, err
 	}
-	if res, ok := resInt.(nosqlwire.CollectionServerStubMethods); !ok {
+	if res, ok := resInt.(wire.CollectionServerStubMethods); !ok {
 		return nil, verror.NewErrInternal(ctx)
 	} else {
 		return res, nil
 	}
 }
 
-func (m *mojoImpl) getRow(ctx *context.T, call rpc.ServerCall, name string) (nosqlwire.RowServerStubMethods, error) {
+func (m *mojoImpl) getRow(ctx *context.T, call rpc.ServerCall, name string) (wire.RowServerStubMethods, error) {
 	resInt, err := m.lookupAndAuthorize(ctx, call, name)
 	if err != nil {
 		return nil, err
 	}
-	if res, ok := resInt.(nosqlwire.RowServerStubMethods); !ok {
+	if res, ok := resInt.(wire.RowServerStubMethods); !ok {
 		return nil, verror.NewErrInternal(ctx)
 	} else {
 		return res, nil
@@ -265,7 +250,7 @@ func (g *globChildrenServerCall) Send(reply naming.GlobChildrenReply) error {
 	if v, ok := reply.(naming.GlobChildrenReplyName); ok {
 		encName := v.Value[strings.LastIndex(v.Value, "/")+1:]
 		// Component names within object names are always encoded. See comment in
-		// server/nosql/dispatcher.go for explanation.
+		// server/dispatcher.go for explanation.
 		name, ok := util.Decode(encName)
 		if !ok {
 			return verror.New(verror.ErrInternal, g.ctx, encName)
@@ -314,87 +299,15 @@ func (m *mojoImpl) ServiceSetPermissions(mPerms mojom.Perms, version string) (mo
 	return toMojoError(err), nil
 }
 
-func (m *mojoImpl) ServiceListApps() (mojom.Error, []string, error) {
+func (m *mojoImpl) ServiceListDatabases() (mojom.Error, []mojom.Id, error) {
 	return m.listChildren("")
 }
 
 ////////////////////////////////////////
-// App
-
-func (m *mojoImpl) AppCreate(name string, mPerms mojom.Perms) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(wire.AppDesc, "Create"))
-	stub, err := m.getApp(ctx, call, name)
-	if err != nil {
-		return toMojoError(err), nil
-	}
-	vPerms, err := toV23Perms(mPerms)
-	if err != nil {
-		return toMojoError(err), nil
-	}
-	err = stub.Create(ctx, call, vPerms)
-	return toMojoError(err), nil
-}
-
-func (m *mojoImpl) AppDestroy(name string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(wire.AppDesc, "Destroy"))
-	stub, err := m.getApp(ctx, call, name)
-	if err != nil {
-		return toMojoError(err), nil
-	}
-	err = stub.Destroy(ctx, call)
-	return toMojoError(err), nil
-}
-
-func (m *mojoImpl) AppExists(name string) (mojom.Error, bool, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(wire.AppDesc, "Exists"))
-	stub, err := m.getApp(ctx, call, name)
-	if err != nil {
-		return toMojoError(err), false, nil
-	}
-	exists, err := stub.Exists(ctx, call)
-	return toMojoError(err), exists, nil
-}
-
-func (m *mojoImpl) AppGetPermissions(name string) (mojom.Error, mojom.Perms, string, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(permissions.ObjectDesc, "GetPermissions"))
-	stub, err := m.getApp(ctx, call, name)
-	if err != nil {
-		return toMojoError(err), mojom.Perms{}, "", nil
-	}
-	vPerms, version, err := stub.GetPermissions(ctx, call)
-	if err != nil {
-		return toMojoError(err), mojom.Perms{}, "", nil
-	}
-	mPerms, err := toMojoPerms(vPerms)
-	if err != nil {
-		return toMojoError(err), mojom.Perms{}, "", nil
-	}
-	return toMojoError(err), mPerms, version, nil
-}
-
-func (m *mojoImpl) AppListDatabases(name string) (mojom.Error, []string, error) {
-	return m.listChildren(name)
-}
-
-func (m *mojoImpl) AppSetPermissions(name string, mPerms mojom.Perms, version string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(permissions.ObjectDesc, "SetPermissions"))
-	stub, err := m.getApp(ctx, call, name)
-	if err != nil {
-		return toMojoError(err), nil
-	}
-	vPerms, err := toV23Perms(mPerms)
-	if err != nil {
-		return toMojoError(err), nil
-	}
-	err = stub.SetPermissions(ctx, call, vPerms, version)
-	return toMojoError(err), nil
-}
-
-////////////////////////////////////////
-// nosql.Database
+// Database
 
 func (m *mojoImpl) DbCreate(name string, mPerms mojom.Perms) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Create"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.DatabaseDesc, "Create"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
@@ -408,23 +321,33 @@ func (m *mojoImpl) DbCreate(name string, mPerms mojom.Perms) (mojom.Error, error
 }
 
 func (m *mojoImpl) DbDestroy(name string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Destroy"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.DatabaseDesc, "Destroy"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Destroy(ctx, call, noSchema)
+	err = stub.Destroy(ctx, call)
 	return toMojoError(err), nil
 }
 
 func (m *mojoImpl) DbExists(name string) (mojom.Error, bool, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Exists"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.DatabaseDesc, "Exists"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), false, nil
 	}
-	exists, err := stub.Exists(ctx, call, noSchema)
+	exists, err := stub.Exists(ctx, call)
 	return toMojoError(err), exists, nil
+}
+
+func (m *mojoImpl) DbListCollections(name, batchHandle string) (mojom.Error, []string, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.DatabaseDesc, "ListCollections"))
+	stub, err := m.getDb(ctx, call, name)
+	if err != nil {
+		return toMojoError(err), nil, nil
+	}
+	collections, err := stub.ListCollections(ctx, call)
+	return toMojoError(err), collections, nil
 }
 
 type execStreamImpl struct {
@@ -476,8 +399,8 @@ func (s *execStreamImpl) Recv(_ interface{}) error {
 
 var _ rpc.Stream = (*execStreamImpl)(nil)
 
-func (m *mojoImpl) DbExec(name string, query string, params [][]byte, ptr mojom.ExecStream_Pointer) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Exec"))
+func (m *mojoImpl) DbExec(name, batchHandle, query string, params [][]byte, ptr mojom.ExecStream_Pointer) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.DatabaseDesc, "Exec"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
@@ -497,7 +420,7 @@ func (m *mojoImpl) DbExec(name string, query string, params [][]byte, ptr mojom.
 
 	proxy := mojom.NewExecStreamProxy(ptr, bindings.GetAsyncWaiter())
 
-	execServerCallStub := &nosqlwire.DatabaseExecServerCallStub{struct {
+	execServerCallStub := &wire.DatabaseExecServerCallStub{struct {
 		rpc.Stream
 		rpc.ServerCall
 	}{
@@ -509,7 +432,7 @@ func (m *mojoImpl) DbExec(name string, query string, params [][]byte, ptr mojom.
 	}}
 
 	go func() {
-		var err = stub.Exec(ctx, execServerCallStub, noSchema, query, paramsVom)
+		var err = stub.Exec(ctx, execServerCallStub, query, paramsVom)
 		// NOTE(nlacasse): Since we are already streaming, we send any error back
 		// to the client on the stream.  The Exec function itself should not
 		// return an error at this point.
@@ -520,37 +443,37 @@ func (m *mojoImpl) DbExec(name string, query string, params [][]byte, ptr mojom.
 }
 
 func (m *mojoImpl) DbBeginBatch(name string, bo *mojom.BatchOptions) (mojom.Error, string, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "BeginBatch"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.DatabaseDesc, "BeginBatch"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), "", nil
 	}
-	vbo := nosqlwire.BatchOptions{}
+	vbo := wire.BatchOptions{}
 	if bo != nil {
 		vbo.Hint = bo.Hint
 		vbo.ReadOnly = bo.ReadOnly
 	}
-	batchSuffix, err := stub.BeginBatch(ctx, call, noSchema, vbo)
+	batchSuffix, err := stub.BeginBatch(ctx, call, vbo)
 	return toMojoError(err), batchSuffix, nil
 }
 
-func (m *mojoImpl) DbCommit(name string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Commit"))
+func (m *mojoImpl) DbCommit(name, batchHandle string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.DatabaseDesc, "Commit"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Commit(ctx, call, noSchema)
+	err = stub.Commit(ctx, call)
 	return toMojoError(err), nil
 }
 
-func (m *mojoImpl) DbAbort(name string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "Abort"))
+func (m *mojoImpl) DbAbort(name, batchHandle string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.DatabaseDesc, "Abort"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Abort(ctx, call, noSchema)
+	err = stub.Abort(ctx, call)
 	return toMojoError(err), nil
 }
 
@@ -595,7 +518,7 @@ func (s *watchGlobStreamImpl) Send(item interface{}) error {
 	if !ok {
 		return verror.NewErrInternal(s.ctx)
 	}
-	vc := nosql.ToWatchChange(c)
+	vc := syncbase.ToWatchChange(c)
 
 	var value []byte
 	if vc.ChangeType != DeleteChange {
@@ -661,8 +584,8 @@ func (m *mojoImpl) DbWatchGlob(name string, mReq mojom.GlobRequest, ptr mojom.Wa
 	return mojom.Error{}, nil
 }
 
-func (m *mojoImpl) DbGetResumeMarker(name string) (mojom.Error, []byte, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseWatcherDesc, "GetResumeMarker"))
+func (m *mojoImpl) DbGetResumeMarker(name, batchHandle string) (mojom.Error, []byte, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.DatabaseWatcherDesc, "GetResumeMarker"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil, nil
@@ -671,21 +594,11 @@ func (m *mojoImpl) DbGetResumeMarker(name string) (mojom.Error, []byte, error) {
 	return toMojoError(err), marker, nil
 }
 
-func (m *mojoImpl) DbListCollections(name string) (mojom.Error, []string, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.DatabaseDesc, "ListCollections"))
-	stub, err := m.getDb(ctx, call, name)
-	if err != nil {
-		return toMojoError(err), nil, nil
-	}
-	collections, err := stub.ListCollections(ctx, call)
-	return toMojoError(err), collections, nil
-}
-
 ////////////////////////////////////////
-// nosql.Database:SyncgroupManager
+// SyncgroupManager
 
 func (m *mojoImpl) DbGetSyncgroupNames(name string) (mojom.Error, []string, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "GetSyncgroupNames"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupNames"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil, nil
@@ -695,7 +608,7 @@ func (m *mojoImpl) DbGetSyncgroupNames(name string) (mojom.Error, []string, erro
 }
 
 func (m *mojoImpl) DbCreateSyncgroup(name, sgName string, spec mojom.SyncgroupSpec, myInfo mojom.SyncgroupMemberInfo) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "CreateSyncgroup"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.SyncgroupManagerDesc, "CreateSyncgroup"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
@@ -708,7 +621,7 @@ func (m *mojoImpl) DbCreateSyncgroup(name, sgName string, spec mojom.SyncgroupSp
 }
 
 func (m *mojoImpl) DbJoinSyncgroup(name, sgName string, myInfo mojom.SyncgroupMemberInfo) (mojom.Error, mojom.SyncgroupSpec, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "JoinSyncgroup"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.SyncgroupManagerDesc, "JoinSyncgroup"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), mojom.SyncgroupSpec{}, nil
@@ -725,7 +638,7 @@ func (m *mojoImpl) DbJoinSyncgroup(name, sgName string, myInfo mojom.SyncgroupMe
 }
 
 func (m *mojoImpl) DbLeaveSyncgroup(name, sgName string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "LeaveSyncgroup"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.SyncgroupManagerDesc, "LeaveSyncgroup"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
@@ -734,7 +647,7 @@ func (m *mojoImpl) DbLeaveSyncgroup(name, sgName string) (mojom.Error, error) {
 }
 
 func (m *mojoImpl) DbDestroySyncgroup(name, sgName string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "DestroySyncgroup"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.SyncgroupManagerDesc, "DestroySyncgroup"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
@@ -743,7 +656,7 @@ func (m *mojoImpl) DbDestroySyncgroup(name, sgName string) (mojom.Error, error) 
 }
 
 func (m *mojoImpl) DbEjectFromSyncgroup(name, sgName string, member string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "EjectFromSyncgroup"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.SyncgroupManagerDesc, "EjectFromSyncgroup"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
@@ -752,7 +665,7 @@ func (m *mojoImpl) DbEjectFromSyncgroup(name, sgName string, member string) (moj
 }
 
 func (m *mojoImpl) DbGetSyncgroupSpec(name, sgName string) (mojom.Error, mojom.SyncgroupSpec, string, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "GetSyncgroupSpec"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupSpec"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), mojom.SyncgroupSpec{}, "", nil
@@ -766,7 +679,7 @@ func (m *mojoImpl) DbGetSyncgroupSpec(name, sgName string) (mojom.Error, mojom.S
 }
 
 func (m *mojoImpl) DbSetSyncgroupSpec(name, sgName string, spec mojom.SyncgroupSpec, version string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "SetSyncgroupSpec"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.SyncgroupManagerDesc, "SetSyncgroupSpec"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
@@ -779,7 +692,7 @@ func (m *mojoImpl) DbSetSyncgroupSpec(name, sgName string, spec mojom.SyncgroupS
 }
 
 func (m *mojoImpl) DbGetSyncgroupMembers(name, sgName string) (mojom.Error, map[string]mojom.SyncgroupMemberInfo, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.SyncgroupManagerDesc, "GetSyncgroupMembers"))
+	ctx, call := m.newCtxCall(name, methodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupMembers"))
 	stub, err := m.getDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil, nil
@@ -796,10 +709,10 @@ func (m *mojoImpl) DbGetSyncgroupMembers(name, sgName string) (mojom.Error, map[
 }
 
 ////////////////////////////////////////
-// nosql.Collection
+// Collection
 
-func (m *mojoImpl) CollectionCreate(name string, mPerms mojom.Perms) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.CollectionDesc, "Create"))
+func (m *mojoImpl) CollectionCreate(name, batchHandle string, mPerms mojom.Perms) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.CollectionDesc, "Create"))
 	stub, err := m.getCollection(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
@@ -808,45 +721,45 @@ func (m *mojoImpl) CollectionCreate(name string, mPerms mojom.Perms) (mojom.Erro
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Create(ctx, call, noSchema, vPerms)
+	err = stub.Create(ctx, call, vPerms)
 	return toMojoError(err), nil
 }
 
-func (m *mojoImpl) CollectionDestroy(name string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.CollectionDesc, "Destroy"))
+func (m *mojoImpl) CollectionDestroy(name, batchHandle string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.CollectionDesc, "Destroy"))
 	stub, err := m.getCollection(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Destroy(ctx, call, noSchema)
+	err = stub.Destroy(ctx, call)
 	return toMojoError(err), nil
 }
 
-func (m *mojoImpl) CollectionExists(name string) (mojom.Error, bool, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.CollectionDesc, "Exists"))
+func (m *mojoImpl) CollectionExists(name, batchHandle string) (mojom.Error, bool, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.CollectionDesc, "Exists"))
 	stub, err := m.getCollection(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), false, nil
 	}
-	exists, err := stub.Exists(ctx, call, noSchema)
+	exists, err := stub.Exists(ctx, call)
 	return toMojoError(err), exists, nil
 }
 
-func (m *mojoImpl) CollectionGetPermissions(name string) (mojom.Error, mojom.Perms, error) {
-	return mojom.Error{}, mojom.Perms{}, nil
+func (m *mojoImpl) CollectionGetPermissions(name, batchHandle string) (mojom.Error, mojom.Perms, error) {
+	return toMojomError(verror.NewErrNotImplemented(nil)), mojom.Perms{}, nil
 }
 
-func (m *mojoImpl) CollectionSetPermissions(name string, mPerms mojom.Perms) (mojom.Error, error) {
-	return mojom.Error{}, nil
+func (m *mojoImpl) CollectionSetPermissions(name, batchHandle string, mPerms mojom.Perms) (mojom.Error, error) {
+	return toMojomError(verror.NewErrNotImplemented(nil)), nil
 }
 
-func (m *mojoImpl) CollectionDeleteRange(name string, start, limit []byte) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.CollectionDesc, "DeleteRange"))
+func (m *mojoImpl) CollectionDeleteRange(name, batchHandle string, start, limit []byte) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.CollectionDesc, "DeleteRange"))
 	stub, err := m.getCollection(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.DeleteRange(ctx, call, noSchema, start, limit)
+	err = stub.DeleteRange(ctx, call, start, limit)
 	return toMojoError(err), nil
 }
 
@@ -856,7 +769,7 @@ type scanStreamImpl struct {
 }
 
 func (s *scanStreamImpl) Send(item interface{}) error {
-	kv, ok := item.(nosqlwire.KeyValue)
+	kv, ok := item.(wire.KeyValue)
 	if !ok {
 		return verror.NewErrInternal(s.ctx)
 	}
@@ -881,8 +794,8 @@ func (s *scanStreamImpl) Recv(_ interface{}) error {
 var _ rpc.Stream = (*scanStreamImpl)(nil)
 
 // TODO(nlacasse): Provide some way for the client to cancel the stream.
-func (m *mojoImpl) CollectionScan(name string, start, limit []byte, ptr mojom.ScanStream_Pointer) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.CollectionDesc, "Scan"))
+func (m *mojoImpl) CollectionScan(name, batchHandle string, start, limit []byte, ptr mojom.ScanStream_Pointer) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.CollectionDesc, "Scan"))
 	stub, err := m.getCollection(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
@@ -890,7 +803,7 @@ func (m *mojoImpl) CollectionScan(name string, start, limit []byte, ptr mojom.Sc
 
 	proxy := mojom.NewScanStreamProxy(ptr, bindings.GetAsyncWaiter())
 
-	collectionScanServerCallStub := &nosqlwire.CollectionScanServerCallStub{struct {
+	collectionScanServerCallStub := &wire.CollectionScanServerCallStub{struct {
 		rpc.Stream
 		rpc.ServerCall
 	}{
@@ -902,7 +815,7 @@ func (m *mojoImpl) CollectionScan(name string, start, limit []byte, ptr mojom.Sc
 	}}
 
 	go func() {
-		var err = stub.Scan(ctx, collectionScanServerCallStub, noSchema, start, limit)
+		var err = stub.Scan(ctx, collectionScanServerCallStub, start, limit)
 
 		// NOTE(nlacasse): Since we are already streaming, we send any error back to
 		// the client on the stream. The CollectionScan function itself should not
@@ -913,38 +826,26 @@ func (m *mojoImpl) CollectionScan(name string, start, limit []byte, ptr mojom.Sc
 	return mojom.Error{}, nil
 }
 
-func (m *mojoImpl) CollectionGetPrefixPermissions(name, key string) (mojom.Error, []mojom.PrefixPerms, error) {
-	return mojom.Error{}, nil, nil
-}
-
-func (m *mojoImpl) CollectionSetPrefixPermissions(name, prefix string, mPerms mojom.Perms) (mojom.Error, error) {
-	return mojom.Error{}, nil
-}
-
-func (m *mojoImpl) CollectionDeletePrefixPermissions(name, prefix string) (mojom.Error, error) {
-	return mojom.Error{}, nil
-}
-
 ////////////////////////////////////////
-// nosql.Row
+// Row
 
-func (m *mojoImpl) RowExists(name string) (mojom.Error, bool, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.RowDesc, "Exists"))
+func (m *mojoImpl) RowExists(name, batchHandle string) (mojom.Error, bool, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.RowDesc, "Exists"))
 	stub, err := m.getRow(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), false, nil
 	}
-	exists, err := stub.Exists(ctx, call, noSchema)
+	exists, err := stub.Exists(ctx, call)
 	return toMojoError(err), exists, nil
 }
 
-func (m *mojoImpl) RowGet(name string) (mojom.Error, []byte, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.RowDesc, "Get"))
+func (m *mojoImpl) RowGet(name, batchHandle string) (mojom.Error, []byte, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.RowDesc, "Get"))
 	stub, err := m.getRow(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	vomBytes, err := stub.Get(ctx, call, noSchema)
+	vomBytes, err := stub.Get(ctx, call)
 
 	var value []byte
 	if err := vom.Decode(vomBytes, &value); err != nil {
@@ -953,8 +854,8 @@ func (m *mojoImpl) RowGet(name string) (mojom.Error, []byte, error) {
 	return toMojoError(err), value, nil
 }
 
-func (m *mojoImpl) RowPut(name string, value []byte) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.RowDesc, "Put"))
+func (m *mojoImpl) RowPut(name, batchHandle string, value []byte) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.RowDesc, "Put"))
 	stub, err := m.getRow(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
@@ -967,16 +868,16 @@ func (m *mojoImpl) RowPut(name string, value []byte) (mojom.Error, error) {
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Put(ctx, call, noSchema, vomBytes)
+	err = stub.Put(ctx, call, vomBytes)
 	return toMojoError(err), nil
 }
 
-func (m *mojoImpl) RowDelete(name string) (mojom.Error, error) {
-	ctx, call := m.newCtxCall(name, methodDesc(nosqlwire.RowDesc, "Delete"))
+func (m *mojoImpl) RowDelete(name, batchHandle string) (mojom.Error, error) {
+	ctx, call := m.newCtxCall(name, methodDesc(wire.RowDesc, "Delete"))
 	stub, err := m.getRow(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Delete(ctx, call, noSchema)
+	err = stub.Delete(ctx, call)
 	return toMojoError(err), nil
 }
