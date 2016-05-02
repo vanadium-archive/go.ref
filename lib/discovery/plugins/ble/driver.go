@@ -44,6 +44,9 @@ type Driver interface {
 
 	// StopScan stops BLE scanning.
 	StopScan()
+
+	// DebugString return a human-readable string description of the driver.
+	DebugString() string
 }
 
 // A ScanHandler is used to deliver scan results.
