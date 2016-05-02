@@ -40,91 +40,74 @@ var (
 	idleGrace    time.Duration
 	daemon       bool
 	stop         bool
+	credentials  string
 )
 
 func main() {
+	cmdAgentD.Flags.StringVar(&credentials, constants.CredentialsFlag, os.Getenv(ref.EnvCredentials), fmt.Sprintf("Credentials directory.  Defaults to the %s environment variable.", ref.EnvCredentials))
 	cmdAgentD.Flags.Var(&versionToUse, constants.VersionFlag, "Version that the agent should use.  Will fail if the version is not in the range of supported versions (obtained from the --metadata flag)")
 	cmdAgentD.Flags.BoolVar(&daemon, constants.DaemonFlag, true, "Run the agent as a daemon (returns right away but leaves the agent running in the background)")
-	cmdAgentD.Flags.BoolVar(&stop, "stop", false, "Stop the agent serving the credentials, if any is running")
 	cmdAgentD.Flags.DurationVar(&idleGrace, constants.TimeoutFlag, 0, "How long the agent stays alive without any client connections. Zero implies no timeout.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdAgentD)
-}
-
-func init() {
-	cmdAgentD.Runner = cmdline.RunnerFunc(runAgentD)
 }
 
 var cmdAgentD = &cmdline.Command{
 	Name:  "v23agentd",
 	Short: "Holds a private key in memory and makes it available to other processes",
 	Long: `
-Command v23agentd runs the security agent daemon, which holds the private key,
-blessings and recognized roots of a principal in memory and makes the principal
-available to other processes.
+Command v23agentd manages the security agent daemon, which holds the private
+key, blessings and recognized roots of a principal in memory and makes the
+principal available to other processes.
 
 Other processes can access the agent credentials when V23_AGENT_PATH is set to
 <credential dir>/agent/sock.
 
+Without arguments, v23agentd starts the agent to exclusively serve the specified
+credentials.
+
 Exits right away if another agent is already serving the credentials.
-Exits when there are no processes accessing the credentials (after a grace period).
+Exits when there are no processes accessing the credentials (after a grace
+period).
 
 Example:
- $ v23agentd $HOME/.credentials
+ $ v23agentd --credentials=$HOME/.credentials
  $ V23_AGENT_PATH=$HOME/.credentials/agent/sock principal dump
 `,
-	ArgsName: "credentials",
-	ArgsLong: `
-The path for the directory containing the credentials to be served by the agent.
-`,
+	Children: []*cmdline.Command{cmdStop},
+}
+
+type runner func(*cmdline.Env, []string) error
+
+func (r runner) Run(env *cmdline.Env, args []string) error {
+	if credentials == "" {
+		return env.UsageErrorf("--%s must specify an existing credentials directory", constants.CredentialsFlag)
+	}
+	return r(env, args)
+}
+
+func init() {
+	cmdAgentD.Runner = runner(runAgentD)
 }
 
 func flagsFor(cmd *cmdline.Command) (ret []string) {
 	cmdAgentD.ParsedFlags.Visit(func(f *flag.Flag) {
-		if f.Name != constants.DaemonFlag {
+		switch f.Name {
+		case constants.DaemonFlag:
+		case constants.CredentialsFlag:
+		default:
 			ret = append(ret, fmt.Sprintf("--%s=%s", f.Name, f.Value))
 		}
 	})
 	return
 }
 
-func stopAgent(env *cmdline.Env, credsDir string) error {
-	commandsSock := filepath.Join(constants.AgentDir(credsDir), "commands")
-	switch _, err := os.Stat(commandsSock); {
-	case os.IsNotExist(err):
-		fmt.Fprintln(env.Stdout, "No agent appears to be running.")
-		return nil
-	case err != nil:
-		return err
-	}
-	cmds, err := net.Dial("unix", filepath.Join(constants.AgentDir(credsDir), "commands"))
-	if err != nil {
-		return err
-	}
-	defer cmds.Close()
-	if _, err := cmds.Write([]byte("EXIT\n")); err != nil {
-		return err
-	}
-	cmdsRead := bufio.NewScanner(cmds)
-	if cmdsRead.Scan() && cmdsRead.Text() != "OK" {
-		return fmt.Errorf("unexpected reply for EXIT command: %v", cmdsRead.Text())
-	}
-	return cmdsRead.Err()
-}
-
 func runAgentD(env *cmdline.Env, args []string) error {
 	if !version.Supported.Contains(versionToUse) {
 		return fmt.Errorf("version %v not in the supported range %v", versionToUse, version.Supported)
 	}
-	if len(args) != 1 {
-		return env.UsageErrorf("Expected exactly one argument: credentials")
-	}
-	credentials := args[0]
 
-	switch {
-	case stop:
-		return stopAgent(env, credentials)
-	case daemon:
+	if daemon {
 		return launcher.LaunchAgent(credentials, os.Args[0], true, flagsFor(cmdAgentD)...)
 	}
 
@@ -302,4 +285,38 @@ func idleWatch(env *cmdline.Env, ipc server.IPCState, noConnections chan struct{
 			idleReport <- idleDuration()
 		}
 	}
+}
+
+var cmdStop = &cmdline.Command{
+	Name:  "stop",
+	Short: "Stops the agent",
+	Long: `
+If an agent serving the specified credentials is running, stops the agent.  If
+none is running, does nothing.
+`,
+	Runner: runner(runStop),
+}
+
+func runStop(env *cmdline.Env, args []string) error {
+	commandsSock := filepath.Join(constants.AgentDir(credentials), "commands")
+	switch _, err := os.Stat(commandsSock); {
+	case os.IsNotExist(err):
+		fmt.Fprintf(env.Stdout, "No agent appears to be running for \"%s\".\n", credentials)
+		return nil
+	case err != nil:
+		return err
+	}
+	cmds, err := net.Dial("unix", commandsSock)
+	if err != nil {
+		return err
+	}
+	defer cmds.Close()
+	if _, err := cmds.Write([]byte("EXIT\n")); err != nil {
+		return err
+	}
+	cmdsRead := bufio.NewScanner(cmds)
+	if cmdsRead.Scan() && cmdsRead.Text() != "OK" {
+		return fmt.Errorf("unexpected reply for EXIT command: %v", cmdsRead.Text())
+	}
+	return cmdsRead.Err()
 }

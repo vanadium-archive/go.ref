@@ -30,7 +30,10 @@ func LaunchAgent(credsDir, agentBin string, printCredsEnv bool, flags ...string)
 		return fmt.Errorf("failed to create pipe: %v", err)
 	}
 	defer agentRead.Close()
-	cmd := exec.Command(agentBin, append(flags, fmt.Sprintf("--%s=false", constants.DaemonFlag), credsDir)...)
+	flags = append(flags,
+		fmt.Sprintf("--%s=false", constants.DaemonFlag),
+		fmt.Sprintf("--%s=%s", constants.CredentialsFlag, credsDir))
+	cmd := exec.Command(agentBin, flags...)
 	agentDir := constants.AgentDir(credsDir)
 	cmd.Dir = agentDir
 	if err := os.MkdirAll(agentDir, 0700); err != nil {

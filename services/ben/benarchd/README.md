@@ -11,9 +11,9 @@ jiri go install v.io/x/ref/services/ben/benarchd v.io/x/ref/services/ben/benup v
 cd ${JIRI_ROOT}/release/go/bin
 
 # Create dummy credentials to run all processes with
-./principal create --with-passphrase=false /tmp/bencreds bentesting
-./v23agentd /tmp/bencreds &
-export V23_AGENT_PATH=/tmp/bencreds/agent/sock
+export V23_CREDENTIALS=/tmp/bencreds
+./principal create --with-passphrase=false "${V23_CREDENTIALS}" bentesting
+./v23agentd
 
 # Start benarchd
 # And then visit http://localhost:14142 to browse the UI
@@ -28,5 +28,6 @@ go test -run NONE -bench . crypto/sha256 | ./benup --archiver=/127.0.0.1:14141
 
 # Cleanup when done
 kill $!
-unset V23_AGENT_PATH
+./v23agentd stop
+unset V23_CREDENTIALS
 ```

@@ -50,7 +50,7 @@ func setupCreds(sh *v23test.Shell, names ...string) (map[string]string, error) {
 }
 
 func startAgent(t *testing.T, sh *v23test.Shell, agentdbin, creds string) string {
-	agent := sh.Cmd(agentdbin, "--daemon=false", creds)
+	agent := sh.Cmd(agentdbin, "--daemon=false", "--credentials="+creds)
 	agent.Start()
 	agentSock := agent.S.ExpectVar(ref.EnvAgentPath)
 	if agent.S.Failed() {

@@ -21,7 +21,7 @@ import (
 func upComesAgentd(t *testing.T, sh *v23test.Shell, credsDir, password string) {
 	agentd := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/v23agentd")
 
-	agentC := sh.Cmd(agentd, "--daemon=false", credsDir)
+	agentC := sh.Cmd(agentd, "--daemon=false", "--credentials="+credsDir)
 	if len(password) > 0 {
 		agentC.SetStdinReader(strings.NewReader(password))
 	}
@@ -101,7 +101,7 @@ func TestMain(m *testing.M) {
 func upComesAgentdDaemon(t *testing.T, sh *v23test.Shell, credsDir, password string) {
 	agentd := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/v23agentd")
 
-	agentC := sh.Cmd(agentd, "--daemon", credsDir)
+	agentC := sh.Cmd(agentd, "--credentials="+credsDir)
 	if len(password) > 0 {
 		agentC.SetStdinReader(strings.NewReader(password))
 	}
@@ -111,7 +111,7 @@ func upComesAgentdDaemon(t *testing.T, sh *v23test.Shell, credsDir, password str
 func downComesAgentd(t *testing.T, sh *v23test.Shell, credsDir string) {
 	agentd := v23test.BuildGoPkg(sh, "v.io/x/ref/services/agent/v23agentd")
 
-	agentC := sh.Cmd(agentd, "--stop", credsDir)
+	agentC := sh.Cmd(agentd, "stop", "--credentials="+credsDir)
 	agentC.Run()
 }
 

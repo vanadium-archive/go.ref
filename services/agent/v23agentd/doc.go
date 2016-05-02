@@ -6,31 +6,37 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Command v23agentd runs the security agent daemon, which holds the private key,
-blessings and recognized roots of a principal in memory and makes the principal
-available to other processes.
+Command v23agentd manages the security agent daemon, which holds the private
+key, blessings and recognized roots of a principal in memory and makes the
+principal available to other processes.
 
 Other processes can access the agent credentials when V23_AGENT_PATH is set to
 <credential dir>/agent/sock.
+
+Without arguments, v23agentd starts the agent to exclusively serve the specified
+credentials.
 
 Exits right away if another agent is already serving the credentials. Exits when
 there are no processes accessing the credentials (after a grace period).
 
 Example:
- $ v23agentd $HOME/.credentials
+ $ v23agentd --credentials=$HOME/.credentials
  $ V23_AGENT_PATH=$HOME/.credentials/agent/sock principal dump
 
 Usage:
-   v23agentd [flags] credentials
+   v23agentd [flags]
+   v23agentd [flags] <command>
 
-The path for the directory containing the credentials to be served by the agent.
+The v23agentd commands are:
+   stop        Stops the agent
+   help        Display help for commands or topics
 
 The v23agentd flags are:
+ -credentials=
+   Credentials directory.  Defaults to the V23_CREDENTIALS environment variable.
  -daemon=true
    Run the agent as a daemon (returns right away but leaves the agent running in
    the background)
- -stop=false
-   Stop the agent serving the credentials, if any is running
  -timeout=0
    How long the agent stays alive without any client connections. Zero implies
    no timeout.
