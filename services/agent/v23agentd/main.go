@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/metadata"
 	"v.io/x/ref"
@@ -115,14 +114,7 @@ func runAgentD(env *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	// Create principal from credentials dir.  This is safe to do outside of
-	// lock since it doesn't mutate the principal.
-	p, err := server.LoadPrincipal(credentials)
-	if err != nil {
-		return fmt.Errorf("failed to create new principal from dir(%s): %v", credentials, err)
-	}
-	cleanup, commandChannels, ipc, err := initialize(env, p, credentials)
+	cleanup, commandChannels, ipc, err := initialize(env, credentials)
 	switch err {
 	case nil, errAlreadyRunning:
 		notifyParent(constants.ServingMsg)
@@ -162,7 +154,7 @@ var errAlreadyRunning = errors.New("already running")
 // initialize sets up the service to serve the principal.  Upon success, the
 // agent lock is locked and a cleanup function is returned (which includes
 // unlocking the agent lock).  Otherwise, an error is returned.
-func initialize(env *cmdline.Env, p security.Principal, credentials string) (func(), commandChannels, server.IPCState, error) {
+func initialize(env *cmdline.Env, credentials string) (func(), commandChannels, server.IPCState, error) {
 	agentDir := constants.AgentDir(credentials)
 	// Lock the credentials dir and then try to grab the agent lock.  We
 	// need to first lock the credentials dir before the agent lock in order
@@ -189,6 +181,10 @@ func initialize(env *cmdline.Env, p security.Principal, credentials string) (fun
 		return nil, commandChannels{}, nil, errAlreadyRunning
 	}
 	cleanup = push(cleanup, agentLock.Unlock)
+	p, err := server.LoadPrincipal(credentials)
+	if err != nil {
+		return nil, commandChannels{}, nil, fmt.Errorf("failed to create new principal from dir(%s): %v", credentials, err)
+	}
 	ipc, err := server.Serve(p, constants.SocketPath(credentials))
 	if err != nil {
 		return nil, commandChannels{}, nil, fmt.Errorf("Serve failed: %v", err)
