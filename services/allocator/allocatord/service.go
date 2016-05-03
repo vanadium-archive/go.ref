@@ -38,11 +38,7 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 		return "", verror.New(verror.ErrExist, ctx)
 	}
 
-	acl, err := accessList(ctx, call.Security())
-	if err != nil {
-		return "", err
-	}
-	cfg, cleanup, err := createDeploymentConfig(kName, mName, acl)
+	cfg, cleanup, err := createDeploymentConfig(ctx, kName, mName, call.Security())
 	defer cleanup()
 	if err != nil {
 		return "", err
@@ -79,11 +75,7 @@ func (i *allocatorImpl) Delete(ctx *context.T, call rpc.ServerCall, name string)
 	if _, err := vkube("kubectl", "get", "deployment", kName); err != nil {
 		return verror.New(verror.ErrNoExist, ctx)
 	}
-	acl, err := accessList(ctx, call.Security())
-	if err != nil {
-		return err
-	}
-	cfg, cleanup, err := createDeploymentConfig(kName, mName, acl)
+	cfg, cleanup, err := createDeploymentConfig(ctx, kName, mName, call.Security())
 	defer cleanup()
 	if err != nil {
 		return err
@@ -109,8 +101,33 @@ func (i *allocatorImpl) List(ctx *context.T, call rpc.ServerCall) ([]string, err
 	return []string{mName}, nil
 }
 
-func createDeploymentConfig(deploymentName, mountName, acl string) (string, func(), error) {
+func createDeploymentConfig(ctx *context.T, deploymentName, mountName string, call security.Call) (string, func(), error) {
 	cleanup := func() {}
+	acl, err := accessList(ctx, call)
+	if err != nil {
+		return "", cleanup, err
+	}
+	creatorInfo, err := creatorInfo(ctx, call)
+	if err != nil {
+		return "", cleanup, err
+	}
+
+	t, err := template.ParseFiles(deploymentTemplateFlag)
+	if err != nil {
+		return "", cleanup, err
+	}
+	data := struct {
+		AccessList  string
+		CreatorInfo string
+		MountName   string
+		Name        string
+	}{
+		AccessList:  acl,
+		CreatorInfo: creatorInfo,
+		MountName:   mountName,
+		Name:        deploymentName,
+	}
+
 	f, err := ioutil.TempFile("", "allocator-deployment-")
 	if err != nil {
 		return "", cleanup, err
@@ -118,19 +135,6 @@ func createDeploymentConfig(deploymentName, mountName, acl string) (string, func
 	defer f.Close()
 	cleanup = func() { os.Remove(f.Name()) }
 
-	t, err := template.ParseFiles(deploymentTemplateFlag)
-	if err != nil {
-		return "", cleanup, err
-	}
-	data := struct {
-		AccessList string
-		MountName  string
-		Name       string
-	}{
-		AccessList: acl,
-		MountName:  mountName,
-		Name:       deploymentName,
-	}
 	if err := t.Execute(f, data); err != nil {
 		return "", cleanup, err
 	}
@@ -161,6 +165,33 @@ func accessList(ctx *context.T, call security.Call) (string, error) {
 	}
 	// Remove the quotes.
 	return string(j[1 : len(j)-1]), nil
+}
+
+// creatorInfo returns a double encoded JSON access list that can be used as
+// annotation in a Deployment template, e.g.
+//   "annotations": {
+//     "v.io/allocatord/creator-info": {{.CreatorInfo}}
+//   }
+func creatorInfo(ctx *context.T, call security.Call) (string, error) {
+	var info struct {
+		Blessings []string `json:"blessings"`
+		Endpoint  string   `json:"endpoint"`
+	}
+	info.Blessings, _ = security.RemoteBlessingNames(ctx, call)
+	info.Endpoint = call.RemoteEndpoint().String()
+	j, err := json.Marshal(info)
+	if err != nil {
+		ctx.Errorf("json.Marshal(%#v) failed: %v", info, err)
+		return "", err
+	}
+	// JSON encode again, because the annotation is in a JSON template.
+	str := string(j)
+	j, err = json.Marshal(str)
+	if err != nil {
+		ctx.Errorf("json.Marshal(%#v) failed: %v", str, err)
+		return "", err
+	}
+	return string(j), nil
 }
 
 func vkube(args ...string) ([]byte, error) {
