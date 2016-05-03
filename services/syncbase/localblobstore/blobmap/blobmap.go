@@ -128,6 +128,14 @@ func New(ctx *context.T, stEngine, dir string) (bm *BlobMap, err error) {
 	return bm, err
 }
 
+// Open() returns a pointer to a BlobMap, backed by storage in directory dir, which must already exist.
+func Open(ctx *context.T, stEngine, dir string) (bm *BlobMap, err error) {
+	bm = new(BlobMap)
+	bm.dir = dir
+	bm.st, err = util.OpenStore(stEngine, dir, util.OpenOptions{CreateIfMissing: false, ErrorIfExists: false})
+	return bm, err
+}
+
 // Close() closes any files or other resources associated with *bm.
 // No other methods on bm may be called after Close().
 func (bm *BlobMap) Close() error {
