@@ -55,6 +55,11 @@ func typedConstWire(data *goData, v *vdl.Value) string {
 	typestr := typeGoWire(data, t)
 	if k == vdl.Optional {
 		if elem := v.Elem(); elem != nil {
+			// HACK: Don't dump the ampersand for the error type, since we're calling
+			// the verror.FromWire function to perform a conversion.
+			if t == vdl.ErrorType {
+				return typedConst(data, elem)
+			}
 			return "&" + typedConst(data, elem)
 		}
 		return "(" + typestr + ")(nil)" // results in (*Foo)(nil)
@@ -70,6 +75,13 @@ func typedConstWire(data *goData, v *vdl.Value) string {
 	// { } are used instead of ( ) for composites
 	switch k {
 	case vdl.Array, vdl.Struct:
+		if t == vdl.ErrorType.Elem() {
+			// HACK: We've already output the type name in untypedConstWire, so don't
+			// duplicate it here.
+			//
+			// TODO(toddw): Fix this hack.
+			return valstr
+		}
 		return typestr + valstr
 	case vdl.List, vdl.Set, vdl.Map:
 		// Special-case empty variable-length collections, which we generate as a type
@@ -219,7 +231,20 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 		if hasFields {
 			s += "\n"
 		}
-		return s + "}"
+		s += "}"
+		if t == vdl.ErrorType.Elem() {
+			// HACK: The error type is an interface in generated Go code, but we
+			// generate concrete error constants using the vdl.WireError struct.
+			// There's no way to infer this type, so we must include the type name
+			// here.  We also must convert into a regular error; vdl.WireError doesn't
+			// implement the error interface.
+			//
+			// We also hack typedConstWire to avoid duplicating the type name.
+			//
+			// TODO(toddw): Fix this hack.
+			s = data.Pkg("v.io/v23/verror") + "FromWire(" + typestr + s + ")"
+		}
+		return s
 	case vdl.Union:
 		ix, vf := v.UnionField()
 		var inner string

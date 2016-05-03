@@ -73,6 +73,14 @@ func UntypedConst(v *vdl.Value, pkgPath string, imports codegen.Imports) string 
 		return formatFloat(v.Float(), k)
 	case vdl.String:
 		return strconv.Quote(v.RawString())
+	case vdl.Enum:
+		typestr := ""
+		if t.Name() != "" {
+			typestr = Type(t, pkgPath, imports) + "."
+		}
+		return typestr + v.EnumLabel()
+	case vdl.TypeObject:
+		return "typeobject(" + Type(v.TypeObject(), pkgPath, imports) + ")"
 	case vdl.Array, vdl.List:
 		if v.IsZero() {
 			return "{}"
@@ -115,13 +123,6 @@ func UntypedConst(v *vdl.Value, pkgPath string, imports codegen.Imports) string 
 	case vdl.Union:
 		index, value := v.UnionField()
 		return "{" + t.Field(index).Name + ": " + UntypedConst(value, pkgPath, imports) + "}"
-	}
-	// Enum and TypeObject always require the typestr.
-	switch k {
-	case vdl.Enum:
-		return Type(t, pkgPath, imports) + "." + v.EnumLabel()
-	case vdl.TypeObject:
-		return "typeobject(" + Type(v.TypeObject(), pkgPath, imports) + ")"
 	default:
 		panic(fmt.Errorf("vdlgen.Const unhandled type: %v %v", k, t))
 	}

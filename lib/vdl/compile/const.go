@@ -203,7 +203,7 @@ func compileConst(what string, implicit *vdl.Type, pexpr parse.ConstExpr, file *
 		// Convert untyped const into the implicit type.
 		conv, err := c.Convert(implicit)
 		if err != nil {
-			env.prefixErrorf(file, pexpr.Pos(), err, "invalid %v", what)
+			env.prefixErrorf(file, pexpr.Pos(), err, "invalid %s", what)
 			return nil
 		}
 		c = conv

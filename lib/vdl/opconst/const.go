@@ -85,6 +85,9 @@ func Integer(x *big.Int) Const { return Const{x, nil} }
 // Rational returns an untyped rational Const.
 func Rational(x *big.Rat) Const { return Const{x, nil} }
 
+// TODO(toddw): Use big.Float to represent floating point, rather than big.Rat.
+// We'll still use big.Rat to represent rationals, e.g. integer division.
+
 // FromValue returns a typed Const based on value v.
 func FromValue(v *vdl.Value) Const {
 	if v.Type().IsBytes() {

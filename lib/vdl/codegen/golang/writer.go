@@ -329,7 +329,7 @@ func (g *genWrite) bodyStruct(tt *vdl.Type, arg namedArg) string {
 		field := tt.Field(i)
 		fieldArg := arg.Field(field)
 		zero := genIsZero{g.goData}
-		expr := zero.Expr(neZero, field.Type, fieldArg, field.Name, false)
+		expr := zero.Expr(ifNeZero, field.Type, fieldArg, field.Name)
 		// The second-to-last true parameter indicates that nil checks can be
 		// skipped, since we've already ensured the field isn't zero here.
 		fieldBody := g.body(field.Type, fieldArg, true, false)

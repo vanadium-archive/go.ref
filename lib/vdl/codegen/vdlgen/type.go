@@ -39,6 +39,9 @@ func Type(t *vdl.Type, pkgPath string, imports codegen.Imports) string {
 // the type of t disregarding its name.  Subtypes contained in t are output via
 // calls to Type.
 func BaseType(t *vdl.Type, pkgPath string, imports codegen.Imports) string {
+	if t == vdl.ErrorType {
+		return "error"
+	}
 	switch k := t.Kind(); k {
 	case vdl.Any, vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64, vdl.String, vdl.TypeObject:
 		// Built-in types are named the same as their kind.

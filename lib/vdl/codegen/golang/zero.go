@@ -47,13 +47,7 @@ func (g *genIsZero) Gen(def *compile.TypeDef) string {
 
 func (g *genIsZero) genDef(def *compile.TypeDef) string {
 	tt, arg := def.Type, namedArg{"x", false}
-	expr := g.ExprWire(eqZero, tt, arg, "", true)
-	if tt.Kind() == vdl.Bool {
-		// Special-case named bool types, since we'll get an expression like "x",
-		// but we need an explicit conversion since the type of x is the named bool
-		// type, not the built-in bool type.
-		expr = "bool(" + expr + ")"
-	}
+	expr := g.ExprWire(returnEqZero, tt, arg, "")
 	return fmt.Sprintf(`
 func (x %[1]s) VDLIsZero() bool {
 	return %[2]s
@@ -64,7 +58,7 @@ func (x %[1]s) VDLIsZero() bool {
 func (g *genIsZero) genArrayDef(def *compile.TypeDef) string {
 	tt := def.Type
 	elemArg := typedArg("elem", tt.Elem())
-	expr := g.Expr(neZero, tt.Elem(), elemArg, "", false)
+	expr := g.Expr(ifNeZero, tt.Elem(), elemArg, "")
 	return fmt.Sprintf(`
 func (x %[1]s) VDLIsZero() bool {
 	for _, elem := range x {
@@ -83,7 +77,7 @@ func (g *genIsZero) genStructDef(def *compile.TypeDef) string {
 func (x %[1]s) VDLIsZero() bool {`, def.Name)
 	for ix := 0; ix < tt.NumField(); ix++ {
 		field := tt.Field(ix)
-		expr := g.Expr(neZero, field.Type, arg.Field(field), field.Name, false)
+		expr := g.Expr(ifNeZero, field.Type, arg.Field(field), field.Name)
 		s += fmt.Sprintf(`
 	if %[1]s {
 		return false
@@ -101,7 +95,7 @@ func (g *genIsZero) genUnionDef(def *compile.TypeDef) string {
 	tt := def.Type
 	field0 := tt.Field(0)
 	fieldArg := typedArg("x.Value", field0.Type)
-	expr := g.Expr(eqZero, field0.Type, fieldArg, "", true)
+	expr := g.Expr(returnEqZero, field0.Type, fieldArg, "")
 	s := fmt.Sprintf(`
 func (x %[1]s%[2]s) VDLIsZero() bool {
 	return %[3]s
@@ -118,54 +112,63 @@ func (x %[1]s%[2]s) VDLIsZero() bool {
 	return s
 }
 
+// zeroExpr configures what type of zero expression to generate.
 type zeroExpr int
 
 const (
-	eqZero zeroExpr = iota // Generate equals-zero expression
-	neZero                 // Generate not-equals-zero expression
+	ifEqZero     = iota // Generate expression for "if x == 0 {" statement
+	ifNeZero            // Generate expression for "if x != 0 {" statement
+	returnEqZero        // Generate expression for "return x == 0" statement
+	returnNeZero        // Generate expression for "return x != 0" statement
 )
 
+func (ze zeroExpr) GenEqual() bool {
+	return ze == ifEqZero || ze == returnEqZero
+}
+func (ze zeroExpr) GenNotEqual() bool {
+	return !ze.GenEqual()
+}
+func (ze zeroExpr) GenIfStmt() bool {
+	return ze == ifEqZero || ze == ifNeZero
+}
+func (ze zeroExpr) GenReturnStmt() bool {
+	return !ze.GenIfStmt()
+}
+
 // Expr generates the Go code to check whether the arg, which has type tt, is
-// equal or not equal to zero.  The tmp string is appended to temporary variable
+// equal or not-equal to zero.  The tmp string is appended to temporary variable
 // names to make them unique.
 //
 // The returned expression is a boolean Go expression that evaluates whether arg
-// is zero or non-zero.  It is meant to be used in the following fashion in
-// generated code:
-//
-//   func foo() {
+// is zero or non-zero.  It is meant to be used like this:
 //     if <expr> {
 //       ...
 //     }
+// Or like this:
+//     return <expr>
 //
-// If the pretty flag is true, we return a prettier form of expr, with the
-// downside that expr is not valid in all contexts.  Examples:
-//
-//   // Pretty expr is:     "x == Foo{}"
-//   // Non-pretty expr is: "x == (Foo{})"
-//
-//   // Pretty expr is not valid here, must use non-pretty.
-//   if x == (Foo{}) {
-//     ...
-//   }
-//
-//   // Pretty expr is valid here.
-//   return x == Foo{}
-//
-// The problem with using the pretty expr in the first example is that a parsing
-// failure will occur in the generated Go code.
-func (g *genIsZero) Expr(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string, pretty bool) string {
+// The first argument ze describes whether the expression will be used in an
+// "if" or "return" statement, and whether it should evaluate to equal or
+// not-equal to zero.  The kind of statement affects the expression because of
+// Go's parsing and type safety rules.
+func (g *genIsZero) Expr(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string) string {
 	if native, wirePkg, ok := findNativeType(g.Env, tt); ok {
 		opNot, eq, ref := "", "==", arg.Ref()
-		if ze == neZero {
+		if ze.GenNotEqual() {
 			opNot, eq = "!", "!="
 		}
 		switch {
 		case native.Zero.Mode == vdltool.GoZeroModeUnique:
 			nType := nativeType(g.goData, native, wirePkg)
 			zeroValue := typedConstNativeZero(native.Kind, nType)
-			if k := native.Kind; !pretty && (k == vdltool.GoKindStruct || k == vdltool.GoKindArray) {
-				zeroValue = "(" + zeroValue + ")"
+			if ze.GenIfStmt() {
+				if k := native.Kind; k == vdltool.GoKindStruct || k == vdltool.GoKindArray {
+					// Without a special-case, we'll get a statement like:
+					//   if x == Foo{} {
+					// But that isn't valid Go code, so we change it to:
+					//   if x == (Foo{}) {
+					zeroValue = "(" + zeroValue + ")"
+				}
 			}
 			return ref + eq + zeroValue
 		case strings.HasPrefix(native.Zero.IsZero, "."):
@@ -177,22 +180,29 @@ func (g *genIsZero) Expr(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string, pr
 			return ""
 		}
 	}
-	return g.ExprWire(ze, tt, arg, tmp, pretty)
+	return g.ExprWire(ze, tt, arg, tmp)
 }
 
 // ExprWire is like Expr, but generates code for the wire type tt.
-func (g *genIsZero) ExprWire(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string, pretty bool) string {
+func (g *genIsZero) ExprWire(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string) string {
 	opNot, eq, cond, ref := "", "==", "||", arg.Ref()
-	if ze == neZero {
+	if ze.GenNotEqual() {
 		opNot, eq, cond = "!", "!=", "&&"
 	}
 	// Handle everything other than Array and Struct.
 	switch tt.Kind() {
 	case vdl.Bool:
-		if ze == neZero {
-			return ref
+		expr := "!" + ref // false is zero, while true is non-zero
+		if ze.GenNotEqual() {
+			expr = ref
 		}
-		return "!" + ref // false is zero, while true is non-zero
+		if ze.GenReturnStmt() && tt.Name() != "" {
+			// Special-case named bool types, since we'll get an expression like "x",
+			// but we need an explicit conversion since the type of x is the named
+			// bool type, not the built-in bool type.
+			expr = "bool(" + expr + ")"
+		}
+		return expr
 	case vdl.String:
 		return ref + eq + `""`
 	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64:
@@ -226,7 +236,11 @@ func (g *genIsZero) ExprWire(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string
 	// here, since native types were handled in Expr.
 	if isGoZeroValueUniqueWire(g.goData, tt) {
 		zeroValue := typedConstWire(g.goData, vdl.ZeroValue(tt))
-		if !pretty {
+		if ze.GenIfStmt() {
+			// Without a special-case, we'll get a statement like:
+			//   if x == Foo{} {
+			// But that isn't valid Go code, so we change it to:
+			//   if x == (Foo{}) {
 			zeroValue = "(" + zeroValue + ")"
 		}
 		return ref + eq + zeroValue

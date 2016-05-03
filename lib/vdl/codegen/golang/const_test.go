@@ -33,7 +33,7 @@ func TestConst(t *testing.T) {
 		{"Int64", vdl.IntValue(vdl.Int64Type, -777), `int64(-777)`},
 		{"Float32", vdl.FloatValue(vdl.Float32Type, 1.5), `float32(1.5)`},
 		{"Float64", vdl.FloatValue(vdl.Float64Type, 2.5), `float64(2.5)`},
-		{"Enum", vdl.EnumValue(tEnum, "B"), `TestEnumB`},
+		{"Enum", vdl.EnumValue(tEnum, 1), `TestEnumB`},
 		{"EmptyArray", vEmptyArray, "[3]string{}"},
 		{"EmptyList", vEmptyList, "[]string(nil)"},
 		{"EmptySet", vEmptySet, "map[string]struct{}(nil)"},

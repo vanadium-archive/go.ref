@@ -88,6 +88,13 @@ func typeGoWire(data *goData, t *vdl.Type) string {
 		}
 		return localIdent(data, def.File, def.Name)
 	}
+	// Special-cases to allow error constants.
+	switch {
+	case t == vdl.ErrorType.Elem():
+		return data.Pkg("v.io/v23/vdl") + "WireError"
+	case t == vdl.ErrorType.Elem().Field(1).Type:
+		return data.Pkg("v.io/v23/vdl") + "WireRetryCode"
+	}
 	// Otherwise recurse through the type.
 	switch t.Kind() {
 	case vdl.Optional:
@@ -143,6 +150,14 @@ func goAnyRepMode(pkg *compile.Package) goAnyRep {
 	return goAnyRepRawBytes
 }
 
+func skipOldEncDec(data *goData) bool {
+	// TODO(toddw): We will soon be removing the old gen_enc.go and gen_dec.go
+	// files, which generate the FillVDLTarget and MakeVDLTarget methods.  Disable
+	// them in the short-term for the vdltest package, since that uncovers corner
+	// cases that aren't worth fixing.
+	return data.Package.Path == "v.io/v23/vdl/vdltest"
+}
+
 // defineType returns the type definition for def.
 func defineType(data *goData, def *compile.TypeDef) string {
 	s := fmt.Sprintf("%stype %s ", def.Doc, def.Name)
@@ -194,11 +209,6 @@ func defineType(data *goData, def *compile.TypeDef) string {
 			"\n}) {"+
 			"\n}",
 			def.Name, commaEnumLabels("", t), qualifiedIdent(def.File, def.Name))
-		s += fmt.Sprintf("\n"+
-			"\nfunc (m *%[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
-			genEncDef(data, def.Type, "") +
-			"\n\treturn nil" +
-			"\n}"
 	case vdl.Struct:
 		s += "struct {"
 		for ix := 0; ix < t.NumField(); ix++ {
@@ -213,11 +223,6 @@ func defineType(data *goData, def *compile.TypeDef) string {
 			"\n}) {"+
 			"\n}",
 			def.Name, qualifiedIdent(def.File, def.Name))
-		s += fmt.Sprintf("\n"+
-			"\nfunc (m *%[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
-			genEncDef(data, def.Type, "") +
-			"\n\treturn nil" +
-			"\n}"
 	case vdl.Union:
 		s = fmt.Sprintf("type ("+
 			"\n\t// %[1]s represents any single field of the %[1]s union type."+
@@ -229,11 +234,13 @@ func defineType(data *goData, def *compile.TypeDef) string {
 			"\n\t\t// Name returns the field name."+
 			"\n\t\tName() string"+
 			"\n\t\t// __VDLReflect describes the %[1]s union type."+
-			"\n\t\t__VDLReflect(__%[1]sReflect)"+
-			"\n\t\tFillVDLTarget(%[4]sTarget, *%[4]sType) error"+
-			"\n\t\tVDLIsZero() bool"+
-			"\n\t\tVDLWrite(%[4]sEncoder) error"+
-			"\n\t}%[3]s", def.Name, docBreak(def.Doc), def.DocSuffix, data.Pkg("v.io/v23/vdl"))
+			"\n\t\t__VDLReflect(__%[1]sReflect)", def.Name, docBreak(def.Doc))
+		if !skipOldEncDec(data) {
+			s += fmt.Sprintf("\n\t\tFillVDLTarget(%[1]sTarget, *%[1]sType) error", data.Pkg("v.io/v23/vdl"))
+		}
+		s += fmt.Sprintf("\n\t\tVDLIsZero() bool"+
+			"\n\t\tVDLWrite(%[1]sEncoder) error"+
+			"\n\t}%[2]s", data.Pkg("v.io/v23/vdl"), def.DocSuffix)
 		for ix := 0; ix < t.NumField(); ix++ {
 			f := t.Field(ix)
 			s += fmt.Sprintf("\n\t// %[1]s%[2]s represents field %[2]s of the %[1]s union type."+
@@ -244,10 +251,11 @@ func defineType(data *goData, def *compile.TypeDef) string {
 		s += fmt.Sprintf("\n\t// __%[1]sReflect describes the %[1]s union type."+
 			"\n\t__%[1]sReflect struct {"+
 			"\n\t\tName string `vdl:%[2]q`"+
-			"\n\t\tType %[1]s"+
-			"\n\t\tUnionTargetFactory %[3]sTargetFactory"+
-			"\n\t\tUnion struct {", def.Name, qualifiedIdent(def.File, def.Name),
-			vdlutil.FirstRuneToLower(def.Name))
+			"\n\t\tType %[1]s", def.Name, qualifiedIdent(def.File, def.Name))
+		if !skipOldEncDec(data) {
+			s += fmt.Sprintf("\n\t\tUnionTargetFactory %[1]sTargetFactory", vdlutil.FirstRuneToLower(def.Name))
+		}
+		s += "\n\t\tUnion struct {"
 		for ix := 0; ix < t.NumField(); ix++ {
 			s += fmt.Sprintf("\n\t\t\t%[2]s %[1]s%[2]s", def.Name, t.Field(ix).Name)
 		}
@@ -259,16 +267,18 @@ func defineType(data *goData, def *compile.TypeDef) string {
 				"\nfunc (x %[1]s%[2]s) Name() string { return \"%[2]s\" }"+
 				"\nfunc (x %[1]s%[2]s) __VDLReflect(__%[1]sReflect) {}",
 				def.Name, f.Name, ix)
-			s += fmt.Sprintf("\n"+
-				"\nfunc (m %[1]s%[2]s) FillVDLTarget(t %[3]sTarget, tt *%[3]sType) error {",
-				def.Name, f.Name, data.Pkg("v.io/v23/vdl")) +
-				genEncDef(data, t, f.Name) +
-				"\n\treturn nil" +
-				"\n}"
-			s += fmt.Sprintf("\n"+
-				"\nfunc (m %s%s) MakeVDLTarget() %sTarget {", def.Name, f.Name, data.Pkg("v.io/v23/vdl")) +
-				"\n\treturn nil" +
-				"\n}"
+			if !skipOldEncDec(data) {
+				s += fmt.Sprintf("\n"+
+					"\nfunc (m %[1]s%[2]s) FillVDLTarget(t %[3]sTarget, tt *%[3]sType) error {",
+					def.Name, f.Name, data.Pkg("v.io/v23/vdl")) +
+					genEncDef(data, t, f.Name) +
+					"\n\treturn nil" +
+					"\n}"
+				s += fmt.Sprintf("\n"+
+					"\nfunc (m %s%s) MakeVDLTarget() %sTarget {", def.Name, f.Name, data.Pkg("v.io/v23/vdl")) +
+					"\n\treturn nil" +
+					"\n}"
+			}
 		}
 	default:
 		s += typeGo(data, def.BaseType) + def.DocSuffix
@@ -278,12 +288,22 @@ func defineType(data *goData, def *compile.TypeDef) string {
 			"\n}) {"+
 			"\n}",
 			def.Name, qualifiedIdent(def.File, def.Name))
-		s += fmt.Sprintf("\n"+
-			"\nfunc (m *%[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
-			genEncDef(data, def.Type, "") +
-			"\n\treturn nil" +
-			"\n}"
 	}
+	if !skipOldEncDec(data) {
+		if def.Type.Kind() != vdl.Union {
+			s += fmt.Sprintf("\n"+
+				"\nfunc (m *%[1]s) FillVDLTarget(t %[2]sTarget, tt *%[2]sType) error {", def.Name, data.Pkg("v.io/v23/vdl")) +
+				genEncDef(data, def.Type, "") +
+				"\n\treturn nil" +
+				"\n}"
+		}
+		s += genMakeVDLTarget(data, def)
+	}
+	return s
+}
+
+func genMakeVDLTarget(data *goData, def *compile.TypeDef) string {
+	var s string
 	switch {
 	case def.Type.Kind() == vdl.Union:
 		// MakeVdlTarget defined for specific union fields above.

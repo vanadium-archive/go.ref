@@ -213,7 +213,9 @@ func makeABStruct() *vdl.Value {
 
 func makeEnumXYZ(name, label string) *vdl.Value {
 	t := vdl.NamedType(name, vdl.EnumType("X", "Y", "Z"))
-	return vdl.EnumValue(t, label)
+	e := vdl.ZeroValue(t)
+	e.AssignEnumLabel(label)
+	return e
 }
 
 func makeInnerEnum(label string) *vdl.Value {
