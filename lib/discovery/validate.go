@@ -26,14 +26,14 @@ func validateKey(key string) error {
 		return errors.New("empty key")
 	}
 	if strings.HasPrefix(key, "_") {
-		return errors.New("key starts with '_'")
+		return fmt.Errorf("key starts with '_': %q", key)
 	}
 	for _, c := range key {
 		if c < 0x20 || c > 0x7e {
-			return errors.New("key is not printable US-ASCII")
+			return fmt.Errorf("key is not printable US-ASCII: %q", key)
 		}
 		if c == '=' {
-			return errors.New("key includes '='")
+			return fmt.Errorf("key includes '=': %q", key)
 		}
 	}
 	return nil
@@ -42,14 +42,14 @@ func validateKey(key string) error {
 // validateAttributes returns an error if the attributes are not suitable for advertising.
 func validateAttributes(attributes discovery.Attributes) error {
 	if len(attributes) > maxNumAttributes {
-		return errors.New("too many")
+		return fmt.Errorf("too many: %d > %d", len(attributes), maxNumAttributes)
 	}
 	for k, v := range attributes {
 		if err := validateKey(k); err != nil {
 			return err
 		}
 		if !utf8.ValidString(v) {
-			return errors.New("value is not valid UTF-8 string")
+			return fmt.Errorf("value is not valid UTF-8 string: %q", v)
 		}
 	}
 	return nil
@@ -58,14 +58,14 @@ func validateAttributes(attributes discovery.Attributes) error {
 // validateAttachments returns an error if the attachments are not suitable for advertising.
 func validateAttachments(attachments discovery.Attachments) error {
 	if len(attachments) > maxNumAttachments {
-		return errors.New("too many")
+		return fmt.Errorf("too many: %d > %d", len(attachments), maxNumAttachments)
 	}
 	for k, v := range attachments {
 		if err := validateKey(k); err != nil {
 			return err
 		}
 		if len(v) > maxAttachmentSize {
-			return errors.New("too large")
+			return fmt.Errorf("too large value for %q: %d > %d", k, len(v), maxAttachmentSize)
 		}
 	}
 	return nil
@@ -101,7 +101,7 @@ func validateAd(ad *discovery.Advertisement) error {
 		return fmt.Errorf("attachments not valid: %v", err)
 	}
 	if sizeOfAd(ad) > maxAdvertisementSize {
-		return errors.New("advertisement too large")
+		return fmt.Errorf("advertisement too large: %d > %d", sizeOfAd(ad), maxAdvertisementSize)
 	}
 	return nil
 }
