@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 
 	"v.io/v23/security"
@@ -27,7 +26,6 @@ import (
 
 var (
 	errNotADirectory = verror.Register(pkgPath+".errNotADirectory", verror.NoRetry, "{1:}{2:} {3} is not a directory{:_}")
-	errFilepathAbs   = verror.Register(pkgPath+".errAbsFailed", verror.NoRetry, "{1:}{2:} filepath.Abs failed for {3}")
 	errFindAgent     = verror.Register(pkgPath+".errFindAgent", verror.NoRetry, "{1:}{2:} couldn't find a suitable agent binary ({3}) or load principal in the address space of the current process ({4})")
 	errLaunchAgent   = verror.Register(pkgPath+".errLaunchAgent", verror.NoRetry, "{1:}{2:} couldn't launch agent ({3}) or load principal locally ({4})")
 	errLoadLocally   = verror.Register(pkgPath+".errLoadLocally", verror.NoRetry, "{1:}{2:} couldn't load principal in the address space of the current process{:_}")
@@ -86,13 +84,6 @@ func loadPrincipalLocally(credentials string) (agent.Principal, error) {
 func LoadPrincipal(credsDir string) (agent.Principal, error) {
 	if finfo, err := os.Stat(credsDir); err != nil || err == nil && !finfo.IsDir() {
 		return nil, verror.New(errNotADirectory, nil, credsDir)
-	}
-	// Use an absolute path to the credentials directory to avoid relying on
-	// a specific cwd setting when starting the agent.
-	if path, err := filepath.Abs(credsDir); err != nil {
-		return nil, verror.New(errFilepathAbs, nil, credsDir, err)
-	} else {
-		credsDir = path
 	}
 	sockPath := constants.SocketPath(credsDir)
 

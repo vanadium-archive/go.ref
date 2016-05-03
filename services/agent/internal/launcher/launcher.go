@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -20,11 +21,33 @@ import (
 
 const pkgPath = "v.io/x/ref/services/agent/internal/launcher"
 
-var errCantCreate = verror.Register(pkgPath+".errCantCreate", verror.NoRetry, "{1:}{2:} failed to create {3}{:_}")
+var (
+	errFilepathAbs = verror.Register(pkgPath+".errAbsFailed", verror.NoRetry, "{1:}{2:} filepath.Abs failed for {3}")
+	errCantCreate  = verror.Register(pkgPath+".errCantCreate", verror.NoRetry, "{1:}{2:} failed to create {3}{:_}")
+)
 
 // LaunchAgent launches the agent as a separate process and waits for it to
 // serve the principal.
 func LaunchAgent(credsDir, agentBin string, printCredsEnv bool, flags ...string) error {
+	// Use an absolute path to the credentials directory to avoid relying on
+	// a specific cwd setting when starting the agent.
+	if path, err := filepath.Abs(credsDir); err != nil {
+		return verror.New(errFilepathAbs, nil, credsDir, err)
+	} else {
+		credsDir = path
+	}
+	// Use an absolute path to the agent to avoid relying on a specific cwd
+	// setting when starting the agent.
+	agentBin, err := exec.LookPath(agentBin)
+	if err != nil {
+		return err
+	}
+	if path, err := filepath.Abs(agentBin); err != nil {
+		return verror.New(errFilepathAbs, nil, agentBin, err)
+	} else {
+		agentBin = path
+	}
+
 	agentRead, agentWrite, err := os.Pipe()
 	if err != nil {
 		return fmt.Errorf("failed to create pipe: %v", err)
