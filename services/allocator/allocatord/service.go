@@ -38,10 +38,11 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 		return "", verror.New(verror.ErrExist, ctx)
 	}
 
-	cfg, cleanup, err := createDeploymentConfig(
-		kName, mName,
-		accessList(ctx, call.Security()),
-	)
+	acl, err := accessList(ctx, call.Security())
+	if err != nil {
+		return "", err
+	}
+	cfg, cleanup, err := createDeploymentConfig(kName, mName, acl)
 	defer cleanup()
 	if err != nil {
 		return "", err
@@ -78,10 +79,11 @@ func (i *allocatorImpl) Delete(ctx *context.T, call rpc.ServerCall, name string)
 	if _, err := vkube("kubectl", "get", "deployment", kName); err != nil {
 		return verror.New(verror.ErrNoExist, ctx)
 	}
-	cfg, cleanup, err := createDeploymentConfig(
-		kName, mName,
-		accessList(ctx, call.Security()),
-	)
+	acl, err := accessList(ctx, call.Security())
+	if err != nil {
+		return err
+	}
+	cfg, cleanup, err := createDeploymentConfig(kName, mName, acl)
 	defer cleanup()
 	if err != nil {
 		return err
@@ -139,7 +141,7 @@ func createDeploymentConfig(deploymentName, mountName, acl string) (string, func
 // Deployment template that contains something like:
 //   "--v23.permissions.literal={\"Admin\": {{.AccessList}} }"
 // The access list include the caller of the RPC.
-func accessList(ctx *context.T, call security.Call) string {
+func accessList(ctx *context.T, call security.Call) (string, error) {
 	var acl access.AccessList
 	b, _ := security.RemoteBlessingNames(ctx, call)
 	for _, blessing := range conventions.ParseBlessingNames(b...) {
@@ -148,15 +150,17 @@ func accessList(ctx *context.T, call security.Call) string {
 	j, err := json.Marshal(acl)
 	if err != nil {
 		ctx.Errorf("json.Marshal(%#v) failed: %v", acl, err)
+		return "", err
 	}
 	// JSON encode again, because the access list is in a JSON template.
 	str := string(j)
 	j, err = json.Marshal(str)
 	if err != nil {
 		ctx.Errorf("json.Marshal(%#v) failed: %v", str, err)
+		return "", err
 	}
 	// Remove the quotes.
-	return string(j[1 : len(j)-1])
+	return string(j[1 : len(j)-1]), nil
 }
 
 func vkube(args ...string) ([]byte, error) {

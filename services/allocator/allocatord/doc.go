@@ -17,7 +17,8 @@ The allocatord flags are:
  -name=
    Name to publish for this service.
  -server-name=
-   Name of the servers to allocate.
+   Name of the servers to allocate. This name is part of the published names in
+   the Vanadium namespace and the names of the Deployments in Kubernetes.
  -trim-mount-prefix=dev.v.io:u:
    The server's mount name is users/<userid>, where <userid> is the caller's
    blessing names minus the value of --trim-mount-prefix.

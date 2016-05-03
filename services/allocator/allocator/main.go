@@ -107,9 +107,6 @@ var cmdList = &cmdline.Command{
 }
 
 func runList(ctx *context.T, env *cmdline.Env, args []string) error {
-	if expected, got := 0, len(args); got != expected {
-		return env.UsageErrorf("list: incorrect number of arguments, got %d, expected %d", got, expected)
-	}
 	names, err := allocator.AllocatorClient(flagAllocator).List(ctx)
 	if err != nil {
 		return err

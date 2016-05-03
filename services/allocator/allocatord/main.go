@@ -37,7 +37,7 @@ var (
 
 func main() {
 	cmdRoot.Flags.StringVar(&nameFlag, "name", "", "Name to publish for this service.")
-	cmdRoot.Flags.StringVar(&serverNameFlag, "server-name", "", "Name of the servers to allocate.")
+	cmdRoot.Flags.StringVar(&serverNameFlag, "server-name", "", "Name of the servers to allocate. This name is part of the published names in the Vanadium namespace and the names of the Deployments in Kubernetes.")
 	cmdRoot.Flags.StringVar(&deploymentTemplateFlag, "deployment-template", "", "The template for the deployment of the servers to allocate.")
 	cmdRoot.Flags.StringVar(&trimMountNamePrefixFlag, "trim-mount-prefix", "dev.v.io:u:", "The server's mount name is users/<userid>, where <userid> is the caller's blessing names minus the value of --trim-mount-prefix.")
 	cmdRoot.Flags.StringVar(&vkubeBinFlag, "vkube", "vkube", "The vkube binary to use.")
@@ -47,6 +47,11 @@ func main() {
 }
 
 func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
+	if len(serverNameFlag) > 30 {
+		// The names in Kubernetes have to be 63 characters or less. We
+		// use <server-name>-<md5> as name, where "-<md5>" is 33 chars.
+		return env.UsageErrorf("--server-name value too long. Must be <= 30 characters")
+	}
 	ctx, server, err := v23.WithNewServer(
 		ctx,
 		nameFlag,
