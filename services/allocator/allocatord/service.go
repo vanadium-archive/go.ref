@@ -30,8 +30,10 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	ctx.Infof("Create() called by %v", b)
 
-	kName := kubeName(ctx, call.Security())
-	mName := mountName(ctx, call.Security())
+	mName, kName, err := names(ctx, call.Security())
+	if err != nil {
+		return "", err
+	}
 
 	// TODO(rthellend): Add limit on the total number of servers.
 	if _, err := vkube("kubectl", "get", "deployment", kName); err == nil {
@@ -66,8 +68,10 @@ func (i *allocatorImpl) Delete(ctx *context.T, call rpc.ServerCall, name string)
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	ctx.Infof("Delete(%q) called by %v", name, b)
 
-	mName := mountName(ctx, call.Security())
-	kName := kubeName(ctx, call.Security())
+	mName, kName, err := names(ctx, call.Security())
+	if err != nil {
+		return err
+	}
 
 	if name != mName {
 		return verror.New(verror.ErrNoAccess, ctx)
@@ -93,7 +97,10 @@ func (i *allocatorImpl) Delete(ctx *context.T, call rpc.ServerCall, name string)
 func (i *allocatorImpl) List(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	ctx.Infof("List() called by %v", b)
-	kName, mName := kubeName(ctx, call.Security()), mountName(ctx, call.Security())
+	mName, kName, err := names(ctx, call.Security())
+	if err != nil {
+		return nil, err
+	}
 	if out, err := vkube("kubectl", "get", "deployment", kName); err != nil {
 		ctx.Infof("Couldn't find deployment %q: %s", kName, string(out))
 		return nil, nil

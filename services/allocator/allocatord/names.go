@@ -7,28 +7,43 @@ package main
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"strings"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/conventions"
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 )
 
-func kubeName(ctx *context.T, call security.Call) string {
+// names returns the mount name and the kubernetes name for the calling user's
+// server.
+func names(ctx *context.T, call security.Call) (mountName string, kubeName string, err error) {
+	home := mountHome(ctx, call)
+	if home == "" {
+		err = verror.New(verror.ErrBadArg, ctx, "no mount home")
+		return
+	}
+
 	// Kubernetes names/labels are at most 63 characters long.
-	sum := md5.Sum([]byte(userId(ctx, call)))
-	return serverNameFlag + "-" + hex.EncodeToString(sum[:])
+	sum := md5.Sum([]byte(home))
+	kubeName = serverNameFlag + "-" + hex.EncodeToString(sum[:])
+
+	if roots := v23.GetNamespace(ctx).Roots(); len(roots) > 0 {
+		mountName = naming.Join(roots[0], home, serverNameFlag)
+	} else {
+		mountName = naming.Join(home, serverNameFlag)
+	}
+	return
 }
 
-func mountName(ctx *context.T, call security.Call) string {
-	uid := strings.TrimPrefix(userId(ctx, call), trimMountNamePrefixFlag)
-	return naming.Join("users", uid, serverNameFlag)
-}
-
-// userId returns the remote user. Uses the same logic as mounttabled to ensure
-// that we use the correct mount name.
-func userId(ctx *context.T, call security.Call) string {
-	ids := conventions.GetClientUserIds(ctx, call)
-	return strings.Replace(ids[0], "/", "\\", 0)
+// mountHome returns the "Home directory" of the calling user.
+func mountHome(ctx *context.T, call security.Call) string {
+	b, _ := security.RemoteBlessingNames(ctx, call)
+	for _, blessing := range conventions.ParseBlessingNames(b...) {
+		if home := blessing.Home(); home != "" {
+			return home
+		}
+	}
+	return ""
 }
