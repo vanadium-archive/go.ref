@@ -434,7 +434,7 @@ func (c *Controller) startMounttabled() error {
 		// prevent the runtime from trying to listen on an ipv6 address, which
 		// is not supported on GCE.
 		"--v23.tcp.address=127.0.0.1:0",
-		//"--vmodule=*=2",
+		"--vpath=mounttable=3,namespace=3",
 	)
 	c.mtCmd.Start()
 	vars := c.mtCmd.AwaitVars("NAME")
