@@ -131,7 +131,7 @@ func NewController(ctx *context.T, opts Opts) (*Controller, error) {
 	return c, nil
 }
 
-// init initializes the controller.  It is safe to call multiple times.
+// init initializes the controller.
 func (c *Controller) init(ctx *context.T) error {
 	// Initialize rootDir.
 	if c.rootDir == "" {
@@ -144,46 +144,26 @@ func (c *Controller) init(ctx *context.T) error {
 	// Initialize identity provider.
 	c.identityProvider = testutil.NewIDProvider("root")
 
-	// Create blessings for mounttable.
-	mtCreds := filepath.Join(c.rootDir, "mounttable-creds")
-	p, err := vsecurity.CreatePersistentPrincipal(mtCreds, nil)
-	if err != nil {
+	// Start mounttabled.
+	if err := c.startMounttabled(); err != nil {
 		return err
 	}
-	if err = c.identityProvider.Bless(p, "mounttable"); err != nil {
-		return err
-	}
-
-	// Start mounttable and set namespace root.
-	opts := mounttablelib.Opts{}
-	c.mtCmd = c.sh.FuncCmd(mounttabledMain, opts)
-	if c.sh.Err != nil {
-		return c.sh.Err
-	}
-	c.mtCmd.Args = append(c.mtCmd.Args,
-		"--v23.credentials="+mtCreds,
-		// NOTE(nlacasse): We must set the tcp address to an ipv4 address to
-		// prevent the runtime from trying to listen on an ipv6 address, which
-		// is not supported on GCE.
-		"--v23.tcp.address=127.0.0.1:0",
-	)
-	c.mtCmd.Start()
-	vars := c.mtCmd.AwaitVars("NAME")
-	name := vars["NAME"]
-	if name == "" {
-		return fmt.Errorf("empty NAME variable returned by mounttable")
-	}
-	c.namespaceRoot = name
 
 	// Configure context for checker.
-	c.checkerCtx, err = c.configureContext(ctx, "checker")
-	if err != nil {
+	if checkerCtx, err := c.configureContext(ctx, "checker"); err != nil {
 		return err
+	} else {
+		c.checkerCtx = checkerCtx
 	}
 
 	// Configure context for controller.
-	c.ctx, err = c.configureContext(ctx, "controller")
-	return err
+	if ctx, err := c.configureContext(ctx, "controller"); err != nil {
+		return err
+	} else {
+		c.ctx = ctx
+	}
+
+	return nil
 }
 
 // TearDown stops all instances and the root mounttable.
@@ -421,6 +401,49 @@ func (c *Controller) newInstance(user *model.User, d *model.Device) (*instance, 
 		wd:            wd,
 	}
 	return inst, nil
+}
+
+// startMounttabled starts mounttabled and sets c.namespaceRoot with
+// mounttabled's endpoint.
+func (c *Controller) startMounttabled() error {
+	mtDir := filepath.Join(c.rootDir, "mounttabled")
+	mtCreds := filepath.Join(mtDir, "credentials")
+	if err := os.MkdirAll(mtCreds, 0755); err != nil {
+		return err
+	}
+
+	// Create blessings for mounttable.
+	p, err := vsecurity.CreatePersistentPrincipal(mtCreds, nil)
+	if err != nil {
+		return err
+	}
+	if err = c.identityProvider.Bless(p, "mounttable"); err != nil {
+		return err
+	}
+
+	// Start mounttable and set namespace root.
+	opts := mounttablelib.Opts{}
+	c.mtCmd = c.sh.FuncCmd(mounttabledMain, opts)
+	if c.sh.Err != nil {
+		return c.sh.Err
+	}
+	c.mtCmd.Args = append(c.mtCmd.Args,
+		"--log_dir="+mtDir,
+		"--v23.credentials="+mtCreds,
+		// NOTE(nlacasse): We must set the tcp address to an ipv4 address to
+		// prevent the runtime from trying to listen on an ipv6 address, which
+		// is not supported on GCE.
+		"--v23.tcp.address=127.0.0.1:0",
+		//"--vmodule=*=2",
+	)
+	c.mtCmd.Start()
+	vars := c.mtCmd.AwaitVars("NAME")
+	name := vars["NAME"]
+	if name == "" {
+		return fmt.Errorf("empty NAME variable returned by mounttable")
+	}
+	c.namespaceRoot = name
+	return nil
 }
 
 // configureContext returns a new context based off the given one, which is
