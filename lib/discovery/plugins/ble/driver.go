@@ -40,7 +40,7 @@ type Driver interface {
 	//
 	// It is guarantted that there is at most one active scan at any given time. That is,
 	// StopScan() will be called before starting a new scan.
-	StartScan(uuids []string, baseUuid, maskUUid string, handler ScanHandler) error
+	StartScan(uuids []string, baseUuid, maskUuid string, handler ScanHandler) error
 
 	// StopScan stops BLE scanning.
 	StopScan()

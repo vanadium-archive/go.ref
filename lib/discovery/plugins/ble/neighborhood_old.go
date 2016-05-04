@@ -59,11 +59,11 @@ type bleNeighborhood struct {
 	// Scanners out standing calls to Scan that need be serviced.  Each time a
 	// new device appears or disappears, the scanner is notified of the event.
 	// The key is the unique scanner id for the scanner.
-	scannersById map[int64]*scanner
+	scannersById map[int64]*scannerOLD
 
 	// scannersByService maps from human readable service uuid to a map of
 	// scanner id to scanner.
-	scannersByService map[string]map[int64]*scanner
+	scannersByService map[string]map[int64]*scannerOLD
 
 	// If both sides try to connect to each other at the same time, then only
 	// one will succeed and the other hangs forever.  This means that the side
@@ -93,8 +93,8 @@ func newBleNeighborhood(name string) (*bleNeighborhood, error) {
 		knownNeighbors:      make(map[string]*bleCacheEntry),
 		name:                name,
 		services:            make(map[string]*gatt.Service),
-		scannersById:        make(map[int64]*scanner),
-		scannersByService:   make(map[string]map[int64]*scanner),
+		scannersById:        make(map[int64]*scannerOLD),
+		scannersByService:   make(map[string]map[int64]*scannerOLD),
 		timeoutMap:          make(map[string]chan struct{}),
 		pendingStampMap:     make(map[string]string),
 		stopped:             make(chan struct{}),
@@ -167,7 +167,7 @@ func (b *bleNeighborhood) removeAdvertisement(adinfo *idiscovery.AdInfo) {
 
 func (b *bleNeighborhood) addScanner(uuid uuid.UUID) (chan *idiscovery.AdInfo, int64) {
 	ch := make(chan *idiscovery.AdInfo)
-	s := &scanner{
+	s := &scannerOLD{
 		uuid: uuid,
 		ch:   ch,
 	}
@@ -178,7 +178,7 @@ func (b *bleNeighborhood) addScanner(uuid uuid.UUID) (chan *idiscovery.AdInfo, i
 	key := uuid.String()
 	m, found := b.scannersByService[key]
 	if !found {
-		m = map[int64]*scanner{}
+		m = map[int64]*scannerOLD{}
 		b.scannersByService[key] = m
 	}
 	m[id] = s
