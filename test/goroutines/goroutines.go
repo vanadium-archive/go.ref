@@ -24,6 +24,7 @@ var ignoredGoroutines = []string{
 	"sync.(*WaitGroup).Done",
 	"security.newOpenSSLSigner.func",
 	"security.unmarshalPublicKeyImpl.func",
+	"net/http.(*Transport).dialConn",
 }
 
 type Goroutine struct {
@@ -71,6 +72,9 @@ func Parse(buf []byte, ignore bool) ([]*Goroutine, error) {
 
 func shouldIgnore(g *Goroutine) bool {
 	for _, ignored := range ignoredGoroutines {
+		if c := g.Creator; c != nil && strings.Contains(c.Call, ignored) {
+			return true
+		}
 		for _, f := range g.Stack {
 			if strings.Contains(f.Call, ignored) {
 				return true

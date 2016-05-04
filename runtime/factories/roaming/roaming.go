@@ -49,7 +49,8 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		return nil, nil, nil, err
 	}
 
-	if err := internal.InitCloudVM(); err != nil {
+	cancelCloud, err := internal.InitCloudVM()
+	if err != nil {
 		return nil, nil, nil, err
 	}
 
@@ -57,6 +58,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	discoveryFactory, err := dfactory.New(ctx)
 	if err != nil {
 		ac.Shutdown()
+		cancelCloud()
 		return nil, nil, nil, err
 	}
 
@@ -70,6 +72,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 
 	ishutdown := func() {
 		ac.Shutdown()
+		cancelCloud()
 		discoveryFactory.Shutdown()
 	}
 

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	_ "v.io/x/ref/runtime/factories/generic"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/runtime/protocols/debug"
 	"v.io/x/ref/services/xproxy/xproxy"
 	"v.io/x/ref/test"

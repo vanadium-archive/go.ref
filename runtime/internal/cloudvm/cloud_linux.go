@@ -37,21 +37,21 @@ var (
 	externalIP net.IP
 )
 
-func InitGCE(timeout time.Duration) {
+func InitGCE(timeout time.Duration, cancel <-chan struct{}) {
 	onceGCE.Do(func() {
 		if onAWS {
 			return
 		}
-		gceTest(timeout)
+		gceTest(timeout, cancel)
 	})
 }
 
-func InitAWS(timeout time.Duration) {
+func InitAWS(timeout time.Duration, cancel <-chan struct{}) {
 	onceAWS.Do(func() {
 		if onGCE {
 			return
 		}
-		awsTest(timeout)
+		awsTest(timeout, cancel)
 	})
 }
 
@@ -70,9 +70,9 @@ func ExternalIPAddress() net.IP {
 	return externalIP
 }
 
-func gceTest(timeout time.Duration) {
+func gceTest(timeout time.Duration, cancel <-chan struct{}) {
 	var err error
-	if externalIP, err = gceGetIP(gceUrl, timeout); err != nil {
+	if externalIP, err = gceGetIP(gceUrl, timeout, cancel); err != nil {
 		return
 	}
 
@@ -83,7 +83,7 @@ func gceTest(timeout time.Duration) {
 		{"system/gce/zone", "http://metadata.google.internal/computeMetadata/v1/instance/zone"},
 	}
 	for _, v := range vars {
-		body, err := gceGetMeta(v.url, timeout)
+		body, err := gceGetMeta(v.url, timeout, cancel)
 		if err != nil || body == "" {
 			return
 		}
@@ -92,20 +92,21 @@ func gceTest(timeout time.Duration) {
 	onGCE = true
 }
 
-func gceGetIP(url string, timeout time.Duration) (net.IP, error) {
-	body, err := gceGetMeta(url, timeout)
+func gceGetIP(url string, timeout time.Duration, cancel <-chan struct{}) (net.IP, error) {
+	body, err := gceGetMeta(url, timeout, cancel)
 	if err != nil {
 		return nil, err
 	}
 	return net.ParseIP(body), nil
 }
 
-func gceGetMeta(url string, timeout time.Duration) (string, error) {
+func gceGetMeta(url string, timeout time.Duration, cancel <-chan struct{}) (string, error) {
 	client := &http.Client{Timeout: timeout}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
 	}
+	req.Cancel = cancel
 	req.Header.Add("Metadata-Flavor", "Google")
 	resp, err := client.Do(req)
 	if err != nil {
@@ -125,12 +126,13 @@ func gceGetMeta(url string, timeout time.Duration) (string, error) {
 	return string(body), nil
 }
 
-func awsTest(timeout time.Duration) {
+func awsTest(timeout time.Duration, cancel <-chan struct{}) {
 	client := &http.Client{Timeout: timeout}
 	req, err := http.NewRequest("GET", awsUrl, nil)
 	if err != nil {
 		return
 	}
+	req.Cancel = cancel
 	resp, err := client.Do(req)
 	if err != nil {
 		return

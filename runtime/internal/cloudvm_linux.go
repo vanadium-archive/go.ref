@@ -34,29 +34,34 @@ var (
 // and future calls to CloudVMPublicAddress() will block until the
 // initialization is complete.
 //
-// Returns an error if EnvExpectGoogleComputeEngine is set and the metadata
-// server is inaccessible.
-func InitCloudVM() error {
+// Returns a function to cancel initialization.
+func InitCloudVM() (func(), error) {
 	mu.Lock()
 	if initialized {
 		mu.Unlock()
-		return nil
+		return func() {}, nil
 	}
 	initialized = true
+	cancel := make(chan struct{})
 	if os.Getenv(ref.EnvExpectGoogleComputeEngine) != "" {
 		defer mu.Unlock()
-		cloudvm.InitGCE(30 * time.Second)
+		cloudvm.InitGCE(30*time.Second, cancel)
 		if !cloudvm.RunningOnGCE() {
-			return verror.New(errNotGoogleComputeEngine, nil)
+			return func() {}, verror.New(errNotGoogleComputeEngine, nil)
 		}
-		return nil
+		return func() {}, nil
 	}
+	done := make(chan struct{})
 	go func() {
-		cloudvm.InitGCE(time.Second)
-		cloudvm.InitAWS(time.Second)
+		cloudvm.InitGCE(time.Second, cancel)
+		cloudvm.InitAWS(time.Second, cancel)
 		mu.Unlock()
+		close(done)
 	}()
-	return nil
+	return func() {
+		close(cancel)
+		<-done
+	}, nil
 }
 
 // CloudVMPublicAddress returns the public IP address of the Cloud VM instance

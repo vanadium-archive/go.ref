@@ -10,9 +10,9 @@ import (
 	"net"
 )
 
-// InitCloudVM initializes the CloudVM metadata.
-func InitCloudVM() error {
-	return nil
+// InitCloudVM is a no-op on this platform.
+func InitCloudVM() (func(), error) {
+	return func() {}, nil
 }
 
 // CloudVMPublicAddress returns the public IP address of the Cloud VM instance

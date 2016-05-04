@@ -53,17 +53,18 @@ func TestGCE(t *testing.T) {
 	addr, stop := startServer(t)
 	defer stop()
 	baseURL := "http://" + addr.String()
+	cancel := make(chan struct{})
 
-	if ip, err := gceGetIP(baseURL+"/404", time.Second); err == nil || ip != nil {
+	if ip, err := gceGetIP(baseURL+"/404", time.Second, cancel); err == nil || ip != nil {
 		t.Errorf("expected error, but not got nil")
 	}
-	if ip, err := gceGetIP(baseURL+"/200_not_gce", time.Second); err == nil || ip != nil {
+	if ip, err := gceGetIP(baseURL+"/200_not_gce", time.Second, cancel); err == nil || ip != nil {
 		t.Errorf("expected error, but not got nil")
 	}
-	if ip, err := gceGetIP(baseURL+"/gce_no_ip", time.Second); err != nil || ip != nil {
+	if ip, err := gceGetIP(baseURL+"/gce_no_ip", time.Second, cancel); err != nil || ip != nil {
 		t.Errorf("Unexpected result. Got (%v, %v), want nil:nil", ip, err)
 	}
-	if ip, err := gceGetIP(baseURL+"/gce_with_ip", time.Second); err != nil || ip.String() != "1.2.3.4" {
+	if ip, err := gceGetIP(baseURL+"/gce_with_ip", time.Second, cancel); err != nil || ip.String() != "1.2.3.4" {
 		t.Errorf("Unexpected result. Got (%v, %v), want nil:1.2.3.4", ip, err)
 	}
 }
