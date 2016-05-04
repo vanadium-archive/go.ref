@@ -33,19 +33,28 @@ var (
 )
 
 // LoadPrincipal returns the principal persisted in the given credentials
-// directory, prompting for a decryption passphrase in case the private key is
-// encrypted.
-func LoadPrincipal(credentials string) (security.Principal, error) {
-	p, err := vsecurity.LoadPersistentPrincipal(credentials, nil)
-	if verror.ErrorID(err) == vsecurity.ErrPassphraseRequired.ID {
-		var pass []byte
-		p, pass, err = handlePassphrase(credentials)
+// directory.  If the private key is encrypted, it prompts for a decryption
+// passphrase.  If the principal doesn't exist and create is true, it creates
+// the principal.
+func LoadPrincipal(credentials string, create bool) (security.Principal, error) {
+	switch p, err := vsecurity.LoadPersistentPrincipal(credentials, nil); {
+	case err == nil:
+		return p, nil
+	case os.IsNotExist(err):
+		if !create {
+			return nil, err
+		}
+		return handleDoesNotExist(credentials)
+	case verror.ErrorID(err) == vsecurity.ErrPassphraseRequired.ID:
+		p, pass, err := handlePassphrase(credentials)
 		// Zero passhphrase out so it doesn't stay in memory.
 		for i := range pass {
 			pass[i] = 0
 		}
+		return p, err
+	default:
+		return nil, err
 	}
-	return p, err
 }
 
 // LoadOrCreatePrincipal loads the principal persisted in the given credentials
@@ -57,7 +66,7 @@ func LoadPrincipal(credentials string) (security.Principal, error) {
 func LoadOrCreatePrincipal(credentials, newname string, withPassphrase bool) (security.Principal, []byte, error) {
 	p, err := vsecurity.LoadPersistentPrincipal(credentials, nil)
 	if os.IsNotExist(err) {
-		return handleDoesNotExist(credentials, newname, withPassphrase)
+		return handleDoesNotExistDeprecated(credentials, newname, withPassphrase)
 	}
 	if verror.ErrorID(err) == vsecurity.ErrPassphraseRequired.ID {
 		if !withPassphrase {
@@ -139,7 +148,26 @@ func ServeWithKeyManager(p security.Principal, keypath string, passphrase []byte
 	return i.Close, nil
 }
 
-func handleDoesNotExist(dir, newname string, withPassphrase bool) (security.Principal, []byte, error) {
+func handleDoesNotExist(dir string) (security.Principal, error) {
+	fmt.Println("Private key file does not exist. Creating new private key...")
+	pass, err := passphrase.Get("Enter passphrase (entering nothing will store unencrypted): ")
+	if err != nil {
+		return nil, verror.New(errCantReadPassphrase, nil, err)
+	}
+	defer func() {
+		// Zero passhphrase out so it doesn't stay in memory.
+		for i := range pass {
+			pass[i] = 0
+		}
+	}()
+	p, err := vsecurity.CreatePersistentPrincipal(dir, pass)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func handleDoesNotExistDeprecated(dir, newname string, withPassphrase bool) (security.Principal, []byte, error) {
 	fmt.Println("Private key file does not exist. Creating new private key...")
 	var pass []byte
 	if withPassphrase {

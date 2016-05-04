@@ -32,6 +32,8 @@ The v23agentd commands are:
    help        Display help for commands or topics
 
 The v23agentd flags are:
+ -create=false
+   Whether to create the credentials if missing.
  -credentials=
    Credentials directory.  Defaults to the V23_CREDENTIALS environment variable.
  -daemon=true

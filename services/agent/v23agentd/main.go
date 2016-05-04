@@ -40,10 +40,12 @@ var (
 	daemon       bool
 	stop         bool
 	credentials  string
+	createCreds  bool
 )
 
 func main() {
 	cmdAgentD.Flags.StringVar(&credentials, constants.CredentialsFlag, os.Getenv(ref.EnvCredentials), fmt.Sprintf("Credentials directory.  Defaults to the %s environment variable.", ref.EnvCredentials))
+	cmdAgentD.Flags.BoolVar(&createCreds, "create", false, "Whether to create the credentials if missing.")
 	cmdAgentD.Flags.Var(&versionToUse, constants.VersionFlag, "Version that the agent should use.  Will fail if the version is not in the range of supported versions (obtained from the --metadata flag)")
 	cmdAgentD.Flags.BoolVar(&daemon, constants.DaemonFlag, true, "Run the agent as a daemon (returns right away but leaves the agent running in the background)")
 	cmdAgentD.Flags.DurationVar(&idleGrace, constants.TimeoutFlag, 0, "How long the agent stays alive without any client connections. Zero implies no timeout.")
@@ -105,7 +107,18 @@ func runAgentD(env *cmdline.Env, args []string) error {
 	if !version.Supported.Contains(versionToUse) {
 		return fmt.Errorf("version %v not in the supported range %v", versionToUse, version.Supported)
 	}
-
+	switch _, err := os.Stat(credentials); {
+	case os.IsNotExist(err):
+		if createCreds {
+			if err := os.MkdirAll(credentials, 0700); err != nil {
+				return fmt.Errorf("failed to create credentials dir \"%s\": %v", credentials, err)
+			}
+		} else {
+			return fmt.Errorf("credentials dir \"%s\" does not exist", credentials)
+		}
+	case err != nil:
+		return fmt.Errorf("cannot access credentials dir \"%s\": %v", credentials, err)
+	}
 	if daemon {
 		return launcher.LaunchAgent(credentials, os.Args[0], true, flagsFor(cmdAgentD)...)
 	}
@@ -181,7 +194,7 @@ func initialize(env *cmdline.Env, credentials string) (func(), commandChannels, 
 		return nil, commandChannels{}, nil, errAlreadyRunning
 	}
 	cleanup = push(cleanup, agentLock.Unlock)
-	p, err := server.LoadPrincipal(credentials)
+	p, err := server.LoadPrincipal(credentials, createCreds)
 	if err != nil {
 		return nil, commandChannels{}, nil, fmt.Errorf("failed to create new principal from dir(%s): %v", credentials, err)
 	}
