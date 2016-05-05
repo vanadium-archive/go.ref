@@ -128,23 +128,24 @@ const (
 // interface{} representation, their generated server stub would fail on vom
 // decoding if the type isn't registered.
 func goAnyRepMode(pkg *compile.Package) goAnyRep {
-	switch {
-	case pkg.Path == "v.io/v23/vdl":
+	if strings.HasPrefix(pkg.Path, "v.io/v23/vom/testdata") {
+		// The vom/testdata/... packages use vdl.Value due to an import cycle: vom
+		// imports testdata/...
+		return goAnyRepValue
+	}
+	switch pkg.Path {
+	case "v.io/v23/vdl":
 		// The vdl package uses vdl.Value due to an import cycle: vom imports vdl.
 		return goAnyRepValue
-	case pkg.Path == "signature":
+	case "signature":
 		// The signature package uses vdl.Value for two reasons:
 		// - an import cycle: vom imports vdlroot imports signature
 		// - any is used for method tags, and these are used via reflection,
 		//   although interface{} is a reasonable alternative.
 		return goAnyRepValue
-	case strings.HasPrefix(pkg.Path, "v.io/v23/vom/testdata"):
-		// The vom/testdata/... packages use vdl.Value due to an import cycle: vom
-		// imports testdata/...
-		return goAnyRepValue
-	case pkg.Path == "v.io/v23/vdl/vdltest":
-		// The vdltest package uses interface{} for convenience in setting up test
-		// values.
+	case "v.io/v23/vdl/vdltest", "v.io/v23/vom/vomtest":
+		// The vdltest and vomtest packages use interface{} for convenience in
+		// setting up test values.
 		return goAnyRepInterface
 	}
 	return goAnyRepRawBytes

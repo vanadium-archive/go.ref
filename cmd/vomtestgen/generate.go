@@ -7,6 +7,9 @@
 
 package main
 
+// TODO(toddw): This tool is deprecated, and will soon be removed.  It is
+// replaced with the v.io/v23/vom/vomtest/internal/vomtestgen tool.
+
 import (
 	"bytes"
 	"fmt"
@@ -14,9 +17,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
-	"sort"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
