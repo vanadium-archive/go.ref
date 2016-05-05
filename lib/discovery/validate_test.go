@@ -131,6 +131,8 @@ func TestValidateAd(t *testing.T) {
 				Attributes: discovery.Attributes{
 					"k12345":  strings.Repeat("v", 100),
 					"k67890a": strings.Repeat("v", 100),
+					// TODO(jhahn): Remove this after rolling back this temporary increase of size.
+					"tmp": strings.Repeat("v", 1000),
 				},
 			},
 			false,

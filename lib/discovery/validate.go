@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	maxAdvertisementSize = 512
+	// TODO(jhahn): Temporarily increase the max size.
+	// Decrease to 512 when the address compression is ready.
+	maxAdvertisementSize = 1024
 	maxAttachmentSize    = 4096
 	maxNumAttributes     = 32
 	maxNumAttachments    = 32
