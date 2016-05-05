@@ -14,6 +14,8 @@ Usage:
 The allocatord flags are:
  -deployment-template=
    The template for the deployment of the servers to allocate.
+ -max-instances=10
+   The maximum total number of server instances to create.
  -name=
    Name to publish for this service.
  -server-name=

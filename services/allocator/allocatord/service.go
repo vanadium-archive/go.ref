@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 	"text/template"
 
 	"v.io/v23/context"
@@ -19,6 +20,13 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+)
+
+const pkgPath = "v.io/x/ref/services/allocator/allocatord"
+
+var (
+	errLimitExceeded       = verror.Register(pkgPath+".errLimitExceeded", verror.NoRetry, "{1:}{2:} limit exceeded")
+	errGlobalLimitExceeded = verror.Register(pkgPath+".errGlobalLimitExceeded", verror.NoRetry, "{1:}{2:} global limit exceeded")
 )
 
 type allocatorImpl struct{}
@@ -35,9 +43,18 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 		return "", err
 	}
 
-	// TODO(rthellend): Add limit on the total number of servers.
 	if _, err := vkube("kubectl", "get", "deployment", kName); err == nil {
-		return "", verror.New(verror.ErrExist, ctx)
+		return "", verror.New(errLimitExceeded, ctx)
+	}
+
+	// Enforce a limit on the total number of instances. This test is a
+	// little bit racy. It's possible that multiple calls to Create() will
+	// run concurrently and that we'll end up with more than
+	// maxInstancesFlag instances.
+	if n, err := countServerInstances(); err != nil {
+		return "", err
+	} else if n >= maxInstancesFlag {
+		return "", verror.New(errGlobalLimitExceeded, ctx)
 	}
 
 	cfg, cleanup, err := createDeploymentConfig(ctx, kName, mName, call.Security())
@@ -199,6 +216,28 @@ func creatorInfo(ctx *context.T, call security.Call) (string, error) {
 		return "", err
 	}
 	return string(j), nil
+}
+
+func countServerInstances() (int, error) {
+	var list struct {
+		Items []struct {
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+		} `json:"items"`
+	}
+	if out, err := vkube("kubectl", "get", "deployments", "-o", "json"); err != nil {
+		return 0, err
+	} else if err := json.Unmarshal(out, &list); err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, l := range list.Items {
+		if strings.HasPrefix(l.Metadata.Name, serverNameFlag+"-") {
+			count++
+		}
+	}
+	return count, nil
 }
 
 func vkube(args ...string) ([]byte, error) {
