@@ -2,70 +2,97 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
 // +build cgo
 
 // Syncbase C/Cgo API. Our strategy is to translate Cgo requests into Vanadium
 // stub requests, and Vanadium stub responses into Cgo responses. As part of
 // this procedure, we synthesize "fake" ctx and call objects to pass to the
 // Vanadium stubs.
+//
+// Implementation notes:
+// - All exported function and type names start with "X", to avoid colliding
+//   with desired client library names.
+// - Exported functions take input arguments by value, optional input arguments
+//   by pointer, and output arguments by pointer.
+// - Caller transfers ownership of all input arguments to callee; callee
+//   transfers ownership of all output arguments to caller. If a function
+//   returns an error, other output arguments need not be freed.
+// - Variables with Cgo-specific types have names that start with "c".
 
-package bridge_cgo
+// TODO(sadovsky): Prefix exported names with something better than "X", e.g.
+// with "v23_syncbase_".
+
+package main
 
 import (
+	"strings"
+
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	"v.io/v23/security/access"
 	"v.io/v23/services/permissions"
 	wire "v.io/v23/services/syncbase"
-	watchwire "v.io/v23/services/watch"
 	"v.io/v23/syncbase/util"
-	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
-	"v.io/v23/vtrace"
 	"v.io/x/ref/services/syncbase/bridge"
+	"v.io/x/ref/services/syncbase/syncbaselib"
 )
 
-// Global state, initialized by XInit.
-var b *Bridge
+/*
+#include "lib.h"
 
+static void CallXCollectionScanCallbacksOnKeyValue(XCollectionScanCallbacks cbs, XKeyValue kv) {
+  cbs.onKeyValue(cbs.hOnKeyValue, kv);
+}
+static void CallXCollectionScanCallbacksOnDone(XCollectionScanCallbacks cbs, XVError err) {
+  cbs.onDone(cbs.hOnKeyValue, cbs.hOnDone, err);
+}
+*/
+import "C"
+
+// Global state, initialized by XInit.
+var b *bridge.Bridge
+
+//export XInit
 func XInit() {
 	// TODO(sadovsky): Support shutdown?
-	ctx, _ = v23.Init()
-	srv, disp, _ = syncbaselib.Serve(d.ctx, opts)
+	ctx, _ := v23.Init()
+	srv, disp, _ := syncbaselib.Serve(ctx, syncbaselib.Opts{})
 	b = bridge.NewBridge(ctx, srv, disp)
 }
-
-// FIXME: All the code below needs to be updated to present a cgo API instead of
-// a mojo API.
 
 ////////////////////////////////////////
 // Glob utils
 
-func (m *mojoImpl) listChildren(name string) (mojom.Error, []string, error) {
-	ctx, call := m.NewCtxCall(name, rpc.MethodDesc{
+func listChildIds(name string, cIds *C.XIds, cErr *C.XVError) {
+	ctx, call := b.NewCtxCall(name, rpc.MethodDesc{
 		Name: "GlobChildren__",
 	})
-	stub, err := m.GetGlobber(ctx, call, name)
+	stub, err := b.GetGlobber(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil, nil
+		cErr.init(err)
+		return
 	}
-	gcsCall := &globChildrenServerCall{call, ctx, make([]string, 0)}
+	gcsCall := &globChildrenServerCall{call, ctx, make([]wire.Id, 0)}
 	g, err := glob.Parse("*")
 	if err != nil {
-		return toMojoError(err), nil, nil
+		cErr.init(err)
+		return
 	}
-	err = stub.GlobChildren__(ctx, gcsCall, g.Head())
-	return toMojoError(err), gcsCall.Results, nil
+	if err := stub.GlobChildren__(ctx, gcsCall, g.Head()); err != nil {
+		cErr.init(err)
+		return
+	}
+	cIds.init(gcsCall.Ids)
 }
 
 type globChildrenServerCall struct {
 	rpc.ServerCall
-	ctx     *context.T
-	Results []string
+	ctx *context.T
+	Ids []wire.Id
 }
 
 func (g *globChildrenServerCall) SendStream() interface {
@@ -75,525 +102,442 @@ func (g *globChildrenServerCall) SendStream() interface {
 }
 
 func (g *globChildrenServerCall) Send(reply naming.GlobChildrenReply) error {
-	if v, ok := reply.(naming.GlobChildrenReplyName); ok {
-		encName := v.Value[strings.LastIndex(v.Value, "/")+1:]
-		// Component names within object names are always encoded. See comment in
+	switch v := reply.(type) {
+	case *naming.GlobChildrenReplyName:
+		encId := v.Value[strings.LastIndex(v.Value, "/")+1:]
+		// Component ids within object names are always encoded. See comment in
 		// server/dispatcher.go for explanation.
-		name, ok := util.Decode(encName)
-		if !ok {
-			return verror.New(verror.ErrInternal, g.ctx, encName)
+		id, err := util.DecodeId(encId)
+		if err != nil {
+			// If this happens, there's a bug in the Syncbase server. Glob should
+			// return names with escaped components.
+			return verror.New(verror.ErrInternal, nil, err)
 		}
-		g.Results = append(g.Results, name)
+		g.Ids = append(g.Ids, id)
+	case *naming.GlobChildrenReplyError:
+		return verror.New(verror.ErrInternal, nil, v.Value.Error)
 	}
-
 	return nil
 }
 
 ////////////////////////////////////////
 // Service
 
-// TODO(sadovsky): All Mojo stub implementations return a nil error (the last
-// return value), since that error doesn't make it back to the IPC client. Chat
-// with rogulenko@ about whether we should change the Go Mojo stub generator to
-// drop these errors.
-func (m *mojoImpl) ServiceGetPermissions() (mojom.Error, mojom.Perms, string, error) {
-	ctx, call := m.NewCtxCall("", bridge.MethodDesc(permissions.ObjectDesc, "GetPermissions"))
-	stub, err := m.GetService(ctx, call)
+//export XServiceGetPermissions
+func XServiceGetPermissions(cPerms *C.XPermissions, cVersion *C.XString, cErr *C.XVError) {
+	ctx, call := b.NewCtxCall("", bridge.MethodDesc(permissions.ObjectDesc, "GetPermissions"))
+	stub, err := b.GetService(ctx, call)
 	if err != nil {
-		return toMojoError(err), mojom.Perms{}, "", nil
+		cErr.init(err)
+		return
 	}
-	vPerms, version, err := stub.GetPermissions(ctx, call)
+	perms, version, err := stub.GetPermissions(ctx, call)
 	if err != nil {
-		return toMojoError(err), mojom.Perms{}, "", nil
+		cErr.init(err)
+		return
 	}
-	mPerms, err := toMojoPerms(vPerms)
-	if err != nil {
-		return toMojoError(err), mojom.Perms{}, "", nil
-	}
-	return toMojoError(err), mPerms, version, nil
+	cPerms.init(perms)
+	cVersion.init(version)
 }
 
-func (m *mojoImpl) ServiceSetPermissions(mPerms mojom.Perms, version string) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall("", bridge.MethodDesc(permissions.ObjectDesc, "SetPermissions"))
-	stub, err := m.GetService(ctx, call)
+//export XServiceSetPermissions
+func XServiceSetPermissions(cPerms C.XPermissions, cVersion C.XString, cErr *C.XVError) {
+	perms := cPerms.toPermissions()
+	version := cVersion.toString()
+	ctx, call := b.NewCtxCall("", bridge.MethodDesc(permissions.ObjectDesc, "SetPermissions"))
+	stub, err := b.GetService(ctx, call)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	vPerms, err := toV23Perms(mPerms)
-	if err != nil {
-		return toMojoError(err), nil
-	}
-	err = stub.SetPermissions(ctx, call, vPerms, version)
-	return toMojoError(err), nil
+	cErr.init(stub.SetPermissions(ctx, call, perms, version))
 }
 
-func (m *mojoImpl) ServiceListDatabases() (mojom.Error, []mojom.Id, error) {
-	return m.listChildren("")
+//export XServiceListDatabases
+func XServiceListDatabases(cIds *C.XIds, cErr *C.XVError) {
+	listChildIds("", cIds, cErr)
 }
 
 ////////////////////////////////////////
 // Database
 
-func (m *mojoImpl) DbCreate(name string, mPerms mojom.Perms) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Create"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbCreate
+func XDbCreate(cName C.XString, cPerms C.XPermissions, cErr *C.XVError) {
+	name := cName.toString()
+	perms := cPerms.toPermissions()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Create"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	vPerms, err := toV23Perms(mPerms)
-	if err != nil {
-		return toMojoError(err), nil
-	}
-	err = stub.Create(ctx, call, nil, vPerms)
-	return toMojoError(err), nil
+	cErr.init(stub.Create(ctx, call, nil, perms))
 }
 
-func (m *mojoImpl) DbDestroy(name string) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Destroy"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbDestroy
+func XDbDestroy(cName C.XString, cErr *C.XVError) {
+	name := cName.toString()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Destroy"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	err = stub.Destroy(ctx, call)
-	return toMojoError(err), nil
+	cErr.init(stub.Destroy(ctx, call))
 }
 
-func (m *mojoImpl) DbExists(name string) (mojom.Error, bool, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Exists"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbExists
+func XDbExists(cName C.XString, cExists *bool, cErr *C.XVError) {
+	name := cName.toString()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Exists"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), false, nil
+		cErr.init(err)
+		return
 	}
 	exists, err := stub.Exists(ctx, call)
-	return toMojoError(err), exists, nil
-}
-
-func (m *mojoImpl) DbListCollections(name, batchHandle string) (mojom.Error, []string, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "ListCollections"))
-	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil, nil
+		cErr.init(err)
+		return
 	}
-	collections, err := stub.ListCollections(ctx, call)
-	return toMojoError(err), collections, nil
+	*cExists = exists
 }
 
-type execStreamImpl struct {
-	ctx   *context.T
-	proxy *mojom.ExecStream_Proxy
-}
-
-func (s *execStreamImpl) Send(item interface{}) error {
-	rb, ok := item.([]*vom.RawBytes)
-	if !ok {
-		return verror.NewErrInternal(s.ctx)
-	}
-
-	// TODO(aghassemi): Switch generic values on the wire from '[]byte' to 'any'.
-	// Currently, exec is the only method that uses 'any' rather than '[]byte'.
-	// https://github.com/vanadium/issues/issues/766
-	var values [][]byte
-	for _, raw := range rb {
-		var bytes []byte
-		// The value type can be either string (for column headers and row keys) or
-		// []byte (for values).
-		if raw.Type.Kind() == vdl.String {
-			var str string
-			if err := raw.ToValue(&str); err != nil {
-				return err
-			}
-			bytes = []byte(str)
-		} else {
-			if err := raw.ToValue(&bytes); err != nil {
-				return err
-			}
-		}
-		values = append(values, bytes)
-	}
-
-	r := mojom.Result{
-		Values: values,
-	}
-
-	// proxy.OnResult() blocks until the client acks the previous invocation,
-	// thus providing flow control.
-	return s.proxy.OnResult(r)
-}
-
-func (s *execStreamImpl) Recv(_ interface{}) error {
-	// This should never be called.
-	return verror.NewErrInternal(s.ctx)
-}
-
-var _ rpc.Stream = (*execStreamImpl)(nil)
-
-func (m *mojoImpl) DbExec(name, batchHandle, query string, params [][]byte, ptr mojom.ExecStream_Pointer) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Exec"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbListCollections
+func XDbListCollections(cName, cBatchHandle C.XString, cIds *C.XIds, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "ListCollections"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-
-	// TODO(ivanpi): For now, Dart always gives us []byte, and here we convert
-	// []byte to vom.RawBytes as required by Exec. This will need to change once
-	// we support VDL/VOM in Dart.
-	// https://github.com/vanadium/issues/issues/766
-	paramsVom := make([]*vom.RawBytes, len(params))
-	for i, p := range params {
-		var err error
-		if paramsVom[i], err = vom.RawBytesFromValue(p); err != nil {
-			return toMojoError(err), nil
-		}
+	ids, err := stub.ListCollections(ctx, call, batchHandle)
+	if err != nil {
+		cErr.init(err)
+		return
 	}
-
-	proxy := mojom.NewExecStreamProxy(ptr, bindings.GetAsyncWaiter())
-
-	execServerCallStub := &wire.DatabaseExecServerCallStub{struct {
-		rpc.Stream
-		rpc.ServerCall
-	}{
-		&execStreamImpl{
-			ctx:   ctx,
-			proxy: proxy,
-		},
-		call,
-	}}
-
-	go func() {
-		var err = stub.Exec(ctx, execServerCallStub, query, paramsVom)
-		// NOTE(nlacasse): Since we are already streaming, we send any error back
-		// to the client on the stream.  The Exec function itself should not
-		// return an error at this point.
-		proxy.OnDone(toMojoError(err))
-	}()
-
-	return mojom.Error{}, nil
+	cIds.init(ids)
 }
 
-func (m *mojoImpl) DbBeginBatch(name string, bo *mojom.BatchOptions) (mojom.Error, string, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "BeginBatch"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbBeginBatch
+func XDbBeginBatch(cName C.XString, cOpts C.XBatchOptions, cBatchHandle *C.XString, cErr *C.XVError) {
+	name := cName.toString()
+	opts := cOpts.toBatchOptions()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "BeginBatch"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), "", nil
+		cErr.init(err)
+		return
 	}
-	vbo := wire.BatchOptions{}
-	if bo != nil {
-		vbo.Hint = bo.Hint
-		vbo.ReadOnly = bo.ReadOnly
+	batchHandle, err := stub.BeginBatch(ctx, call, opts)
+	if err != nil {
+		cErr.init(err)
+		return
 	}
-	batchSuffix, err := stub.BeginBatch(ctx, call, vbo)
-	return toMojoError(err), batchSuffix, nil
+	cBatchHandle.init(string(batchHandle))
 }
 
-func (m *mojoImpl) DbCommit(name, batchHandle string) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Commit"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbCommit
+func XDbCommit(cName, cBatchHandle C.XString, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Commit"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	err = stub.Commit(ctx, call)
-	return toMojoError(err), nil
+	cErr.init(stub.Commit(ctx, call, batchHandle))
 }
 
-func (m *mojoImpl) DbAbort(name, batchHandle string) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Abort"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbAbort
+func XDbAbort(cName, cBatchHandle C.XString, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Abort"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	err = stub.Abort(ctx, call)
-	return toMojoError(err), nil
+	cErr.init(stub.Abort(ctx, call, batchHandle))
 }
 
-func (m *mojoImpl) DbGetPermissions(name string) (mojom.Error, mojom.Perms, string, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(permissions.ObjectDesc, "GetPermissions"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbGetPermissions
+func XDbGetPermissions(cName C.XString, cPerms *C.XPermissions, cVersion *C.XString, cErr *C.XVError) {
+	name := cName.toString()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(permissions.ObjectDesc, "GetPermissions"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), mojom.Perms{}, "", nil
+		cErr.init(err)
+		return
 	}
-	vPerms, version, err := stub.GetPermissions(ctx, call)
+	perms, version, err := stub.GetPermissions(ctx, call)
 	if err != nil {
-		return toMojoError(err), mojom.Perms{}, "", nil
+		cErr.init(err)
+		return
 	}
-	mPerms, err := toMojoPerms(vPerms)
-	if err != nil {
-		return toMojoError(err), mojom.Perms{}, "", nil
-	}
-	return toMojoError(err), mPerms, version, nil
+	cPerms.init(perms)
+	cVersion.init(version)
 }
 
-func (m *mojoImpl) DbSetPermissions(name string, mPerms mojom.Perms, version string) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(permissions.ObjectDesc, "SetPermissions"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbSetPermissions
+func XDbSetPermissions(cName C.XString, cPerms C.XPermissions, cVersion C.XString, cErr *C.XVError) {
+	name := cName.toString()
+	perms := cPerms.toPermissions()
+	version := cVersion.toString()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(permissions.ObjectDesc, "SetPermissions"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	vPerms, err := toV23Perms(mPerms)
+	cErr.init(stub.SetPermissions(ctx, call, perms, version))
+}
+
+// TODO(sadovsky): Add watch API.
+
+//export XDbGetResumeMarker
+func XDbGetResumeMarker(cName, cBatchHandle C.XString, cMarker *C.XBytes, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseWatcherDesc, "GetResumeMarker"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	err = stub.SetPermissions(ctx, call, vPerms, version)
-	return toMojoError(err), nil
-}
-
-type watchGlobStreamImpl struct {
-	ctx   *context.T
-	proxy *mojom.WatchGlobStream_Proxy
-}
-
-func (s *watchGlobStreamImpl) Send(item interface{}) error {
-	c, ok := item.(watchwire.Change)
-	if !ok {
-		return verror.NewErrInternal(s.ctx)
-	}
-	vc := syncbase.ToWatchChange(c)
-
-	var value []byte
-	if vc.ChangeType != DeleteChange {
-		if err := vc.Value(&value); err != nil {
-			return err
-		}
-	}
-	mc := mojom.WatchChange{
-		CollectionName: vc.Collection,
-		RowKey:         vc.Row,
-		ChangeType:     uint32(vc.ChangeType),
-		ValueBytes:     value,
-		ResumeMarker:   vc.ResumeMarker,
-		FromSync:       vc.FromSync,
-		Continued:      vc.Continued,
-	}
-
-	// proxy.OnChange() blocks until the client acks the previous invocation,
-	// thus providing flow control.
-	return s.proxy.OnChange(mc)
-}
-
-func (s *watchGlobStreamImpl) Recv(_ interface{}) error {
-	// This should never be called.
-	return verror.NewErrInternal(s.ctx)
-}
-
-var _ rpc.Stream = (*watchGlobStreamImpl)(nil)
-
-func (m *mojoImpl) DbWatchGlob(name string, mReq mojom.GlobRequest, ptr mojom.WatchGlobStream_Pointer) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(watchwire.GlobWatcherDesc, "WatchGlob"))
-	stub, err := m.GetDb(ctx, call, name)
+	marker, err := stub.GetResumeMarker(ctx, call, batchHandle)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-
-	var vReq = watchwire.GlobRequest{
-		Pattern:      mReq.Pattern,
-		ResumeMarker: watchwire.ResumeMarker(mReq.ResumeMarker),
-	}
-	proxy := mojom.NewWatchGlobStreamProxy(ptr, bindings.GetAsyncWaiter())
-
-	watchGlobServerCallStub := &watchwire.GlobWatcherWatchGlobServerCallStub{struct {
-		rpc.Stream
-		rpc.ServerCall
-	}{
-		&watchGlobStreamImpl{
-			ctx:   ctx,
-			proxy: proxy,
-		},
-		call,
-	}}
-
-	go func() {
-		var err = stub.WatchGlob(ctx, watchGlobServerCallStub, vReq)
-		// NOTE(nlacasse): Since we are already streaming, we send any error back
-		// to the client on the stream.  The WatchGlob function itself should not
-		// return an error at this point.
-		// NOTE(aghassemi): WatchGlob does not terminate unless there is an error.
-		proxy.OnError(toMojoError(err))
-	}()
-
-	return mojom.Error{}, nil
-}
-
-func (m *mojoImpl) DbGetResumeMarker(name, batchHandle string) (mojom.Error, []byte, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseWatcherDesc, "GetResumeMarker"))
-	stub, err := m.GetDb(ctx, call, name)
-	if err != nil {
-		return toMojoError(err), nil, nil
-	}
-	marker, err := stub.GetResumeMarker(ctx, call)
-	return toMojoError(err), marker, nil
+	cMarker.init(marker)
 }
 
 ////////////////////////////////////////
 // SyncgroupManager
 
-func (m *mojoImpl) DbGetSyncgroupNames(name string) (mojom.Error, []string, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupNames"))
-	stub, err := m.GetDb(ctx, call, name)
+// FIXME(sadovsky): Implement "NewErrNotImplemented" methods below.
+
+//export XDbGetSyncgroupNames
+func XDbGetSyncgroupNames(cName C.XString, cIds *C.XIds, cErr *C.XVError) {
+	name := cName.toString()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupNames"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil, nil
+		cErr.init(err)
+		return
 	}
-	names, err := stub.GetSyncgroupNames(ctx, call)
-	return toMojoError(err), names, nil
+	cErr.init(verror.NewErrNotImplemented(nil))
+	_ = stub // prevent "declared and not used"
 }
 
-func (m *mojoImpl) DbCreateSyncgroup(name, sgName string, spec mojom.SyncgroupSpec, myInfo mojom.SyncgroupMemberInfo) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "CreateSyncgroup"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbCreateSyncgroup
+func XDbCreateSyncgroup(cName, cSgName C.XString, cSpec C.XSyncgroupSpec, cMyInfo C.XSyncgroupMemberInfo, cErr *C.XVError) {
+	name, sgName := cName.toString(), cSgName.toString()
+	spec := cSpec.toSyncgroupSpec()
+	myInfo := cMyInfo.toSyncgroupMemberInfo()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "CreateSyncgroup"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	v23Spec, err := toV23SyncgroupSpec(spec)
-	if err != nil {
-		return toMojoError(err), nil
-	}
-	return toMojoError(stub.CreateSyncgroup(ctx, call, sgName, v23Spec, toV23SyncgroupMemberInfo(myInfo))), nil
+	cErr.init(verror.NewErrNotImplemented(nil))
+	_, _, _, _ = sgName, spec, myInfo, stub // prevent "declared and not used"
 }
 
-func (m *mojoImpl) DbJoinSyncgroup(name, sgName string, myInfo mojom.SyncgroupMemberInfo) (mojom.Error, mojom.SyncgroupSpec, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "JoinSyncgroup"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbJoinSyncgroup
+func XDbJoinSyncgroup(cName, cSgName C.XString, cMyInfo C.XSyncgroupMemberInfo, cSpec *C.XSyncgroupSpec, cErr *C.XVError) {
+	name, sgName := cName.toString(), cSgName.toString()
+	myInfo := cMyInfo.toSyncgroupMemberInfo()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "JoinSyncgroup"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), mojom.SyncgroupSpec{}, nil
+		cErr.init(err)
+		return
 	}
-	spec, err := stub.JoinSyncgroup(ctx, call, sgName, toV23SyncgroupMemberInfo(myInfo))
-	if err != nil {
-		return toMojoError(err), mojom.SyncgroupSpec{}, nil
-	}
-	mojoSpec, err := toMojoSyncgroupSpec(spec)
-	if err != nil {
-		return toMojoError(err), mojom.SyncgroupSpec{}, nil
-	}
-	return toMojoError(err), mojoSpec, nil
+	cErr.init(verror.NewErrNotImplemented(nil))
+	_, _, _ = sgName, myInfo, stub // prevent "declared and not used"
 }
 
-func (m *mojoImpl) DbLeaveSyncgroup(name, sgName string) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "LeaveSyncgroup"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbLeaveSyncgroup
+func XDbLeaveSyncgroup(cName, cSgName C.XString, cErr *C.XVError) {
+	name, sgName := cName.toString(), cSgName.toString()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "LeaveSyncgroup"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	return toMojoError(stub.LeaveSyncgroup(ctx, call, sgName)), nil
+	cErr.init(verror.NewErrNotImplemented(nil))
+	_, _ = sgName, stub // prevent "declared and not used"
 }
 
-func (m *mojoImpl) DbDestroySyncgroup(name, sgName string) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "DestroySyncgroup"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbDestroySyncgroup
+func XDbDestroySyncgroup(cName, cSgName C.XString, cErr *C.XVError) {
+	name, sgName := cName.toString(), cSgName.toString()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "DestroySyncgroup"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	return toMojoError(stub.DestroySyncgroup(ctx, call, sgName)), nil
+	cErr.init(verror.NewErrNotImplemented(nil))
+	_, _ = sgName, stub // prevent "declared and not used"
 }
 
-func (m *mojoImpl) DbEjectFromSyncgroup(name, sgName string, member string) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "EjectFromSyncgroup"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbEjectFromSyncgroup
+func XDbEjectFromSyncgroup(cName, cSgName, cMember C.XString, cErr *C.XVError) {
+	name, sgName, member := cName.toString(), cSgName.toString(), cMember.toString()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "EjectFromSyncgroup"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	return toMojoError(stub.EjectFromSyncgroup(ctx, call, sgName, member)), nil
+	cErr.init(verror.NewErrNotImplemented(nil))
+	_, _, _ = sgName, member, stub // prevent "declared and not used"
 }
 
-func (m *mojoImpl) DbGetSyncgroupSpec(name, sgName string) (mojom.Error, mojom.SyncgroupSpec, string, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupSpec"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbGetSyncgroupSpec
+func XDbGetSyncgroupSpec(cName, cSgName C.XString, cSpec *C.XSyncgroupSpec, cVersion *C.XString, cErr *C.XVError) {
+	name, sgName := cName.toString(), cSgName.toString()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupSpec"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), mojom.SyncgroupSpec{}, "", nil
+		cErr.init(err)
+		return
 	}
-	spec, version, err := stub.GetSyncgroupSpec(ctx, call, sgName)
-	mojoSpec, err := toMojoSyncgroupSpec(spec)
-	if err != nil {
-		return toMojoError(err), mojom.SyncgroupSpec{}, "", nil
-	}
-	return toMojoError(err), mojoSpec, version, nil
+	cErr.init(verror.NewErrNotImplemented(nil))
+	_, _ = sgName, stub // prevent "declared and not used"
 }
 
-func (m *mojoImpl) DbSetSyncgroupSpec(name, sgName string, spec mojom.SyncgroupSpec, version string) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "SetSyncgroupSpec"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbSetSyncgroupSpec
+func XDbSetSyncgroupSpec(cName, cSgName C.XString, cSpec C.XSyncgroupSpec, cVersion C.XString, cErr *C.XVError) {
+	name, sgName := cName.toString(), cSgName.toString()
+	spec := cSpec.toSyncgroupSpec()
+	version := cVersion.toString()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "SetSyncgroupSpec"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	v23Spec, err := toV23SyncgroupSpec(spec)
-	if err != nil {
-		return toMojoError(err), nil
-	}
-	return toMojoError(stub.SetSyncgroupSpec(ctx, call, sgName, v23Spec, version)), nil
+	cErr.init(verror.NewErrNotImplemented(nil))
+	_, _, _, _ = sgName, spec, version, stub // prevent "declared and not used"
 }
 
-func (m *mojoImpl) DbGetSyncgroupMembers(name, sgName string) (mojom.Error, map[string]mojom.SyncgroupMemberInfo, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupMembers"))
-	stub, err := m.GetDb(ctx, call, name)
+//export XDbGetSyncgroupMembers
+func XDbGetSyncgroupMembers(cName, cSgName C.XString, cMembers *C.XSyncgroupMemberInfoMap, cErr *C.XVError) {
+	name, sgName := cName.toString(), cSgName.toString()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupMembers"))
+	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil, nil
+		cErr.init(err)
+		return
 	}
-	members, err := stub.GetSyncgroupMembers(ctx, call, sgName)
-	if err != nil {
-		return toMojoError(err), nil, nil
-	}
-	mojoMembers := make(map[string]mojom.SyncgroupMemberInfo, len(members))
-	for name, member := range members {
-		mojoMembers[name] = toMojoSyncgroupMemberInfo(member)
-	}
-	return toMojoError(err), mojoMembers, nil
+	cErr.init(verror.NewErrNotImplemented(nil))
+	_, _ = sgName, stub // prevent "declared and not used"
 }
 
 ////////////////////////////////////////
 // Collection
 
-func (m *mojoImpl) CollectionCreate(name, batchHandle string, mPerms mojom.Perms) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Create"))
-	stub, err := m.GetCollection(ctx, call, name)
+//export XCollectionCreate
+func XCollectionCreate(cName, cBatchHandle C.XString, cPerms C.XPermissions, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	perms := cPerms.toPermissions()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Create"))
+	stub, err := b.GetCollection(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	vPerms, err := toV23Perms(mPerms)
-	if err != nil {
-		return toMojoError(err), nil
-	}
-	err = stub.Create(ctx, call, vPerms)
-	return toMojoError(err), nil
+	cErr.init(stub.Create(ctx, call, batchHandle, perms))
 }
 
-func (m *mojoImpl) CollectionDestroy(name, batchHandle string) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Destroy"))
-	stub, err := m.GetCollection(ctx, call, name)
+//export XCollectionDestroy
+func XCollectionDestroy(cName, cBatchHandle C.XString, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Destroy"))
+	stub, err := b.GetCollection(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	err = stub.Destroy(ctx, call)
-	return toMojoError(err), nil
+	cErr.init(stub.Destroy(ctx, call, batchHandle))
 }
 
-func (m *mojoImpl) CollectionExists(name, batchHandle string) (mojom.Error, bool, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Exists"))
-	stub, err := m.GetCollection(ctx, call, name)
+//export XCollectionExists
+func XCollectionExists(cName, cBatchHandle C.XString, cExists *bool, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Exists"))
+	stub, err := b.GetCollection(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), false, nil
+		cErr.init(err)
+		return
 	}
-	exists, err := stub.Exists(ctx, call)
-	return toMojoError(err), exists, nil
-}
-
-func (m *mojoImpl) CollectionGetPermissions(name, batchHandle string) (mojom.Error, mojom.Perms, error) {
-	return toMojomError(verror.NewErrNotImplemented(nil)), mojom.Perms{}, nil
-}
-
-func (m *mojoImpl) CollectionSetPermissions(name, batchHandle string, mPerms mojom.Perms) (mojom.Error, error) {
-	return toMojomError(verror.NewErrNotImplemented(nil)), nil
-}
-
-func (m *mojoImpl) CollectionDeleteRange(name, batchHandle string, start, limit []byte) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "DeleteRange"))
-	stub, err := m.GetCollection(ctx, call, name)
+	exists, err := stub.Exists(ctx, call, batchHandle)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	err = stub.DeleteRange(ctx, call, start, limit)
-	return toMojoError(err), nil
+	*cExists = exists
+}
+
+//export XCollectionGetPermissions
+func XCollectionGetPermissions(cName, cBatchHandle C.XString, cPerms *C.XPermissions, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "GetPermissions"))
+	stub, err := b.GetCollection(ctx, call, name)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cErr.init(verror.NewErrNotImplemented(nil))
+	_, _ = batchHandle, stub // prevent "declared and not used"
+}
+
+//export XCollectionSetPermissions
+func XCollectionSetPermissions(cName, cBatchHandle C.XString, cPerms C.XPermissions, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	perms := cPerms.toPermissions()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "SetPermissions"))
+	stub, err := b.GetCollection(ctx, call, name)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cErr.init(verror.NewErrNotImplemented(nil))
+	_, _, _ = batchHandle, perms, stub // prevent "declared and not used"
+}
+
+//export XCollectionDeleteRange
+func XCollectionDeleteRange(cName, cBatchHandle C.XString, cStart, cLimit C.XBytes, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	start, limit := cStart.toBytes(), cLimit.toBytes()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "DeleteRange"))
+	stub, err := b.GetCollection(ctx, call, name)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cErr.init(stub.DeleteRange(ctx, call, batchHandle, start, limit))
 }
 
 type scanStreamImpl struct {
-	ctx   *context.T
-	proxy *mojom.ScanStream_Proxy
+	ctx *context.T
+	cbs C.XCollectionScanCallbacks
 }
 
 func (s *scanStreamImpl) Send(item interface{}) error {
@@ -601,17 +545,16 @@ func (s *scanStreamImpl) Send(item interface{}) error {
 	if !ok {
 		return verror.NewErrInternal(s.ctx)
 	}
-
-	var value []byte
-	if err := vom.Decode(kv.Value, &value); err != nil {
+	value, err := vom.Encode(kv.Value)
+	if err != nil {
 		return err
 	}
-	// proxy.OnKeyValue() blocks until the client acks the previous invocation,
-	// thus providing flow control.
-	return s.proxy.OnKeyValue(mojom.KeyValue{
-		Key:   kv.Key,
-		Value: value,
-	})
+	// C.CallXCollectionScanCallbacksOnKeyValue() blocks until the client acks the
+	// previous invocation, thus providing flow control.
+	cKeyValue := C.XKeyValue{}
+	cKeyValue.init(kv.Key, value)
+	C.CallXCollectionScanCallbacksOnKeyValue(s.cbs, cKeyValue)
+	return nil
 }
 
 func (s *scanStreamImpl) Recv(_ interface{}) error {
@@ -622,90 +565,106 @@ func (s *scanStreamImpl) Recv(_ interface{}) error {
 var _ rpc.Stream = (*scanStreamImpl)(nil)
 
 // TODO(nlacasse): Provide some way for the client to cancel the stream.
-func (m *mojoImpl) CollectionScan(name, batchHandle string, start, limit []byte, ptr mojom.ScanStream_Pointer) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Scan"))
-	stub, err := m.GetCollection(ctx, call, name)
-	if err != nil {
-		return toMojoError(err), nil
-	}
 
-	proxy := mojom.NewScanStreamProxy(ptr, bindings.GetAsyncWaiter())
+//export XCollectionScan
+func XCollectionScan(cName, cBatchHandle C.XString, cStart, cLimit C.XBytes, cbs C.XCollectionScanCallbacks, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	start, limit := cStart.toBytes(), cLimit.toBytes()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Scan"))
+	stub, err := b.GetCollection(ctx, call, name)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
 
 	collectionScanServerCallStub := &wire.CollectionScanServerCallStub{struct {
 		rpc.Stream
 		rpc.ServerCall
 	}{
-		&scanStreamImpl{
-			ctx:   ctx,
-			proxy: proxy,
-		},
+		&scanStreamImpl{ctx: ctx, cbs: cbs},
 		call,
 	}}
 
 	go func() {
-		var err = stub.Scan(ctx, collectionScanServerCallStub, start, limit)
-
+		err := stub.Scan(ctx, collectionScanServerCallStub, batchHandle, start, limit)
 		// NOTE(nlacasse): Since we are already streaming, we send any error back to
 		// the client on the stream. The CollectionScan function itself should not
 		// return an error at this point.
-		proxy.OnDone(toMojoError(err))
+		cErr := C.XVError{}
+		cErr.init(err)
+		C.CallXCollectionScanCallbacksOnDone(cbs, cErr)
 	}()
-
-	return mojom.Error{}, nil
 }
 
 ////////////////////////////////////////
 // Row
 
-func (m *mojoImpl) RowExists(name, batchHandle string) (mojom.Error, bool, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Exists"))
-	stub, err := m.GetRow(ctx, call, name)
+//export XRowExists
+func XRowExists(cName, cBatchHandle C.XString, cExists *bool, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Exists"))
+	stub, err := b.GetRow(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), false, nil
+		cErr.init(err)
+		return
 	}
-	exists, err := stub.Exists(ctx, call)
-	return toMojoError(err), exists, nil
+	exists, err := stub.Exists(ctx, call, batchHandle)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	*cExists = exists
 }
 
-func (m *mojoImpl) RowGet(name, batchHandle string) (mojom.Error, []byte, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Get"))
-	stub, err := m.GetRow(ctx, call, name)
+//export XRowGet
+func XRowGet(cName, cBatchHandle C.XString, cValue *C.XBytes, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Get"))
+	stub, err := b.GetRow(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil, nil
+		cErr.init(err)
+		return
 	}
-	vomBytes, err := stub.Get(ctx, call)
-
-	var value []byte
-	if err := vom.Decode(vomBytes, &value); err != nil {
-		return toMojoError(err), nil, nil
+	valueAsRawBytes, err := stub.Get(ctx, call, batchHandle)
+	value, err := vom.Encode(valueAsRawBytes)
+	if err != nil {
+		cErr.init(err)
+		return
 	}
-	return toMojoError(err), value, nil
+	cValue.init(value)
 }
 
-func (m *mojoImpl) RowPut(name, batchHandle string, value []byte) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Put"))
-	stub, err := m.GetRow(ctx, call, name)
+//export XRowPut
+func XRowPut(cName, cBatchHandle C.XString, cValue C.XBytes, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	value := cValue.toBytes()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Put"))
+	stub, err := b.GetRow(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	// TODO(aghassemi): For now, Dart always gives us []byte, and here we convert
-	// []byte to VOM-encoded []byte so that all values stored in Syncbase are
-	// VOM-encoded. This will need to change once we support VDL/VOM in Dart.
-	// https://github.com/vanadium/issues/issues/766
-	vomBytes, err := vom.Encode(value)
-	if err != nil {
-		return toMojoError(err), nil
+	var valueAsRawBytes vom.RawBytes
+	if err := vom.Decode(value, &valueAsRawBytes); err != nil {
+		cErr.init(err)
+		return
 	}
-	err = stub.Put(ctx, call, vomBytes)
-	return toMojoError(err), nil
+	cErr.init(stub.Put(ctx, call, batchHandle, &valueAsRawBytes))
 }
 
-func (m *mojoImpl) RowDelete(name, batchHandle string) (mojom.Error, error) {
-	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Delete"))
-	stub, err := m.GetRow(ctx, call, name)
+//export XRowDelete
+func XRowDelete(cName, cBatchHandle C.XString, cErr *C.XVError) {
+	name := cName.toString()
+	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Delete"))
+	stub, err := b.GetRow(ctx, call, name)
 	if err != nil {
-		return toMojoError(err), nil
+		cErr.init(err)
+		return
 	}
-	err = stub.Delete(ctx, call)
-	return toMojoError(err), nil
+	cErr.init(stub.Delete(ctx, call, batchHandle))
 }

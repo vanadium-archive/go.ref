@@ -148,7 +148,7 @@ func (d *database) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
 
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
-func (d *database) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.BatchOptions) (wire.BatchHandle, error) {
+func (d *database) BeginBatch(ctx *context.T, call rpc.ServerCall, opts wire.BatchOptions) (wire.BatchHandle, error) {
 	if !d.exists {
 		return "", verror.New(verror.ErrNoExist, ctx, d.id)
 	}
@@ -158,7 +158,7 @@ func (d *database) BeginBatch(ctx *context.T, call rpc.ServerCall, bo wire.Batch
 	var batchType common.BatchType
 	for {
 		id = uint64(rng.Int63())
-		if bo.ReadOnly {
+		if opts.ReadOnly {
 			if _, ok := d.sns[id]; !ok {
 				d.sns[id] = d.st.NewSnapshot()
 				batchType = common.BatchTypeSn

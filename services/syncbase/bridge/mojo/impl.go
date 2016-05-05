@@ -5,12 +5,15 @@
 // +build mojo
 
 // TODO(sadovsky): Finish updating to reflect new, simplified API. Some, but not
-// all, has been updated.
+// all, of this code has been updated.
 
 // Implementation of Syncbase Mojo stubs. Our strategy is to translate Mojo stub
 // requests into Vanadium stub requests, and Vanadium stub responses into Mojo
 // stub responses. As part of this procedure, we synthesize "fake" ctx and call
 // objects to pass to the Vanadium stubs.
+//
+// Implementation notes:
+// - Variables with Mojo-specific types have names that start with "m".
 
 package bridge_mojo
 
@@ -59,13 +62,21 @@ func toMojoError(err error) mojom.Error {
 	}
 }
 
+func toMojoIds(ids []wire.Id) []mojo.Id {
+	res := make([]mojo.Id, len(ids))
+	for i, v := range ids {
+		res[i] = mojo.Id{Blessing: v.Blessing, Name: v.Name}
+	}
+	return res
+}
+
 func toV23Perms(mPerms mojom.Perms) (access.Permissions, error) {
 	return access.ReadPermissions(strings.NewReader(mPerms.Json))
 }
 
-func toMojoPerms(vPerms access.Permissions) (mojom.Perms, error) {
+func toMojoPerms(perms access.Permissions) (mojom.Perms, error) {
 	b := new(bytes.Buffer)
-	if err := access.WritePermissions(b, vPerms); err != nil {
+	if err := access.WritePermissions(b, perms); err != nil {
 		return mojom.Perms{}, err
 	}
 	return mojom.Perms{Json: b.String()}, nil
@@ -77,9 +88,9 @@ func toV23SyncgroupMemberInfo(mInfo mojom.SyncgroupMemberInfo) wire.SyncgroupMem
 	}
 }
 
-func toMojoSyncgroupMemberInfo(vInfo wire.SyncgroupMemberInfo) mojom.SyncgroupMemberInfo {
+func toMojoSyncgroupMemberInfo(info wire.SyncgroupMemberInfo) mojom.SyncgroupMemberInfo {
 	return mojom.SyncgroupMemberInfo{
-		SyncPriority: vInfo.SyncPriority,
+		SyncPriority: info.SyncPriority,
 	}
 }
 
@@ -102,29 +113,38 @@ func toV23SyncgroupSpec(mSpec mojom.SyncgroupSpec) (wire.SyncgroupSpec, error) {
 	}, nil
 }
 
-func toMojoSyncgroupSpec(vSpec wire.SyncgroupSpec) (mojom.SyncgroupSpec, error) {
-	mPerms, err := toMojoPerms(vSpec.Perms)
+func toMojoSyncgroupSpec(spec wire.SyncgroupSpec) (mojom.SyncgroupSpec, error) {
+	mPerms, err := toMojoPerms(spec.Perms)
 	if err != nil {
 		return mojom.SyncgroupSpec{}, err
 	}
-	prefixes := make([]mojom.CollectionRow, len(vSpec.Prefixes))
-	for i, v := range vSpec.Prefixes {
+	prefixes := make([]mojom.CollectionRow, len(spec.Prefixes))
+	for i, v := range spec.Prefixes {
 		prefixes[i].CollectionName = v.CollectionName
 		prefixes[i].Row = v.Row
 	}
 	return mojom.SyncgroupSpec{
-		Description: vSpec.Description,
+		Description: spec.Description,
 		Perms:       mPerms,
 		Prefixes:    prefixes,
-		MountTables: vSpec.MountTables,
-		IsPrivate:   vSpec.IsPrivate,
+		MountTables: spec.MountTables,
+		IsPrivate:   spec.IsPrivate,
 	}, nil
+}
+
+func toV23BatchOptions(mOpts mojom.BatchOptions) wire.BatchOptions {
+	opts := wire.BatchOptions{}
+	if mOpts != nil {
+		opts.Hint = mOpts.Hint
+		opts.ReadOnly = mOpts.ReadOnly
+	}
+	return opts
 }
 
 ////////////////////////////////////////
 // Glob utils
 
-func (m *mojoImpl) listChildren(name string) (mojom.Error, []string, error) {
+func (m *mojoImpl) listChildIds(name string) (mojom.Error, []mojom.Id, error) {
 	ctx, call := m.NewCtxCall(name, rpc.MethodDesc{
 		Name: "GlobChildren__",
 	})
@@ -132,19 +152,21 @@ func (m *mojoImpl) listChildren(name string) (mojom.Error, []string, error) {
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	gcsCall := &globChildrenServerCall{call, ctx, make([]string, 0)}
+	gcsCall := &globChildrenServerCall{call, ctx, make([]wire.Id, 0)}
 	g, err := glob.Parse("*")
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	err = stub.GlobChildren__(ctx, gcsCall, g.Head())
-	return toMojoError(err), gcsCall.Results, nil
+	if err := stub.GlobChildren__(ctx, gcsCall, g.Head()); err != nil {
+		return toMojoError(err), nil, nil
+	}
+	return toMojoError(nil), toMojoIds(gcsCall.Ids), nil
 }
 
 type globChildrenServerCall struct {
 	rpc.ServerCall
-	ctx     *context.T
-	Results []string
+	ctx *context.T
+	Ids []wire.Id
 }
 
 func (g *globChildrenServerCall) SendStream() interface {
@@ -154,17 +176,21 @@ func (g *globChildrenServerCall) SendStream() interface {
 }
 
 func (g *globChildrenServerCall) Send(reply naming.GlobChildrenReply) error {
-	if v, ok := reply.(naming.GlobChildrenReplyName); ok {
-		encName := v.Value[strings.LastIndex(v.Value, "/")+1:]
-		// Component names within object names are always encoded. See comment in
+	switch v := reply.(type) {
+	case *naming.GlobChildrenReplyName:
+		encId := v.Value[strings.LastIndex(v.Value, "/")+1:]
+		// Component ids within object names are always encoded. See comment in
 		// server/dispatcher.go for explanation.
-		name, ok := util.Decode(encName)
-		if !ok {
-			return verror.New(verror.ErrInternal, g.ctx, encName)
+		id, err := util.DecodeId(encId)
+		if err != nil {
+			// If this happens, there's a bug in the Syncbase server. Glob should
+			// return names with escaped components.
+			return verror.New(verror.ErrInternal, nil, err)
 		}
-		g.Results = append(g.Results, name)
+		g.Ids = append(g.Ids, id)
+	case *naming.GlobChildrenReplyError:
+		return verror.New(verror.ErrInternal, nil, v.Value.Error)
 	}
-
 	return nil
 }
 
@@ -181,11 +207,11 @@ func (m *mojoImpl) ServiceGetPermissions() (mojom.Error, mojom.Perms, string, er
 	if err != nil {
 		return toMojoError(err), mojom.Perms{}, "", nil
 	}
-	vPerms, version, err := stub.GetPermissions(ctx, call)
+	perms, version, err := stub.GetPermissions(ctx, call)
 	if err != nil {
 		return toMojoError(err), mojom.Perms{}, "", nil
 	}
-	mPerms, err := toMojoPerms(vPerms)
+	mPerms, err := toMojoPerms(perms)
 	if err != nil {
 		return toMojoError(err), mojom.Perms{}, "", nil
 	}
@@ -198,11 +224,11 @@ func (m *mojoImpl) ServiceSetPermissions(mPerms mojom.Perms, version string) (mo
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	vPerms, err := toV23Perms(mPerms)
+	perms, err := toV23Perms(mPerms)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.SetPermissions(ctx, call, vPerms, version)
+	err = stub.SetPermissions(ctx, call, perms, version)
 	return toMojoError(err), nil
 }
 
@@ -219,11 +245,11 @@ func (m *mojoImpl) DbCreate(name string, mPerms mojom.Perms) (mojom.Error, error
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	vPerms, err := toV23Perms(mPerms)
+	perms, err := toV23Perms(mPerms)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Create(ctx, call, nil, vPerms)
+	err = stub.Create(ctx, call, nil, perms)
 	return toMojoError(err), nil
 }
 
@@ -247,14 +273,14 @@ func (m *mojoImpl) DbExists(name string) (mojom.Error, bool, error) {
 	return toMojoError(err), exists, nil
 }
 
-func (m *mojoImpl) DbListCollections(name, batchHandle string) (mojom.Error, []string, error) {
+func (m *mojoImpl) DbListCollections(name, batchHandle string) (mojom.Error, []mojom.Id, error) {
 	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "ListCollections"))
 	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	collections, err := stub.ListCollections(ctx, call)
-	return toMojoError(err), collections, nil
+	ids, err := stub.ListCollections(ctx, call, batchHandle)
+	return toMojoError(err), ids, nil
 }
 
 type execStreamImpl struct {
@@ -339,7 +365,7 @@ func (m *mojoImpl) DbExec(name, batchHandle, query string, params [][]byte, ptr 
 	}}
 
 	go func() {
-		var err = stub.Exec(ctx, execServerCallStub, query, paramsVom)
+		var err = stub.Exec(ctx, execServerCallStub, batchHandle, query, paramsVom)
 		// NOTE(nlacasse): Since we are already streaming, we send any error back
 		// to the client on the stream.  The Exec function itself should not
 		// return an error at this point.
@@ -349,19 +375,14 @@ func (m *mojoImpl) DbExec(name, batchHandle, query string, params [][]byte, ptr 
 	return mojom.Error{}, nil
 }
 
-func (m *mojoImpl) DbBeginBatch(name string, bo *mojom.BatchOptions) (mojom.Error, string, error) {
+func (m *mojoImpl) DbBeginBatch(name string, mOpts mojom.BatchOptions) (mojom.Error, string, error) {
 	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "BeginBatch"))
 	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), "", nil
 	}
-	vbo := wire.BatchOptions{}
-	if bo != nil {
-		vbo.Hint = bo.Hint
-		vbo.ReadOnly = bo.ReadOnly
-	}
-	batchSuffix, err := stub.BeginBatch(ctx, call, vbo)
-	return toMojoError(err), batchSuffix, nil
+	batchHandle, err := stub.BeginBatch(ctx, call, toV23BatchOptions(mOpts))
+	return toMojoError(err), batchHandle, nil
 }
 
 func (m *mojoImpl) DbCommit(name, batchHandle string) (mojom.Error, error) {
@@ -370,7 +391,7 @@ func (m *mojoImpl) DbCommit(name, batchHandle string) (mojom.Error, error) {
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Commit(ctx, call)
+	err = stub.Commit(ctx, call, batchHandle)
 	return toMojoError(err), nil
 }
 
@@ -380,7 +401,7 @@ func (m *mojoImpl) DbAbort(name, batchHandle string) (mojom.Error, error) {
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Abort(ctx, call)
+	err = stub.Abort(ctx, call, batchHandle)
 	return toMojoError(err), nil
 }
 
@@ -390,11 +411,11 @@ func (m *mojoImpl) DbGetPermissions(name string) (mojom.Error, mojom.Perms, stri
 	if err != nil {
 		return toMojoError(err), mojom.Perms{}, "", nil
 	}
-	vPerms, version, err := stub.GetPermissions(ctx, call)
+	perms, version, err := stub.GetPermissions(ctx, call)
 	if err != nil {
 		return toMojoError(err), mojom.Perms{}, "", nil
 	}
-	mPerms, err := toMojoPerms(vPerms)
+	mPerms, err := toMojoPerms(perms)
 	if err != nil {
 		return toMojoError(err), mojom.Perms{}, "", nil
 	}
@@ -407,11 +428,11 @@ func (m *mojoImpl) DbSetPermissions(name string, mPerms mojom.Perms, version str
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	vPerms, err := toV23Perms(mPerms)
+	perms, err := toV23Perms(mPerms)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.SetPermissions(ctx, call, vPerms, version)
+	err = stub.SetPermissions(ctx, call, perms, version)
 	return toMojoError(err), nil
 }
 
@@ -497,7 +518,7 @@ func (m *mojoImpl) DbGetResumeMarker(name, batchHandle string) (mojom.Error, []b
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	marker, err := stub.GetResumeMarker(ctx, call)
+	marker, err := stub.GetResumeMarker(ctx, call, batchHandle)
 	return toMojoError(err), marker, nil
 }
 
@@ -624,11 +645,11 @@ func (m *mojoImpl) CollectionCreate(name, batchHandle string, mPerms mojom.Perms
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	vPerms, err := toV23Perms(mPerms)
+	perms, err := toV23Perms(mPerms)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Create(ctx, call, vPerms)
+	err = stub.Create(ctx, call, batchHandle, perms)
 	return toMojoError(err), nil
 }
 
@@ -638,7 +659,7 @@ func (m *mojoImpl) CollectionDestroy(name, batchHandle string) (mojom.Error, err
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Destroy(ctx, call)
+	err = stub.Destroy(ctx, call, batchHandle)
 	return toMojoError(err), nil
 }
 
@@ -648,7 +669,7 @@ func (m *mojoImpl) CollectionExists(name, batchHandle string) (mojom.Error, bool
 	if err != nil {
 		return toMojoError(err), false, nil
 	}
-	exists, err := stub.Exists(ctx, call)
+	exists, err := stub.Exists(ctx, call, batchHandle)
 	return toMojoError(err), exists, nil
 }
 
@@ -666,7 +687,7 @@ func (m *mojoImpl) CollectionDeleteRange(name, batchHandle string, start, limit 
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.DeleteRange(ctx, call, start, limit)
+	err = stub.DeleteRange(ctx, call, batchHandle, start, limit)
 	return toMojoError(err), nil
 }
 
@@ -680,7 +701,6 @@ func (s *scanStreamImpl) Send(item interface{}) error {
 	if !ok {
 		return verror.NewErrInternal(s.ctx)
 	}
-
 	var value []byte
 	if err := vom.Decode(kv.Value, &value); err != nil {
 		return err
@@ -714,15 +734,12 @@ func (m *mojoImpl) CollectionScan(name, batchHandle string, start, limit []byte,
 		rpc.Stream
 		rpc.ServerCall
 	}{
-		&scanStreamImpl{
-			ctx:   ctx,
-			proxy: proxy,
-		},
+		&scanStreamImpl{ctx: ctx, proxy: proxy},
 		call,
 	}}
 
 	go func() {
-		var err = stub.Scan(ctx, collectionScanServerCallStub, start, limit)
+		var err = stub.Scan(ctx, collectionScanServerCallStub, batchHandle, start, limit)
 
 		// NOTE(nlacasse): Since we are already streaming, we send any error back to
 		// the client on the stream. The CollectionScan function itself should not
@@ -742,7 +759,7 @@ func (m *mojoImpl) RowExists(name, batchHandle string) (mojom.Error, bool, error
 	if err != nil {
 		return toMojoError(err), false, nil
 	}
-	exists, err := stub.Exists(ctx, call)
+	exists, err := stub.Exists(ctx, call, batchHandle)
 	return toMojoError(err), exists, nil
 }
 
@@ -752,7 +769,7 @@ func (m *mojoImpl) RowGet(name, batchHandle string) (mojom.Error, []byte, error)
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	vomBytes, err := stub.Get(ctx, call)
+	vomBytes, err := stub.Get(ctx, call, batchHandle)
 
 	var value []byte
 	if err := vom.Decode(vomBytes, &value); err != nil {
@@ -775,7 +792,7 @@ func (m *mojoImpl) RowPut(name, batchHandle string, value []byte) (mojom.Error, 
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Put(ctx, call, vomBytes)
+	err = stub.Put(ctx, call, batchHandle, vomBytes)
 	return toMojoError(err), nil
 }
 
@@ -785,6 +802,6 @@ func (m *mojoImpl) RowDelete(name, batchHandle string) (mojom.Error, error) {
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	err = stub.Delete(ctx, call)
+	err = stub.Delete(ctx, call, batchHandle)
 	return toMojoError(err), nil
 }
