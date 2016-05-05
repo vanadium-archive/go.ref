@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"strings"
 	"text/template"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/conventions"
@@ -67,6 +68,11 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 	if err != nil {
 		return "", err
 	}
+
+	if err := createPersistentDisk(ctx, kName); err != nil {
+		return "", err
+	}
+
 	out, err := vkube(
 		"start", "-f", cfg,
 		"--base-blessings", base64.URLEncoding.EncodeToString(vomBlessings),
@@ -75,6 +81,7 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 	)
 	if err != nil {
 		ctx.Errorf("vkube start failed: %s", string(out))
+		deletePersistentDisk(ctx, kName)
 		return "", verror.New(verror.ErrInternal, ctx, err)
 	}
 	return mName, nil
@@ -106,6 +113,9 @@ func (i *allocatorImpl) Delete(ctx *context.T, call rpc.ServerCall, name string)
 	if err != nil {
 		ctx.Errorf("vkube stop failed: %s", string(out))
 		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	if err := deletePersistentDisk(ctx, kName); err != nil {
+		return err
 	}
 	return nil
 }
@@ -240,11 +250,52 @@ func countServerInstances() (int, error) {
 	return count, nil
 }
 
+func createPersistentDisk(ctx *context.T, name string) error {
+	if out, err := gcloud("compute", "disks", "create", name); err != nil {
+		ctx.Errorf("disk creation failed: %v: %s", err, string(out))
+		return err
+	}
+	return nil
+}
+
+func deletePersistentDisk(ctx *context.T, name string) error {
+	var (
+		start = time.Now()
+		out   []byte
+		err   error
+	)
+	for time.Since(start) < 5*time.Minute {
+		if out, err = gcloud("compute", "disks", "delete", name); err == nil {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	ctx.Errorf("disk deletion failed: %v: %s", err, string(out))
+	return err
+}
+
+func gcloud(args ...string) ([]byte, error) {
+	data, err := ioutil.ReadFile(vkubeCfgFlag)
+	if err != nil {
+		return nil, err
+	}
+	var config struct {
+		Project string `json:"project"`
+		Zone    string `json:"zone"`
+	}
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
+
+	args = append(args, "--project", config.Project, "--zone", config.Zone)
+	return exec.Command(gcloudBinFlag, args...).CombinedOutput()
+}
+
 func vkube(args ...string) ([]byte, error) {
 	args = append(
 		[]string{
 			"--config=" + vkubeCfgFlag,
-			"--get-credentials=false",
+			"--no-headers",
 		},
 		args...,
 	)

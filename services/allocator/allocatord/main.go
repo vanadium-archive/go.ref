@@ -24,6 +24,7 @@ var (
 	serverNameFlag         string
 	deploymentTemplateFlag string
 	maxInstancesFlag       int
+	gcloudBinFlag          string
 	vkubeBinFlag           string
 	vkubeCfgFlag           string
 
@@ -40,6 +41,7 @@ func main() {
 	cmdRoot.Flags.StringVar(&serverNameFlag, "server-name", "", "Name of the servers to allocate. This name is part of the published names in the Vanadium namespace and the names of the Deployments in Kubernetes.")
 	cmdRoot.Flags.StringVar(&deploymentTemplateFlag, "deployment-template", "", "The template for the deployment of the servers to allocate.")
 	cmdRoot.Flags.IntVar(&maxInstancesFlag, "max-instances", 10, "The maximum total number of server instances to create.")
+	cmdRoot.Flags.StringVar(&gcloudBinFlag, "gcloud", "gcloud", "The gcloud binary to use.")
 	cmdRoot.Flags.StringVar(&vkubeBinFlag, "vkube", "vkube", "The vkube binary to use.")
 	cmdRoot.Flags.StringVar(&vkubeCfgFlag, "vkube-cfg", "vkube.cfg", "The vkube.cfg to use.")
 	cmdline.HideGlobalFlagsExcept()
