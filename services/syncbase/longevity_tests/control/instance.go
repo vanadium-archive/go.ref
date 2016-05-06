@@ -71,9 +71,6 @@ func (inst *instance) start(rootCtx *context.T) error {
 	}
 	// We use the vine name as both the vine server name and the tag.
 	inst.cmd = inst.sh.FuncCmd(syncbasedMain, inst.vineName, inst.vineName, opts)
-	if inst.sh.Err != nil {
-		return inst.sh.Err
-	}
 	// TODO(nlacasse): Once we have user credentials, only allow blessings
 	// based on the user here.
 	perms := `{"Admin":{"In":["root"],"NotIn":null},"Debug":{"In":["root"],"NotIn":null},"Read":{"In":["root"],"NotIn":null},"Resolve":{"In":["root"],"NotIn":null},"Write":{"In":["root"],"NotIn":null}}`
@@ -88,9 +85,7 @@ func (inst *instance) start(rootCtx *context.T) error {
 		"--v23.tcp.address=127.0.0.1:0",
 		//"--vmodule=*=2",
 	)
-	if inst.cmd.Start(); inst.cmd.Err != nil {
-		return inst.cmd.Err
-	}
+	inst.cmd.Start()
 	vars := inst.cmd.AwaitVars("ENDPOINT")
 	if ep := vars["ENDPOINT"]; ep == "" {
 		return fmt.Errorf("error starting %q: no ENDPOINT variable sent from process", inst.name)
@@ -129,9 +124,6 @@ func (inst *instance) stopClients() error {
 
 func (inst *instance) stopSyncbase() error {
 	inst.cmd.Terminate(os.Interrupt)
-	if inst.cmd.Err != nil {
-		return inst.cmd.Err
-	}
 	inst.cmd = nil
 	return nil
 }

@@ -112,11 +112,6 @@ type Opts struct {
 // NewController returns a new Controller configured by opts.
 func NewController(ctx *context.T, opts Opts) (*Controller, error) {
 	sh := gosh.NewShell(opts.TB)
-	// Gosh by default will panic when it encounters an error.  By setting
-	// sh.ContinueOnError to true, we prevent the panic.  We must handle any
-	// error ourselves by checking sh.Err after each Shell method invocation,
-	// and cmd.Err after each Cmd method invocation.
-	sh.ContinueOnError = true
 	if opts.DebugOutput {
 		sh.PropagateChildOutput = true
 	}
@@ -199,9 +194,6 @@ func (c *Controller) TearDown() error {
 	c.instancesMu.Unlock()
 
 	c.sh.Cleanup()
-	if retErr == nil {
-		retErr = c.sh.Err
-	}
 	return retErr
 }
 
@@ -430,9 +422,6 @@ func (c *Controller) startMounttabled() error {
 	// Start mounttable and set namespace root.
 	opts := mounttablelib.Opts{}
 	c.mtCmd = c.sh.FuncCmd(mounttabledMain, opts)
-	if c.sh.Err != nil {
-		return c.sh.Err
-	}
 	c.mtCmd.Args = append(c.mtCmd.Args,
 		"--log_dir="+mtDir,
 		"--v23.credentials="+mtCreds,
@@ -489,14 +478,7 @@ func (c *Controller) startVmstat() error {
 	}
 
 	cmd := c.sh.Cmd("bash", "-c", "vmstat -n -w 1 | awk '{ print strftime(\"%c, %Z\"), $0; fflush(); }'")
-	if c.sh.Err != nil {
-		return c.sh.Err
-	}
-
 	outPipe := cmd.StdoutPipe()
-	if c.sh.Err != nil {
-		return c.sh.Err
-	}
 
 	go func() {
 		io.Copy(logFile, outPipe)
@@ -504,8 +486,5 @@ func (c *Controller) startVmstat() error {
 	}()
 
 	cmd.Start()
-	if c.sh.Err != nil {
-		return c.sh.Err
-	}
 	return nil
 }
