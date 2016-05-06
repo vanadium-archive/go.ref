@@ -8,6 +8,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"regexp"
@@ -329,6 +330,7 @@ func runIdentify(ctx *context.T, env *cmdline.Env, args []string) error {
 		return fmt.Errorf(`client.StartCall(%q, "", nil) failed with %v`, server, err)
 	}
 	valid, presented := call.RemoteBlessings()
-	fmt.Fprintf(env.Stdout, "PRESENTED: %v\nVALID:     %v\nPUBLICKEY: %v\n", presented, valid, presented.PublicKey())
+	pkey, _ := presented.PublicKey().MarshalBinary()
+	fmt.Fprintf(env.Stdout, "PRESENTED: %v\nVALID:     %v\nPUBLICKEY: %v\n           %v\n", presented, valid, presented.PublicKey(), base64.URLEncoding.EncodeToString(pkey))
 	return nil
 }
