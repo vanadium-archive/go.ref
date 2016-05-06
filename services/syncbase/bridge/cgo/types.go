@@ -24,20 +24,20 @@ import (
 import "C"
 
 ////////////////////////////////////////
-// C.XString
+// C.v23_syncbase_String
 
-func (x *C.XString) init(s string) {
+func (x *C.v23_syncbase_String) init(s string) {
 	x.n = C.int(len(s))
 	x.p = C.CString(s)
 }
 
-func (x *C.XString) toString() string {
+func (x *C.v23_syncbase_String) toString() string {
 	defer C.free(unsafe.Pointer(x.p))
 	return C.GoStringN(x.p, x.n)
 }
 
 ////////////////////////////////////////
-// C.XBytes
+// C.v23_syncbase_Bytes
 
 func init() {
 	if C.sizeof_uint8_t != 1 {
@@ -45,34 +45,34 @@ func init() {
 	}
 }
 
-func (x *C.XBytes) init(b []byte) {
+func (x *C.v23_syncbase_Bytes) init(b []byte) {
 	x.n = C.int(len(b))
 	x.p = (*C.uint8_t)(C.malloc(C.size_t(len(b))))
-	C.memcpy(x.p, unsafe.Pointer(&b[0]), C.size_t(len(b)))
+	C.memcpy(unsafe.Pointer(x.p), unsafe.Pointer(&b[0]), C.size_t(len(b)))
 }
 
-func (x *C.XBytes) toBytes() []byte {
-	defer C.free(x.p)
-	return C.GoBytes(x.p, x.n)
+func (x *C.v23_syncbase_Bytes) toBytes() []byte {
+	defer C.free(unsafe.Pointer(x.p))
+	return C.GoBytes(unsafe.Pointer(x.p), x.n)
 }
 
 ////////////////////////////////////////
-// C.XStrings
+// C.v23_syncbase_Strings
 
-func (x *C.XStrings) at(i int) *C.XString {
-	return (*C.XString)(unsafe.Pointer(uintptr(unsafe.Pointer(x.p)) + uintptr(C.size_t(i)*C.sizeof_XString)))
+func (x *C.v23_syncbase_Strings) at(i int) *C.v23_syncbase_String {
+	return (*C.v23_syncbase_String)(unsafe.Pointer(uintptr(unsafe.Pointer(x.p)) + uintptr(C.size_t(i)*C.sizeof_v23_syncbase_String)))
 }
 
-func (x *C.XStrings) init(strs []string) {
+func (x *C.v23_syncbase_Strings) init(strs []string) {
 	x.n = C.int(len(strs))
-	x.p = (*C.XString)(C.malloc(C.size_t(len(strs)) * C.sizeof_XString))
+	x.p = (*C.v23_syncbase_String)(C.malloc(C.size_t(len(strs)) * C.sizeof_v23_syncbase_String))
 	for i, v := range strs {
 		x.at(i).init(v)
 	}
 }
 
-func (x *C.XStrings) toStrings() []string {
-	defer C.free(x.p)
+func (x *C.v23_syncbase_Strings) toStrings() []string {
+	defer C.free(unsafe.Pointer(x.p))
 	res := make([]string, x.n)
 	for i := 0; i < int(x.n); i++ {
 		res[i] = x.at(i).toString()
@@ -81,9 +81,9 @@ func (x *C.XStrings) toStrings() []string {
 }
 
 ////////////////////////////////////////
-// C.XVError
+// C.v23_syncbase_VError
 
-func (x *C.XVError) init(err error) {
+func (x *C.v23_syncbase_VError) init(err error) {
 	if err == nil {
 		return
 	}
@@ -94,9 +94,9 @@ func (x *C.XVError) init(err error) {
 }
 
 ////////////////////////////////////////
-// C.XPermissions
+// C.v23_syncbase_Permissions
 
-func (x *C.XPermissions) init(perms access.Permissions) {
+func (x *C.v23_syncbase_Permissions) init(perms access.Permissions) {
 	b := new(bytes.Buffer)
 	if err := access.WritePermissions(b, perms); err != nil {
 		panic(err)
@@ -104,7 +104,7 @@ func (x *C.XPermissions) init(perms access.Permissions) {
 	x.json.init(b.String())
 }
 
-func (x *C.XPermissions) toPermissions() access.Permissions {
+func (x *C.v23_syncbase_Permissions) toPermissions() access.Permissions {
 	perms, err := access.ReadPermissions(strings.NewReader(x.json.toString()))
 	if err != nil {
 		panic(err)
@@ -113,14 +113,14 @@ func (x *C.XPermissions) toPermissions() access.Permissions {
 }
 
 ////////////////////////////////////////
-// C.XId
+// C.v23_syncbase_Id
 
-func (x *C.XId) init(id wire.Id) {
+func (x *C.v23_syncbase_Id) init(id wire.Id) {
 	x.blessing.init(id.Blessing)
 	x.name.init(id.Name)
 }
 
-func (x *C.XId) toId() wire.Id {
+func (x *C.v23_syncbase_Id) toId() wire.Id {
 	return wire.Id{
 		Blessing: x.blessing.toString(),
 		Name:     x.name.toString(),
@@ -128,29 +128,29 @@ func (x *C.XId) toId() wire.Id {
 }
 
 ////////////////////////////////////////
-// C.XIds
+// C.v23_syncbase_Ids
 
-func (x *C.XIds) at(i int) *C.XId {
-	return (*C.XId)(unsafe.Pointer(uintptr(unsafe.Pointer(x.p)) + uintptr(C.size_t(i)*C.sizeof_XId)))
+func (x *C.v23_syncbase_Ids) at(i int) *C.v23_syncbase_Id {
+	return (*C.v23_syncbase_Id)(unsafe.Pointer(uintptr(unsafe.Pointer(x.p)) + uintptr(C.size_t(i)*C.sizeof_v23_syncbase_Id)))
 }
 
-func (x *C.XIds) init(ids []wire.Id) {
+func (x *C.v23_syncbase_Ids) init(ids []wire.Id) {
 	x.n = C.int(len(ids))
-	x.p = (*C.XId)(C.malloc(C.size_t(len(ids)) * C.sizeof_XId))
+	x.p = (*C.v23_syncbase_Id)(C.malloc(C.size_t(len(ids)) * C.sizeof_v23_syncbase_Id))
 	for i, v := range ids {
 		x.at(i).init(v)
 	}
 }
 
 ////////////////////////////////////////
-// C.XBatchOptions
+// C.v23_syncbase_BatchOptions
 
-func (x *C.XBatchOptions) init(opts wire.BatchOptions) {
+func (x *C.v23_syncbase_BatchOptions) init(opts wire.BatchOptions) {
 	x.hint.init(opts.Hint)
 	x.readOnly = C.bool(opts.ReadOnly)
 }
 
-func (x *C.XBatchOptions) toBatchOptions() wire.BatchOptions {
+func (x *C.v23_syncbase_BatchOptions) toBatchOptions() wire.BatchOptions {
 	return wire.BatchOptions{
 		Hint:     x.hint.toString(),
 		ReadOnly: bool(x.readOnly),
@@ -158,9 +158,9 @@ func (x *C.XBatchOptions) toBatchOptions() wire.BatchOptions {
 }
 
 ////////////////////////////////////////
-// C.XKeyValue
+// C.v23_syncbase_KeyValue
 
-func (x *C.XKeyValue) init(key string, value []byte) {
+func (x *C.v23_syncbase_KeyValue) init(key string, value []byte) {
 	x.key.init(key)
 	x.value.init(value)
 }
@@ -168,30 +168,30 @@ func (x *C.XKeyValue) init(key string, value []byte) {
 // FIXME(sadovsky): Implement stubbed-out methods below.
 
 ////////////////////////////////////////
-// C.XSyncgroupSpec
+// C.v23_syncbase_SyncgroupSpec
 
-func (x *C.XSyncgroupSpec) init(spec wire.SyncgroupSpec) {
+func (x *C.v23_syncbase_SyncgroupSpec) init(spec wire.SyncgroupSpec) {
 
 }
 
-func (x *C.XSyncgroupSpec) toSyncgroupSpec() wire.SyncgroupSpec {
+func (x *C.v23_syncbase_SyncgroupSpec) toSyncgroupSpec() wire.SyncgroupSpec {
 	return wire.SyncgroupSpec{}
 }
 
 ////////////////////////////////////////
-// C.XSyncgroupMemberInfo
+// C.v23_syncbase_SyncgroupMemberInfo
 
-func (x *C.XSyncgroupMemberInfo) init(member wire.SyncgroupMemberInfo) {
+func (x *C.v23_syncbase_SyncgroupMemberInfo) init(member wire.SyncgroupMemberInfo) {
 
 }
 
-func (x *C.XSyncgroupMemberInfo) toSyncgroupMemberInfo() wire.SyncgroupMemberInfo {
+func (x *C.v23_syncbase_SyncgroupMemberInfo) toSyncgroupMemberInfo() wire.SyncgroupMemberInfo {
 	return wire.SyncgroupMemberInfo{}
 }
 
 ////////////////////////////////////////
-// C.XSyncgroupMemberInfoMap
+// C.v23_syncbase_SyncgroupMemberInfoMap
 
-func (x *C.XSyncgroupMemberInfoMap) init(members map[string]wire.SyncgroupMemberInfo) {
+func (x *C.v23_syncbase_SyncgroupMemberInfoMap) init(members map[string]wire.SyncgroupMemberInfo) {
 
 }

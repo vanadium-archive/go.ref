@@ -10,17 +10,14 @@
 // Vanadium stubs.
 //
 // Implementation notes:
-// - All exported function and type names start with "X", to avoid colliding
-//   with desired client library names.
+// - All exported function and type names start with "v23_syncbase_", to avoid
+//   colliding with desired client library names.
 // - Exported functions take input arguments by value, optional input arguments
 //   by pointer, and output arguments by pointer.
 // - Caller transfers ownership of all input arguments to callee; callee
 //   transfers ownership of all output arguments to caller. If a function
 //   returns an error, other output arguments need not be freed.
 // - Variables with Cgo-specific types have names that start with "c".
-
-// TODO(sadovsky): Prefix exported names with something better than "X", e.g.
-// with "v23_syncbase_".
 
 package main
 
@@ -44,20 +41,20 @@ import (
 /*
 #include "lib.h"
 
-static void CallXCollectionScanCallbacksOnKeyValue(XCollectionScanCallbacks cbs, XKeyValue kv) {
+static void CallCollectionScanCallbacksOnKeyValue(v23_syncbase_CollectionScanCallbacks cbs, v23_syncbase_KeyValue kv) {
   cbs.onKeyValue(cbs.hOnKeyValue, kv);
 }
-static void CallXCollectionScanCallbacksOnDone(XCollectionScanCallbacks cbs, XVError err) {
+static void CallCollectionScanCallbacksOnDone(v23_syncbase_CollectionScanCallbacks cbs, v23_syncbase_VError err) {
   cbs.onDone(cbs.hOnKeyValue, cbs.hOnDone, err);
 }
 */
 import "C"
 
-// Global state, initialized by XInit.
+// Global state, initialized by v23_syncbase_Init.
 var b *bridge.Bridge
 
-//export XInit
-func XInit() {
+//export v23_syncbase_Init
+func v23_syncbase_Init() {
 	// TODO(sadovsky): Support shutdown?
 	ctx, _ := v23.Init()
 	srv, disp, _ := syncbaselib.Serve(ctx, syncbaselib.Opts{})
@@ -67,7 +64,7 @@ func XInit() {
 ////////////////////////////////////////
 // Glob utils
 
-func listChildIds(name string, cIds *C.XIds, cErr *C.XVError) {
+func listChildIds(name string, cIds *C.v23_syncbase_Ids, cErr *C.v23_syncbase_VError) {
 	ctx, call := b.NewCtxCall(name, rpc.MethodDesc{
 		Name: "GlobChildren__",
 	})
@@ -123,8 +120,8 @@ func (g *globChildrenServerCall) Send(reply naming.GlobChildrenReply) error {
 ////////////////////////////////////////
 // Service
 
-//export XServiceGetPermissions
-func XServiceGetPermissions(cPerms *C.XPermissions, cVersion *C.XString, cErr *C.XVError) {
+//export v23_syncbase_ServiceGetPermissions
+func v23_syncbase_ServiceGetPermissions(cPerms *C.v23_syncbase_Permissions, cVersion *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	ctx, call := b.NewCtxCall("", bridge.MethodDesc(permissions.ObjectDesc, "GetPermissions"))
 	stub, err := b.GetService(ctx, call)
 	if err != nil {
@@ -140,8 +137,8 @@ func XServiceGetPermissions(cPerms *C.XPermissions, cVersion *C.XString, cErr *C
 	cVersion.init(version)
 }
 
-//export XServiceSetPermissions
-func XServiceSetPermissions(cPerms C.XPermissions, cVersion C.XString, cErr *C.XVError) {
+//export v23_syncbase_ServiceSetPermissions
+func v23_syncbase_ServiceSetPermissions(cPerms C.v23_syncbase_Permissions, cVersion C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	perms := cPerms.toPermissions()
 	version := cVersion.toString()
 	ctx, call := b.NewCtxCall("", bridge.MethodDesc(permissions.ObjectDesc, "SetPermissions"))
@@ -153,16 +150,16 @@ func XServiceSetPermissions(cPerms C.XPermissions, cVersion C.XString, cErr *C.X
 	cErr.init(stub.SetPermissions(ctx, call, perms, version))
 }
 
-//export XServiceListDatabases
-func XServiceListDatabases(cIds *C.XIds, cErr *C.XVError) {
+//export v23_syncbase_ServiceListDatabases
+func v23_syncbase_ServiceListDatabases(cIds *C.v23_syncbase_Ids, cErr *C.v23_syncbase_VError) {
 	listChildIds("", cIds, cErr)
 }
 
 ////////////////////////////////////////
 // Database
 
-//export XDbCreate
-func XDbCreate(cName C.XString, cPerms C.XPermissions, cErr *C.XVError) {
+//export v23_syncbase_DbCreate
+func v23_syncbase_DbCreate(cName C.v23_syncbase_String, cPerms C.v23_syncbase_Permissions, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	perms := cPerms.toPermissions()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Create"))
@@ -174,8 +171,8 @@ func XDbCreate(cName C.XString, cPerms C.XPermissions, cErr *C.XVError) {
 	cErr.init(stub.Create(ctx, call, nil, perms))
 }
 
-//export XDbDestroy
-func XDbDestroy(cName C.XString, cErr *C.XVError) {
+//export v23_syncbase_DbDestroy
+func v23_syncbase_DbDestroy(cName C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Destroy"))
 	stub, err := b.GetDb(ctx, call, name)
@@ -186,8 +183,8 @@ func XDbDestroy(cName C.XString, cErr *C.XVError) {
 	cErr.init(stub.Destroy(ctx, call))
 }
 
-//export XDbExists
-func XDbExists(cName C.XString, cExists *bool, cErr *C.XVError) {
+//export v23_syncbase_DbExists
+func v23_syncbase_DbExists(cName C.v23_syncbase_String, cExists *bool, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Exists"))
 	stub, err := b.GetDb(ctx, call, name)
@@ -203,8 +200,8 @@ func XDbExists(cName C.XString, cExists *bool, cErr *C.XVError) {
 	*cExists = exists
 }
 
-//export XDbListCollections
-func XDbListCollections(cName, cBatchHandle C.XString, cIds *C.XIds, cErr *C.XVError) {
+//export v23_syncbase_DbListCollections
+func v23_syncbase_DbListCollections(cName, cBatchHandle C.v23_syncbase_String, cIds *C.v23_syncbase_Ids, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "ListCollections"))
@@ -221,8 +218,8 @@ func XDbListCollections(cName, cBatchHandle C.XString, cIds *C.XIds, cErr *C.XVE
 	cIds.init(ids)
 }
 
-//export XDbBeginBatch
-func XDbBeginBatch(cName C.XString, cOpts C.XBatchOptions, cBatchHandle *C.XString, cErr *C.XVError) {
+//export v23_syncbase_DbBeginBatch
+func v23_syncbase_DbBeginBatch(cName C.v23_syncbase_String, cOpts C.v23_syncbase_BatchOptions, cBatchHandle *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	opts := cOpts.toBatchOptions()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "BeginBatch"))
@@ -239,8 +236,8 @@ func XDbBeginBatch(cName C.XString, cOpts C.XBatchOptions, cBatchHandle *C.XStri
 	cBatchHandle.init(string(batchHandle))
 }
 
-//export XDbCommit
-func XDbCommit(cName, cBatchHandle C.XString, cErr *C.XVError) {
+//export v23_syncbase_DbCommit
+func v23_syncbase_DbCommit(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Commit"))
@@ -252,8 +249,8 @@ func XDbCommit(cName, cBatchHandle C.XString, cErr *C.XVError) {
 	cErr.init(stub.Commit(ctx, call, batchHandle))
 }
 
-//export XDbAbort
-func XDbAbort(cName, cBatchHandle C.XString, cErr *C.XVError) {
+//export v23_syncbase_DbAbort
+func v23_syncbase_DbAbort(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Abort"))
@@ -265,8 +262,8 @@ func XDbAbort(cName, cBatchHandle C.XString, cErr *C.XVError) {
 	cErr.init(stub.Abort(ctx, call, batchHandle))
 }
 
-//export XDbGetPermissions
-func XDbGetPermissions(cName C.XString, cPerms *C.XPermissions, cVersion *C.XString, cErr *C.XVError) {
+//export v23_syncbase_DbGetPermissions
+func v23_syncbase_DbGetPermissions(cName C.v23_syncbase_String, cPerms *C.v23_syncbase_Permissions, cVersion *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(permissions.ObjectDesc, "GetPermissions"))
 	stub, err := b.GetDb(ctx, call, name)
@@ -283,8 +280,8 @@ func XDbGetPermissions(cName C.XString, cPerms *C.XPermissions, cVersion *C.XStr
 	cVersion.init(version)
 }
 
-//export XDbSetPermissions
-func XDbSetPermissions(cName C.XString, cPerms C.XPermissions, cVersion C.XString, cErr *C.XVError) {
+//export v23_syncbase_DbSetPermissions
+func v23_syncbase_DbSetPermissions(cName C.v23_syncbase_String, cPerms C.v23_syncbase_Permissions, cVersion C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	perms := cPerms.toPermissions()
 	version := cVersion.toString()
@@ -299,8 +296,8 @@ func XDbSetPermissions(cName C.XString, cPerms C.XPermissions, cVersion C.XStrin
 
 // TODO(sadovsky): Add watch API.
 
-//export XDbGetResumeMarker
-func XDbGetResumeMarker(cName, cBatchHandle C.XString, cMarker *C.XBytes, cErr *C.XVError) {
+//export v23_syncbase_DbGetResumeMarker
+func v23_syncbase_DbGetResumeMarker(cName, cBatchHandle C.v23_syncbase_String, cMarker *C.v23_syncbase_Bytes, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseWatcherDesc, "GetResumeMarker"))
@@ -322,8 +319,8 @@ func XDbGetResumeMarker(cName, cBatchHandle C.XString, cMarker *C.XBytes, cErr *
 
 // FIXME(sadovsky): Implement "NewErrNotImplemented" methods below.
 
-//export XDbListSyncgroups
-func XDbListSyncgroups(cName C.XString, cIds *C.XIds, cErr *C.XVError) {
+//export v23_syncbase_DbListSyncgroups
+func v23_syncbase_DbListSyncgroups(cName C.v23_syncbase_String, cIds *C.v23_syncbase_Ids, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "ListSyncgroups"))
 	stub, err := b.GetDb(ctx, call, name)
@@ -335,8 +332,8 @@ func XDbListSyncgroups(cName C.XString, cIds *C.XIds, cErr *C.XVError) {
 	_ = stub // prevent "declared and not used"
 }
 
-//export XDbCreateSyncgroup
-func XDbCreateSyncgroup(cName C.XString, cSgId C.XId, cSpec C.XSyncgroupSpec, cMyInfo C.XSyncgroupMemberInfo, cErr *C.XVError) {
+//export v23_syncbase_DbCreateSyncgroup
+func v23_syncbase_DbCreateSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cSpec C.v23_syncbase_SyncgroupSpec, cMyInfo C.v23_syncbase_SyncgroupMemberInfo, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	sgId := cSgId.toId()
 	spec := cSpec.toSyncgroupSpec()
@@ -351,8 +348,8 @@ func XDbCreateSyncgroup(cName C.XString, cSgId C.XId, cSpec C.XSyncgroupSpec, cM
 	_, _, _, _ = sgId, spec, myInfo, stub // prevent "declared and not used"
 }
 
-//export XDbJoinSyncgroup
-func XDbJoinSyncgroup(cName C.XString, cSgId C.XId, cMyInfo C.XSyncgroupMemberInfo, cSpec *C.XSyncgroupSpec, cErr *C.XVError) {
+//export v23_syncbase_DbJoinSyncgroup
+func v23_syncbase_DbJoinSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cMyInfo C.v23_syncbase_SyncgroupMemberInfo, cSpec *C.v23_syncbase_SyncgroupSpec, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	sgId := cSgId.toId()
 	myInfo := cMyInfo.toSyncgroupMemberInfo()
@@ -366,8 +363,8 @@ func XDbJoinSyncgroup(cName C.XString, cSgId C.XId, cMyInfo C.XSyncgroupMemberIn
 	_, _, _ = sgId, myInfo, stub // prevent "declared and not used"
 }
 
-//export XDbLeaveSyncgroup
-func XDbLeaveSyncgroup(cName C.XString, cSgId C.XId, cErr *C.XVError) {
+//export v23_syncbase_DbLeaveSyncgroup
+func v23_syncbase_DbLeaveSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "LeaveSyncgroup"))
@@ -380,8 +377,8 @@ func XDbLeaveSyncgroup(cName C.XString, cSgId C.XId, cErr *C.XVError) {
 	_, _ = sgId, stub // prevent "declared and not used"
 }
 
-//export XDbDestroySyncgroup
-func XDbDestroySyncgroup(cName C.XString, cSgId C.XId, cErr *C.XVError) {
+//export v23_syncbase_DbDestroySyncgroup
+func v23_syncbase_DbDestroySyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "DestroySyncgroup"))
@@ -394,8 +391,8 @@ func XDbDestroySyncgroup(cName C.XString, cSgId C.XId, cErr *C.XVError) {
 	_, _ = sgId, stub // prevent "declared and not used"
 }
 
-//export XDbEjectFromSyncgroup
-func XDbEjectFromSyncgroup(cName C.XString, cSgId C.XId, cMember C.XString, cErr *C.XVError) {
+//export v23_syncbase_DbEjectFromSyncgroup
+func v23_syncbase_DbEjectFromSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cMember C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	sgId := cSgId.toId()
 	member := cMember.toString()
@@ -409,8 +406,8 @@ func XDbEjectFromSyncgroup(cName C.XString, cSgId C.XId, cMember C.XString, cErr
 	_, _, _ = sgId, member, stub // prevent "declared and not used"
 }
 
-//export XDbGetSyncgroupSpec
-func XDbGetSyncgroupSpec(cName C.XString, cSgId C.XId, cSpec *C.XSyncgroupSpec, cVersion *C.XString, cErr *C.XVError) {
+//export v23_syncbase_DbGetSyncgroupSpec
+func v23_syncbase_DbGetSyncgroupSpec(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cSpec *C.v23_syncbase_SyncgroupSpec, cVersion *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupSpec"))
@@ -423,8 +420,8 @@ func XDbGetSyncgroupSpec(cName C.XString, cSgId C.XId, cSpec *C.XSyncgroupSpec, 
 	_, _ = sgId, stub // prevent "declared and not used"
 }
 
-//export XDbSetSyncgroupSpec
-func XDbSetSyncgroupSpec(cName C.XString, cSgId C.XId, cSpec C.XSyncgroupSpec, cVersion C.XString, cErr *C.XVError) {
+//export v23_syncbase_DbSetSyncgroupSpec
+func v23_syncbase_DbSetSyncgroupSpec(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cSpec C.v23_syncbase_SyncgroupSpec, cVersion C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	sgId := cSgId.toId()
 	spec := cSpec.toSyncgroupSpec()
@@ -439,8 +436,8 @@ func XDbSetSyncgroupSpec(cName C.XString, cSgId C.XId, cSpec C.XSyncgroupSpec, c
 	_, _, _, _ = sgId, spec, version, stub // prevent "declared and not used"
 }
 
-//export XDbGetSyncgroupMembers
-func XDbGetSyncgroupMembers(cName C.XString, cSgId C.XId, cMembers *C.XSyncgroupMemberInfoMap, cErr *C.XVError) {
+//export v23_syncbase_DbGetSyncgroupMembers
+func v23_syncbase_DbGetSyncgroupMembers(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cMembers *C.v23_syncbase_SyncgroupMemberInfoMap, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupMembers"))
@@ -456,8 +453,8 @@ func XDbGetSyncgroupMembers(cName C.XString, cSgId C.XId, cMembers *C.XSyncgroup
 ////////////////////////////////////////
 // Collection
 
-//export XCollectionCreate
-func XCollectionCreate(cName, cBatchHandle C.XString, cPerms C.XPermissions, cErr *C.XVError) {
+//export v23_syncbase_CollectionCreate
+func v23_syncbase_CollectionCreate(cName, cBatchHandle C.v23_syncbase_String, cPerms C.v23_syncbase_Permissions, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	perms := cPerms.toPermissions()
@@ -470,8 +467,8 @@ func XCollectionCreate(cName, cBatchHandle C.XString, cPerms C.XPermissions, cEr
 	cErr.init(stub.Create(ctx, call, batchHandle, perms))
 }
 
-//export XCollectionDestroy
-func XCollectionDestroy(cName, cBatchHandle C.XString, cErr *C.XVError) {
+//export v23_syncbase_CollectionDestroy
+func v23_syncbase_CollectionDestroy(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Destroy"))
@@ -483,8 +480,8 @@ func XCollectionDestroy(cName, cBatchHandle C.XString, cErr *C.XVError) {
 	cErr.init(stub.Destroy(ctx, call, batchHandle))
 }
 
-//export XCollectionExists
-func XCollectionExists(cName, cBatchHandle C.XString, cExists *bool, cErr *C.XVError) {
+//export v23_syncbase_CollectionExists
+func v23_syncbase_CollectionExists(cName, cBatchHandle C.v23_syncbase_String, cExists *bool, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Exists"))
@@ -501,8 +498,8 @@ func XCollectionExists(cName, cBatchHandle C.XString, cExists *bool, cErr *C.XVE
 	*cExists = exists
 }
 
-//export XCollectionGetPermissions
-func XCollectionGetPermissions(cName, cBatchHandle C.XString, cPerms *C.XPermissions, cErr *C.XVError) {
+//export v23_syncbase_CollectionGetPermissions
+func v23_syncbase_CollectionGetPermissions(cName, cBatchHandle C.v23_syncbase_String, cPerms *C.v23_syncbase_Permissions, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "GetPermissions"))
@@ -519,8 +516,8 @@ func XCollectionGetPermissions(cName, cBatchHandle C.XString, cPerms *C.XPermiss
 	cPerms.init(perms)
 }
 
-//export XCollectionSetPermissions
-func XCollectionSetPermissions(cName, cBatchHandle C.XString, cPerms C.XPermissions, cErr *C.XVError) {
+//export v23_syncbase_CollectionSetPermissions
+func v23_syncbase_CollectionSetPermissions(cName, cBatchHandle C.v23_syncbase_String, cPerms C.v23_syncbase_Permissions, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	perms := cPerms.toPermissions()
@@ -533,8 +530,8 @@ func XCollectionSetPermissions(cName, cBatchHandle C.XString, cPerms C.XPermissi
 	cErr.init(stub.SetPermissions(ctx, call, batchHandle, perms))
 }
 
-//export XCollectionDeleteRange
-func XCollectionDeleteRange(cName, cBatchHandle C.XString, cStart, cLimit C.XBytes, cErr *C.XVError) {
+//export v23_syncbase_CollectionDeleteRange
+func v23_syncbase_CollectionDeleteRange(cName, cBatchHandle C.v23_syncbase_String, cStart, cLimit C.v23_syncbase_Bytes, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	start, limit := cStart.toBytes(), cLimit.toBytes()
@@ -549,7 +546,7 @@ func XCollectionDeleteRange(cName, cBatchHandle C.XString, cStart, cLimit C.XByt
 
 type scanStreamImpl struct {
 	ctx *context.T
-	cbs C.XCollectionScanCallbacks
+	cbs C.v23_syncbase_CollectionScanCallbacks
 }
 
 func (s *scanStreamImpl) Send(item interface{}) error {
@@ -561,11 +558,11 @@ func (s *scanStreamImpl) Send(item interface{}) error {
 	if err != nil {
 		return err
 	}
-	// C.CallXCollectionScanCallbacksOnKeyValue() blocks until the client acks the
+	// C.CallCollectionScanCallbacksOnKeyValue() blocks until the client acks the
 	// previous invocation, thus providing flow control.
-	cKeyValue := C.XKeyValue{}
+	cKeyValue := C.v23_syncbase_KeyValue{}
 	cKeyValue.init(kv.Key, value)
-	C.CallXCollectionScanCallbacksOnKeyValue(s.cbs, cKeyValue)
+	C.CallCollectionScanCallbacksOnKeyValue(s.cbs, cKeyValue)
 	return nil
 }
 
@@ -578,8 +575,8 @@ var _ rpc.Stream = (*scanStreamImpl)(nil)
 
 // TODO(nlacasse): Provide some way for the client to cancel the stream.
 
-//export XCollectionScan
-func XCollectionScan(cName, cBatchHandle C.XString, cStart, cLimit C.XBytes, cbs C.XCollectionScanCallbacks, cErr *C.XVError) {
+//export v23_syncbase_CollectionScan
+func v23_syncbase_CollectionScan(cName, cBatchHandle C.v23_syncbase_String, cStart, cLimit C.v23_syncbase_Bytes, cbs C.v23_syncbase_CollectionScanCallbacks, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	start, limit := cStart.toBytes(), cLimit.toBytes()
@@ -603,17 +600,17 @@ func XCollectionScan(cName, cBatchHandle C.XString, cStart, cLimit C.XBytes, cbs
 		// NOTE(nlacasse): Since we are already streaming, we send any error back to
 		// the client on the stream. The CollectionScan function itself should not
 		// return an error at this point.
-		cErr := C.XVError{}
+		cErr := C.v23_syncbase_VError{}
 		cErr.init(err)
-		C.CallXCollectionScanCallbacksOnDone(cbs, cErr)
+		C.CallCollectionScanCallbacksOnDone(cbs, cErr)
 	}()
 }
 
 ////////////////////////////////////////
 // Row
 
-//export XRowExists
-func XRowExists(cName, cBatchHandle C.XString, cExists *bool, cErr *C.XVError) {
+//export v23_syncbase_RowExists
+func v23_syncbase_RowExists(cName, cBatchHandle C.v23_syncbase_String, cExists *bool, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Exists"))
@@ -630,8 +627,8 @@ func XRowExists(cName, cBatchHandle C.XString, cExists *bool, cErr *C.XVError) {
 	*cExists = exists
 }
 
-//export XRowGet
-func XRowGet(cName, cBatchHandle C.XString, cValue *C.XBytes, cErr *C.XVError) {
+//export v23_syncbase_RowGet
+func v23_syncbase_RowGet(cName, cBatchHandle C.v23_syncbase_String, cValue *C.v23_syncbase_Bytes, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Get"))
@@ -649,8 +646,8 @@ func XRowGet(cName, cBatchHandle C.XString, cValue *C.XBytes, cErr *C.XVError) {
 	cValue.init(value)
 }
 
-//export XRowPut
-func XRowPut(cName, cBatchHandle C.XString, cValue C.XBytes, cErr *C.XVError) {
+//export v23_syncbase_RowPut
+func v23_syncbase_RowPut(cName, cBatchHandle C.v23_syncbase_String, cValue C.v23_syncbase_Bytes, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	value := cValue.toBytes()
@@ -668,8 +665,8 @@ func XRowPut(cName, cBatchHandle C.XString, cValue C.XBytes, cErr *C.XVError) {
 	cErr.init(stub.Put(ctx, call, batchHandle, &valueAsRawBytes))
 }
 
-//export XRowDelete
-func XRowDelete(cName, cBatchHandle C.XString, cErr *C.XVError) {
+//export v23_syncbase_RowDelete
+func v23_syncbase_RowDelete(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Delete"))

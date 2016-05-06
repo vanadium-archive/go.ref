@@ -17,100 +17,101 @@
 typedef struct {
   char* p;
   int n;
-} XString;
+} v23_syncbase_String;
 
 // []byte
 typedef struct {
   uint8_t* p;
   int n;
-} XBytes;
+} v23_syncbase_Bytes;
 
 // []string
 typedef struct {
-  XString* p;
+  v23_syncbase_String* p;
   int n;
-} XStrings;
+} v23_syncbase_Strings;
 
 ////////////////////////////////////////
 // Vanadium-specific types
 
 // verror.E
 typedef struct {
-  XString id;
+  v23_syncbase_String id;
   unsigned int actionCode;
-  XString msg;
-  XString stack;
-} XVError;
+  v23_syncbase_String msg;
+  v23_syncbase_String stack;
+} v23_syncbase_VError;
 
 // access.Permissions
 // TODO(sadovsky): Decide how to represent perms.
 typedef struct {
-  XString json;
-} XPermissions;
+  v23_syncbase_String json;
+} v23_syncbase_Permissions;
 
 ////////////////////////////////////////
 // Syncbase-specific types
 
 // syncbase.Id
 typedef struct {
-  XString blessing;
-  XString name;
-} XId;
+  v23_syncbase_String blessing;
+  v23_syncbase_String name;
+} v23_syncbase_Id;
 
 // []syncbase.Id
 typedef struct {
-  XId* p;
+  v23_syncbase_Id* p;
   int n;
-} XIds;
+} v23_syncbase_Ids;
 
 // syncbase.BatchOptions
 typedef struct {
-  XString hint;
+  v23_syncbase_String hint;
   bool readOnly;
-} XBatchOptions;
+} v23_syncbase_BatchOptions;
 
 // syncbase.KeyValue
 typedef struct {
-  XString key;
-  XBytes value;
-} XKeyValue;
+  v23_syncbase_String key;
+  v23_syncbase_Bytes value;
+} v23_syncbase_KeyValue;
 
 // syncbase.SyncgroupSpec
 typedef struct {
-  XString description;
-  XPermissions perms;
-  XIds collections;
-  XStrings mountTables;
+  v23_syncbase_String description;
+  v23_syncbase_Permissions perms;
+  v23_syncbase_Ids collections;
+  v23_syncbase_Strings mountTables;
   bool isPrivate;
-} XSyncgroupSpec;
+} v23_syncbase_SyncgroupSpec;
 
 // syncbase.SyncgroupMemberInfo
 typedef struct {
   uint8_t syncPriority;
   uint8_t blobDevType;
-} XSyncgroupMemberInfo;
+} v23_syncbase_SyncgroupMemberInfo;
 
 // map[string]syncbase.SyncgroupMemberInfo
 typedef struct {
-  XString* keys;
-  XSyncgroupMemberInfo* values;
+  v23_syncbase_String* keys;
+  v23_syncbase_SyncgroupMemberInfo* values;
   int n;
-} XSyncgroupMemberInfoMap;
+} v23_syncbase_SyncgroupMemberInfoMap;
 
 ////////////////////////////////////////
 // Functions
 
-// Callbacks are represented as struct {XHandle, f(XHandle, ...)} to allow for
-// currying RefMap handles to Swift closures.
+// Callbacks are represented as struct
+// {v23_syncbase_Handle, f(v23_syncbase_Handle, ...)} to allow for currying
+// RefMap handles to Swift closures.
 // https://forums.developer.apple.com/message/15725#15725
 
-typedef int XHandle;
+typedef int v23_syncbase_Handle;
 
 typedef struct {
-  XHandle hOnKeyValue;
-  XHandle hOnDone;
-  void (*onKeyValue)(XHandle hOnKeyValue, XKeyValue);
-  void (*onDone)(XHandle hOnKeyValue, XHandle hOnDone, XVError);
-} XCollectionScanCallbacks;
+  v23_syncbase_Handle hOnKeyValue;
+  v23_syncbase_Handle hOnDone;
+  void (*onKeyValue)(v23_syncbase_Handle hOnKeyValue, v23_syncbase_KeyValue);
+  void (*onDone)(v23_syncbase_Handle hOnKeyValue, v23_syncbase_Handle hOnDone, v23_syncbase_VError);
+} v23_syncbase_CollectionScanCallbacks;
 
 #endif  // V23_SYNCBASE_LIB_H_
