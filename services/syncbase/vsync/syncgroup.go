@@ -705,6 +705,8 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgN
 		return err
 	}
 
+	ss.initSyncStateInMem(ctx, dbId, sgOID(gid))
+
 	// Advertise the Syncbase at the chosen mount table and in the
 	// neighborhood.
 	if err := ss.advertiseSyncbase(ctx, call, sg); err != nil {
@@ -719,12 +721,10 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgN
 		// another join or a leave request from the app. To handle this
 		// contention, we might have to serialize all syncgroup related
 		// operations pertaining to a database with a single lock, and
-		// further serialize all syncbase publishing with the another
+		// further serialize all syncbase publishing with another
 		// lock across all databases.
 		return err
 	}
-
-	ss.initSyncStateInMem(ctx, dbId, sgOID(gid))
 
 	// Local SG create succeeded. Publish the SG at the chosen server, or if
 	// that fails, enqueue it for later publish retries.
@@ -839,6 +839,8 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgNam
 		return nullSpec, err
 	}
 
+	ss.initSyncStateInMem(ctx, sg2.DbId, sgOID(gid))
+
 	// Advertise the Syncbase at the chosen mount table and in the
 	// neighborhood.
 	if err := ss.advertiseSyncbase(ctx, call, &sg2); err != nil {
@@ -846,8 +848,6 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgNam
 		// CreateSyncgroup for more details.
 		return nullSpec, err
 	}
-
-	ss.initSyncStateInMem(ctx, sg2.DbId, sgOID(gid))
 
 	return sg2.Spec, nil
 }
@@ -1169,13 +1169,22 @@ func (s *syncService) advertiseSyncbase(ctx *context.T, call rpc.ServerCall, sg 
 		}
 	}
 
+	// TODO(ashankar): Should the advertising libraries bail when they can't
+	// advertise or just wait for changes to the network and retry.
 	if err := s.advertiseSyncbaseInNeighborhood(); err != nil {
-		return err
+		// We ignore errors on neighborhood advertising since sync can
+		// continue when members are online despite these errors.
+		vlog.Errorf("sync: advertiseSyncbaseInNeighborhood: failed with err %v", err)
 	}
 
 	// TODO(hpucha): In case of a joiner, this can be optimized such that we
 	// don't advertise until the syncgroup is in pending state.
-	return s.advertiseSyncgroupInNeighborhood(sg)
+	if err := s.advertiseSyncgroupInNeighborhood(sg); err != nil {
+		// We ignore errors on neighborhood advertising since sync when
+		// members are online can continue despite these errors.
+		vlog.Errorf("sync: advertiseSyncgroupInNeighborhood: failed with err %v", err)
+	}
+	return nil
 }
 
 func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCall, sgName, name string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.GenVector, error) {
