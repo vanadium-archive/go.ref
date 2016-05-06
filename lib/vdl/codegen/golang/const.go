@@ -242,8 +242,13 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 			// We also hack typedConstWire to avoid duplicating the type name.
 			//
 			// TODO(toddw): Fix this hack.
-			s = data.Pkg("v.io/v23/verror") + "FromWire(" + typestr + s + ")"
+			if data.Package.Path == "v.io/v23/vdl" {
+				s = typestr + s
+			} else {
+				s = data.Pkg("v.io/v23/verror") + "FromWire(" + typestr + s + ")"
+			}
 		}
+
 		return s
 	case vdl.Union:
 		ix, vf := v.UnionField()
@@ -349,7 +354,7 @@ func typedConstNative(data *goData, v *vdl.Value) string {
 			// type is sufficient to represent the value.
 			return typedConstNativeZero(native.Kind, nType)
 		}
-		return constNativeConversion(data, v, nType)
+		return constNativeConversion(data, v, nType, toNative(data, native, v.Type()))
 	}
 	return ""
 }
@@ -364,23 +369,23 @@ func untypedConstNative(data *goData, v *vdl.Value) string {
 			// type is sufficient to represent the value.
 			return untypedConstNativeZero(native.Kind)
 		}
-		return constNativeConversion(data, v, nativeType(data, native, wirePkg))
+		return constNativeConversion(data, v, nativeType(data, native, wirePkg), toNative(data, native, v.Type()))
 	}
 	return ""
 }
 
-func constNativeConversion(data *goData, v *vdl.Value, nType string) string {
+func constNativeConversion(data *goData, v *vdl.Value, nType, toNative string) string {
 	// TODO(toddw): Change const generation to use the same style as
 	// genIsZero, which creates separate setup and expr code, so that we can
 	// handle errors without panicing.
 	return fmt.Sprintf(`func() %[1]s {
 	var native %[1]s
 	wire := %[2]s
-	if err := %[3]sToNative(wire, &native); err != nil {
+	if err := %[3]s(wire, &native); err != nil {
 		panic(err)
 	}
 	return native
-}()`, nType, typedConstWire(data, v), typeGoWire(data, v.Type()))
+}()`, nType, typedConstWire(data, v), toNative)
 }
 
 func typedConstNativeZero(kind vdltool.GoKind, nType string) string {

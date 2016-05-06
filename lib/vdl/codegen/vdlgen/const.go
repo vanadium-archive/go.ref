@@ -30,8 +30,8 @@ func TypedConst(v *vdl.Value, pkgPath string, imports codegen.Imports) string {
 		return typestr + "(nil)"
 	}
 	valstr := UntypedConst(v, pkgPath, imports)
-	if k == vdl.Enum || k == vdl.TypeObject || t == vdl.BoolType || t == vdl.StringType {
-		// Enum and TypeObject already include the type in their value.
+	if k == vdl.TypeObject || t == vdl.BoolType || t == vdl.StringType {
+		// TypeObject already includes the type in its value.
 		// Built-in bool and string are implicitly convertible from literals.
 		return valstr
 	}
@@ -41,6 +41,11 @@ func TypedConst(v *vdl.Value, pkgPath string, imports codegen.Imports) string {
 		if !t.IsBytes() {
 			return typestr + valstr
 		}
+	case vdl.Enum:
+		if t.Name() != "" {
+			return typestr + "." + valstr
+		}
+		return valstr
 	}
 	return typestr + "(" + valstr + ")"
 }
@@ -74,11 +79,7 @@ func UntypedConst(v *vdl.Value, pkgPath string, imports codegen.Imports) string 
 	case vdl.String:
 		return strconv.Quote(v.RawString())
 	case vdl.Enum:
-		typestr := ""
-		if t.Name() != "" {
-			typestr = Type(t, pkgPath, imports) + "."
-		}
-		return typestr + v.EnumLabel()
+		return v.EnumLabel()
 	case vdl.TypeObject:
 		return "typeobject(" + Type(v.TypeObject(), pkgPath, imports) + ")"
 	case vdl.Array, vdl.List:

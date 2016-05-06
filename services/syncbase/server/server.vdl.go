@@ -722,15 +722,11 @@ func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 		enc.SetNextStartValueIsOptional()
-		if err := enc.StartValue(vdl.TypeOf((*syncbase.SchemaMetadata)(nil)).Elem()); err != nil {
-			return err
-		}
+
 		if err := x.SchemaMetadata.VDLWrite(enc); err != nil {
 			return err
 		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
+
 	}
 	if err := enc.NextField(""); err != nil {
 		return err

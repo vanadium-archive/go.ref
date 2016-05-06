@@ -1531,15 +1531,11 @@ func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 		enc.SetNextStartValueIsOptional()
-		if err := enc.StartValue(vdl.TypeOf((*BlobInfo)(nil)).Elem()); err != nil {
-			return err
-		}
+
 		if err := x.Bo.VDLWrite(enc); err != nil {
 			return err
 		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
+
 	}
 	if err := enc.NextField(""); err != nil {
 		return err

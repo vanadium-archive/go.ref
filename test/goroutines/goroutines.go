@@ -25,6 +25,7 @@ var ignoredGoroutines = []string{
 	"security.newOpenSSLSigner.func",
 	"security.unmarshalPublicKeyImpl.func",
 	"net/http.(*Transport).dialConn",
+	"net/http.(*Transport).getConn.func2",
 }
 
 type Goroutine struct {

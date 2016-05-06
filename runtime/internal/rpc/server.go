@@ -825,7 +825,7 @@ func (fs *flowServer) readGrantedBlessings(ctx *context.T, req *rpc.Request) err
 	// does not have the authorizations that the server's own identity has?
 	if got, want := req.GrantedBlessings.PublicKey(), fs.LocalPrincipal().PublicKey(); got != nil && !reflect.DeepEqual(got, want) {
 		return verror.New(verror.ErrNoAccess, ctx,
-			verror.New(errBlessingsNotBound, ctx, got, want))
+			verror.New(errBlessingsNotBound, ctx, got.String(), want.String()))
 	}
 	fs.grantedBlessings = req.GrantedBlessings
 	return nil

@@ -4708,15 +4708,11 @@ func (x Recursive) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 		enc.SetNextStartValueIsOptional()
-		if err := enc.StartValue(vdl.TypeOf((*Times)(nil)).Elem()); err != nil {
-			return err
-		}
+
 		if err := x.Maybe.VDLWrite(enc); err != nil {
 			return err
 		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
+
 	}
 	if len(x.Rec) != 0 {
 		if err := enc.NextField("Rec"); err != nil {

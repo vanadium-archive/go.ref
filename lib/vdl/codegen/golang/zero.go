@@ -355,7 +355,11 @@ func containsInlineNativeUnknownSubTypes(data *goData, tt *vdl.Type, wireOnly bo
 func findNativeType(env *compile.Env, tt *vdl.Type) (vdltool.GoType, *compile.Package, bool) {
 	if def := env.FindTypeDef(tt); def != nil {
 		pkg := def.File.Package
-		native, ok := pkg.Config.Go.WireToNativeTypes[def.Name]
+		key := def.Name
+		if tt.Kind() == vdl.Optional {
+			key = "*" + key
+		}
+		native, ok := pkg.Config.Go.WireToNativeTypes[key]
 		return native, pkg, ok
 	}
 	return vdltool.GoType{}, nil, false

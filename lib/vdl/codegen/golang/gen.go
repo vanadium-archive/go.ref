@@ -172,6 +172,7 @@ var nativeTypePackageWhitelist = map[string]bool{
 	"time": true,
 	"v.io/x/ref/lib/vdl/testdata/nativetest": true,
 	"v.io/v23/security":                      true,
+	"v.io/v23/vdl":                           true,
 }
 
 func validateGoConfig(pkg *compile.Package, env *compile.Env) {
@@ -184,7 +185,11 @@ func validateGoConfig(pkg *compile.Package, env *compile.Env) {
 	// Make sure each wire type is actually defined in the package, and required
 	// fields are all filled in.
 	for wire, native := range pkg.Config.Go.WireToNativeTypes {
-		if def := pkg.ResolveType(wire); def == nil {
+		baseWire := wire
+		if strings.HasPrefix(wire, "*") {
+			baseWire = strings.TrimPrefix(wire, "*")
+		}
+		if def := pkg.ResolveType(baseWire); def == nil {
 			env.Errors.Errorf("%s: type %s specified in Go.WireToNativeTypes undefined", vdlconfig, wire)
 		}
 		if native.Type == "" {
@@ -196,7 +201,9 @@ func validateGoConfig(pkg *compile.Package, env *compile.Env) {
 				continue
 			}
 			importPrefix := imp.Name + "."
-			if !strings.Contains(native.Type, importPrefix) {
+			if !strings.Contains(native.Type, importPrefix) &&
+				!strings.Contains(native.ToNative, importPrefix) &&
+				!strings.Contains(native.FromNative, importPrefix) {
 				env.Errors.Errorf("%s: type %s specified in Go.WireToNativeTypes invalid (native type %q doesn't contain import prefix %q)", vdlconfig, wire, native.Type, importPrefix)
 			}
 		}
@@ -214,39 +221,40 @@ var goTemplate *template.Template
 // off to a regular function.
 func init() {
 	funcMap := template.FuncMap{
-		"firstRuneToExport":       vdlutil.FirstRuneToExportCase,
-		"firstRuneToUpper":        vdlutil.FirstRuneToUpper,
-		"firstRuneToLower":        vdlutil.FirstRuneToLower,
-		"vdlZeroValue":            vdl.ZeroValue,
-		"errorName":               errorName,
-		"nativeType":              nativeType,
-		"typeGo":                  typeGo,
-		"defineType":              defineType,
-		"defineIsZero":            defineIsZero,
-		"defineWrite":             defineWrite,
-		"defineRead":              defineRead,
-		"defineConst":             defineConst,
-		"genValueOf":              genValueOf,
-		"typedConst":              typedConst,
-		"embedGo":                 embedGo,
-		"isStreamingMethod":       isStreamingMethod,
-		"hasStreamingMethods":     hasStreamingMethods,
-		"docBreak":                docBreak,
-		"quoteStripDoc":           parse.QuoteStripDoc,
-		"argNames":                argNames,
-		"argTypes":                argTypes,
-		"argNameTypes":            argNameTypes,
-		"argParens":               argParens,
-		"uniqueName":              uniqueName,
-		"uniqueNameImpl":          uniqueNameImpl,
-		"serverCallVar":           serverCallVar,
-		"serverCallStubVar":       serverCallStubVar,
-		"outArgsClient":           outArgsClient,
-		"clientStubImpl":          clientStubImpl,
-		"clientFinishImpl":        clientFinishImpl,
-		"serverStubImpl":          serverStubImpl,
-		"reInitStreamValue":       reInitStreamValue,
-		"nativeConversionsInFile": nativeConversionsInFile,
+		"firstRuneToExport":     vdlutil.FirstRuneToExportCase,
+		"firstRuneToUpper":      vdlutil.FirstRuneToUpper,
+		"firstRuneToLower":      vdlutil.FirstRuneToLower,
+		"vdlZeroValue":          vdl.ZeroValue,
+		"errorName":             errorName,
+		"nativeType":            nativeType,
+		"noCustomNative":        noCustomNative,
+		"typeHasNoCustomNative": typeHasNoCustomNative,
+		"typeGo":                typeGo,
+		"defineType":            defineType,
+		"defineIsZero":          defineIsZero,
+		"defineWrite":           defineWrite,
+		"defineRead":            defineRead,
+		"defineConst":           defineConst,
+		"genValueOf":            genValueOf,
+		"typedConst":            typedConst,
+		"embedGo":               embedGo,
+		"isStreamingMethod":     isStreamingMethod,
+		"hasStreamingMethods":   hasStreamingMethods,
+		"docBreak":              docBreak,
+		"quoteStripDoc":         parse.QuoteStripDoc,
+		"argNames":              argNames,
+		"argTypes":              argTypes,
+		"argNameTypes":          argNameTypes,
+		"argParens":             argParens,
+		"uniqueName":            uniqueName,
+		"uniqueNameImpl":        uniqueNameImpl,
+		"serverCallVar":         serverCallVar,
+		"serverCallStubVar":     serverCallStubVar,
+		"outArgsClient":         outArgsClient,
+		"clientStubImpl":        clientStubImpl,
+		"clientFinishImpl":      clientFinishImpl,
+		"serverStubImpl":        serverStubImpl,
+		"reInitStreamValue":     reInitStreamValue,
 	}
 	goTemplate = template.Must(template.New("genGo").Funcs(funcMap).Parse(genGo))
 }
@@ -466,22 +474,6 @@ func reInitStreamValue(data *goData, t *vdl.Type, name string) string {
 	return ""
 }
 
-// nativeConversionsInFile returns the map between wire and native types for
-// wire types defined in file.
-func nativeConversionsInFile(file *compile.File) map[string]vdltool.GoType {
-	all := file.Package.Config.Go.WireToNativeTypes
-	infile := make(map[string]vdltool.GoType)
-	for wire, gotype := range all {
-		for _, tdef := range file.TypeDefs {
-			if tdef.Name == wire {
-				infile[wire] = gotype
-				break
-			}
-		}
-	}
-	return infile
-}
-
 // The template that we execute against a goData instance to generate our
 // code.  Most of this is fairly straightforward substitution and ranges; more
 // complicated logic is delegated to the helper functions above.
@@ -520,9 +512,9 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 {{if $pkg.Config.Go.WireToNativeTypes}}
 // Type-check native conversion functions.
 var (
-{{range $wire, $native := $pkg.Config.Go.WireToNativeTypes}}{{$nat := nativeType $data $native $pkg}}
+{{range $wire, $native := $pkg.Config.Go.WireToNativeTypes}}{{if noCustomNative $native}}{{$nat := nativeType $data $native $pkg}}
 	_ func({{$wire}}, *{{$nat}}) error = {{$wire}}ToNative
-	_ func(*{{$wire}}, {{$nat}}) error = {{$wire}}FromNative{{end}}
+	_ func(*{{$wire}}, {{$nat}}) error = {{$wire}}FromNative{{end}}{{end}}
 )
 {{end}}
 {{end}}
@@ -906,12 +898,12 @@ func __VDLInit() struct{} {
 	}
 	__VDLInitCalled = true
 {{if $pkg.Config.Go.WireToNativeTypes}}
-	// Register native type conversions first, so that vdl.TypeOf works.{{range $wire, $native := $pkg.Config.Go.WireToNativeTypes}}
-	{{$data.Pkg "v.io/v23/vdl"}}RegisterNative({{$wire}}ToNative, {{$wire}}FromNative){{end}}
+	// Register native type conversions first, so that vdl.TypeOf works.{{range $wire, $native := $pkg.Config.Go.WireToNativeTypes}}{{if noCustomNative $native}}
+	{{$data.Pkg "v.io/v23/vdl"}}RegisterNative({{$wire}}ToNative, {{$wire}}FromNative){{end}}{{end}}
 {{end}}
 {{if $pkg.TypeDefs}}
-	// Register types.{{range $tdef := $pkg.TypeDefs}}
-	{{$data.Pkg "v.io/v23/vdl"}}Register((*{{$tdef.Name}})(nil)){{end}}
+	// Register types.{{range $tdef := $pkg.TypeDefs}}{{if typeHasNoCustomNative $data $tdef}}
+	{{$data.Pkg "v.io/v23/vdl"}}Register((*{{$tdef.Name}})(nil)){{end}}{{end}}
 {{end}}
 {{if $pkg.ErrorDefs}}
 	// Set error format strings.{{/* TODO(toddw): Don't set "en-US" or "en" again, since it's already set by the original verror.Register call. */}}{{range $edef := $pkg.ErrorDefs}}{{range $lf := $edef.Formats}}

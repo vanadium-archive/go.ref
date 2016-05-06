@@ -29,11 +29,44 @@ func nativeType(data *goData, native vdltool.GoType, wirePkg *compile.Package) s
 		// identifiers.  E.g. if the native type is "foo.Type" with import
 		// "path/to/foo", we need to replace "foo." in the native type with the
 		// local package identifier for "path/to/foo".
-		pkg := data.Pkg(imp.Path)
-		result = strings.Replace(result, imp.Name+".", pkg, -1)
+		if strings.Contains(result, imp.Name+".") {
+			// Add the import dependency if there is a match.
+			pkg := data.Pkg(imp.Path)
+			result = strings.Replace(result, imp.Name+".", pkg, -1)
+		}
 	}
 	data.AddForcedPkg(wirePkg.GenPath)
 	return result
+}
+
+func toNative(data *goData, native vdltool.GoType, ttWire *vdl.Type) string {
+	if native.ToNative != "" {
+		result := native.ToNative
+		for _, imp := range native.Imports {
+			// Translate the packages specified in the native type into local package
+			// identifiers.  E.g. if the native type is "foo.Type" with import
+			// "path/to/foo", we need to replace "foo." in the native type with the
+			// local package identifier for "path/to/foo".
+			if strings.Contains(result, imp.Name+".") {
+				// Add the import dependency if there is a match.
+				pkg := data.Pkg(imp.Path)
+				result = strings.Replace(result, imp.Name+".", pkg, -1)
+			}
+		}
+		return result
+	}
+	return typeGoWire(data, ttWire) + "ToNative"
+}
+
+func noCustomNative(native vdltool.GoType) bool {
+	return native.ToNative == "" && native.FromNative == ""
+}
+
+func typeHasNoCustomNative(data *goData, def *compile.TypeDef) bool {
+	if native, _, ok := findNativeType(data.Env, def.Type); ok {
+		return noCustomNative(native)
+	}
+	return true
 }
 
 func packageIdent(file *compile.File, ident string) string {
@@ -52,11 +85,8 @@ func qualifiedIdent(file *compile.File, ident string) string {
 
 // typeGo translates vdl.Type into a Go type.
 func typeGo(data *goData, t *vdl.Type) string {
-	if def := data.Env.FindTypeDef(t); def != nil {
-		pkg := def.File.Package
-		if native, ok := pkg.Config.Go.WireToNativeTypes[def.Name]; ok {
-			return nativeType(data, native, pkg)
-		}
+	if native, pkg, ok := findNativeType(data.Env, t); ok {
+		return nativeType(data, native, pkg)
 	}
 	return typeGoWire(data, t)
 }

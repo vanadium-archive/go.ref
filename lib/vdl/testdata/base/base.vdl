@@ -205,6 +205,8 @@ type ServiceA interface {
 	MethodA2(a int32, b string) (s string | error)
 	MethodA3(a int32) stream<_, Scalars> (s string | error) {"tag", Six}
 	MethodA4(a int32) stream<int32, string> error
+	//TODO(bprosnitz) Adding MethodA5 breaks the java test - fix this.
+	//MethodA5(a error) (b error | error)
 }
 
 type ServiceB interface {
@@ -224,6 +226,10 @@ error (
 		"en":"en x={x} y={y}",
 		"fr":"fr y={y} x={x}",
 	}
+	//TODO(bprosnitz) Adding WithParams3 breaks the java test - fix this.
+	//WithParams3(x error) {
+	//    "en":"en x={x}",
+	//}
 
 	notExported(x string, y int32) {"en":"en x={x} y={y}"}
 )

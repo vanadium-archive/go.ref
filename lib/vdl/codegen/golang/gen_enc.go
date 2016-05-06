@@ -393,7 +393,11 @@ func containsNativeType(data *goData, t *vdl.Type) bool {
 // isNativeType returns true iff t is a native type.
 func isNativeType(env *compile.Env, t *vdl.Type) bool {
 	if def := env.FindTypeDef(t); def != nil {
-		_, ok := def.File.Package.Config.Go.WireToNativeTypes[def.Name]
+		key := def.Name
+		if t.Kind() == vdl.Optional {
+			key = "*" + key
+		}
+		_, ok := def.File.Package.Config.Go.WireToNativeTypes[key]
 		return ok
 	}
 	return false

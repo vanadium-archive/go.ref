@@ -359,12 +359,8 @@ func (g *genWrite) bodyOptional(tt *vdl.Type, arg namedArg, skipNilCheck bool) s
 	body := g.body(tt.Elem(), arg, false, false)
 	s := fmt.Sprintf(`
 	enc.SetNextStartValueIsOptional()
-	if err := enc.StartValue(%[1]s); err != nil {
-		return err
-	}%[2]s
-	if err := enc.FinishValue(); err != nil {
-		return err
-	}`, typedConst(g.goData, vdl.TypeObjectValue(tt.Elem())), body)
+	%[1]s
+	`, body)
 	if !skipNilCheck {
 		s = fmt.Sprintf(`
 	if %[1]s == nil {
