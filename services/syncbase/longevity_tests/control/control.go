@@ -34,6 +34,7 @@ package control
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -138,6 +139,11 @@ func (c *Controller) init(ctx *context.T) error {
 		return fmt.Errorf("controller rootDir must not be empty")
 	}
 	if err := os.MkdirAll(c.rootDir, 0755); err != nil {
+		return err
+	}
+
+	// Capture output of "vmstat".
+	if err := c.startVmstat(); err != nil {
 		return err
 	}
 
@@ -471,4 +477,35 @@ func (c *Controller) configureContext(ctx *context.T, blessingName string) (*con
 	}
 
 	return newCtx, nil
+}
+
+// startVmstat writes a timestamp and vmstat output to a log file every second.
+func (c *Controller) startVmstat() error {
+	logFilePath := filepath.Join(c.rootDir, "vmstat.log")
+	// Open logfile in append-mode.
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		return err
+	}
+
+	cmd := c.sh.Cmd("bash", "-c", "vmstat -n -w 1 | awk '{ print strftime(\"%c, %Z\"), $0; fflush(); }'")
+	if c.sh.Err != nil {
+		return c.sh.Err
+	}
+
+	outPipe := cmd.StdoutPipe()
+	if c.sh.Err != nil {
+		return c.sh.Err
+	}
+
+	go func() {
+		io.Copy(logFile, outPipe)
+		logFile.Close()
+	}()
+
+	cmd.Start()
+	if c.sh.Err != nil {
+		return c.sh.Err
+	}
+	return nil
 }
