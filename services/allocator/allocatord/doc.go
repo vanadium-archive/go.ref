@@ -20,6 +20,8 @@ The allocatord flags are:
    The maximum total number of server instances to create.
  -name=
    Name to publish for this service.
+ -server-disk-size=50GB
+   The size of the persistent disk to allocate with the servers.
  -server-name=
    Name of the servers to allocate. This name is part of the published names in
    the Vanadium namespace and the names of the Deployments in Kubernetes.

@@ -251,7 +251,7 @@ func countServerInstances() (int, error) {
 }
 
 func createPersistentDisk(ctx *context.T, name string) error {
-	if out, err := gcloud("compute", "disks", "create", name); err != nil {
+	if out, err := gcloud("compute", "disks", "create", name, "--size", diskSizeFlag); err != nil {
 		ctx.Errorf("disk creation failed: %v: %s", err, string(out))
 		return err
 	}
