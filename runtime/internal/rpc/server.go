@@ -31,7 +31,6 @@ import (
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/manager"
-	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
 var (
@@ -67,7 +66,7 @@ type server struct {
 	publisher         *publisher.T // publisher to publish mounttable mounts.
 	closed            chan struct{}
 
-	endpoints map[string]*inaming.Endpoint                 // endpoints that the server is listening on.
+	endpoints map[string]naming.Endpoint                   // endpoints that the server is listening on.
 	lnErrors  map[struct{ Protocol, Address string }]error // errors from listening
 
 	disp               rpc.Dispatcher // dispatcher to serve RPCs
@@ -120,7 +119,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		disp:              dispatcher,
 		typeCache:         newTypeCache(),
 		state:             rpc.ServerActive,
-		endpoints:         make(map[string]*inaming.Endpoint),
+		endpoints:         make(map[string]naming.Endpoint),
 		lnErrors:          make(map[struct{ Protocol, Address string }]error),
 		lameDuckTimeout:   5 * time.Second,
 		closed:            make(chan struct{}),
@@ -323,7 +322,7 @@ func (s *server) resolveToEndpoint(ctx *context.T, address string) ([]naming.End
 		if suffix != "" {
 			continue
 		}
-		if ep, err := inaming.NewEndpoint(address); err == nil {
+		if ep, err := naming.ParseEndpoint(address); err == nil {
 			eps = append(eps, ep)
 		}
 	}
@@ -334,11 +333,10 @@ func (s *server) resolveToEndpoint(ctx *context.T, address string) ([]naming.End
 }
 
 // createEndpoint adds server publishing information to the ep from the manager.
-func (s *server) createEndpoint(lep naming.Endpoint) *inaming.Endpoint {
-	n := *(lep.(*inaming.Endpoint))
-	n.IsMountTable = s.servesMountTable
-	n.IsLeaf = s.isLeaf
-	return &n
+func (s *server) createEndpoint(lep naming.Endpoint) naming.Endpoint {
+	lep.ServesMountTable = s.servesMountTable
+	lep.ServesLeaf = s.isLeaf
+	return lep
 }
 
 func (s *server) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
@@ -363,9 +361,9 @@ func (s *server) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 	// We call updateEndpointsLocked in serial once to populate our endpoints for
 	// server status with at least one endpoint.
 	mgrStat := s.flowMgr.Status()
-	s.updateEndpointsLocked(mgrStat.Endpoints)
+	s.updateEndpointsLocked(ctx, mgrStat.Endpoints)
 	s.active.Add(2)
-	go s.updateEndpointsLoop(mgrStat.Dirty)
+	go s.updateEndpointsLoop(ctx, mgrStat.Dirty)
 	go s.acceptLoop(ctx)
 }
 
@@ -419,20 +417,20 @@ func nextDelay(delay time.Duration) time.Duration {
 	return delay
 }
 
-func (s *server) updateEndpointsLoop(changed <-chan struct{}) {
+func (s *server) updateEndpointsLoop(ctx *context.T, changed <-chan struct{}) {
 	defer s.active.Done()
 	for changed != nil {
 		<-changed
 		mgrStat := s.flowMgr.Status()
 		changed = mgrStat.Dirty
 		s.Lock()
-		s.updateEndpointsLocked(mgrStat.Endpoints)
+		s.updateEndpointsLocked(ctx, mgrStat.Endpoints)
 		s.Unlock()
 	}
 }
 
-func (s *server) updateEndpointsLocked(leps []naming.Endpoint) {
-	endpoints := make(map[string]*inaming.Endpoint)
+func (s *server) updateEndpointsLocked(ctx *context.T, leps []naming.Endpoint) {
+	endpoints := make(map[string]naming.Endpoint)
 	for _, ep := range leps {
 		sep := s.createEndpoint(ep)
 		endpoints[sep.String()] = sep
@@ -463,8 +461,8 @@ func (s *server) updateEndpointsLocked(leps []naming.Endpoint) {
 }
 
 // setDiff returns the endpoints in a that are not in b.
-func setDiff(a, b map[string]*inaming.Endpoint) map[string]*inaming.Endpoint {
-	ret := make(map[string]*inaming.Endpoint)
+func setDiff(a, b map[string]naming.Endpoint) map[string]naming.Endpoint {
+	ret := make(map[string]naming.Endpoint)
 	for k, ep := range a {
 		if _, ok := b[k]; !ok {
 			ret[k] = ep

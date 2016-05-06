@@ -17,8 +17,8 @@ type rpcCall struct {
 }
 
 func (c rpcCall) Security() security.Call         { return c.secCall }
-func (c rpcCall) LocalEndpoint() naming.Endpoint  { return nil }
-func (c rpcCall) RemoteEndpoint() naming.Endpoint { return nil }
+func (c rpcCall) LocalEndpoint() naming.Endpoint  { return naming.Endpoint{} }
+func (c rpcCall) RemoteEndpoint() naming.Endpoint { return naming.Endpoint{} }
 
 func fakeContextAndCall(provider, user security.Principal) (*context.T, rpc.ServerCall) {
 	ctx, _ := context.RootContext()

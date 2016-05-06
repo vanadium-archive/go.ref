@@ -125,7 +125,7 @@ func newHandler(ctx *context.T, timeout time.Duration, log bool, assetDir string
 			if naming.Rooted(n) {
 				n, _ = naming.SplitAddressName(n)
 			}
-			return v23.NewEndpoint(n)
+			return naming.ParseEndpoint(n)
 		},
 		"endpointName": func(ep naming.Endpoint) string { return ep.Name() },
 		"goValueFromVOM": func(v *vom.RawBytes) interface{} {

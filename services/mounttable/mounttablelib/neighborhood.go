@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/glob"
 	"v.io/v23/naming"
@@ -58,7 +57,7 @@ type neighborhoodService struct {
 func getPort(address string) uint16 {
 	epAddr, _ := naming.SplitAddressName(address)
 
-	ep, err := v23.NewEndpoint(epAddr)
+	ep, err := naming.ParseEndpoint(epAddr)
 	if err != nil {
 		return 0
 	}

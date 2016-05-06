@@ -787,15 +787,15 @@ func SetNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
 	roots := make([]string, len(origroots))
 	for i, orig := range origroots {
 		addr, suffix := naming.SplitAddressName(orig)
-		origep, err := v23.NewEndpoint(addr)
+		origep, err := naming.ParseEndpoint(addr)
 		if err != nil {
 			return nil, err
 		}
 		ep := naming.FormatEndpoint(
 			origep.Addr().Network(),
 			origep.Addr().String(),
-			origep.RoutingID(),
-			naming.ServesMountTable(origep.ServesMountTable()))
+			origep.RoutingID,
+			naming.ServesMountTable(origep.ServesMountTable))
 		roots[i] = naming.JoinAddressName(ep, suffix)
 	}
 	ctx.Infof("Changing namespace roots from %v to %v", origroots, roots)

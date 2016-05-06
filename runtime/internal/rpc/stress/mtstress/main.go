@@ -117,7 +117,7 @@ func paramsFromFlags(ctx *context.T, objectName string) (params, error) {
 	if len(addr) == 0 {
 		addr, _ = naming.SplitAddressName(v23.GetNamespace(ctx).Roots()[0])
 	}
-	ep, err := v23.NewEndpoint(addr)
+	ep, err := naming.ParseEndpoint(addr)
 	if err != nil {
 		return params{}, err
 	}

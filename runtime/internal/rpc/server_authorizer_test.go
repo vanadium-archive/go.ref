@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	"v.io/v23"
+	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-	"v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -125,7 +125,7 @@ func TestServerAuthorizer(t *testing.T) {
 	for _, test := range tests {
 		call := &mockCall{
 			p:   pclient,
-			rep: &naming.Endpoint{Blessings: test.serverBlessingNames},
+			rep: naming.Endpoint{}.WithBlessingNames(test.serverBlessingNames),
 		}
 		for _, s := range test.authorizedServers {
 			call.r = s

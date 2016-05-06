@@ -15,7 +15,6 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/lib/netstate"
-	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
 var (
@@ -156,7 +155,7 @@ func name2endpoint(name string) (naming.Endpoint, error) {
 	if naming.Rooted(name) {
 		addr, _ = naming.SplitAddressName(name)
 	}
-	return inaming.NewEndpoint(addr)
+	return naming.ParseEndpoint(addr)
 }
 
 // protocol2rank returns the "rank" of a protocol (given a map of ranks).

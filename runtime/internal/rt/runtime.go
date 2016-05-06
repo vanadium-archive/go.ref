@@ -37,7 +37,6 @@ import (
 	_ "v.io/x/ref/lib/stats/sysstats"
 	"v.io/x/ref/runtime/internal/flow/manager"
 	"v.io/x/ref/runtime/internal/lib/dependency"
-	inaming "v.io/x/ref/runtime/internal/naming"
 	inamespace "v.io/x/ref/runtime/internal/naming/namespace"
 	irpc "v.io/x/ref/runtime/internal/rpc"
 	ivtrace "v.io/x/ref/runtime/internal/vtrace"
@@ -56,6 +55,10 @@ const (
 	// initKey is used to store values that are only set at init time.
 	initKey
 )
+
+func init() {
+	metadata.Insert("v23.RPCEndpointVersion", fmt.Sprint(naming.DefaultEndpointVersion))
+}
 
 var (
 	errDiscoveryNotInitialized = verror.Register(pkgPath+".errDiscoveryNotInitialized", verror.NoRetry, "{1:}{2:} discovery not initialized")
@@ -232,11 +235,6 @@ func (r *Runtime) initSignalHandling(ctx *context.T) {
 		signal.Stop(signals)
 		close(signals)
 	})
-}
-
-func (*Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
-	// nologcall
-	return inaming.NewEndpoint(ep)
 }
 
 func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, shutdown func()) (*context.T, error) {

@@ -37,10 +37,7 @@ func newWakeup(t *testing.T, ctx *context.T, wakeup func(*context.T, string, str
 }
 
 func newEndpoint(t *testing.T, addr string) string {
-	ep, err := v23.NewEndpoint(addr)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ep := naming.Endpoint{Address: addr}
 	return ep.String()
 }
 

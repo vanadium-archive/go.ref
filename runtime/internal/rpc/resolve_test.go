@@ -18,7 +18,6 @@ import (
 	"v.io/x/ref/runtime/factories/fake"
 	"v.io/x/ref/runtime/internal"
 	"v.io/x/ref/runtime/internal/lib/appcycle"
-	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
 	grt "v.io/x/ref/runtime/internal/rt"
 	"v.io/x/ref/test"
@@ -72,7 +71,7 @@ func TestResolveToEndpoint(t *testing.T) {
 	defer shutdown()
 	ns := v23.GetNamespace(ctx)
 
-	proxyEp, _ := inaming.NewEndpoint("proxy.v.io:123#")
+	proxyEp, _ := naming.ParseEndpoint("proxy.v.io:123#")
 	proxyEpStr := proxyEp.String()
 	proxyAddr := naming.JoinAddressName(proxyEpStr, "")
 	if err := ns.Mount(ctx, "proxy", proxyAddr, time.Hour); err != nil {

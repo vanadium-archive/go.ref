@@ -1577,7 +1577,7 @@ var (
 	ErrBlessingsFlowClosed      = verror.Register("v.io/x/ref/runtime/internal/flow/conn.BlessingsFlowClosed", verror.NoRetry, "{1:}{2:} The blessings flow was closed with error{:3}.")
 	ErrInvalidChannelBinding    = verror.Register("v.io/x/ref/runtime/internal/flow/conn.InvalidChannelBinding", verror.NoRetry, "{1:}{2:} The channel binding was invalid.")
 	ErrNoPublicKey              = verror.Register("v.io/x/ref/runtime/internal/flow/conn.NoPublicKey", verror.NoRetry, "{1:}{2:} No public key was received by the remote end.")
-	ErrDialingNonServer         = verror.Register("v.io/x/ref/runtime/internal/flow/conn.DialingNonServer", verror.NoRetry, "{1:}{2:} You are attempting to dial on a connection with no remote server.")
+	ErrDialingNonServer         = verror.Register("v.io/x/ref/runtime/internal/flow/conn.DialingNonServer", verror.NoRetry, "{1:}{2:} You are attempting to dial on a connection with no remote server: {:3}.")
 	ErrAcceptorBlessingsMissing = verror.Register("v.io/x/ref/runtime/internal/flow/conn.AcceptorBlessingsMissing", verror.NoRetry, "{1:}{2:} The acceptor did not send blessings.")
 	ErrDialerBlessingsMissing   = verror.Register("v.io/x/ref/runtime/internal/flow/conn.DialerBlessingsMissing", verror.NoRetry, "{1:}{2:} The dialer did not send blessings.")
 	ErrBlessingsNotBound        = verror.Register("v.io/x/ref/runtime/internal/flow/conn.BlessingsNotBound", verror.NoRetry, "{1:}{2:} blessings not bound to connection remote public key")
@@ -1643,8 +1643,8 @@ func NewErrNoPublicKey(ctx *context.T) error {
 }
 
 // NewErrDialingNonServer returns an error with the ErrDialingNonServer ID.
-func NewErrDialingNonServer(ctx *context.T) error {
-	return verror.New(ErrDialingNonServer, ctx)
+func NewErrDialingNonServer(ctx *context.T, ep string) error {
+	return verror.New(ErrDialingNonServer, ctx, ep)
 }
 
 // NewErrAcceptorBlessingsMissing returns an error with the ErrAcceptorBlessingsMissing ID.
@@ -1746,7 +1746,7 @@ func __VDLInit() struct{} {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBlessingsFlowClosed.ID), "{1:}{2:} The blessings flow was closed with error{:3}.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidChannelBinding.ID), "{1:}{2:} The channel binding was invalid.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoPublicKey.ID), "{1:}{2:} No public key was received by the remote end.")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDialingNonServer.ID), "{1:}{2:} You are attempting to dial on a connection with no remote server.")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDialingNonServer.ID), "{1:}{2:} You are attempting to dial on a connection with no remote server: {:3}.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAcceptorBlessingsMissing.ID), "{1:}{2:} The acceptor did not send blessings.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDialerBlessingsMissing.ID), "{1:}{2:} The dialer did not send blessings.")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBlessingsNotBound.ID), "{1:}{2:} blessings not bound to connection remote public key")

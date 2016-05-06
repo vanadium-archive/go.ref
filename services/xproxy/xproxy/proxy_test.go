@@ -235,7 +235,7 @@ func TestProxyAuthorizesServer(t *testing.T) {
 	// Artificially constructing the proxied endpoint to the server should
 	// not work. (i.e. a client cannot "trick" a proxy into connecting to a server
 	// that the proxy doesn't want to talk to).
-	ep, err := setEndpointRoutingID(proxyEP, server.Status().Endpoints[0].RoutingID())
+	ep, err := setEndpointRoutingID(proxyEP, server.Status().Endpoints[0].RoutingID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -573,14 +573,14 @@ func setEndpointRoutingID(ep naming.Endpoint, rid naming.RoutingID) (naming.Endp
 	opts = append(opts, rid)
 	opts = append(opts, mountable)
 	epString := naming.FormatEndpoint(network, address, opts...)
-	return v23.NewEndpoint(epString)
+	return naming.ParseEndpoint(epString)
 }
 
 // getEndpointParts returns all the fields of ep.
 func getEndpointParts(ep naming.Endpoint) (network string, address string,
 	rid naming.RoutingID, mountable naming.EndpointOpt) {
 	network, address = ep.Addr().Network(), ep.Addr().String()
-	rid = ep.RoutingID()
-	mountable = naming.ServesMountTable(ep.ServesMountTable())
+	rid = ep.RoutingID
+	mountable = naming.ServesMountTable(ep.ServesMountTable)
 	return
 }

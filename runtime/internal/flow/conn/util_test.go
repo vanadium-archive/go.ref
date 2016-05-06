@@ -36,11 +36,11 @@ func setupConns(t *testing.T,
 	dAuth, aAuth []security.BlessingPattern) (dialed, accepted *Conn, derr, aerr error) {
 	dmrw, amrw := flowtest.Pipe(t, actx, network, address)
 	versions := version.RPCVersionRange{Min: 3, Max: 5}
-	ridep, err := v23.NewEndpoint("@6@@batman.com:1234@@000000000000000000000000dabbad00@m@@@")
+	ridep, err := naming.ParseEndpoint("@6@@batman.com:1234@@000000000000000000000000dabbad00@m@@@")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	ep, err := v23.NewEndpoint("localhost:80")
+	ep, err := naming.ParseEndpoint("localhost:80")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -91,7 +91,7 @@ func setupFlows(t *testing.T, network, address string, dctx, actx *context.T, di
 	}
 	for i := 0; i < n; i++ {
 		var err error
-		if dialed[i], err = d.Dial(dctx, d.LocalBlessings(), nil, nil, 0, false); err != nil {
+		if dialed[i], err = d.Dial(dctx, d.LocalBlessings(), nil, naming.Endpoint{}, 0, false); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 	}

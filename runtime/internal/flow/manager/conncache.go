@@ -80,7 +80,7 @@ func (c *ConnCache) Insert(conn *conn.Conn, proxy bool) error {
 	k := key(addr.Network(), addr.String())
 	entry := &connEntry{
 		conn:    conn,
-		rid:     ep.RoutingID(),
+		rid:     ep.RoutingID,
 		addrKey: k,
 		proxy:   proxy,
 	}
@@ -102,7 +102,7 @@ func (c *ConnCache) InsertWithRoutingID(conn *conn.Conn, proxy bool) error {
 	ep := conn.RemoteEndpoint()
 	entry := &connEntry{
 		conn:  conn,
-		rid:   ep.RoutingID(),
+		rid:   ep.RoutingID,
 		proxy: proxy,
 	}
 	if old := c.ridCache[entry.rid]; old != nil {
@@ -120,7 +120,7 @@ func (c *ConnCache) FindWithRoutingID(ctx *context.T, remote naming.Endpoint,
 	if c.addrCache == nil {
 		return nil, nil, nil, NewErrCacheClosed(nil)
 	}
-	if rid := remote.RoutingID(); rid != naming.NullRoutingID {
+	if rid := remote.RoutingID; rid != naming.NullRoutingID {
 		if conn, names, rejected := c.removeAndFilterConnBreaksCriticalSection(ctx, remote, c.ridCache[rid], auth); conn != nil {
 			return conn, names, rejected, nil
 		}
@@ -145,7 +145,7 @@ func (c *ConnCache) Find(ctx *context.T, remote naming.Endpoint, network, addres
 	if c.addrCache == nil {
 		return nil, nil, nil, NewErrCacheClosed(nil)
 	}
-	if rid := remote.RoutingID(); rid != naming.NullRoutingID {
+	if rid := remote.RoutingID; rid != naming.NullRoutingID {
 		if conn, names, rejected := c.removeAndFilterConnBreaksCriticalSection(ctx, remote, c.ridCache[rid], auth); conn != nil {
 			return conn, names, rejected, nil
 		}

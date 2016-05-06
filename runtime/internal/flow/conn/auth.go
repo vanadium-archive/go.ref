@@ -21,7 +21,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	iflow "v.io/x/ref/runtime/internal/flow"
-	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
 var (
@@ -37,8 +36,8 @@ func (c *Conn) dialHandshake(
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	dialedEP := endpointCopy(c.remote)
-	c.remote.(*inaming.Endpoint).RID = remoteEndpoint.RoutingID()
+	dialedEP := c.remote
+	c.remote.RoutingID = remoteEndpoint.RoutingID
 	bflow := c.newFlowLocked(
 		ctx,
 		blessingsFlowID,
@@ -46,7 +45,7 @@ func (c *Conn) dialHandshake(
 		security.Blessings{},
 		nil,
 		nil,
-		nil,
+		naming.Endpoint{},
 		true,
 		true,
 		0,
@@ -94,8 +93,8 @@ func (c *Conn) dialHandshake(
 // the null routing id (in which case it is assumed that any connected
 // server must be the target since nothing has been specified).
 func (c *Conn) MatchesRID(ep naming.Endpoint) bool {
-	return ep.RoutingID() == naming.NullRoutingID ||
-		c.remote.RoutingID() == ep.RoutingID()
+	return ep.RoutingID == naming.NullRoutingID ||
+		c.remote.RoutingID == ep.RoutingID
 }
 
 func (c *Conn) acceptHandshake(
@@ -114,7 +113,7 @@ func (c *Conn) acceptHandshake(
 		security.Blessings{},
 		nil,
 		nil,
-		nil,
+		naming.Endpoint{},
 		true,
 		true,
 		0,
@@ -150,7 +149,7 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange, dialer bo
 	var rttstart time.Time
 	pk, sk, err := box.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, nil, rttstart, err
+		return nil, naming.Endpoint{}, rttstart, err
 	}
 	lSetup := &message.Setup{
 		Versions:          versions,
@@ -159,7 +158,7 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange, dialer bo
 		Mtu:               defaultMtu,
 		SharedTokens:      DefaultBytesBufferedPerFlow,
 	}
-	if c.remote != nil {
+	if !c.remote.IsZero() {
 		lSetup.PeerRemoteEndpoint = c.remote
 	}
 	ch := make(chan error, 1)
@@ -172,24 +171,24 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange, dialer bo
 	msg, err := c.mp.readMsg(ctx)
 	if err != nil {
 		<-ch
-		return nil, nil, rttstart, NewErrRecv(ctx, "unknown", err)
+		return nil, naming.Endpoint{}, rttstart, NewErrRecv(ctx, "unknown", err)
 	}
 	rSetup, valid := msg.(*message.Setup)
 	if !valid {
 		<-ch
-		return nil, nil, rttstart, NewErrUnexpectedMsg(ctx, reflect.TypeOf(msg).String())
+		return nil, naming.Endpoint{}, rttstart, NewErrUnexpectedMsg(ctx, reflect.TypeOf(msg).String())
 	}
 	if err := <-ch; err != nil {
 		remoteStr := ""
-		if c.remote != nil {
+		if !c.remote.IsZero() {
 			remoteStr = c.remote.String()
 		}
-		return nil, nil, rttstart, NewErrSend(ctx, "setup", remoteStr, err)
+		return nil, naming.Endpoint{}, rttstart, NewErrSend(ctx, "setup", remoteStr, err)
 	}
 	if c.version, err = version.CommonVersion(ctx, lSetup.Versions, rSetup.Versions); err != nil {
-		return nil, nil, rttstart, err
+		return nil, naming.Endpoint{}, rttstart, err
 	}
-	if c.local == nil {
+	if c.local.IsZero() {
 		c.local = rSetup.PeerRemoteEndpoint
 	}
 	if rSetup.Mtu != 0 {
@@ -202,7 +201,7 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange, dialer bo
 		c.lshared = rSetup.SharedTokens
 	}
 	if rSetup.PeerNaClPublicKey == nil {
-		return nil, nil, rttstart, NewErrMissingSetupOption(ctx, "peerNaClPublicKey")
+		return nil, naming.Endpoint{}, rttstart, NewErrMissingSetupOption(ctx, "peerNaClPublicKey")
 	}
 	c.mu.Lock()
 	binding := c.mp.setupEncryption(ctx, pk, sk, rSetup.PeerNaClPublicKey)
@@ -215,17 +214,17 @@ func (c *Conn) setup(ctx *context.T, versions version.RPCVersionRange, dialer bo
 		// We always put the dialer first in the binding.
 		if dialer {
 			if binding, err = message.Append(ctx, lSetup, nil); err != nil {
-				return nil, nil, rttstart, err
+				return nil, naming.Endpoint{}, rttstart, err
 			}
 			if binding, err = message.Append(ctx, rSetup, binding); err != nil {
-				return nil, nil, rttstart, err
+				return nil, naming.Endpoint{}, rttstart, err
 			}
 		} else {
 			if binding, err = message.Append(ctx, rSetup, nil); err != nil {
-				return nil, nil, rttstart, err
+				return nil, naming.Endpoint{}, rttstart, err
 			}
 			if binding, err = message.Append(ctx, lSetup, binding); err != nil {
-				return nil, nil, rttstart, err
+				return nil, naming.Endpoint{}, rttstart, err
 			}
 		}
 	}
@@ -253,7 +252,7 @@ func (c *Conn) readRemoteAuth(ctx *context.T, binding []byte, dialer bool) (secu
 		msg, err := c.mp.readMsg(ctx)
 		if err != nil {
 			remote := ""
-			if c.remote != nil {
+			if !c.remote.IsZero() {
 				remote = c.remote.String()
 			}
 			return security.Blessings{}, nil, rttend, NewErrRecv(ctx, remote, err)

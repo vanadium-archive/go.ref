@@ -39,8 +39,8 @@ func (fc *fakeCall) RemoteDischarges() map[string]security.Discharge { return ni
 func (fc *fakeCall) LocalPrincipal() security.Principal              { return fc.localPrincipal }
 func (fc *fakeCall) LocalBlessings() security.Blessings              { return fc.localBlessings }
 func (fc *fakeCall) RemoteBlessings() security.Blessings             { return fc.remoteBlessings }
-func (fc *fakeCall) LocalEndpoint() naming.Endpoint                  { return nil }
-func (fc *fakeCall) RemoteEndpoint() naming.Endpoint                 { return nil }
+func (fc *fakeCall) LocalEndpoint() naming.Endpoint                  { return naming.Endpoint{} }
+func (fc *fakeCall) RemoteEndpoint() naming.Endpoint                 { return naming.Endpoint{} }
 
 // --------------------------------------
 

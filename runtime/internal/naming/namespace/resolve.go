@@ -98,7 +98,7 @@ func hasEndpointPrefix(name string) bool {
 		return false
 	}
 	elems := strings.SplitN(name, "/", 2)
-	_, err := v23.NewEndpoint(elems[0])
+	_, err := naming.ParseEndpoint(elems[0])
 	return err == nil
 }
 

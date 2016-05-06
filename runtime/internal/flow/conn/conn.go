@@ -19,7 +19,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	slib "v.io/x/ref/lib/security"
-	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
 const (
@@ -169,8 +168,8 @@ func NewDialed(
 	c = &Conn{
 		mp:                   newMessagePipe(conn),
 		handler:              handler,
-		local:                endpointCopy(local),
-		remote:               endpointCopy(remote),
+		local:                local,
+		remote:               remote,
 		closed:               make(chan struct{}),
 		lameDucked:           make(chan struct{}),
 		nextFid:              reservedFlows,
@@ -248,7 +247,7 @@ func NewAccepted(
 	c := &Conn{
 		mp:                   newMessagePipe(conn),
 		handler:              handler,
-		local:                endpointCopy(local),
+		local:                local,
 		closed:               make(chan struct{}),
 		lameDucked:           make(chan struct{}),
 		nextFid:              reservedFlows + 1,
@@ -437,8 +436,8 @@ func (c *Conn) EnterLameDuck(ctx *context.T) chan struct{} {
 // Dial dials a new flow on the Conn.
 func (c *Conn) Dial(ctx *context.T, blessings security.Blessings, discharges map[string]security.Discharge,
 	remote naming.Endpoint, channelTimeout time.Duration, sideChannel bool) (flow.Flow, error) {
-	if c.remote.RoutingID() == naming.NullRoutingID {
-		return nil, NewErrDialingNonServer(ctx)
+	if c.remote.RoutingID == naming.NullRoutingID {
+		return nil, NewErrDialingNonServer(ctx, c.remote.String())
 	}
 	if blessings.IsZero() {
 		// its safe to ignore this error since c.lBlessings must be valid, so the
@@ -462,8 +461,8 @@ func (c *Conn) Dial(ctx *context.T, blessings security.Blessings, discharges map
 	}
 	id := c.nextFid
 	c.nextFid += 2
-	remote = endpointCopy(c.remote)
-	remote.(*inaming.Endpoint).Blessings = c.remote.BlessingNames()
+	remote = c.remote
+	remote = remote.WithBlessingNames(c.remote.BlessingNames())
 	flw := c.newFlowLocked(
 		ctx,
 		id,
@@ -1020,9 +1019,4 @@ func (c *Conn) sendMessageLocked(
 	c.deactivateWriterLocked(s)
 	c.notifyNextWriterLocked(s)
 	return err
-}
-
-func endpointCopy(ep naming.Endpoint) naming.Endpoint {
-	var cp inaming.Endpoint = *(ep.(*inaming.Endpoint))
-	return &cp
 }

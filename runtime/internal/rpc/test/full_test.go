@@ -9,13 +9,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/nacl/box"
 	"io"
 	"net"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/crypto/nacl/box"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -37,7 +38,6 @@ import (
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/security/bcrypter"
 	"v.io/x/ref/runtime/internal/flow/crypto"
-	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/protocols/debug"
 	"v.io/x/ref/runtime/protocols/lib/tcputil"
 	"v.io/x/ref/test"
@@ -266,7 +266,7 @@ func TestPreferredAddress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	iep := server.Status().Endpoints[0].(*inaming.Endpoint)
+	iep := server.Status().Endpoints[0]
 	host, _, err := net.SplitHostPort(iep.Address)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
@@ -638,8 +638,7 @@ func TestServerManInTheMiddleAttack(t *testing.T) {
 
 	// The legitimate server would have mounted the same endpoint on the
 	// namespace, but with different blessings.
-	ep := aserver.Status().Endpoints[0]
-	ep.(*inaming.Endpoint).Blessings = []string{"test-blessings/server"}
+	ep := aserver.Status().Endpoints[0].WithBlessingNames([]string{"test-blessings/server"})
 	if err := v23.GetNamespace(actx).Mount(ctx, name, ep.Name(), time.Hour); err != nil {
 		t.Fatal(err)
 	}

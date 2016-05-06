@@ -16,7 +16,6 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -218,7 +217,7 @@ func endpointToStrings(eps []naming.Endpoint) []string {
 
 func setLeafEndpoints(eps []naming.Endpoint) {
 	for i := range eps {
-		eps[i].(*inaming.Endpoint).IsLeaf = true
+		eps[i].ServesLeaf = true
 	}
 }
 
@@ -287,7 +286,7 @@ func mountedBlessings(ctx *context.T, name string) ([]string, error) {
 		return nil, err
 	}
 	for _, ms := range me.Servers {
-		ep, err := v23.NewEndpoint(ms.Server)
+		ep, err := naming.ParseEndpoint(ms.Server)
 		if err != nil {
 			return nil, err
 		}
@@ -299,6 +298,8 @@ func mountedBlessings(ctx *context.T, name string) ([]string, error) {
 func TestUpdateServerBlessings(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
+
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	idp := testutil.IDProviderFromPrincipal(v23.GetPrincipal(ctx))
 

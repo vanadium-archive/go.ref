@@ -27,7 +27,6 @@ import (
 	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
-	inaming "v.io/x/ref/runtime/internal/naming"
 	"v.io/x/ref/runtime/internal/rpc/version"
 	"v.io/x/ref/runtime/protocols/bidi"
 )
@@ -68,8 +67,8 @@ type listenState struct {
 }
 
 type endpointState struct {
-	leps         []*inaming.Endpoint // the list of currently active endpoints.
-	tmplEndpoint *inaming.Endpoint   // endpoint used as a template for creating new endpoints from the network interfaces provided from roaming.
+	leps         []naming.Endpoint // the list of currently active endpoints.
+	tmplEndpoint naming.Endpoint   // endpoint used as a template for creating new endpoints from the network interfaces provided from roaming.
 	roaming      bool
 }
 
@@ -196,12 +195,11 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 	}
 	m.ls.listeners = append(m.ls.listeners, ln)
 
-	local := &inaming.Endpoint{
+	local := naming.Endpoint{
 		Protocol:  protocol,
 		Address:   ln.Addr().String(),
-		RID:       m.rid,
-		Blessings: m.ls.serverNames,
-	}
+		RoutingID: m.rid,
+	}.WithBlessingNames(m.ls.serverNames)
 	leps, roam, err := m.createEndpoints(ctx, local)
 	if err != nil {
 		return iflow.MaybeWrapError(flow.ErrBadArg, ctx, err)
@@ -273,11 +271,11 @@ func (m *manager) updateRoamingEndpoints(addrs netstate.AddrList) {
 			changed = true
 		}
 		_, port := getHostPort(epState.tmplEndpoint.Addr())
-		newleps := make([]*inaming.Endpoint, 0, len(hosts))
-		for h, _ := range hosts {
-			nep := *epState.tmplEndpoint
+		newleps := make([]naming.Endpoint, 0, len(hosts))
+		for h := range hosts {
+			nep := epState.tmplEndpoint
 			nep.Address = net.JoinHostPort(h, port)
-			newleps = append(newleps, &nep)
+			newleps = append(newleps, nep)
 
 			if !changed {
 				found := false
@@ -299,12 +297,12 @@ func (m *manager) updateRoamingEndpoints(addrs netstate.AddrList) {
 	}
 }
 
-func (m *manager) createEndpoints(ctx *context.T, lep naming.Endpoint) ([]*inaming.Endpoint, bool, error) {
-	iep := lep.(*inaming.Endpoint)
+func (m *manager) createEndpoints(ctx *context.T, lep naming.Endpoint) ([]naming.Endpoint, bool, error) {
+	iep := lep
 	if !strings.HasPrefix(iep.Protocol, "tcp") &&
 		!strings.HasPrefix(iep.Protocol, "ws") {
 		// If not tcp, ws, or wsh, just return the endpoint we were given.
-		return []*inaming.Endpoint{iep}, false, nil
+		return []naming.Endpoint{iep}, false, nil
 	}
 	host, port, err := net.SplitHostPort(iep.Address)
 	if err != nil {
@@ -315,9 +313,9 @@ func (m *manager) createEndpoints(ctx *context.T, lep naming.Endpoint) ([]*inami
 	if err != nil {
 		return nil, false, err
 	}
-	ieps := make([]*inaming.Endpoint, 0, len(addrs))
+	ieps := make([]naming.Endpoint, 0, len(addrs))
 	for _, addr := range addrs {
-		n, err := inaming.NewEndpoint(lep.String())
+		n, err := naming.ParseEndpoint(lep.String())
 		if err != nil {
 			return nil, false, err
 		}
@@ -329,9 +327,9 @@ func (m *manager) createEndpoints(ctx *context.T, lep naming.Endpoint) ([]*inami
 
 func (m *manager) updateEndpointBlessingsLocked(names []string) {
 	for _, eps := range m.ls.endpoints {
-		eps.tmplEndpoint.Blessings = names
-		for _, ep := range eps.leps {
-			ep.Blessings = names
+		eps.tmplEndpoint = eps.tmplEndpoint.WithBlessingNames(names)
+		for i := range eps.leps {
+			eps.leps[i] = eps.leps[i].WithBlessingNames(names)
 		}
 	}
 	if m.ls.netChange != nil {
@@ -403,7 +401,7 @@ func (m *manager) readAndUpdateProxyEndpoints(ctx *context.T, name string, f flo
 	eps, err := m.readProxyResponse(ctx, f)
 	if err == nil {
 		for i := range eps {
-			eps[i].(*inaming.Endpoint).Blessings = serverNames
+			eps[i] = eps[i].WithBlessingNames(serverNames)
 		}
 	}
 	m.updateProxyEndpoints(eps, name, err, flowKey)
@@ -473,7 +471,7 @@ func (m *manager) readProxyResponse(ctx *context.T, f flow.Flow) ([]naming.Endpo
 		return nil, NewErrProxyResponse(ctx, m.Error)
 	default:
 		f.Close()
-		return nil, flow.NewErrBadArg(ctx, NewErrInvalidProxyResponse(ctx, fmt.Sprintf("%t", m)))
+		return nil, flow.NewErrBadArg(ctx, NewErrInvalidProxyResponse(ctx, fmt.Sprintf("%T", m)))
 	}
 }
 
@@ -651,7 +649,7 @@ func (m *manager) Status() flow.ListenStatus {
 	status.Dirty = m.ls.netChange
 	m.ls.mu.Unlock()
 	if len(status.Endpoints) == 0 {
-		status.Endpoints = append(status.Endpoints, &inaming.Endpoint{Protocol: bidi.Name, RID: m.rid})
+		status.Endpoints = append(status.Endpoints, naming.Endpoint{Protocol: bidi.Name, RoutingID: m.rid})
 	}
 	return status
 }
@@ -721,7 +719,7 @@ func (m *manager) DialCached(ctx *context.T, remote naming.Endpoint, auth flow.P
 		unresNetwork, unresAddress = addr.Network(), addr.String()
 		protocol, _                = flow.RegisteredProtocol(unresNetwork)
 	)
-	if rid := remote.RoutingID(); rid != naming.NullRoutingID {
+	if rid := remote.RoutingID; rid != naming.NullRoutingID {
 		// In the case the endpoint has a RoutingID we only want to check the cache
 		// for the RoutingID because we want to guarantee that the connection we
 		// return is to the end server and not a connection to an intermediate proxy.
@@ -912,10 +910,10 @@ func listen(ctx *context.T, protocol, address string) (flow.Listener, error) {
 
 func localEndpoint(conn flow.Conn, rid naming.RoutingID) naming.Endpoint {
 	localAddr := conn.LocalAddr()
-	ep := &inaming.Endpoint{
-		Protocol: localAddr.Network(),
-		Address:  localAddr.String(),
-		RID:      rid,
+	ep := naming.Endpoint{
+		Protocol:  localAddr.Network(),
+		Address:   localAddr.String(),
+		RoutingID: rid,
 	}
 	return ep
 }

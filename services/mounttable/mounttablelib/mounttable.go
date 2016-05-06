@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/glob"
 	"v.io/v23/naming"
@@ -519,7 +518,7 @@ func (ms *mountContext) Mount(ctx *context.T, call rpc.ServerCall, server string
 	if naming.Rooted(server) {
 		epString, _ = naming.SplitAddressName(server)
 	}
-	_, err := v23.NewEndpoint(epString)
+	_, err := naming.ParseEndpoint(epString)
 	if err != nil {
 		return verror.New(errMalformedAddress, ctx, epString, server)
 	}

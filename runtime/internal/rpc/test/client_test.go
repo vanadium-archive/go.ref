@@ -32,7 +32,6 @@ import (
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/internal/flow/conn"
-	inaming "v.io/x/ref/runtime/internal/naming"
 	irpc "v.io/x/ref/runtime/internal/rpc"
 	"v.io/x/ref/runtime/protocols/debug"
 	"v.io/x/ref/runtime/protocols/lib/tcputil"
@@ -687,10 +686,10 @@ func TestReconnect(t *testing.T) {
 
 	cmd, serverName := startEchoServer(t, sh, "mymessage", "", "")
 	serverEP, _ := naming.SplitAddressName(serverName)
-	ep, _ := inaming.NewEndpoint(serverEP)
+	ep, _ := naming.ParseEndpoint(serverEP)
 	// create a serverName of just the host:port format so that it will work with
 	// servers on the same host port but with different routing ids.
-	ep.RID = naming.NullRoutingID
+	ep.RoutingID = naming.NullRoutingID
 	serverName = ep.Name()
 
 	makeCall := func(ctx *context.T, opts ...rpc.CallOpt) (string, error) {

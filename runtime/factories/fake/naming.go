@@ -7,15 +7,9 @@ package fake
 import (
 	"v.io/v23/context"
 	"v.io/v23/namespace"
-	"v.io/v23/naming"
 	"v.io/x/ref/lib/apilog"
-	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
-func (r *Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
-	defer apilog.LogCallf(nil, "ep=%.10s...", ep)(nil, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
-	return inaming.NewEndpoint(ep)
-}
 func (r *Runtime) WithNewNamespace(ctx *context.T, roots ...string) (*context.T, namespace.T, error) {
 	defer apilog.LogCallf(ctx, "roots...=%v", roots)(ctx, "") // gologcop: DO NOT EDIT, MUST BE FIRST STATEMENT
 	panic("unimplemented")

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/v23"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 )
@@ -51,7 +50,7 @@ func ToEndpoints(addrs ...string) []naming.Endpoint {
 	eps := make([]naming.Endpoint, len(addrs))
 	for i, addr := range addrs {
 		addr = strings.TrimPrefix(addr, "/")
-		eps[i], _ = v23.NewEndpoint(addr)
+		eps[i], _ = naming.ParseEndpoint(addr)
 	}
 	return eps
 }

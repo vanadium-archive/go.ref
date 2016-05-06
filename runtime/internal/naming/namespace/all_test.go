@@ -678,7 +678,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 	// Host:Port and Endpoint versions of the other namespace root
 	// (which has different blessings)
 	hproot := fmt.Sprintf("(otherroot)@%v", rootmt.endpoint.Addr())
-	eproot := naming.FormatEndpoint(rootmt.endpoint.Addr().Network(), rootmt.endpoint.Addr().String(), rootmt.endpoint.RoutingID(), naming.BlessingOpt("otherroot"), naming.ServesMountTable(rootmt.endpoint.ServesMountTable()))
+	eproot := naming.FormatEndpoint(rootmt.endpoint.Addr().Network(), rootmt.endpoint.Addr().String(), rootmt.endpoint.RoutingID, naming.BlessingOpt("otherroot"), naming.ServesMountTable(rootmt.endpoint.ServesMountTable))
 	ns := v23.GetNamespace(ctx)
 	for _, root := range []string{hproot, eproot} {
 		name := naming.JoinAddressName(root, "mt")
@@ -706,7 +706,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 	// for "mt". This would result in "mt" and its mount entry (in the
 	// global mounttable) having inconsistent blessings. Simulate this by
 	// explicitly changing the mount entry for "mt".
-	goodChildMTEndpoint := naming.FormatEndpoint(mt.endpoint.Addr().Network(), mt.endpoint.Addr().String(), naming.BlessingOpt("idp/goodchildmt"), mt.endpoint.RoutingID())
+	goodChildMTEndpoint := naming.FormatEndpoint(mt.endpoint.Addr().Network(), mt.endpoint.Addr().String(), naming.BlessingOpt("idp/goodchildmt"), mt.endpoint.RoutingID)
 	if err := v23.GetNamespace(mtCtx).Mount(mtCtx, "mt", goodChildMTEndpoint, time.Minute, naming.ServesMountTable(true), naming.ReplaceMount(true)); err != nil {
 		t.Error(err)
 	}

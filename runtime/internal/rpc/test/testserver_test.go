@@ -102,10 +102,10 @@ func (testServerAuthorizer) Authorize(ctx *context.T, call security.Call) error 
 	if call.Method() == "" {
 		return fmt.Errorf("testServerAuthorzer: Call object %v has no Method", call)
 	}
-	if call.LocalEndpoint() == nil {
+	if call.LocalEndpoint().IsZero() {
 		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalEndpoint", call)
 	}
-	if call.RemoteEndpoint() == nil {
+	if call.RemoteEndpoint().IsZero() {
 		return fmt.Errorf("testServerAuthorzer: Call object %v has no RemoteEndpoint", call)
 	}
 

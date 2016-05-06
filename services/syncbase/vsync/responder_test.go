@@ -465,11 +465,11 @@ func (d *dummyResponder) Suffix() string {
 }
 
 func (d *dummyResponder) LocalEndpoint() naming.Endpoint {
-	return nil
+	return naming.Endpoint{}
 }
 
 func (d *dummyResponder) RemoteEndpoint() naming.Endpoint {
-	return nil
+	return naming.Endpoint{}
 }
 
 func (d *dummyResponder) GrantedBlessings() security.Blessings {

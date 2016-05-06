@@ -305,15 +305,10 @@ func framedCopy(fin, fout flow.Flow) error {
 func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow.Flow, error) {
 	var (
 		rid naming.RoutingID
-		ep  naming.Endpoint
 		err error
 	)
-	if ep, err = setBidiProtocol(m.PeerRemoteEndpoint); err != nil {
-		return nil, err
-	}
-	if ep, err = removeBlessings(ep); err != nil {
-		return nil, err
-	}
+	ep := m.PeerRemoteEndpoint.WithBlessingNames(nil)
+	ep.Protocol = bidiProtocol
 	if routes := ep.Routes(); len(routes) > 0 {
 		if err := rid.FromString(routes[0]); err != nil {
 			return nil, err
@@ -323,13 +318,9 @@ func (p *proxy) dialNextHop(ctx *context.T, f flow.Flow, m *message.Setup) (flow
 		// TODO(suharshs): Make sure that the routingID from the route belongs to a
 		// connection that is stored in the manager's cache. (i.e. a Server has connected
 		// with the routingID before)
-		if ep, err = setEndpointRoutingID(ep, rid); err != nil {
-			return nil, err
-		}
+		ep.RoutingID = rid
 		// Remove the read route from the setup message endpoint.
-		if m.PeerRemoteEndpoint, err = setEndpointRoutes(m.PeerRemoteEndpoint, routes[1:]); err != nil {
-			return nil, err
-		}
+		m.PeerRemoteEndpoint = m.PeerRemoteEndpoint.WithRoutes(routes[1:])
 	}
 	fout, err := p.m.Dial(ctx, ep, proxyAuthorizer{}, 0)
 	if err != nil {
@@ -349,7 +340,7 @@ func (p *proxy) replyToServerLocked(ctx *context.T, f flow.Flow) error {
 		}
 		return err
 	}
-	rid := f.RemoteEndpoint().RoutingID()
+	rid := f.RemoteEndpoint().RoutingID
 	eps, err := p.returnEndpointsLocked(ctx, rid, "")
 	if err != nil {
 		if f.Conn().CommonVersion() >= version.RPCVersion13 {
@@ -377,7 +368,7 @@ func (p *proxy) replyToProxyLocked(ctx *context.T, f flow.Flow) error {
 	// returned endpoint doesn't matter because it will eventually be replaced
 	// by a server's rid by some later proxy.
 	// TODO(suharshs): Use a local route instead of this global routingID.
-	rid := f.RemoteEndpoint().RoutingID()
+	rid := f.RemoteEndpoint().RoutingID
 	eps, err := p.returnEndpointsLocked(ctx, naming.NullRoutingID, rid.String())
 	if err != nil {
 		if f.Conn().CommonVersion() >= version.RPCVersion13 {
@@ -397,21 +388,14 @@ func (p *proxy) returnEndpointsLocked(ctx *context.T, rid naming.RoutingID, rout
 		return nil, NewErrNotListening(ctx)
 	}
 	for idx, ep := range eps {
-		var err error
 		if rid != naming.NullRoutingID {
-			ep, err = setEndpointRoutingID(ep, rid)
-			if err != nil {
-				return nil, err
-			}
+			ep.RoutingID = rid
 		}
 		if len(route) > 0 {
 			var cp []string
 			cp = append(cp, ep.Routes()...)
 			cp = append(cp, route)
-			ep, err = setEndpointRoutes(ep, cp)
-			if err != nil {
-				return nil, err
-			}
+			ep = ep.WithRoutes(cp)
 		}
 		eps[idx] = ep
 	}
@@ -506,7 +490,7 @@ func resolveToEndpoint(ctx *context.T, name string) ([]naming.Endpoint, error) {
 		if len(suffix) > 0 {
 			continue
 		}
-		if ep, err := v23.NewEndpoint(address); err == nil {
+		if ep, err := naming.ParseEndpoint(address); err == nil {
 			eps = append(eps, ep)
 			continue
 		}

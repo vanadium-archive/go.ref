@@ -13,7 +13,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/naming"
-	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
 func init() {
@@ -46,7 +45,7 @@ func WrapName(name string) string {
 	if addr == "" {
 		return name
 	}
-	iep, err := inaming.NewEndpoint(addr)
+	iep, err := naming.ParseEndpoint(addr)
 	if err != nil {
 		return name
 	}

@@ -18,7 +18,6 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/apilog"
-	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
 const defaultMaxResolveDepth = 32
@@ -150,8 +149,8 @@ func (ns *namespace) rootMountEntry(name string, opts ...naming.NamespaceOpt) (*
 		return e, false
 	}
 	servesMT := true
-	if ep, err := inaming.NewEndpoint(address); err == nil {
-		servesMT = ep.ServesMountTable()
+	if ep, err := naming.ParseEndpoint(address); err == nil {
+		servesMT = ep.ServesMountTable
 	}
 	e.ServesMountTable = servesMT
 	e.Name = suffix

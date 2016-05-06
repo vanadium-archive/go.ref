@@ -27,7 +27,6 @@ import (
 	slib "v.io/x/ref/lib/security"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/manager"
-	inaming "v.io/x/ref/runtime/internal/naming"
 )
 
 const pkgPath = "v.io/x/ref/runtime/internal/rpc"
@@ -430,7 +429,7 @@ func (c *client) tryConnectToServer(
 	}
 	status.suffix = suffix
 
-	ep, err := inaming.NewEndpoint(address)
+	ep, err := naming.ParseEndpoint(address)
 	if err != nil {
 		status.serverErr = suberr(verror.New(errInvalidEndpoint, ctx))
 		return

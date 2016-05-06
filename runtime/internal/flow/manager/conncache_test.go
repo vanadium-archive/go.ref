@@ -17,7 +17,6 @@ import (
 	"v.io/v23/security"
 	connpackage "v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/flow/flowtest"
-	inaming "v.io/x/ref/runtime/internal/naming"
 	_ "v.io/x/ref/runtime/protocols/local"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/goroutines"
@@ -30,20 +29,18 @@ func TestCache(t *testing.T) {
 	p, _ := flow.RegisteredProtocol("local")
 
 	c := NewConnCache(0)
-	remote := &inaming.Endpoint{
+	remote := naming.Endpoint{
 		Protocol:  "tcp",
 		Address:   "127.0.0.1:1111",
-		RID:       naming.FixedRoutingID(0x5555),
-		Blessings: unionBlessing(ctx, "A", "B", "C"),
-	}
-	nullRemote := &inaming.Endpoint{
+		RoutingID: naming.FixedRoutingID(0x5555),
+	}.WithBlessingNames(unionBlessing(ctx, "A", "B", "C"))
+	nullRemote := naming.Endpoint{
 		Protocol:  "tcp",
 		Address:   "127.0.0.1:1111",
-		RID:       naming.NullRoutingID,
-		Blessings: unionBlessing(ctx, "A", "B", "C"),
-	}
+		RoutingID: naming.NullRoutingID,
+	}.WithBlessingNames(unionBlessing(ctx, "A", "B", "C"))
 
-	auth := flowtest.NewPeerAuthorizer(remote.Blessings)
+	auth := flowtest.NewPeerAuthorizer(remote.BlessingNames())
 	caf := makeConnAndFlow(t, ctx, remote)
 	defer caf.stop(ctx)
 	conn := caf.c
@@ -71,7 +68,7 @@ func TestCache(t *testing.T) {
 	}
 	c.Unreserve(remote.Protocol, remote.Address)
 	// But finding a set of blessings that has at least one blessings in remote.Blessings should succeed.
-	if got, _, _, err := c.Find(ctx, nullRemote, remote.Protocol, remote.Address, flowtest.NewPeerAuthorizer([]string{"foo", remote.Blessings[0]}), p); err != nil || got != conn {
+	if got, _, _, err := c.Find(ctx, nullRemote, remote.Protocol, remote.Address, flowtest.NewPeerAuthorizer([]string{"foo", remote.BlessingNames()[0]}), p); err != nil || got != conn {
 		t.Errorf("got %v, want %v, err: %v", got, conn, err)
 	}
 	c.Unreserve(remote.Protocol, remote.Address)
@@ -88,18 +85,16 @@ func TestCache(t *testing.T) {
 
 	// Caching a proxied connection should not care about endpoint blessings, since the
 	// blessings only correspond to the end server.
-	proxyep := &inaming.Endpoint{
+	proxyep := naming.Endpoint{
 		Protocol:  "tcp",
 		Address:   "127.0.0.1:2222",
-		RID:       naming.FixedRoutingID(0x5555),
-		Blessings: unionBlessing(ctx, "A", "B", "C"),
-	}
-	nullProxyep := &inaming.Endpoint{
+		RoutingID: naming.FixedRoutingID(0x5555),
+	}.WithBlessingNames(unionBlessing(ctx, "A", "B", "C"))
+	nullProxyep := naming.Endpoint{
 		Protocol:  "tcp",
 		Address:   "127.0.0.1:2222",
-		RID:       naming.NullRoutingID,
-		Blessings: unionBlessing(ctx, "A", "B", "C"),
-	}
+		RoutingID: naming.NullRoutingID,
+	}.WithBlessingNames(unionBlessing(ctx, "A", "B", "C"))
 	caf = makeConnAndFlow(t, ctx, proxyep)
 	defer caf.stop(ctx)
 	proxyConn := caf.c
@@ -113,19 +108,17 @@ func TestCache(t *testing.T) {
 	c.Unreserve(proxyep.Protocol, proxyep.Address)
 
 	// Caching with InsertWithRoutingID should only cache by RoutingID, not with network/address.
-	ridEP := &inaming.Endpoint{
+	ridEP := naming.Endpoint{
 		Protocol:  "ridonly",
 		Address:   "ridonly",
-		RID:       naming.FixedRoutingID(0x1111),
-		Blessings: unionBlessing(ctx, "ridonly"),
-	}
-	nullRIDEP := &inaming.Endpoint{
+		RoutingID: naming.FixedRoutingID(0x1111),
+	}.WithBlessingNames(unionBlessing(ctx, "ridonly"))
+	nullRIDEP := naming.Endpoint{
 		Protocol:  "ridonly",
 		Address:   "ridonly",
-		RID:       naming.NullRoutingID,
-		Blessings: unionBlessing(ctx, "ridonly"),
-	}
-	ridauth := flowtest.NewPeerAuthorizer(ridEP.Blessings)
+		RoutingID: naming.NullRoutingID,
+	}.WithBlessingNames(unionBlessing(ctx, "ridonly"))
+	ridauth := flowtest.NewPeerAuthorizer(ridEP.BlessingNames())
 	caf = makeConnAndFlow(t, ctx, ridEP)
 	defer caf.stop(ctx)
 	ridConn := caf.c
@@ -142,19 +135,17 @@ func TestCache(t *testing.T) {
 	}
 	c.Unreserve("wrong", "wrong")
 
-	otherEP := &inaming.Endpoint{
+	otherEP := naming.Endpoint{
 		Protocol:  "other",
 		Address:   "other",
-		RID:       naming.FixedRoutingID(0x2222),
-		Blessings: unionBlessing(ctx, "other"),
-	}
-	nullOtherEP := &inaming.Endpoint{
+		RoutingID: naming.FixedRoutingID(0x2222),
+	}.WithBlessingNames(unionBlessing(ctx, "other"))
+	nullOtherEP := naming.Endpoint{
 		Protocol:  "other",
 		Address:   "other",
-		RID:       naming.NullRoutingID,
-		Blessings: unionBlessing(ctx, "other"),
-	}
-	otherAuth := flowtest.NewPeerAuthorizer(otherEP.Blessings)
+		RoutingID: naming.NullRoutingID,
+	}.WithBlessingNames(unionBlessing(ctx, "other"))
+	otherAuth := flowtest.NewPeerAuthorizer(otherEP.BlessingNames())
 	caf = makeConnAndFlow(t, ctx, otherEP)
 	defer caf.stop(ctx)
 	otherConn := caf.c
@@ -464,9 +455,9 @@ func (c connAndFlow) stop(ctx *context.T) {
 func nConnAndFlows(t *testing.T, ctx *context.T, n int) ([]connAndFlow, func()) {
 	cfs := make([]connAndFlow, n)
 	for i := 0; i < n; i++ {
-		cfs[i] = makeConnAndFlow(t, ctx, &inaming.Endpoint{
-			Protocol: strconv.Itoa(i),
-			RID:      naming.FixedRoutingID(uint64(i + 1)), // We need to have a nonzero rid for bidi.
+		cfs[i] = makeConnAndFlow(t, ctx, naming.Endpoint{
+			Protocol:  strconv.Itoa(i),
+			RoutingID: naming.FixedRoutingID(uint64(i + 1)), // We need to have a nonzero rid for bidi.
 		})
 	}
 	return cfs, func() {
