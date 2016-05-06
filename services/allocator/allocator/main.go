@@ -19,6 +19,8 @@ import (
 	"v.io/x/ref/services/allocator"
 )
 
+const defaultExtension = "allocator"
+
 var (
 	flagAllocator string
 
@@ -35,7 +37,7 @@ var (
 )
 
 func main() {
-	cmdRoot.Flags.StringVar(&flagAllocator, "allocator", "", "The name or address of the allocator server.")
+	cmdRoot.Flags.StringVar(&flagAllocator, "allocator", "syncbase-allocator", "The name or address of the allocator server.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }
@@ -45,17 +47,21 @@ var cmdCreate = &cmdline.Command{
 	Name:     "create",
 	Short:    "Create a new server instance.",
 	Long:     "Create a new server instance.",
-	ArgsName: "<extension>",
+	ArgsName: "[<extension>]",
 	ArgsLong: `
-<extension> is the blessing name extension to give to the new server instance.
+<extension> is the blessing name extension to give to the new server instance
+(optional). The default value is "` + defaultExtension + `"
 `,
 }
 
 func runCreate(ctx *context.T, env *cmdline.Env, args []string) error {
-	if expected, got := 1, len(args); got != expected {
-		return env.UsageErrorf("create: incorrect number of arguments, got %d, expected %d", got, expected)
+	if expected, got := 1, len(args); got > expected {
+		return env.UsageErrorf("create: incorrect number of arguments, got %d, expected at most %d", got, expected)
 	}
-	extension := args[0]
+	extension := defaultExtension
+	if len(args) == 1 {
+		extension = args[0]
+	}
 
 	name, err := allocator.AllocatorClient(flagAllocator).Create(ctx, &granter{extension: extension})
 	if err != nil {

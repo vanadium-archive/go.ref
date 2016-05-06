@@ -18,7 +18,7 @@ The allocator commands are:
    help        Display help for commands or topics
 
 The allocator flags are:
- -allocator=
+ -allocator=syncbase-allocator
    The name or address of the allocator server.
 
 The global flags are:
@@ -83,12 +83,13 @@ Allocator create
 Create a new server instance.
 
 Usage:
-   allocator create [flags] <extension>
+   allocator create [flags] [<extension>]
 
-<extension> is the blessing name extension to give to the new server instance.
+<extension> is the blessing name extension to give to the new server instance
+(optional). The default value is "allocator"
 
 The allocator create flags are:
- -allocator=
+ -allocator=syncbase-allocator
    The name or address of the allocator server.
 
 Allocator delete
@@ -101,7 +102,7 @@ Usage:
 <name> is the name of the server to delete.
 
 The allocator delete flags are:
- -allocator=
+ -allocator=syncbase-allocator
    The name or address of the allocator server.
 
 Allocator list
@@ -112,7 +113,7 @@ Usage:
    allocator list [flags]
 
 The allocator list flags are:
- -allocator=
+ -allocator=syncbase-allocator
    The name or address of the allocator server.
 
 Allocator help - Display help for commands or topics
