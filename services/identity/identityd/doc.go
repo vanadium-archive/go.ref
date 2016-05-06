@@ -14,7 +14,7 @@ Starts an HTTP server that brokers blessings after authenticating through OAuth.
 To generate TLS certificates so the HTTP server can use SSL:
   go run $(go list -f {{.Dir}} "crypto/tls")/generate_cert.go --host <IP address>
 
-To use Google as an OAuth provider the -google-config-* flags must be set to
+To use Google as an OAuth provider the -google-config-web flag must be set to
 point to the a JSON file obtained after registering the application with the
 Google Developer Console at https://cloud.google.com/console
 
@@ -28,6 +28,10 @@ Usage:
    identityd [flags]
 
 The identityd flags are:
+ -app-blessings=
+   Path to a file containing base64url-vom encoded blessings that will be
+   extended with an application identifier and the username of the requestor
+   (i.e., a user using a specific app)
  -assets-prefix=
    Host serving the web assets for the identity server.
  -discharger-location=
@@ -68,6 +72,9 @@ The identityd flags are:
  -tls-config=
    Comma-separated list of TLS certificate and private key files, in that order.
    This must be provided.
+ -user-blessings=
+   Path to a file containing base64url-vom encoded blessings that will be
+   extended with the username of the requestor.
 
 The global flags are:
  -alsologtostderr=true

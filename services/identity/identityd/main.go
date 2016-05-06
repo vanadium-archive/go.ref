@@ -8,16 +8,21 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/security"
+	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/dbutil"
-	"v.io/x/ref/lib/security"
+	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/identity/internal/auditor"
@@ -33,10 +38,11 @@ var (
 	googleConfigWeb                                                  string
 	externalHttpAddr, httpAddr, tlsConfig, assetsPrefix, mountPrefix string
 	dischargerLocation                                               string
-	remoteSignerBlessings                                            string
-	oauthRemoteSignerBlessings                                       string
+	remoteSignerBlessingsDir                                         string
+	oauthRemoteSignerBlessingsDir                                    string
 	sqlConf                                                          string
 	registeredAppConfig                                              string
+	userBlessings, appBlessings                                      string
 )
 
 func init() {
@@ -44,9 +50,12 @@ func init() {
 	cmdIdentityD.Flags.StringVar(&googleConfigWeb, "google-config-web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
 
 	// Configuration using the remote signer
-	cmdIdentityD.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
-	cmdIdentityD.Flags.StringVar(&oauthRemoteSignerBlessings, "remote-signer-o-blessing-dir", "", "Path to the blessings to use with the remote signer for oauth. Use the empty string to disable the remote signer.")
+	cmdIdentityD.Flags.StringVar(&userBlessings, "user-blessings", "", "Path to a file containing base64url-vom encoded blessings that will be extended with the username of the requestor.")
+	cmdIdentityD.Flags.StringVar(&appBlessings, "app-blessings", "", "Path to a file containing base64url-vom encoded blessings that will be extended with an application identifier and the username of the requestor (i.e., a user using a specific app)")
 	cmdIdentityD.Flags.StringVar(&registeredAppConfig, "registered-apps", "", "Path to the config file for registered oauth clients.")
+	// TODO(ashankar): Remove these two flags
+	cmdIdentityD.Flags.StringVar(&remoteSignerBlessingsDir, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
+	cmdIdentityD.Flags.StringVar(&oauthRemoteSignerBlessingsDir, "remote-signer-o-blessing-dir", "", "Path to the blessings to use with the remote signer for oauth. Use the empty string to disable the remote signer.")
 
 	// Flags controlling the HTTP server
 	cmdIdentityD.Flags.StringVar(&externalHttpAddr, "external-http-addr", "", "External address on which the HTTP server listens on.  If none is provided the server will only listen on -http-addr.")
@@ -78,7 +87,7 @@ Starts an HTTP server that brokers blessings after authenticating through OAuth.
 To generate TLS certificates so the HTTP server can use SSL:
   go run $(go list -f {{.Dir}} "crypto/tls")/generate_cert.go --host <IP address>
 
-To use Google as an OAuth provider the -google-config-* flags must be set to
+To use Google as an OAuth provider the -google-config-web flag must be set to
 point to the a JSON file obtained after registering the application with the
 Google Developer Console at https://cloud.google.com/console
 
@@ -99,40 +108,24 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 	}
 
-	if remoteSignerBlessings != "" {
-		signer, err := restsigner.NewRestSigner()
-		if err != nil {
-			return fmt.Errorf("Failed to create remote signer: %v", err)
+	if userBlessings != "" {
+		if ctx, err = initRemoteSigner(ctx, userBlessings); err != nil {
+			return err
 		}
-		state, err := security.NewPrincipalStateSerializer(remoteSignerBlessings)
-		if err != nil {
-			return fmt.Errorf("Failed to create blessing serializer: %v", err)
-		}
-		p, err := security.NewPrincipalFromSigner(signer, state)
-		if err != nil {
-			return fmt.Errorf("Failed to create principal: %v", err)
-		}
-		if ctx, err = v23.WithPrincipal(ctx, p); err != nil {
-			return fmt.Errorf("Failed to set principal: %v", err)
+	} else if remoteSignerBlessingsDir != "" {
+		if ctx, err = initRemoteSigner(ctx, remoteSignerBlessingsDir); err != nil {
+			return err
 		}
 	}
 
 	oauthCtx := ctx
-	if oauthRemoteSignerBlessings != "" {
-		signer, err := restsigner.NewRestSigner()
-		if err != nil {
-			return fmt.Errorf("Failed to create remote signer: %v", err)
+	if appBlessings != "" {
+		if oauthCtx, err = initRemoteSigner(ctx, appBlessings); err != nil {
+			return err
 		}
-		state, err := security.NewPrincipalStateSerializer(oauthRemoteSignerBlessings)
-		if err != nil {
-			return fmt.Errorf("Failed to create blessing serializer: %v", err)
-		}
-		p, err := security.NewPrincipalFromSigner(signer, state)
-		if err != nil {
-			return fmt.Errorf("Failed to create principal: %v", err)
-		}
-		if oauthCtx, err = v23.WithPrincipal(ctx, p); err != nil {
-			return fmt.Errorf("Failed to set principal: %v", err)
+	} else if oauthRemoteSignerBlessingsDir != "" {
+		if oauthCtx, err = initRemoteSigner(ctx, oauthRemoteSignerBlessingsDir); err != nil {
+			return err
 		}
 	}
 
@@ -168,6 +161,47 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		registeredApps)
 	s.Serve(ctx, oauthCtx, externalHttpAddr, httpAddr, tlsConfig)
 	return nil
+}
+
+func initRemoteSigner(ctx *context.T, blessings string) (*context.T, error) {
+	signer, err := restsigner.NewRestSigner()
+	if err != nil {
+		return nil, err
+	}
+	// TODO(ashankar): Remove this along with remoteSignerBlessingsDir and oauthRemoteSignerBlessingsDir
+	if finfo, err := os.Stat(blessings); err == nil && finfo.IsDir() {
+		dir := blessings
+		state, err := vsecurity.NewPrincipalStateSerializer(dir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create blessing serializer: %v", err)
+		}
+		p, err := vsecurity.NewPrincipalFromSigner(signer, state)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create principal: %v", err)
+		}
+		return v23.WithPrincipal(ctx, p)
+	}
+	// Decode the blessings and ensure that they are attached to the same public key.
+	encoded, err := ioutil.ReadFile(blessings)
+	if err != nil {
+		return nil, err
+	}
+	buf := bytes.NewBuffer(encoded)
+	var b security.Blessings
+	if err := vom.NewDecoder(base64.NewDecoder(base64.URLEncoding, buf)).Decode(&b); err != nil {
+		return nil, err
+	}
+	if buf.Len() != 0 {
+		return nil, fmt.Errorf("unexpected trailing %d bytes in %s", buf.Len(), blessings)
+	}
+	p, err := security.CreatePrincipal(signer, vsecurity.FixedBlessingsStore(b, nil), vsecurity.NewBlessingRoots())
+	if err != nil {
+		return nil, err
+	}
+	if err := security.AddToRoots(p, b); err != nil {
+		return nil, err
+	}
+	return v23.WithPrincipal(ctx, p)
 }
 
 func readRegisteredAppsConfig() (registeredApps handlers.RegisteredAppMap, err error) {

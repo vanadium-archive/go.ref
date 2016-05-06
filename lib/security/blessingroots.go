@@ -137,6 +137,12 @@ func (br *blessingRoots) save() error {
 	return encodeAndStore(br.state, data, signature, br.signer)
 }
 
+// NewBlessingRoots returns an implementation of security.BlessingRoots
+// that keeps all state in memory.
+func NewBlessingRoots() security.BlessingRoots {
+	return newInMemoryBlessingRoots()
+}
+
 // newInMemoryBlessingRoots returns an in-memory security.BlessingRoots.
 //
 // The returned BlessingRoots is initialized with an empty set of keys.
