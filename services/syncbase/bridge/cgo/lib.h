@@ -6,6 +6,7 @@
 #define V23_SYNCBASE_LIB_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 
 // TODO(sadovsky): Add types and functions for watch and sync.
 
@@ -14,15 +15,21 @@
 
 // string
 typedef struct {
-  const char* p;
+  char* p;
   int n;
 } XString;
 
 // []byte
 typedef struct {
-  const void* p;
+  uint8_t* p;
   int n;
 } XBytes;
+
+// []string
+typedef struct {
+  XString* p;
+  int n;
+} XStrings;
 
 ////////////////////////////////////////
 // Vanadium-specific types
@@ -52,7 +59,7 @@ typedef struct {
 
 // []syncbase.Id
 typedef struct {
-  const XId* p;
+  XId* p;
   int n;
 } XIds;
 
@@ -70,17 +77,24 @@ typedef struct {
 
 // syncbase.SyncgroupSpec
 typedef struct {
-  // FIXME(sadovsky): Fill this in.
+  XString description;
+  XPermissions perms;
+  XIds collections;
+  XStrings mountTables;
+  bool isPrivate;
 } XSyncgroupSpec;
 
 // syncbase.SyncgroupMemberInfo
 typedef struct {
-  // FIXME(sadovsky): Fill this in.
+  uint8_t syncPriority;
+  uint8_t blobDevType;
 } XSyncgroupMemberInfo;
 
 // map[string]syncbase.SyncgroupMemberInfo
 typedef struct {
-  // FIXME(sadovsky): Fill this in.
+  XString* keys;
+  XSyncgroupMemberInfo* values;
+  int n;
 } XSyncgroupMemberInfoMap;
 
 ////////////////////////////////////////

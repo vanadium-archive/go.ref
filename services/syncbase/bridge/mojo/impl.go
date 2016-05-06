@@ -62,10 +62,26 @@ func toMojoError(err error) mojom.Error {
 	}
 }
 
+func toV23Id(mId mojo.Id) wire.Id {
+	return wire.Id{Blessing: mId.Blessing, Name: mId.Name}
+}
+
+func toMojoId(id wire.Id) mojo.Id {
+	return mojo.Id{Blessing: id.Blessing, Name: id.Name}
+}
+
+func toV23Ids(mIds []mojo.Id) []wire.Id {
+	res := make([]wire.Id, len(ids))
+	for i, v := range ids {
+		res[i] = toV23Id(v)
+	}
+	return res
+}
+
 func toMojoIds(ids []wire.Id) []mojo.Id {
 	res := make([]mojo.Id, len(ids))
 	for i, v := range ids {
-		res[i] = mojo.Id{Blessing: v.Blessing, Name: v.Name}
+		res[i] = toMojoId(v)
 	}
 	return res
 }
@@ -85,29 +101,26 @@ func toMojoPerms(perms access.Permissions) (mojom.Perms, error) {
 func toV23SyncgroupMemberInfo(mInfo mojom.SyncgroupMemberInfo) wire.SyncgroupMemberInfo {
 	return wire.SyncgroupMemberInfo{
 		SyncPriority: mInfo.SyncPriority,
+		BlobDevType:  mInfo.BlobDevType,
 	}
 }
 
 func toMojoSyncgroupMemberInfo(info wire.SyncgroupMemberInfo) mojom.SyncgroupMemberInfo {
 	return mojom.SyncgroupMemberInfo{
 		SyncPriority: info.SyncPriority,
+		BlobDevType:  Info.BlobDevType,
 	}
 }
 
 func toV23SyncgroupSpec(mSpec mojom.SyncgroupSpec) (wire.SyncgroupSpec, error) {
-	v23Perms, err := toV23Perms(mSpec.Perms)
+	perms, err := toV23Perms(mSpec.Perms)
 	if err != nil {
 		return wire.SyncgroupSpec{}, err
 	}
-	prefixes := make([]wire.CollectionRow, len(mSpec.Prefixes))
-	for i, v := range mSpec.Prefixes {
-		prefixes[i].CollectionName = v.CollectionName
-		prefixes[i].Row = v.Row
-	}
 	return wire.SyncgroupSpec{
 		Description: mSpec.Description,
-		Perms:       v23Perms,
-		Prefixes:    prefixes,
+		Perms:       perms,
+		Collections: toV23Ids(mSpec.Collections),
 		MountTables: mSpec.MountTables,
 		IsPrivate:   mSpec.IsPrivate,
 	}, nil
@@ -118,27 +131,20 @@ func toMojoSyncgroupSpec(spec wire.SyncgroupSpec) (mojom.SyncgroupSpec, error) {
 	if err != nil {
 		return mojom.SyncgroupSpec{}, err
 	}
-	prefixes := make([]mojom.CollectionRow, len(spec.Prefixes))
-	for i, v := range spec.Prefixes {
-		prefixes[i].CollectionName = v.CollectionName
-		prefixes[i].Row = v.Row
-	}
 	return mojom.SyncgroupSpec{
 		Description: spec.Description,
 		Perms:       mPerms,
-		Prefixes:    prefixes,
+		Collections: toMojoIds(spec.Collections),
 		MountTables: spec.MountTables,
 		IsPrivate:   spec.IsPrivate,
 	}, nil
 }
 
 func toV23BatchOptions(mOpts mojom.BatchOptions) wire.BatchOptions {
-	opts := wire.BatchOptions{}
-	if mOpts != nil {
-		opts.Hint = mOpts.Hint
-		opts.ReadOnly = mOpts.ReadOnly
+	return wire.BatchOptions{
+		Hint:     mOpts.Hint,
+		ReadOnly: mOpts.ReadOnly,
 	}
-	return opts
 }
 
 ////////////////////////////////////////
@@ -525,17 +531,17 @@ func (m *mojoImpl) DbGetResumeMarker(name, batchHandle string) (mojom.Error, []b
 ////////////////////////////////////////
 // SyncgroupManager
 
-func (m *mojoImpl) DbGetSyncgroupNames(name string) (mojom.Error, []string, error) {
+func (m *mojoImpl) DbListSyncgroups(name string) (mojom.Error, []mojo.Id, error) {
 	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupNames"))
 	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	names, err := stub.GetSyncgroupNames(ctx, call)
-	return toMojoError(err), names, nil
+	ids, err := stub.ListSyncgroups(ctx, call)
+	return toMojoError(err), toMojoIds(ids), nil
 }
 
-func (m *mojoImpl) DbCreateSyncgroup(name, sgName string, spec mojom.SyncgroupSpec, myInfo mojom.SyncgroupMemberInfo) (mojom.Error, error) {
+func (m *mojoImpl) DbCreateSyncgroup(name string, sgId mojo.Id, spec mojom.SyncgroupSpec, myInfo mojom.SyncgroupMemberInfo) (mojom.Error, error) {
 	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "CreateSyncgroup"))
 	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
@@ -545,16 +551,16 @@ func (m *mojoImpl) DbCreateSyncgroup(name, sgName string, spec mojom.SyncgroupSp
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	return toMojoError(stub.CreateSyncgroup(ctx, call, sgName, v23Spec, toV23SyncgroupMemberInfo(myInfo))), nil
+	return toMojoError(stub.CreateSyncgroup(ctx, call, toV23Id(sgId), v23Spec, toV23SyncgroupMemberInfo(myInfo))), nil
 }
 
-func (m *mojoImpl) DbJoinSyncgroup(name, sgName string, myInfo mojom.SyncgroupMemberInfo) (mojom.Error, mojom.SyncgroupSpec, error) {
+func (m *mojoImpl) DbJoinSyncgroup(name string, sgId mojo.Id, myInfo mojom.SyncgroupMemberInfo) (mojom.Error, mojom.SyncgroupSpec, error) {
 	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "JoinSyncgroup"))
 	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), mojom.SyncgroupSpec{}, nil
 	}
-	spec, err := stub.JoinSyncgroup(ctx, call, sgName, toV23SyncgroupMemberInfo(myInfo))
+	spec, err := stub.JoinSyncgroup(ctx, call, toV23Id(sgId), toV23SyncgroupMemberInfo(myInfo))
 	if err != nil {
 		return toMojoError(err), mojom.SyncgroupSpec{}, nil
 	}
@@ -565,40 +571,40 @@ func (m *mojoImpl) DbJoinSyncgroup(name, sgName string, myInfo mojom.SyncgroupMe
 	return toMojoError(err), mojoSpec, nil
 }
 
-func (m *mojoImpl) DbLeaveSyncgroup(name, sgName string) (mojom.Error, error) {
+func (m *mojoImpl) DbLeaveSyncgroup(name string, sgId mojo.Id) (mojom.Error, error) {
 	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "LeaveSyncgroup"))
 	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	return toMojoError(stub.LeaveSyncgroup(ctx, call, sgName)), nil
+	return toMojoError(stub.LeaveSyncgroup(ctx, call, toV23Id(sgId))), nil
 }
 
-func (m *mojoImpl) DbDestroySyncgroup(name, sgName string) (mojom.Error, error) {
+func (m *mojoImpl) DbDestroySyncgroup(name string, sgId mojo.Id) (mojom.Error, error) {
 	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "DestroySyncgroup"))
 	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	return toMojoError(stub.DestroySyncgroup(ctx, call, sgName)), nil
+	return toMojoError(stub.DestroySyncgroup(ctx, call, toV23Id(sgId))), nil
 }
 
-func (m *mojoImpl) DbEjectFromSyncgroup(name, sgName string, member string) (mojom.Error, error) {
+func (m *mojoImpl) DbEjectFromSyncgroup(name string, sgId mojo.Id, member string) (mojom.Error, error) {
 	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "EjectFromSyncgroup"))
 	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	return toMojoError(stub.EjectFromSyncgroup(ctx, call, sgName, member)), nil
+	return toMojoError(stub.EjectFromSyncgroup(ctx, call, toV23Id(sgId), member)), nil
 }
 
-func (m *mojoImpl) DbGetSyncgroupSpec(name, sgName string) (mojom.Error, mojom.SyncgroupSpec, string, error) {
+func (m *mojoImpl) DbGetSyncgroupSpec(name string, sgId mojo.Id) (mojom.Error, mojom.SyncgroupSpec, string, error) {
 	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupSpec"))
 	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), mojom.SyncgroupSpec{}, "", nil
 	}
-	spec, version, err := stub.GetSyncgroupSpec(ctx, call, sgName)
+	spec, version, err := stub.GetSyncgroupSpec(ctx, call, toV23Id(sgId))
 	mojoSpec, err := toMojoSyncgroupSpec(spec)
 	if err != nil {
 		return toMojoError(err), mojom.SyncgroupSpec{}, "", nil
@@ -606,7 +612,7 @@ func (m *mojoImpl) DbGetSyncgroupSpec(name, sgName string) (mojom.Error, mojom.S
 	return toMojoError(err), mojoSpec, version, nil
 }
 
-func (m *mojoImpl) DbSetSyncgroupSpec(name, sgName string, spec mojom.SyncgroupSpec, version string) (mojom.Error, error) {
+func (m *mojoImpl) DbSetSyncgroupSpec(name string, sgId mojo.Id, spec mojom.SyncgroupSpec, version string) (mojom.Error, error) {
 	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "SetSyncgroupSpec"))
 	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
@@ -616,16 +622,16 @@ func (m *mojoImpl) DbSetSyncgroupSpec(name, sgName string, spec mojom.SyncgroupS
 	if err != nil {
 		return toMojoError(err), nil
 	}
-	return toMojoError(stub.SetSyncgroupSpec(ctx, call, sgName, v23Spec, version)), nil
+	return toMojoError(stub.SetSyncgroupSpec(ctx, call, toV23Id(sgId), v23Spec, version)), nil
 }
 
-func (m *mojoImpl) DbGetSyncgroupMembers(name, sgName string) (mojom.Error, map[string]mojom.SyncgroupMemberInfo, error) {
+func (m *mojoImpl) DbGetSyncgroupMembers(name string, sgId mojo.Id) (mojom.Error, map[string]mojom.SyncgroupMemberInfo, error) {
 	ctx, call := m.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupMembers"))
 	stub, err := m.GetDb(ctx, call, name)
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}
-	members, err := stub.GetSyncgroupMembers(ctx, call, sgName)
+	members, err := stub.GetSyncgroupMembers(ctx, call, toV23Id(sgId))
 	if err != nil {
 		return toMojoError(err), nil, nil
 	}

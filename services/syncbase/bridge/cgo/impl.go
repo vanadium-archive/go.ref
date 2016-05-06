@@ -322,10 +322,10 @@ func XDbGetResumeMarker(cName, cBatchHandle C.XString, cMarker *C.XBytes, cErr *
 
 // FIXME(sadovsky): Implement "NewErrNotImplemented" methods below.
 
-//export XDbGetSyncgroupNames
-func XDbGetSyncgroupNames(cName C.XString, cIds *C.XIds, cErr *C.XVError) {
+//export XDbListSyncgroups
+func XDbListSyncgroups(cName C.XString, cIds *C.XIds, cErr *C.XVError) {
 	name := cName.toString()
-	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupNames"))
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "ListSyncgroups"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
 		cErr.init(err)
@@ -336,8 +336,9 @@ func XDbGetSyncgroupNames(cName C.XString, cIds *C.XIds, cErr *C.XVError) {
 }
 
 //export XDbCreateSyncgroup
-func XDbCreateSyncgroup(cName, cSgName C.XString, cSpec C.XSyncgroupSpec, cMyInfo C.XSyncgroupMemberInfo, cErr *C.XVError) {
-	name, sgName := cName.toString(), cSgName.toString()
+func XDbCreateSyncgroup(cName C.XString, cSgId C.XId, cSpec C.XSyncgroupSpec, cMyInfo C.XSyncgroupMemberInfo, cErr *C.XVError) {
+	name := cName.toString()
+	sgId := cSgId.toId()
 	spec := cSpec.toSyncgroupSpec()
 	myInfo := cMyInfo.toSyncgroupMemberInfo()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "CreateSyncgroup"))
@@ -347,12 +348,13 @@ func XDbCreateSyncgroup(cName, cSgName C.XString, cSpec C.XSyncgroupSpec, cMyInf
 		return
 	}
 	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _, _, _ = sgName, spec, myInfo, stub // prevent "declared and not used"
+	_, _, _, _ = sgId, spec, myInfo, stub // prevent "declared and not used"
 }
 
 //export XDbJoinSyncgroup
-func XDbJoinSyncgroup(cName, cSgName C.XString, cMyInfo C.XSyncgroupMemberInfo, cSpec *C.XSyncgroupSpec, cErr *C.XVError) {
-	name, sgName := cName.toString(), cSgName.toString()
+func XDbJoinSyncgroup(cName C.XString, cSgId C.XId, cMyInfo C.XSyncgroupMemberInfo, cSpec *C.XSyncgroupSpec, cErr *C.XVError) {
+	name := cName.toString()
+	sgId := cSgId.toId()
 	myInfo := cMyInfo.toSyncgroupMemberInfo()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "JoinSyncgroup"))
 	stub, err := b.GetDb(ctx, call, name)
@@ -361,12 +363,13 @@ func XDbJoinSyncgroup(cName, cSgName C.XString, cMyInfo C.XSyncgroupMemberInfo, 
 		return
 	}
 	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _, _ = sgName, myInfo, stub // prevent "declared and not used"
+	_, _, _ = sgId, myInfo, stub // prevent "declared and not used"
 }
 
 //export XDbLeaveSyncgroup
-func XDbLeaveSyncgroup(cName, cSgName C.XString, cErr *C.XVError) {
-	name, sgName := cName.toString(), cSgName.toString()
+func XDbLeaveSyncgroup(cName C.XString, cSgId C.XId, cErr *C.XVError) {
+	name := cName.toString()
+	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "LeaveSyncgroup"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -374,12 +377,13 @@ func XDbLeaveSyncgroup(cName, cSgName C.XString, cErr *C.XVError) {
 		return
 	}
 	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _ = sgName, stub // prevent "declared and not used"
+	_, _ = sgId, stub // prevent "declared and not used"
 }
 
 //export XDbDestroySyncgroup
-func XDbDestroySyncgroup(cName, cSgName C.XString, cErr *C.XVError) {
-	name, sgName := cName.toString(), cSgName.toString()
+func XDbDestroySyncgroup(cName C.XString, cSgId C.XId, cErr *C.XVError) {
+	name := cName.toString()
+	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "DestroySyncgroup"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -387,12 +391,14 @@ func XDbDestroySyncgroup(cName, cSgName C.XString, cErr *C.XVError) {
 		return
 	}
 	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _ = sgName, stub // prevent "declared and not used"
+	_, _ = sgId, stub // prevent "declared and not used"
 }
 
 //export XDbEjectFromSyncgroup
-func XDbEjectFromSyncgroup(cName, cSgName, cMember C.XString, cErr *C.XVError) {
-	name, sgName, member := cName.toString(), cSgName.toString(), cMember.toString()
+func XDbEjectFromSyncgroup(cName C.XString, cSgId C.XId, cMember C.XString, cErr *C.XVError) {
+	name := cName.toString()
+	sgId := cSgId.toId()
+	member := cMember.toString()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "EjectFromSyncgroup"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -400,12 +406,13 @@ func XDbEjectFromSyncgroup(cName, cSgName, cMember C.XString, cErr *C.XVError) {
 		return
 	}
 	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _, _ = sgName, member, stub // prevent "declared and not used"
+	_, _, _ = sgId, member, stub // prevent "declared and not used"
 }
 
 //export XDbGetSyncgroupSpec
-func XDbGetSyncgroupSpec(cName, cSgName C.XString, cSpec *C.XSyncgroupSpec, cVersion *C.XString, cErr *C.XVError) {
-	name, sgName := cName.toString(), cSgName.toString()
+func XDbGetSyncgroupSpec(cName C.XString, cSgId C.XId, cSpec *C.XSyncgroupSpec, cVersion *C.XString, cErr *C.XVError) {
+	name := cName.toString()
+	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupSpec"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -413,12 +420,13 @@ func XDbGetSyncgroupSpec(cName, cSgName C.XString, cSpec *C.XSyncgroupSpec, cVer
 		return
 	}
 	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _ = sgName, stub // prevent "declared and not used"
+	_, _ = sgId, stub // prevent "declared and not used"
 }
 
 //export XDbSetSyncgroupSpec
-func XDbSetSyncgroupSpec(cName, cSgName C.XString, cSpec C.XSyncgroupSpec, cVersion C.XString, cErr *C.XVError) {
-	name, sgName := cName.toString(), cSgName.toString()
+func XDbSetSyncgroupSpec(cName C.XString, cSgId C.XId, cSpec C.XSyncgroupSpec, cVersion C.XString, cErr *C.XVError) {
+	name := cName.toString()
+	sgId := cSgId.toId()
 	spec := cSpec.toSyncgroupSpec()
 	version := cVersion.toString()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "SetSyncgroupSpec"))
@@ -428,12 +436,13 @@ func XDbSetSyncgroupSpec(cName, cSgName C.XString, cSpec C.XSyncgroupSpec, cVers
 		return
 	}
 	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _, _, _ = sgName, spec, version, stub // prevent "declared and not used"
+	_, _, _, _ = sgId, spec, version, stub // prevent "declared and not used"
 }
 
 //export XDbGetSyncgroupMembers
-func XDbGetSyncgroupMembers(cName, cSgName C.XString, cMembers *C.XSyncgroupMemberInfoMap, cErr *C.XVError) {
-	name, sgName := cName.toString(), cSgName.toString()
+func XDbGetSyncgroupMembers(cName C.XString, cSgId C.XId, cMembers *C.XSyncgroupMemberInfoMap, cErr *C.XVError) {
+	name := cName.toString()
+	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupMembers"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -441,7 +450,7 @@ func XDbGetSyncgroupMembers(cName, cSgName C.XString, cMembers *C.XSyncgroupMemb
 		return
 	}
 	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _ = sgName, stub // prevent "declared and not used"
+	_, _ = sgId, stub // prevent "declared and not used"
 }
 
 ////////////////////////////////////////
@@ -502,8 +511,12 @@ func XCollectionGetPermissions(cName, cBatchHandle C.XString, cPerms *C.XPermiss
 		cErr.init(err)
 		return
 	}
-	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _ = batchHandle, stub // prevent "declared and not used"
+	perms, err := stub.GetPermissions(ctx, call, batchHandle)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cPerms.init(perms)
 }
 
 //export XCollectionSetPermissions
@@ -517,8 +530,7 @@ func XCollectionSetPermissions(cName, cBatchHandle C.XString, cPerms C.XPermissi
 		cErr.init(err)
 		return
 	}
-	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _, _ = batchHandle, perms, stub // prevent "declared and not used"
+	cErr.init(stub.SetPermissions(ctx, call, batchHandle, perms))
 }
 
 //export XCollectionDeleteRange
