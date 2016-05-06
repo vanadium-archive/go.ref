@@ -25,10 +25,12 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/rpc/reserved"
 	"v.io/v23/security"
 	"v.io/v23/services/logreader"
 	"v.io/v23/services/stats"
 	svtrace "v.io/v23/services/vtrace"
+	"v.io/v23/syncbase"
 	"v.io/v23/uniqueid"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -41,15 +43,17 @@ import (
 const browseProfilesPath = "/profiles"
 
 const (
-	allTraceTmpl  = "alltrace.html"
-	blessingsTmpl = "blessings.html"
-	chromeTmpl    = "chrome.html"
-	globTmpl      = "glob.html"
-	logsTmpl      = "logs.html"
-	profilesTmpl  = "profiles.html"
-	resolveTmpl   = "resolve.html"
-	statsTmpl     = "stats.html"
-	vtraceTmpl    = "vtrace.html"
+	allTraceTmpl   = "alltrace.html"
+	blessingsTmpl  = "blessings.html"
+	chromeTmpl     = "chrome.html"
+	globTmpl       = "glob.html"
+	logsTmpl       = "logs.html"
+	profilesTmpl   = "profiles.html"
+	resolveTmpl    = "resolve.html"
+	statsTmpl      = "stats.html"
+	vtraceTmpl     = "vtrace.html"
+	syncbaseTmpl   = "syncbase.html"
+	noSyncbaseTmpl = "no_syncbase.html"
 )
 
 // Serve serves the debug interface over http.  An HTTP server is started (serving at httpAddr), its
@@ -71,6 +75,7 @@ func Serve(ctx *context.T, httpAddr, name string, timeout time.Duration, log boo
 	mux.Handle(browseProfilesPath+"/", &profilesHandler{h})
 	mux.Handle("/vtraces", &allTracesHandler{h})
 	mux.Handle("/vtrace", &vtraceHandler{h})
+	mux.Handle("/syncbase", &syncbaseHandler{h})
 	mux.Handle("/favicon.ico", http.NotFoundHandler())
 	if len(httpAddr) == 0 {
 		httpAddr = "127.0.0.1:0"
@@ -141,7 +146,8 @@ func newHandler(ctx *context.T, timeout time.Duration, log bool, assetDir string
 		h.file = Asset
 		h.cacheMap = make(map[string]*template.Template)
 		all := []string{chromeTmpl, allTraceTmpl, blessingsTmpl, globTmpl,
-			logsTmpl, profilesTmpl, resolveTmpl, statsTmpl, vtraceTmpl}
+			logsTmpl, profilesTmpl, resolveTmpl, statsTmpl, vtraceTmpl,
+			syncbaseTmpl, noSyncbaseTmpl}
 		for _, tmpl := range all {
 			if _, err := h.template(ctx, tmpl); err != nil {
 				return nil, err
@@ -809,6 +815,105 @@ func (v *vtraceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		DebugTrace:  buf.String(),
 	}
 	v.execute(v.ctx, w, r, "vtrace.html", data)
+}
+
+type syncbaseHandler struct{ *handler }
+
+func implementsSyncbaseInterface(ctx *context.T, server string) (bool, error) {
+	const (
+		syncbasePkgPath = "v.io/v23/services/syncbase"
+		syncbaseName    = "Service"
+	)
+	interfaces, err := reserved.Signature(ctx, server)
+	if err != nil {
+		return false, err
+	}
+	for _, ifc := range interfaces {
+		if ifc.Name == syncbaseName && ifc.PkgPath == syncbasePkgPath {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		server = r.FormValue("n")
+	)
+	ctx, tracer := newTracer(h.ctx)
+	if len(server) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Must specify a server with the URL query parameter 'n'")
+		return
+	}
+
+	hasSyncbase, err := implementsSyncbaseInterface(ctx, server)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Problem getting interfaces: %v", err)
+		return
+	}
+
+	if !hasSyncbase {
+		args := struct {
+			ServerName  string
+			CommandLine string
+			Vtrace      *Tracer
+		}{
+			ServerName:  server,
+			CommandLine: "(no command line)",
+			Vtrace:      tracer,
+		}
+		h.execute(h.ctx, w, r, noSyncbaseTmpl, args)
+		return
+	}
+
+	service := syncbase.NewService(server)
+
+	dbIds, err := service.ListDatabases(ctx)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Problem listing databases: %v", err)
+		return
+	}
+
+	// Assemble the data to be displayed as tree of nested slices
+	type databaseTree struct {
+		Database    syncbase.Database
+		Collections []syncbase.Collection
+	}
+	tree := make([]databaseTree, len(dbIds))
+	for i := range dbIds {
+		// TODO(eobrain) Confirm nil for schema is appropriate
+		db := service.DatabaseForId(dbIds[i], nil)
+		collIds, err := db.ListCollections(ctx)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Problem listing collections: %v", err)
+			return
+		}
+		colls := make([]syncbase.Collection, len(collIds))
+		for j := range collIds {
+			colls[j] = db.CollectionForId(collIds[i])
+		}
+		tree[i] = databaseTree{db, colls}
+	}
+
+	// Assemble data and send it to the template to generate HTML
+	args := struct {
+		ServerName  string
+		CommandLine string
+		Vtrace      *Tracer
+		Service     syncbase.Service
+		Tree        []databaseTree
+	}{
+		ServerName:  server,
+		CommandLine: fmt.Sprintf(`debug glob "%s/*"`, server),
+		Vtrace:      tracer,
+		Service:     service,
+		Tree:        tree,
+	}
+	h.execute(h.ctx, w, r, syncbaseTmpl, args)
 }
 
 func writeEvent(w http.ResponseWriter, data string) {

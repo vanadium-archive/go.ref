@@ -1,0 +1,40 @@
+{{/*
+    Copyright 2016 The Vanadium Authors. All rights reserved.
+    Use of this source code is governed by a BSD-style
+    license that can be found in the LICENSE file.
+*/}}
+
+{{define "content"}}
+
+<section class="section--center mdl-grid">
+    <h5>Syncbase</h5>
+    <div class="mdl-cell mdl-cell--12-col">
+      Service "{{.Service.FullName}}"
+    </div>
+</section>
+
+{{range .Tree}}
+  <section class="section--center mdl-grid">
+    <h5>Database "{{.Database.Id.Name}}"</h5>
+      <div class="mdl-cell mdl-cell--12-col">
+        App Blessing "{{.Database.Id.Blessing}}"
+      </div>
+      <div class="mdl-cell mdl-cell--12-col">
+        <dl>
+        {{range .Collections}}
+          <dt>Collection "{{.Id.Name}}"<dt>
+          <dd>Creator's User Blessing "{{.Id.Blessing}}"</dd>
+        {{end}}
+      </dl>
+    </div>
+  </section>
+{{else}}
+  <section class="section--center mdl-grid">
+    <div class="mdl-cell mdl-cell--12-col">
+        (No databases)
+      </div>
+  <section>
+{{end}}
+
+
+{{end}}
