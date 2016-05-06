@@ -11,12 +11,14 @@ package server
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sync"
 	"time"
 
@@ -541,34 +543,48 @@ func (s *service) stKey() string {
 	return common.ServicePrefix
 }
 
-func (s *service) rootDirForDb(dbId wire.Id) (string, error) {
+var unsafeDirNameChars *regexp.Regexp = regexp.MustCompile("[^-a-zA-Z0-9_]")
+
+func dirNameFrom(s string) string {
 	// Note: Common Linux filesystems such as ext4 allow almost any character to
 	// appear in a filename, but other filesystems are more restrictive. For
 	// example, by default the OS X filesystem uses case-insensitive filenames.
-	// To play it safe, we hex-encode app blessings and database names, yielding
-	// filenames that match "^[0-9a-f]+$". To allow recreating databases
-	// independently of garbage collecting old destroyed versions, a random
-	// suffix is appended to the database name.
-	blessingHex := hex.EncodeToString([]byte(dbId.Blessing))
-	nameHex := hex.EncodeToString([]byte(dbId.Name))
-	var suffix [32]byte
-	if _, err := rand.Read(suffix[:]); err != nil {
+	// Also, since blessings can be arbitrarily long, using an encoded blessing
+	// directly may exceed the file path component length limit of 255 bytes.
+	// To play it safe, we filter out non-alphanumeric characters and truncate
+	// each file name component to 32 bytes, followed by appending the hex-encoded
+	// SHA256 sum of the original name component to prevent name collisions.
+	safePrefix := unsafeDirNameChars.ReplaceAllLiteralString(s, "_")
+	// Note, truncating is safe because all non-ascii characters have been
+	// filtered out, so there are no multi-byte runes.
+	if len(safePrefix) > 32 {
+		safePrefix = safePrefix[:32]
+	}
+	hashRaw := sha256.Sum256([]byte(s))
+	hashHex := hex.EncodeToString(hashRaw[:])
+	return safePrefix + "-" + hashHex
+}
+
+func (s *service) rootDirForDb(dbId wire.Id) (string, error) {
+	appDir := dirNameFrom(dbId.Blessing)
+	dbDir := dirNameFrom(dbId.Name)
+	// To allow recreating databases independently of garbage collecting old
+	// destroyed versions, a random suffix is appended to the database name.
+	var suffixRaw [32]byte
+	if _, err := rand.Read(suffixRaw[:]); err != nil {
 		return "", fmt.Errorf("failed to generate suffix: %v", err)
 	}
-	suffixHex := hex.EncodeToString(suffix[:])
-	nameHexWithSuffix := nameHex + "-" + suffixHex
-	// ValidDatabaseId requires len([]byte(id.Blessing)) <= 64 and
-	// len([]byte(id.Name)) <= 64, so even after appending the random suffix and
-	// with the 2x blowup from hex-encoding, the lengths of these names should be
-	// well below the filesystem limit of 255 bytes.
-	// TODO(sadovsky): Currently, our client-side database creation tests verify
-	// that the server does not crash when too-long names are specified; we rely
-	// on the server-side dispatcher logic to return errors for too-long names.
-	// However, we ought to add server-side tests for this behavior, so that we
-	// don't accidentally remove the server-side name validation after adding
-	// client-side name validation.
-	if len(blessingHex) > 255 || len(nameHexWithSuffix) > 255 {
-		vlog.Fatalf("blessingHex %s or nameHexWithSuffix %s is too long", blessingHex, nameHexWithSuffix)
+	suffix := hex.EncodeToString(suffixRaw[:])
+	dbDir += "-" + suffix
+	// SHA256 digests are 32 bytes long, so even after appending the 32-byte
+	// random suffix and with the 2x blowup from hex-encoding, the lengths of
+	// these names are well under the filesystem limit of 255 bytes:
+	// (<= 32 byte safePrefix) + '-' + hex(32 byte hash) + '-' + hex(32 byte random suffix)
+	// <= 32 + 1 + 64 + 1 + 64 = 162 < 255
+	// for dbDir; appDir does not include the suffix, so it is even shorter:
+	// <= 32 + 1 + 64 = 97 < 255
+	if len(appDir) > 255 || len(dbDir) > 255 {
+		vlog.Fatalf("appDir %s or dbDir %s is too long", appDir, dbDir)
 	}
-	return filepath.Join(s.opts.RootDir, common.AppDir, blessingHex, common.DbDir, nameHexWithSuffix), nil
+	return filepath.Join(s.opts.RootDir, common.AppDir, appDir, common.DbDir, dbDir), nil
 }

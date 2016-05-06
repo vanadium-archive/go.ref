@@ -80,8 +80,8 @@ func verifySyncgroup(ctx *context.T, sg *interfaces.Syncgroup) error {
 	if sg.Name == "" {
 		return verror.New(verror.ErrBadArg, ctx, "group name not specified")
 	}
-	if !pubutil.ValidId(sg.DbId) {
-		return verror.New(verror.ErrBadArg, ctx, "invalid db id")
+	if err := pubutil.ValidateId(sg.DbId); err != nil {
+		return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("invalid db id: %v", err))
 	}
 	if sg.Creator == "" {
 		return verror.New(verror.ErrBadArg, ctx, "creator id not specified")
@@ -107,11 +107,13 @@ func verifySyncgroupSpec(ctx *context.T, spec *wire.SyncgroupSpec) error {
 	// Duplicate prefixes are not allowed.
 	prefixes := make(map[string]bool, len(spec.Prefixes))
 	for _, p := range spec.Prefixes {
-		if !pubutil.ValidId(p.CollectionId) {
-			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a CollectionRow with invalid collection id %v", p.CollectionId))
+		if err := pubutil.ValidateId(p.CollectionId); err != nil {
+			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a CollectionRow with invalid collection id %v: %v", p.CollectionId, err))
 		}
-		if p.Row != "" && !pubutil.ValidRowKey(p.Row) {
-			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a CollectionRow with invalid row prefix %q", p.Row))
+		if p.Row != "" {
+			if err := pubutil.ValidateRowKey(p.Row); err != nil {
+				return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a CollectionRow with invalid row prefix %q: %v", p.Row, err))
+			}
 		}
 		prefixes[toCollectionRowPrefixStr(p)] = true
 	}

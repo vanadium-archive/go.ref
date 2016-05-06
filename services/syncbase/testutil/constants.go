@@ -4,6 +4,10 @@
 
 package testutil
 
+import (
+	"strings"
+)
+
 var invalidBlessingPatterns = []string{
 	":",
 	"a:",
@@ -26,7 +30,7 @@ var validBlessingPatterns = []string{
 	"a\xfb",
 	"안녕하세요",
 	// 16 4-byte runes => 64 bytes
-	"𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎",
+	strings.Repeat("𠜎", 16),
 }
 
 var invalidIdentifiers = []string{
@@ -44,7 +48,7 @@ var invalidIdentifiers = []string{
 	"dev.v.io:a:admin@myapp.com",
 	"안녕하세요",
 	// 16 4-byte runes => 64 bytes
-	"𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎",
+	strings.Repeat("𠜎", 16),
 }
 
 var validIdentifiers = []string{
@@ -77,7 +81,15 @@ var longNames = []string{
 	// 65 bytes
 	"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde",
 	// 16 4-byte runes + 1 more byte => 65 bytes
-	"𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎𠜎a",
+	strings.Repeat("𠜎", 16) + "a",
+	// 256 4-byte runes => 1024 bytes
+	strings.Repeat("𠜎", 256),
+}
+
+var veryLongNames = []string{
+	// 256 4-byte runes + 1 more byte => 1025 bytes
+	strings.Repeat("𠜎", 256) + "a",
+	strings.Repeat("foobar", 1337),
 }
 
 func concat(slices ...[]string) []string {
@@ -89,14 +101,14 @@ func concat(slices ...[]string) []string {
 }
 
 var (
-	OkAppUserBlessings    []string = validBlessingPatterns
-	NotOkAppUserBlessings []string = concat(universallyInvalidNames, invalidBlessingPatterns, longNames)
+	OkAppUserBlessings    []string = concat(validBlessingPatterns, longNames)
+	NotOkAppUserBlessings []string = concat(universallyInvalidNames, invalidBlessingPatterns, veryLongNames)
 
 	OkDbCxNames    []string = validIdentifiers
-	NotOkDbCxNames []string = concat(universallyInvalidNames, longNames, invalidIdentifiers)
+	NotOkDbCxNames []string = concat(universallyInvalidNames, invalidIdentifiers, longNames, veryLongNames)
 )
 
 var (
-	OkRowKeys    []string = concat(validIdentifiers, invalidIdentifiers, longNames)
+	OkRowKeys    []string = concat(validIdentifiers, invalidIdentifiers, longNames, veryLongNames)
 	NotOkRowKeys []string = universallyInvalidNames
 )

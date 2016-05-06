@@ -50,23 +50,32 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 	// Note, the slice returned by strings.SplitN is guaranteed to contain at
 	// least one element.
 	dbId, err := pubutil.DecodeId(parts[0])
-	if err != nil || !pubutil.ValidId(dbId) {
-		return nil, nil, wire.NewErrInvalidName(ctx, suffix)
+	if err == nil {
+		err = pubutil.ValidateId(dbId)
+	}
+	if err != nil {
+		return nil, nil, verror.New(wire.ErrInvalidName, ctx, suffix, err)
 	}
 
 	var collectionId wire.Id
 	if len(parts) > 1 {
 		collectionId, err = pubutil.DecodeId(parts[1])
-		if err != nil || !pubutil.ValidId(collectionId) {
-			return nil, nil, wire.NewErrInvalidName(ctx, suffix)
+		if err == nil {
+			err = pubutil.ValidateId(collectionId)
+		}
+		if err != nil {
+			return nil, nil, verror.New(wire.ErrInvalidName, ctx, suffix, err)
 		}
 	}
 
 	var rowKey string
 	if len(parts) > 2 {
 		rowKey, err = pubutil.Decode(parts[2])
-		if err != nil || !pubutil.ValidRowKey(rowKey) {
-			return nil, nil, wire.NewErrInvalidName(ctx, suffix)
+		if err == nil {
+			err = pubutil.ValidateRowKey(rowKey)
+		}
+		if err != nil {
+			return nil, nil, verror.New(wire.ErrInvalidName, ctx, suffix, err)
 		}
 	}
 
