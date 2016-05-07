@@ -36,7 +36,7 @@ func TestPeerManager(t *testing.T) {
 	// Add one joiner.
 	nullInfo := wire.SyncgroupMemberInfo{}
 	sg := &interfaces.Syncgroup{
-		Name:        "sg",
+		Id:          wire.Id{Name: "sg", Blessing: "blessing"},
 		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
@@ -51,10 +51,10 @@ func TestPeerManager(t *testing.T) {
 
 	tx := createDatabase(t, svc).St().NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg); err != nil {
-		t.Fatalf("cannot add syncgroup %s, err %v", sg.Name, err)
+		t.Fatalf("cannot add syncgroup %v, err %v", sg.Id, err)
 	}
 	if err := tx.Commit(); err != nil {
-		t.Fatalf("cannot commit adding syncgroup %s, err %v", sg.Name, err)
+		t.Fatalf("cannot commit adding syncgroup %v, err %v", sg.Id, err)
 	}
 
 	// Add a few peers to simulate neighborhood.

@@ -24,6 +24,9 @@ const (
 	logDataPrefix = "d"
 
 	// Types of discovery service attributes.
-	discoveryAttrPeer      = "p"
-	discoveryAttrSyncgroup = "sg"
+	discoveryAttrPeer              = "p"
+	discoveryAttrSyncgroupName     = "s"
+	discoveryAttrSyncgroupBlessing = "sb"
+	discoveryAttrDatabaseName      = "d"
+	discoveryAttrDatabaseBlessing  = "db"
 )

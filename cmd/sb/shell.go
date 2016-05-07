@@ -138,13 +138,18 @@ stmtLoop:
 							err = destroyDB(ctx, d, tq[2])
 						case "collection":
 							err = destroyCollection(ctx, d, tq[2])
+						default:
+							err = fmt.Errorf("unknown type: %q", tq[1])
+						}
+					} else if len(tq) == 4 {
+						switch tq[1] {
 						case "syncgroup":
-							err = destroySyncgroup(ctx, d, tq[2])
+							err = destroySyncgroup(ctx, d, wire.Id{Name: tq[2], Blessing: tq[3]})
 						default:
 							err = fmt.Errorf("unknown type: %q", tq[1])
 						}
 					} else {
-						err = fmt.Errorf("destroy requires specifying type ('db', 'collection', or 'syncgroup') and name of object")
+						err = fmt.Errorf("destroy requires specifying type ('db', 'collection', or 'syncgroup') and name of object ('syncgroup' expects the syncgroup name and blessing)")
 					}
 				default:
 					err = fmt.Errorf("unknown statement: '%s'; expected one of: 'select', 'make-demo', 'destroy', 'dump', 'exit', 'quit'", strings.ToLower(tq[0]))
@@ -192,18 +197,8 @@ func destroyCollection(ctx *context.T, d syncbase.Database, encCxId string) erro
 	return c.Destroy(ctx)
 }
 
-func destroySyncgroup(ctx *context.T, d syncbase.Database, sgName string) error {
-	sgs, err := d.GetSyncgroupNames(ctx)
-	if err != nil {
-		return err
-	}
-	for _, sg := range sgs {
-		if sg == sgName {
-			syncgroup := d.Syncgroup(sgName)
-			return syncgroup.Destroy(ctx)
-		}
-	}
-	return fmt.Errorf("couldn't find syncgroup %q", sgName)
+func destroySyncgroup(ctx *context.T, d syncbase.Database, sgId wire.Id) error {
+	return d.Syncgroup(sgId).Destroy(ctx)
 }
 
 func openDB(ctx *context.T, sbs syncbase.Service, id wire.Id, createIfNotExists bool) (syncbase.Database, error) {
@@ -252,22 +247,21 @@ func dumpCollections(ctx *context.T, w io.Writer, d syncbase.Database) error {
 }
 
 func dumpSyncgroups(ctx *context.T, w io.Writer, d syncbase.Database) error {
-	sgNames, err := d.GetSyncgroupNames(ctx)
+	sgIds, err := d.ListSyncgroups(ctx)
 	if err != nil {
 		return fmt.Errorf("failed listing syncgroups: %v", err)
 	}
 	var errs []error
-	for _, sgName := range sgNames {
-		fmt.Fprintf(w, "syncgroup: %s\n", sgName)
-		sg := d.Syncgroup(sgName)
-		if spec, version, err := sg.GetSpec(ctx); err != nil {
+	for _, sgId := range sgIds {
+		fmt.Fprintf(w, "syncgroup: %+v\n", sgId)
+		if spec, version, err := d.Syncgroup(sgId).GetSpec(ctx); err != nil {
 			errs = append(errs, err)
 		} else {
 			fmt.Fprintf(w, "%+v (version: \"%s\")\n", spec, version)
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("failed dumping %d of %d syncgroups:\n%v", len(errs), len(sgNames), mergeErrors(errs))
+		return fmt.Errorf("failed dumping %d of %d syncgroups:\n%v", len(errs), len(sgIds), mergeErrors(errs))
 	}
 	return nil
 }

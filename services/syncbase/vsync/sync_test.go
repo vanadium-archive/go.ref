@@ -5,11 +5,13 @@
 package vsync
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
 	"v.io/v23/discovery"
+	wire "v.io/v23/services/syncbase"
 	_ "v.io/x/ref/runtime/factories/generic"
 )
 
@@ -72,7 +74,12 @@ func TestSyncgroupDiscovery(t *testing.T) {
 	s := svc.sync
 
 	checkSyncgroupAdmins := func(sgName string, want []*discovery.Advertisement) {
-		got := s.filterSyncgroupAdmins(sgName)
+		dbId := wire.Id{Name: fmt.Sprintf("d%s", sgName), Blessing: "dblessing"}
+		sgId := wire.Id{Name: sgName, Blessing: "blessing"}
+		fmt.Printf("checkSyncgroupAdmins: Checking admin groups for %+v, %+v, expect %+v\n", dbId, sgId, want)
+		got := s.filterSyncgroupAdmins(dbId, sgId)
+
+		fmt.Printf("checkSyncgroupAdmins: filtered admin groups for %+v are %+v\n", sgId, got)
 
 		g := make(map[*discovery.Advertisement]bool)
 		for _, e := range got {
@@ -83,7 +90,7 @@ func TestSyncgroupDiscovery(t *testing.T) {
 			w[e] = true
 		}
 		if !reflect.DeepEqual(g, w) {
-			t.Errorf("discoverySyncgroupAdmins: wrong data: got %v, want %v", got, want)
+			t.Errorf("checkSyncgroupAdmins: wrong data: got %v, want %v", got, want)
 		}
 	}
 
@@ -91,16 +98,28 @@ func TestSyncgroupDiscovery(t *testing.T) {
 
 	// Add syncgroup admin neighbors.
 	svcA := &discovery.Advertisement{
-		Attributes: discovery.Attributes{discoveryAttrSyncgroup: "foo"},
-		Addresses:  []string{"aa", "aaa"},
+		Attributes: discovery.Attributes{
+			discoveryAttrDatabaseName:      "dfoo",
+			discoveryAttrDatabaseBlessing:  "dblessing",
+			discoveryAttrSyncgroupName:     "foo",
+			discoveryAttrSyncgroupBlessing: "blessing"},
+		Addresses: []string{"aa", "aaa"},
 	}
 	svcB := &discovery.Advertisement{
-		Attributes: discovery.Attributes{discoveryAttrSyncgroup: "foo"},
-		Addresses:  []string{"bb", "bbb"},
+		Attributes: discovery.Attributes{
+			discoveryAttrDatabaseName:      "dfoo",
+			discoveryAttrDatabaseBlessing:  "dblessing",
+			discoveryAttrSyncgroupName:     "foo",
+			discoveryAttrSyncgroupBlessing: "blessing"},
+		Addresses: []string{"bb", "bbb"},
 	}
 	svcC := &discovery.Advertisement{
-		Attributes: discovery.Attributes{discoveryAttrSyncgroup: "bar"},
-		Addresses:  []string{"cc", "ccc"},
+		Attributes: discovery.Attributes{
+			discoveryAttrDatabaseName:      "dbar",
+			discoveryAttrDatabaseBlessing:  "dblessing",
+			discoveryAttrSyncgroupName:     "bar",
+			discoveryAttrSyncgroupBlessing: "blessing"},
+		Addresses: []string{"cc", "ccc"},
 	}
 
 	s.updateDiscoveryInfo("foo_a", svcA)

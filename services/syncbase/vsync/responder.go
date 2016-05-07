@@ -181,7 +181,7 @@ func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 	for sgid := range rSt.sgIds {
 		// Check permissions for the syncgroup.
 		var sg *interfaces.Syncgroup
-		sg, err = getSyncgroupById(ctx, rSt.st, sgid)
+		sg, err = getSyncgroupByGid(ctx, rSt.st, sgid)
 		if err != nil {
 			vlog.Errorf("sync: authorizeAndFilterSyncgroups: accessing syncgroup information failed %v, err %v", sgid, err)
 			continue

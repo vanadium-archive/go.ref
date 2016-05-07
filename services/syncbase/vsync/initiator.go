@@ -203,7 +203,7 @@ func (s *syncService) filterSyncgroups(ctx *context.T, c *initiationConfig, bles
 	c.sharedSgPfxs = make(map[string]sgSet)
 	for gid := range c.sgIds {
 		var sg *interfaces.Syncgroup
-		sg, err := getSyncgroupById(ctx, c.st, gid)
+		sg, err := getSyncgroupByGid(ctx, c.st, gid)
 		if err != nil {
 			continue
 		}
@@ -1239,7 +1239,7 @@ func (iSt *initiationState) advertiseSyncgroups(ctx *context.T) error {
 			return err
 		}
 		var sg *interfaces.Syncgroup
-		sg, err = getSyncgroupById(ctx, iSt.config.st, gid)
+		sg, err = getSyncgroupByGid(ctx, iSt.config.st, gid)
 		if err != nil {
 			return err
 		}

@@ -116,7 +116,7 @@ func (in *dbSyncStateInMem) deepCopy() *dbSyncStateInMem {
 // sgPublishInfo holds information on a syncgroup waiting to be published to a
 // remote peer.  It is an in-memory entry in a queue of pending syncgroups.
 type sgPublishInfo struct {
-	sgName  string
+	sgId    wire.Id
 	dbId    wire.Id
 	queued  time.Time
 	lastTry time.Time
@@ -187,7 +187,7 @@ func (s *syncService) initSync(ctx *context.T) error {
 			}
 
 			if sg.Status == interfaces.SyncgroupStatusPublishPending {
-				s.enqueuePublishSyncgroup(sg.Name, dbId, false)
+				s.enqueuePublishSyncgroup(sg.Id, dbId, false)
 			}
 
 			// Refresh membership view.
@@ -317,12 +317,12 @@ func getPrevLogRec(ctx *context.T, st store.Store, pfx string, dev, gen uint64) 
 }
 
 // enqueuePublishSyncgroup appends the given syncgroup to the publish queue.
-func (s *syncService) enqueuePublishSyncgroup(sgName string, dbId wire.Id, attempted bool) {
+func (s *syncService) enqueuePublishSyncgroup(sgId, dbId wire.Id, attempted bool) {
 	s.sgPublishQueueLock.Lock()
 	defer s.sgPublishQueueLock.Unlock()
 
 	entry := &sgPublishInfo{
-		sgName: sgName,
+		sgId:   sgId,
 		dbId:   dbId,
 		queued: time.Now(),
 	}

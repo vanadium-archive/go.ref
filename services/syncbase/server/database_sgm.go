@@ -15,71 +15,71 @@ import (
 ////////////////////////////////////////
 // Syncgroup RPC methods
 
-func (d *database) GetSyncgroupNames(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+func (d *database) ListSyncgroups(ctx *context.T, call rpc.ServerCall) ([]wire.Id, error) {
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.GetSyncgroupNames(ctx, call)
+	return sd.ListSyncgroups(ctx, call)
 }
 
-func (d *database) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, myInfo wire.SyncgroupMemberInfo) error {
+func (d *database) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id, spec wire.SyncgroupSpec, myInfo wire.SyncgroupMemberInfo) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.CreateSyncgroup(ctx, call, sgName, spec, myInfo)
+	return sd.CreateSyncgroup(ctx, call, sgId, spec, myInfo)
 }
 
-func (d *database) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
+func (d *database) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remoteSyncbaseName, expectedSyncbaseBlessing string, sgId wire.Id, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
 	if !d.exists {
 		return wire.SyncgroupSpec{}, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.JoinSyncgroup(ctx, call, sgName, myInfo)
+	return sd.JoinSyncgroup(ctx, call, remoteSyncbaseName, expectedSyncbaseBlessing, sgId, myInfo)
 }
 
-func (d *database) LeaveSyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+func (d *database) LeaveSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *database) DestroySyncgroup(ctx *context.T, call rpc.ServerCall, sgName string) error {
+func (d *database) DestroySyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *database) EjectFromSyncgroup(ctx *context.T, call rpc.ServerCall, sgName, member string) error {
+func (d *database) EjectFromSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id, member string) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	return verror.NewErrNotImplemented(ctx)
 }
 
-func (d *database) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string) (wire.SyncgroupSpec, string, error) {
+func (d *database) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgId wire.Id) (wire.SyncgroupSpec, string, error) {
 	if !d.exists {
 		return wire.SyncgroupSpec{}, "", verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.GetSyncgroupSpec(ctx, call, sgName)
+	return sd.GetSyncgroupSpec(ctx, call, sgId)
 }
 
-func (d *database) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgName string, spec wire.SyncgroupSpec, version string) error {
+func (d *database) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgId wire.Id, spec wire.SyncgroupSpec, version string) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.SetSyncgroupSpec(ctx, call, sgName, spec, version)
+	return sd.SetSyncgroupSpec(ctx, call, sgId, spec, version)
 }
 
-func (d *database) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall, sgName string) (map[string]wire.SyncgroupMemberInfo, error) {
+func (d *database) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall, sgId wire.Id) (map[string]wire.SyncgroupMemberInfo, error) {
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.GetSyncgroupMembers(ctx, call, sgName)
+	return sd.GetSyncgroupMembers(ctx, call, sgId)
 }

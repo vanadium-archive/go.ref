@@ -1513,7 +1513,7 @@ func (x *SyncgroupStatus) VDLRead(dec vdl.Decoder) error {
 
 // Syncgroup contains the state of a syncgroup.
 type Syncgroup struct {
-	Name        string                                  // globally unique Vanadium name chosen by app
+	Id          syncbase.Id                             // the relative syncgroup Id chosen by app
 	SpecVersion string                                  // version on syncgroup spec for concurrency control
 	Spec        syncbase.SyncgroupSpec                  // app-given specification
 	Creator     string                                  // Creator's Vanadium name
@@ -1532,18 +1532,19 @@ func (m *Syncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	if err != nil {
 		return err
 	}
-	var4 := (m.Name == "")
+	var4 := (m.Id == syncbase.Id{})
 	if var4 {
-		if err := fieldsTarget1.ZeroField("Name"); err != nil && err != vdl.ErrFieldNoExist {
+		if err := fieldsTarget1.ZeroField("Id"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Name")
+		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Id")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget3.FromString(string(m.Name), tt.NonOptional().Field(0).Type); err != nil {
+
+			if err := m.Id.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
 				return err
 			}
 			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
@@ -1573,23 +1574,25 @@ func (m *Syncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 	var10 := true
 	var11 := (m.Spec.Description == "")
 	var10 = var10 && var11
-	var var12 bool
-	if len(m.Spec.Perms) == 0 {
-		var12 = true
-	}
+	var12 := (m.Spec.PublishSyncbaseName == "")
 	var10 = var10 && var12
 	var var13 bool
-	if len(m.Spec.Prefixes) == 0 {
+	if len(m.Spec.Perms) == 0 {
 		var13 = true
 	}
 	var10 = var10 && var13
 	var var14 bool
-	if len(m.Spec.MountTables) == 0 {
+	if len(m.Spec.Prefixes) == 0 {
 		var14 = true
 	}
 	var10 = var10 && var14
-	var15 := (m.Spec.IsPrivate == false)
+	var var15 bool
+	if len(m.Spec.MountTables) == 0 {
+		var15 = true
+	}
 	var10 = var10 && var15
+	var16 := (m.Spec.IsPrivate == false)
+	var10 = var10 && var16
 	if var10 {
 		if err := fieldsTarget1.ZeroField("Spec"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
@@ -1609,108 +1612,108 @@ func (m *Syncgroup) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
 			}
 		}
 	}
-	var18 := (m.Creator == "")
-	if var18 {
+	var19 := (m.Creator == "")
+	if var19 {
 		if err := fieldsTarget1.ZeroField("Creator"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget16, fieldTarget17, err := fieldsTarget1.StartField("Creator")
+		keyTarget17, fieldTarget18, err := fieldsTarget1.StartField("Creator")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
-			if err := fieldTarget17.FromString(string(m.Creator), tt.NonOptional().Field(3).Type); err != nil {
+			if err := fieldTarget18.FromString(string(m.Creator), tt.NonOptional().Field(3).Type); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget16, fieldTarget17); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget17, fieldTarget18); err != nil {
 				return err
 			}
 		}
 	}
-	var21 := (m.DbId == syncbase.Id{})
-	if var21 {
+	var22 := (m.DbId == syncbase.Id{})
+	if var22 {
 		if err := fieldsTarget1.ZeroField("DbId"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget19, fieldTarget20, err := fieldsTarget1.StartField("DbId")
+		keyTarget20, fieldTarget21, err := fieldsTarget1.StartField("DbId")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
 
-			if err := m.DbId.FillVDLTarget(fieldTarget20, tt.NonOptional().Field(4).Type); err != nil {
+			if err := m.DbId.FillVDLTarget(fieldTarget21, tt.NonOptional().Field(4).Type); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget19, fieldTarget20); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget20, fieldTarget21); err != nil {
 				return err
 			}
 		}
 	}
-	var24 := (m.Status == SyncgroupStatusPublishPending)
-	if var24 {
+	var25 := (m.Status == SyncgroupStatusPublishPending)
+	if var25 {
 		if err := fieldsTarget1.ZeroField("Status"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget22, fieldTarget23, err := fieldsTarget1.StartField("Status")
+		keyTarget23, fieldTarget24, err := fieldsTarget1.StartField("Status")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
 
-			if err := m.Status.FillVDLTarget(fieldTarget23, tt.NonOptional().Field(5).Type); err != nil {
+			if err := m.Status.FillVDLTarget(fieldTarget24, tt.NonOptional().Field(5).Type); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget22, fieldTarget23); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget23, fieldTarget24); err != nil {
 				return err
 			}
 		}
 	}
-	var var27 bool
+	var var28 bool
 	if len(m.Joiners) == 0 {
-		var27 = true
+		var28 = true
 	}
-	if var27 {
+	if var28 {
 		if err := fieldsTarget1.ZeroField("Joiners"); err != nil && err != vdl.ErrFieldNoExist {
 			return err
 		}
 	} else {
-		keyTarget25, fieldTarget26, err := fieldsTarget1.StartField("Joiners")
+		keyTarget26, fieldTarget27, err := fieldsTarget1.StartField("Joiners")
 		if err != vdl.ErrFieldNoExist {
 			if err != nil {
 				return err
 			}
 
-			mapTarget28, err := fieldTarget26.StartMap(tt.NonOptional().Field(6).Type, len(m.Joiners))
+			mapTarget29, err := fieldTarget27.StartMap(tt.NonOptional().Field(6).Type, len(m.Joiners))
 			if err != nil {
 				return err
 			}
-			for key30, value32 := range m.Joiners {
-				keyTarget29, err := mapTarget28.StartKey()
+			for key31, value33 := range m.Joiners {
+				keyTarget30, err := mapTarget29.StartKey()
 				if err != nil {
 					return err
 				}
-				if err := keyTarget29.FromString(string(key30), tt.NonOptional().Field(6).Type.Key()); err != nil {
+				if err := keyTarget30.FromString(string(key31), tt.NonOptional().Field(6).Type.Key()); err != nil {
 					return err
 				}
-				valueTarget31, err := mapTarget28.FinishKeyStartField(keyTarget29)
+				valueTarget32, err := mapTarget29.FinishKeyStartField(keyTarget30)
 				if err != nil {
 					return err
 				}
 
-				if err := value32.FillVDLTarget(valueTarget31, tt.NonOptional().Field(6).Type.Elem()); err != nil {
+				if err := value33.FillVDLTarget(valueTarget32, tt.NonOptional().Field(6).Type.Elem()); err != nil {
 					return err
 				}
-				if err := mapTarget28.FinishField(keyTarget29, valueTarget31); err != nil {
+				if err := mapTarget29.FinishField(keyTarget30, valueTarget32); err != nil {
 					return err
 				}
 			}
-			if err := fieldTarget26.FinishMap(mapTarget28); err != nil {
+			if err := fieldTarget27.FinishMap(mapTarget29); err != nil {
 				return err
 			}
-			if err := fieldsTarget1.FinishField(keyTarget25, fieldTarget26); err != nil {
+			if err := fieldsTarget1.FinishField(keyTarget26, fieldTarget27); err != nil {
 				return err
 			}
 		}
@@ -1727,7 +1730,7 @@ func (m *Syncgroup) MakeVDLTarget() vdl.Target {
 
 type SyncgroupTarget struct {
 	Value             *Syncgroup
-	nameTarget        vdl.StringTarget
+	idTarget          syncbase.IdTarget
 	specVersionTarget vdl.StringTarget
 	specTarget        syncbase.SyncgroupSpecTarget
 	creatorTarget     vdl.StringTarget
@@ -1747,9 +1750,9 @@ func (t *SyncgroupTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
 }
 func (t *SyncgroupTarget) StartField(name string) (key, field vdl.Target, _ error) {
 	switch name {
-	case "Name":
-		t.nameTarget.Value = &t.Value.Name
-		target, err := &t.nameTarget, error(nil)
+	case "Id":
+		t.idTarget.Value = &t.Value.Id
+		target, err := &t.idTarget, error(nil)
 		return nil, target, err
 	case "SpecVersion":
 		t.specVersionTarget.Value = &t.Value.SpecVersion
@@ -1784,8 +1787,8 @@ func (t *SyncgroupTarget) FinishField(_, _ vdl.Target) error {
 }
 func (t *SyncgroupTarget) ZeroField(name string) error {
 	switch name {
-	case "Name":
-		t.Value.Name = ""
+	case "Id":
+		t.Value.Id = syncbase.Id{}
 		return nil
 	case "SpecVersion":
 		t.Value.SpecVersion = ""
@@ -1858,7 +1861,7 @@ func (t *__VDLTarget1_map) FinishMap(elem vdl.MapTarget) error {
 }
 
 func (x Syncgroup) VDLIsZero() bool {
-	if x.Name != "" {
+	if x.Id != (syncbase.Id{}) {
 		return false
 	}
 	if x.SpecVersion != "" {
@@ -1886,17 +1889,11 @@ func (x Syncgroup) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*Syncgroup)(nil)).Elem()); err != nil {
 		return err
 	}
-	if x.Name != "" {
-		if err := enc.NextField("Name"); err != nil {
+	if x.Id != (syncbase.Id{}) {
+		if err := enc.NextField("Id"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Name); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := x.Id.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -2012,15 +2009,8 @@ func (x *Syncgroup) VDLRead(dec vdl.Decoder) error {
 		switch f {
 		case "":
 			return dec.FinishValue()
-		case "Name":
-			if err := dec.StartValue(); err != nil {
-				return err
-			}
-			var err error
-			if x.Name, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+		case "Id":
+			if err := x.Id.VDLRead(dec); err != nil {
 				return err
 			}
 		case "SpecVersion":
@@ -5391,8 +5381,8 @@ var (
 )
 
 // NewErrDupSyncgroupPublish returns an error with the ErrDupSyncgroupPublish ID.
-func NewErrDupSyncgroupPublish(ctx *context.T, name string) error {
-	return verror.New(ErrDupSyncgroupPublish, ctx, name)
+func NewErrDupSyncgroupPublish(ctx *context.T, sgId syncbase.Id) error {
+	return verror.New(ErrDupSyncgroupPublish, ctx, sgId)
 }
 
 // NewErrConnFail returns an error with the ErrConnFail ID.
@@ -5466,7 +5456,7 @@ type SyncClientMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(_ *context.T, sgName string, joinerName string, myInfo syncbase.SyncgroupMemberInfo, _ ...rpc.CallOpt) (sg Syncgroup, version string, genvec GenVector, _ error)
+	JoinSyncgroupAtAdmin(_ *context.T, dbId syncbase.Id, sgId syncbase.Id, joinerName string, myInfo syncbase.SyncgroupMemberInfo, _ ...rpc.CallOpt) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.  Otherwise, it returns -1, and the location
 	// hints (the Signpost) that the peer has for the blob, filtered to
@@ -5558,8 +5548,8 @@ func (c implSyncClientStub) PublishSyncgroup(ctx *context.T, i0 string, i1 Syncg
 	return
 }
 
-func (c implSyncClientStub) JoinSyncgroupAtAdmin(ctx *context.T, i0 string, i1 string, i2 syncbase.SyncgroupMemberInfo, opts ...rpc.CallOpt) (o0 Syncgroup, o1 string, o2 GenVector, err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "JoinSyncgroupAtAdmin", []interface{}{i0, i1, i2}, []interface{}{&o0, &o1, &o2}, opts...)
+func (c implSyncClientStub) JoinSyncgroupAtAdmin(ctx *context.T, i0 syncbase.Id, i1 syncbase.Id, i2 string, i3 syncbase.SyncgroupMemberInfo, opts ...rpc.CallOpt) (o0 Syncgroup, o1 string, o2 GenVector, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "JoinSyncgroupAtAdmin", []interface{}{i0, i1, i2, i3}, []interface{}{&o0, &o1, &o2}, opts...)
 	return
 }
 
@@ -5956,7 +5946,7 @@ type SyncServerMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, sgName string, joinerName string, myInfo syncbase.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector, _ error)
+	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, dbId syncbase.Id, sgId syncbase.Id, joinerName string, myInfo syncbase.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.  Otherwise, it returns -1, and the location
 	// hints (the Signpost) that the peer has for the blob, filtered to
@@ -6056,7 +6046,7 @@ type SyncServerStubMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, sgName string, joinerName string, myInfo syncbase.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector, _ error)
+	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, dbId syncbase.Id, sgId syncbase.Id, joinerName string, myInfo syncbase.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.  Otherwise, it returns -1, and the location
 	// hints (the Signpost) that the peer has for the blob, filtered to
@@ -6155,8 +6145,8 @@ func (s implSyncServerStub) PublishSyncgroup(ctx *context.T, call rpc.ServerCall
 	return s.impl.PublishSyncgroup(ctx, call, i0, i1, i2, i3)
 }
 
-func (s implSyncServerStub) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, i0 string, i1 string, i2 syncbase.SyncgroupMemberInfo) (Syncgroup, string, GenVector, error) {
-	return s.impl.JoinSyncgroupAtAdmin(ctx, call, i0, i1, i2)
+func (s implSyncServerStub) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, i0 syncbase.Id, i1 syncbase.Id, i2 string, i3 syncbase.SyncgroupMemberInfo) (Syncgroup, string, GenVector, error) {
+	return s.impl.JoinSyncgroupAtAdmin(ctx, call, i0, i1, i2, i3)
 }
 
 func (s implSyncServerStub) HaveBlob(ctx *context.T, call rpc.ServerCall, i0 syncbase.BlobRef) (int64, Signpost, error) {
@@ -6241,7 +6231,8 @@ var descSync = rpc.InterfaceDesc{
 			Name: "JoinSyncgroupAtAdmin",
 			Doc:  "// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's\n// Syncbase on a syncgroup admin. It checks whether the requestor is\n// allowed to join the named syncgroup, and if so, adds the requestor to\n// the syncgroup.  It returns a copy of the updated syncgroup metadata,\n// its version, and the syncgroup generation vector at the time of the\n// join.  Similar to the PublishSyncgroup scenario, the joiner at that\n// point does not have the syncgroup history and locally deems it to be\n// in a pending state and does not mutate it.  This means it rejects\n// local updates to the syncgroup spec or, if it were also an admin on\n// the syncgroup, it would reject syncgroup joins until it is caught up\n// on the syncgroup history through p2p sync.",
 			InArgs: []rpc.ArgDesc{
-				{"sgName", ``},     // string
+				{"dbId", ``},       // syncbase.Id
+				{"sgId", ``},       // syncbase.Id
 				{"joinerName", ``}, // string
 				{"myInfo", ``},     // syncbase.SyncgroupMemberInfo
 			},

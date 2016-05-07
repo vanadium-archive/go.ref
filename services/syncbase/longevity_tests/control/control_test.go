@@ -15,14 +15,12 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/security"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	"v.io/x/lib/gosh"
 	_ "v.io/x/ref/runtime/factories/generic"
 	_ "v.io/x/ref/runtime/protocols/vine"
-	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/longevity_tests/client"
 	"v.io/x/ref/services/syncbase/longevity_tests/control"
 	"v.io/x/ref/services/syncbase/longevity_tests/model"
@@ -483,7 +481,6 @@ func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name stri
 	// Create a syncgroup on the first syncbase.
 	counter++
 	sgName := fmt.Sprintf("test_sg_%d", counter)
-	fullSgName := naming.Join(sb1Name, common.SyncbaseSuffix, sgName)
 	mounttable := v23.GetNamespace(ctx).Roots()[0]
 	sbSpec := wire.SyncgroupSpec{
 		Description: "test syncgroup",
@@ -496,7 +493,7 @@ func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name stri
 		},
 		MountTables: []string{mounttable},
 	}
-	sb1Sg := sb1Db.Syncgroup(fullSgName)
+	sb1Sg := sb1Db.Syncgroup(wire.Id{Name: sgName, Blessing: "blessing"})
 	if err := sb1Sg.Create(ctx, sbSpec, wire.SyncgroupMemberInfo{}); err != nil {
 		t.Fatal(err)
 	}
@@ -504,7 +501,7 @@ func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name stri
 	// If second syncbase can join the syncgroup, they are connected.
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	sb2Sg := sb2Db.Syncgroup(fullSgName)
-	_, err := sb2Sg.Join(ctxWithTimeout, wire.SyncgroupMemberInfo{})
+	sb2Sg := sb2Db.Syncgroup(wire.Id{Name: sgName, Blessing: "blessing"})
+	_, err := sb2Sg.Join(ctxWithTimeout, sb1Name, "", wire.SyncgroupMemberInfo{})
 	return err == nil
 }

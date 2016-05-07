@@ -57,11 +57,11 @@ func TestAddSyncgroup(t *testing.T) {
 
 	// Add a syncgroup.
 
-	sgName := "foobar"
+	sgId := wire.Id{Name: "foobar", Blessing: "foobarB"}
 	version := "v111"
 
 	sg := &interfaces.Syncgroup{
-		Name:        sgName,
+		Id:          sgId,
 		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
@@ -77,29 +77,29 @@ func TestAddSyncgroup(t *testing.T) {
 
 	tx := st.NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, version, true, "", nil, s.id, 1, 1, sg); err != nil {
-		t.Errorf("cannot add syncgroup %s: %v", sg.Name, err)
+		t.Errorf("cannot add syncgroup %v: %v", sg.Id, err)
 	}
 	if err := tx.Commit(); err != nil {
-		t.Errorf("cannot commit adding syncgroup %s: %v", sg.Name, err)
+		t.Errorf("cannot commit adding syncgroup %v: %v", sg.Id, err)
 	}
 
 	// Verify syncgroup ID, name, and data.
-	sgId := sgNameToId(sgName)
+	id := SgIdToGid(mockDbId, sgId)
 
-	sgOut, err := getSyncgroupById(nil, st, sgId)
+	sgOut, err := getSyncgroupByGid(nil, st, id)
 	if err != nil {
-		t.Errorf("cannot get syncgroup by ID %s: %v", sgId, err)
+		t.Errorf("cannot get syncgroup by ID %s: %v", id, err)
 	}
 	if !reflect.DeepEqual(sgOut, sg) {
-		t.Errorf("invalid syncgroup data for group ID %s: got %v instead of %v", sgId, sgOut, sg)
+		t.Errorf("invalid syncgroup data for group ID %s: got %v instead of %v", id, sgOut, sg)
 	}
 
-	sgOut, err = getSyncgroupByName(nil, st, sgName)
+	sgOut, err = getSyncgroupByGid(nil, st, id)
 	if err != nil {
-		t.Errorf("cannot get syncgroup by Name %s: %v", sgName, err)
+		t.Errorf("cannot get syncgroup by Name %v: %v", sgId, err)
 	}
 	if !reflect.DeepEqual(sgOut, sg) {
-		t.Errorf("invalid syncgroup data for group name %s: got %v instead of %v", sgName, sgOut, sg)
+		t.Errorf("invalid syncgroup data for group name %v: got %v instead of %v", sgId, sgOut, sg)
 	}
 
 	// Verify membership data.
@@ -131,10 +131,10 @@ func TestAddSyncgroup(t *testing.T) {
 			t.Errorf("invalid member info for syncgroup member %s: %v", mm, sgmi)
 		}
 		expJoinerInfo := sg.Joiners[mm]
-		joinerInfo := sgmi[sgId]
+		joinerInfo := sgmi[id]
 		if !reflect.DeepEqual(joinerInfo, expJoinerInfo) {
 			t.Errorf("invalid Info for syncgroup member %s in group ID %s: got %v instead of %v",
-				mm, sgId, joinerInfo, expJoinerInfo)
+				mm, id, joinerInfo, expJoinerInfo)
 		}
 	}
 
@@ -144,7 +144,7 @@ func TestAddSyncgroup(t *testing.T) {
 
 	tx = st.NewWatchableTransaction()
 	if err = s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 3, 3, sg); err == nil {
-		t.Errorf("re-adding the same syncgroup name %s did not fail", sgName)
+		t.Errorf("re-adding the same syncgroup name %v did not fail", sgId)
 	}
 	tx.Abort()
 
@@ -152,12 +152,12 @@ func TestAddSyncgroup(t *testing.T) {
 
 	// Fetch a non-existing syncgroup by ID or name should fail.
 
-	badName := "not-available"
+	badSgId := wire.Id{Name: "not-available", Blessing: "naB"}
 	badId := interfaces.GroupId("999")
-	if sg, err := getSyncgroupByName(nil, st, badName); err == nil {
-		t.Errorf("found non-existing syncgroup name %s: got %v", badName, sg)
+	if sg, err := getSyncgroupByGid(nil, st, SgIdToGid(mockDbId, badSgId)); err == nil {
+		t.Errorf("found non-existing syncgroup name %s: got %v", badSgId, sg)
 	}
-	if sg, err := getSyncgroupById(nil, st, badId); err == nil {
+	if sg, err := getSyncgroupByGid(nil, st, badId); err == nil {
 		t.Errorf("found non-existing syncgroup ID %s: got %v", badId, sg)
 	}
 }
@@ -183,7 +183,7 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 
 	mkSg := func() *interfaces.Syncgroup {
 		return &interfaces.Syncgroup{
-			Name:        "foobar",
+			Id:          wire.Id{Name: "foobar", Blessing: "foobarB"},
 			DbId:        mockDbId,
 			Creator:     "mockCreator",
 			SpecVersion: "etag-0",
@@ -199,7 +199,7 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 	}
 
 	sg := mkSg()
-	sg.Name = ""
+	sg.Id.Name = ""
 	checkBadAddSyncgroup(t, st, sg, "SG w/o name")
 
 	sg = mkSg()
@@ -260,16 +260,16 @@ func TestDeleteSyncgroup(t *testing.T) {
 	st := createDatabase(t, svc).St()
 	s := svc.sync
 
-	sgName := "foobar"
-	sgId := sgNameToId(sgName)
+	sgIdWire := wire.Id{Name: "foobar", Blessing: "foobarB"}
+	sgIdInternal := SgIdToGid(mockDbId, sgIdWire)
 
 	// Delete non-existing syncgroups.
 
 	tx := st.NewWatchableTransaction()
-	if err := delSyncgroupById(nil, nil, tx, sgId); err == nil {
+	if err := delSyncgroupByGid(nil, nil, tx, sgIdInternal); err == nil {
 		t.Errorf("deleting a non-existing syncgroup ID did not fail")
 	}
-	if err := delSyncgroupByName(nil, nil, tx, sgName); err == nil {
+	if err := delSyncgroupBySgId(nil, nil, tx, mockDbId, sgIdWire); err == nil {
 		t.Errorf("deleting a non-existing syncgroup name did not fail")
 	}
 	tx.Abort()
@@ -279,7 +279,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 	// Create the syncgroup to delete later.
 
 	sg := &interfaces.Syncgroup{
-		Name:        sgName,
+		Id:          sgIdWire,
 		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
@@ -295,10 +295,10 @@ func TestDeleteSyncgroup(t *testing.T) {
 
 	tx = st.NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg); err != nil {
-		t.Errorf("creating syncgroup ID %s failed: %v", sgId, err)
+		t.Errorf("creating syncgroup ID %s failed: %v", sgIdInternal, err)
 	}
 	if err := tx.Commit(); err != nil {
-		t.Errorf("cannot commit adding syncgroup ID %s: %v", sgId, err)
+		t.Errorf("cannot commit adding syncgroup ID %s: %v", sgIdInternal, err)
 	}
 
 	checkSGStats(t, svc, "del-2", 1, 3)
@@ -306,11 +306,11 @@ func TestDeleteSyncgroup(t *testing.T) {
 	// Delete it by ID.
 
 	tx = st.NewWatchableTransaction()
-	if err := delSyncgroupById(nil, nil, tx, sgId); err != nil {
-		t.Errorf("deleting syncgroup ID %s failed: %v", sgId, err)
+	if err := delSyncgroupByGid(nil, nil, tx, sgIdInternal); err != nil {
+		t.Errorf("deleting syncgroup ID %s failed: %v", sgIdInternal, err)
 	}
 	if err := tx.Commit(); err != nil {
-		t.Errorf("cannot commit deleting syncgroup ID %s: %v", sgId, err)
+		t.Errorf("cannot commit deleting syncgroup ID %s: %v", sgIdInternal, err)
 	}
 
 	checkSGStats(t, svc, "del-3", 0, 0)
@@ -319,28 +319,28 @@ func TestDeleteSyncgroup(t *testing.T) {
 
 	tx = st.NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 2, 2, sg); err != nil {
-		t.Errorf("creating syncgroup ID %s after delete failed: %v", sgId, err)
+		t.Errorf("creating syncgroup ID %s after delete failed: %v", sgIdInternal, err)
 	}
 	if err := tx.Commit(); err != nil {
-		t.Errorf("cannot commit adding syncgroup ID %s after delete: %v", sgId, err)
+		t.Errorf("cannot commit adding syncgroup ID %s after delete: %v", sgIdInternal, err)
 	}
 
 	tx = st.NewWatchableTransaction()
-	if err := s.updateSyncgroupVersioning(nil, tx, sgId, NoVersion, true, s.id, 3, 3, sg); err != nil {
-		t.Errorf("updating syncgroup ID %s version: %v", sgId, err)
+	if err := s.updateSyncgroupVersioning(nil, tx, sgIdInternal, NoVersion, true, s.id, 3, 3, sg); err != nil {
+		t.Errorf("updating syncgroup ID %s version: %v", sgIdInternal, err)
 	}
 	if err := tx.Commit(); err != nil {
-		t.Errorf("cannot commit updating syncgroup ID %s version: %v", sgId, err)
+		t.Errorf("cannot commit updating syncgroup ID %s version: %v", sgIdInternal, err)
 	}
 
 	checkSGStats(t, svc, "del-4", 1, 3)
 
 	tx = st.NewWatchableTransaction()
-	if err := delSyncgroupByName(nil, nil, tx, sgName); err != nil {
-		t.Errorf("deleting syncgroup name %s failed: %v", sgName, err)
+	if err := delSyncgroupBySgId(nil, nil, tx, mockDbId, sgIdWire); err != nil {
+		t.Errorf("deleting syncgroup name %s failed: %v", sgIdWire, err)
 	}
 	if err := tx.Commit(); err != nil {
-		t.Errorf("cannot commit deleting syncgroup name %s: %v", sgName, err)
+		t.Errorf("cannot commit deleting syncgroup name %s: %v", sgIdWire, err)
 	}
 
 	checkSGStats(t, svc, "del-5", 0, 0)
@@ -355,13 +355,13 @@ func TestMultiSyncgroups(t *testing.T) {
 	st := createDatabase(t, svc).St()
 	s := svc.sync
 
-	sgName1, sgName2 := "foo", "bar"
-	sgId1, sgId2 := sgNameToId(sgName1), sgNameToId(sgName2)
+	sgIdWire1, sgIdWire2 := wire.Id{Name: "foo", Blessing: "fooB"}, wire.Id{Name: "bar", Blessing: "barB"}
+	sgIdInternal1, sgIdInternal2 := SgIdToGid(mockDbId, sgIdWire1), SgIdToGid(mockDbId, sgIdWire2)
 
 	// Add two syncgroups.
 
 	sg1 := &interfaces.Syncgroup{
-		Name:        sgName1,
+		Id:          sgIdWire1,
 		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-1",
@@ -376,7 +376,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		},
 	}
 	sg2 := &interfaces.Syncgroup{
-		Name:        sgName2,
+		Id:          sgIdWire2,
 		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-2",
@@ -393,20 +393,20 @@ func TestMultiSyncgroups(t *testing.T) {
 
 	tx := st.NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg1); err != nil {
-		t.Errorf("creating syncgroup ID %s failed: %v", sgId1, err)
+		t.Errorf("creating syncgroup ID %s failed: %v", sgIdInternal1, err)
 	}
 	if err := tx.Commit(); err != nil {
-		t.Errorf("cannot commit adding syncgroup ID %s: %v", sgId1, err)
+		t.Errorf("cannot commit adding syncgroup ID %s: %v", sgIdInternal1, err)
 	}
 
 	checkSGStats(t, svc, "multi-1", 1, 3)
 
 	tx = st.NewWatchableTransaction()
 	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 2, 2, sg2); err != nil {
-		t.Errorf("creating syncgroup ID %s failed: %v", sgId2, err)
+		t.Errorf("creating syncgroup ID %s failed: %v", sgIdInternal2, err)
 	}
 	if err := tx.Commit(); err != nil {
-		t.Errorf("cannot commit adding syncgroup ID %s: %v", sgId2, err)
+		t.Errorf("cannot commit adding syncgroup ID %s: %v", sgIdInternal2, err)
 	}
 
 	checkSGStats(t, svc, "multi-2", 2, 5)
@@ -429,7 +429,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		"phone": &memberInfo{
 			db2sg: map[wire.Id]sgMemberInfo{
 				mockDbId: sgMemberInfo{
-					sgId1: sg1.Joiners["phone"],
+					sgIdInternal1: sg1.Joiners["phone"],
 				},
 			},
 			mtTables: map[string]struct{}{"mt1": struct{}{}},
@@ -437,8 +437,8 @@ func TestMultiSyncgroups(t *testing.T) {
 		"tablet": &memberInfo{
 			db2sg: map[wire.Id]sgMemberInfo{
 				mockDbId: sgMemberInfo{
-					sgId1: sg1.Joiners["tablet"],
-					sgId2: sg2.Joiners["tablet"],
+					sgIdInternal1: sg1.Joiners["tablet"],
+					sgIdInternal2: sg2.Joiners["tablet"],
 				},
 			},
 			mtTables: map[string]struct{}{
@@ -450,7 +450,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		"cloud": &memberInfo{
 			db2sg: map[wire.Id]sgMemberInfo{
 				mockDbId: sgMemberInfo{
-					sgId1: sg1.Joiners["cloud"],
+					sgIdInternal1: sg1.Joiners["cloud"],
 				},
 			},
 			mtTables: map[string]struct{}{"mt1": struct{}{}},
@@ -458,7 +458,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		"door": &memberInfo{
 			db2sg: map[wire.Id]sgMemberInfo{
 				mockDbId: sgMemberInfo{
-					sgId2: sg2.Joiners["door"],
+					sgIdInternal2: sg2.Joiners["door"],
 				},
 			},
 			mtTables: mt2and3,
@@ -466,7 +466,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		"lamp": &memberInfo{
 			db2sg: map[wire.Id]sgMemberInfo{
 				mockDbId: sgMemberInfo{
-					sgId2: sg2.Joiners["lamp"],
+					sgIdInternal2: sg2.Joiners["lamp"],
 				},
 			},
 			mtTables: mt2and3,
@@ -488,11 +488,11 @@ func TestMultiSyncgroups(t *testing.T) {
 	// Delete the 1st syncgroup.
 
 	tx = st.NewWatchableTransaction()
-	if err := delSyncgroupById(nil, nil, tx, sgId1); err != nil {
-		t.Errorf("deleting syncgroup ID %s failed: %v", sgId1, err)
+	if err := delSyncgroupByGid(nil, nil, tx, sgIdInternal1); err != nil {
+		t.Errorf("deleting syncgroup ID %s failed: %v", sgIdInternal1, err)
 	}
 	if err := tx.Commit(); err != nil {
-		t.Errorf("cannot commit deleting syncgroup ID %s: %v", sgId1, err)
+		t.Errorf("cannot commit deleting syncgroup ID %s: %v", sgIdInternal1, err)
 	}
 
 	checkSGStats(t, svc, "multi-3", 1, 3)
@@ -510,7 +510,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		"tablet": &memberInfo{
 			db2sg: map[wire.Id]sgMemberInfo{
 				mockDbId: sgMemberInfo{
-					sgId2: sg2.Joiners["tablet"],
+					sgIdInternal2: sg2.Joiners["tablet"],
 				},
 			},
 			mtTables: mt2and3,
@@ -518,7 +518,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		"door": &memberInfo{
 			db2sg: map[wire.Id]sgMemberInfo{
 				mockDbId: sgMemberInfo{
-					sgId2: sg2.Joiners["door"],
+					sgIdInternal2: sg2.Joiners["door"],
 				},
 			},
 			mtTables: mt2and3,
@@ -526,7 +526,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		"lamp": &memberInfo{
 			db2sg: map[wire.Id]sgMemberInfo{
 				mockDbId: sgMemberInfo{
-					sgId2: sg2.Joiners["lamp"],
+					sgIdInternal2: sg2.Joiners["lamp"],
 				},
 			},
 			mtTables: mt2and3,

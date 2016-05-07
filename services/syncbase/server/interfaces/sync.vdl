@@ -54,7 +54,7 @@ type Sync interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(sgName, joinerName string, myInfo wire.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector | error) {access.Read}
+	JoinSyncgroupAtAdmin(dbId wire.Id, sgId wire.Id, joinerName string, myInfo wire.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector | error) {access.Read}
 
 	// BlobSync methods.
 
@@ -121,7 +121,7 @@ type Sync interface {
 
 // TODO(ivanpi): Some methods are missing additional parameter handling ({:_}).
 error (
-	DupSyncgroupPublish(name string) {"en": "duplicate publish on syncgroup: {name}"}
+	DupSyncgroupPublish(sgId wire.Id) {"en": "duplicate publish on syncgroup: {sgId}"}
 	ConnFail() {"en": "connection to peer failed{:_}"}
 	BrokenCrConnection() {"en": "CrConnection stream to client does not exist or is broken"}
 	DbOffline(dbId wire.Id) {"en": "database {dbId} is offline and cannot be synced{:_}"}

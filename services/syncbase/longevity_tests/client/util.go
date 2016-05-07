@@ -52,7 +52,7 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 
 		// Create or join syncgroups for database.
 		for _, sgModel := range dbModel.Syncgroups {
-			sg := db.Syncgroup(sgModel.Name())
+			sg := db.Syncgroup(wire.Id{Name: sgModel.NameSuffix, Blessing: "blessing"})
 			if sgModel.HostDevice.Name == sbName {
 				// We are the host.  Create the syncgroup.
 				spec := sgModel.Spec()
@@ -70,7 +70,7 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 			// backoff?
 			var joinErr error
 			for i := 0; i < 10; i++ {
-				_, joinErr = sg.Join(ctx, wire.SyncgroupMemberInfo{})
+				_, joinErr = sg.Join(ctx, sgModel.HostDevice.Name, "", wire.SyncgroupMemberInfo{})
 				if joinErr == nil {
 					syncgroups = append(syncgroups, sg)
 					break

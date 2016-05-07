@@ -89,7 +89,7 @@ type SyncgroupStatus enum {
 
 // Syncgroup contains the state of a syncgroup.
 type Syncgroup struct {
-	Name        string                              // globally unique Vanadium name chosen by app
+	Id          wire.Id                             // the relative syncgroup Id chosen by app
 	SpecVersion string                              // version on syncgroup spec for concurrency control
 	Spec        wire.SyncgroupSpec                  // app-given specification
 	Creator     string                              // Creator's Vanadium name

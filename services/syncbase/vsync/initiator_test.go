@@ -350,7 +350,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	}
 
 	sg1 := &interfaces.Syncgroup{
-		Name:        "sg1",
+		Id:          wire.Id{Name: "sg1", Blessing: "b1"},
 		DbId:        mockDbId,
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
@@ -366,10 +366,10 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 
 	tx := createDatabase(t, svc).St().NewWatchableTransaction()
 	if err = s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg1); err != nil {
-		t.Fatalf("cannot add syncgroup %s, err %v", sg1.Name, err)
+		t.Fatalf("cannot add syncgroup %v, err %v", sg1.Id, err)
 	}
 	if err = tx.Commit(); err != nil {
-		t.Fatalf("cannot commit adding syncgroup %s, err %v", sg1.Name, err)
+		t.Fatalf("cannot commit adding syncgroup %v, err %v", sg1.Id, err)
 	}
 
 	if lfile != "" {

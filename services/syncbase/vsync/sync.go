@@ -87,12 +87,12 @@ type syncService struct {
 	// service.  The IDs map gathers all the neighborhood info using the
 	// instance IDs as keys.  The sync peers map is a secondary index to
 	// access the info using the Syncbase names as keys.  The syncgroups
-	// map is a secondary index to access the info using the syncgroup names
+	// map is a secondary index to access the info using the syncgroup Gids
 	// as keys of the outer-map, and instance IDs as keys of the inner-map.
 	discovery           discovery.T
 	discoveryIds        map[string]*discovery.Advertisement
 	discoveryPeers      map[string]*discovery.Advertisement
-	discoverySyncgroups map[string]map[string]*discovery.Advertisement
+	discoverySyncgroups map[interfaces.GroupId]map[string]*discovery.Advertisement
 	discoveryLock       sync.RWMutex
 
 	nameLock sync.Mutex // lock needed to serialize adding and removing of Syncbase names.
@@ -102,8 +102,8 @@ type syncService struct {
 
 	// Cancel functions for contexts derived from the root context when
 	// advertising over neighborhood. This is needed to stop advertising.
-	cancelAdvSyncbase   context.CancelFunc            // cancels Syncbase advertising.
-	cancelAdvSyncgroups map[string]context.CancelFunc // cancels syncgroup advertising.
+	cancelAdvSyncbase   context.CancelFunc             // cancels Syncbase advertising.
+	cancelAdvSyncgroups map[wire.Id]context.CancelFunc // cancels syncgroup advertising.
 
 	// Whether to enable neighborhood advertising.
 	publishInNh bool
@@ -174,7 +174,7 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 		ctx:                 ctx,
 		discovery:           discovery,
 		publishInNh:         publishInNh,
-		cancelAdvSyncgroups: make(map[string]context.CancelFunc),
+		cancelAdvSyncgroups: make(map[wire.Id]context.CancelFunc),
 	}
 
 	data := &SyncData{}
@@ -273,6 +273,8 @@ func (s *syncService) discoverNeighborhood(ctx *context.T) {
 				break
 			}
 
+			vlog.VI(3).Infof("discoverNeighborhood: got an update, %+v\n", update)
+
 			if update.IsLost() {
 				s.updateDiscoveryInfo(update.Id().String(), nil)
 			} else {
@@ -296,13 +298,13 @@ func (s *syncService) updateDiscoveryInfo(id string, ad *discovery.Advertisement
 	s.discoveryLock.Lock()
 	defer s.discoveryLock.Unlock()
 
-	vlog.VI(3).Infof("sync: updateDiscoveryInfo: %s: %v", id, ad)
+	vlog.VI(3).Info("sync: updateDiscoveryInfo: %s: %+v, %p, current discoverySyncgroups is %+v", id, ad, ad, s.discoverySyncgroups)
 
 	// The first time around initialize all discovery maps.
 	if s.discoveryIds == nil {
 		s.discoveryIds = make(map[string]*discovery.Advertisement)
 		s.discoveryPeers = make(map[string]*discovery.Advertisement)
-		s.discoverySyncgroups = make(map[string]map[string]*discovery.Advertisement)
+		s.discoverySyncgroups = make(map[interfaces.GroupId]map[string]*discovery.Advertisement)
 	}
 
 	// Determine the service entry type (sync peer or syncgroup) and its
@@ -315,44 +317,38 @@ func (s *syncService) updateDiscoveryInfo(id string, ad *discovery.Advertisement
 		attrs = serv.Attributes
 	}
 
-	if len(attrs) == 0 {
-		return
-	}
-
-	var attrKey, attrValue string
-	for k, v := range attrs {
-		attrKey, attrValue = k, v
-		break
-	}
-
-	switch attrKey {
-	case discoveryAttrPeer:
+	// handle peers
+	if peer, ok := attrs[discoveryAttrPeer]; ok {
 		// The attribute value is the Syncbase peer name.
 		if ad != nil {
-			s.discoveryPeers[attrValue] = ad
+			s.discoveryPeers[peer] = ad
 		} else {
-			delete(s.discoveryPeers, attrValue)
+			delete(s.discoveryPeers, peer)
 		}
+	}
 
-	case discoveryAttrSyncgroup:
+	// handle syngroups
+	if sgName, ok := attrs[discoveryAttrSyncgroupName]; ok {
 		// The attribute value is the syncgroup name.
-		admins := s.discoverySyncgroups[attrValue]
+		dbId := wire.Id{Name: attrs[discoveryAttrDatabaseName], Blessing: attrs[discoveryAttrDatabaseBlessing]}
+		sgId := wire.Id{Name: sgName, Blessing: attrs[discoveryAttrSyncgroupBlessing]}
+		gid := SgIdToGid(dbId, sgId)
+		admins := s.discoverySyncgroups[gid]
 		if ad != nil {
 			if admins == nil {
 				admins = make(map[string]*discovery.Advertisement)
-				s.discoverySyncgroups[attrValue] = admins
+				s.discoverySyncgroups[gid] = admins
+				vlog.VI(3).Infof("added advertisement %+v, %p as dbId %v, sgId %v, gid %v\n", admins, admins, dbId, sgId, gid)
+
 			}
 			admins[id] = ad
 		} else if admins != nil {
 			delete(admins, id)
 			if len(admins) == 0 {
-				delete(s.discoverySyncgroups, attrValue)
+				delete(s.discoverySyncgroups, gid)
+				vlog.VI(3).Infof("deleted advertisement %+v, %p from dbId %v, sgId %v, gid %v\n", admins, admins, dbId, sgId, gid)
 			}
 		}
-
-	default:
-		vlog.Errorf("sync: updateDiscoveryInfo: %s has invalid attribute key %q", id, attrKey)
-		return
 	}
 
 	// Add or remove the service entry from the main IDs map.
@@ -386,7 +382,7 @@ func (s *syncService) filterDiscoveryPeers(sgMembers map[string]uint32) map[stri
 
 // filterSyncgroupAdmins returns syncgroup admins for the specified syncgroup
 // found in the neighborhood via the discovery service.
-func (s *syncService) filterSyncgroupAdmins(sgName string) []*discovery.Advertisement {
+func (s *syncService) filterSyncgroupAdmins(dbId, sgId wire.Id) []*discovery.Advertisement {
 	s.discoveryLock.Lock()
 	defer s.discoveryLock.Unlock()
 
@@ -394,7 +390,7 @@ func (s *syncService) filterSyncgroupAdmins(sgName string) []*discovery.Advertis
 		return nil
 	}
 
-	sgInfo := s.discoverySyncgroups[sgName]
+	sgInfo := s.discoverySyncgroups[SgIdToGid(dbId, sgId)]
 	if sgInfo == nil {
 		return nil
 	}
@@ -449,7 +445,7 @@ func AddNames(ctx *context.T, ss interfaces.SyncServerMethods, svr rpc.Server) e
 			return err
 		}
 		for gid := range dbInfo {
-			sg, err := getSyncgroupById(ctx, st, gid)
+			sg, err := getSyncgroupByGid(ctx, st, gid)
 			if err != nil {
 				return err
 			}
@@ -512,22 +508,25 @@ func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup)
 	defer vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: end")
 
 	if !syncgroupAdmin(s.ctx, sg.Spec.Perms) {
-		if cancel := s.cancelAdvSyncgroups[sg.Name]; cancel != nil {
+		if cancel := s.cancelAdvSyncgroups[sg.Id]; cancel != nil {
 			cancel()
-			delete(s.cancelAdvSyncgroups, sg.Name)
+			delete(s.cancelAdvSyncgroups, sg.Id)
 		}
 		return nil
 	}
 
 	// Syncgroup is already being advertised.
-	if s.cancelAdvSyncgroups[sg.Name] != nil {
+	if s.cancelAdvSyncgroups[sg.Id] != nil {
 		return nil
 	}
 
 	sbService := discovery.Advertisement{
 		InterfaceName: ifName,
 		Attributes: discovery.Attributes{
-			discoveryAttrSyncgroup: sg.Name,
+			discoveryAttrDatabaseName:      sg.DbId.Name,
+			discoveryAttrDatabaseBlessing:  sg.DbId.Blessing,
+			discoveryAttrSyncgroupName:     sg.Id.Name,
+			discoveryAttrSyncgroupBlessing: sg.Id.Blessing,
 		},
 	}
 	ctx, stop := context.WithCancel(s.ctx)
@@ -538,7 +537,7 @@ func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup)
 	_, err := idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, nil)
 	if err == nil {
 		vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: successful")
-		s.cancelAdvSyncgroups[sg.Name] = stop
+		s.cancelAdvSyncgroups[sg.Id] = stop
 		return nil
 	}
 	stop()
