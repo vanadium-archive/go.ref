@@ -335,7 +335,6 @@ func (s *server) resolveToEndpoint(ctx *context.T, address string) ([]naming.End
 // createEndpoint adds server publishing information to the ep from the manager.
 func (s *server) createEndpoint(lep naming.Endpoint) naming.Endpoint {
 	lep.ServesMountTable = s.servesMountTable
-	lep.ServesLeaf = s.isLeaf
 	return lep
 }
 

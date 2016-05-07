@@ -160,7 +160,6 @@ func TestPublisherStatus(t *testing.T) {
 	if got, want := len(eps), 2; got != want {
 		t.Fatalf("got %d, want %d", got, want)
 	}
-	setLeafEndpoints(eps)
 
 	// Add a second name and we should now see 4 mounts, 2 for each name.
 	if err := server.AddName("bar"); err != nil {
@@ -213,12 +212,6 @@ func endpointToStrings(eps []naming.Endpoint) []string {
 	}
 	sort.Strings(r)
 	return r
-}
-
-func setLeafEndpoints(eps []naming.Endpoint) {
-	for i := range eps {
-		eps[i].ServesLeaf = true
-	}
 }
 
 type ldServer struct {
