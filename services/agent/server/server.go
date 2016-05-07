@@ -46,35 +46,10 @@ func LoadPrincipal(credentials string, create bool) (security.Principal, error) 
 		}
 		return handleDoesNotExist(credentials)
 	case verror.ErrorID(err) == vsecurity.ErrPassphraseRequired.ID:
-		p, pass, err := handlePassphrase(credentials)
-		// Zero passhphrase out so it doesn't stay in memory.
-		for i := range pass {
-			pass[i] = 0
-		}
-		return p, err
+		return handlePassphrase(credentials)
 	default:
 		return nil, err
 	}
-}
-
-// LoadOrCreatePrincipal loads the principal persisted in the given credentials
-// directory, prompting for a decryption passphrase in case the private key is
-// encrypted.  If the credentials directory is empty, a new principal is created
-// with blessing newname, and the user is prompted for an encryption passphrase
-// for the private key (unless withPassphrase is false).  Returns the principal,
-// passphrase, and any errors encountered.
-func LoadOrCreatePrincipal(credentials, newname string, withPassphrase bool) (security.Principal, []byte, error) {
-	p, err := vsecurity.LoadPersistentPrincipal(credentials, nil)
-	if os.IsNotExist(err) {
-		return handleDoesNotExistDeprecated(credentials, newname, withPassphrase)
-	}
-	if verror.ErrorID(err) == vsecurity.ErrPassphraseRequired.ID {
-		if !withPassphrase {
-			return nil, nil, verror.New(errNeedPassphrase, nil)
-		}
-		return handlePassphrase(credentials)
-	}
-	return p, nil, err
 }
 
 // IPCState represents the IPC system serving the principal.
@@ -123,31 +98,6 @@ func Serve(p security.Principal, socketPath string) (IPCState, error) {
 	return ipcState{i}, nil
 }
 
-// ServeWithKeyManager serves the given principal as well as a key manager using
-// the given socket file.  The passhprase is for the key manager.  Returns a
-// cleanup function.
-func ServeWithKeyManager(p security.Principal, keypath string, passphrase []byte, socketPath string) (func(), error) {
-	var err error
-	if socketPath, err = filepath.Abs(socketPath); err != nil {
-		return nil, fmt.Errorf("Abs failed: %v", err)
-	}
-	socketPath = filepath.Clean(socketPath)
-
-	// Start running our server.
-	i := ipc.NewIPC()
-	if err := server.ServeAgent(i, p); err != nil {
-		return nil, fmt.Errorf("ServeAgent failed: %v", err)
-	}
-	if err := server.ServeKeyManager(i, keypath, passphrase); err != nil {
-		return nil, fmt.Errorf("ServeKeyManager failed: %v", err)
-	}
-	if err := i.Listen(socketPath); err != nil {
-		i.Close()
-		return nil, fmt.Errorf("Listen failed: %v", err)
-	}
-	return i.Close, nil
-}
-
 func handleDoesNotExist(dir string) (security.Principal, error) {
 	fmt.Println("Private key file does not exist. Creating new private key...")
 	pass, err := passphrase.Get("Enter passphrase (entering nothing will store unencrypted): ")
@@ -167,32 +117,15 @@ func handleDoesNotExist(dir string) (security.Principal, error) {
 	return p, nil
 }
 
-func handleDoesNotExistDeprecated(dir, newname string, withPassphrase bool) (security.Principal, []byte, error) {
-	fmt.Println("Private key file does not exist. Creating new private key...")
-	var pass []byte
-	if withPassphrase {
-		var err error
-		if pass, err = passphrase.Get("Enter passphrase (entering nothing will store unencrypted): "); err != nil {
-			return nil, nil, verror.New(errCantReadPassphrase, nil, err)
-		}
-	}
-	p, err := vsecurity.CreatePersistentPrincipal(dir, pass)
-	if err != nil {
-		return nil, pass, err
-	}
-	name := newname
-	if len(name) == 0 {
-		name = "agent_principal"
-	}
-	vsecurity.InitDefaultBlessings(p, name)
-	return p, pass, nil
-}
-
-func handlePassphrase(dir string) (security.Principal, []byte, error) {
+func handlePassphrase(dir string) (security.Principal, error) {
 	pass, err := passphrase.Get(fmt.Sprintf("Passphrase required to decrypt encrypted private key file for credentials in %v.\nEnter passphrase: ", dir))
 	if err != nil {
-		return nil, nil, verror.New(errCantReadPassphrase, nil, err)
+		return nil, verror.New(errCantReadPassphrase, nil, err)
 	}
 	p, err := vsecurity.LoadPersistentPrincipal(dir, pass)
-	return p, pass, err
+	// Zero passhphrase out so it doesn't stay in memory.
+	for i := range pass {
+		pass[i] = 0
+	}
+	return p, err
 }
