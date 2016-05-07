@@ -94,15 +94,11 @@ func runGcreds(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 	defer os.RemoveAll(workDir)
 	socketPath := filepath.Join(workDir, "agent.sock")
-	keyPath := filepath.Join(workDir, "keys")
 
 	// Run the server.
 	i := ipc.NewIPC()
 	defer i.Close()
 	if err = server.ServeAgent(i, p); err != nil {
-		return err
-	}
-	if err = server.ServeKeyManager(i, keyPath, nil); err != nil {
 		return err
 	}
 
