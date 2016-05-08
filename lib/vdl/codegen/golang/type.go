@@ -269,9 +269,11 @@ func defineType(data *goData, def *compile.TypeDef) string {
 		if !skipOldEncDec(data) {
 			s += fmt.Sprintf("\n\t\tFillVDLTarget(%[1]sTarget, *%[1]sType) error", data.Pkg("v.io/v23/vdl"))
 		}
-		s += fmt.Sprintf("\n\t\tVDLIsZero() bool"+
-			"\n\t\tVDLWrite(%[1]sEncoder) error"+
-			"\n\t}%[2]s", data.Pkg("v.io/v23/vdl"), def.DocSuffix)
+		if !data.SkipGenZeroReadWrite(def) {
+			s += fmt.Sprintf("\n\t\tVDLIsZero() bool"+
+				"\n\t\tVDLWrite(%[1]sEncoder) error", data.Pkg("v.io/v23/vdl"))
+		}
+		s += fmt.Sprintf("\n\t}%[1]s", def.DocSuffix)
 		for ix := 0; ix < t.NumField(); ix++ {
 			f := t.Field(ix)
 			s += fmt.Sprintf("\n\t// %[1]s%[2]s represents field %[2]s of the %[1]s union type."+

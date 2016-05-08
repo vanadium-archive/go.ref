@@ -639,7 +639,7 @@ func (t *RpcResponseTarget) ZeroField(name string) error {
 		t.Value.Id = uint64(0)
 		return nil
 	case "Err":
-		t.Value.Err = (error)(nil)
+		t.Value.Err = nil
 		return nil
 	case "NumArgs":
 		t.Value.NumArgs = uint32(0)

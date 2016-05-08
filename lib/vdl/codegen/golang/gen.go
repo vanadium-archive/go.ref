@@ -87,6 +87,16 @@ func (data *goData) OptsVar(name string) string {
 	return name + " ..." + data.Pkg("v.io/v23/rpc") + "CallOpt"
 }
 
+func (data *goData) SkipGenZeroReadWrite(def *compile.TypeDef) bool {
+	switch {
+	case data.Package.Path == "v.io/v23/vdl/vdltest" && strings.HasPrefix(def.Name, "X"):
+		// Don't generate VDL{IsZero,Read,Write} for vdltest types that start with
+		// X.  This is hard-coded to make it easy to generate test cases.
+		return true
+	}
+	return false
+}
+
 // Generate takes a populated compile.Package and returns a byte slice
 // containing the generated Go source code.
 func Generate(pkg *compile.Package, env *compile.Env) []byte {
@@ -236,7 +246,6 @@ func init() {
 		"defineRead":            defineRead,
 		"defineConst":           defineConst,
 		"genValueOf":            genValueOf,
-		"typedConst":            typedConst,
 		"embedGo":               embedGo,
 		"isStreamingMethod":     isStreamingMethod,
 		"hasStreamingMethods":   hasStreamingMethods,
@@ -504,9 +513,11 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 // Type definitions
 {{range $tdef := $pkg.TypeDefs}}
 {{defineType $data $tdef}}
+{{if not ($data.SkipGenZeroReadWrite $tdef)}}
 {{defineIsZero $data $tdef}}
 {{defineWrite $data $tdef}}
 {{defineRead $data $tdef}}
+{{end}}
 {{end}}
 
 {{if $pkg.Config.Go.WireToNativeTypes}}

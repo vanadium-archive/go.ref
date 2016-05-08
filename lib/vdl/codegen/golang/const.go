@@ -55,11 +55,6 @@ func typedConstWire(data *goData, v *vdl.Value) string {
 	typestr := typeGoWire(data, t)
 	if k == vdl.Optional {
 		if elem := v.Elem(); elem != nil {
-			// HACK: Don't dump the ampersand for the error type, since we're calling
-			// the verror.FromWire function to perform a conversion.
-			if t == vdl.ErrorType {
-				return typedConst(data, elem)
-			}
 			return "&" + typedConst(data, elem)
 		}
 		return "(" + typestr + ")(nil)" // results in (*Foo)(nil)
@@ -75,13 +70,6 @@ func typedConstWire(data *goData, v *vdl.Value) string {
 	// { } are used instead of ( ) for composites
 	switch k {
 	case vdl.Array, vdl.Struct:
-		if t == vdl.ErrorType.Elem() {
-			// HACK: We've already output the type name in untypedConstWire, so don't
-			// duplicate it here.
-			//
-			// TODO(toddw): Fix this hack.
-			return valstr
-		}
 		return typestr + valstr
 	case vdl.List, vdl.Set, vdl.Map:
 		// Special-case empty variable-length collections, which we generate as a type
@@ -131,6 +119,15 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 			case goAnyRepValue:
 				return data.Pkg("v.io/v23/vdl") + "ValueOf(" + typedConstWire(data, elem) + ")"
 			default:
+				// Special-case for error(nil) contained within an any, to avoid losing
+				// type information.  Note that both of the Go expressions error(nil)
+				// and (*verror.E)(nil) are valid representations of the VDL nil error.
+				// But since error is a Go interface, we lose the type information from
+				// error(nil) when it's contained in another interface (i.e. any).  So
+				// we pick a representation that doesn't lose type information.
+				if elem.Type() == vdl.ErrorType && elem.IsNil() {
+					return "(*" + data.Pkg("v.io/v23/verror") + "E)(nil)"
+				}
 				// We need the final result to be the native type.
 				return typedConst(data, elem)
 			}
@@ -231,25 +228,7 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 		if hasFields {
 			s += "\n"
 		}
-		s += "}"
-		if t == vdl.ErrorType.Elem() {
-			// HACK: The error type is an interface in generated Go code, but we
-			// generate concrete error constants using the vdl.WireError struct.
-			// There's no way to infer this type, so we must include the type name
-			// here.  We also must convert into a regular error; vdl.WireError doesn't
-			// implement the error interface.
-			//
-			// We also hack typedConstWire to avoid duplicating the type name.
-			//
-			// TODO(toddw): Fix this hack.
-			if data.Package.Path == "v.io/v23/vdl" {
-				s = typestr + s
-			} else {
-				s = data.Pkg("v.io/v23/verror") + "FromWire(" + typestr + s + ")"
-			}
-		}
-
-		return s
+		return s + "}"
 	case vdl.Union:
 		ix, vf := v.UnionField()
 		var inner string
@@ -343,9 +322,20 @@ func formatFloat(x float64, kind vdl.Kind) string {
 	return strconv.FormatFloat(x, 'g', -1, bitSize)
 }
 
+func errorConstNative(data *goData, v *vdl.Value) string {
+	if elem := v.Elem(); elem != nil {
+		wireError := typedConstWire(data, elem)
+		return data.Pkg("v.io/v23/verror") + "FromWire(&" + wireError + ")"
+	}
+	return "nil"
+}
+
 // typedConstNative returns a typed native constant, or returns the empty string
 // if v isn't a native type.
 func typedConstNative(data *goData, v *vdl.Value) string {
+	if v.Type() == vdl.ErrorType {
+		return errorConstNative(data, v)
+	}
 	if native, wirePkg, ok := findNativeType(data.Env, v.Type()); ok {
 		nType := nativeType(data, native, wirePkg)
 		if native.Zero.Mode != vdltool.GoZeroModeUnknown && v.IsZero() {
@@ -362,6 +352,9 @@ func typedConstNative(data *goData, v *vdl.Value) string {
 // untypedConstNative returns an untyped native constant, or returns the empty
 // string if v isn't a native type.
 func untypedConstNative(data *goData, v *vdl.Value) string {
+	if v.Type() == vdl.ErrorType {
+		return errorConstNative(data, v)
+	}
 	if native, wirePkg, ok := findNativeType(data.Env, v.Type()); ok {
 		if native.Zero.Mode != vdltool.GoZeroModeUnknown && v.IsZero() {
 			// This is the case where the value is zero, and the zero mode is either

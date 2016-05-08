@@ -3041,7 +3041,7 @@ func (t *ScalarsTarget) ZeroField(name string) error {
 		t.Value.A11 = ""
 		return nil
 	case "A12":
-		t.Value.A12 = (error)(nil)
+		t.Value.A12 = nil
 		return nil
 	case "A13":
 		t.Value.A13 = vom.RawBytesOf(vdl.ZeroValue(vdl.AnyType))
