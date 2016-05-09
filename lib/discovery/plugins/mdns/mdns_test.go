@@ -29,7 +29,7 @@ func init() {
 	//
 	// We try to find an available TCP port since we cannot open multicast UDP
 	// connection with an opened UDP port.
-	unusedTCPListener, _ = net.ListenTCP("tcp", &net.TCPAddr{})
+	unusedTCPListener, _ = net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	_, port, _ := net.SplitHostPort(unusedTCPListener.Addr().String())
 	testPort, _ = strconv.Atoi(port)
 }
