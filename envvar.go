@@ -59,6 +59,9 @@ const (
 	// When EnvExpectGoogleComputeEngine is set and non-empty, the runtime
 	// initialization will fail if the GCE metadata is inaccessible.
 	EnvExpectGoogleComputeEngine = "V23_EXPECT_GOOGLE_COMPUTE_ENGINE"
+
+	// A comma-separated list of path names to export disk stats for.
+	EnvSysStatsDiskPaths = "V23_SYS_STATS_DISK_PATHS"
 )
 
 // EnvNamespaceRoots returns the set of namespace roots to be used by the
