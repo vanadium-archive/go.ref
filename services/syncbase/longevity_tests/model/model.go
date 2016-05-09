@@ -32,7 +32,8 @@ func randomName(prefix string) string {
 
 // Collection represents a syncbase collection.
 // TODO(nlacasse): Put syncgroups in here?  It's a bit tricky because they need
-// to have a user's name in their name, and the spec depends on the mounttable.
+// to have a host device name in their name, and the spec depends on the
+// mounttable.
 type Collection struct {
 	// Name of the collection.
 	Name string
@@ -42,7 +43,6 @@ type Collection struct {
 
 func (c *Collection) String() string {
 	return fmt.Sprintf("{collection %v blessing=%v}", c.Name, c.Blessing)
-
 }
 
 func (c *Collection) Id() wire.Id {
@@ -60,7 +60,6 @@ func (cols CollectionSet) String() string {
 		strs = append(strs, col.String())
 	}
 	return fmt.Sprintf("[%s]", strings.Join(strs, ", "))
-
 }
 
 // ==========
@@ -106,7 +105,6 @@ func (sgs SyncgroupSet) String() string {
 		strs = append(strs, sg.Name())
 	}
 	return fmt.Sprintf("[%s]", strings.Join(strs, ", "))
-
 }
 
 // =========
