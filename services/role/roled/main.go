@@ -8,12 +8,17 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/security"
+	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/lib/security"
+	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
@@ -25,12 +30,14 @@ var (
 	configDir             string
 	name                  string
 	remoteSignerBlessings string
+	deprecated            string // TODO(ashankar): Remove
 )
 
 func main() {
 	cmdRoleD.Flags.StringVar(&configDir, "config-dir", "", "The directory where the role configuration files are stored.")
 	cmdRoleD.Flags.StringVar(&name, "name", "", "The name to publish for this service.")
-	cmdRoleD.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
+	cmdRoleD.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessings", "", "Path to a file containing base64url-vom-encoded blessings to be used with a remote signer. Empty string disables the remote signer.")
+	cmdRoleD.Flags.StringVar(&deprecated, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
 
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoleD)
@@ -51,15 +58,45 @@ func runRoleD(ctx *context.T, env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("-name must be specified")
 	}
 	if remoteSignerBlessings != "" {
+		// TODO(ashankar): Remove this block
+		signer, err := restsigner.NewRestSigner()
+		if err != nil {
+			return fmt.Errorf("failed to create remote signer: %v", err)
+		}
+		// Decode the blessings and ensure that they are attached to the same public key.
+		encoded, err := ioutil.ReadFile(remoteSignerBlessings)
+		if err != nil {
+			return fmt.Errorf("unable to read --remote-signer-blessings (%s): %v", remoteSignerBlessings, err)
+		}
+		buf := bytes.NewBuffer(encoded)
+		var b security.Blessings
+		if err := vom.NewDecoder(base64.NewDecoder(base64.URLEncoding, buf)).Decode(&b); err != nil {
+			return fmt.Errorf("unable to decode --remote-signer-blessings (%s): %v", remoteSignerBlessings, err)
+		}
+		if buf.Len() != 0 {
+			return fmt.Errorf("unexpected trailing %d bytes in %s", buf.Len(), remoteSignerBlessings)
+		}
+		p, err := security.CreatePrincipal(signer, vsecurity.FixedBlessingsStore(b, nil), vsecurity.NewBlessingRoots())
+		if err != nil {
+			return err
+		}
+		if err := security.AddToRoots(p, b); err != nil {
+			return err
+		}
+		if ctx, err = v23.WithPrincipal(ctx, p); err != nil {
+			return err
+		}
+
+	} else if deprecated != "" {
 		signer, err := restsigner.NewRestSigner()
 		if err != nil {
 			return fmt.Errorf("Failed to create remote signer: %v", err)
 		}
-		state, err := security.NewPrincipalStateSerializer(remoteSignerBlessings)
+		state, err := vsecurity.NewPrincipalStateSerializer(remoteSignerBlessings)
 		if err != nil {
 			return fmt.Errorf("Failed to create blessing serializer: %v", err)
 		}
-		p, err := security.NewPrincipalFromSigner(signer, state)
+		p, err := vsecurity.NewPrincipalFromSigner(signer, state)
 		if err != nil {
 			return fmt.Errorf("Failed to create principal: %v", err)
 		}
