@@ -53,9 +53,6 @@ func init() {
 	cmdIdentityD.Flags.StringVar(&userBlessings, "user-blessings", "", "Path to a file containing base64url-vom encoded blessings that will be extended with the username of the requestor.")
 	cmdIdentityD.Flags.StringVar(&appBlessings, "app-blessings", "", "Path to a file containing base64url-vom encoded blessings that will be extended with an application identifier and the username of the requestor (i.e., a user using a specific app)")
 	cmdIdentityD.Flags.StringVar(&registeredAppConfig, "registered-apps", "", "Path to the config file for registered oauth clients.")
-	// TODO(ashankar): Remove these two flags
-	cmdIdentityD.Flags.StringVar(&remoteSignerBlessingsDir, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
-	cmdIdentityD.Flags.StringVar(&oauthRemoteSignerBlessingsDir, "remote-signer-o-blessing-dir", "", "Path to the blessings to use with the remote signer for oauth. Use the empty string to disable the remote signer.")
 
 	// Flags controlling the HTTP server
 	cmdIdentityD.Flags.StringVar(&externalHttpAddr, "external-http-addr", "", "External address on which the HTTP server listens on.  If none is provided the server will only listen on -http-addr.")
@@ -108,25 +105,13 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 	}
 
-	if userBlessings != "" {
-		if ctx, err = initRemoteSigner(ctx, userBlessings); err != nil {
-			return err
-		}
-	} else if remoteSignerBlessingsDir != "" {
-		if ctx, err = initRemoteSigner(ctx, remoteSignerBlessingsDir); err != nil {
-			return err
-		}
+	if ctx, err = initRemoteSigner(ctx, userBlessings); err != nil {
+		return err
 	}
 
-	oauthCtx := ctx
-	if appBlessings != "" {
-		if oauthCtx, err = initRemoteSigner(ctx, appBlessings); err != nil {
-			return err
-		}
-	} else if oauthRemoteSignerBlessingsDir != "" {
-		if oauthCtx, err = initRemoteSigner(ctx, oauthRemoteSignerBlessingsDir); err != nil {
-			return err
-		}
+	oauthCtx, err := initRemoteSigner(ctx, appBlessings)
+	if err != nil {
+		return err
 	}
 
 	registeredApps, err := readRegisteredAppsConfig()
@@ -164,22 +149,12 @@ func runIdentityD(ctx *context.T, env *cmdline.Env, args []string) error {
 }
 
 func initRemoteSigner(ctx *context.T, blessings string) (*context.T, error) {
+	if len(blessings) == 0 {
+		return ctx, nil
+	}
 	signer, err := restsigner.NewRestSigner()
 	if err != nil {
 		return nil, err
-	}
-	// TODO(ashankar): Remove this along with remoteSignerBlessingsDir and oauthRemoteSignerBlessingsDir
-	if finfo, err := os.Stat(blessings); err == nil && finfo.IsDir() {
-		dir := blessings
-		state, err := vsecurity.NewPrincipalStateSerializer(dir)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create blessing serializer: %v", err)
-		}
-		p, err := vsecurity.NewPrincipalFromSigner(signer, state)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create principal: %v", err)
-		}
-		return v23.WithPrincipal(ctx, p)
 	}
 	// Decode the blessings and ensure that they are attached to the same public key.
 	encoded, err := ioutil.ReadFile(blessings)
