@@ -493,7 +493,7 @@ func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name stri
 		},
 		MountTables: []string{mounttable},
 	}
-	sb1Sg := sb1Db.Syncgroup(wire.Id{Name: sgName, Blessing: "blessing"})
+	sb1Sg := sb1Db.SyncgroupForId(wire.Id{Name: sgName, Blessing: "blessing"})
 	if err := sb1Sg.Create(ctx, sbSpec, wire.SyncgroupMemberInfo{}); err != nil {
 		t.Fatal(err)
 	}
@@ -501,7 +501,7 @@ func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name stri
 	// If second syncbase can join the syncgroup, they are connected.
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	sb2Sg := sb2Db.Syncgroup(wire.Id{Name: sgName, Blessing: "blessing"})
+	sb2Sg := sb2Db.SyncgroupForId(wire.Id{Name: sgName, Blessing: "blessing"})
 	_, err := sb2Sg.Join(ctxWithTimeout, sb1Name, "", wire.SyncgroupMemberInfo{})
 	return err == nil
 }

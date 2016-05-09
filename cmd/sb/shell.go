@@ -198,7 +198,7 @@ func destroyCollection(ctx *context.T, d syncbase.Database, encCxId string) erro
 }
 
 func destroySyncgroup(ctx *context.T, d syncbase.Database, sgId wire.Id) error {
-	return d.Syncgroup(sgId).Destroy(ctx)
+	return d.SyncgroupForId(sgId).Destroy(ctx)
 }
 
 func openDB(ctx *context.T, sbs syncbase.Service, id wire.Id, createIfNotExists bool) (syncbase.Database, error) {
@@ -254,7 +254,7 @@ func dumpSyncgroups(ctx *context.T, w io.Writer, d syncbase.Database) error {
 	var errs []error
 	for _, sgId := range sgIds {
 		fmt.Fprintf(w, "syncgroup: %+v\n", sgId)
-		if spec, version, err := d.Syncgroup(sgId).GetSpec(ctx); err != nil {
+		if spec, version, err := d.SyncgroupForId(sgId).GetSpec(ctx); err != nil {
 			errs = append(errs, err)
 		} else {
 			fmt.Fprintf(w, "%+v (version: \"%s\")\n", spec, version)

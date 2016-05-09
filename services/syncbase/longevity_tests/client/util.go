@@ -52,7 +52,7 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 
 		// Create or join syncgroups for database.
 		for _, sgModel := range dbModel.Syncgroups {
-			sg := db.Syncgroup(wire.Id{Name: sgModel.NameSuffix, Blessing: "blessing"})
+			sg := db.SyncgroupForId(wire.Id{Name: sgModel.NameSuffix, Blessing: "blessing"})
 			if sgModel.HostDevice.Name == sbName {
 				// We are the host.  Create the syncgroup.
 				spec := sgModel.Spec()
