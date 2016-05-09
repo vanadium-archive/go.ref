@@ -70,6 +70,9 @@ func InitCloudVM() (func(), error) {
 func CloudVMPublicAddress() *net.IPAddr {
 	mu.Lock()
 	defer mu.Unlock()
+	if !initialized {
+		panic("CloudVMPublicAddress called before InitCloudVM")
+	}
 	if !cloudvm.RunningOnGCE() && !cloudvm.RunningOnAWS() {
 		return nil
 	}
