@@ -119,12 +119,11 @@ func TestGenerateUser(t *testing.T) {
 	dbs := model.GenerateDatabaseSet(5)
 	user := model.GenerateUser(dbs, model.UserOpts{
 		MaxDatabases: 5,
-		MinDatabases: 5,
 		MaxDevices:   3,
 		MinDevices:   3,
 	})
-	if want, got := 5, len(user.Databases); want != got {
-		t.Errorf("wanted user to have %v databases but got %v", want, got)
+	if want, got := 5, len(user.Databases()); want < got {
+		t.Errorf("wanted user to have at most %v databases but got %v", want, got)
 	}
 	if want, got := 3, len(user.Devices); got != want {
 		t.Errorf("wanted user to have %v devices but got %v", want, got)
@@ -134,23 +133,22 @@ func TestGenerateUser(t *testing.T) {
 func TestGenerateUniverse(t *testing.T) {
 	opts := model.UniverseOpts{
 		DeviceAffinity:      0.5,
-		NumDatabases:        10,
+		MaxDatabases:        10,
 		NumUsers:            5,
 		MaxDatabasesPerUser: 5,
-		MinDatabasesPerUser: 1,
 		MaxDevicesPerUser:   5,
 		MinDevicesPerUser:   2,
 	}
 	universe := model.GenerateUniverse(opts)
-	if want, got := opts.NumDatabases, len(universe.Databases); want != got {
-		t.Errorf("wanted universe to have %v databases but got %v", want, got)
+	if want, got := opts.MaxDatabases, len(universe.Databases()); want < got {
+		t.Errorf("wanted universe to have at most %v databases but got %v", want, got)
 	}
 	if want, got := opts.NumUsers, len(universe.Users); want != got {
 		t.Errorf("wanted universe to have %v users but got %v", want, got)
 	}
 	for _, user := range universe.Users {
-		if got := len(user.Databases); got < opts.MinDatabasesPerUser || got > opts.MaxDatabasesPerUser {
-			t.Errorf("wanted user to have between %v and %v databases but got %v", opts.MinDatabasesPerUser, opts.MaxDatabasesPerUser, got)
+		if got := len(user.Databases()); got > opts.MaxDatabasesPerUser {
+			t.Errorf("wanted user to have at most %v databases but got %v", opts.MaxDatabasesPerUser, got)
 		}
 		if got := len(user.Devices); got < opts.MinDevicesPerUser || got > opts.MaxDevicesPerUser {
 			t.Errorf("wanted user to have between %v and %v devices but got %v", opts.MinDevicesPerUser, opts.MaxDevicesPerUser, got)

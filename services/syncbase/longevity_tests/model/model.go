@@ -40,11 +40,27 @@ type Collection struct {
 	Blessing string
 }
 
+func (c *Collection) String() string {
+	return fmt.Sprintf("{collection %v blessing=%v}", c.Name, c.Blessing)
+
+}
+
 func (c *Collection) Id() wire.Id {
 	return wire.Id{
 		Name:     c.Name,
 		Blessing: c.Blessing,
 	}
+}
+
+type CollectionSet []Collection
+
+func (cols CollectionSet) String() string {
+	strs := []string{}
+	for _, col := range cols {
+		strs = append(strs, col.String())
+	}
+	return fmt.Sprintf("[%s]", strings.Join(strs, ", "))
+
 }
 
 // ==========
@@ -82,6 +98,17 @@ func (sg *Syncgroup) Spec() wire.SyncgroupSpec {
 	}
 }
 
+type SyncgroupSet []Syncgroup
+
+func (sgs SyncgroupSet) String() string {
+	strs := []string{}
+	for _, sg := range sgs {
+		strs = append(strs, sg.Name())
+	}
+	return fmt.Sprintf("[%s]", strings.Join(strs, ", "))
+
+}
+
 // =========
 // Databases
 // =========
@@ -95,9 +122,13 @@ type Database struct {
 	// Blessing of the database.
 	Blessing string
 	// Collections.
-	Collections []Collection
+	Collections CollectionSet
 	// Syncgroups.
-	Syncgroups []Syncgroup
+	Syncgroups SyncgroupSet
+}
+
+func (db *Database) String() string {
+	return fmt.Sprintf("{database %v blessing=%v collections=%v syncgroups=%v}", db.Name, db.Blessing, db.Collections, db.Syncgroups)
 }
 
 func (db *Database) Id() wire.Id {
@@ -110,6 +141,20 @@ func (db *Database) Id() wire.Id {
 // DatabaseSet represents a set of Databases.
 // TODO(nlacasse): Consider using a map here if uniqueness becomes an issue.
 type DatabaseSet []*Database
+
+// unique removes all duplicate entries from the DatabaseSet.
+// TODO(nlacasse): Uniqueness is becoming an issue.  Make all Sets into maps.
+func (dbs DatabaseSet) unique() DatabaseSet {
+	found := map[*Database]struct{}{}
+	udbs := DatabaseSet{}
+	for _, db := range dbs {
+		if _, ok := found[db]; !ok {
+			udbs = append(udbs, db)
+			found[db] = struct{}{}
+		}
+	}
+	return udbs
+}
 
 // GenerateDatabaseSet generates a DatabaseSet with n databases.
 // TODO(nlacasse): Generate collections and syncgroups.
@@ -208,7 +253,7 @@ type Device struct {
 }
 
 func (d Device) String() string {
-	return d.Name
+	return fmt.Sprintf("{device %v databases=%v clients=%v}", d.Name, d.Databases, d.Clients)
 }
 
 // DeviceSet is a set of devices.
@@ -243,7 +288,7 @@ func GenerateDeviceSet(n int, databases DatabaseSet, specs []DeviceSpec) DeviceS
 func (ds DeviceSet) String() string {
 	r := make([]string, len(ds))
 	for i, j := range ds {
-		r[i] = j.String()
+		r[i] = j.Name
 	}
 	return fmt.Sprintf("[%s]", strings.Join(r, ", "))
 }
@@ -253,6 +298,14 @@ func (ds DeviceSet) String() string {
 // TODO(nlacasse): For now we only specify which devices are reachable by each
 // device.
 type Topology map[*Device]DeviceSet
+
+func (top Topology) String() string {
+	str := ""
+	for d, ds := range top {
+		str += fmt.Sprintf("%v can send to %v\n", d.Name, ds)
+	}
+	return str
+}
 
 // GenerateTopology generates a Topology on the given DeviceSet.  The affinity
 // argument specifies the probability that any two devices are connected.  We
@@ -285,11 +338,22 @@ func GenerateTopology(devices DeviceSet, affinity float64) Topology {
 type User struct {
 	// The user's name.
 	Name string
-	// The user's Databases.
-	Databases DatabaseSet
 	// The user's devices.  All databases in the user's devices will be
 	// included in the user's Databases.
 	Devices DeviceSet
+}
+
+// Databases returns all databases contained on the user's devices.
+func (user *User) Databases() DatabaseSet {
+	dbs := DatabaseSet{}
+	for _, dev := range user.Devices {
+		dbs = append(dbs, dev.Databases...)
+	}
+	return dbs.unique()
+}
+
+func (user *User) String() string {
+	return fmt.Sprintf(`{user %v devices=%v}`, user.Name, user.Devices)
 }
 
 // UserSet is a set of users.
@@ -298,7 +362,6 @@ type UserSet []*User
 // UserOpts specifies the options to use when creating a random user.
 type UserOpts struct {
 	MaxDatabases int
-	MinDatabases int
 	MaxDevices   int
 	MinDevices   int
 }
@@ -314,7 +377,7 @@ func GenerateUser(dbs DatabaseSet, opts UserOpts) *User {
 		CloudSpec,
 	}
 
-	databases := dbs.RandomSubset(opts.MinDatabases, opts.MaxDatabases)
+	databases := dbs.RandomSubset(1, opts.MaxDatabases)
 	numDevices := opts.MinDevices
 	if opts.MaxDevices > opts.MinDevices {
 		numDevices += rand.Intn(opts.MaxDevices - opts.MinDevices)
@@ -322,9 +385,8 @@ func GenerateUser(dbs DatabaseSet, opts UserOpts) *User {
 	devices := GenerateDeviceSet(numDevices, databases, specs)
 
 	return &User{
-		Name:      randomName("user"),
-		Databases: databases,
-		Devices:   devices,
+		Name:    randomName("user"),
+		Devices: devices,
 	}
 }
 
@@ -333,26 +395,63 @@ func GenerateUser(dbs DatabaseSet, opts UserOpts) *User {
 // ========
 
 type Universe struct {
-	// All databases in the universe.
-	Databases DatabaseSet
 	// All users in the universe.
 	Users UserSet
 	// Description of device connectivity.
 	Topology Topology
 }
 
+// Databases returns all databases contained in the universe.
+func (u *Universe) Databases() DatabaseSet {
+	dbs := DatabaseSet{}
+	for _, user := range u.Users {
+		dbs = append(dbs, user.Databases()...)
+	}
+	return dbs.unique()
+}
+
+func (u *Universe) String() string {
+	// Collect all device and user descriptions with a newline in between each.
+	devStrings := []string{}
+	userStrings := []string{}
+	for _, user := range u.Users {
+		userStrings = append(userStrings, user.String())
+		for _, dev := range user.Devices {
+			devStrings = append(devStrings, dev.String())
+		}
+	}
+	devString := strings.Join(devStrings, "\n")
+	userString := strings.Join(userStrings, "\n")
+
+	dbStrings := []string{}
+	for _, db := range u.Databases() {
+		dbStrings = append(dbStrings, db.String())
+	}
+	dbString := strings.Join(dbStrings, "\n")
+
+	return fmt.Sprintf(`Databases:
+%v
+
+Devices:
+%v
+
+Users:
+%v
+
+Topology:
+%v`, dbString, devString, userString, u.Topology)
+}
+
 // UniverseOpts specifies the options to use when creating a random universe.
 type UniverseOpts struct {
 	// Probability that any two devices are connected
 	DeviceAffinity float64
-	// Number of databases in the universe.
-	NumDatabases int
+	// Maximum number of databases in the universe.
+	MaxDatabases int
 	// Number of users in the universe.
 	NumUsers int
 	// Maximum number of databases for any user.
 	MaxDatabasesPerUser int
-	// Minimum number of databases for any user.
-	MinDatabasesPerUser int
 	// Maximum number of devices for any user.
 	MaxDevicesPerUser int
 	// Minimum number of devices for any user.
@@ -360,10 +459,9 @@ type UniverseOpts struct {
 }
 
 func GenerateUniverse(opts UniverseOpts) Universe {
-	dbs := GenerateDatabaseSet(opts.NumDatabases)
+	dbs := GenerateDatabaseSet(opts.MaxDatabases)
 	userOpts := UserOpts{
 		MaxDatabases: opts.MaxDatabasesPerUser,
-		MinDatabases: opts.MinDatabasesPerUser,
 		MaxDevices:   opts.MaxDevicesPerUser,
 		MinDevices:   opts.MinDevicesPerUser,
 	}
@@ -376,8 +474,7 @@ func GenerateUniverse(opts UniverseOpts) Universe {
 	}
 
 	return Universe{
-		Databases: dbs,
-		Users:     users,
-		Topology:  GenerateTopology(devices, opts.DeviceAffinity),
+		Users:    users,
+		Topology: GenerateTopology(devices, opts.DeviceAffinity),
 	}
 }
