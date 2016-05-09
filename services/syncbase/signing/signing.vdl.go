@@ -744,9 +744,6 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []Item) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := x[i].VDLWrite(enc); err != nil {
-			return err
-		}
 		switch {
 		case x[i] == nil:
 			// Write the zero value of the union type.

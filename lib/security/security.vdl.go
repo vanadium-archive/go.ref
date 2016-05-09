@@ -1159,9 +1159,6 @@ func __VDLWriteAnon_map_3(enc vdl.Encoder, x map[dischargeCacheKey]security.Disc
 		if err := security.WireDischargeFromNative(&wire, elem); err != nil {
 			return err
 		}
-		if err := wire.VDLWrite(enc); err != nil {
-			return err
-		}
 		switch {
 		case wire == nil:
 			// Write the zero value of the union type.

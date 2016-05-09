@@ -893,7 +893,7 @@ func (x *PlayersMoves) VDLRead(dec vdl.Decoder) error {
 		case err != nil:
 			return err
 		case done != (index >= len(*x)):
-			return fmt.Errorf("array len mismatch, got %d, want %T", index, *x)
+			return fmt.Errorf("array len mismatch, done:%v index:%d len:%d %T)", done, index, len(*x), *x)
 		case done:
 			return dec.FinishValue()
 		}

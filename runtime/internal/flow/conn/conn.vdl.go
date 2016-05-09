@@ -823,9 +823,6 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []security.Discharge) error {
 		if err := security.WireDischargeFromNative(&wire, x[i]); err != nil {
 			return err
 		}
-		if err := wire.VDLWrite(enc); err != nil {
-			return err
-		}
 		switch {
 		case wire == nil:
 			// Write the zero value of the union type.

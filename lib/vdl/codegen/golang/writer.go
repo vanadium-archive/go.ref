@@ -196,7 +196,7 @@ func (g *genWrite) bodyCallVDLWrite(tt *vdl.Type, arg namedArg, skipNilCheck boo
 	//   Any:            Needs handling below.
 	if k := tt.Kind(); !skipNilCheck && (k == vdl.Union || k == vdl.Any) {
 		ttType := typedConst(g.goData, vdl.TypeObjectValue(tt))
-		s += fmt.Sprintf(`
+		s = fmt.Sprintf(`
 	switch {
 	case %[1]s == nil:
 		// Write the zero value of the %[2]s type.

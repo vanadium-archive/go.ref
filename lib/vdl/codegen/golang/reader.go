@@ -312,7 +312,7 @@ func (g *genRead) bodyArray(tt *vdl.Type, arg namedArg) string {
 		case err != nil:
 			return err
 		case done != (index >= len(%[2]s)):
-			return %[1]sErrorf("array len mismatch, got %%d, want %%T", index, %[2]s)
+			return %[1]sErrorf("array len mismatch, done:%%v index:%%d len:%%d %%T)", done, index, len(%[2]s), %[2]s)
 		case done:
 			return dec.FinishValue()
 		}%[3]s
