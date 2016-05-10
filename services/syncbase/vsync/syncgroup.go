@@ -559,13 +559,9 @@ func addSyncgroupPriorities(ctx *context.T, bst blob.BlobStore, sgIds sgSet, sgP
 // its history of mutations.
 
 // SgIdToGid converts a databaseId and syncgroup Id to an internal ID by using a SHA256 hash.
-// TODO(fredq) make this hash harder to game, e.g. by delimiting the different fields
 func SgIdToGid(dbId, id wire.Id) interfaces.GroupId {
 	hasher := sha256.New()
-	hasher.Write([]byte(dbId.Name))
-	hasher.Write([]byte(dbId.Blessing))
-	hasher.Write([]byte(id.Name))
-	hasher.Write([]byte(id.Blessing))
+	hasher.Write([]byte(naming.Join(pubutil.EncodeId(dbId), pubutil.EncodeId(id))))
 	gid := base64.RawStdEncoding.EncodeToString(hasher.Sum(nil))
 	return interfaces.GroupId(gid)
 }
