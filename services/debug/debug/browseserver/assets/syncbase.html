@@ -15,15 +15,17 @@
 
 {{range .Tree}}
   <section class="section--center mdl-grid">
-    <h5>Database "{{.Database.Id.Name}}"</h5>
+    {{ $db := .Database.Id }}
+    <h5>Database "{{$db.Name}}"</h5>
       <div class="mdl-cell mdl-cell--12-col">
-        App Blessing "{{.Database.Id.Blessing}}"
+        App Blessing "{{$db.Blessing}}"
       </div>
       <div class="mdl-cell mdl-cell--12-col">
         <dl>
         {{range .Collections}}
           <dt>Collection "{{.Id.Name}}"<dt>
           <dd>Creator's User Blessing "{{.Id.Blessing}}"</dd>
+          <dd><a href="syncbase/collection?n={{$.ServerName}}&db={{$db.Blessing}}&dn={{$db.Name}}&cb={{.Id.Blessing}}&cn={{.Id.Name}}">More...</a></dd>
         {{end}}
       </dl>
     </div>

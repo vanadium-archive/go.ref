@@ -29,6 +29,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/logreader"
 	"v.io/v23/services/stats"
+	sbwire "v.io/v23/services/syncbase"
 	svtrace "v.io/v23/services/vtrace"
 	"v.io/v23/syncbase"
 	"v.io/v23/uniqueid"
@@ -54,6 +55,7 @@ const (
 	vtraceTmpl     = "vtrace.html"
 	syncbaseTmpl   = "syncbase.html"
 	noSyncbaseTmpl = "no_syncbase.html"
+	collectionTmpl = "collection.html"
 )
 
 // Serve serves the debug interface over http.  An HTTP server is started (serving at httpAddr), its
@@ -76,6 +78,7 @@ func Serve(ctx *context.T, httpAddr, name string, timeout time.Duration, log boo
 	mux.Handle("/vtraces", &allTracesHandler{h})
 	mux.Handle("/vtrace", &vtraceHandler{h})
 	mux.Handle("/syncbase", &syncbaseHandler{h})
+	mux.Handle("/syncbase/collection", &collectionHandler{h})
 	mux.Handle("/favicon.ico", http.NotFoundHandler())
 	if len(httpAddr) == 0 {
 		httpAddr = "127.0.0.1:0"
@@ -817,6 +820,9 @@ func (v *vtraceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	v.execute(v.ctx, w, r, "vtrace.html", data)
 }
 
+// The syncbaseHandler handles the main Syncbase viewer page is linked from the
+// nav bar of the Debug browser. It displays a list of databases and their
+// collections, and has links to the detailed collection page.
 type syncbaseHandler struct{ *handler }
 
 func implementsSyncbaseInterface(ctx *context.T, server string) (bool, error) {
@@ -914,6 +920,71 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Tree:        tree,
 	}
 	h.execute(h.ctx, w, r, syncbaseTmpl, args)
+}
+
+// The collectionHandler handles the Collections details page that is linked off
+// the main Syncbase viewer page.
+type collectionHandler struct{ *handler }
+
+func scanCollection(ctx *context.T, coll syncbase.Collection) (rowCount int, meanKeyLen float32) {
+	stream := coll.Scan(ctx, syncbase.Prefix(""))
+	totKeySize := 0
+	for stream.Advance() {
+		rowCount++
+		totKeySize += len(stream.Key())
+	}
+	if rowCount > 0 {
+		meanKeyLen = float32(totKeySize) / float32(rowCount)
+	}
+	return
+}
+
+func (h *collectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var (
+		server       = r.FormValue("n")
+		dbBlessing   = r.FormValue("db")
+		dbName       = r.FormValue("dn")
+		collBlessing = r.FormValue("cb")
+		collName     = r.FormValue("cn")
+		dbId         = sbwire.Id{dbBlessing, dbName}
+		collId       = sbwire.Id{collBlessing, collName}
+	)
+	ctx, tracer := newTracer(h.ctx)
+	if len(server) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Must specify a server with the URL query parameter 'n'")
+		return
+	}
+
+	service := syncbase.NewService(server)
+
+	// TODO(eobrain) Confirm nil for schema is appropriate
+	db := service.DatabaseForId(dbId, nil)
+	coll := db.CollectionForId(collId)
+
+	rowCount, meanKeyLen := scanCollection(ctx, coll)
+
+	// Assemble data and send it to the template to generate HTML
+	args := struct {
+		ServerName  string
+		CommandLine string
+		Vtrace      *Tracer
+		Service     syncbase.Service
+		Database    syncbase.Database
+		Collection  syncbase.Collection
+		RowCount    int
+		MeanKeyLen  string
+	}{
+		ServerName:  server,
+		CommandLine: "(no command line)",
+		Vtrace:      tracer,
+		Service:     service,
+		Database:    db,
+		Collection:  coll,
+		RowCount:    rowCount,
+		MeanKeyLen:  fmt.Sprintf("%.1f", meanKeyLen),
+	}
+	h.execute(h.ctx, w, r, collectionTmpl, args)
 }
 
 func writeEvent(w http.ResponseWriter, data string) {

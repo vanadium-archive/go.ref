@@ -1,0 +1,21 @@
+{{/*
+    Copyright 2016 The Vanadium Authors. All rights reserved.
+    Use of this source code is governed by a BSD-style
+    license that can be found in the LICENSE file.
+*/}}
+
+{{define "content"}}
+
+<section class="section--center mdl-grid">
+    <h5>Collection {{.Database.Id.Name}}/{{.Collection.Id.Name}}</h5>
+    <div class="mdl-cell mdl-cell--12-col">
+        <dl>
+          <dt>App Blessing:<dt><dd>{{.Database.Id.Blessing}}</dd>
+          <dt>Creator's User Blessing:<dt><dd>{{.Collection.Id.Blessing}}</dd>
+          <dt>Number of Rows:<dt><dd>{{.RowCount}}</dd>
+          <dt>Mean Key Length:<dt><dd>{{.MeanKeyLen}}</dd>
+      </dl>
+    </div>
+</section>
+
+{{end}}
