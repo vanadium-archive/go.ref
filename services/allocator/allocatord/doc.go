@@ -16,6 +16,9 @@ The allocatord flags are:
    The template for the deployment of the servers to allocate.
  -gcloud=gcloud
    The gcloud binary to use.
+ -global-admins=
+   A comma-separated list of blessing patterns that have access to all the
+   server instances.
  -max-instances=10
    The maximum total number of server instances to create.
  -name=

@@ -181,6 +181,11 @@ func createDeploymentConfig(ctx *context.T, deploymentName, mountName string, ca
 // The access list include the caller of the RPC.
 func accessList(ctx *context.T, call security.Call) (string, error) {
 	var acl access.AccessList
+	if globalAdminsFlag != "" {
+		for _, admin := range strings.Split(globalAdminsFlag, ",") {
+			acl.In = append(acl.In, security.BlessingPattern(admin))
+		}
+	}
 	b, _ := security.RemoteBlessingNames(ctx, call)
 	for _, blessing := range conventions.ParseBlessingNames(b...) {
 		acl.In = append(acl.In, blessing.UserPattern())

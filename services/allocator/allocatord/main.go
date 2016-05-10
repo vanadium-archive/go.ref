@@ -23,6 +23,7 @@ var (
 	nameFlag               string
 	serverNameFlag         string
 	deploymentTemplateFlag string
+	globalAdminsFlag       string
 	maxInstancesFlag       int
 	diskSizeFlag           string
 	gcloudBinFlag          string
@@ -41,6 +42,7 @@ func main() {
 	cmdRoot.Flags.StringVar(&nameFlag, "name", "", "Name to publish for this service.")
 	cmdRoot.Flags.StringVar(&serverNameFlag, "server-name", "", "Name of the servers to allocate. This name is part of the published names in the Vanadium namespace and the names of the Deployments in Kubernetes.")
 	cmdRoot.Flags.StringVar(&deploymentTemplateFlag, "deployment-template", "", "The template for the deployment of the servers to allocate.")
+	cmdRoot.Flags.StringVar(&globalAdminsFlag, "global-admins", "", "A comma-separated list of blessing patterns that have access to all the server instances.")
 	cmdRoot.Flags.IntVar(&maxInstancesFlag, "max-instances", 10, "The maximum total number of server instances to create.")
 	cmdRoot.Flags.StringVar(&diskSizeFlag, "server-disk-size", "50GB", "The size of the persistent disk to allocate with the servers.")
 	cmdRoot.Flags.StringVar(&gcloudBinFlag, "gcloud", "gcloud", "The gcloud binary to use.")
