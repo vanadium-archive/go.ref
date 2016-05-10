@@ -30,14 +30,12 @@ var (
 	configDir             string
 	name                  string
 	remoteSignerBlessings string
-	deprecated            string // TODO(ashankar): Remove
 )
 
 func main() {
 	cmdRoleD.Flags.StringVar(&configDir, "config-dir", "", "The directory where the role configuration files are stored.")
 	cmdRoleD.Flags.StringVar(&name, "name", "", "The name to publish for this service.")
 	cmdRoleD.Flags.StringVar(&remoteSignerBlessings, "remote-signer-blessings", "", "Path to a file containing base64url-vom-encoded blessings to be used with a remote signer. Empty string disables the remote signer.")
-	cmdRoleD.Flags.StringVar(&deprecated, "remote-signer-blessing-dir", "", "Path to the blessings to use with the remote signer. Use the empty string to disable the remote signer.")
 
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoleD)
@@ -85,23 +83,6 @@ func runRoleD(ctx *context.T, env *cmdline.Env, args []string) error {
 		}
 		if ctx, err = v23.WithPrincipal(ctx, p); err != nil {
 			return err
-		}
-
-	} else if deprecated != "" {
-		signer, err := restsigner.NewRestSigner()
-		if err != nil {
-			return fmt.Errorf("Failed to create remote signer: %v", err)
-		}
-		state, err := vsecurity.NewPrincipalStateSerializer(remoteSignerBlessings)
-		if err != nil {
-			return fmt.Errorf("Failed to create blessing serializer: %v", err)
-		}
-		p, err := vsecurity.NewPrincipalFromSigner(signer, state)
-		if err != nil {
-			return fmt.Errorf("Failed to create principal: %v", err)
-		}
-		if ctx, err = v23.WithPrincipal(ctx, p); err != nil {
-			return fmt.Errorf("Failed to set principal: %v", err)
 		}
 	}
 	ctx, _, err := v23.WithNewDispatchingServer(ctx, name, irole.NewDispatcher(configDir, name))
