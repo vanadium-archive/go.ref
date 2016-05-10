@@ -17,11 +17,3 @@ type Principal interface {
 }
 
 const PrincipalHandleByteSize = sha512.Size
-
-type KeyManager interface {
-	NewPrincipal(inMemory bool) (handle [PrincipalHandleByteSize]byte, err error)
-	ServePrincipal(handle [PrincipalHandleByteSize]byte, socketPath string) error
-	StopServing(handle [PrincipalHandleByteSize]byte) error
-	DeletePrincipal(handle [PrincipalHandleByteSize]byte) error
-	io.Closer
-}
