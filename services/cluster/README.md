@@ -22,7 +22,7 @@ The Cluster agent interface is defined in [service.vdl](service.vdl).
 ## vkube
 
 [vkube](vkube/doc.go) is a command-line tool that helps manage Vanadium applications
-on [Kubernetes](http://http://kubernetes.io/).
+on [Kubernetes](http://kubernetes.io/).
 
 Before *vkube* starts an application, it creates a new secret in the cluster
 agent and saves the Secret Key in a Kubernetes Secret object. This Secret Key
