@@ -49,3 +49,8 @@ func InternalResetClientRegistry() {
 	defer clientRegistryMu.Unlock()
 	clientRegistry = make(map[string]ClientGenerator)
 }
+
+// InternalConfigureContext exposes controller.configureContext to tests.
+func (c *Controller) InternalConfigureContext(ctx *context.T, blessingName string) (*context.T, error) {
+	return c.configureContext(ctx, blessingName)
+}

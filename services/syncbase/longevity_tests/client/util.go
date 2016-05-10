@@ -10,6 +10,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/security"
+	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	"v.io/v23/verror"
@@ -22,29 +24,39 @@ import (
 // already exist.  If the model contains syncgroups, it will also create or
 // join those as well.
 func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.DatabaseSet) (map[syncbase.Database][]syncbase.Collection, []syncbase.Syncgroup, error) {
-	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
-	perms := testutil.DefaultPerms(blessing.String(), "root:checker")
 	nsRoots := v23.GetNamespace(ctx).Roots()
 
 	service := syncbase.NewService(sbName)
 	syncgroups := []syncbase.Syncgroup{}
 	dbColsMap := map[syncbase.Database][]syncbase.Collection{}
 	for _, dbModel := range dbModels {
+		dbPerms := defaultPerms(ctx)
+		if dbModel.Permissions != nil {
+			dbPerms = dbModel.Permissions.ToWire("root")
+		}
+		allowChecker(dbPerms)
+
 		// Create Database.
-		db := service.DatabaseForId(dbModel.Id(), nil)
 		// TODO(nlacasse): Don't create the database unless its blessings match
 		// ours.
-		if err := db.Create(ctx, perms); err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
+		db := service.DatabaseForId(dbModel.Id(), nil)
+		if err := db.Create(ctx, dbPerms); err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
 			return nil, nil, err
 		}
 		dbColsMap[db] = []syncbase.Collection{}
 
 		// Create collections for database.
 		for _, colModel := range dbModel.Collections {
-			col := db.CollectionForId(colModel.Id())
+			colPerms := defaultPerms(ctx)
+			if colModel.Permissions != nil {
+				colPerms = colModel.Permissions.ToWire("root")
+			}
+			allowChecker(colPerms)
+
 			// TODO(nlacasse): Don't create the collection unless its blessings
 			// match ours.
-			if err := col.Create(ctx, perms); err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
+			col := db.CollectionForId(colModel.Id())
+			if err := col.Create(ctx, colPerms); err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
 				return nil, nil, err
 			}
 			dbColsMap[db] = append(dbColsMap[db], col)
@@ -55,10 +67,14 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 			sg := db.SyncgroupForId(wire.Id{Name: sgModel.NameSuffix, Blessing: "blessing"})
 			if sgModel.HostDevice.Name == sbName {
 				// We are the host.  Create the syncgroup.
-				spec := sgModel.Spec()
+				spec := sgModel.Spec("root")
 				spec.MountTables = nsRoots
-				// TODO(nlacasse): Set this to something real.
-				spec.Perms = testutil.DefaultPerms("root")
+
+				if spec.Perms == nil {
+					spec.Perms = defaultPerms(ctx)
+				}
+				allowChecker(spec.Perms)
+
 				if err := sg.Create(ctx, spec, wire.SyncgroupMemberInfo{}); err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
 					return nil, nil, err
 				}
@@ -85,4 +101,19 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 	}
 
 	return dbColsMap, syncgroups, nil
+}
+
+// allowChecker gives the checker access to all tags on the Permissions object.
+func allowChecker(perms access.Permissions) {
+	checkerPattern := security.BlessingPattern("root:checker")
+	for _, tag := range access.AllTypicalTags() {
+		perms.Add(checkerPattern, string(tag))
+	}
+}
+
+// defaultPerms returns a Permissions object that allows the context's default
+// blessings.
+func defaultPerms(ctx *context.T) access.Permissions {
+	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	return testutil.DefaultPerms(blessing.String())
 }

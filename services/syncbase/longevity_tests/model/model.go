@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/x/ref/services/syncbase/common"
 )
@@ -24,6 +26,28 @@ func init() {
 
 func randomName(prefix string) string {
 	return fmt.Sprintf("%s-%08x", prefix, rand.Int31())
+}
+
+// ===========
+// Permissions
+// ===========
+
+// Permissions maps tags to Users who are included on that tag.
+// TODO(nlacasse): Consider allowing blacklisted users with "NotIn" lists.
+type Permissions map[string]UserSet
+
+func (perms Permissions) ToWire(rootBlessing string) access.Permissions {
+	p := access.Permissions{}
+	for tag, users := range perms {
+		for _, user := range users {
+			userBlessing := user.Name
+			if rootBlessing != "" {
+				userBlessing = rootBlessing + security.ChainSeparator + user.Name
+			}
+			p.Add(security.BlessingPattern(userBlessing), tag)
+		}
+	}
+	return p
 }
 
 // ===========
@@ -39,6 +63,8 @@ type Collection struct {
 	Name string
 	// Blessing of the collection.
 	Blessing string
+	// Permissions of the collection.
+	Permissions Permissions
 }
 
 func (c *Collection) String() string {
@@ -67,20 +93,20 @@ func (cols CollectionSet) String() string {
 // ==========
 
 // Syncgroup represents a syncgroup.
-// TODO(nlacasse): Permissions.
-// TODO(nlacasse): Allow setting IsPrivate.
 type Syncgroup struct {
 	HostDevice  *Device
 	NameSuffix  string
 	Description string
 	Collections []Collection
+	Permissions Permissions
+	IsPrivate   bool
 }
 
 func (sg *Syncgroup) Name() string {
 	return naming.Join(sg.HostDevice.Name, common.SyncbaseSuffix, sg.NameSuffix)
 }
 
-func (sg *Syncgroup) Spec() wire.SyncgroupSpec {
+func (sg *Syncgroup) Spec(rootBlessing string) wire.SyncgroupSpec {
 	collectionRows := make([]wire.CollectionRow, len(sg.Collections))
 	for i, col := range sg.Collections {
 		collectionRows[i] = wire.CollectionRow{
@@ -92,8 +118,8 @@ func (sg *Syncgroup) Spec() wire.SyncgroupSpec {
 	return wire.SyncgroupSpec{
 		Description: sg.Description,
 		Prefixes:    collectionRows,
-		// TODO(nlacasse): Allow other values of IsPrivate.
-		IsPrivate: false,
+		Perms:       sg.Permissions.ToWire(rootBlessing),
+		IsPrivate:   sg.IsPrivate,
 	}
 }
 
@@ -113,7 +139,6 @@ func (sgs SyncgroupSet) String() string {
 
 // Database represents a syncbase database.  Each database corresponds to a
 // single app.
-// TODO(nlacasse): ACLs.
 type Database struct {
 	// Name of the database.
 	Name string
@@ -123,10 +148,12 @@ type Database struct {
 	Collections CollectionSet
 	// Syncgroups.
 	Syncgroups SyncgroupSet
+	// Permissions.
+	Permissions Permissions
 }
 
 func (db *Database) String() string {
-	return fmt.Sprintf("{database %v blessing=%v collections=%v syncgroups=%v}", db.Name, db.Blessing, db.Collections, db.Syncgroups)
+	return fmt.Sprintf("{database %v blessing=%v collections=%v syncgroups=%v perms=%v}", db.Name, db.Blessing, db.Collections, db.Syncgroups, db.Permissions.ToWire(""))
 }
 
 func (db *Database) Id() wire.Id {

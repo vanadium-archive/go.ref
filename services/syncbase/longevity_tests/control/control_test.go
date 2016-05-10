@@ -18,6 +18,7 @@ import (
 	"v.io/v23/security"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
+	"v.io/v23/verror"
 	"v.io/x/lib/gosh"
 	_ "v.io/x/ref/runtime/factories/generic"
 	_ "v.io/x/ref/runtime/protocols/vine"
@@ -392,13 +393,25 @@ func TestRunUniverseTwoDevicesWithClients(t *testing.T) {
 
 	// Construct model with two devices and one client each (one writer and one
 	// watcher).
+	user := &model.User{
+		Name: "test-user",
+	}
+	users := model.UserSet{user}
+	perms := model.Permissions{
+		"Admin":   users,
+		"Read":    users,
+		"Resolve": users,
+		"Write":   users,
+	}
 	dbModel := &model.Database{
-		Name:     "test_db",
-		Blessing: "root",
+		Name:        "test_db",
+		Blessing:    "root",
+		Permissions: perms,
 		Collections: []model.Collection{
 			model.Collection{
-				Name:     "test_col",
-				Blessing: "root",
+				Name:        "test_col",
+				Blessing:    "root",
+				Permissions: perms,
 			},
 		},
 	}
@@ -412,22 +425,19 @@ func TestRunUniverseTwoDevicesWithClients(t *testing.T) {
 		Clients:   []string{"test-watcher"},
 		Databases: model.DatabaseSet{dbModel},
 	}
+	user.Devices = model.DeviceSet{writerDev, watcherDev}
 
 	// Construct a syncgroup and add it to the database.
 	sg := model.Syncgroup{
 		HostDevice:  writerDev,
 		NameSuffix:  "test_sg",
 		Collections: dbModel.Collections,
+		Permissions: perms,
 	}
 	dbModel.Syncgroups = []model.Syncgroup{sg}
 
 	u := &model.Universe{
-		Users: model.UserSet{
-			&model.User{
-				Name:    "test-user",
-				Devices: model.DeviceSet{writerDev, watcherDev},
-			},
-		},
+		Users: model.UserSet{user},
 		// Both devices can talk to each other.
 		Topology: model.Topology{
 			writerDev:  model.DeviceSet{watcherDev, writerDev},
@@ -441,6 +451,113 @@ func TestRunUniverseTwoDevicesWithClients(t *testing.T) {
 
 	// Wait for watcher to receive 5 changes.
 	mu.Lock()
+}
+
+func TestRunUniverseTwoUsers(t *testing.T) {
+	c, cleanup := newController(t)
+	defer cleanup()
+
+	// mu is locked until 5 changes have been received by the watcher.
+	changesReceived := 0
+	mu := sync.Mutex{}
+	mu.Lock()
+	control.RegisterClient("test-watcher", func() client.Client {
+		return &client.Watcher{
+			OnChange: func(wc syncbase.WatchChange) {
+				changesReceived++
+				if changesReceived == 5 {
+					mu.Unlock()
+				}
+			},
+		}
+	})
+	control.RegisterClient("test-writer", func() client.Client {
+		return &client.Writer{
+			WriteInterval: 50 * time.Millisecond,
+		}
+	})
+	defer control.InternalResetClientRegistry()
+
+	// Construct model with two users, one device each.  One device has watcher
+	// client and other has writer.
+	userAlice := &model.User{Name: "user-alice"}
+	userBob := &model.User{Name: "user-bob"}
+
+	// Alice has all permissions, and gives Bob read access.
+	permsAlice := model.Permissions{
+		"Admin":   model.UserSet{userAlice},
+		"Read":    model.UserSet{userAlice, userBob},
+		"Resolve": model.UserSet{userAlice},
+		"Write":   model.UserSet{userAlice},
+	}
+
+	// Alice is creator of the database and collection.
+	dbModel := &model.Database{
+		Name:        "test_db",
+		Blessing:    "root",
+		Permissions: permsAlice,
+		Collections: []model.Collection{
+			model.Collection{
+				Name:        "test_col",
+				Blessing:    "root",
+				Permissions: permsAlice,
+			},
+		},
+	}
+
+	devAliceWriter := &model.Device{
+		Name:      "device-alice-writer",
+		Clients:   []string{"test-writer"},
+		Databases: model.DatabaseSet{dbModel},
+	}
+	devBobWatcher := &model.Device{
+		Name:      "device-bob-watcher",
+		Clients:   []string{"test-watcher"},
+		Databases: model.DatabaseSet{dbModel},
+	}
+
+	// Alice has the writer device.
+	userAlice.Devices = model.DeviceSet{devAliceWriter}
+	// Bob has the watcher device.
+	userBob.Devices = model.DeviceSet{devBobWatcher}
+
+	// Construct a syncgroup and add it to the database.
+	sg := model.Syncgroup{
+		HostDevice:  devAliceWriter,
+		NameSuffix:  "test_sg",
+		Collections: dbModel.Collections,
+		Permissions: permsAlice,
+	}
+	dbModel.Syncgroups = []model.Syncgroup{sg}
+
+	u := &model.Universe{
+		Users: model.UserSet{userAlice, userBob},
+		// Both devices can talk to each other.
+		Topology: model.Topology{
+			devAliceWriter: model.DeviceSet{devBobWatcher, devAliceWriter},
+			devBobWatcher:  model.DeviceSet{devBobWatcher, devAliceWriter},
+		},
+	}
+
+	if err := c.Run(u); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for watcher to receive 5 changes.
+	mu.Lock()
+
+	// Check that Bob gets ErrNoAccess when writing to the collection on his
+	// own device because he does not have write permissions.
+	bobCtx, err := c.InternalConfigureContext(c.InternalCtx(), userBob.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := syncbase.NewService(devBobWatcher.Name)
+	db := s.DatabaseForId(dbModel.Id(), nil)
+	col := db.CollectionForId(dbModel.Collections[0].Id())
+	if err = col.Put(bobCtx, "test-key", "should fail"); verror.ErrorID(err) != verror.ErrNoAccess.ID {
+		t.Errorf("expected bob's put to collection %v to fail with ErrNoAccess, but got %v", col, err)
+	}
 }
 
 var counter int
