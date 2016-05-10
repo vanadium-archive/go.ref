@@ -10,7 +10,11 @@ type Allocator interface {
 	// It returns the object name of the new instance.
 	Create() (name string | error)
 
-	// Delete deletes the instance with the given name.
+	// Destroy destroys the instance with the given name.
+	Destroy(name string) error
+
+	// Delete is an alias for Destroy.
+	// TODO(rthellend): Remove this method.
 	Delete(name string) error
 
 	// List returns a list of all the instances owned by the caller.

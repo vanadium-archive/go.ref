@@ -25,7 +25,10 @@ type AllocatorClientMethods interface {
 	// blessings will be an extension of the blessings granted on this RPC.
 	// It returns the object name of the new instance.
 	Create(*context.T, ...rpc.CallOpt) (name string, _ error)
-	// Delete deletes the instance with the given name.
+	// Destroy destroys the instance with the given name.
+	Destroy(_ *context.T, name string, _ ...rpc.CallOpt) error
+	// Delete is an alias for Destroy.
+	// TODO(rthellend): Remove this method.
 	Delete(_ *context.T, name string, _ ...rpc.CallOpt) error
 	// List returns a list of all the instances owned by the caller.
 	List(*context.T, ...rpc.CallOpt) (names []string, _ error)
@@ -51,6 +54,11 @@ func (c implAllocatorClientStub) Create(ctx *context.T, opts ...rpc.CallOpt) (o0
 	return
 }
 
+func (c implAllocatorClientStub) Destroy(ctx *context.T, i0 string, opts ...rpc.CallOpt) (err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Destroy", []interface{}{i0}, nil, opts...)
+	return
+}
+
 func (c implAllocatorClientStub) Delete(ctx *context.T, i0 string, opts ...rpc.CallOpt) (err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "Delete", []interface{}{i0}, nil, opts...)
 	return
@@ -68,7 +76,10 @@ type AllocatorServerMethods interface {
 	// blessings will be an extension of the blessings granted on this RPC.
 	// It returns the object name of the new instance.
 	Create(*context.T, rpc.ServerCall) (name string, _ error)
-	// Delete deletes the instance with the given name.
+	// Destroy destroys the instance with the given name.
+	Destroy(_ *context.T, _ rpc.ServerCall, name string) error
+	// Delete is an alias for Destroy.
+	// TODO(rthellend): Remove this method.
 	Delete(_ *context.T, _ rpc.ServerCall, name string) error
 	// List returns a list of all the instances owned by the caller.
 	List(*context.T, rpc.ServerCall) (names []string, _ error)
@@ -113,6 +124,10 @@ func (s implAllocatorServerStub) Create(ctx *context.T, call rpc.ServerCall) (st
 	return s.impl.Create(ctx, call)
 }
 
+func (s implAllocatorServerStub) Destroy(ctx *context.T, call rpc.ServerCall, i0 string) error {
+	return s.impl.Destroy(ctx, call, i0)
+}
+
 func (s implAllocatorServerStub) Delete(ctx *context.T, call rpc.ServerCall, i0 string) error {
 	return s.impl.Delete(ctx, call, i0)
 }
@@ -145,8 +160,15 @@ var descAllocator = rpc.InterfaceDesc{
 			},
 		},
 		{
+			Name: "Destroy",
+			Doc:  "// Destroy destroys the instance with the given name.",
+			InArgs: []rpc.ArgDesc{
+				{"name", ``}, // string
+			},
+		},
+		{
 			Name: "Delete",
-			Doc:  "// Delete deletes the instance with the given name.",
+			Doc:  "// Delete is an alias for Destroy.\n// TODO(rthellend): Remove this method.",
 			InArgs: []rpc.ArgDesc{
 				{"name", ``}, // string
 			},

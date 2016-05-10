@@ -87,10 +87,16 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 	return mName, nil
 }
 
-// Delete deletes the instance with the given name.
+// Delete is an alias for Destroy
+// TODO(rthellend): remove this method
 func (i *allocatorImpl) Delete(ctx *context.T, call rpc.ServerCall, name string) error {
+	return i.Destroy(ctx, call, name)
+}
+
+// Destroy destroys the instance with the given name.
+func (i *allocatorImpl) Destroy(ctx *context.T, call rpc.ServerCall, name string) error {
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
-	ctx.Infof("Delete(%q) called by %v", name, b)
+	ctx.Infof("Destroy(%q) called by %v", name, b)
 
 	mName, kName, err := names(ctx, call.Security())
 	if err != nil {
