@@ -1,0 +1,33 @@
+# Plots CPU and memory usage graphs from vmstat.log.
+# NOTE: vmstat.log must be in current working dir.
+#
+# Run:
+#  gnuplot $JIRI_ROOT/release/go/src/v.io/x/ref/services/syncbase/longevity_tests/plot-vmstat
+#
+# Output:
+#   cpu.png  # cpu usage
+#   mem.png  # memory usage
+
+# Set the timeformat used in the vmstat.log.
+set timefmt "%a %d %b %Y %r %Z, %Z"
+
+# X-axis is time.
+set xdata time
+
+# Rotate x-axis labels.
+set xtics rotate
+
+# Output png.
+set term png
+
+# TODO(nlacasse): Only plot every Nth line, for some value of N.
+
+set output 'mem.png'
+plot 'vmstat.log' every ::2 using 0:11 with lines title 'swap', \
+     'vmstat.log' every ::2 using 0:12 with lines title 'idle', \
+     'vmstat.log' every ::2 using 0:13 with lines title 'buff'
+
+set output 'cpu.png'
+plot 'vmstat.log' every ::2 using 0:21 with lines title 'user load', \
+     'vmstat.log' every ::2 using 0:22 with lines title 'system load', \
+     'vmstat.log' every ::2 using 0:23 with lines title 'idle time'
