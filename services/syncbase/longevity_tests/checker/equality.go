@@ -41,6 +41,7 @@ func (eq *Equality) Run(ctx *context.T, u model.Universe) error {
 func equalDumpStreams(streams []*util.DumpStream) error {
 	firstStream := streams[0]
 	restStreams := streams[1:]
+	rowCount := 0
 
 	for {
 		// Advance the first stream.
@@ -63,7 +64,7 @@ func equalDumpStreams(streams []*util.DumpStream) error {
 
 		// Stop if all Advances returned false.
 		if !firstAdvance {
-			return nil
+			break
 		}
 
 		// Get row from first stream.
@@ -76,6 +77,9 @@ func equalDumpStreams(streams []*util.DumpStream) error {
 					firstStream.ServiceName, firstRow, stream.ServiceName, gotRow)
 			}
 		}
+
+		rowCount++
 	}
+	fmt.Printf("checker found %d identical rows in %d databases\n", rowCount, len(streams))
 	return nil
 }
