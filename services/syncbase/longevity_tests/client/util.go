@@ -70,8 +70,9 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 				spec := sgModel.Spec("root")
 				spec.MountTables = nsRoots
 
-				if spec.Perms == nil {
-					spec.Perms = defaultPerms(ctx)
+				if len(spec.Perms) == 0 {
+					// Syncgroup permissions default to allow anybody.
+					spec.Perms = testutil.DefaultPerms("root")
 				}
 				allowChecker(spec.Perms)
 
