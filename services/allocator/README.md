@@ -9,7 +9,7 @@ run the service on [Kubernetes](http://kubernetes.io/).
 The allocator [server API](service.vdl) has 3 methods:
 
 * Create()
-* Delete()
+* Destroy()
 * List()
 
 ## Create()
@@ -29,9 +29,9 @@ with the following data:
 
 The current implementation only allows one instance per user.
 
-## Delete()
+## Destroy()
 
-Delete deletes the instance whose name is passed as argument, along with its
+Destroy destroys the instance whose name is passed as argument, along with its
 persistent disk.
 
 ## List()

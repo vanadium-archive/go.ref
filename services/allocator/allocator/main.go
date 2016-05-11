@@ -30,7 +30,7 @@ var (
 		Long:  "Command allocator interacts with the allocator service.",
 		Children: []*cmdline.Command{
 			cmdCreate,
-			cmdDelete,
+			cmdDestroy,
 			cmdList,
 		},
 	}
@@ -82,26 +82,26 @@ func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings,
 	return p.Bless(call.RemoteBlessings().PublicKey(), def, g.extension, security.UnconstrainedUse())
 }
 
-var cmdDelete = &cmdline.Command{
-	Runner:   v23cmd.RunnerFunc(runDelete),
-	Name:     "delete",
-	Short:    "Deletes an existing server instance.",
-	Long:     "Deletes an existing server instance.",
+var cmdDestroy = &cmdline.Command{
+	Runner:   v23cmd.RunnerFunc(runDestroy),
+	Name:     "destroy",
+	Short:    "Destroys an existing server instance.",
+	Long:     "Destroys an existing server instance.",
 	ArgsName: "<name>",
 	ArgsLong: `
-<name> is the name of the server to delete.
+<name> is the name of the server to destroy.
 `,
 }
 
-func runDelete(ctx *context.T, env *cmdline.Env, args []string) error {
+func runDestroy(ctx *context.T, env *cmdline.Env, args []string) error {
 	if expected, got := 1, len(args); got != expected {
-		return env.UsageErrorf("delete: incorrect number of arguments, got %d, expected %d", got, expected)
+		return env.UsageErrorf("destroy: incorrect number of arguments, got %d, expected %d", got, expected)
 	}
 	name := args[0]
-	if err := allocator.AllocatorClient(flagAllocator).Delete(ctx, name); err != nil {
+	if err := allocator.AllocatorClient(flagAllocator).Destroy(ctx, name); err != nil {
 		return err
 	}
-	fmt.Fprintln(env.Stdout, "Deleted")
+	fmt.Fprintln(env.Stdout, "Destroyed")
 	return nil
 }
 

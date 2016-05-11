@@ -13,7 +13,7 @@ Usage:
 
 The allocator commands are:
    create      Create a new server instance.
-   delete      Deletes an existing server instance.
+   destroy     Destroys an existing server instance.
    list        Lists existing server instances.
    help        Display help for commands or topics
 
@@ -92,16 +92,16 @@ The allocator create flags are:
  -allocator=syncbase-allocator
    The name or address of the allocator server.
 
-Allocator delete
+Allocator destroy
 
-Deletes an existing server instance.
+Destroys an existing server instance.
 
 Usage:
-   allocator delete [flags] <name>
+   allocator destroy [flags] <name>
 
-<name> is the name of the server to delete.
+<name> is the name of the server to destroy.
 
-The allocator delete flags are:
+The allocator destroy flags are:
  -allocator=syncbase-allocator
    The name or address of the allocator server.
 
