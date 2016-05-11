@@ -17,17 +17,31 @@ set xdata time
 # Rotate x-axis labels.
 set xtics rotate
 
-# Output png.
-set term png
+# Output 800x400px png image.
+set term png size 800, 400
 
-# TODO(nlacasse): Only plot every Nth line, for some value of N.
+# Put key outside plot.
+set key outside
+
+# NOTE(nlacasse): The plot functions below plot every 60th row.  This is
+# probably fine for the memory graph, but for the CPU graph a rolling average
+# would be better.
+#
+# GNUPlot is stream-based, and doesn't have an easy way to calculate rolling
+# averages.  There is a way to do it [0], but it is very slow, taking many
+# minutes on my machine.
+#
+# We may need to post-process the logs ourselves to calculate the rolling
+# average before plotting.
+#
+# [0]: http://blog.sam.liddicott.com/2013/05/gnuplot-rolling-average.html
 
 set output 'mem.png'
-plot 'vmstat.log' every ::2 using 0:11 with lines title 'swap', \
-     'vmstat.log' every ::2 using 0:12 with lines title 'idle', \
-     'vmstat.log' every ::2 using 0:13 with lines title 'buff'
+plot 'vmstat.log' every 60::2 using 0:11 with lines title 'swap', \
+     'vmstat.log' every 60::2 using 0:12 with lines title 'free', \
+     'vmstat.log' every 60::2 using 0:13 with lines title 'buff', \
+     'vmstat.log' every 60::2 using 0:14 with lines title 'cache'
 
 set output 'cpu.png'
-plot 'vmstat.log' every ::2 using 0:21 with lines title 'user load', \
-     'vmstat.log' every ::2 using 0:22 with lines title 'system load', \
-     'vmstat.log' every ::2 using 0:23 with lines title 'idle time'
+plot 'vmstat.log' every 60::2 using 0:21 with lines title 'user', \
+     'vmstat.log' every 60::2 using 0:22 with lines title 'system'
