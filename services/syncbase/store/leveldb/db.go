@@ -33,9 +33,12 @@ type db struct {
 	err          error
 }
 
+const defaultMaxOpenFiles = 100
+
 type OpenOptions struct {
 	CreateIfMissing bool
 	ErrorIfExists   bool
+	MaxOpenFiles    int
 }
 
 // Open opens the database located at the given path.
@@ -52,9 +55,18 @@ func Open(path string, opts OpenOptions) (store.Store, error) {
 		cOptsErrorIfExists = 1
 	}
 
+	// If max_open_files is not set, leveldb can open many files, leading to
+	// "Too many open files" error, or other strange system behavior.
+	// See https://github.com/vanadium/issues/issues/1253
+	cOptsMaxOpenFiles := C.int(opts.MaxOpenFiles)
+	if cOptsMaxOpenFiles <= 0 {
+		cOptsMaxOpenFiles = defaultMaxOpenFiles
+	}
+
 	cOpts := C.leveldb_options_create()
 	C.leveldb_options_set_create_if_missing(cOpts, cOptsCreateIfMissing)
 	C.leveldb_options_set_error_if_exists(cOpts, cOptsErrorIfExists)
+	C.leveldb_options_set_max_open_files(cOpts, cOptsMaxOpenFiles)
 	C.leveldb_options_set_paranoid_checks(cOpts, 1)
 	defer C.leveldb_options_destroy(cOpts)
 
