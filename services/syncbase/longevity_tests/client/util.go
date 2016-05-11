@@ -87,7 +87,7 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 			// backoff?
 			var joinErr error
 			for i := 0; i < 10; i++ {
-				_, joinErr = sg.Join(ctx, sgModel.HostDevice.Name, "", wire.SyncgroupMemberInfo{})
+				_, joinErr = sg.Join(ctx, sgModel.HostDevice.Name, nil, wire.SyncgroupMemberInfo{})
 				if joinErr == nil {
 					syncgroups = append(syncgroups, sg)
 					break

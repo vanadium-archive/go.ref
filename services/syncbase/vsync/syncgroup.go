@@ -735,7 +735,7 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 	return nil
 }
 
-func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remoteSyncbaseName, expectedSyncbaseBlessing string, sgId wire.Id, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
+func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remoteSyncbaseName string, expectedSyncbaseBlessings []string, sgId wire.Id, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
 	vlog.VI(2).Infof("sync: JoinSyncgroup: begin: %v at %s, call is %v", sgId, remoteSyncbaseName, call)
 	defer vlog.VI(2).Infof("sync: JoinSyncgroup: end: %v at %s", sgId, remoteSyncbaseName)
 
@@ -814,7 +814,7 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remot
 	ss := sd.sync.(*syncService)
 
 	// Contact a syncgroup Admin to join the syncgroup.
-	sg2, version, genvec, err := sd.joinSyncgroupAtAdmin(ctx, call, sd.db.Id(), sgId, remoteSyncbaseName, expectedSyncbaseBlessing, ss.name, myInfo)
+	sg2, version, genvec, err := sd.joinSyncgroupAtAdmin(ctx, call, sd.db.Id(), sgId, remoteSyncbaseName, expectedSyncbaseBlessings, ss.name, myInfo)
 	if err != nil {
 		return nullSpec, err
 	}
@@ -1204,7 +1204,7 @@ func (s *syncService) advertiseSyncbase(ctx *context.T, call rpc.ServerCall, sg 
 	return nil
 }
 
-func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCall, dbId, sgId wire.Id, remoteSyncbaseName, expectedSyncbaseBlessing, localSyncbaseName string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.GenVector, error) {
+func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCall, dbId, sgId wire.Id, remoteSyncbaseName string, expectedSyncbaseBlessings []string, localSyncbaseName string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.GenVector, error) {
 	vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: begin, dbId %v, sgId %v, remoteSyncbaseName %v", dbId, sgId, remoteSyncbaseName)
 
 	ctx, cancel := context.WithTimeout(ctxIn, peerConnectionTimeout)
@@ -1231,7 +1231,7 @@ func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCa
 	for _, svc := range neighbors {
 		for _, addr := range svc.Addresses {
 			ctx, cancel := context.WithTimeout(ctxIn, peerConnectionTimeout)
-			// TODO(fredq) check that the service at addr has the expectedSyncbaseBlessing
+			// TODO(fredq) check that the service at addr has the expectedSyncbaseBlessings
 			c := interfaces.SyncClient(naming.Join(addr, common.SyncbaseSuffix))
 			sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, dbId, sgId, localSyncbaseName, myInfo)
 			cancel()

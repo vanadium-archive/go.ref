@@ -619,6 +619,6 @@ func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name stri
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	sb2Sg := sb2Db.SyncgroupForId(wire.Id{Name: sgName, Blessing: "blessing"})
-	_, err := sb2Sg.Join(ctxWithTimeout, sb1Name, "", wire.SyncgroupMemberInfo{})
+	_, err := sb2Sg.Join(ctxWithTimeout, sb1Name, nil, wire.SyncgroupMemberInfo{})
 	return err == nil
 }

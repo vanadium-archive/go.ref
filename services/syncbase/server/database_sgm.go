@@ -31,12 +31,12 @@ func (d *database) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wir
 	return sd.CreateSyncgroup(ctx, call, sgId, spec, myInfo)
 }
 
-func (d *database) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remoteSyncbaseName, expectedSyncbaseBlessing string, sgId wire.Id, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
+func (d *database) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remoteSyncbaseName string, expectedSyncbaseBlessings []string, sgId wire.Id, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
 	if !d.exists {
 		return wire.SyncgroupSpec{}, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	sd := vsync.NewSyncDatabase(d)
-	return sd.JoinSyncgroup(ctx, call, remoteSyncbaseName, expectedSyncbaseBlessing, sgId, myInfo)
+	return sd.JoinSyncgroup(ctx, call, remoteSyncbaseName, expectedSyncbaseBlessings, sgId, myInfo)
 }
 
 func (d *database) LeaveSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id) error {
