@@ -859,7 +859,7 @@ var PackAddressTestData = []PackAddressTest{
 		In: []string{
 			"a12345",
 		},
-		Packed: []byte("\x06a12345"),
+		Packed: []byte("\x06a12345\x00"),
 	},
 	{
 		In: []string{
@@ -867,9 +867,21 @@ var PackAddressTestData = []PackAddressTest{
 			"b5678",
 			"c9012",
 		},
-		Packed: []byte("\x05a1234\x05b5678\x05c9012"),
+		Packed: []byte("\x05a1234\x05b5678\x05c9012\x00"),
 	},
 	{},
+	{
+		In: []string{
+			"/@6@wsh@100.110.64.64:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+			"/@6@wsh@8.34.219.227:8100@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+			"/@6@wsh@[2620:0:1000:fd86:66bc:cff:fe51:6cb4]:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+			"/@6@wsh@[2620:0:1000:fd86:d94b:86d7:caff:b48f]:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+			"/@6@wsh@[fe80::2409:8aff:fe2e:f60e]:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+			"/@6@wsh@[fe80::66bc:cff:fe51:6cb4]:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+			"/@6@wsh@[fe80::f33f:4a65:4fe7:fc38]:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+		},
+		Packed: []byte("\xd4\xd2QN\xc4 \x10\x80\xe1x\xa1:PJ\xe9<q\x0fc\bЙ-\xc9ni(\xee\xc6#\x19/\xa0\xcfz0\xab\x0fk\xa2\x89\xcf5\xe1\x11\x92\xef\x1f\xe6\xf9\xe6\xd6j{Y'+\x00\x1a!\xa0\xd1j;\xa8z\x10\xc2Z\x19\xcd(\xbb.\x8a ;\x1a \x06\x0f=w\xd1t=\x18Mm\xb0\xabM\xe3R\xf29\x8dT0c\x9d\xa8\x90\xbb\xf8\xd5yw\xa6\xf2\xe8\x8ey>8\xbf,\xc7\x14}Myv\xdbŹ&NT\x9c\xaf\xaeNiuKNsu%\x1d\xa6\xea>\xdf\xe3\xc3Je\xf6'\xb2k>\xd1r\xf4\x91\x9a\x98O\xd6>]\xb1\xa6iU#\xc5\xd0H٣\xd9\xe8{\xa3\xbe]\xa9wRK@\xc0\r\tȣѨu\x88\x18\x99\x91\xa9\x13\xa8cP\xf7\xfb\x9c\xf7\xfb\x1f\x11\xe3\xa0\x02\x1a=\xf6\x18\xfd\x96\x12\x94\xe1\x9dV\xbc~W0\x19@\x94\n\x064\xfe\xeb\x03$!k\xa0\x9d\xd2_~\xd2\xff\xcd\xea\xfc\x1a:\xb7-\xa3\xf2\xbaC\xc5\xd4#\xc7\xd6\xec\x94\xfe\x11\x00\x00\xff\xff\x01"),
+	},
 }
 var PackEncryptionKeysTestData = []PackEncryptionKeysTest{
 	{

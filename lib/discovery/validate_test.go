@@ -167,6 +167,26 @@ func TestValidateAd(t *testing.T) {
 			},
 			false,
 		},
+		// Real advertisement seen in the wild, with blessings replaced by equal-length strings
+		{
+			discovery.Advertisement{
+				Id:            discovery.AdId{0xd2, 0xa9, 0x48, 0x63, 0x5a, 0xbd, 0xd6, 0x85, 0xde, 0x3b, 0x2c, 0x1a, 0x4a, 0x23, 0xe7, 0x3e},
+				InterfaceName: "v.io/x/ref/services/syncbase/server/interfaces/Sync",
+				Addresses: []string{
+					"/@6@wsh@100.110.64.64:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+					"/@6@wsh@8.34.219.227:8100@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+					"/@6@wsh@[2620:0:1000:fd86:66bc:cff:fe51:6cb4]:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+					"/@6@wsh@[2620:0:1000:fd86:d94b:86d7:caff:b48f]:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+					"/@6@wsh@[fe80::2409:8aff:fe2e:f60e]:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+					"/@6@wsh@[fe80::66bc:cff:fe51:6cb4]:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+					"/@6@wsh@[fe80::f33f:4a65:4fe7:fc38]:47011@@2c8d255c1b25e90cba07f5c857086e3b@s@idprovider:o:there_was_a_very_long_application_identifier_at_this_point_right_here:username@someplace.com@@",
+				},
+				Attributes: discovery.Attributes{
+					"sg": "/ns.dev.v.io:8101/tmp/todos/users/cloud/%%sync/list_lists_JMxfYoYJzPaQGV9Utj1V_KB6epir3Zz8J",
+				},
+			},
+			true,
+		},
 	}
 
 	for i, test := range tests {

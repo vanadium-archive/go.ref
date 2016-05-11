@@ -38,12 +38,12 @@ func encodeAdInfo(adinfo *idiscovery.AdInfo) (map[string][]byte, error) {
 	//
 	//	<Id>
 	//	<InterfaceName>
-	//	<#Addresses>[<Address>...]
+	//      <Addresses encoded using idiscovery.PackAddresses>
 	//	<#Attributes>[<AttributeKey><AttributeValue>...]
 	//	<EncryptionAlgorithm>[<#EncryptionKeys><EncryptionKey>...]
 	//	<Hash>
 	//	<TimestampNs>
-	//	<#DirAddrs>[<DirAddr>...]
+	//      <DirAddrs encoded using idiscovery.PackAddresses>
 	//	<Status>
 	//
 	// Any change of this format (except appending new fields) would break decoding.
@@ -53,10 +53,7 @@ func encodeAdInfo(adinfo *idiscovery.AdInfo) (map[string][]byte, error) {
 	buf.Write(adinfo.Ad.Id[:])
 	buf.WriteString(adinfo.Ad.InterfaceName)
 
-	buf.WriteInt(len(adinfo.Ad.Addresses))
-	for _, addr := range adinfo.Ad.Addresses {
-		buf.WriteString(addr)
-	}
+	buf.WriteBytes(idiscovery.PackAddresses(adinfo.Ad.Addresses))
 
 	buf.WriteInt(len(adinfo.Ad.Attributes))
 	for k, v := range adinfo.Ad.Attributes {
@@ -76,13 +73,10 @@ func encodeAdInfo(adinfo *idiscovery.AdInfo) (map[string][]byte, error) {
 	buf.Write(idiscovery.EncodeTimestamp(adinfo.TimestampNs))
 
 	if len(adinfo.Ad.Attachments) == 0 {
-		buf.WriteInt(0) // No DirAddrs is necessary.
+		buf.WriteBytes(idiscovery.PackAddresses(nil)) // No DirAddrs necessary
 		buf.WriteInt(int(idiscovery.AdReady))
 	} else {
-		buf.WriteInt(len(adinfo.DirAddrs))
-		for _, addr := range adinfo.DirAddrs {
-			buf.WriteString(addr)
-		}
+		buf.WriteBytes(idiscovery.PackAddresses(adinfo.DirAddrs))
 		buf.WriteInt(int(idiscovery.AdPartiallyReady))
 	}
 
@@ -167,13 +161,7 @@ func decodeAdInfo(cs map[string][]byte) (*idiscovery.AdInfo, error) {
 
 	read(adinfo.Ad.Id[:])
 	adinfo.Ad.InterfaceName = readString()
-
-	if n := readInt(); n > 0 {
-		adinfo.Ad.Addresses = make([]string, n)
-		for i := 0; i < n; i++ {
-			adinfo.Ad.Addresses[i] = readString()
-		}
-	}
+	adinfo.Ad.Addresses, err = idiscovery.UnpackAddresses(readBytes())
 
 	if n := readInt(); n > 0 {
 		adinfo.Ad.Attributes = make(map[string]string, n)
@@ -194,12 +182,7 @@ func decodeAdInfo(cs map[string][]byte) (*idiscovery.AdInfo, error) {
 	read(adinfo.Hash[:])
 	adinfo.TimestampNs = readTimestamp()
 
-	if n := readInt(); n > 0 {
-		adinfo.DirAddrs = make([]string, n)
-		for i := 0; i < n; i++ {
-			adinfo.DirAddrs[i] = readString()
-		}
-	}
+	adinfo.DirAddrs, err = idiscovery.UnpackAddresses(readBytes())
 	adinfo.Status = idiscovery.AdStatus(readInt())
 
 	if err != nil {

@@ -6,9 +6,11 @@ package discovery
 
 import (
 	"bytes"
+	"compress/flate"
 	"encoding/binary"
 	"errors"
 	"io"
+	"io/ioutil"
 
 	"v.io/x/ref/lib/security/bcrypter"
 )
@@ -102,8 +104,51 @@ func (e *EncodingBuffer) Next(n int) []byte {
 // NewEncodingBuffer returns a new encoding buffer.
 func NewEncodingBuffer(data []byte) *EncodingBuffer { return &EncodingBuffer{bytes.NewBuffer(data)} }
 
+const (
+	addrsUncompressed = 0
+	addrsCompressed   = 1
+)
+
 // PackAddresses packs addresses into a byte slice.
 func PackAddresses(addrs []string) []byte {
+	if len(addrs) == 0 {
+		return nil
+	}
+	// Format: Trailing byte lists format (addrsCompressed or addrsUncompressed)
+	uncompressed := packAddressesUncompressed(addrs)
+	// Try to compress, if it fails or is too large, return uncompressed.
+	compressed := new(bytes.Buffer)
+	if w, err := flate.NewWriter(compressed, flate.DefaultCompression); err == nil {
+		if _, err := w.Write(uncompressed); err == nil && w.Close() == nil && compressed.Len() < len(uncompressed) {
+			return append(compressed.Bytes(), addrsCompressed)
+		}
+	}
+	return append(uncompressed, addrsUncompressed)
+}
+
+// UnpackAddresses unpacks addresses from a byte slice.
+func UnpackAddresses(data []byte) ([]string, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	var uncompressed []byte
+	switch footer := data[len(data)-1]; footer {
+	case addrsUncompressed:
+		uncompressed = data[:len(data)-1]
+	case addrsCompressed:
+		r := flate.NewReader(bytes.NewBuffer(data[:len(data)-1]))
+		var err error
+		if uncompressed, err = ioutil.ReadAll(r); err != nil {
+			return nil, err
+		}
+		if err := r.Close(); err != nil {
+			return nil, err
+		}
+	}
+	return unpackAddressesUncompressed(uncompressed)
+}
+
+func packAddressesUncompressed(addrs []string) []byte {
 	buf := NewEncodingBuffer(nil)
 	for _, a := range addrs {
 		buf.WriteString(a)
@@ -111,8 +156,7 @@ func PackAddresses(addrs []string) []byte {
 	return buf.Bytes()
 }
 
-// UnpackAddresses unpacks addresses from a byte slice.
-func UnpackAddresses(data []byte) ([]string, error) {
+func unpackAddressesUncompressed(data []byte) ([]string, error) {
 	buf := NewEncodingBuffer(data)
 	var addrs []string
 	for buf.Len() > 0 {

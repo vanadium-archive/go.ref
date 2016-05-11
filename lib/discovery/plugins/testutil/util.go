@@ -61,7 +61,7 @@ func ScanAndMatch(ctx *context.T, p idiscovery.Plugin, interfaceName string, wan
 			return nil
 		}
 	}
-	return fmt.Errorf("Match failed; got %v, but wanted %v", adinfos, wants)
+	return fmt.Errorf("Match failed; got %#v, but wanted %#v", adinfos, wants)
 }
 
 func doScan(ctx *context.T, p idiscovery.Plugin, interfaceName string, expectedAdInfos int) ([]idiscovery.AdInfo, error) {

@@ -76,7 +76,7 @@ func TestPackAddresses(t *testing.T) {
 	for _, test := range testdata.PackAddressTestData {
 		pack := idiscovery.PackAddresses(test.In)
 		if !reflect.DeepEqual(pack, test.Packed) {
-			t.Errorf("packed to: %v, but wanted: %v", pack, test.Packed)
+			t.Errorf("packed to: %v (%d bytes), but wanted: %v (%d bytes)", pack, len(pack), test.Packed, len(test.Packed))
 		}
 		unpack, err := idiscovery.UnpackAddresses(test.Packed)
 		if err != nil {

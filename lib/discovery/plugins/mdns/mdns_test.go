@@ -6,6 +6,8 @@ package mdns
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"strconv"
@@ -50,6 +52,16 @@ func withAdReady(adinfos ...idiscovery.AdInfo) []idiscovery.AdInfo {
 		r[i] = adinfo
 	}
 	return r
+}
+
+func randomString(sz int) string {
+	// base64 encoding encodes 6 bits in 8.  Desired length is sz*8 bits,
+	// so need sz*6/8 bytes of random data to base64 encode.
+	rnd := make([]byte, sz*6/8)
+	if _, err := rand.Read(rnd); err != nil {
+		panic(err)
+	}
+	return base64.StdEncoding.EncodeToString(rnd)
 }
 
 func TestBasic(t *testing.T) {
@@ -213,7 +225,7 @@ func TestLargeAdvertisements(t *testing.T) {
 					Id:            discovery.AdId{1},
 					InterfaceName: "v.io/i",
 					Addresses:     []string{"/@6@wsh@foo.com:1234@@/s"},
-					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 565)},
+					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 564)},
 					Attachments:   discovery.Attachments{"b": bytes.Repeat([]byte{1}, 513)},
 				},
 				EncryptionAlgorithm: idiscovery.TestEncryption,
@@ -227,7 +239,7 @@ func TestLargeAdvertisements(t *testing.T) {
 					Id:            discovery.AdId{1},
 					InterfaceName: "v.io/i",
 					Addresses:     []string{"/@6@wsh@foo.com:1234@@/s"},
-					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 565)},
+					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 564)},
 					Attachments:   discovery.Attachments{"b": bytes.Repeat([]byte{1}, 513)},
 				},
 				EncryptionAlgorithm: idiscovery.TestEncryption,
@@ -271,10 +283,11 @@ func TestLargeAdvertisements(t *testing.T) {
 				Ad: discovery.Advertisement{
 					Id:            discovery.AdId{1},
 					InterfaceName: "v.io/i",
-					Addresses: []string{
-						strings.Repeat("a1", 230),
-						strings.Repeat("a2", 200),
-					},
+					// Addresses are compressed, so
+					// generate one that is random and so
+					// big that it will be too large even
+					// after compression.
+					Addresses:   []string{randomString(2048)},
 					Attributes:  discovery.Attributes{"a": strings.Repeat("v", 255)},
 					Attachments: discovery.Attachments{"b": []byte{1}},
 				},
@@ -301,7 +314,7 @@ func TestLargeAdvertisements(t *testing.T) {
 					Id:            discovery.AdId{1},
 					InterfaceName: "v.io/i",
 					Addresses:     []string{"/@6@wsh@foo.com:1234@@/s"},
-					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 1066)},
+					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 1064)},
 					Attachments:   discovery.Attachments{"b": bytes.Repeat([]byte{1}, 100)},
 				},
 				Hash:        idiscovery.AdHash{9},
@@ -313,7 +326,7 @@ func TestLargeAdvertisements(t *testing.T) {
 					Id:            discovery.AdId{1},
 					InterfaceName: "v.io/i",
 					Addresses:     []string{"/@6@wsh@foo.com:1234@@/s"},
-					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 1066)},
+					Attributes:    discovery.Attributes{"a": strings.Repeat("v", 1064)},
 					Attachments:   discovery.Attachments{},
 				},
 				Hash:        idiscovery.AdHash{9},
@@ -372,7 +385,8 @@ func TestLargeAdvertisements(t *testing.T) {
 	for i, test := range tests {
 		stop, err := testutil.Advertise(ctx, p1, &test.adinfo)
 		if err != nil {
-			t.Fatal(err)
+			t.Errorf("[%d]: %v", i, err)
+			continue
 		}
 		if err := testutil.ScanAndMatch(ctx, p2, "", test.want); err != nil {
 			t.Errorf("[%d]: %v", i, err)

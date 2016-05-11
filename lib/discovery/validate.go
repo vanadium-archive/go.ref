@@ -75,10 +75,7 @@ func validateAttachments(attachments discovery.Attachments) error {
 
 // sizeOfAd returns the size of ad excluding id and attachments.
 func sizeOfAd(ad *discovery.Advertisement) int {
-	size := len(ad.InterfaceName)
-	for _, a := range ad.Addresses {
-		size += len(a)
-	}
+	size := len(ad.InterfaceName) + len(PackAddresses(ad.Addresses))
 	for k, v := range ad.Attributes {
 		size += len(k) + len(v)
 	}
