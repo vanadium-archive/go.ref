@@ -107,7 +107,7 @@ func (x *WireString) VDLRead(dec vdl.Decoder) error {
 	if err != nil {
 		return err
 	}
-	*x = string(tmp)
+	*x = WireString(tmp)
 	return dec.FinishValue()
 }
 
@@ -197,7 +197,7 @@ func (x *WireTime) VDLRead(dec vdl.Decoder) error {
 	if err != nil {
 		return err
 	}
-	*x = time.Time(tmp)
+	*x = WireTime(tmp)
 	return dec.FinishValue()
 }
 
@@ -287,7 +287,7 @@ func (x *WireSamePkg) VDLRead(dec vdl.Decoder) error {
 	if err != nil {
 		return err
 	}
-	*x = nativetest.NativeSamePkg(tmp)
+	*x = WireSamePkg(tmp)
 	return dec.FinishValue()
 }
 
@@ -377,7 +377,7 @@ func (x *WireMultiImport) VDLRead(dec vdl.Decoder) error {
 	if err != nil {
 		return err
 	}
-	*x = map[nativetest.NativeSamePkg]time.Time(tmp)
+	*x = WireMultiImport(tmp)
 	return dec.FinishValue()
 }
 
@@ -683,16 +683,16 @@ func (t *WireAllTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 func (x WireAll) VDLIsZero() bool {
-	if x.A != string("") {
+	if x.A != "" {
 		return false
 	}
 	if !x.B.IsZero() {
 		return false
 	}
-	if x.C != nativetest.NativeSamePkg("") {
+	if x.C != "" {
 		return false
 	}
-	if x.D != map[nativetest.NativeSamePkg]time.Time(nil) {
+	if x.D != nil {
 		return false
 	}
 	if x.E != 0 {
@@ -705,7 +705,7 @@ func (x WireAll) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*WireAll)(nil)).Elem()); err != nil {
 		return err
 	}
-	if x.A != string("") {
+	if x.A != "" {
 		if err := enc.NextField("A"); err != nil {
 			return err
 		}
@@ -729,7 +729,7 @@ func (x WireAll) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if x.C != nativetest.NativeSamePkg("") {
+	if x.C != "" {
 		if err := enc.NextField("C"); err != nil {
 			return err
 		}
@@ -741,7 +741,7 @@ func (x WireAll) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if x.D != map[nativetest.NativeSamePkg]time.Time(nil) {
+	if x.D != nil {
 		if err := enc.NextField("D"); err != nil {
 			return err
 		}

@@ -159,8 +159,13 @@ func (g *genIsZero) Expr(ze zeroExpr, tt *vdl.Type, arg namedArg, tmp string) st
 		}
 		switch {
 		case native.Zero.Mode == vdltool.GoZeroModeUnique:
+			// We use an untyped const as the zero value, because Go only allows
+			// comparison of slices with nil.  E.g.
+			//   type MySlice []string
+			//   pass := MySlice(nil) == nil          // valid
+			//   fail := MySlice(nil) == MySlice(nil) // invalid
 			nType := nativeType(g.goData, native, wirePkg)
-			zeroValue := typedConstNativeZero(native.Kind, nType)
+			zeroValue := untypedConstNativeZero(native.Kind, nType)
 			if ze.GenIfStmt() {
 				if k := native.Kind; k == vdltool.GoKindStruct || k == vdltool.GoKindArray {
 					// Without a special-case, we'll get a statement like:

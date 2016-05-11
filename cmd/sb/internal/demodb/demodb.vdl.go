@@ -4358,7 +4358,7 @@ func (x Times) VDLIsZero() bool {
 	if !x.Stamp.IsZero() {
 		return false
 	}
-	if x.Interval != time.Duration(0) {
+	if x.Interval != 0 {
 		return false
 	}
 	return true
@@ -4380,7 +4380,7 @@ func (x Times) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if x.Interval != time.Duration(0) {
+	if x.Interval != 0 {
 		if err := enc.NextField("Interval"); err != nil {
 			return err
 		}

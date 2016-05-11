@@ -84,7 +84,7 @@ func (g *genRead) genAnonDef() string {
 		g.anonReaders = nil
 		for _, anon := range anons {
 			s += fmt.Sprintf(`
-func %[1]s(dec %[2]sDecoder, x *%[3]s) error {`, g.anonReaderName(anon), g.Pkg("v.io/v23/vdl"), typeGo(g.goData, anon))
+func %[1]s(dec %[2]sDecoder, x *%[3]s) error {`, g.anonReaderName(anon), g.Pkg("v.io/v23/vdl"), typeGoWire(g.goData, anon))
 			s += g.body(anon, namedArg{"x", true}, true) + `
 }
 `
@@ -252,7 +252,7 @@ func (g *genRead) bodyScalar(tt, exact *vdl.Type, arg namedArg, method string, p
 	if err != nil {
 		return err
 	}
-	%[1]s = %[4]s(tmp)`, arg.Ref(), method, paramStr, typeGo(g.goData, tt))
+	%[1]s = %[4]s(tmp)`, arg.Ref(), method, paramStr, typeGoWire(g.goData, tt))
 }
 
 func (g *genRead) bodyEnum(arg namedArg) string {
@@ -340,7 +340,7 @@ func (g *genRead) bodyList(tt *vdl.Type, arg namedArg) string {
 		}
 		var elem %[3]s%[4]s
 		%[1]s = append(%[1]s, elem)
-	}`, arg.Ref(), typeGo(g.goData, tt), typeGo(g.goData, tt.Elem()), elemBody)
+	}`, arg.Ref(), typeGoWire(g.goData, tt), typeGo(g.goData, tt.Elem()), elemBody)
 }
 
 func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
@@ -362,7 +362,7 @@ func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
 		}
 		var key %[3]s
 		{%[4]s
-		}`, typeGo(g.goData, tt), arg.Ref(), typeGo(g.goData, tt.Key()), keyBody)
+		}`, typeGoWire(g.goData, tt), arg.Ref(), typeGo(g.goData, tt.Key()), keyBody)
 	elemValue := "struct{}{}"
 	if tt.Kind() == vdl.Map {
 		elemValue = "elem"
@@ -378,7 +378,7 @@ func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
 			tmpMap = make(%[1]s)
 		}
 		tmpMap[key] = %[2]s
-	}`, typeGo(g.goData, tt), elemValue)
+	}`, typeGoWire(g.goData, tt), elemValue)
 }
 
 func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {

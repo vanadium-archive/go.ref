@@ -322,19 +322,21 @@ func formatFloat(x float64, kind vdl.Kind) string {
 	return strconv.FormatFloat(x, 'g', -1, bitSize)
 }
 
-func errorConstNative(data *goData, v *vdl.Value) string {
-	if elem := v.Elem(); elem != nil {
-		wireError := typedConstWire(data, elem)
-		return data.Pkg("v.io/v23/verror") + "FromWire(&" + wireError + ")"
-	}
-	return "nil"
-}
-
 // typedConstNative returns a typed native constant, or returns the empty string
 // if v isn't a native type.
 func typedConstNative(data *goData, v *vdl.Value) string {
+	return constNative(data, v, true)
+}
+
+// untypedConstNative returns an untyped native constant, or returns the empty
+// string if v isn't a native type.
+func untypedConstNative(data *goData, v *vdl.Value) string {
+	return constNative(data, v, false)
+}
+
+func constNative(data *goData, v *vdl.Value, typed bool) string {
 	if v.Type() == vdl.ErrorType {
-		return errorConstNative(data, v)
+		return constNativeError(data, v)
 	}
 	if native, wirePkg, ok := findNativeType(data.Env, v.Type()); ok {
 		nType := nativeType(data, native, wirePkg)
@@ -342,29 +344,23 @@ func typedConstNative(data *goData, v *vdl.Value) string {
 			// This is the case where the value is zero, and the zero mode is either
 			// Canonical or Unique, which means that the Go zero value of the native
 			// type is sufficient to represent the value.
-			return typedConstNativeZero(native.Kind, nType)
+			if typed {
+				return typedConstNativeZero(native.Kind, nType)
+			} else {
+				return untypedConstNativeZero(native.Kind, nType)
+			}
 		}
 		return constNativeConversion(data, v, nType, toNative(data, native, v.Type()))
 	}
 	return ""
 }
 
-// untypedConstNative returns an untyped native constant, or returns the empty
-// string if v isn't a native type.
-func untypedConstNative(data *goData, v *vdl.Value) string {
-	if v.Type() == vdl.ErrorType {
-		return errorConstNative(data, v)
+func constNativeError(data *goData, v *vdl.Value) string {
+	if elem := v.Elem(); elem != nil {
+		wireError := typedConstWire(data, elem)
+		return data.Pkg("v.io/v23/verror") + "FromWire(&" + wireError + ")"
 	}
-	if native, wirePkg, ok := findNativeType(data.Env, v.Type()); ok {
-		if native.Zero.Mode != vdltool.GoZeroModeUnknown && v.IsZero() {
-			// This is the case where the value is zero, and the zero mode is either
-			// Canonical or Unique, which means that the Go zero value of the native
-			// type is sufficient to represent the value.
-			return untypedConstNativeZero(native.Kind)
-		}
-		return constNativeConversion(data, v, nativeType(data, native, wirePkg), toNative(data, native, v.Type()))
-	}
-	return ""
+	return "nil"
 }
 
 func constNativeConversion(data *goData, v *vdl.Value, nType, toNative string) string {
@@ -382,21 +378,19 @@ func constNativeConversion(data *goData, v *vdl.Value, nType, toNative string) s
 }
 
 func typedConstNativeZero(kind vdltool.GoKind, nType string) string {
-	zero := untypedConstNativeZero(kind)
+	zero := untypedConstNativeZero(kind, nType)
 	switch kind {
 	case vdltool.GoKindStruct, vdltool.GoKindArray:
-		return nType + zero // e.g. NativeType{}
-	case vdltool.GoKindPointer:
-		return "(" + nType + ")(" + zero + ")" // e.g. (*NativeType)(nil)
+		return zero // untyped const is already typed, e.g. NativeType{}
 	default:
 		return nType + "(" + zero + ")" // e.g. NativeType(0)
 	}
 }
 
-func untypedConstNativeZero(kind vdltool.GoKind) string {
+func untypedConstNativeZero(kind vdltool.GoKind, nType string) string {
 	switch kind {
 	case vdltool.GoKindStruct, vdltool.GoKindArray:
-		return "{}"
+		return nType + "{}" // No way to create an untyped zero struct or array.
 	case vdltool.GoKindBool:
 		return "false"
 	case vdltool.GoKindNumber:

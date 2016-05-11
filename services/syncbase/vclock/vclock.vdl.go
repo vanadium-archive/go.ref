@@ -283,10 +283,10 @@ func (x VClockData) VDLIsZero() bool {
 	if !x.SystemTimeAtBoot.IsZero() {
 		return false
 	}
-	if x.Skew != time.Duration(0) {
+	if x.Skew != 0 {
 		return false
 	}
-	if x.ElapsedTimeSinceBoot != time.Duration(0) {
+	if x.ElapsedTimeSinceBoot != 0 {
 		return false
 	}
 	if !x.LastNtpTs.IsZero() {
@@ -317,7 +317,7 @@ func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if x.Skew != time.Duration(0) {
+	if x.Skew != 0 {
 		if err := enc.NextField("Skew"); err != nil {
 			return err
 		}
@@ -329,7 +329,7 @@ func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if x.ElapsedTimeSinceBoot != time.Duration(0) {
+	if x.ElapsedTimeSinceBoot != 0 {
 		if err := enc.NextField("ElapsedTimeSinceBoot"); err != nil {
 			return err
 		}

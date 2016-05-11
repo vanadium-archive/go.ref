@@ -213,16 +213,16 @@ func (t *AllTarget) FinishFields(_ vdl.FieldsTarget) error {
 }
 
 func (x All) VDLIsZero() bool {
-	if x.A != string("") {
+	if x.A != "" {
 		return false
 	}
 	if !x.B.IsZero() {
 		return false
 	}
-	if x.C != nativetest.NativeSamePkg("") {
+	if x.C != "" {
 		return false
 	}
-	if x.D != map[nativetest.NativeSamePkg]time.Time(nil) {
+	if x.D != nil {
 		return false
 	}
 	return true
@@ -232,7 +232,7 @@ func (x All) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(vdl.TypeOf((*All)(nil)).Elem()); err != nil {
 		return err
 	}
-	if x.A != string("") {
+	if x.A != "" {
 		if err := enc.NextField("A"); err != nil {
 			return err
 		}
@@ -256,7 +256,7 @@ func (x All) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if x.C != nativetest.NativeSamePkg("") {
+	if x.C != "" {
 		if err := enc.NextField("C"); err != nil {
 			return err
 		}
@@ -268,7 +268,7 @@ func (x All) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if x.D != map[nativetest.NativeSamePkg]time.Time(nil) {
+	if x.D != nil {
 		if err := enc.NextField("D"); err != nil {
 			return err
 		}
