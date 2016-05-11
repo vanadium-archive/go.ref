@@ -109,6 +109,7 @@ func HasPublicIP(log logging.Logger) bool {
 	}
 	for _, a := range any {
 		if netstate.IsPublicUnicastIPv4(a) {
+			log.Infof("Found a public IP address: %v", a)
 			return true
 		}
 	}

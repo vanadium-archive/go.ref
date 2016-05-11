@@ -22,6 +22,7 @@ const pkgPath = "v.io/x/ref/runtime/internal"
 
 var (
 	errNotGoogleComputeEngine = verror.Register(pkgPath+".errNotGoogleComputeEngine", verror.NoRetry, "{1:}{2:} failed to access gce metadata")
+	errGCENoExternalIP        = verror.Register(pkgPath+".errGCENoExternalIP", verror.NoRetry, "{1:}{2:} gce instance does not have an external IP address")
 
 	initialized bool
 	mu          sync.Mutex
@@ -48,6 +49,9 @@ func InitCloudVM() (func(), error) {
 		cloudvm.InitGCE(30*time.Second, cancel)
 		if !cloudvm.RunningOnGCE() {
 			return func() {}, verror.New(errNotGoogleComputeEngine, nil)
+		}
+		if cloudvm.ExternalIPAddress() == nil {
+			return func() {}, verror.New(errGCENoExternalIP, nil)
 		}
 		return func() {}, nil
 	}
