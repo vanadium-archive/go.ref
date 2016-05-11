@@ -62,6 +62,9 @@ const (
 
 	// A comma-separated list of path names to export disk stats for.
 	EnvSysStatsDiskPaths = "V23_SYS_STATS_DISK_PATHS"
+
+	// When set and non-empty, the namespace client will not use caching.
+	EnvDisableNamespaceCache = "V23_DISABLE_NS_CACHE"
 )
 
 // EnvNamespaceRoots returns the set of namespace roots to be used by the

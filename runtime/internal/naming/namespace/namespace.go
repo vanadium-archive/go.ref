@@ -5,6 +5,7 @@
 package namespace
 
 import (
+	"os"
 	"sync"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 
+	"v.io/x/ref"
 	"v.io/x/ref/lib/apilog"
 )
 
@@ -71,7 +73,7 @@ func New(roots ...string) (*namespace, error) {
 		roots:                 roots,
 		maxResolveDepth:       defaultMaxResolveDepth,
 		maxRecursiveGlobDepth: defaultMaxRecursiveGlobDepth,
-		resolutionCache:       newTTLCache(),
+		resolutionCache:       newCache(os.Getenv(ref.EnvDisableNamespaceCache) != ""),
 	}, nil
 }
 
@@ -192,15 +194,10 @@ func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 	for _, c := range ctls {
 		switch v := c.(type) {
 		case naming.DisableCache:
+			disableCache := bool(v)
 			ns.Lock()
-			if _, isDisabled := ns.resolutionCache.(nullCache); isDisabled {
-				if !v {
-					ns.resolutionCache = newTTLCache()
-				}
-			} else {
-				if v {
-					ns.resolutionCache = newNullCache()
-				}
+			if _, isDisabled := ns.resolutionCache.(nullCache); isDisabled != disableCache {
+				ns.resolutionCache = newCache(disableCache)
 			}
 			ns.Unlock()
 		}

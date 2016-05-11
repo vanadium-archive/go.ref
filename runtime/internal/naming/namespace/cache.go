@@ -206,3 +206,10 @@ func (nullCache) lookup(ctx *context.T, name string) (e naming.MountEntry, err e
 }
 func (nullCache) isNotMT(s string) bool { return false }
 func (nullCache) setNotMT(s string)     {}
+
+func newCache(disabled bool) cache {
+	if disabled {
+		return newNullCache()
+	}
+	return newTTLCache()
+}
