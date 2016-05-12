@@ -7,6 +7,12 @@
 package syncbased_vine
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime/pprof"
+	"time"
+
 	"v.io/v23"
 	"v.io/v23/security"
 	"v.io/x/lib/gosh"
@@ -19,6 +25,23 @@ import (
 func Main(vineServerName string, vineTag string, opts syncbaselib.Opts) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
+
+	done := make(chan struct{})
+	defer close(done)
+
+	// Start a goroutine that repeatedly captures pprof data every minute.
+	pprofDir := filepath.Join(opts.RootDir, "pprof")
+	panicOnErr(os.MkdirAll(pprofDir, 0755))
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-time.After(time.Minute):
+				capturePprof(pprofDir)
+			}
+		}
+	}()
 
 	// Start a VINE Server and modify our ctx to use the "vine" protocol.
 	// The final argument is the discoveryTTL, which uses a sensible default if
@@ -39,4 +62,24 @@ func Main(vineServerName string, vineTag string, opts syncbaselib.Opts) {
 	})
 	defer cleanup()
 	ctx.Info("Received signal ", <-signals.ShutdownOnSignals(ctx))
+}
+
+func capturePprof(dir string) {
+	now := time.Now().Format(time.RFC3339)
+
+	heapFile, err := os.Create(filepath.Join(dir, fmt.Sprintf("heap-%s", now)))
+	panicOnErr(err)
+	panicOnErr(pprof.Lookup("heap").WriteTo(heapFile, 1))
+	panicOnErr(heapFile.Close())
+
+	goroutineFile, err := os.Create(filepath.Join(dir, fmt.Sprintf("goroutine-%s", now)))
+	panicOnErr(err)
+	panicOnErr(pprof.Lookup("goroutine").WriteTo(goroutineFile, 1))
+	panicOnErr(goroutineFile.Close())
+}
+
+func panicOnErr(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
