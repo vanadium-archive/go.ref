@@ -16,7 +16,6 @@ import (
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
-	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // collectionReq is a per-request object that handles Collection RPCs.
@@ -33,12 +32,14 @@ var (
 // RPC methods
 
 func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, perms access.Permissions) error {
-	impl := func(tx *watchable.Transaction) error {
+	impl := func(ts *transactionState) error {
+		tx := ts.tx
 		// Check DatabaseData perms.
 		dData := &DatabaseData{}
 		if err := util.GetWithAuth(ctx, call, tx, c.d.stKey(), dData); err != nil {
 			return err
 		}
+
 		// Check for "collection already exists".
 		if err := store.Get(ctx, tx, c.permsKey(), &CollectionPerms{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
@@ -60,7 +61,8 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 // collection data deletion to be deferred, making deletion faster (reference
 // removal). Same for database deletion.
 func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
-	impl := func(tx *watchable.Transaction) error {
+	impl := func(ts *transactionState) error {
+		tx := ts.tx
 		// Read-check-delete CollectionPerms.
 		if err := util.GetWithAuth(ctx, call, tx, c.permsKey(), &CollectionPerms{}); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoExist.ID {
@@ -109,23 +111,29 @@ func (c *collectionReq) GetPermissions(ctx *context.T, call rpc.ServerCall, bh w
 	return access.Permissions(res), nil
 }
 
-func (c *collectionReq) SetPermissions(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, perms access.Permissions) error {
-	impl := func(tx *watchable.Transaction) error {
-		if err := c.checkAccess(ctx, call, tx); err != nil {
+func (c *collectionReq) SetPermissions(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, newPerms access.Permissions) error {
+	impl := func(ts *transactionState) error {
+		tx := ts.tx
+		currentPerms, err := c.checkAccess(ctx, call, tx)
+		if err != nil {
 			return err
 		}
-		storedPerms := CollectionPerms(perms)
+		ts.MarkPermsChanged(c.id, currentPerms, newPerms)
+		storedPerms := CollectionPerms(newPerms)
 		return store.Put(ctx, tx, c.permsKey(), &storedPerms)
 	}
 	return c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
 }
 
 func (c *collectionReq) DeleteRange(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, start, limit []byte) error {
-	impl := func(tx *watchable.Transaction) error {
+	impl := func(ts *transactionState) error {
+		tx := ts.tx
 		// Check for collection-level access before doing a scan.
-		if err := c.checkAccess(ctx, call, tx); err != nil {
+		currentPerms, err := c.checkAccess(ctx, call, tx)
+		if err != nil {
 			return err
 		}
+		ts.MarkDataChanged(c.id, currentPerms)
 		it := tx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, c.stKeyPart()), string(start), string(limit)))
 		key := []byte{}
 		for it.Advance() {
@@ -146,7 +154,7 @@ func (c *collectionReq) DeleteRange(ctx *context.T, call rpc.ServerCall, bh wire
 func (c *collectionReq) Scan(ctx *context.T, call wire.CollectionScanServerCall, bh wire.BatchHandle, start, limit []byte) error {
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check for collection-level access before doing a scan.
-		if err := c.checkAccess(ctx, call, sntx); err != nil {
+		if _, err := c.checkAccess(ctx, call, sntx); err != nil {
 			return err
 		}
 		it := sntx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, c.stKeyPart()), string(start), string(limit)))
@@ -179,7 +187,7 @@ func (c *collectionReq) Scan(ctx *context.T, call wire.CollectionScanServerCall,
 func (c *collectionReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check perms.
-		if err := c.checkAccess(ctx, call, sntx); err != nil {
+		if _, err := c.checkAccess(ctx, call, sntx); err != nil {
 			return err
 		}
 		return util.GlobChildren(ctx, call, matcher, sntx, common.JoinKeyParts(common.RowPrefix, c.stKeyPart()))
@@ -208,9 +216,10 @@ func (c *collectionReq) stKeyPart() string {
 // TODO(rogulenko): Revisit this behavior. Eventually we'll want the
 // collection-level access check to be a check for "Resolve", i.e. also check
 // access to service and database.
-func (c *collectionReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) error {
-	if err := util.GetWithAuth(ctx, call, sntx, c.permsKey(), &CollectionPerms{}); err != nil {
-		return err
+func (c *collectionReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) (access.Permissions, error) {
+	collectionPerms := &CollectionPerms{}
+	if err := util.GetWithAuth(ctx, call, sntx, c.permsKey(), collectionPerms); err != nil {
+		return nil, err
 	}
-	return nil
+	return collectionPerms.GetPerms(), nil
 }

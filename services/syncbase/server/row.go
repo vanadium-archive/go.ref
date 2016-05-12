@@ -13,7 +13,6 @@ import (
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
-	"v.io/x/ref/services/syncbase/store/watchable"
 )
 
 // rowReq is a per-request object that handles Row RPCs.
@@ -47,15 +46,15 @@ func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (
 }
 
 func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, value *vom.RawBytes) error {
-	impl := func(tx *watchable.Transaction) error {
-		return r.put(ctx, call, tx, value)
+	impl := func(ts *transactionState) error {
+		return r.put(ctx, call, ts, value)
 	}
 	return r.c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
 }
 
 func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
-	impl := func(tx *watchable.Transaction) error {
-		return r.delete(ctx, call, tx)
+	impl := func(ts *transactionState) error {
+		return r.delete(ctx, call, ts)
 	}
 	return r.c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
 }
@@ -74,7 +73,7 @@ func (r *rowReq) stKeyPart() string {
 // get reads data from the storage engine.
 // Performs authorization check.
 func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) (*vom.RawBytes, error) {
-	if err := r.c.checkAccess(ctx, call, sntx); err != nil {
+	if _, err := r.c.checkAccess(ctx, call, sntx); err != nil {
 		return nil, err
 	}
 	value, err := sntx.Get([]byte(r.stKey()), nil)
@@ -93,10 +92,13 @@ func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrT
 
 // put writes data to the storage engine.
 // Performs authorization check.
-func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx *watchable.Transaction, value *vom.RawBytes) error {
-	if err := r.c.checkAccess(ctx, call, tx); err != nil {
+func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, ts *transactionState, value *vom.RawBytes) error {
+	tx := ts.tx
+	currentPerms, err := r.c.checkAccess(ctx, call, tx)
+	if err != nil {
 		return err
 	}
+	ts.MarkDataChanged(r.c.id, currentPerms)
 	valueAsBytes, err := vom.Encode(value)
 	if err != nil {
 		return err
@@ -109,11 +111,13 @@ func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, tx *watchable.Transact
 
 // delete deletes data from the storage engine.
 // Performs authorization check.
-func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, tx *watchable.Transaction) error {
-	if err := r.c.checkAccess(ctx, call, tx); err != nil {
+func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, ts *transactionState) error {
+	currentPerms, err := r.c.checkAccess(ctx, call, ts.tx)
+	if err != nil {
 		return err
 	}
-	if err := tx.Delete([]byte(r.stKey())); err != nil {
+	ts.MarkDataChanged(r.c.id, currentPerms)
+	if err := ts.tx.Delete([]byte(r.stKey())); err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
 	return nil

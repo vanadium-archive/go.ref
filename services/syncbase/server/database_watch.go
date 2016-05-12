@@ -96,7 +96,7 @@ func (c *collectionReq) scanInitialState(ctx *context.T, call watch.GlobWatcherW
 		parts := common.SplitNKeyParts(string(key), 3)
 		externalKey := parts[2]
 		// TODO(ivanpi): Check only once per collection.
-		if err := c.checkAccess(ctx, call, sntx); err != nil {
+		if _, err := c.checkAccess(ctx, call, sntx); err != nil {
 			// TODO(ivanpi): Inaccessible rows are skipped. Figure out how to signal
 			// this to caller.
 			if verror.ErrorID(err) == verror.ErrNoAccess.ID {
@@ -209,7 +209,7 @@ func (c *collectionReq) processLogBatch(ctx *context.T, call watch.GlobWatcherWa
 			continue
 		}
 		// TODO(ivanpi): Check only once per collection per batch.
-		if err := c.checkAccess(ctx, call, sn); err != nil {
+		if _, err := c.checkAccess(ctx, call, sn); err != nil {
 			if verror.ErrorID(err) != verror.ErrNoAccess.ID {
 				return err
 			}

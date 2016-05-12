@@ -16,6 +16,7 @@ import (
 	ds "v.io/v23/query/engine/datasource"
 	"v.io/v23/query/syncql"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	pubutil "v.io/v23/syncbase/util"
@@ -49,7 +50,7 @@ type database struct {
 	// TODO(sadovsky): Add timeouts and GC.
 	mu  sync.Mutex // protects the fields below
 	sns map[uint64]store.Snapshot
-	txs map[uint64]*watchable.Transaction
+	txs map[uint64]*transactionState
 
 	// Active ConflictResolver connection from the app to this database.
 	// NOTE: For now, we assume there's only one open conflict resolution stream
@@ -74,6 +75,91 @@ type DatabaseOptions struct {
 	Engine string
 }
 
+type permissionState struct {
+	dataChanged  bool
+	permsChanged bool
+	initialPerms access.Permissions
+	finalPerms   access.Permissions
+}
+
+type transactionState struct {
+	tx           *watchable.Transaction
+	permsChanges map[wire.Id]*permissionState
+}
+
+// Keeps track that this collection had a mutation and the permissions at the time. If no
+// permissions are yet known for the collection then remember the current permissions as the
+// initial permissions of the collection.
+// When the transaction is committed we will know to validate this collection's permissions.
+func (ts *transactionState) MarkDataChanged(collectionId wire.Id, perms access.Permissions) {
+	state := ts.permsState(collectionId)
+	state.dataChanged = true
+	if state.initialPerms == nil {
+		state.initialPerms = perms
+	}
+	state.finalPerms = perms
+}
+
+// Keeps track that the permissions were changed on this collection and the before and after
+// permissions. If no permissions are yet known for the collection then remember the current
+// permissions as the initial permissions of the collection.
+func (ts *transactionState) MarkPermsChanged(collectionId wire.Id, permsBefore access.Permissions, permsAfter access.Permissions) {
+	state := ts.permsState(collectionId)
+	state.permsChanged = true
+	if state.initialPerms == nil {
+		state.initialPerms = permsBefore
+	}
+	state.finalPerms = permsAfter
+}
+
+// validatePermissionChanges performs an auth check on each collection that has a data change or
+// permission change and returns false if any of the auth checks fail.
+func (ts *transactionState) validatePermissionChanges(ctx *context.T, securityCall security.Call) bool {
+	for _, collectionState := range ts.permsChanges {
+		// This collection was modified, make sure that the write acl is either present at
+		// the end or that it had the write acl to begin with. This way we can be sure that
+		// a mutation didn't take place when it appeared that there was no write acl before
+		// and after the transaction.
+		if collectionState.dataChanged {
+			before := hasPermission(ctx, securityCall, collectionState.initialPerms, access.Write)
+			after := hasPermission(ctx, securityCall, collectionState.finalPerms, access.Write)
+			if !after && !before {
+				return false
+			}
+		}
+
+		// The permissions were changed on the collection, make sure that the admin acl is
+		// present at the beginning.
+		if collectionState.permsChanged {
+			if !hasPermission(ctx, securityCall, collectionState.initialPerms, access.Admin) {
+				return false
+			}
+		}
+
+	}
+	return true
+}
+
+func (ts *transactionState) permsState(collectionId wire.Id) *permissionState {
+	if ts.permsChanges == nil {
+		ts.permsChanges = make(map[wire.Id]*permissionState)
+	}
+	state, ok := ts.permsChanges[collectionId]
+	if !ok {
+		state = &permissionState{}
+		ts.permsChanges[collectionId] = state
+	}
+	return state
+}
+
+// hasPermission returns true if the caller is authorized for the specific tag based on the
+// passed in perms.
+func hasPermission(ctx *context.T, securityCall security.Call, perms access.Permissions, tag access.Tag) bool {
+	permForTag, ok := perms[string(tag)]
+	// Authorize returns either an error or nil, so nil means the caller is authorized.
+	return ok && permForTag.Authorize(ctx, securityCall) == nil
+}
+
 // openDatabase opens a database and returns a *database for it. Designed for
 // use from within newDatabase and newService.
 func openDatabase(ctx *context.T, s *service, id wire.Id, opts DatabaseOptions, openOpts storeutil.OpenOptions) (*database, error) {
@@ -96,7 +182,7 @@ func openDatabase(ctx *context.T, s *service, id wire.Id, opts DatabaseOptions, 
 		exists: true,
 		st:     wst,
 		sns:    make(map[uint64]store.Snapshot),
-		txs:    make(map[uint64]*watchable.Transaction),
+		txs:    make(map[uint64]*transactionState),
 	}, nil
 }
 
@@ -149,6 +235,10 @@ func (d *database) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
 func (d *database) BeginBatch(ctx *context.T, call rpc.ServerCall, opts wire.BatchOptions) (wire.BatchHandle, error) {
+	return d.beginBatch(ctx, opts)
+}
+
+func (d *database) beginBatch(ctx *context.T, opts wire.BatchOptions) (wire.BatchHandle, error) {
 	if !d.exists {
 		return "", verror.New(verror.ErrNoExist, ctx, d.id)
 	}
@@ -166,7 +256,7 @@ func (d *database) BeginBatch(ctx *context.T, call rpc.ServerCall, opts wire.Bat
 			}
 		} else {
 			if _, ok := d.txs[id]; !ok {
-				d.txs[id] = d.st.NewWatchableTransaction()
+				d.txs[id] = &transactionState{tx: d.st.NewWatchableTransaction()}
 				batchType = common.BatchTypeTx
 				break
 			}
@@ -182,14 +272,17 @@ func (d *database) Commit(ctx *context.T, call rpc.ServerCall, bh wire.BatchHand
 	if bh == "" {
 		return wire.NewErrNotBoundToBatch(ctx)
 	}
-	_, tx, batchId, err := d.batchLookupInternal(ctx, bh)
+	_, ts, batchId, err := d.batchLookupInternal(ctx, bh)
 	if err != nil {
 		return err
 	}
-	if tx == nil {
+	if ts == nil {
 		return wire.NewErrReadOnlyBatch(ctx)
 	}
-	if err = tx.Commit(); err == nil {
+	if !ts.validatePermissionChanges(ctx, call.Security()) {
+		return wire.NewErrInvalidPermissionsChange(ctx)
+	}
+	if err = ts.tx.Commit(); err == nil {
 		d.mu.Lock()
 		delete(d.txs, batchId)
 		d.mu.Unlock()
@@ -209,16 +302,16 @@ func (d *database) Abort(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandl
 	if bh == "" {
 		return wire.NewErrNotBoundToBatch(ctx)
 	}
-	sn, tx, batchId, err := d.batchLookupInternal(ctx, bh)
+	sn, ts, batchId, err := d.batchLookupInternal(ctx, bh)
 	if err != nil {
 		return err
 	}
-	if tx != nil {
+	if ts != nil {
 		d.mu.Lock()
 		delete(d.txs, batchId)
 		d.mu.Unlock()
 		// TODO(ivanpi): If tx.Abort fails, retry later?
-		return tx.Abort()
+		return ts.tx.Abort()
 	} else {
 		d.mu.Lock()
 		delete(d.sns, batchId)
@@ -258,7 +351,7 @@ func (d *database) execInternal(ctx *context.T, call wire.DatabaseExecServerCall
 			d:    d,
 			bh:   bh,
 			sntx: nil, // Filled in later with existing or created sn/tx.
-			tx:   nil, // Only filled in if new tx created.
+			ts:   nil, // Only filled in if a new batch was created.
 		}
 		st, err := engine.Create(db).PrepareStatement(q)
 		if err != nil {
@@ -301,8 +394,8 @@ func execCommitOrAbort(qdb *queryDb, err error) error {
 		}
 		return err
 	} else { // err is nil
-		if qdb.tx != nil {
-			return qdb.tx.Commit()
+		if qdb.ts != nil {
+			return qdb.ts.tx.Commit()
 		} else if qdb.sntx != nil {
 			return qdb.sntx.Abort()
 		}
@@ -380,8 +473,8 @@ func (d *database) PauseSync(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	return watchable.RunInTransaction(d.St(), func(tx *watchable.Transaction) error {
-		return sbwatchable.AddDbStateChangeRequestOp(ctx, tx, sbwatchable.StateChangePauseSync)
+	return d.runInTransaction(func(ts *transactionState) error {
+		return sbwatchable.AddDbStateChangeRequestOp(ctx, ts.tx, sbwatchable.StateChangePauseSync)
 	})
 }
 
@@ -389,8 +482,8 @@ func (d *database) ResumeSync(ctx *context.T, call rpc.ServerCall) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	return watchable.RunInTransaction(d.St(), func(tx *watchable.Transaction) error {
-		return sbwatchable.AddDbStateChangeRequestOp(ctx, tx, sbwatchable.StateChangeResumeSync)
+	return d.runInTransaction(func(ts *transactionState) error {
+		return sbwatchable.AddDbStateChangeRequestOp(ctx, ts.tx, sbwatchable.StateChangeResumeSync)
 	})
 }
 
@@ -443,7 +536,7 @@ type queryDb struct {
 	d    *database
 	bh   wire.BatchHandle
 	sntx store.SnapshotOrTransaction
-	tx   *watchable.Transaction // If transaction, this will be same as sntx (else nil)
+	ts   *transactionState // Will only be set if in a transaction (else nil)
 }
 
 func (qdb *queryDb) GetContext() *context.T {
@@ -474,7 +567,7 @@ func (qdb *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error)
 			// We are in a batch (could be snapshot or transaction)
 			// and Write access is required.  Attempt to get a
 			// transaction from the request.
-			qt.qdb.tx, err = qt.qdb.d.batchTransaction(qt.qdb.GetContext(), qt.qdb.bh)
+			qt.qdb.ts, err = qt.qdb.d.batchTransaction(qt.qdb.GetContext(), qt.qdb.bh)
 			if err != nil {
 				if verror.ErrorID(err) == wire.ErrReadOnlyBatch.ID {
 					// We are in a snapshot batch, write access cannot be provided.
@@ -483,7 +576,7 @@ func (qdb *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error)
 				}
 				return nil, err
 			}
-			qt.qdb.sntx = qt.qdb.tx
+			qt.qdb.sntx = qt.qdb.ts.tx
 		} else {
 			qt.qdb.sntx, err = qt.qdb.d.batchReader(qt.qdb.GetContext(), qt.qdb.bh)
 			if err != nil {
@@ -496,13 +589,17 @@ func (qdb *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error)
 		if !writeAccessReq {
 			qt.qdb.sntx = qt.qdb.d.st.NewSnapshot()
 		} else { // writeAccessReq
-			qt.qdb.tx = qt.qdb.d.st.NewWatchableTransaction()
-			qt.qdb.sntx = qt.qdb.tx
+			qt.qdb.ts = &transactionState{tx: qt.qdb.d.st.NewWatchableTransaction()}
+			qt.qdb.sntx = qt.qdb.ts.tx
 		}
 	}
 	// Now that we have a collection, we need to check permissions.
-	if err := qt.cReq.checkAccess(qdb.ctx, qdb.call, qdb.sntx); err != nil {
+	collectionPerms, err := qt.cReq.checkAccess(qdb.ctx, qdb.call, qdb.sntx)
+	if err != nil {
 		return nil, err
+	}
+	if writeAccessReq {
+		qt.qdb.ts.MarkDataChanged(qt.cReq.id, collectionPerms)
 	}
 	return qt, nil
 }
@@ -525,7 +622,7 @@ func (t *queryTable) Delete(k string) (bool, error) {
 		key: k,
 		c:   t.cReq,
 	}
-	if err := rowReq.delete(t.qdb.GetContext(), t.qdb.call, t.qdb.tx); err != nil {
+	if err := rowReq.delete(t.qdb.GetContext(), t.qdb.call, t.qdb.ts); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -644,45 +741,45 @@ func (d *database) runWithExistingBatchOrNewSnapshot(ctx *context.T, bh wire.Bat
 	}
 }
 
-func (d *database) runInExistingBatchOrNewTransaction(ctx *context.T, bh wire.BatchHandle, fn func(tx *watchable.Transaction) error) error {
+func (d *database) runInExistingBatchOrNewTransaction(ctx *context.T, bh wire.BatchHandle, fn func(ts *transactionState) error) error {
 	if bh != "" {
-		if tx, err := d.batchTransaction(ctx, bh); err != nil {
+		if batch, err := d.batchTransaction(ctx, bh); err != nil {
 			// Batch does not exist or is readonly (snapshot).
 			return err
 		} else {
-			return fn(tx)
+			return fn(batch)
 		}
 	} else {
-		return watchable.RunInTransaction(d.st, fn)
+		return d.runInTransaction(fn)
 	}
 }
 
 func (d *database) batchReader(ctx *context.T, bh wire.BatchHandle) (store.SnapshotOrTransaction, error) {
-	sn, tx, _, err := d.batchLookupInternal(ctx, bh)
+	sn, ts, _, err := d.batchLookupInternal(ctx, bh)
 	if err != nil {
 		return nil, err
 	}
 	if sn != nil {
 		return sn, nil
 	}
-	return tx, nil
+	return ts.tx, nil
 }
 
-func (d *database) batchTransaction(ctx *context.T, bh wire.BatchHandle) (*watchable.Transaction, error) {
-	sn, tx, _, err := d.batchLookupInternal(ctx, bh)
+func (d *database) batchTransaction(ctx *context.T, bh wire.BatchHandle) (*transactionState, error) {
+	sn, ts, _, err := d.batchLookupInternal(ctx, bh)
 	if err != nil {
 		return nil, err
 	}
 	if sn != nil {
 		return nil, wire.NewErrReadOnlyBatch(ctx)
 	}
-	return tx, nil
+	return ts, nil
 }
 
 // batchLookupInternal parses the batch handle and retrieves the corresponding
-// snapshot or transaction. It returns an error if the handle is malformed or
-// the batch does not exist. Otherwise, exactly one of sn and tx will be != nil.
-func (d *database) batchLookupInternal(ctx *context.T, bh wire.BatchHandle) (sn store.Snapshot, tx *watchable.Transaction, batchId uint64, _ error) {
+// snapshot or batch. It returns an error if the handle is malformed or
+// the batch does not exist. Otherwise, exactly one of sn and b will be != nil.
+func (d *database) batchLookupInternal(ctx *context.T, bh wire.BatchHandle) (sn store.Snapshot, ts *transactionState, batchId uint64, _ error) {
 	if bh == "" {
 		return nil, nil, 0, verror.New(verror.ErrInternal, ctx, "batch lookup for empty handle")
 	}
@@ -697,12 +794,12 @@ func (d *database) batchLookupInternal(ctx *context.T, bh wire.BatchHandle) (sn 
 	case common.BatchTypeSn:
 		sn, found = d.sns[bId]
 	case common.BatchTypeTx:
-		tx, found = d.txs[bId]
+		ts, found = d.txs[bId]
 	}
 	if !found {
 		return nil, nil, bId, wire.NewErrUnknownBatch(ctx)
 	}
-	return sn, tx, bId, nil
+	return sn, ts, bId, nil
 }
 
 func (d *database) setPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
@@ -720,4 +817,35 @@ func (d *database) setPermsInternal(ctx *context.T, call rpc.ServerCall, perms a
 			return nil
 		})
 	})
+}
+
+// runInTransaction runs the given fn in a transaction, managing retries and
+// commit/abort.
+func (d *database) runInTransaction(fn func(ts *transactionState) error) error {
+	// TODO(rogulenko): Change the default number of attempts to 3. Currently,
+	// some storage engine tests fail when the number of attempts is that low.
+	return d.runInTransactionWithOpts(&store.TransactionOptions{NumAttempts: 100}, fn)
+}
+
+// runInTransactionWithOpts runs the given fn in a transaction, managing retries
+// and commit/abort.
+func (d *database) runInTransactionWithOpts(opts *store.TransactionOptions, fn func(ts *transactionState) error) error {
+	var err error
+	for i := 0; i < opts.NumAttempts; i++ {
+		// TODO(sadovsky): Should NewTransaction return an error? If not, how will
+		// we deal with RPC errors when talking to remote storage engines? (Note,
+		// client-side BeginBatch returns an error.)
+		ts := &transactionState{tx: d.st.NewWatchableTransaction()}
+		if err = fn(ts); err != nil {
+			ts.tx.Abort()
+			return err
+		}
+		// TODO(sadovsky): Commit() can fail for a number of reasons, e.g. RPC
+		// failure or ErrConcurrentTransaction. Depending on the cause of failure,
+		// it may be desirable to retry the Commit() and/or to call Abort().
+		if err = ts.tx.Commit(); verror.ErrorID(err) != store.ErrConcurrentTransaction.ID {
+			return err
+		}
+	}
+	return err
 }
