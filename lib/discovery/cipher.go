@@ -19,6 +19,8 @@ import (
 )
 
 var (
+	errNoCrypter = errors.New("no crypter")
+
 	// errNoPermission is the error returned by decrypt when there is no permission
 	// to decrypt an advertisement.
 	errNoPermission = errors.New("no permission")
@@ -112,6 +114,9 @@ func decrypt(ctx *context.T, adinfo *AdInfo) error {
 
 func wrapSharedKey(ctx *context.T, sharedKey [32]byte, pattern security.BlessingPattern) (EncryptionKey, error) {
 	crypter := bcrypter.GetCrypter(ctx)
+	if crypter == nil {
+		return nil, errNoCrypter
+	}
 	ctext, err := crypter.Encrypt(ctx, pattern, sharedKey[:])
 	if err != nil {
 		return nil, err
@@ -129,6 +134,9 @@ func unwrapSharedKey(ctx *context.T, key EncryptionKey) (*[32]byte, error) {
 	var ctext bcrypter.Ciphertext
 	ctext.FromWire(*wctext)
 	crypter := bcrypter.GetCrypter(ctx)
+	if crypter == nil {
+		return nil, errNoCrypter
+	}
 	decrypted, err := crypter.Decrypt(ctx, &ctext)
 	if err != nil {
 		return nil, err
