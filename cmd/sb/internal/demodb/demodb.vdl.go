@@ -4771,6 +4771,7 @@ func (x *Recursive) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Any":
+			x.Any = new(vom.RawBytes)
 			if err := x.Any.VDLRead(dec); err != nil {
 				return err
 			}
@@ -5539,6 +5540,7 @@ func (x *AnythingGoes) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Anything":
+			x.Anything = new(vom.RawBytes)
 			if err := x.Anything.VDLRead(dec); err != nil {
 				return err
 			}

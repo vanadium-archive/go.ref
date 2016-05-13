@@ -1030,6 +1030,7 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Op":
+			x.Op = new(vom.RawBytes)
 			if err := x.Op.VDLRead(dec); err != nil {
 				return err
 			}

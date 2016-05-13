@@ -455,31 +455,25 @@ func (g *genRead) bodyOptional(tt *vdl.Type, arg namedArg) string {
 }
 
 func (g *genRead) bodyAny(tt *vdl.Type, arg namedArg) string {
-	mode := goAnyRepMode(g.Package)
-	// Handle interface{} special-case.
-	if mode == goAnyRepInterface {
+	var anyType string
+	switch goAnyRepMode(g.Package) {
+	case goAnyRepInterface:
+		// Handle interface{} special-case.
 		return fmt.Sprintf(`
 	var readAny interface{}
 	if err := %[1]sRead(dec, &readAny); err != nil {
 		return err
 	}
 	%[2]s = readAny`, g.Pkg("v.io/v23/vdl"), arg.Ref())
+	case goAnyRepRawBytes:
+		anyType = g.Pkg("v.io/v23/vom") + "RawBytes"
+	case goAnyRepValue:
+		anyType = g.Pkg("v.io/v23/vdl") + "Value"
 	}
-	// Handle vdl.Value and vom.RawBytes representations.
-	var s string
-	if mode == goAnyRepValue {
-		// Hack to deal with top-level any.  Any values in the generated code are
-		// initialized to vdl.ZeroValue(AnyType), so when we call vdl.Value.VDLRead
-		// on the value, the type of the value is always top-level any.  We create a
-		// new (invalid) vdl.Value here, which causes VDLRead to fill the value with
-		// the exact type read from the decoder.  We can't just change the
-		// initialization to create a new vdl.Value, since struct fields that aren't
-		// read will retain their initialized values, and the invalid vdl.Value
-		// causes problems with the encoder.
-		//
-		// TODO(toddw): Remove this hack.
-		s += fmt.Sprintf(`
-	%[1]s = new(%[2]sValue)`, arg.Ref(), g.Pkg("v.io/v23/vdl"))
-	}
-	return s + g.bodyCallVDLRead(tt, arg)
+	// Handle vdl.Value and vom.RawBytes representations, which need to be
+	// allocated before we call VDLRead on them.  Even if its already allocated,
+	// we need to create a new (invalid) vdl.Value here, to cause VDLRead to fill
+	// the value with the exact type read from the decoder.
+	return fmt.Sprintf(`
+	%[1]s = new(%[2]s)%[3]s`, arg.Ref(), anyType, g.bodyCallVDLRead(tt, arg))
 }

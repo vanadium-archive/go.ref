@@ -3669,6 +3669,7 @@ func (x *Scalars) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "A13":
+			x.A13 = new(vom.RawBytes)
 			if err := x.A13.VDLRead(dec); err != nil {
 				return err
 			}
