@@ -37,6 +37,5 @@ func (i *clusterAgentService) ForgetSecret(ctx *context.T, _ rpc.ServerCall, sec
 // secret.
 func (i *clusterAgentService) SeekBlessings(ctx *context.T, call rpc.ServerCall, secret string) (security.Blessings, error) {
 	publicKey := call.Security().RemoteBlessings().PublicKey()
-	name := call.RemoteEndpoint().Addr().String()
-	return i.agent.Bless(secret, publicKey, name)
+	return i.agent.Bless(secret, publicKey, "x")
 }
