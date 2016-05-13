@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/gosh"
 	"v.io/x/ref/lib/signals"
-	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/runtime/protocols/vine"
 	"v.io/x/ref/services/syncbase/syncbaselib"
 )
@@ -26,12 +26,11 @@ func Main(vineServerName string, vineTag string, opts syncbaselib.Opts) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	done := make(chan struct{})
-	defer close(done)
-
 	// Start a goroutine that repeatedly captures pprof data every minute.
 	pprofDir := filepath.Join(opts.RootDir, "pprof")
 	panicOnErr(os.MkdirAll(pprofDir, 0755))
+	done := make(chan struct{})
+	defer close(done)
 	go func() {
 		for {
 			select {
@@ -46,6 +45,9 @@ func Main(vineServerName string, vineTag string, opts syncbaselib.Opts) {
 	// Start a VINE Server and modify our ctx to use the "vine" protocol.
 	// The final argument is the discoveryTTL, which uses a sensible default if
 	// called with 0.
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}},
+	})
 	ctx, err := vine.Init(ctx, vineServerName, security.AllowEveryone(), vineTag, 0)
 	if err != nil {
 		panic(err)

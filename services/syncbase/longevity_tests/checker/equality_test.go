@@ -12,8 +12,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/rpc"
 	"v.io/v23/syncbase"
-	_ "v.io/x/ref/runtime/factories/generic"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/longevity_tests/checker"
 	"v.io/x/ref/services/syncbase/longevity_tests/model"
 	"v.io/x/ref/services/syncbase/longevity_tests/util"
@@ -56,6 +57,9 @@ func newServer(t *testing.T, ctx *context.T) (string, func()) {
 // model universe containing the servers, and a cancel func.
 func setupServers(t *testing.T, n int) (*context.T, []syncbase.Service, model.Universe, func()) {
 	ctx, cancel := v23.Init()
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}},
+	})
 
 	services := []syncbase.Service{}
 	cancelFuncs := []func(){}

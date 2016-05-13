@@ -15,12 +15,13 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	"v.io/v23/verror"
 	"v.io/x/lib/gosh"
-	_ "v.io/x/ref/runtime/factories/generic"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	_ "v.io/x/ref/runtime/protocols/vine"
 	"v.io/x/ref/services/syncbase/longevity_tests/client"
 	"v.io/x/ref/services/syncbase/longevity_tests/control"
@@ -39,6 +40,9 @@ func newController(t *testing.T) (*control.Controller, func()) {
 		t.Fatal(err)
 	}
 	ctx, shutdown := v23.Init()
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}},
+	})
 	opts := control.Opts{
 		DebugOutput: true,
 		TB:          t,

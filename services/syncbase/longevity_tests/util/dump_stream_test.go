@@ -13,7 +13,7 @@ import (
 	"v.io/v23/syncbase"
 	sbUtil "v.io/v23/syncbase/util"
 	"v.io/v23/vdl"
-	_ "v.io/x/ref/runtime/factories/generic"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/longevity_tests/util"
 	"v.io/x/ref/services/syncbase/testutil"
 )

@@ -12,7 +12,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/syncbase"
-	_ "v.io/x/ref/runtime/factories/generic"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/longevity_tests/client"
 	"v.io/x/ref/services/syncbase/longevity_tests/model"
 	"v.io/x/ref/services/syncbase/testutil"

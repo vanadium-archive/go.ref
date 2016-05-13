@@ -8,6 +8,7 @@ package mounttabled
 
 import (
 	"v.io/v23"
+	"v.io/v23/rpc"
 	"v.io/x/lib/gosh"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/mounttable/mounttablelib"
@@ -20,6 +21,11 @@ import (
 func Main(opts mounttablelib.Opts) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
+
+	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}},
+	})
+
 	name, stop, err := mounttablelib.StartServers(ctx, v23.GetListenSpec(ctx), opts.MountName, opts.NhName, opts.AclFile, opts.PersistDir, "mounttable")
 	if err != nil {
 		panic(err)

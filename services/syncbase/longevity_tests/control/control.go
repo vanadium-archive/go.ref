@@ -425,10 +425,6 @@ func (c *Controller) startMounttabled() error {
 	c.mtCmd.Args = append(c.mtCmd.Args,
 		"--log_dir="+mtDir,
 		"--v23.credentials="+mtCreds,
-		// NOTE(nlacasse): We must set the tcp address to an ipv4 address to
-		// prevent the runtime from trying to listen on an ipv6 address, which
-		// is not supported on GCE.
-		"--v23.tcp.address=127.0.0.1:0",
 		"--vpath=mounttable=3,namespace=3",
 	)
 	c.mtCmd.Start()
