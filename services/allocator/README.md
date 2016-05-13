@@ -14,9 +14,7 @@ The allocator [server API](service.vdl) has 3 methods:
 
 ## Create()
 
-Create is used to create a new instance of the service. The caller must grant
-blessings to the server. These blessings will be passed to the new service
-instance.
+Create is used to create a new instance of the service.
 
 When the server receives the `Create()` request, it creates a new Kubernetes
 Deployment that is based on a pre-defined template. The template is expanded
@@ -26,8 +24,7 @@ with the following data:
 * `AccessList`: A JSON-encoded AccessList that contains the caller's blessing names.
 * `MountName`: The name where the new instance should publish itself.
 * `CreatorInfo`: A JSON-encoded string describing the caller, suitable to be used as an annotation.
-
-The current implementation only allows one instance per user.
+* `OwnerHash`: A hash of the creator's email address.
 
 ## Destroy()
 
@@ -36,9 +33,7 @@ persistent disk.
 
 ## List()
 
-List shows all the instances that are owned by the calling user. Since the
-current implementation only allows one instance per user, `List()` returns
-at most 1 result.
+List shows all the instances that are owned by the calling user.
 
 # Example
 
@@ -67,6 +62,9 @@ Let's use syncbase as a simplified example.
     "name": "{{.Name}}",
     "annotations": {
       "v.io/creator-info": {{.CreatorInfo}}
+    },
+    "labels": {
+      "ownerHash": "{{.OwnerHash}}"
     }
   },
   "spec": {

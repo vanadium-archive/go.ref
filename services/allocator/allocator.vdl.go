@@ -21,8 +21,7 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 // AllocatorClientMethods is the client interface
 // containing Allocator methods.
 type AllocatorClientMethods interface {
-	// Create creates a new instance of the service. The instance's
-	// blessings will be an extension of the blessings granted on this RPC.
+	// Create creates a new instance of the service.
 	// It returns the object name of the new instance.
 	Create(*context.T, ...rpc.CallOpt) (name string, _ error)
 	// Destroy destroys the instance with the given name.
@@ -64,8 +63,7 @@ func (c implAllocatorClientStub) List(ctx *context.T, opts ...rpc.CallOpt) (o0 [
 // AllocatorServerMethods is the interface a server writer
 // implements for Allocator.
 type AllocatorServerMethods interface {
-	// Create creates a new instance of the service. The instance's
-	// blessings will be an extension of the blessings granted on this RPC.
+	// Create creates a new instance of the service.
 	// It returns the object name of the new instance.
 	Create(*context.T, rpc.ServerCall) (name string, _ error)
 	// Destroy destroys the instance with the given name.
@@ -139,7 +137,7 @@ var descAllocator = rpc.InterfaceDesc{
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "Create",
-			Doc:  "// Create creates a new instance of the service. The instance's\n// blessings will be an extension of the blessings granted on this RPC.\n// It returns the object name of the new instance.",
+			Doc:  "// Create creates a new instance of the service.\n// It returns the object name of the new instance.",
 			OutArgs: []rpc.ArgDesc{
 				{"name", ``}, // string
 			},

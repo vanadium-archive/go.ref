@@ -5,8 +5,7 @@
 package allocator
 
 type Allocator interface {
-	// Create creates a new instance of the service. The instance's
-	// blessings will be an extension of the blessings granted on this RPC.
+	// Create creates a new instance of the service.
 	// It returns the object name of the new instance.
 	Create() (name string | error)
 

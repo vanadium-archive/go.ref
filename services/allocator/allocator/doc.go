@@ -83,10 +83,7 @@ Allocator create
 Create a new server instance.
 
 Usage:
-   allocator create [flags] [<extension>]
-
-<extension> is the blessing name extension to give to the new server instance
-(optional). The default value is "allocator"
+   allocator create [flags]
 
 The allocator create flags are:
  -allocator=syncbase-allocator

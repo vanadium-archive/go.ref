@@ -11,8 +11,6 @@ import (
 	"fmt"
 
 	"v.io/v23/context"
-	"v.io/v23/rpc"
-	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
@@ -43,43 +41,19 @@ func main() {
 }
 
 var cmdCreate = &cmdline.Command{
-	Runner:   v23cmd.RunnerFunc(runCreate),
-	Name:     "create",
-	Short:    "Create a new server instance.",
-	Long:     "Create a new server instance.",
-	ArgsName: "[<extension>]",
-	ArgsLong: `
-<extension> is the blessing name extension to give to the new server instance
-(optional). The default value is "` + defaultExtension + `"
-`,
+	Runner: v23cmd.RunnerFunc(runCreate),
+	Name:   "create",
+	Short:  "Create a new server instance.",
+	Long:   "Create a new server instance.",
 }
 
 func runCreate(ctx *context.T, env *cmdline.Env, args []string) error {
-	if expected, got := 1, len(args); got > expected {
-		return env.UsageErrorf("create: incorrect number of arguments, got %d, expected at most %d", got, expected)
-	}
-	extension := defaultExtension
-	if len(args) == 1 {
-		extension = args[0]
-	}
-
-	name, err := allocator.AllocatorClient(flagAllocator).Create(ctx, &granter{extension: extension})
+	name, err := allocator.AllocatorClient(flagAllocator).Create(ctx)
 	if err != nil {
 		return err
 	}
 	fmt.Fprintln(env.Stdout, name)
 	return nil
-}
-
-type granter struct {
-	rpc.CallOpt
-	extension string
-}
-
-func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings, error) {
-	p := call.LocalPrincipal()
-	def, _ := p.BlessingStore().Default()
-	return p.Bless(call.RemoteBlessings().PublicKey(), def, g.extension, security.UnconstrainedUse())
 }
 
 var cmdDestroy = &cmdline.Command{

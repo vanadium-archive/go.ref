@@ -5,7 +5,9 @@
 package main
 
 import (
+	"crypto/sha1"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -30,41 +32,49 @@ var (
 	errGlobalLimitExceeded = verror.Register(pkgPath+".errGlobalLimitExceeded", verror.NoRetry, "{1:}{2:} global limit exceeded")
 )
 
-type allocatorImpl struct{}
+type allocatorImpl struct {
+	baseBlessings security.Blessings
+}
 
-// Create creates a new instance of the service. The instance's
-// blessings will be an extension of the blessings granted on this RPC.
+// Create creates a new instance of the service.
 // It returns the object name of the new instance.
 func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, error) {
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	ctx.Infof("Create() called by %v", b)
 
-	mName, kName, err := names(ctx, call.Security())
-	if err != nil {
-		return "", err
+	email := emailFromBlessingNames(b)
+	if email == "" {
+		return "", verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
 	}
 
-	if _, err := vkube("kubectl", "get", "deployment", kName); err == nil {
+	// Enforce a limit on the number of instances. These tests are a little
+	// bit racy. It's possible that multiple calls to Create() will run
+	// concurrently and that we'll end up with too many instances.
+	if n, err := serverInstances(email); err != nil {
+		return "", err
+	} else if len(n) >= maxInstancesPerUserFlag {
 		return "", verror.New(errLimitExceeded, ctx)
 	}
 
-	// Enforce a limit on the total number of instances. This test is a
-	// little bit racy. It's possible that multiple calls to Create() will
-	// run concurrently and that we'll end up with more than
-	// maxInstancesFlag instances.
-	if n, err := countServerInstances(); err != nil {
+	if n, err := serverInstances(""); err != nil {
 		return "", err
-	} else if n >= maxInstancesFlag {
+	} else if len(n) >= maxInstancesFlag {
 		return "", verror.New(errGlobalLimitExceeded, ctx)
 	}
 
-	cfg, cleanup, err := createDeploymentConfig(ctx, kName, mName, call.Security())
+	kName, err := newKubeName()
+	if err != nil {
+		return "", err
+	}
+	mName := mountNameFromKubeName(ctx, kName)
+
+	cfg, cleanup, err := createDeploymentConfig(ctx, email, kName, mName)
 	defer cleanup()
 	if err != nil {
 		return "", err
 	}
 
-	vomBlessings, err := vom.Encode(call.GrantedBlessings())
+	vomBlessings, err := vom.Encode(i.baseBlessings)
 	if err != nil {
 		return "", err
 	}
@@ -77,7 +87,7 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 		"start", "-f", cfg,
 		"--base-blessings", base64.URLEncoding.EncodeToString(vomBlessings),
 		"--wait",
-		serverNameFlag,
+		kName,
 	)
 	if err != nil {
 		ctx.Errorf("vkube start failed: %s", string(out))
@@ -88,22 +98,32 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 }
 
 // Destroy destroys the instance with the given name.
-func (i *allocatorImpl) Destroy(ctx *context.T, call rpc.ServerCall, name string) error {
+func (i *allocatorImpl) Destroy(ctx *context.T, call rpc.ServerCall, mName string) error {
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
-	ctx.Infof("Destroy(%q) called by %v", name, b)
+	ctx.Infof("Destroy(%q) called by %v", mName, b)
 
-	mName, kName, err := names(ctx, call.Security())
-	if err != nil {
+	email := emailFromBlessingNames(b)
+	if email == "" {
+		return verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
+	}
+	kName := kubeNameFromMountName(mName)
+
+	found := false
+	if instances, err := serverInstances(email); err != nil {
 		return err
+	} else {
+		for _, i := range instances {
+			if i == kName {
+				found = true
+				break
+			}
+		}
+	}
+	if !found {
+		return verror.New(verror.ErrNoExistOrNoAccess, ctx)
 	}
 
-	if name != mName {
-		return verror.New(verror.ErrNoAccess, ctx)
-	}
-	if _, err := vkube("kubectl", "get", "deployment", kName); err != nil {
-		return verror.New(verror.ErrNoExist, ctx)
-	}
-	cfg, cleanup, err := createDeploymentConfig(ctx, kName, mName, call.Security())
+	cfg, cleanup, err := createDeploymentConfig(ctx, email, kName, mName)
 	defer cleanup()
 	if err != nil {
 		return err
@@ -124,24 +144,28 @@ func (i *allocatorImpl) Destroy(ctx *context.T, call rpc.ServerCall, name string
 func (i *allocatorImpl) List(ctx *context.T, call rpc.ServerCall) ([]string, error) {
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	ctx.Infof("List() called by %v", b)
-	mName, kName, err := names(ctx, call.Security())
+	email := emailFromBlessingNames(b)
+	if email == "" {
+		return nil, verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
+	}
+	kNames, err := serverInstances(email)
 	if err != nil {
 		return nil, err
 	}
-	if out, err := vkube("kubectl", "get", "deployment", kName); err != nil {
-		ctx.Infof("Couldn't find deployment %q: %s", kName, string(out))
-		return nil, nil
+	mNames := make([]string, len(kNames))
+	for i, n := range kNames {
+		mNames[i] = mountNameFromKubeName(ctx, n)
 	}
-	return []string{mName}, nil
+	return mNames, nil
 }
 
-func createDeploymentConfig(ctx *context.T, deploymentName, mountName string, call security.Call) (string, func(), error) {
+func createDeploymentConfig(ctx *context.T, email, deploymentName, mountName string) (string, func(), error) {
 	cleanup := func() {}
-	acl, err := accessList(ctx, call)
+	acl, err := accessList(ctx, email)
 	if err != nil {
 		return "", cleanup, err
 	}
-	creatorInfo, err := creatorInfo(ctx, call)
+	creatorInfo, err := creatorInfo(ctx, email)
 	if err != nil {
 		return "", cleanup, err
 	}
@@ -155,11 +179,13 @@ func createDeploymentConfig(ctx *context.T, deploymentName, mountName string, ca
 		CreatorInfo string
 		MountName   string
 		Name        string
+		OwnerHash   string
 	}{
 		AccessList:  acl,
 		CreatorInfo: creatorInfo,
 		MountName:   mountName,
 		Name:        deploymentName,
+		OwnerHash:   emailHash(email),
 	}
 
 	f, err := ioutil.TempFile("", "allocator-deployment-")
@@ -178,16 +204,15 @@ func createDeploymentConfig(ctx *context.T, deploymentName, mountName string, ca
 // accessList returns a double encoded JSON access list that can be used in a
 // Deployment template that contains something like:
 //   "--v23.permissions.literal={\"Admin\": {{.AccessList}} }"
-// The access list include the caller of the RPC.
-func accessList(ctx *context.T, call security.Call) (string, error) {
+// The access list include the creator.
+func accessList(ctx *context.T, email string) (string, error) {
 	var acl access.AccessList
 	if globalAdminsFlag != "" {
 		for _, admin := range strings.Split(globalAdminsFlag, ",") {
 			acl.In = append(acl.In, security.BlessingPattern(admin))
 		}
 	}
-	b, _ := security.RemoteBlessingNames(ctx, call)
-	for _, blessing := range conventions.ParseBlessingNames(b...) {
+	for _, blessing := range conventions.ParseBlessingNames(blessingNamesFromEmail(email)...) {
 		acl.In = append(acl.In, blessing.UserPattern())
 	}
 	j, err := json.Marshal(acl)
@@ -211,13 +236,10 @@ func accessList(ctx *context.T, call security.Call) (string, error) {
 //   "annotations": {
 //     "v.io/allocatord/creator-info": {{.CreatorInfo}}
 //   }
-func creatorInfo(ctx *context.T, call security.Call) (string, error) {
-	var info struct {
-		Blessings []string `json:"blessings"`
-		Endpoint  string   `json:"endpoint"`
-	}
-	info.Blessings, _ = security.RemoteBlessingNames(ctx, call)
-	info.Endpoint = call.RemoteEndpoint().String()
+func creatorInfo(ctx *context.T, email string) (string, error) {
+	info := struct {
+		Email string `json:"email"`
+	}{email}
 	j, err := json.Marshal(info)
 	if err != nil {
 		ctx.Errorf("json.Marshal(%#v) failed: %v", info, err)
@@ -233,7 +255,12 @@ func creatorInfo(ctx *context.T, call security.Call) (string, error) {
 	return string(j), nil
 }
 
-func countServerInstances() (int, error) {
+func emailHash(email string) string {
+	h := sha1.Sum([]byte(email))
+	return hex.EncodeToString(h[:])
+}
+
+func serverInstances(email string) ([]string, error) {
 	var list struct {
 		Items []struct {
 			Metadata struct {
@@ -241,18 +268,22 @@ func countServerInstances() (int, error) {
 			} `json:"metadata"`
 		} `json:"items"`
 	}
-	if out, err := vkube("kubectl", "get", "deployments", "-o", "json"); err != nil {
-		return 0, err
-	} else if err := json.Unmarshal(out, &list); err != nil {
-		return 0, err
+	args := []string{"kubectl", "get", "deployments", "-o", "json"}
+	if email != "" {
+		args = append(args, "-l", "ownerHash="+emailHash(email))
 	}
-	count := 0
+	if out, err := vkube(args...); err != nil {
+		return nil, err
+	} else if err := json.Unmarshal(out, &list); err != nil {
+		return nil, err
+	}
+	kNames := []string{}
 	for _, l := range list.Items {
 		if strings.HasPrefix(l.Metadata.Name, serverNameFlag+"-") {
-			count++
+			kNames = append(kNames, l.Metadata.Name)
 		}
 	}
-	return count, nil
+	return kNames, nil
 }
 
 func createPersistentDisk(ctx *context.T, name string) error {

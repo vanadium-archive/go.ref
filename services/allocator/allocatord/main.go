@@ -8,6 +8,10 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
+	"strings"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
@@ -17,18 +21,22 @@ import (
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/allocator"
+	"v.io/x/ref/services/cluster"
 )
 
 var (
-	nameFlag               string
-	serverNameFlag         string
-	deploymentTemplateFlag string
-	globalAdminsFlag       string
-	maxInstancesFlag       int
-	diskSizeFlag           string
-	gcloudBinFlag          string
-	vkubeBinFlag           string
-	vkubeCfgFlag           string
+	nameFlag                string
+	serverNameFlag          string
+	deploymentTemplateFlag  string
+	globalAdminsFlag        string
+	maxInstancesFlag        int
+	maxInstancesPerUserFlag int
+	diskSizeFlag            string
+	gcloudBinFlag           string
+	vkubeBinFlag            string
+	vkubeCfgFlag            string
+	clusterAgentFlag        string
+	blessingSecretFlag      string
 
 	cmdRoot = &cmdline.Command{
 		Runner: v23cmd.RunnerFunc(runAllocator),
@@ -44,10 +52,13 @@ func main() {
 	cmdRoot.Flags.StringVar(&deploymentTemplateFlag, "deployment-template", "", "The template for the deployment of the servers to allocate.")
 	cmdRoot.Flags.StringVar(&globalAdminsFlag, "global-admins", "", "A comma-separated list of blessing patterns that have access to all the server instances.")
 	cmdRoot.Flags.IntVar(&maxInstancesFlag, "max-instances", 10, "The maximum total number of server instances to create.")
+	cmdRoot.Flags.IntVar(&maxInstancesPerUserFlag, "max-instances-per-user", 1, "The maximum number of server instances to create per user.")
 	cmdRoot.Flags.StringVar(&diskSizeFlag, "server-disk-size", "50GB", "The size of the persistent disk to allocate with the servers.")
 	cmdRoot.Flags.StringVar(&gcloudBinFlag, "gcloud", "gcloud", "The gcloud binary to use.")
 	cmdRoot.Flags.StringVar(&vkubeBinFlag, "vkube", "vkube", "The vkube binary to use.")
 	cmdRoot.Flags.StringVar(&vkubeCfgFlag, "vkube-cfg", "vkube.cfg", "The vkube.cfg to use.")
+	cmdRoot.Flags.StringVar(&clusterAgentFlag, "cluster-agent", "", "The address of the cluster-agent.")
+	cmdRoot.Flags.StringVar(&blessingSecretFlag, "blessings-secret-file", "", "If set, this file contains the secret to present to the cluster-agent to get the base blessings for the allocated servers.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }
@@ -58,10 +69,29 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 		// use <server-name>-<md5> as name, where "-<md5>" is 33 chars.
 		return env.UsageErrorf("--server-name value too long. Must be <= 30 characters")
 	}
+
+	var baseBlessings security.Blessings
+	if clusterAgentFlag == "" || blessingSecretFlag == "" {
+		fmt.Fprintln(env.Stderr, "WARNING: Using self-blessed blessings for allocated servers")
+		var err error
+		if baseBlessings, err = v23.GetPrincipal(ctx).BlessSelf("allocator"); err != nil {
+			return err
+		}
+	} else {
+		secret, err := ioutil.ReadFile(blessingSecretFlag)
+		if err != nil {
+			return err
+		}
+		baseBlessings, err = cluster.ClusterAgentClient(clusterAgentFlag).SeekBlessings(ctx, strings.TrimSpace(string(secret)))
+		if err != nil {
+			return err
+		}
+	}
+
 	ctx, server, err := v23.WithNewServer(
 		ctx,
 		nameFlag,
-		allocator.AllocatorServer(&allocatorImpl{}),
+		allocator.AllocatorServer(&allocatorImpl{baseBlessings}),
 		security.AllowEveryone(),
 	)
 	if err != nil {

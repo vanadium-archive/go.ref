@@ -12,6 +12,11 @@ Usage:
    allocatord [flags]
 
 The allocatord flags are:
+ -blessings-secret-file=
+   If set, this file contains the secret to present to the cluster-agent to get
+   the base blessings for the allocated servers.
+ -cluster-agent=
+   The address of the cluster-agent.
  -deployment-template=
    The template for the deployment of the servers to allocate.
  -gcloud=gcloud
@@ -21,6 +26,8 @@ The allocatord flags are:
    server instances.
  -max-instances=10
    The maximum total number of server instances to create.
+ -max-instances-per-user=1
+   The maximum number of server instances to create per user.
  -name=
    Name to publish for this service.
  -server-disk-size=50GB
