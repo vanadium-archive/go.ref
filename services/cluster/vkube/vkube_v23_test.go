@@ -330,7 +330,7 @@ func createVkubeConfig(path, namespace, dockerRegistry string) error {
     "namespace": "{{.Namespace}}",
     "image": "{{.Registry}}/cluster-agent:xxx",
     "blessing": "root:alice:cluster-agent",
-    "admin": "root:alice",
+    "admin": "root:alice,root:bob",
     "cpu": "0.1",
     "memory": "100M",
     "internalOnly": {{.InternalOnly}}

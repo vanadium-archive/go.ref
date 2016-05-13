@@ -41,6 +41,9 @@ fi
 
 mkdir -p "${DATADIR}/blessings"
 
+# Handle multiple admins, separated by commas.
+ADMIN=$(echo "${ADMIN}" | sed 's:,:",":g')
+
 exec /usr/local/bin/cluster_agentd \
   --v23.credentials="${DATADIR}/creds" \
   --v23.tcp.address=:8193 \
