@@ -887,11 +887,14 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	type databaseTree struct {
 		Database    syncbase.Database
 		Collections []syncbase.Collection
+		Syncgroups  []syncbase.Syncgroup
 	}
 	tree := make([]databaseTree, len(dbIds))
 	for i := range dbIds {
 		// TODO(eobrain) Confirm nil for schema is appropriate
 		db := service.DatabaseForId(dbIds[i], nil)
+
+		// Assemble collections
 		collIds, err := db.ListCollections(ctx)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -902,7 +905,20 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		for j := range collIds {
 			colls[j] = db.CollectionForId(collIds[i])
 		}
-		tree[i] = databaseTree{db, colls}
+
+		// Assemble syncgroups
+		sgIds, err := db.ListSyncgroups(ctx)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Problem listing syncgroups: %v", err)
+			return
+		}
+		sgs := make([]syncbase.Syncgroup, len(sgIds))
+		for j := range sgIds {
+			sgs[j] = db.SyncgroupForId(sgIds[i])
+		}
+
+		tree[i] = databaseTree{db, colls, sgs}
 	}
 
 	// Assemble data and send it to the template to generate HTML

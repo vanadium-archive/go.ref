@@ -26,6 +26,18 @@
           <dt>Collection "{{.Id.Name}}"<dt>
           <dd>Creator's User Blessing "{{.Id.Blessing}}"</dd>
           <dd><a href="syncbase/collection?n={{$.ServerName}}&db={{$db.Blessing}}&dn={{$db.Name}}&cb={{.Id.Blessing}}&cn={{.Id.Name}}">More...</a></dd>
+        {{else}}
+          <dt>(no collections)</dt>
+        {{end}}
+      </dl>
+    </div>
+    <div class="mdl-cell mdl-cell--12-col">
+      <dl>
+        {{range .Syncgroups}}
+          <dt>Syncgroup "{{.Id.Name}}"<dt>
+          <dd>Blessing "{{.Id.Blessing}}"</dd>
+        {{else}}
+          <dt>(no syncgroups)</dt>
         {{end}}
       </dl>
     </div>
