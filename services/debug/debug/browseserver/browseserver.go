@@ -938,19 +938,77 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.execute(h.ctx, w, r, syncbaseTmpl, args)
 }
 
-// The collectionHandler handles the Collections details page that is linked off
-// the main Syncbase viewer page.
+// collectionHandler handles the Collections details page that is linked off the
+// main Syncbase viewer page.
 type collectionHandler struct{ *handler }
 
-func scanCollection(ctx *context.T, coll syncbase.Collection) (rowCount int, meanKeyLen float32) {
+type keyVal struct {
+	Index int
+	Key   string
+	Value interface{}
+}
+
+// keysPage is a contiguous subset of the keys, used for pagination.
+type keysPage struct {
+	HasPrev bool
+	KeyVals []keyVal
+	NextKey string
+}
+
+// scanCollection gets some statistics, plus a page of key-value pairs starting
+// with firstKey.
+func scanCollection(
+	ctx *context.T, coll syncbase.Collection, firstKey string,
+) (rowCount int, totKeySize uint64, page keysPage) {
+	const keysPerPage = 7
+	page.KeyVals = make([]keyVal, 0, keysPerPage)
+
 	stream := coll.Scan(ctx, syncbase.Prefix(""))
-	totKeySize := 0
+
+	// We scan through all the keys lexicographically, and when we come to a
+	// key >= firstKey we start gathering a "page" of keys. As we scan, a
+	// state machine keeps track of whether we are before the page, in the
+	// page, or after the page.
+	const (
+		before    = 0
+		gathering = iota
+		done      = iota
+	)
+	state := before
 	for stream.Advance() {
+		key := stream.Key()
+		totKeySize += uint64(len(key))
+
+		switch state {
+		case before:
+			if key >= firstKey {
+				// First key found: transition to gathering the page
+				state = gathering
+			} else {
+				// There is at least one key before the page
+				page.HasPrev = true
+			}
+		case gathering:
+			if len(page.KeyVals) >= keysPerPage {
+				// Page full: transition to done.  There is at
+				// least one key after the page.
+				state = done
+				page.NextKey = key
+			}
+		case done:
+			// Done gathering.  Terminal state.
+		}
+		if state == gathering {
+			// Grab the value, put it and the key into a KeyVal, and
+			// add it to the page.
+			var value interface{}
+			err := stream.Value(&value)
+			if err != nil {
+				value = fmt.Sprintf("ERROR getting value: %v", err)
+			}
+			page.KeyVals = append(page.KeyVals, keyVal{rowCount, key, value})
+		}
 		rowCount++
-		totKeySize += len(stream.Key())
-	}
-	if rowCount > 0 {
-		meanKeyLen = float32(totKeySize) / float32(rowCount)
 	}
 	return
 }
@@ -962,6 +1020,7 @@ func (h *collectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		dbName       = r.FormValue("dn")
 		collBlessing = r.FormValue("cb")
 		collName     = r.FormValue("cn")
+		firstKey     = r.FormValue("firstkey")
 		dbId         = sbwire.Id{dbBlessing, dbName}
 		collId       = sbwire.Id{collBlessing, collName}
 	)
@@ -978,7 +1037,7 @@ func (h *collectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	db := service.DatabaseForId(dbId, nil)
 	coll := db.CollectionForId(collId)
 
-	rowCount, meanKeyLen := scanCollection(ctx, coll)
+	rowCount, totKeySize, page := scanCollection(ctx, coll, firstKey)
 
 	// Assemble data and send it to the template to generate HTML
 	args := struct {
@@ -989,7 +1048,8 @@ func (h *collectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Database    syncbase.Database
 		Collection  syncbase.Collection
 		RowCount    int
-		MeanKeyLen  string
+		TotKeySize  uint64
+		KeysPage    keysPage
 	}{
 		ServerName:  server,
 		CommandLine: "(no command line)",
@@ -998,7 +1058,8 @@ func (h *collectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Database:    db,
 		Collection:  coll,
 		RowCount:    rowCount,
-		MeanKeyLen:  fmt.Sprintf("%.1f", meanKeyLen),
+		TotKeySize:  totKeySize,
+		KeysPage:    page,
 	}
 	h.execute(h.ctx, w, r, collectionTmpl, args)
 }

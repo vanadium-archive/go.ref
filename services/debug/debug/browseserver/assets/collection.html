@@ -13,8 +13,35 @@
           <dt>App Blessing:<dt><dd>{{.Database.Id.Blessing}}</dd>
           <dt>Creator's User Blessing:<dt><dd>{{.Collection.Id.Blessing}}</dd>
           <dt>Number of Rows:<dt><dd>{{.RowCount}}</dd>
-          <dt>Mean Key Length:<dt><dd>{{.MeanKeyLen}}</dd>
-      </dl>
+          <dt>Total Key Size:<dt><dd>{{.TotKeySize}}</dd>
+          <dt>Keys<dt>
+          <dd>
+            <table>
+              <tr><th></th><th>Key</th><th>Value</th></tr>
+              <tr><th colspan="3">
+                {{if .KeysPage.HasPrev}}
+                  <a href="collection?n={{$.ServerName}}&db={{.Database.Id.Blessing}}&dn={{.Database.Id.Name}}&cb={{.Collection.Id.Blessing}}&cn={{.Collection.Id.Name}}">
+                    [back]
+                  </a>
+                {{end}}
+                &nbsp;
+              </th></tr>
+              {{range .KeysPage.KeyVals}}
+                <tr><td>{{.Index}}</td><td>{{.Key}}</td><td><code>{{.Value}}</code></td></tr>
+              {{else}}
+                <tr><td colspan="3">(no keys)</td></tr>
+              {{end}}
+              <tr><th colspan="3">
+                {{if len .KeysPage.NextKey}}
+                  <a href="collection?n={{$.ServerName}}&db={{.Database.Id.Blessing}}&dn={{.Database.Id.Name}}&cb={{.Collection.Id.Blessing}}&cn={{.Collection.Id.Name}}&firstkey={{.KeysPage.NextKey}}">
+                    (next)
+                  </a>
+                {{end}}
+                &nbsp;
+              </th></tr>
+            </table>
+          </dd>
+        </dl>
     </div>
 </section>
 
