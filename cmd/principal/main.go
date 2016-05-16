@@ -541,6 +541,50 @@ this tool. - is used for STDIN.
 			return p.Roots().Add(der, security.BlessingPattern(args[0]))
 		}),
 	}
+	cmdUnion = &cmdline.Command{
+		Name:  "union",
+		Short: "Merge multiple blessings into one",
+		Long: `
+Merges multiple blessings into one.
+
+It accepts multiple base64url-encoded blessings. Each argument can be a file
+containing a blessing, or the blessing itself. It returns the union of all the
+blessings.
+
+For example, to merge the blessings contained in files A and B:
+  principal union A B, or
+  principal union $(cat A) $(cat B)
+`,
+		ArgsName: "[<blessing> | <blessing file>...]",
+		ArgsLong: `
+<blessing> is a base64url-encoded blessing.
+
+<blessing file> is a file that contains a base64url-encoded blessing.
+`,
+		Runner: v23cmd.RunnerFunc(func(ctx *context.T, env *cmdline.Env, args []string) error {
+			var ret security.Blessings
+			for _, b := range args {
+				encoded := b
+				if b, err := ioutil.ReadFile(b); err == nil {
+					encoded = string(b)
+				}
+				var blessings security.Blessings
+				if err := base64urlVomDecode(encoded, &blessings); err != nil {
+					return err
+				}
+				var err error
+				if ret, err = security.UnionOfBlessings(ret, blessings); err != nil {
+					return err
+				}
+			}
+			out, err := base64urlVomEncode(ret)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(env.Stdout, out)
+			return nil
+		}),
+	}
 
 	cmdSetDefault = &cmdline.Command{
 		Name:  "default",
@@ -1052,7 +1096,7 @@ Command principal creates and manages Vanadium principals and blessings.
 
 All objects are printed using base64url-vom-encoding.
 `,
-		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdDumpRoots, cmdBlessSelf, cmdBless, cmdSet, cmdGet, cmdRecognize},
+		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdDumpRoots, cmdBlessSelf, cmdBless, cmdSet, cmdGet, cmdRecognize, cmdUnion},
 	}
 	cmdline.Main(root)
 }

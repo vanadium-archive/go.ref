@@ -906,6 +906,42 @@ func TestV23DumpRoots(t *testing.T) {
 	}
 }
 
+func TestV23Union(t *testing.T) {
+	v23test.SkipUnlessRunningIntegrationTests(t)
+	sh := v23test.NewShell(t, nil)
+	defer sh.Cleanup()
+
+	var (
+		bin       = v23test.BuildGoPkg(sh, "v.io/x/ref/cmd/principal")
+		outputDir = sh.MakeTempDir()
+		aliceDir  = filepath.Join(outputDir, "alice")
+		blessing1 = filepath.Join(outputDir, "blessing1")
+		blessing2 = filepath.Join(outputDir, "blessing2")
+		union     = filepath.Join(outputDir, "union")
+	)
+	sh.Cmd(bin, "create", aliceDir, "alice").Run()
+	redirect(t, sh.Cmd(bin, "--v23.credentials="+aliceDir, "bless", "--require-caveats=false", aliceDir, "one"), blessing1)
+	redirect(t, sh.Cmd(bin, "--v23.credentials="+aliceDir, "bless", "--require-caveats=false", aliceDir, "two"), blessing2)
+	redirect(t, sh.Cmd(bin, "union", blessing1, blessing2), union)
+
+	want := `Blessings          : alice:one,alice:two
+PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Certificate chains : 2
+Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+  Certificate #0: alice with 0 caveats
+  Certificate #1: one with 1 caveat
+    (0) 0x00000000000000000000000000000000(bool=true)
+Chain #1 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+  Certificate #0: alice with 0 caveats
+  Certificate #1: two with 1 caveat
+    (0) 0x00000000000000000000000000000000(bool=true)
+`
+	got := removePublicKeys(sh.Cmd(bin, "dumpblessings", union).Stdout())
+	if got != want {
+		t.Errorf("Got:\n%s\nWant:\n%s\n", got, want)
+	}
+}
+
 func TestMain(m *testing.M) {
 	v23test.TestMain(m)
 }

@@ -29,6 +29,7 @@ The principal commands are:
    get           Read the principal's blessings.
    recognize     Add to the set of identity providers recognized by this
                  principal
+   union         Merge multiple blessings into one
    help          Display help for commands or topics
 
 The global flags are:
@@ -541,6 +542,25 @@ this tool. - is used for STDIN.
 
 <key> is a base64url-encoded, DER-encoded public key, such as that printed by
 "principal get publickey".
+
+Principal union - Merge multiple blessings into one
+
+Merges multiple blessings into one.
+
+It accepts multiple base64url-encoded blessings. Each argument can be a file
+containing a blessing, or the blessing itself. It returns the union of all the
+blessings.
+
+For example, to merge the blessings contained in files A and B:
+  principal union A B, or
+  principal union $(cat A) $(cat B)
+
+Usage:
+   principal union [flags] [<blessing> | <blessing file>...]
+
+<blessing> is a base64url-encoded blessing.
+
+<blessing file> is a file that contains a base64url-encoded blessing.
 
 Principal help - Display help for commands or topics
 
