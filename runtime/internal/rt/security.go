@@ -12,12 +12,17 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/x/ref"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/agentlib"
+)
+
+var (
+	errCredentialsInit = verror.Register(pkgPath+".errCredentialsInit", verror.NoRetry, "failed to initialize credentials, perhaps you need to create them with 'principal create {3}' (error: {4})")
 )
 
 func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (security.Principal, func(), error) {
@@ -30,7 +35,7 @@ func (r *Runtime) initPrincipal(ctx *context.T, credentials string) (security.Pr
 		// exclusively.
 		principal, err := agentlib.LoadPrincipal(credentials)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, verror.New(errCredentialsInit, ctx, credentials, err)
 		}
 		return principal, func() { principal.Close() }, nil
 	}

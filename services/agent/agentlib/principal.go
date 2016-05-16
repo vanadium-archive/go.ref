@@ -26,7 +26,7 @@ import (
 
 var (
 	errNotADirectory = verror.Register(pkgPath+".errNotADirectory", verror.NoRetry, "{1:}{2:} {3} is not a directory{:_}")
-	errFindAgent     = verror.Register(pkgPath+".errFindAgent", verror.NoRetry, "{1:}{2:} couldn't find a suitable agent binary ({3}) or load principal in the address space of the current process ({4})")
+	errFindAgent     = verror.Register(pkgPath+".errFindAgent", verror.NoRetry, "{1:}{2:} couldn't load credentials ({4}) or start an agent ({3})")
 	errLaunchAgent   = verror.Register(pkgPath+".errLaunchAgent", verror.NoRetry, "{1:}{2:} couldn't launch agent ({3}) or load principal locally ({4})")
 	errLoadLocally   = verror.Register(pkgPath+".errLoadLocally", verror.NoRetry, "{1:}{2:} couldn't load principal in the address space of the current process{:_}")
 )
