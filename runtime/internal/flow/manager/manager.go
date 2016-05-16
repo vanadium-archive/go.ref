@@ -24,6 +24,7 @@ import (
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/pubsub"
 	slib "v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/stats"
 	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
 	"v.io/x/ref/runtime/internal/lib/upcqueue"
@@ -112,6 +113,9 @@ func New(
 		cacheInterval = minCacheInterval
 	}
 	m.cacheTicker = time.NewTicker(cacheInterval)
+
+	statsPrefix := naming.Join("rpc", "flow", rid.String())
+	m.cache.ExportStats(naming.Join(statsPrefix, "conn-cache"))
 	go func() {
 		for {
 			select {
@@ -125,6 +129,7 @@ func New(
 			case <-ctx.Done():
 				m.stopListening()
 				m.cache.Close(ctx)
+				stats.Delete(statsPrefix)
 				close(m.closed)
 				return
 			case <-m.cacheTicker.C:

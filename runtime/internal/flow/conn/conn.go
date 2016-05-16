@@ -5,6 +5,7 @@
 package conn
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"sync"
@@ -1019,4 +1020,31 @@ func (c *Conn) sendMessageLocked(
 	c.deactivateWriterLocked(s)
 	c.notifyNextWriterLocked(s)
 	return err
+}
+
+func (c *Conn) DebugString() string {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	return fmt.Sprintf(`
+Remote:
+  Endpoint   %v
+  Blessings: %v (claimed)
+  PublicKey: %v
+Local:
+  Endpoint:  %v
+  Blessings: %v
+Version:     %v
+MTU:         %d
+LastUsed:    %v
+#Flows:      %d
+`,
+		c.remote,
+		c.remoteBlessings,
+		c.rPublicKey,
+		c.local,
+		c.localBlessings,
+		c.version,
+		c.mtu,
+		c.lastUsedTime,
+		len(c.flows))
 }

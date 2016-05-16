@@ -182,11 +182,15 @@ func WithNewDispatchingServer(ctx *context.T,
 	s.active.Add(1)
 	go s.monitorPubStatus(ctx)
 
-	s.listen(s.ctx, v23.GetListenSpec(s.ctx))
+	ls := v23.GetListenSpec(ctx)
+	s.listen(s.ctx, ls)
+	stats.NewString(naming.Join(statsPrefix, "listenspec")).Set(fmt.Sprintf("%v", ls))
 	if len(name) > 0 {
 		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
 		vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	}
+
+	exportStatus(statsPrefix, s)
 
 	go func() {
 		blessingsStat := stats.NewString(naming.Join(statsPrefix, "security", "blessings"))
@@ -935,4 +939,18 @@ func objectToInvoker(obj interface{}) (rpc.Invoker, error) {
 		return invoker, nil
 	}
 	return rpc.ReflectInvoker(obj)
+}
+
+func exportStatus(prefix string, s *server) {
+	prefix = naming.Join(prefix, "status")
+	stats.NewStringFunc(naming.Join(prefix, "endpoints"), func() string { return fmt.Sprint(s.Status().Endpoints) })
+	stats.NewStringFunc(naming.Join(prefix, "publisher"), func() string {
+		var lines []string
+		for _, e := range s.Status().PublisherStatus {
+			lines = append(lines, fmt.Sprint(e))
+		}
+		return strings.Join(lines, "\n")
+	})
+	stats.NewStringFunc(naming.Join(prefix, "proxy-errors"), func() string { return fmt.Sprint(s.Status().ProxyErrors) })
+	stats.NewStringFunc(naming.Join(prefix, "listen-errors"), func() string { return fmt.Sprint(s.Status().ListenErrors) })
 }

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	"v.io/x/ref/lib/stats"
 	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
 )
@@ -55,16 +57,73 @@ func NewConnCache(idleExpiry time.Duration) *ConnCache {
 }
 
 func (c *ConnCache) String() string {
+	defer c.mu.Unlock()
+	c.mu.Lock()
 	buf := &bytes.Buffer{}
-	fmt.Fprintln(buf, "AddressCache:")
-	for k, v := range c.addrCache {
-		fmt.Fprintf(buf, "%v: %p\n", k, v.conn)
+	if c.addrCache != nil {
+		fmt.Fprintln(buf, "AddressCache:")
+		for k, v := range c.addrCache {
+			fmt.Fprintf(buf, "%v: %p\n", k, v.conn)
+		}
 	}
 	fmt.Fprintln(buf, "RIDCache:")
 	for k, v := range c.ridCache {
 		fmt.Fprintf(buf, "%v: %p\n", k, v.conn)
 	}
 	return buf.String()
+}
+
+func (c *ConnCache) ExportStats(prefix string) {
+	stats.NewStringFunc(naming.Join(prefix, "addr"), func() string { return c.debugStringForAddrCache() })
+	stats.NewStringFunc(naming.Join(prefix, "rid"), func() string { return c.debugStringForRIDCache() })
+	stats.NewStringFunc(naming.Join(prefix, "dialing"), func() string { return c.debugStringForDialing() })
+}
+
+func (c *ConnCache) debugStringForAddrCache() string {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	if c.addrCache == nil {
+		return "<closed>"
+	}
+	buf := &bytes.Buffer{}
+	// map iteration is unstable, so sort the keys first
+	keys := make([]string, len(c.addrCache))
+	i := 0
+	for k := range c.addrCache {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		fmt.Fprintf(buf, "KEY: %v\n%v\n\n", k, c.addrCache[k].conn.DebugString())
+	}
+	return buf.String()
+}
+
+func (c *ConnCache) debugStringForRIDCache() string {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	buf := &bytes.Buffer{}
+	for k, v := range c.ridCache {
+		fmt.Fprintf(buf, "KEY: %v\n%v\n\n", k, v.conn.DebugString())
+	}
+	return buf.String()
+}
+
+func (c *ConnCache) debugStringForDialing() string {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	if c.started == nil {
+		return "<closed>"
+	}
+	keys := make([]string, len(c.started))
+	i := 0
+	for k := range c.started {
+		keys[i] = k
+		i++
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, "\n")
 }
 
 // Insert adds conn to the cache, keyed by both (protocol, address) and (routingID)
