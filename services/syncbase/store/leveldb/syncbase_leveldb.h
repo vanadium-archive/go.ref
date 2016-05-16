@@ -54,6 +54,12 @@ void syncbase_leveldb_iter_next(syncbase_leveldb_iterator_t* iter);
 void syncbase_leveldb_iter_get_error(
     const syncbase_leveldb_iterator_t* iter, char** errptr);
 
+// Returns approximate filesystem usage.
+uint64_t syncbase_leveldb_filesystem_bytes(const leveldb_t* db);
+
+// Returns the number of files at all levels.
+uint64_t syncbase_leveldb_file_count(const leveldb_t* db);
+
 #ifdef __cplusplus
 }  // end extern "C"
 #endif

@@ -12,6 +12,7 @@ package leveldb
 import "C"
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -43,6 +44,16 @@ type OpenOptions struct {
 
 // Open opens the database located at the given path.
 func Open(path string, opts OpenOptions) (store.Store, error) {
+	bs, err := openBatchStore(path, opts)
+	if err != nil {
+		return nil, err
+	}
+	return transactions.Wrap(bs), nil
+}
+
+// openBatchStore opens the non-transactional leveldb database that supports
+// batch writes at the given path.
+func openBatchStore(path string, opts OpenOptions) (*db, error) {
 	var cError *C.char
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
@@ -76,12 +87,12 @@ func Open(path string, opts OpenOptions) (store.Store, error) {
 	}
 	readOptions := C.leveldb_readoptions_create()
 	C.leveldb_readoptions_set_verify_checksums(readOptions, 1)
-	return transactions.Wrap(&db{
+	return &db{
 		node:         store.NewResourceNode(),
 		cDb:          cDb,
 		readOptions:  readOptions,
 		writeOptions: C.leveldb_writeoptions_create(),
-	}), nil
+	}, nil
 }
 
 // Close implements the store.Store interface.
@@ -185,4 +196,74 @@ func (d *db) getWithOpts(key, valbuf []byte, cOpts *C.leveldb_readoptions_t) ([]
 	}
 	defer C.leveldb_free(unsafe.Pointer(val))
 	return store.CopyBytes(valbuf, goBytes(val, valLen)), nil
+}
+
+// filesystemBytes returns the amount of filesystem bytes used by "level"
+// files. For small databases this call is about 3X faster than a Get on the
+// database; for large databases it is two orders of magnitude faster than a
+// Get.
+func (d *db) filesystemBytes() uint64 {
+	return uint64(C.syncbase_leveldb_filesystem_bytes(d.cDb))
+}
+
+func (d *db) property(propName string) string {
+	propNameC := C.CString(propName)
+	defer C.free(unsafe.Pointer(propNameC))
+	value := C.leveldb_property_value(d.cDb, propNameC)
+	if value == nil {
+		return ""
+	}
+	defer C.leveldb_free(unsafe.Pointer(value))
+	return C.GoString(value)
+}
+
+// stats returns per-level statistics as a set of parallel slices of the same
+// length.  For small databases this call is about 2X slower than a Get; for
+// large databases it is about one order of magnitude faster than a Get.
+func (d *db) stats() (fileCounts, fileMBs, readMBs, writeMBs []int, err error) {
+	// It's unfortunate that LevelDB only provides the stats in a formatted
+	// string, so we have to parse them out.
+	text := d.property("leveldb.stats")
+
+	// Expecting text that looks like this:
+	//
+	//                               Compactions
+	//Level  Files Size(MB) Time(sec) Read(MB) Write(MB)
+	//--------------------------------------------------
+	//  0        8       32         1        0        64
+	//  1        9       36         1       20        44
+	//  2       12       24         1       24        28
+
+	lines := strings.Split(text, "\n")
+	inHeader := true
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			break
+		}
+		if !inHeader {
+			var n, level, fCount, fMB, t, rMB, wMb int
+			n, err = fmt.Sscan(line, &level, &fCount, &fMB, &t, &rMB, &wMb)
+			if n != 6 {
+				err = fmt.Errorf(`Read %d stats items from "%s": %v`,
+					n, line, err)
+				return
+			}
+			fileCounts = append(fileCounts, fCount)
+			fileMBs = append(fileMBs, fMB)
+			readMBs = append(readMBs, rMB)
+			writeMBs = append(writeMBs, wMb)
+		}
+		if inHeader && strings.HasPrefix(line, "--------------") {
+			inHeader = false
+		}
+	}
+	return
+}
+
+// fileCount eturns the number of "level" files.  The performance of this is
+// constant for different sizes databases, and is about the same as the
+// performance of a Get on a small database.
+func (d *db) fileCount() int {
+	return int(C.syncbase_leveldb_file_count(d.cDb))
 }
