@@ -8,26 +8,34 @@ import (
 	"reflect"
 
 	"v.io/v23/context"
+	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	"v.io/v23/vdl"
 )
 
-// Row wraps a key, value, and collectionId.
+// Row represents a syncbase Row, Collection, or Database.
 type Row struct {
 	DatabaseId   wire.Id
 	CollectionId wire.Id
-	Key          string
-	Value        *vdl.Value
+
+	// If the Row represents a Collection or Database, then Key and Value will
+	// be "" and nil respectively.
+	Key   string
+	Value *vdl.Value
+
+	// If the Row represents a real Row, then Permissions will be nil,
+	// otherwise it will be the Permissions of the Collection or Database.
+	Permissions access.Permissions
 }
 
-// Equals returns true if the rows have the same DatabaseId, CollectionId, Key,
-// and Value.
+// Equals returns true if the rows have the same properties.
 func (r *Row) Equals(rr *Row) bool {
 	return reflect.DeepEqual(r.DatabaseId, rr.DatabaseId) &&
 		reflect.DeepEqual(r.CollectionId, rr.CollectionId) &&
 		r.Key == rr.Key &&
-		vdl.EqualValue(r.Value, rr.Value)
+		vdl.EqualValue(r.Value, rr.Value) &&
+		reflect.DeepEqual(r.Permissions, rr.Permissions)
 }
 
 // DumpStream iterates through all collections in all database, and all rows in
@@ -100,8 +108,14 @@ func (s *DumpStream) Advance() bool {
 			if dbCol.collection == nil {
 				// A database with no collection.  Emit a Row for just the
 				// database, and remove it from the databaseCollections slice.
+				perms, _, err := dbCol.database.GetPermissions(s.ctx)
+				if err != nil {
+					s.setErr(err)
+					return false
+				}
 				s.nextRow = &Row{
-					DatabaseId: dbCol.database.Id(),
+					DatabaseId:  dbCol.database.Id(),
+					Permissions: perms,
 				}
 				s.databaseCollections = s.databaseCollections[1:]
 				return true
@@ -111,9 +125,15 @@ func (s *DumpStream) Advance() bool {
 			s.scanStream = dbCol.collection.Scan(s.ctx, syncbase.Prefix(""))
 
 			// Emit a Row for just the collection.
+			perms, err := dbCol.collection.GetPermissions(s.ctx)
+			if err != nil {
+				s.setErr(err)
+				return false
+			}
 			s.nextRow = &Row{
 				CollectionId: dbCol.collection.Id(),
 				DatabaseId:   dbCol.database.Id(),
+				Permissions:  perms,
 			}
 			return true
 		}
@@ -131,10 +151,7 @@ func (s *DumpStream) Advance() bool {
 		key := s.scanStream.Key()
 		var val *vdl.Value
 		if err := s.scanStream.Value(&val); err != nil {
-			s.err = err
-			s.databaseCollections = nil
-			s.nextRow = nil
-			s.scanStream = nil
+			s.setErr(err)
 			return false
 		}
 		dbCol := s.databaseCollections[0]
@@ -150,6 +167,13 @@ func (s *DumpStream) Advance() bool {
 	// No more stream or collections.  We are done.
 	s.nextRow = nil
 	return false
+}
+
+func (s *DumpStream) setErr(err error) {
+	s.err = err
+	s.databaseCollections = nil
+	s.nextRow = nil
+	s.scanStream = nil
 }
 
 func (s *DumpStream) Err() error {

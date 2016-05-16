@@ -6,6 +6,7 @@ package util
 
 import (
 	"v.io/v23/context"
+	"v.io/v23/security/access"
 	"v.io/v23/syncbase"
 	"v.io/x/ref/services/syncbase/testutil"
 )
@@ -13,29 +14,49 @@ import (
 // Rows is a map from keys to values.
 type Rows map[string]string
 
-// Collections is a map from collection names to Rows.
-type Collections map[string]Rows
+// Collection is a permissions object and Rows.  If Permissions is empty, then
+// "..." will be used.
+type Collection struct {
+	Permissions access.Permissions
+	Rows        Rows
+}
 
-// Databases is a map from database names to Collections.
-type Databases map[string]Collections
+// Collections is a map from collection names to Collections.
+type Collections map[string]Collection
+
+// Database is a permissions object and Collections.  If Permissions if empty,
+// then "..." will be used.
+type Database struct {
+	Permissions access.Permissions
+	Collections Collections
+}
+
+// Databases is a map from database names to Databases.
+type Databases map[string]Database
 
 // SeedService creates databases, collections, and rows in a syncbase service.
 func SeedService(ctx *context.T, s syncbase.Service, dbs Databases) error {
-	openPerms := testutil.DefaultPerms("...")
-	for dbName, cols := range dbs {
-		db := s.Database(ctx, dbName, nil)
-		if err := db.Create(ctx, openPerms); err != nil {
+	for dbName, db := range dbs {
+		sdb := s.Database(ctx, dbName, nil)
+		dbPerms := db.Permissions
+		if len(dbPerms) == 0 {
+			dbPerms = testutil.DefaultPerms("...")
+		}
+		if err := sdb.Create(ctx, dbPerms); err != nil {
 			return err
 		}
-
-		for colName, rows := range cols {
-			col := db.Collection(ctx, colName)
-			if err := col.Create(ctx, openPerms); err != nil {
+		for colName, col := range db.Collections {
+			scol := sdb.Collection(ctx, colName)
+			colPerms := col.Permissions
+			if len(colPerms) == 0 {
+				colPerms = testutil.DefaultPerms("...")
+			}
+			if err := scol.Create(ctx, colPerms); err != nil {
 				return err
 			}
 
-			for key, val := range rows {
-				if err := col.Put(ctx, key, val); err != nil {
+			for key, val := range col.Rows {
+				if err := scol.Put(ctx, key, val); err != nil {
 					return err
 				}
 			}

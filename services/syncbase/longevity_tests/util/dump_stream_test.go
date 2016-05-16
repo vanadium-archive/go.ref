@@ -8,7 +8,9 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/security"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	sbUtil "v.io/v23/syncbase/util"
@@ -22,22 +24,55 @@ func TestDumpStream(t *testing.T) {
 	ctx, serverName, cleanup := testutil.SetupOrDie(nil)
 	defer cleanup()
 
+	// All database and collection blessings must be rooted in our context
+	// blessing, otherwise we can't write to them.
+	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	myBlessing := blessing.String()
+
+	// Create some permissions for the databases and collections.  The
+	// permissions must contain our own blessing, otherwise we will be
+	// prevented from writing to the database/collection.
+	myPerms := testutil.DefaultPerms(myBlessing)
+	meAndAlicePerms := testutil.DefaultPerms(myBlessing, myBlessing+security.ChainSeparator+"alice")
+	meAndBobPerms := testutil.DefaultPerms(myBlessing, myBlessing+security.ChainSeparator+"bob")
+
 	dbs := util.Databases{
-		"db1": util.Collections{
-			"col1": util.Rows{
-				"key1": "val1",
-				"key2": "val2",
-				"key3": "val3",
+		"db1": util.Database{
+			Permissions: myPerms,
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Permissions: meAndAlicePerms,
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "val2",
+						"key3": "val3",
+					},
+				},
+				"col2": util.Collection{
+					Permissions: meAndBobPerms,
+					Rows:        util.Rows{},
+				},
 			},
-			"col2": util.Rows{},
 		},
-		"db2": util.Collections{},
-		"db3": util.Collections{
-			"col3": util.Rows{},
-			"col4": util.Rows{
-				"key4": "val4",
-				"key5": "val5",
-				"key6": "val6",
+		"db2": util.Database{
+			Permissions: meAndBobPerms,
+			Collections: util.Collections{},
+		},
+		"db3": util.Database{
+			Permissions: meAndAlicePerms,
+			Collections: util.Collections{
+				"col3": util.Collection{
+					Permissions: meAndBobPerms,
+					Rows:        util.Rows{},
+				},
+				"col4": util.Collection{
+					Permissions: meAndAlicePerms,
+					Rows: util.Rows{
+						"key4": "val4",
+						"key5": "val5",
+						"key6": "val6",
+					},
+				},
 			},
 		},
 	}
@@ -67,20 +102,29 @@ func TestDumpStream(t *testing.T) {
 	col3Id := wire.Id{Name: "col3", Blessing: colBlessing}
 	col4Id := wire.Id{Name: "col4", Blessing: colBlessing}
 
+	// Get expected permissions.
+	db1Perms := dbs["db1"].Permissions
+	db2Perms := dbs["db2"].Permissions
+	db3Perms := dbs["db3"].Permissions
+	col1Perms := dbs["db1"].Collections["col1"].Permissions
+	col2Perms := dbs["db1"].Collections["col2"].Permissions
+	col3Perms := dbs["db3"].Collections["col3"].Permissions
+	col4Perms := dbs["db3"].Collections["col4"].Permissions
+
 	// Expected rows from dump stream.
 	wantRows := []util.Row{
-		util.Row{DatabaseId: db1Id},
-		util.Row{DatabaseId: db1Id, CollectionId: col1Id},
+		util.Row{DatabaseId: db1Id, Permissions: db1Perms},
+		util.Row{DatabaseId: db1Id, CollectionId: col1Id, Permissions: col1Perms},
 		util.Row{DatabaseId: db1Id, CollectionId: col1Id, Key: "key1", Value: vdl.StringValue(nil, "val1")},
 		util.Row{DatabaseId: db1Id, CollectionId: col1Id, Key: "key2", Value: vdl.StringValue(nil, "val2")},
 		util.Row{DatabaseId: db1Id, CollectionId: col1Id, Key: "key3", Value: vdl.StringValue(nil, "val3")},
-		util.Row{DatabaseId: db1Id, CollectionId: col2Id},
+		util.Row{DatabaseId: db1Id, CollectionId: col2Id, Permissions: col2Perms},
 
-		util.Row{DatabaseId: db2Id},
+		util.Row{DatabaseId: db2Id, Permissions: db2Perms},
 
-		util.Row{DatabaseId: db3Id},
-		util.Row{DatabaseId: db3Id, CollectionId: col3Id},
-		util.Row{DatabaseId: db3Id, CollectionId: col4Id},
+		util.Row{DatabaseId: db3Id, Permissions: db3Perms},
+		util.Row{DatabaseId: db3Id, CollectionId: col3Id, Permissions: col3Perms},
+		util.Row{DatabaseId: db3Id, CollectionId: col4Id, Permissions: col4Perms},
 		util.Row{DatabaseId: db3Id, CollectionId: col4Id, Key: "key4", Value: vdl.StringValue(nil, "val4")},
 		util.Row{DatabaseId: db3Id, CollectionId: col4Id, Key: "key5", Value: vdl.StringValue(nil, "val5")},
 		util.Row{DatabaseId: db3Id, CollectionId: col4Id, Key: "key6", Value: vdl.StringValue(nil, "val6")},

@@ -5,7 +5,6 @@
 package checker_test
 
 import (
-	//"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -13,6 +12,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/syncbase"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/longevity_tests/checker"
@@ -97,23 +97,49 @@ func TestEqualityEqualServices(t *testing.T) {
 	ctx, services, universe, cancel := setupServers(t, 3)
 	defer cancel()
 
+	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	myBlessing := blessing.String()
+	myPerms := testutil.DefaultPerms(myBlessing)
+	otherPerms := testutil.DefaultPerms(myBlessing, myBlessing+security.ChainSeparator+"alice")
+
 	// Seed services with same data.
 	dbs := util.Databases{
-		"db1": util.Collections{
-			"col1": util.Rows{
-				"key1": "val1",
-				"key2": "val2",
-				"key3": "val3",
+		"db1": util.Database{
+			Permissions: myPerms,
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Permissions: otherPerms,
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "val2",
+						"key3": "val3",
+					},
+				},
+				"col2": util.Collection{
+					Permissions: myPerms,
+					Rows:        util.Rows{},
+				},
 			},
-			"col2": util.Rows{},
 		},
-		"db2": util.Collections{},
-		"db3": util.Collections{
-			"col3": util.Rows{},
-			"col4": util.Rows{
-				"key4": "val4",
-				"key5": "val5",
-				"key6": "val6",
+		"db2": util.Database{
+			Permissions: otherPerms,
+			Collections: util.Collections{},
+		},
+		"db3": util.Database{
+			Permissions: otherPerms,
+			Collections: util.Collections{
+				"col3": util.Collection{
+					Permissions: myPerms,
+					Rows:        util.Rows{},
+				},
+				"col4": util.Collection{
+					Permissions: otherPerms,
+					Rows: util.Rows{
+						"key4": "val4",
+						"key5": "val5",
+						"key6": "val6",
+					},
+				},
 			},
 		},
 	}
@@ -138,20 +164,28 @@ func TestEqualityDifferentRowValues(t *testing.T) {
 
 	// Seed services with different rows.
 	dbs1 := util.Databases{
-		"db1": util.Collections{
-			"col1": util.Rows{
-				"key1": "val1",
-				"key2": "VAL-TWO", // Different.
-				"key3": "val3",
+		"db1": util.Database{
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "VAL-TWO", // Different.
+						"key3": "val3",
+					},
+				},
 			},
 		},
 	}
 	dbs2 := util.Databases{
-		"db1": util.Collections{
-			"col1": util.Rows{
-				"key1": "val1",
-				"key2": "DIFFERENT-VAL", // Different.
-				"key3": "val3",
+		"db1": util.Database{
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "DIFFERENT-VAL", // Different.
+						"key3": "val3",
+					},
+				},
 			},
 		},
 	}
@@ -175,21 +209,29 @@ func TestEqualityExtraRows(t *testing.T) {
 	ctx, services, universe, cancel := setupServers(t, 2)
 	defer cancel()
 
-	// Seed services with different number rows.
+	// Seed services with different number of rows.
 	dbs1 := util.Databases{
-		"db1": util.Collections{
-			"col1": util.Rows{
-				"key1": "val1",
-				"key3": "val3",
+		"db1": util.Database{
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Rows: util.Rows{
+						"key1": "val1",
+						"key3": "val3",
+					},
+				},
 			},
 		},
 	}
 	dbs2 := util.Databases{
-		"db1": util.Collections{
-			"col1": util.Rows{
-				"key1": "val1",
-				"key2": "val2", // Missing in above db.
-				"key3": "val3",
+		"db1": util.Database{
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "val2", // Missing in above db.
+						"key3": "val3",
+					},
+				},
 			},
 		},
 	}
@@ -216,20 +258,28 @@ func TestEqualityDifferentCollections(t *testing.T) {
 
 	// Seed services with databases with different collection name.
 	dbs1 := util.Databases{
-		"db1": util.Collections{
-			"col1": util.Rows{
-				"key1": "val1",
-				"key2": "val2",
-				"key3": "val3",
+		"db1": util.Database{
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "val2",
+						"key3": "val3",
+					},
+				},
 			},
 		},
 	}
 	dbs2 := util.Databases{
-		"db1": util.Collections{
-			"col_DIFFERENT": util.Rows{
-				"key1": "val1",
-				"key2": "val2",
-				"key3": "val3",
+		"db1": util.Database{
+			Collections: util.Collections{
+				"col_DIFFERENT": util.Collection{
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "val2",
+						"key3": "val3",
+					},
+				},
 			},
 		},
 	}
@@ -255,20 +305,136 @@ func TestEqualityDifferentDatabases(t *testing.T) {
 
 	// Seed services with databases with different database name.
 	dbs1 := util.Databases{
-		"db1": util.Collections{
-			"col1": util.Rows{
-				"key1": "val1",
-				"key2": "val2",
-				"key3": "val3",
+		"db1": util.Database{
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "val2",
+						"key3": "val3",
+					},
+				},
 			},
 		},
 	}
 	dbs2 := util.Databases{
-		"db_DIFFERENT": util.Collections{
-			"col1": util.Rows{
-				"key1": "val1",
-				"key2": "val2",
-				"key3": "val3",
+		"db_DIFFERENT": util.Database{
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "val2",
+						"key3": "val3",
+					},
+				},
+			},
+		},
+	}
+	if err := util.SeedService(ctx, services[0], dbs1); err != nil {
+		t.Fatal(err)
+	}
+	if err := util.SeedService(ctx, services[1], dbs2); err != nil {
+		t.Fatal(err)
+	}
+
+	eq := checker.Equality{}
+	if err := eq.Run(ctx, universe); err == nil {
+		t.Errorf("expected eq.Run() to error but it did not")
+	}
+}
+
+// TestEqualityDifferentDatabasePermissions checks that Equality returns an
+// error if databases have different Permissions.
+func TestEqualityDifferentDatabasePermissions(t *testing.T) {
+	// Start two syncbase servers.
+	ctx, services, universe, cancel := setupServers(t, 2)
+	defer cancel()
+
+	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	myBlessing := blessing.String()
+	myPerms := testutil.DefaultPerms(myBlessing)
+	otherPerms := testutil.DefaultPerms(myBlessing, myBlessing+security.ChainSeparator+"alice")
+
+	// Seed services with databases with different permissions.
+	dbs1 := util.Databases{
+		"db1": util.Database{
+			Permissions: myPerms, // Different.
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "val2",
+						"key3": "val3",
+					},
+				},
+			},
+		},
+	}
+	dbs2 := util.Databases{
+		"db1": util.Database{
+			Permissions: otherPerms, // Different.
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "val2",
+						"key3": "val3",
+					},
+				},
+			},
+		},
+	}
+	if err := util.SeedService(ctx, services[0], dbs1); err != nil {
+		t.Fatal(err)
+	}
+	if err := util.SeedService(ctx, services[1], dbs2); err != nil {
+		t.Fatal(err)
+	}
+
+	eq := checker.Equality{}
+	if err := eq.Run(ctx, universe); err == nil {
+		t.Errorf("expected eq.Run() to error but it did not")
+	}
+}
+
+// TestEqualityDifferentCollectionPermissions checks that Equality returns an
+// error if collections have different permissions.
+func TestEqualityDifferentCollectionPermissions(t *testing.T) {
+	// Start two syncbase servers.
+	ctx, services, universe, cancel := setupServers(t, 2)
+	defer cancel()
+
+	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
+	myBlessing := blessing.String()
+	myPerms := testutil.DefaultPerms(myBlessing)
+	otherPerms := testutil.DefaultPerms(myBlessing, myBlessing+security.ChainSeparator+"alice")
+
+	// Seed services with databases with different collection name.
+	dbs1 := util.Databases{
+		"db1": util.Database{
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Permissions: myPerms, // Different.
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "val2",
+						"key3": "val3",
+					},
+				},
+			},
+		},
+	}
+	dbs2 := util.Databases{
+		"db1": util.Database{
+			Collections: util.Collections{
+				"col1": util.Collection{
+					Permissions: otherPerms, // Different.
+					Rows: util.Rows{
+						"key1": "val1",
+						"key2": "val2",
+						"key3": "val3",
+					},
+				},
 			},
 		},
 	}
