@@ -21,7 +21,7 @@ import (
 	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/security/bcrypter"
 	"v.io/x/ref/services/iberoot"
-	iroot "v.io/x/ref/services/iberoot/rootd/internal"
+	iroot "v.io/x/ref/services/iberoot/iberootd/internal"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 

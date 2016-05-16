@@ -20,8 +20,8 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 // Error definitions
 
 var (
-	ErrUnrecognizedRemoteBlessings = verror.Register("v.io/x/ref/services/iberoot/rootd/internal.UnrecognizedRemoteBlessings", verror.NoRetry, "{1:}{2:} blessing provided by the remote end: {3} [rejected: {4}] are not recognized by this identity provider: {5}")
-	ErrInternal                    = verror.Register("v.io/x/ref/services/iberoot/rootd/internal.Internal", verror.NoRetry, "{1:}{2:} internal error: {3}")
+	ErrUnrecognizedRemoteBlessings = verror.Register("v.io/x/ref/services/iberoot/iberootd/internal.UnrecognizedRemoteBlessings", verror.NoRetry, "{1:}{2:} blessing provided by the remote end: {3} [rejected: {4}] are not recognized by this identity provider: {5}")
+	ErrInternal                    = verror.Register("v.io/x/ref/services/iberoot/iberootd/internal.Internal", verror.NoRetry, "{1:}{2:} internal error: {3}")
 )
 
 // NewErrUnrecognizedRemoteBlessings returns an error with the ErrUnrecognizedRemoteBlessings ID.

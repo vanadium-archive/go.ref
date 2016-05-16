@@ -15,7 +15,7 @@ import (
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/roaming"
-	iroot "v.io/x/ref/services/iberoot/rootd/internal"
+	iroot "v.io/x/ref/services/iberoot/iberootd/internal"
 )
 
 var (
@@ -27,6 +27,7 @@ var (
 
 func main() {
 	cmdRootD.Flags.StringVar(&keyDir, "key-dir", "", "The directory where the master private key and params are stored.")
+	cmdRootD.Flags.BoolVar(&genmode, "generate", false, "Generate fresh master private key and params, save them in the directory specified by --key-dir and exit")
 	// TODO(ataly): We could also obtain this name from the default
 	// blessing of this service. Unfortuantely that gets messy when
 	// there are multiple default blessings, and it forces starting
@@ -35,7 +36,6 @@ func main() {
 	// service and the IDP explicit by taking in the IDP's blessing
 	// name as a flag. This TODO is for revisiting this choice in the
 	// future.
-	cmdRootD.Flags.BoolVar(&genmode, "generate", false, "Generate fresh master private key and params and save them in the directory specified by -key-dir")
 	cmdRootD.Flags.StringVar(&idpName, "idp", "", "The name of the identity provider represented by this service.")
 	cmdRootD.Flags.StringVar(&objName, "name", "", "The name to publish for this service.")
 	cmdline.HideGlobalFlagsExcept()
@@ -44,9 +44,9 @@ func main() {
 
 var cmdRootD = &cmdline.Command{
 	Runner: v23cmd.RunnerFunc(runRootD),
-	Name:   "rootd",
+	Name:   "iberootd",
 	Short:  "Runs the bcrypter.Root interface daemon.",
-	Long:   "Command rootd runs the bcrypter.Root interface daemon.",
+	Long:   "Command iberootd runs the bcrypter.Root interface daemon.",
 }
 
 func runRootD(ctx *context.T, env *cmdline.Env, args []string) error {
