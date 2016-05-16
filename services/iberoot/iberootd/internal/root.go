@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	keyFile    = "master_key"
-	paramsFile = "master_params"
+	keyFile    = "master-key"
+	paramsFile = "master-params"
 )
 
 // SaveMaster saves the provided IBE Master object into the provided
