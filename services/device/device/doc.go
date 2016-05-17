@@ -33,7 +33,7 @@ The device commands are:
    help          Display help for commands or topics
 
 The global flags are:
- -v23.namespace.root=[/(dev.v.io:role:vprod:service:mounttabled)@ns.dev.v.io:8101]
+ -v23.namespace.root=[/(dev.v.io:r:vprod:service:mounttabled)@ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
  -v23.proxy=
    object name of proxy service to use to export services across network
