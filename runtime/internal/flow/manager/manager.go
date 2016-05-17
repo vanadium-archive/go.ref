@@ -58,8 +58,7 @@ type listenState struct {
 	mu              sync.Mutex
 	serverBlessings security.Blessings
 	serverNames     []string
-	listeners       []flow.Listener
-	endpoints       []*endpointState
+	listeners       map[flow.Listener]*endpointState
 	proxyEndpoints  []naming.Endpoint
 	proxyErrors     map[string]error
 	// TODO(suharshs): Look into making the struct{Protocol, Address string} into
@@ -96,7 +95,7 @@ func New(
 	if rid != naming.NullRoutingID {
 		m.ls = &listenState{
 			q:                     upcqueue.New(),
-			listeners:             []flow.Listener{},
+			listeners:             make(map[flow.Listener]*endpointState),
 			dirty:                 make(chan struct{}),
 			dhcpPublisher:         dhcpPublisher,
 			proxyFlows:            make(map[string]flow.Flow),
@@ -154,7 +153,6 @@ func (m *manager) stopListening() {
 	m.ls.mu.Lock()
 	listeners := m.ls.listeners
 	m.ls.listeners = nil
-	m.ls.endpoints = nil
 	if m.ls.dirty != nil {
 		close(m.ls.dirty)
 		m.ls.dirty = nil
@@ -168,7 +166,7 @@ func (m *manager) stopListening() {
 	if stopRoaming != nil {
 		stopRoaming()
 	}
-	for _, ln := range listeners {
+	for ln := range listeners {
 		ln.Close()
 	}
 	m.ls.listenLoops.Wait()
@@ -209,7 +207,6 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) (<-chan struc
 		}
 		return nil, iflow.MaybeWrapError(flow.ErrNetwork, ctx, lnErr)
 	}
-	m.ls.listeners = append(m.ls.listeners, ln)
 
 	local := naming.Endpoint{
 		Protocol:  protocol,
@@ -225,11 +222,11 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) (<-chan struc
 		}
 		return nil, iflow.MaybeWrapError(flow.ErrBadArg, ctx, err)
 	}
-	m.ls.endpoints = append(m.ls.endpoints, &endpointState{
+	m.ls.listeners[ln] = &endpointState{
 		leps:         leps,
 		tmplEndpoint: local,
 		roaming:      roam,
-	})
+	}
 	if m.ls.stopRoaming == nil && m.ls.dhcpPublisher != nil && roam {
 		ctx2, cancel := context.WithCancel(ctx)
 		ch := make(chan struct{})
@@ -280,7 +277,7 @@ func (m *manager) updateRoamingEndpoints(ctx *context.T) {
 	changed := false
 	m.ls.mu.Lock()
 	defer m.ls.mu.Unlock()
-	for _, epState := range m.ls.endpoints {
+	for _, epState := range m.ls.listeners {
 		if !epState.roaming {
 			continue
 		}
@@ -344,7 +341,7 @@ func (m *manager) createEndpoints(ctx *context.T, lep naming.Endpoint) ([]naming
 }
 
 func (m *manager) updateEndpointBlessingsLocked(names []string) {
-	for _, eps := range m.ls.endpoints {
+	for _, eps := range m.ls.listeners {
 		eps.tmplEndpoint = eps.tmplEndpoint.WithBlessingNames(names)
 		for i := range eps.leps {
 			eps.leps[i] = eps.leps[i].WithBlessingNames(names)
@@ -506,7 +503,14 @@ func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, proxyBlessings []strin
 func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.Endpoint,
 	errKey struct{ Protocol, Address string }, acceptFailed chan struct{}) {
 	defer m.ls.listenLoops.Done()
-	defer close(acceptFailed)
+	defer func() {
+		close(acceptFailed)
+		delete(m.ls.listeners, ln)
+		if m.ls.dirty != nil {
+			close(m.ls.dirty)
+			m.ls.dirty = make(chan struct{})
+		}
+	}()
 	const killConnectionsRetryDelay = 5 * time.Millisecond
 	for {
 		flowConn, err := ln.Accept(ctx)
@@ -657,7 +661,7 @@ func (m *manager) Status() flow.ListenStatus {
 	m.ls.mu.Lock()
 	status.Endpoints = make([]naming.Endpoint, len(m.ls.proxyEndpoints))
 	copy(status.Endpoints, m.ls.proxyEndpoints)
-	for _, epState := range m.ls.endpoints {
+	for _, epState := range m.ls.listeners {
 		for _, ep := range epState.leps {
 			status.Endpoints = append(status.Endpoints, ep)
 		}

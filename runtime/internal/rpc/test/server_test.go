@@ -388,10 +388,12 @@ func TestListenNetworkInterrupted(t *testing.T) {
 		t.Errorf("call should have failed")
 	}
 	bp.setBroken(false)
-	time.Sleep(time.Second)
 	// rpc should succeed now that network is working again.
 	if err := v23.GetClient(ctx).Call(ctx, "server", "Closure", nil, nil); err != nil {
 		t.Error(err)
+	}
+	if eps := server.Status().Endpoints; len(eps) != 1 {
+		t.Errorf("server should only be listening on one endpoint, got %v", eps)
 	}
 	cancel()
 	<-server.Closed()
