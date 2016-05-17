@@ -44,7 +44,7 @@ func TestBasic(t *testing.T) {
 	neighborhood := newNeighborhood()
 	defer neighborhood.shutdown()
 
-	p1, err := newWithDriver(ctx, neighborhood.newDriver(), defaultTTL)
+	p1, err := newWithTTL(ctx, "h1", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestBasic(t *testing.T) {
 		stops = append(stops, stop)
 	}
 
-	p2, err := newWithDriver(ctx, neighborhood.newDriver(), 10*time.Millisecond)
+	p2, err := newWithTTL(ctx, "h2", 10*time.Millisecond)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestMultipleScans(t *testing.T) {
 	neighborhood := newNeighborhood()
 	defer neighborhood.shutdown()
 
-	p1, err := newWithDriver(ctx, neighborhood.newDriver(), defaultTTL)
+	p1, err := newWithTTL(ctx, "h1", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestMultipleScans(t *testing.T) {
 		defer stop()
 	}
 
-	p2, err := newWithDriver(ctx, neighborhood.newDriver(), defaultTTL)
+	p2, err := newWithTTL(ctx, "h2", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestMultipleScans(t *testing.T) {
 		t.Errorf("Unexpected scan: %v, but want %v", adinfo, adinfos[0])
 	}
 
-	p3, err := newWithDriver(ctx, neighborhood.newDriver(), defaultTTL)
+	p3, err := newWithTTL(ctx, "h3", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -250,7 +250,7 @@ func TestAttachments(t *testing.T) {
 	neighborhood := newNeighborhood()
 	defer neighborhood.shutdown()
 
-	p1, err := newWithDriver(ctx, neighborhood.newDriver(), defaultTTL)
+	p1, err := newWithTTL(ctx, "h1", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -264,7 +264,7 @@ func TestAttachments(t *testing.T) {
 		defer stop()
 	}
 
-	p2, err := newWithDriver(ctx, neighborhood.newDriver(), defaultTTL)
+	p2, err := newWithTTL(ctx, "h2", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -314,7 +314,7 @@ func TestMultipleInstances(t *testing.T) {
 	neighborhood := newNeighborhood()
 	defer neighborhood.shutdown()
 
-	p1, err := newWithDriver(ctx, neighborhood.newDriver(), defaultTTL)
+	p1, err := newWithTTL(ctx, "h1", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -333,7 +333,7 @@ func TestMultipleInstances(t *testing.T) {
 	}
 
 	// But other device should be able to advertise it.
-	p2, err := newWithDriver(ctx, neighborhood.newDriver(), defaultTTL)
+	p2, err := newWithTTL(ctx, "h2", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -346,7 +346,7 @@ func TestMultipleInstances(t *testing.T) {
 	defer stop()
 
 	// Make sure all advertisements are discovered.
-	p3, err := newWithDriver(ctx, neighborhood.newDriver(), defaultTTL)
+	p3, err := newWithTTL(ctx, "h3", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -374,7 +374,7 @@ func TestTimestamp(t *testing.T) {
 	neighborhood := newNeighborhood()
 	defer neighborhood.shutdown()
 
-	p1, err := newWithDriver(ctx, neighborhood.newDriver(), defaultTTL)
+	p1, err := newWithTTL(ctx, "h1", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
@@ -385,7 +385,7 @@ func TestTimestamp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	p2, err := newWithDriver(ctx, neighborhood.newDriver(), defaultTTL)
+	p2, err := newWithTTL(ctx, "h2", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}

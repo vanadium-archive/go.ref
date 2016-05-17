@@ -4,7 +4,11 @@
 
 package ble
 
-import "sync"
+import (
+	"sync"
+
+	"v.io/v23/context"
+)
 
 // mockDriver is a driver for testing BLE plugin without a real driver.
 // Drivers within a "neighborhood" can advertise and discover each other.
@@ -104,7 +108,7 @@ type mockNeighborhood struct {
 	done         chan struct{}
 }
 
-func (n *mockNeighborhood) newDriver() Driver {
+func (n *mockNeighborhood) newDriver(ctx *context.T, host string) (Driver, error) {
 	scanning := make(chan *mockPacket, 100)
 	driver := &mockDriver{
 		services:     make(map[string]map[string][]byte),
@@ -117,7 +121,7 @@ func (n *mockNeighborhood) newDriver() Driver {
 	n.mu.Lock()
 	n.drivers[driver] = scanning
 	n.mu.Unlock()
-	return driver
+	return driver, nil
 }
 
 func (n *mockNeighborhood) broadcastLoop() {
@@ -149,5 +153,7 @@ func newNeighborhood() *mockNeighborhood {
 		done:         make(chan struct{}),
 	}
 	go n.broadcastLoop()
+
+	SetDriverFactory(n.newDriver)
 	return n
 }

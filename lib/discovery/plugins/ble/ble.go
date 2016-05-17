@@ -80,15 +80,15 @@ func (p *plugin) Close() {
 // New returns a new BLE plugin instance with default ttl (90s).
 //
 // TODO(jhahn): Rename to New() once we remove old codes.
-func New2(ctx *context.T, host string) (idiscovery.Plugin, error) {
-	driver, err := newDriver(ctx, host)
+func New(ctx *context.T, host string) (idiscovery.Plugin, error) {
+	return newWithTTL(ctx, host, defaultTTL)
+}
+
+func newWithTTL(ctx *context.T, host string, ttl time.Duration) (idiscovery.Plugin, error) {
+	driver, err := driverFactory(ctx, host)
 	if err != nil {
 		return nil, err
 	}
-	return newWithDriver(ctx, driver, defaultTTL)
-}
-
-func newWithDriver(ctx *context.T, driver Driver, ttl time.Duration) (idiscovery.Plugin, error) {
 	p := &plugin{
 		advertiser: newAdvertiser(ctx, driver),
 		scanner:    newScanner(ctx, driver, ttl),

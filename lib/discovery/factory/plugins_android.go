@@ -7,11 +7,13 @@
 package factory
 
 import (
+	"v.io/x/ref/lib/discovery/plugins/ble"
 	"v.io/x/ref/lib/discovery/plugins/mdns"
 )
 
 func init() {
 	pluginFactories = pluginFactoryMap{
 		"mdns": mdns.New,
+		"ble":  ble.New,
 	}
 }

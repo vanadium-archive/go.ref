@@ -6,6 +6,12 @@ package ble
 
 import "v.io/v23/context"
 
+type DriverFactory func(ctx *context.T, host string) (Driver, error)
+
+var (
+	driverFactory DriverFactory = newDummyDriver
+)
+
 type dummyDriver struct{}
 
 func (dummyDriver) AddService(uuid string, characteristics map[string][]byte) error { return nil }
@@ -16,7 +22,10 @@ func (dummyDriver) StartScan(uuids []string, baseUuid, maskUUid string, handler 
 func (dummyDriver) StopScan()           {}
 func (dummyDriver) DebugString() string { return "BLE not available" }
 
-func newDriver(ctx *context.T, host string) (Driver, error) {
-	// TODO(jhahn): Add a real driver with BlueZ.
-	return dummyDriver{}, nil
+func newDummyDriver(ctx *context.T, host string) (Driver, error) { return dummyDriver{}, nil }
+
+// SetPluginFactory sets the plugin factory with the given name.
+// This should be called before v23.NewDiscovery() is called.
+func SetDriverFactory(factory DriverFactory) {
+	driverFactory = factory
 }
