@@ -186,7 +186,7 @@ func skipOldEncDec(data *goData) bool {
 	// files, which generate the FillVDLTarget and MakeVDLTarget methods.  Disable
 	// them in the short-term for the vdltest package, since that uncovers corner
 	// cases that aren't worth fixing.
-	return data.Package.Path == "v.io/v23/vdl/vdltest"
+	return data.Package.Path == "v.io/v23/vdl/vdltest" || *skipGenOldTarget
 }
 
 // defineType returns the type definition for def.

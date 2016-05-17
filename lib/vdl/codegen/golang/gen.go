@@ -7,6 +7,7 @@ package golang
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"go/format"
 	"path"
@@ -32,6 +33,10 @@ type goData struct {
 	collectImports bool // is this the import collecting pass instead of normal generation
 	importMap      importMap
 }
+
+var skipGenWriteRead = flag.Bool("skip-gen-write-read", false, "skip generation of vdl write and read")
+
+var skipGenOldTarget = flag.Bool("skip-gen-old-target", false, "skip generation of vold target interface implementation")
 
 // testingMode is only set to true in tests, to make testing simpler.
 var testingMode = false
@@ -89,6 +94,8 @@ func (data *goData) OptsVar(name string) string {
 
 func (data *goData) SkipGenZeroReadWrite(def *compile.TypeDef) bool {
 	switch {
+	case *skipGenWriteRead:
+		return true
 	case data.Package.Path == "v.io/v23/vdl/vdltest" && strings.HasPrefix(def.Name, "X"):
 		// Don't generate VDL{IsZero,Read,Write} for vdltest types that start with
 		// X.  This is hard-coded to make it easy to generate test cases.
