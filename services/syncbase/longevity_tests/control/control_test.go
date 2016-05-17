@@ -433,10 +433,12 @@ func TestRunUniverseTwoDevicesWithClients(t *testing.T) {
 
 	// Construct a syncgroup and add it to the database.
 	sg := model.Syncgroup{
-		HostDevice:  writerDev,
-		NameSuffix:  "test_sg",
-		Collections: dbModel.Collections,
-		Permissions: perms,
+		HostDevice:     writerDev,
+		NameSuffix:     "test_sg",
+		Collections:    dbModel.Collections,
+		Permissions:    perms,
+		CreatorDevices: model.DeviceSet{writerDev},
+		JoinerDevices:  model.DeviceSet{watcherDev},
 	}
 	dbModel.Syncgroups = []model.Syncgroup{sg}
 
@@ -527,10 +529,12 @@ func TestRunUniverseTwoUsers(t *testing.T) {
 
 	// Construct a syncgroup and add it to the database.
 	sg := model.Syncgroup{
-		HostDevice:  devAliceWriter,
-		NameSuffix:  "test_sg",
-		Collections: dbModel.Collections,
-		Permissions: permsAlice,
+		HostDevice:     devAliceWriter,
+		NameSuffix:     "test_sg",
+		Collections:    dbModel.Collections,
+		Permissions:    permsAlice,
+		CreatorDevices: model.DeviceSet{devAliceWriter},
+		JoinerDevices:  model.DeviceSet{devBobWatcher},
 	}
 	dbModel.Syncgroups = []model.Syncgroup{sg}
 

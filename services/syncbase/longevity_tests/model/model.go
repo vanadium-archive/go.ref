@@ -100,6 +100,10 @@ type Syncgroup struct {
 	Collections []Collection
 	Permissions Permissions
 	IsPrivate   bool
+	// Devices which will attempt to create the syncgroup.
+	CreatorDevices DeviceSet
+	// Devices which will attempt to join the syncgroup.
+	JoinerDevices DeviceSet
 }
 
 func (sg *Syncgroup) Name() string {
@@ -316,6 +320,17 @@ func (ds DeviceSet) String() string {
 		r[i] = j.Name
 	}
 	return fmt.Sprintf("[%s]", strings.Join(r, ", "))
+}
+
+// Lookup returns the first Device in the DeviceSet with the given name, or nil
+// if none exists.
+func (ds DeviceSet) Lookup(name string) *Device {
+	for _, d := range ds {
+		if d.Name == name {
+			return d
+		}
+	}
+	return nil
 }
 
 // Topology is an adjacency matrix specifying the connection type between

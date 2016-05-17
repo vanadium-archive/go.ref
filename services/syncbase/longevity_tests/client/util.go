@@ -65,8 +65,8 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 		// Create or join syncgroups for database.
 		for _, sgModel := range dbModel.Syncgroups {
 			sg := db.SyncgroupForId(wire.Id{Name: sgModel.NameSuffix, Blessing: "blessing"})
-			if sgModel.HostDevice.Name == sbName {
-				// We are the host.  Create the syncgroup.
+			if sgModel.CreatorDevices.Lookup(sbName) != nil {
+				// Create the syncgroup.
 				spec := sgModel.Spec("root")
 				spec.MountTables = nsRoots
 
@@ -82,21 +82,24 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 				syncgroups = append(syncgroups, sg)
 				continue
 			}
-			// Join the syncgroup.  It might not exist at first, so we loop.
-			// TODO(nlacasse): Parameterize number of retries.  Exponential
-			// backoff?
-			var joinErr error
-			for i := 0; i < 10; i++ {
-				_, joinErr = sg.Join(ctx, sgModel.HostDevice.Name, nil, wire.SyncgroupMemberInfo{})
-				if joinErr == nil {
-					syncgroups = append(syncgroups, sg)
-					break
-				} else {
-					time.Sleep(100 * time.Millisecond)
+
+			if sgModel.JoinerDevices.Lookup(sbName) != nil {
+				// Join the syncgroup.  It might not exist at first, so we loop.
+				// TODO(nlacasse): Parameterize number of retries.  Exponential
+				// backoff?
+				var joinErr error
+				for i := 0; i < 10; i++ {
+					_, joinErr = sg.Join(ctx, sgModel.HostDevice.Name, nil, wire.SyncgroupMemberInfo{})
+					if joinErr == nil {
+						syncgroups = append(syncgroups, sg)
+						break
+					} else {
+						time.Sleep(100 * time.Millisecond)
+					}
 				}
-			}
-			if joinErr != nil {
-				return nil, nil, fmt.Errorf("could not join syncgroup %q: %v", sgModel.Name(), joinErr)
+				if joinErr != nil {
+					return nil, nil, fmt.Errorf("could not join syncgroup %q: %v", sgModel.Name(), joinErr)
+				}
 			}
 		}
 	}
