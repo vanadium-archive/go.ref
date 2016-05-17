@@ -266,15 +266,7 @@ func (m *manager) monitorNetworkChanges(ctx *context.T, done chan<- struct{}) {
 			return
 		case <-change:
 			netstate.InvalidateCache()
-			addrs, err := netstate.GetAccessibleIPs()
-			if err != nil {
-				ctx.Errorf("failed to read network state: %v", err)
-				continue
-			}
-			if ctx.V(2) {
-				ctx.Infof("Network configuration changed: %v", addrs)
-			}
-			m.updateRoamingEndpoints(addrs)
+			m.updateRoamingEndpoints(ctx)
 			if change, err = netconfig.NotifyChange(); err != nil {
 				ctx.Errorf("endpoints will not be updated if the network configuration changes, failed to monitor network changes: %v", err)
 				return
@@ -283,12 +275,8 @@ func (m *manager) monitorNetworkChanges(ctx *context.T, done chan<- struct{}) {
 	}
 }
 
-func (m *manager) updateRoamingEndpoints(addrs netstate.AddrList) {
-	hosts := make(map[string]bool, len(addrs))
-	for _, addr := range addrs {
-		h, _ := getHostPort(addr)
-		hosts[h] = true
-	}
+func (m *manager) updateRoamingEndpoints(ctx *context.T) {
+	ctx.Infof("Network configuration may have changed, adjusting the addresses to listen on (routing id: %v)", m.rid)
 	changed := false
 	m.ls.mu.Lock()
 	defer m.ls.mu.Unlock()
@@ -296,27 +284,28 @@ func (m *manager) updateRoamingEndpoints(addrs netstate.AddrList) {
 		if !epState.roaming {
 			continue
 		}
-		if len(hosts) != len(epState.leps) {
+		newleps, _, err := m.createEndpoints(ctx, epState.tmplEndpoint)
+		if err != nil {
+			ctx.Infof("Unable to update roaming endpoints for template %v: %v", epState.tmplEndpoint, err)
+			continue
+		}
+		if len(newleps) != len(epState.leps) {
 			changed = true
 		}
-		_, port := getHostPort(epState.tmplEndpoint.Addr())
-		newleps := make([]naming.Endpoint, 0, len(hosts))
-		for h := range hosts {
-			nep := epState.tmplEndpoint
-			nep.Address = net.JoinHostPort(h, port)
-			newleps = append(newleps, nep)
-
-			if !changed {
-				found := false
-				for _, oldep := range epState.leps {
-					oldh, _ := getHostPort(oldep.Addr())
-					if h == oldh {
-						found = true
-						break
-					}
-				}
-				changed = !found
+		if !changed {
+			newset := make(map[string]bool)
+			for _, lep := range newleps {
+				newset[lep.String()] = true
 			}
+			for _, lep := range epState.leps {
+				if !newset[lep.String()] {
+					changed = true
+					break
+				}
+			}
+		}
+		if changed {
+			ctx.Infof("Changing from %v to %v", epState.leps, newleps)
 		}
 		epState.leps = newleps
 	}
@@ -365,14 +354,6 @@ func (m *manager) updateEndpointBlessingsLocked(names []string) {
 		close(m.ls.dirty)
 		m.ls.dirty = make(chan struct{})
 	}
-}
-
-func getHostPort(address net.Addr) (string, string) {
-	host, port, err := net.SplitHostPort(address.String())
-	if err == nil {
-		return host, port
-	}
-	return address.String(), ""
 }
 
 // ProxyListen causes the Manager to accept flows from the specified endpoint.
