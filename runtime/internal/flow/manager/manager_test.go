@@ -28,7 +28,7 @@ func TestDirectConnection(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
-	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
+	if _, err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
 	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0, nil)
@@ -47,7 +47,7 @@ func TestDialCachedConn(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
-	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
+	if _, err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -84,7 +84,7 @@ func TestBidirectionalListeningEndpoint(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
-	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
+	if _, err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -105,7 +105,7 @@ func TestPublicKeyOnlyClientBlessings(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
-	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
+	if _, err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
 	nulldm := New(ctx, naming.NullRoutingID, nil, 0, 0, nil)
@@ -136,7 +136,7 @@ func TestStopListening(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
-	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
+	if _, err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		t.Fatal(err)
 	}
 	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0, nil)
@@ -207,7 +207,7 @@ func BenchmarkDialCachedConn(b *testing.B) {
 	ctx, shutdown := test.V23Init()
 
 	am := New(ctx, naming.FixedRoutingID(0x5555), nil, 0, 0, nil)
-	if err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
+	if _, err := am.Listen(ctx, "tcp", "127.0.0.1:0"); err != nil {
 		b.Fatal(err)
 	}
 	dm := New(ctx, naming.FixedRoutingID(0x1111), nil, 0, 0, nil)

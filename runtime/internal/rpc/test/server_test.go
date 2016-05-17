@@ -5,13 +5,16 @@
 package test
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
@@ -349,5 +352,176 @@ func TestUpdateServerBlessings(t *testing.T) {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestListenNetworkInterrupted(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+	bp := newBrokenNetProtocol()
+	sctx, cancel := context.WithCancel(ctx)
+	sctx = v23.WithListenSpec(sctx, rpc.ListenSpec{Addrs: rpc.ListenAddrs{{Protocol: "broken", Address: "127.0.0.1:0"}}})
+	// If the network is broken and prevents listening before the server is created,
+	// the server should listen and accept rpcs when the network is fixed.
+	bp.setBroken(true)
+	_, server, err := v23.WithNewServer(sctx, "server", &testServer{}, security.AllowEveryone())
+	if err != nil {
+		t.Error(err)
+	}
+	// rpc should fail until the network works.
+	if err := v23.GetClient(ctx).Call(ctx, "server", "Closure", nil, nil, options.NoRetry{}); err == nil {
+		t.Errorf("call should have failed")
+	}
+	bp.setBroken(false)
+	// rpc should succeed now that network is working again.
+	if err := v23.GetClient(ctx).Call(ctx, "server", "Closure", nil, nil); err != nil {
+		t.Error(err)
+	}
+
+	// kill connections to clear the cache.
+	bp.killConnections()
+	// If the network is broken after the server is created and successfully listened,
+	// the server should listen and accept rpcs when the network is fixed.
+	bp.setBroken(true)
+	// rpc should fail until the network works.
+	if err := v23.GetClient(ctx).Call(ctx, "server", "Closure", nil, nil, options.NoRetry{}); err == nil {
+		t.Errorf("call should have failed")
+	}
+	bp.setBroken(false)
+	time.Sleep(time.Second)
+	// rpc should succeed now that network is working again.
+	if err := v23.GetClient(ctx).Call(ctx, "server", "Closure", nil, nil); err != nil {
+		t.Error(err)
+	}
+	cancel()
+	<-server.Closed()
+}
+
+type brokenNetProtocol struct {
+	protocol flow.Protocol
+	mu       sync.Mutex
+	// Unfortunately broken needs to be a channel rather than a bool since we need
+	// to interrupt listener.Accept() when the network breaks.
+	broken chan struct{}
+	conns  []flow.Conn
+}
+
+func newBrokenNetProtocol() *brokenNetProtocol {
+	p, _ := flow.RegisteredProtocol("tcp")
+	bp := &brokenNetProtocol{protocol: p, broken: make(chan struct{})}
+	flow.RegisterProtocol("broken", bp)
+	return bp
+}
+
+// setBroken sets the protocol to disallow all dials and listens if broken is true.
+func (p *brokenNetProtocol) setBroken(broken bool) {
+	defer p.mu.Unlock()
+	p.mu.Lock()
+	if broken {
+		select {
+		case <-p.broken:
+		default:
+			close(p.broken)
+		}
+	} else {
+		select {
+		case <-p.broken:
+			p.broken = make(chan struct{})
+		default:
+		}
+	}
+}
+
+func (p *brokenNetProtocol) isBroken() bool {
+	p.mu.Lock()
+	broken := p.broken
+	p.mu.Unlock()
+	select {
+	case <-broken:
+		return true
+	default:
+	}
+	return false
+}
+
+// killConnections kills all connections to avoid using cached connections.
+func (p *brokenNetProtocol) killConnections() {
+	defer p.mu.Unlock()
+	p.mu.Lock()
+	for _, c := range p.conns {
+		c.Close()
+	}
+	p.conns = nil
+}
+
+func (p *brokenNetProtocol) Dial(ctx *context.T, protocol, address string, timeout time.Duration) (flow.Conn, error) {
+	// Return an error if the network is broken.
+	if p.isBroken() {
+		return nil, fmt.Errorf("network is broken")
+	}
+	c, err := p.protocol.Dial(ctx, "tcp", address, timeout)
+	if err != nil {
+		return nil, err
+	}
+	p.mu.Lock()
+	p.conns = append(p.conns, c)
+	p.mu.Unlock()
+	return c, nil
+}
+
+func (p *brokenNetProtocol) Listen(ctx *context.T, protocol, address string) (flow.Listener, error) {
+	// Return an error if the network is broken.
+	if p.isBroken() {
+		return nil, fmt.Errorf("network is broken")
+	}
+	l, err := p.protocol.Listen(ctx, "tcp", address)
+	if err != nil {
+		return nil, err
+	}
+	return &brokenNetListener{p: p, Listener: l}, nil
+}
+
+func (p *brokenNetProtocol) Resolve(ctx *context.T, protocol, address string) (string, []string, error) {
+	return p.protocol.Resolve(ctx, "tcp", address)
+}
+
+type brokenNetListener struct {
+	p *brokenNetProtocol
+	flow.Listener
+}
+
+type connAndErr struct {
+	c   flow.Conn
+	err error
+}
+
+func (l *brokenNetListener) Accept(ctx *context.T) (flow.Conn, error) {
+	ch := make(chan connAndErr)
+	go func() {
+		c, err := l.Listener.Accept(ctx)
+		ch <- connAndErr{c, err}
+	}()
+
+	l.p.mu.Lock()
+	broken := l.p.broken
+	l.p.mu.Unlock()
+	select {
+	case <-broken:
+		cae := <-ch
+		c, err := cae.c, cae.err
+		if err != nil {
+			return nil, err
+		}
+		c.Close()
+		return nil, fmt.Errorf("network is broken")
+	case cae := <-ch:
+		c, err := cae.c, cae.err
+		if err != nil {
+			return nil, err
+		}
+		l.p.mu.Lock()
+		l.p.conns = append(l.p.conns, c)
+		l.p.mu.Unlock()
+		return c, nil
 	}
 }

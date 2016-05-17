@@ -62,9 +62,12 @@ type listenState struct {
 	endpoints       []*endpointState
 	proxyEndpoints  []naming.Endpoint
 	proxyErrors     map[string]error
-	netChange       chan struct{}
-	stopRoaming     func()
-	proxyFlows      map[string]flow.Flow // keyed by ep.String()
+	// TODO(suharshs): Look into making the struct{Protocol, Address string} into
+	// a named struct. This may involve changing v.io/v23/rpc.ListenAddrs.
+	listenErrors map[struct{ Protocol, Address string }]error
+	dirty        chan struct{}
+	stopRoaming  func()
+	proxyFlows   map[string]flow.Flow // keyed by ep.String()
 }
 
 type endpointState struct {
@@ -94,10 +97,11 @@ func New(
 		m.ls = &listenState{
 			q:                     upcqueue.New(),
 			listeners:             []flow.Listener{},
-			netChange:             make(chan struct{}),
+			dirty:                 make(chan struct{}),
 			dhcpPublisher:         dhcpPublisher,
 			proxyFlows:            make(map[string]flow.Flow),
 			proxyErrors:           make(map[string]error),
+			listenErrors:          make(map[struct{ Protocol, Address string }]error),
 			serverAuthorizedPeers: authorizedPeers,
 		}
 		p := v23.GetPrincipal(ctx)
@@ -151,9 +155,9 @@ func (m *manager) stopListening() {
 	listeners := m.ls.listeners
 	m.ls.listeners = nil
 	m.ls.endpoints = nil
-	if m.ls.netChange != nil {
-		close(m.ls.netChange)
-		m.ls.netChange = nil
+	if m.ls.dirty != nil {
+		close(m.ls.dirty)
+		m.ls.dirty = nil
 	}
 	stopRoaming := m.ls.stopRoaming
 	m.ls.stopRoaming = nil
@@ -184,19 +188,26 @@ func (m *manager) StopListening(ctx *context.T) {
 
 // Listen causes the Manager to accept flows from the provided protocol and address.
 // Listen may be called muliple times.
-func (m *manager) Listen(ctx *context.T, protocol, address string) error {
+func (m *manager) Listen(ctx *context.T, protocol, address string) (<-chan struct{}, error) {
 	if m.ls == nil {
-		return NewErrListeningWithNullRid(ctx)
+		return nil, NewErrListeningWithNullRid(ctx)
 	}
-	ln, err := listen(ctx, protocol, address)
-	if err != nil {
-		return iflow.MaybeWrapError(flow.ErrNetwork, ctx, err)
-	}
+
+	ln, lnErr := listen(ctx, protocol, address)
 	defer m.ls.mu.Unlock()
 	m.ls.mu.Lock()
 	if m.ls.listeners == nil {
 		ln.Close()
-		return flow.NewErrBadState(ctx, NewErrManagerClosed(ctx))
+		return nil, flow.NewErrBadState(ctx, NewErrManagerClosed(ctx))
+	}
+	errKey := struct{ Protocol, Address string }{Protocol: protocol, Address: address}
+	if lnErr != nil {
+		m.ls.listenErrors[errKey] = lnErr
+		if m.ls.dirty != nil {
+			close(m.ls.dirty)
+			m.ls.dirty = make(chan struct{})
+		}
+		return nil, iflow.MaybeWrapError(flow.ErrNetwork, ctx, lnErr)
 	}
 	m.ls.listeners = append(m.ls.listeners, ln)
 
@@ -207,7 +218,12 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 	}.WithBlessingNames(m.ls.serverNames)
 	leps, roam, err := m.createEndpoints(ctx, local)
 	if err != nil {
-		return iflow.MaybeWrapError(flow.ErrBadArg, ctx, err)
+		m.ls.listenErrors[errKey] = err
+		if m.ls.dirty != nil {
+			close(m.ls.dirty)
+			m.ls.dirty = make(chan struct{})
+		}
+		return nil, iflow.MaybeWrapError(flow.ErrBadArg, ctx, err)
 	}
 	m.ls.endpoints = append(m.ls.endpoints, &endpointState{
 		leps:         leps,
@@ -224,9 +240,17 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) error {
 		go m.monitorNetworkChanges(ctx2, ch)
 	}
 
+	// The endpoints have changed on this successful listen so notify any watchers.
+	m.ls.listenErrors[errKey] = nil
+	if m.ls.dirty != nil {
+		close(m.ls.dirty)
+		m.ls.dirty = make(chan struct{})
+	}
+
 	m.ls.listenLoops.Add(1)
-	go m.lnAcceptLoop(ctx, ln, local)
-	return nil
+	acceptFailed := make(chan struct{})
+	go m.lnAcceptLoop(ctx, ln, local, errKey, acceptFailed)
+	return acceptFailed, nil
 }
 
 func (m *manager) monitorNetworkChanges(ctx *context.T, done chan<- struct{}) {
@@ -297,8 +321,8 @@ func (m *manager) updateRoamingEndpoints(addrs netstate.AddrList) {
 		epState.leps = newleps
 	}
 	if changed {
-		close(m.ls.netChange)
-		m.ls.netChange = make(chan struct{})
+		close(m.ls.dirty)
+		m.ls.dirty = make(chan struct{})
 	}
 }
 
@@ -337,9 +361,9 @@ func (m *manager) updateEndpointBlessingsLocked(names []string) {
 			eps.leps[i] = eps.leps[i].WithBlessingNames(names)
 		}
 	}
-	if m.ls.netChange != nil {
-		close(m.ls.netChange)
-		m.ls.netChange = make(chan struct{})
+	if m.ls.dirty != nil {
+		close(m.ls.dirty)
+		m.ls.dirty = make(chan struct{})
 	}
 }
 
@@ -433,9 +457,9 @@ func (m *manager) updateProxyEndpoints(eps []naming.Endpoint, name string, err e
 	m.ls.proxyErrors[name] = err
 	// The proxy endpoints have changed so we need to notify any watchers to
 	// requery Status.
-	if m.ls.netChange != nil {
-		close(m.ls.netChange)
-		m.ls.netChange = make(chan struct{})
+	if m.ls.dirty != nil {
+		close(m.ls.dirty)
+		m.ls.dirty = make(chan struct{})
 	}
 }
 
@@ -498,8 +522,10 @@ func (a proxyAuthorizer) BlessingsForPeer(ctx *context.T, proxyBlessings []strin
 	return blessings, discharges, nil
 }
 
-func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.Endpoint) {
+func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.Endpoint,
+	errKey struct{ Protocol, Address string }, acceptFailed chan struct{}) {
 	defer m.ls.listenLoops.Done()
+	defer close(acceptFailed)
 	const killConnectionsRetryDelay = 5 * time.Millisecond
 	for {
 		flowConn, err := ln.Accept(ctx)
@@ -521,7 +547,15 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 			m.ls.mu.Unlock()
 			if !closed {
 				ctx.Errorf("ln.Accept on localEP %v failed: %v", local, err)
+				return
 			}
+			m.ls.mu.Lock()
+			m.ls.listenErrors[errKey] = err
+			if m.ls.dirty != nil {
+				close(m.ls.dirty)
+				m.ls.dirty = make(chan struct{})
+			}
+			m.ls.mu.Unlock()
 			return
 		}
 
@@ -647,11 +681,15 @@ func (m *manager) Status() flow.ListenStatus {
 			status.Endpoints = append(status.Endpoints, ep)
 		}
 	}
-	status.ProxyErrors = make(map[string]error)
+	status.ProxyErrors = make(map[string]error, len(m.ls.proxyErrors))
 	for k, v := range m.ls.proxyErrors {
 		status.ProxyErrors[k] = v
 	}
-	status.Dirty = m.ls.netChange
+	status.ListenErrors = make(map[struct{ Protocol, Address string }]error, len(m.ls.listenErrors))
+	for k, v := range m.ls.listenErrors {
+		status.ListenErrors[k] = v
+	}
+	status.Dirty = m.ls.dirty
 	m.ls.mu.Unlock()
 	if len(status.Endpoints) == 0 {
 		status.Endpoints = append(status.Endpoints, naming.Endpoint{Protocol: bidi.Name, RoutingID: m.rid})

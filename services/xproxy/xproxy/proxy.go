@@ -24,9 +24,10 @@ import (
 )
 
 const (
-	reconnectDelay = 50 * time.Millisecond
-	maxBackoff     = time.Minute
-	bidiProtocol   = "bidi"
+	reconnectDelay   = 50 * time.Millisecond
+	maxBackoff       = time.Minute
+	bidiProtocol     = "bidi"
+	relistenInterval = time.Second
 )
 
 type proxy struct {
@@ -69,9 +70,12 @@ func New(ctx *context.T, name string, auth security.Authorizer) (*proxy, error) 
 		go p.connectToProxy(ctx, lspec.Proxy)
 	}
 	for _, addr := range lspec.Addrs {
-		if err := p.m.Listen(ctx, addr.Protocol, addr.Address); err != nil {
-			return nil, err
+		ch, err := p.m.Listen(ctx, addr.Protocol, addr.Address)
+		if err != nil {
+			ctx.Errorf("proxy failed to listen on %v, %v", addr.Protocol, addr.Address)
 		}
+		p.wg.Add(1)
+		go p.relisten(ctx, addr.Protocol, addr.Address, ch, err)
 	}
 	mgrStat := p.m.Status()
 	leps, changed := mgrStat.Endpoints, mgrStat.Dirty
@@ -400,6 +404,34 @@ func (p *proxy) returnEndpointsLocked(ctx *context.T, rid naming.RoutingID, rout
 		eps[idx] = ep
 	}
 	return eps, nil
+}
+
+// relisten continuously tries to listen on the protocol, address.
+// If err != nil, relisten will attempt to listen on the protocol, address immediately, since
+// the previous attempt failed.
+// Otherwise, ch will be non-nil, and relisten will attempt to relisten once ch is closed.
+func (p *proxy) relisten(ctx *context.T, protocol, address string, ch <-chan struct{}, err error) {
+	defer p.wg.Done()
+	for {
+		if err != nil {
+			timer := time.NewTimer(relistenInterval)
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				timer.Stop()
+				return
+			}
+		} else {
+			select {
+			case <-ch:
+			case <-ctx.Done():
+				return
+			}
+		}
+		if ch, err = p.m.Listen(ctx, protocol, address); err != nil {
+			ctx.Errorf("Listen(%q, %q, ...) failed: %v", protocol, address, err)
+		}
+	}
 }
 
 func (p *proxy) connectToProxy(ctx *context.T, name string) {

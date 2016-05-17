@@ -48,8 +48,9 @@ var (
 )
 
 const (
-	reconnectDelay = 50 * time.Millisecond
-	bidiProtocol   = "bidi"
+	reconnectDelay   = 50 * time.Millisecond
+	bidiProtocol     = "bidi"
+	relistenInterval = time.Second
 )
 
 type server struct {
@@ -62,12 +63,11 @@ type server struct {
 	dirty             chan struct{}
 	typeCache         *typeCache
 	state             rpc.ServerState // the current state of the server.
-	stopProxy         context.CancelFunc
+	stopListens       context.CancelFunc
 	publisher         *publisher.T // publisher to publish mounttable mounts.
 	closed            chan struct{}
 
-	endpoints map[string]naming.Endpoint                   // endpoints that the server is listening on.
-	lnErrors  map[struct{ Protocol, Address string }]error // errors from listening
+	endpoints map[string]naming.Endpoint // endpoints that the server is listening on.
 
 	disp               rpc.Dispatcher // dispatcher to serve RPCs
 	dispReserved       rpc.Dispatcher // dispatcher for reserved methods
@@ -120,7 +120,6 @@ func WithNewDispatchingServer(ctx *context.T,
 		typeCache:         newTypeCache(),
 		state:             rpc.ServerActive,
 		endpoints:         make(map[string]naming.Endpoint),
-		lnErrors:          make(map[struct{ Protocol, Address string }]error),
 		lameDuckTimeout:   5 * time.Second,
 		closed:            make(chan struct{}),
 	}
@@ -219,7 +218,7 @@ func WithNewDispatchingServer(ctx *context.T,
 
 		s.stats.stop()
 		pubcancel()
-		s.stopProxy()
+		s.stopListens()
 
 		done := make(chan struct{})
 		go func() {
@@ -299,11 +298,9 @@ func (s *server) Status() rpc.ServerStatus {
 	for _, e := range s.endpoints {
 		status.Endpoints = append(status.Endpoints, e)
 	}
-	status.ListenErrors = make(map[struct{ Protocol, Address string }]error)
-	for k, v := range s.lnErrors {
-		status.ListenErrors[k] = v
-	}
-	status.ProxyErrors = s.flowMgr.Status().ProxyErrors
+	mgrStat := s.flowMgr.Status()
+	status.ListenErrors = mgrStat.ListenErrors
+	status.ProxyErrors = mgrStat.ProxyErrors
 	s.Unlock()
 	return status
 }
@@ -345,19 +342,20 @@ func (s *server) createEndpoint(lep naming.Endpoint) naming.Endpoint {
 func (s *server) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 	defer s.Unlock()
 	s.Lock()
-	var pctx *context.T
-	pctx, s.stopProxy = context.WithCancel(ctx)
+	var lctx *context.T
+	lctx, s.stopListens = context.WithCancel(ctx)
 	if len(listenSpec.Proxy) > 0 {
 		s.active.Add(1)
-		go s.connectToProxy(pctx, listenSpec.Proxy)
+		go s.connectToProxy(lctx, listenSpec.Proxy)
 	}
 	for _, addr := range listenSpec.Addrs {
 		if len(addr.Address) > 0 {
-			err := s.flowMgr.Listen(ctx, addr.Protocol, addr.Address)
+			ch, err := s.flowMgr.Listen(ctx, addr.Protocol, addr.Address)
 			if err != nil {
 				s.ctx.Errorf("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, err)
 			}
-			s.lnErrors[addr] = err
+			s.active.Add(1)
+			go s.relisten(lctx, addr.Protocol, addr.Address, ch, err)
 		}
 	}
 
@@ -368,6 +366,34 @@ func (s *server) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 	s.active.Add(2)
 	go s.updateEndpointsLoop(ctx, mgrStat.Dirty)
 	go s.acceptLoop(ctx)
+}
+
+// relisten continuously tries to listen on the protocol, address.
+// If err != nil, relisten will attempt to listen on the protocol, address immediately, since
+// the previous attempt failed.
+// Otherwise, ch will be non-nil, and relisten will attempt to relisten once ch is closed.
+func (s *server) relisten(ctx *context.T, protocol, address string, ch <-chan struct{}, err error) {
+	defer s.active.Done()
+	for {
+		if err != nil {
+			timer := time.NewTimer(relistenInterval)
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				timer.Stop()
+				return
+			}
+		} else {
+			select {
+			case <-ch:
+			case <-ctx.Done():
+				return
+			}
+		}
+		if ch, err = s.flowMgr.Listen(ctx, protocol, address); err != nil {
+			s.ctx.Errorf("Listen(%q, %q, ...) failed: %v", protocol, address, err)
+		}
+	}
 }
 
 func (s *server) connectToProxy(ctx *context.T, name string) {
