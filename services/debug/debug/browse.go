@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	"v.io/v23"
@@ -29,6 +30,7 @@ func init() {
 	cmdBrowse.Flags.StringVar(&flagBrowseBlessings, "blessings", "", "If non-empty, points to the blessings required to debug the process. This is typically obtained via 'debug delegate' run by the owner of the remote process")
 	cmdBrowse.Flags.StringVar(&flagBrowsePrivateKey, "key", "", "If non-empty, must be accompanied with --blessings with a value obtained via 'debug delegate' run by the owner of the remote process")
 	cmdBrowse.Flags.StringVar(&flagBrowseAssets, "assets", "", "If non-empty, load assets from this directory.")
+	cmdDelegate.Flags.StringVar(&flagDelegateAccess, "access", "resolve,debug", "Comma-separated list of access tags on methods that can be invoked by the delegate")
 }
 
 var (
@@ -37,6 +39,7 @@ var (
 	flagBrowseBlessings  string
 	flagBrowsePrivateKey string
 	flagBrowseAssets     string
+	flagDelegateAccess   string
 	cmdBrowse            = &cmdline.Command{
 		Runner: v23cmd.RunnerFunc(runBrowse),
 		Name:   "browse",
@@ -206,6 +209,34 @@ func selectName(ctx *context.T, options []string) (string, error) {
 	return "", fmt.Errorf("failed to contact server: %v", errors)
 }
 
+func delegateAccessCaveat() (security.Caveat, error) {
+	strs := strings.Split(flagDelegateAccess, ",")
+	var tags []access.Tag
+	for _, s := range strs {
+		ls := strings.ToLower(s)
+		found := false
+		for _, t := range access.AllTypicalTags() {
+			lt := strings.ToLower(string(t))
+			if ls == lt {
+				tags = append(tags, t)
+				found = true
+				break
+			}
+		}
+		if !found {
+			return security.Caveat{}, fmt.Errorf("invalid --access: [%s] is not in %v", s, access.AllTypicalTags())
+		}
+	}
+	if len(tags) == 0 {
+		var all []string
+		for _, t := range access.AllTypicalTags() {
+			all = append(all, string(t))
+		}
+		return security.Caveat{}, fmt.Errorf("must specify a non-empty --access. To grant all access, use --access=%s", strings.Join(all, ","))
+	}
+	return access.NewAccessTagCaveat(tags...)
+}
+
 func runDelegate(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(args) < 2 || len(args) > 3 {
 		return env.UsageErrorf("got %d arguments, expecting 2 or 3", len(args))
@@ -230,7 +261,7 @@ func runDelegate(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 	// Create a blessings
 	var caveats []security.Caveat
-	if c, err := access.NewAccessTagCaveat(access.Resolve, access.Debug); err != nil {
+	if c, err := delegateAccessCaveat(); err != nil {
 		return err
 	} else {
 		caveats = append(caveats, c)

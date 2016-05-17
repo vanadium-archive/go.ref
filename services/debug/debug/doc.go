@@ -346,6 +346,10 @@ Usage:
 <name> (optional) is the vanadium object name of the remote process to inspect
 
 The debug delegate flags are:
+ -access=resolve,debug
+   Comma-separated list of access tags on methods that can be invoked by the
+   delegate
+
  -timeout=10s
    Time to wait for various RPCs
 
