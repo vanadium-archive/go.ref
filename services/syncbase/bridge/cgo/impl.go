@@ -22,18 +22,23 @@
 package main
 
 import (
+	"encoding/base64"
+	"os"
 	"strings"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/services/permissions"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/bridge"
 	"v.io/x/ref/services/syncbase/syncbaselib"
 )
@@ -55,6 +60,9 @@ var b *bridge.Bridge
 
 //export v23_syncbase_Init
 func v23_syncbase_Init() {
+	// Strip all flags beyond the binary name; otherwise, v23.Init will fail when it encounters
+	// unknown flags passed by Xcode, e.g. NSTreatUnknownArgumentsAsOpen.
+	os.Args = os.Args[:1]
 	// TODO(sadovsky): Support shutdown?
 	ctx, _ := v23.Init()
 	srv, disp, _ := syncbaselib.Serve(ctx, syncbaselib.Opts{})
@@ -184,7 +192,7 @@ func v23_syncbase_DbDestroy(cName C.v23_syncbase_String, cErr *C.v23_syncbase_VE
 }
 
 //export v23_syncbase_DbExists
-func v23_syncbase_DbExists(cName C.v23_syncbase_String, cExists *bool, cErr *C.v23_syncbase_VError) {
+func v23_syncbase_DbExists(cName C.v23_syncbase_String, cExists *C.v23_syncbase_Bool, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Exists"))
 	stub, err := b.GetDb(ctx, call, name)
@@ -197,7 +205,7 @@ func v23_syncbase_DbExists(cName C.v23_syncbase_String, cExists *bool, cErr *C.v
 		cErr.init(err)
 		return
 	}
-	*cExists = exists
+	cExists.init(exists)
 }
 
 //export v23_syncbase_DbListCollections
@@ -481,7 +489,7 @@ func v23_syncbase_CollectionDestroy(cName, cBatchHandle C.v23_syncbase_String, c
 }
 
 //export v23_syncbase_CollectionExists
-func v23_syncbase_CollectionExists(cName, cBatchHandle C.v23_syncbase_String, cExists *bool, cErr *C.v23_syncbase_VError) {
+func v23_syncbase_CollectionExists(cName, cBatchHandle C.v23_syncbase_String, cExists *C.v23_syncbase_Bool, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Exists"))
@@ -495,7 +503,7 @@ func v23_syncbase_CollectionExists(cName, cBatchHandle C.v23_syncbase_String, cE
 		cErr.init(err)
 		return
 	}
-	*cExists = exists
+	cExists.init(exists)
 }
 
 //export v23_syncbase_CollectionGetPermissions
@@ -676,4 +684,97 @@ func v23_syncbase_RowDelete(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v
 		return
 	}
 	cErr.init(stub.Delete(ctx, call, batchHandle))
+}
+
+////////////////////////////////////////
+// Misc utilities
+
+//export v23_syncbase_EncodeId
+func v23_syncbase_EncodeId(cId C.v23_syncbase_Id, cEncoded *C.v23_syncbase_String) {
+	cEncoded.init(util.EncodeId(cId.toId()))
+}
+
+//export v23_syncbase_Encode
+func v23_syncbase_Encode(cName C.v23_syncbase_String, cEncoded *C.v23_syncbase_String) {
+	cEncoded.init(util.Encode(cName.toString()))
+}
+
+//export v23_syncbase_Base64UrlDecode
+func v23_syncbase_Base64UrlDecode(base64UrlEncoded C.v23_syncbase_String, cData *C.v23_syncbase_Bytes, cErr *C.v23_syncbase_VError) {
+	// Decode the base64 url encoded string to bytes in a way that prevents extra copies along the Cgo boundary.
+	urlEncoded := base64UrlEncoded.toString()
+	b, err := base64.URLEncoding.DecodeString(urlEncoded)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cData.init(b)
+}
+
+//export v23_syncbase_NamingJoin
+func v23_syncbase_NamingJoin(cElements C.v23_syncbase_Strings, cJoined *C.v23_syncbase_String) {
+	cJoined.init(naming.Join(cElements.toStrings()...))
+}
+
+////////////////////////////////////////
+// Blessings
+// TODO(zinman): This section will go away once we move to taking in an oauth token on init and hiding
+// all blessings code in Go.
+
+//export v23_syncbase_PublicKey
+func v23_syncbase_PublicKey(cPublicKey *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
+	der, err := v23.GetPrincipal(b.Ctx).PublicKey().MarshalBinary()
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cPublicKey.init(base64.URLEncoding.EncodeToString(der))
+}
+
+//export v23_syncbase_SetVomEncodedBlessings
+func v23_syncbase_SetVomEncodedBlessings(cBlessings C.v23_syncbase_Bytes, cErr *C.v23_syncbase_VError) {
+	encodedBlessings := cBlessings.toBytes()
+	var blessings security.Blessings
+	if err := vom.Decode(encodedBlessings, &blessings); err != nil {
+		cErr.init(err)
+		return
+	}
+	principal := v23.GetPrincipal(b.Ctx)
+	if err := principal.BlessingStore().SetDefault(blessings); err != nil {
+		cErr.init(err)
+		return
+	}
+}
+
+//export v23_syncbase_BlessingsStoreDebugString
+func v23_syncbase_BlessingsStoreDebugString(cDebugString *C.v23_syncbase_String) {
+	cDebugString.init(v23.GetPrincipal(b.Ctx).BlessingStore().DebugString())
+}
+
+//export v23_syncbase_HasValidBlessings
+func v23_syncbase_HasValidBlessings(cBool *C.v23_syncbase_Bool) {
+	blessings, _ := v23.GetPrincipal(b.Ctx).BlessingStore().Default()
+	// TODO(zinman): This is currently incorrect as it's almost always true that blessings aren't zero.
+	// Need to figure out the security stuff better.
+	cBool.init(!blessings.IsZero() && (blessings.Expiry().IsZero() || blessings.Expiry().After(time.Now())))
+}
+
+//export v23_syncbase_UserBlessingFromContext
+func v23_syncbase_UserBlessingFromContext(cUserBlessing *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
+	b, err := util.UserBlessingFromContext(b.Ctx)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cUserBlessing.init(b)
+}
+
+//export v23_syncbase_AppBlessingFromContext
+func v23_syncbase_AppBlessingFromContext(cAppBlessing *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
+	b, err := util.AppBlessingFromContext(b.Ctx)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cAppBlessing.init(b)
 }

@@ -13,6 +13,8 @@
 ////////////////////////////////////////
 // Generic types
 
+typedef uint8_t v23_syncbase_Bool;
+
 // string
 typedef struct {
   char* p;
@@ -45,7 +47,7 @@ typedef struct {
 // access.Permissions
 // TODO(sadovsky): Decide how to represent perms.
 typedef struct {
-  v23_syncbase_String json;
+  v23_syncbase_Bytes json;
 } v23_syncbase_Permissions;
 
 ////////////////////////////////////////

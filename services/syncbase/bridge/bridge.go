@@ -17,17 +17,17 @@ import (
 
 // Bridge object, representing an in-process Syncbase singleton.
 type Bridge struct {
-	ctx  *context.T
+	Ctx  *context.T
 	srv  rpc.Server
 	disp rpc.Dispatcher
 }
 
 func NewBridge(ctx *context.T, srv rpc.Server, disp rpc.Dispatcher) *Bridge {
-	return &Bridge{ctx: ctx, srv: srv, disp: disp}
+	return &Bridge{Ctx: ctx, srv: srv, disp: disp}
 }
 
 func (b *Bridge) NewCtxCall(suffix string, method rpc.MethodDesc) (*context.T, rpc.ServerCall) {
-	ctx, _ := vtrace.WithNewTrace(b.ctx)
+	ctx, _ := vtrace.WithNewTrace(b.Ctx)
 	return ctx, newFakeServerCall(ctx, b.srv, suffix, method)
 }
 

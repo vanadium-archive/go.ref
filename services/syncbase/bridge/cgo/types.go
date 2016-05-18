@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"strings"
 	"unsafe"
 
 	"v.io/v23/security/access"
@@ -24,6 +23,24 @@ import (
 import "C"
 
 ////////////////////////////////////////
+// C.v23_syncbase_Bool
+
+func (x *C.v23_syncbase_Bool) init(b bool) {
+	if b == false {
+		*x = 0
+	} else {
+		*x = 1
+	}
+}
+
+func (x *C.v23_syncbase_Bool) toBool() bool {
+	if *x == 0 {
+		return false
+	}
+	return true
+}
+
+////////////////////////////////////////
 // C.v23_syncbase_String
 
 func (x *C.v23_syncbase_String) init(s string) {
@@ -32,6 +49,9 @@ func (x *C.v23_syncbase_String) init(s string) {
 }
 
 func (x *C.v23_syncbase_String) toString() string {
+	if x.p == nil {
+		return ""
+	}
 	defer C.free(unsafe.Pointer(x.p))
 	return C.GoStringN(x.p, x.n)
 }
@@ -52,6 +72,9 @@ func (x *C.v23_syncbase_Bytes) init(b []byte) {
 }
 
 func (x *C.v23_syncbase_Bytes) toBytes() []byte {
+	if x.p == nil {
+		return nil
+	}
 	defer C.free(unsafe.Pointer(x.p))
 	return C.GoBytes(unsafe.Pointer(x.p), x.n)
 }
@@ -72,6 +95,9 @@ func (x *C.v23_syncbase_Strings) init(strs []string) {
 }
 
 func (x *C.v23_syncbase_Strings) toStrings() []string {
+	if x.p == nil {
+		return nil
+	}
 	defer C.free(unsafe.Pointer(x.p))
 	res := make([]string, x.n)
 	for i := 0; i < int(x.n); i++ {
@@ -101,11 +127,15 @@ func (x *C.v23_syncbase_Permissions) init(perms access.Permissions) {
 	if err := access.WritePermissions(b, perms); err != nil {
 		panic(err)
 	}
-	x.json.init(b.String())
+	x.json.init(b.Bytes())
 }
 
 func (x *C.v23_syncbase_Permissions) toPermissions() access.Permissions {
-	perms, err := access.ReadPermissions(strings.NewReader(x.json.toString()))
+	b := x.json.toBytes()
+	if len(b) == 0 {
+		return nil
+	}
+	perms, err := access.ReadPermissions(bytes.NewReader(b))
 	if err != nil {
 		panic(err)
 	}
