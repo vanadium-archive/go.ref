@@ -38,8 +38,6 @@ The vdl flags are:
 The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
- -skip-gen-old-target=false
-   skip generation of vold target interface implementation
  -skip-gen-write-read=false
    skip generation of vdl write and read
  -time=false

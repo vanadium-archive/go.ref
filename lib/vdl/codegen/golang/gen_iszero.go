@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"v.io/v23/vdl"
+	"v.io/x/ref/lib/vdl/compile"
 )
 
 // genIsZeroBlock generates go code that checks if the input is zero.
@@ -129,4 +130,22 @@ func wiretypeInstNameInternal(data *goData, t *vdl.Type, instName, failureLine s
 
 	// If this isn't native, just return the original instName.
 	return instName, ""
+}
+
+// isNativeType returns true iff t is a native type.
+func isNativeType(env *compile.Env, t *vdl.Type) bool {
+	if def := env.FindTypeDef(t); def != nil {
+		key := def.Name
+		if t.Kind() == vdl.Optional {
+			key = "*" + key
+		}
+		_, ok := def.File.Package.Config.Go.WireToNativeTypes[key]
+		return ok
+	}
+	return false
+}
+
+func createUniqueName(prefix string, varCount *int) string {
+	*varCount++
+	return fmt.Sprintf("%s%d", prefix, *varCount)
 }

@@ -36,8 +36,6 @@ type goData struct {
 
 var skipGenWriteRead = flag.Bool("skip-gen-write-read", false, "skip generation of vdl write and read")
 
-var skipGenOldTarget = flag.Bool("skip-gen-old-target", false, "skip generation of vold target interface implementation")
-
 // testingMode is only set to true in tests, to make testing simpler.
 var testingMode = false
 

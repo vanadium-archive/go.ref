@@ -34,108 +34,6 @@ func (WindowSize) __VDLReflect(struct {
 }) {
 }
 
-func (m *WindowSize) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(tt)
-	if err != nil {
-		return err
-	}
-	var4 := (m.Rows == uint16(0))
-	if var4 {
-		if err := fieldsTarget1.ZeroField("Rows"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Rows")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-			if err := fieldTarget3.FromUint(uint64(m.Rows), tt.NonOptional().Field(0).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-				return err
-			}
-		}
-	}
-	var7 := (m.Cols == uint16(0))
-	if var7 {
-		if err := fieldsTarget1.ZeroField("Cols"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Cols")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-			if err := fieldTarget6.FromUint(uint64(m.Cols), tt.NonOptional().Field(1).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-				return err
-			}
-		}
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *WindowSize) MakeVDLTarget() vdl.Target {
-	return &WindowSizeTarget{Value: m}
-}
-
-type WindowSizeTarget struct {
-	Value      *WindowSize
-	rowsTarget vdl.Uint16Target
-	colsTarget vdl.Uint16Target
-	vdl.TargetBase
-	vdl.FieldsTargetBase
-}
-
-func (t *WindowSizeTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
-
-	if ttWant := vdl.TypeOf((*WindowSize)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
-	}
-	return t, nil
-}
-func (t *WindowSizeTarget) StartField(name string) (key, field vdl.Target, _ error) {
-	switch name {
-	case "Rows":
-		t.rowsTarget.Value = &t.Value.Rows
-		target, err := &t.rowsTarget, error(nil)
-		return nil, target, err
-	case "Cols":
-		t.colsTarget.Value = &t.Value.Cols
-		target, err := &t.colsTarget, error(nil)
-		return nil, target, err
-	default:
-		return nil, nil, vdl.ErrFieldNoExist
-	}
-}
-func (t *WindowSizeTarget) FinishField(_, _ vdl.Target) error {
-	return nil
-}
-func (t *WindowSizeTarget) ZeroField(name string) error {
-	switch name {
-	case "Rows":
-		t.Value.Rows = uint16(0)
-		return nil
-	case "Cols":
-		t.Value.Cols = uint16(0)
-		return nil
-	default:
-		return vdl.ErrFieldNoExist
-	}
-}
-func (t *WindowSizeTarget) FinishFields(_ vdl.FieldsTarget) error {
-
-	return nil
-}
-
 func (x WindowSize) VDLIsZero() bool {
 	return x == WindowSize{}
 }
@@ -235,156 +133,6 @@ type ShellOpts struct {
 func (ShellOpts) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/examples/tunnel.ShellOpts"`
 }) {
-}
-
-func (m *ShellOpts) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(tt)
-	if err != nil {
-		return err
-	}
-	var4 := (m.UsePty == false)
-	if var4 {
-		if err := fieldsTarget1.ZeroField("UsePty"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("UsePty")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-			if err := fieldTarget3.FromBool(bool(m.UsePty), tt.NonOptional().Field(0).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-				return err
-			}
-		}
-	}
-	var var7 bool
-	if len(m.Environment) == 0 {
-		var7 = true
-	}
-	if var7 {
-		if err := fieldsTarget1.ZeroField("Environment"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Environment")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			listTarget8, err := fieldTarget6.StartList(tt.NonOptional().Field(1).Type, len(m.Environment))
-			if err != nil {
-				return err
-			}
-			for i, elem10 := range m.Environment {
-				elemTarget9, err := listTarget8.StartElem(i)
-				if err != nil {
-					return err
-				}
-				if err := elemTarget9.FromString(string(elem10), tt.NonOptional().Field(1).Type.Elem()); err != nil {
-					return err
-				}
-				if err := listTarget8.FinishElem(elemTarget9); err != nil {
-					return err
-				}
-			}
-			if err := fieldTarget6.FinishList(listTarget8); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-				return err
-			}
-		}
-	}
-	var13 := (m.WinSize == WindowSize{})
-	if var13 {
-		if err := fieldsTarget1.ZeroField("WinSize"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("WinSize")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := m.WinSize.FillVDLTarget(fieldTarget12, tt.NonOptional().Field(2).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
-				return err
-			}
-		}
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *ShellOpts) MakeVDLTarget() vdl.Target {
-	return &ShellOptsTarget{Value: m}
-}
-
-type ShellOptsTarget struct {
-	Value             *ShellOpts
-	usePtyTarget      vdl.BoolTarget
-	environmentTarget vdl.StringSliceTarget
-	winSizeTarget     WindowSizeTarget
-	vdl.TargetBase
-	vdl.FieldsTargetBase
-}
-
-func (t *ShellOptsTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
-
-	if ttWant := vdl.TypeOf((*ShellOpts)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
-	}
-	return t, nil
-}
-func (t *ShellOptsTarget) StartField(name string) (key, field vdl.Target, _ error) {
-	switch name {
-	case "UsePty":
-		t.usePtyTarget.Value = &t.Value.UsePty
-		target, err := &t.usePtyTarget, error(nil)
-		return nil, target, err
-	case "Environment":
-		t.environmentTarget.Value = &t.Value.Environment
-		target, err := &t.environmentTarget, error(nil)
-		return nil, target, err
-	case "WinSize":
-		t.winSizeTarget.Value = &t.Value.WinSize
-		target, err := &t.winSizeTarget, error(nil)
-		return nil, target, err
-	default:
-		return nil, nil, vdl.ErrFieldNoExist
-	}
-}
-func (t *ShellOptsTarget) FinishField(_, _ vdl.Target) error {
-	return nil
-}
-func (t *ShellOptsTarget) ZeroField(name string) error {
-	switch name {
-	case "UsePty":
-		t.Value.UsePty = false
-		return nil
-	case "Environment":
-		t.Value.Environment = []string(nil)
-		return nil
-	case "WinSize":
-		t.Value.WinSize = WindowSize{}
-		return nil
-	default:
-		return vdl.ErrFieldNoExist
-	}
-}
-func (t *ShellOptsTarget) FinishFields(_ vdl.FieldsTarget) error {
-
-	return nil
 }
 
 func (x ShellOpts) VDLIsZero() bool {
@@ -554,54 +302,6 @@ func (Unused) __VDLReflect(struct {
 }) {
 }
 
-func (m *Unused) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(tt)
-	if err != nil {
-		return err
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *Unused) MakeVDLTarget() vdl.Target {
-	return &UnusedTarget{Value: m}
-}
-
-type UnusedTarget struct {
-	Value *Unused
-	vdl.TargetBase
-	vdl.FieldsTargetBase
-}
-
-func (t *UnusedTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
-
-	if ttWant := vdl.TypeOf((*Unused)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
-	}
-	return t, nil
-}
-func (t *UnusedTarget) StartField(name string) (key, field vdl.Target, _ error) {
-	switch name {
-	default:
-		return nil, nil, vdl.ErrFieldNoExist
-	}
-}
-func (t *UnusedTarget) FinishField(_, _ vdl.Target) error {
-	return nil
-}
-func (t *UnusedTarget) ZeroField(name string) error {
-	switch name {
-	default:
-		return vdl.ErrFieldNoExist
-	}
-}
-func (t *UnusedTarget) FinishFields(_ vdl.FieldsTarget) error {
-
-	return nil
-}
-
 func (x Unused) VDLIsZero() bool {
 	return x == Unused{}
 }
@@ -651,7 +351,6 @@ type (
 		Name() string
 		// __VDLReflect describes the ClientShellPacket union type.
 		__VDLReflect(__ClientShellPacketReflect)
-		FillVDLTarget(vdl.Target, *vdl.Type) error
 		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
@@ -670,10 +369,9 @@ type (
 	ClientShellPacketWinSize struct{ Value WindowSize }
 	// __ClientShellPacketReflect describes the ClientShellPacket union type.
 	__ClientShellPacketReflect struct {
-		Name               string `vdl:"v.io/x/ref/examples/tunnel.ClientShellPacket"`
-		Type               ClientShellPacket
-		UnionTargetFactory clientShellPacketTargetFactory
-		Union              struct {
+		Name  string `vdl:"v.io/x/ref/examples/tunnel.ClientShellPacket"`
+		Type  ClientShellPacket
+		Union struct {
 			Stdin     ClientShellPacketStdin
 			EndOfFile ClientShellPacketEndOfFile
 			WinSize   ClientShellPacketWinSize
@@ -686,152 +384,15 @@ func (x ClientShellPacketStdin) Interface() interface{}                  { retur
 func (x ClientShellPacketStdin) Name() string                            { return "Stdin" }
 func (x ClientShellPacketStdin) __VDLReflect(__ClientShellPacketReflect) {}
 
-func (m ClientShellPacketStdin) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(tt)
-	if err != nil {
-		return err
-	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Stdin")
-	if err != nil {
-		return err
-	}
-
-	if err := fieldTarget3.FromBytes([]byte(m.Value), tt.NonOptional().Field(0).Type); err != nil {
-		return err
-	}
-	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-		return err
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m ClientShellPacketStdin) MakeVDLTarget() vdl.Target {
-	return nil
-}
-
 func (x ClientShellPacketEndOfFile) Index() int                              { return 1 }
 func (x ClientShellPacketEndOfFile) Interface() interface{}                  { return x.Value }
 func (x ClientShellPacketEndOfFile) Name() string                            { return "EndOfFile" }
 func (x ClientShellPacketEndOfFile) __VDLReflect(__ClientShellPacketReflect) {}
 
-func (m ClientShellPacketEndOfFile) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(tt)
-	if err != nil {
-		return err
-	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("EndOfFile")
-	if err != nil {
-		return err
-	}
-
-	if err := m.Value.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(1).Type); err != nil {
-		return err
-	}
-	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-		return err
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m ClientShellPacketEndOfFile) MakeVDLTarget() vdl.Target {
-	return nil
-}
-
 func (x ClientShellPacketWinSize) Index() int                              { return 2 }
 func (x ClientShellPacketWinSize) Interface() interface{}                  { return x.Value }
 func (x ClientShellPacketWinSize) Name() string                            { return "WinSize" }
 func (x ClientShellPacketWinSize) __VDLReflect(__ClientShellPacketReflect) {}
-
-func (m ClientShellPacketWinSize) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(tt)
-	if err != nil {
-		return err
-	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("WinSize")
-	if err != nil {
-		return err
-	}
-
-	if err := m.Value.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(2).Type); err != nil {
-		return err
-	}
-	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-		return err
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m ClientShellPacketWinSize) MakeVDLTarget() vdl.Target {
-	return nil
-}
-
-type ClientShellPacketTarget struct {
-	Value     *ClientShellPacket
-	fieldName string
-
-	vdl.TargetBase
-	vdl.FieldsTargetBase
-}
-
-func (t *ClientShellPacketTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
-	if ttWant := vdl.TypeOf((*ClientShellPacket)(nil)); !vdl.Compatible(tt, ttWant) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
-	}
-
-	return t, nil
-}
-func (t *ClientShellPacketTarget) StartField(name string) (key, field vdl.Target, _ error) {
-	t.fieldName = name
-	switch name {
-	case "Stdin":
-		val := []byte(nil)
-		return nil, &vdl.BytesTarget{Value: &val}, nil
-	case "EndOfFile":
-		val := Unused{}
-		return nil, &UnusedTarget{Value: &val}, nil
-	case "WinSize":
-		val := WindowSize{}
-		return nil, &WindowSizeTarget{Value: &val}, nil
-	default:
-		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/examples/tunnel.ClientShellPacket", name)
-	}
-}
-func (t *ClientShellPacketTarget) FinishField(_, fieldTarget vdl.Target) error {
-	switch t.fieldName {
-	case "Stdin":
-		*t.Value = ClientShellPacketStdin{*(fieldTarget.(*vdl.BytesTarget)).Value}
-	case "EndOfFile":
-		*t.Value = ClientShellPacketEndOfFile{*(fieldTarget.(*UnusedTarget)).Value}
-	case "WinSize":
-		*t.Value = ClientShellPacketWinSize{*(fieldTarget.(*WindowSizeTarget)).Value}
-	}
-	return nil
-}
-func (t *ClientShellPacketTarget) FinishFields(_ vdl.FieldsTarget) error {
-
-	return nil
-}
-
-type clientShellPacketTargetFactory struct{}
-
-func (t clientShellPacketTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
-	if typedUnion, ok := union.(*ClientShellPacket); ok {
-		return &ClientShellPacketTarget{Value: typedUnion}, nil
-	}
-	return nil, fmt.Errorf("got %T, want *ClientShellPacket", union)
-}
 
 func (x ClientShellPacketStdin) VDLIsZero() bool {
 	return len(x.Value) == 0
@@ -960,7 +521,6 @@ type (
 		Name() string
 		// __VDLReflect describes the ServerShellPacket union type.
 		__VDLReflect(__ServerShellPacketReflect)
-		FillVDLTarget(vdl.Target, *vdl.Type) error
 		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
@@ -974,10 +534,9 @@ type (
 	ServerShellPacketStderr struct{ Value []byte }
 	// __ServerShellPacketReflect describes the ServerShellPacket union type.
 	__ServerShellPacketReflect struct {
-		Name               string `vdl:"v.io/x/ref/examples/tunnel.ServerShellPacket"`
-		Type               ServerShellPacket
-		UnionTargetFactory serverShellPacketTargetFactory
-		Union              struct {
+		Name  string `vdl:"v.io/x/ref/examples/tunnel.ServerShellPacket"`
+		Type  ServerShellPacket
+		Union struct {
 			Stdout ServerShellPacketStdout
 			Stderr ServerShellPacketStderr
 		}
@@ -989,115 +548,10 @@ func (x ServerShellPacketStdout) Interface() interface{}                  { retu
 func (x ServerShellPacketStdout) Name() string                            { return "Stdout" }
 func (x ServerShellPacketStdout) __VDLReflect(__ServerShellPacketReflect) {}
 
-func (m ServerShellPacketStdout) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(tt)
-	if err != nil {
-		return err
-	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Stdout")
-	if err != nil {
-		return err
-	}
-
-	if err := fieldTarget3.FromBytes([]byte(m.Value), tt.NonOptional().Field(0).Type); err != nil {
-		return err
-	}
-	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-		return err
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m ServerShellPacketStdout) MakeVDLTarget() vdl.Target {
-	return nil
-}
-
 func (x ServerShellPacketStderr) Index() int                              { return 1 }
 func (x ServerShellPacketStderr) Interface() interface{}                  { return x.Value }
 func (x ServerShellPacketStderr) Name() string                            { return "Stderr" }
 func (x ServerShellPacketStderr) __VDLReflect(__ServerShellPacketReflect) {}
-
-func (m ServerShellPacketStderr) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(tt)
-	if err != nil {
-		return err
-	}
-	keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Stderr")
-	if err != nil {
-		return err
-	}
-
-	if err := fieldTarget3.FromBytes([]byte(m.Value), tt.NonOptional().Field(1).Type); err != nil {
-		return err
-	}
-	if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-		return err
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m ServerShellPacketStderr) MakeVDLTarget() vdl.Target {
-	return nil
-}
-
-type ServerShellPacketTarget struct {
-	Value     *ServerShellPacket
-	fieldName string
-
-	vdl.TargetBase
-	vdl.FieldsTargetBase
-}
-
-func (t *ServerShellPacketTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
-	if ttWant := vdl.TypeOf((*ServerShellPacket)(nil)); !vdl.Compatible(tt, ttWant) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
-	}
-
-	return t, nil
-}
-func (t *ServerShellPacketTarget) StartField(name string) (key, field vdl.Target, _ error) {
-	t.fieldName = name
-	switch name {
-	case "Stdout":
-		val := []byte(nil)
-		return nil, &vdl.BytesTarget{Value: &val}, nil
-	case "Stderr":
-		val := []byte(nil)
-		return nil, &vdl.BytesTarget{Value: &val}, nil
-	default:
-		return nil, nil, fmt.Errorf("field %s not in union v.io/x/ref/examples/tunnel.ServerShellPacket", name)
-	}
-}
-func (t *ServerShellPacketTarget) FinishField(_, fieldTarget vdl.Target) error {
-	switch t.fieldName {
-	case "Stdout":
-		*t.Value = ServerShellPacketStdout{*(fieldTarget.(*vdl.BytesTarget)).Value}
-	case "Stderr":
-		*t.Value = ServerShellPacketStderr{*(fieldTarget.(*vdl.BytesTarget)).Value}
-	}
-	return nil
-}
-func (t *ServerShellPacketTarget) FinishFields(_ vdl.FieldsTarget) error {
-
-	return nil
-}
-
-type serverShellPacketTargetFactory struct{}
-
-func (t serverShellPacketTargetFactory) VDLMakeUnionTarget(union interface{}) (vdl.Target, error) {
-	if typedUnion, ok := union.(*ServerShellPacket); ok {
-		return &ServerShellPacketTarget{Value: typedUnion}, nil
-	}
-	return nil, fmt.Errorf("got %T, want *ServerShellPacket", union)
-}
 
 func (x ServerShellPacketStdout) VDLIsZero() bool {
 	return len(x.Value) == 0

@@ -119,7 +119,6 @@ const (
 	ifEqZero     = iota // Generate expression for "if x == 0 {" statement
 	ifNeZero            // Generate expression for "if x != 0 {" statement
 	returnEqZero        // Generate expression for "return x == 0" statement
-	returnNeZero        // Generate expression for "return x != 0" statement
 )
 
 func (ze zeroExpr) GenEqual() bool {

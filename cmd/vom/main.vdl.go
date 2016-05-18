@@ -64,39 +64,6 @@ func (dataRep) __VDLReflect(struct {
 }) {
 }
 
-func (m *dataRep) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromEnumLabel((*m).String(), tt); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *dataRep) MakeVDLTarget() vdl.Target {
-	return &dataRepTarget{Value: m}
-}
-
-type dataRepTarget struct {
-	Value *dataRep
-	vdl.TargetBase
-}
-
-func (t *dataRepTarget) FromEnumLabel(src string, tt *vdl.Type) error {
-
-	if ttWant := vdl.TypeOf((*dataRep)(nil)); !vdl.Compatible(tt, ttWant) {
-		return fmt.Errorf("type %v incompatible with %v", tt, ttWant)
-	}
-	switch src {
-	case "Hex":
-		*t.Value = 0
-	case "Binary":
-		*t.Value = 1
-	default:
-		return fmt.Errorf("label %s not in enum dataRep", src)
-	}
-
-	return nil
-}
-
 func (x dataRep) VDLIsZero() bool {
 	return x == dataRepHex
 }

@@ -14,7 +14,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/vdlconv"
 )
 
 var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
@@ -29,49 +28,6 @@ type Term uint64
 func (Term) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/lib/raft.Term"`
 }) {
-}
-
-func (m *Term) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64((*m)), tt); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *Term) MakeVDLTarget() vdl.Target {
-	return &TermTarget{Value: m}
-}
-
-type TermTarget struct {
-	Value *Term
-	vdl.TargetBase
-}
-
-func (t *TermTarget) FromUint(src uint64, tt *vdl.Type) error {
-
-	*t.Value = Term(src)
-
-	return nil
-}
-func (t *TermTarget) FromInt(src int64, tt *vdl.Type) error {
-
-	val, err := vdlconv.Int64ToUint64(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = Term(val)
-
-	return nil
-}
-func (t *TermTarget) FromFloat(src float64, tt *vdl.Type) error {
-
-	val, err := vdlconv.Float64ToUint64(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = Term(val)
-
-	return nil
 }
 
 func (x Term) VDLIsZero() bool {
@@ -109,49 +65,6 @@ type Index uint64
 func (Index) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/lib/raft.Index"`
 }) {
-}
-
-func (m *Index) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromUint(uint64((*m)), tt); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *Index) MakeVDLTarget() vdl.Target {
-	return &IndexTarget{Value: m}
-}
-
-type IndexTarget struct {
-	Value *Index
-	vdl.TargetBase
-}
-
-func (t *IndexTarget) FromUint(src uint64, tt *vdl.Type) error {
-
-	*t.Value = Index(src)
-
-	return nil
-}
-func (t *IndexTarget) FromInt(src int64, tt *vdl.Type) error {
-
-	val, err := vdlconv.Int64ToUint64(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = Index(val)
-
-	return nil
-}
-func (t *IndexTarget) FromFloat(src float64, tt *vdl.Type) error {
-
-	val, err := vdlconv.Float64ToUint64(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = Index(val)
-
-	return nil
 }
 
 func (x Index) VDLIsZero() bool {
@@ -193,168 +106,6 @@ type LogEntry struct {
 func (LogEntry) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/lib/raft.LogEntry"`
 }) {
-}
-
-func (m *LogEntry) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	fieldsTarget1, err := t.StartFields(tt)
-	if err != nil {
-		return err
-	}
-	var4 := (m.Term == Term(0))
-	if var4 {
-		if err := fieldsTarget1.ZeroField("Term"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget2, fieldTarget3, err := fieldsTarget1.StartField("Term")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := m.Term.FillVDLTarget(fieldTarget3, tt.NonOptional().Field(0).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget2, fieldTarget3); err != nil {
-				return err
-			}
-		}
-	}
-	var7 := (m.Index == Index(0))
-	if var7 {
-		if err := fieldsTarget1.ZeroField("Index"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget5, fieldTarget6, err := fieldsTarget1.StartField("Index")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := m.Index.FillVDLTarget(fieldTarget6, tt.NonOptional().Field(1).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget5, fieldTarget6); err != nil {
-				return err
-			}
-		}
-	}
-	var var10 bool
-	if len(m.Cmd) == 0 {
-		var10 = true
-	}
-	if var10 {
-		if err := fieldsTarget1.ZeroField("Cmd"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget8, fieldTarget9, err := fieldsTarget1.StartField("Cmd")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-
-			if err := fieldTarget9.FromBytes([]byte(m.Cmd), tt.NonOptional().Field(2).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget8, fieldTarget9); err != nil {
-				return err
-			}
-		}
-	}
-	var13 := (m.Type == byte(0))
-	if var13 {
-		if err := fieldsTarget1.ZeroField("Type"); err != nil && err != vdl.ErrFieldNoExist {
-			return err
-		}
-	} else {
-		keyTarget11, fieldTarget12, err := fieldsTarget1.StartField("Type")
-		if err != vdl.ErrFieldNoExist {
-			if err != nil {
-				return err
-			}
-			if err := fieldTarget12.FromUint(uint64(m.Type), tt.NonOptional().Field(3).Type); err != nil {
-				return err
-			}
-			if err := fieldsTarget1.FinishField(keyTarget11, fieldTarget12); err != nil {
-				return err
-			}
-		}
-	}
-	if err := t.FinishFields(fieldsTarget1); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *LogEntry) MakeVDLTarget() vdl.Target {
-	return &LogEntryTarget{Value: m}
-}
-
-type LogEntryTarget struct {
-	Value       *LogEntry
-	termTarget  TermTarget
-	indexTarget IndexTarget
-	cmdTarget   vdl.BytesTarget
-	typeTarget  vdl.ByteTarget
-	vdl.TargetBase
-	vdl.FieldsTargetBase
-}
-
-func (t *LogEntryTarget) StartFields(tt *vdl.Type) (vdl.FieldsTarget, error) {
-
-	if ttWant := vdl.TypeOf((*LogEntry)(nil)).Elem(); !vdl.Compatible(tt, ttWant) {
-		return nil, fmt.Errorf("type %v incompatible with %v", tt, ttWant)
-	}
-	return t, nil
-}
-func (t *LogEntryTarget) StartField(name string) (key, field vdl.Target, _ error) {
-	switch name {
-	case "Term":
-		t.termTarget.Value = &t.Value.Term
-		target, err := &t.termTarget, error(nil)
-		return nil, target, err
-	case "Index":
-		t.indexTarget.Value = &t.Value.Index
-		target, err := &t.indexTarget, error(nil)
-		return nil, target, err
-	case "Cmd":
-		t.cmdTarget.Value = &t.Value.Cmd
-		target, err := &t.cmdTarget, error(nil)
-		return nil, target, err
-	case "Type":
-		t.typeTarget.Value = &t.Value.Type
-		target, err := &t.typeTarget, error(nil)
-		return nil, target, err
-	default:
-		return nil, nil, vdl.ErrFieldNoExist
-	}
-}
-func (t *LogEntryTarget) FinishField(_, _ vdl.Target) error {
-	return nil
-}
-func (t *LogEntryTarget) ZeroField(name string) error {
-	switch name {
-	case "Term":
-		t.Value.Term = Term(0)
-		return nil
-	case "Index":
-		t.Value.Index = Index(0)
-		return nil
-	case "Cmd":
-		t.Value.Cmd = []byte(nil)
-		return nil
-	case "Type":
-		t.Value.Type = byte(0)
-		return nil
-	default:
-		return vdl.ErrFieldNoExist
-	}
-}
-func (t *LogEntryTarget) FinishFields(_ vdl.FieldsTarget) error {
-
-	return nil
 }
 
 func (x LogEntry) VDLIsZero() bool {

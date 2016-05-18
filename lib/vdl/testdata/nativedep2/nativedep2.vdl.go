@@ -10,7 +10,6 @@ package nativedep2
 import (
 	"time"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/vdlconv"
 	_ "v.io/x/ref/lib/vdl/testdata/nativetest"
 )
 
@@ -24,53 +23,6 @@ type MyTime time.Time
 func (MyTime) __VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/lib/vdl/testdata/nativedep2.MyTime"`
 }) {
-}
-
-func (m *MyTime) FillVDLTarget(t vdl.Target, tt *vdl.Type) error {
-	if err := t.FromInt(int64((*m)), tt); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (m *MyTime) MakeVDLTarget() vdl.Target {
-	return &MyTimeTarget{Value: m}
-}
-
-type MyTimeTarget struct {
-	Value *MyTime
-	vdl.TargetBase
-}
-
-func (t *MyTimeTarget) FromUint(src uint64, tt *vdl.Type) error {
-
-	val, err := vdlconv.Uint64ToInt32(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = MyTime(val)
-
-	return nil
-}
-func (t *MyTimeTarget) FromInt(src int64, tt *vdl.Type) error {
-
-	val, err := vdlconv.Int64ToInt32(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = MyTime(val)
-
-	return nil
-}
-func (t *MyTimeTarget) FromFloat(src float64, tt *vdl.Type) error {
-
-	val, err := vdlconv.Float64ToInt32(src)
-	if err != nil {
-		return err
-	}
-	*t.Value = MyTime(val)
-
-	return nil
 }
 
 func (x MyTime) VDLIsZero() bool {
