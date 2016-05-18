@@ -249,6 +249,7 @@ func TestV23Vkube(t *testing.T) {
 	vkubeFail("start", "-f", conf["app1"], "my-app") // Already running
 
 	vkubeOK("update", "-f", conf["app2"], "--wait")
+	vkubeOK("update", "-f", conf["app2"], "--wait", "my-app2")
 	kubectlOK("describe", "deployment", "tunneld")
 	kubectlOK("get", "pod", "--show-labels")
 

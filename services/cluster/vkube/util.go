@@ -15,6 +15,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os/exec"
+	"reflect"
 	"strings"
 	"time"
 
@@ -118,64 +119,6 @@ func addPodAgent(ctx *context.T, config *vkubeConfig, obj object, secretName, ro
 	return obj.set(base+"spec.containers", containers)
 }
 
-// createSecret gets a new secret key from the cluster agent, and then creates a
-// Secret object on kubernetes with it.
-func createSecret(ctx *context.T, secretName, namespace, agentAddr string, baseBlessings security.Blessings, extension string) error {
-	secret, err := cluster.ClusterAgentAdminClient(agentAddr).NewSecret(ctx, &granter{blessings: baseBlessings, extension: extension})
-	if err != nil {
-		return err
-	}
-	if out, err := kubectlCreate(object{
-		"apiVersion": "v1",
-		"kind":       "Secret",
-		"metadata": object{
-			"name":      secretName,
-			"namespace": namespace,
-		},
-		"type": "Opaque",
-		"data": object{
-			"secret": base64.StdEncoding.EncodeToString([]byte(secret)),
-		},
-	}); err != nil {
-		return fmt.Errorf("failed to create secret %q: %v\n%s\n", secretName, err, string(out))
-	}
-	return nil
-}
-
-type granter struct {
-	rpc.CallOpt
-	blessings security.Blessings
-	extension string
-}
-
-func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings, error) {
-	return call.LocalPrincipal().Bless(call.RemoteBlessings().PublicKey(), g.blessings, g.extension, security.UnconstrainedUse())
-}
-
-// deleteSecret deletes a Secret object and its associated secret key and
-// blessings.
-func deleteSecret(ctx *context.T, agentAddr, name, namespace string) error {
-	data, err := kubectl("--namespace="+namespace, "get", "secret", name, "-o", "json")
-	if err != nil {
-		return err
-	}
-	var secret object
-	if err := secret.importJSON(data); err != nil {
-		return fmt.Errorf("failed to parse kubectl output: %v", err)
-	}
-	key, err := base64.StdEncoding.DecodeString(secret.getString("data.secret"))
-	if err != nil || len(key) == 0 {
-		return fmt.Errorf("failed to decode base64-encoded secret: %v", err)
-	}
-	if err := cluster.ClusterAgentAdminClient(agentAddr).ForgetSecret(ctx, string(key)); err != nil {
-		return fmt.Errorf("ForgetSecret failed: %v", err)
-	}
-	if _, err := kubectl("--namespace="+namespace, "delete", "secret", name); err != nil {
-		return fmt.Errorf("failed to delete secret object: %v", err)
-	}
-	return nil
-}
-
 // createDeployment takes a Deployment object, adds a pod-agent, and then
 // creates it on kubernetes.
 func createDeployment(ctx *context.T, config *vkubeConfig, rc object, secretName string) error {
@@ -190,13 +133,10 @@ func createDeployment(ctx *context.T, config *vkubeConfig, rc object, secretName
 
 // updateDeployment takes a Deployment object, adds a pod-agent (if needed),
 // and then applies the update.
-func updateDeployment(ctx *context.T, config *vkubeConfig, rc object, stdout, stderr io.Writer) error {
+func updateDeployment(ctx *context.T, config *vkubeConfig, rc object, secretName, rootBlessings string, stdout, stderr io.Writer) error {
 	name := rc.getString("metadata.name")
 	namespace := rc.getString("metadata.namespace")
-	secretName, rootBlessings, err := findPodAttributes(name, namespace)
-	if err != nil {
-		return err
-	}
+
 	if secretName != "" {
 		if err := addPodAgent(ctx, config, rc, secretName, rootBlessings); err != nil {
 			return err
@@ -284,15 +224,6 @@ func createNamespaceIfNotExist(name string) error {
 		return fmt.Errorf("failed to create Namespace %q: %v: %s", name, err, out)
 	}
 	return nil
-}
-
-// makeSecretName creates a random name for a Secret Object.
-func makeSecretName() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("secret-%s", hex.EncodeToString(b)), nil
 }
 
 // findPodAttributes finds the name of the Secret object and root blessings
@@ -441,4 +372,95 @@ func upgradeCluster(ctx *context.T, config *vkubeConfig, stdin io.Reader, stdout
 		}
 	}
 	return nil
+}
+
+type secretManager struct {
+	ctx       *context.T
+	namespace string
+	agentAddr string
+}
+
+func newSecretManager(ctx *context.T, config *vkubeConfig, namespace string) (*secretManager, error) {
+	agentAddr, err := findClusterAgent(config, true)
+	if err != nil {
+		return nil, err
+	}
+	return &secretManager{ctx, namespace, agentAddr}, nil
+}
+
+func (sm *secretManager) create(extension string) (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	secretName := fmt.Sprintf("secret-%s", hex.EncodeToString(b))
+
+	var baseBlessings security.Blessings
+	if flagBaseBlessings == "" {
+		baseBlessings, _ = v23.GetPrincipal(sm.ctx).BlessingStore().Default()
+	} else {
+		b64, err := base64.URLEncoding.DecodeString(flagBaseBlessings)
+		if err != nil {
+			return "", err
+		}
+		if err := vom.Decode(b64, &baseBlessings); err != nil {
+			return "", err
+		}
+		if !reflect.DeepEqual(baseBlessings.PublicKey(), v23.GetPrincipal(sm.ctx).PublicKey()) {
+			return "", fmt.Errorf("--base-blessings must match the principal's public key")
+		}
+	}
+
+	secret, err := cluster.ClusterAgentAdminClient(sm.agentAddr).NewSecret(sm.ctx, &granter{blessings: baseBlessings, extension: extension})
+	if err != nil {
+		return "", err
+	}
+	if out, err := kubectlCreate(object{
+		"apiVersion": "v1",
+		"kind":       "Secret",
+		"metadata": object{
+			"name":      secretName,
+			"namespace": sm.namespace,
+		},
+		"type": "Opaque",
+		"data": object{
+			"secret": base64.StdEncoding.EncodeToString([]byte(secret)),
+		},
+	}); err != nil {
+		return "", fmt.Errorf("failed to create secret %q: %v\n%s\n", secretName, err, string(out))
+	}
+
+	return secretName, nil
+}
+
+func (sm *secretManager) delete(name string) error {
+	data, err := kubectl("--namespace="+sm.namespace, "get", "secret", name, "-o", "json")
+	if err != nil {
+		return err
+	}
+	var secret object
+	if err := secret.importJSON(data); err != nil {
+		return fmt.Errorf("failed to parse kubectl output: %v", err)
+	}
+	key, err := base64.StdEncoding.DecodeString(secret.getString("data.secret"))
+	if err != nil || len(key) == 0 {
+		return fmt.Errorf("failed to decode base64-encoded secret: %v", err)
+	}
+	if err := cluster.ClusterAgentAdminClient(sm.agentAddr).ForgetSecret(sm.ctx, string(key)); err != nil {
+		return fmt.Errorf("ForgetSecret failed: %v", err)
+	}
+	if _, err := kubectl("--namespace="+sm.namespace, "delete", "secret", name); err != nil {
+		return fmt.Errorf("failed to delete secret object: %v", err)
+	}
+	return nil
+}
+
+type granter struct {
+	rpc.CallOpt
+	blessings security.Blessings
+	extension string
+}
+
+func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings, error) {
+	return call.LocalPrincipal().Bless(call.RemoteBlessings().PublicKey(), g.blessings, g.extension, security.UnconstrainedUse())
 }

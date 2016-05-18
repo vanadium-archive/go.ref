@@ -8,12 +8,10 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"reflect"
 	"strings"
 	"time"
 
@@ -21,7 +19,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/v23cmd"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -87,6 +84,7 @@ func main() {
 	cmdStart.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 5*time.Minute, "How long to wait for the start to make progress.")
 
 	cmdUpdate.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to update the kubernetes resource.")
+	cmdUpdate.Flags.StringVar(&flagBaseBlessings, "base-blessings", "", "Base blessings to extend, base64url-vom-encoded. If empty, the default blessings are used.")
 	cmdUpdate.Flags.BoolVar(&flagWait, "wait", false, "Wait for the update to finish.")
 	cmdUpdate.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 5*time.Minute, "How long to wait for the update to make progress.")
 
@@ -173,50 +171,24 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 			return err
 		}
 	} else {
-		agentAddr, err := findClusterAgent(config, true)
+		sm, err := newSecretManager(ctx, config, namespace)
 		if err != nil {
 			return err
 		}
-		secretName, err := makeSecretName()
+		secretName, err := sm.create(args[0])
 		if err != nil {
 			return err
 		}
-		var baseBlessings security.Blessings
-		if flagBaseBlessings == "" {
-			baseBlessings, _ = v23.GetPrincipal(ctx).BlessingStore().Default()
-		} else {
-			b64, err := base64.URLEncoding.DecodeString(flagBaseBlessings)
-			if err != nil {
-				return err
-			}
-			if err := vom.Decode(b64, &baseBlessings); err != nil {
-				return err
-			}
-			if !reflect.DeepEqual(baseBlessings.PublicKey(), v23.GetPrincipal(ctx).PublicKey()) {
-				return fmt.Errorf("--base-blessings must match the principal's public key")
-			}
-		}
-		extension := args[0]
-		if err := createSecret(ctx, secretName, namespace, agentAddr, baseBlessings, extension); err != nil {
-			return err
-		}
-		fmt.Fprintln(env.Stdout, "Created secret successfully.")
-
-		// Delete Secret if we encounter an error while creating the Deployment.
-		needToDeleteSecret := true
-		defer func() {
-			if needToDeleteSecret {
-				if err := deleteSecret(ctx, agentAddr, secretName, namespace); err != nil {
-					fmt.Fprintf(env.Stderr, "Error deleting secret: %v\n", err)
-				}
-				fmt.Fprintln(env.Stdout, "Deleting secret.")
-			}
-		}()
+		fmt.Fprintf(env.Stdout, "Created secret %q.\n", secretName)
 
 		if err := createDeployment(ctx, config, dep, secretName); err != nil {
+			if err := sm.delete(secretName); err != nil {
+				fmt.Fprintf(env.Stderr, "Failed to delete secret %q: %v\n", secretName, err)
+			} else {
+				fmt.Fprintf(env.Stdout, "Deleted secret %q.\n", secretName)
+			}
 			return err
 		}
-		needToDeleteSecret = false
 	}
 	if flagWait {
 		if err := watchDeploymentRollout(appName, namespace, flagWaitTimeout, env.Stdout); err != nil {
@@ -228,10 +200,12 @@ func runCmdStart(ctx *context.T, env *cmdline.Env, args []string, config *vkubeC
 }
 
 var cmdUpdate = &cmdline.Command{
-	Runner: kubeCmdRunner(runCmdUpdate),
-	Name:   "update",
-	Short:  "Updates an application.",
-	Long:   "Updates an application to a new version with a rolling update, preserving the existing blessings.",
+	Runner:   kubeCmdRunner(runCmdUpdate),
+	Name:     "update",
+	Short:    "Updates an application.",
+	Long:     "Updates an application to a new version with a rolling update.",
+	ArgsName: "[<extension>]",
+	ArgsLong: "<extension> The new blessing name extension to give to the application. If omitted, the existing blessings are preserved.",
 }
 
 func runCmdUpdate(ctx *context.T, env *cmdline.Env, args []string, config *vkubeConfig) error {
@@ -242,17 +216,59 @@ func runCmdUpdate(ctx *context.T, env *cmdline.Env, args []string, config *vkube
 	if err != nil {
 		return err
 	}
-	if err := updateDeployment(ctx, config, dep, env.Stdout, env.Stderr); err != nil {
+	name := dep.getString("metadata.name")
+	namespace := dep.getString("metadata.namespace")
+
+	oldSecretName, rootB, err := findPodAttributes(name, namespace)
+	if err != nil {
+		return err
+	}
+
+	var (
+		secretName string
+		sm         *secretManager
+	)
+	switch len(args) {
+	case 0: // re-use existing secret
+		secretName = oldSecretName
+	case 1: // create new secret
+		rootB = rootBlessings(ctx)
+		sm, err = newSecretManager(ctx, config, namespace)
+		if err != nil {
+			return err
+		}
+		if secretName, err = sm.create(args[0]); err != nil {
+			return err
+		}
+		fmt.Fprintf(env.Stdout, "Created new secret %q.\n", secretName)
+	default:
+		return env.UsageErrorf("update: expected at most one argument, got %d", len(args))
+	}
+
+	if err := updateDeployment(ctx, config, dep, secretName, rootB, env.Stdout, env.Stderr); err != nil {
+		if sm != nil {
+			if err := sm.delete(secretName); err != nil {
+				fmt.Fprintf(env.Stderr, "Failed to delete new secret %q: %v\n", secretName, err)
+			} else {
+				fmt.Fprintf(env.Stdout, "Deleted new secret %q.\n", secretName)
+			}
+		}
 		return err
 	}
 	if flagWait {
-		name := dep.getString("metadata.name")
-		namespace := dep.getString("metadata.namespace")
 		if err := watchDeploymentRollout(name, namespace, flagWaitTimeout, env.Stdout); err != nil {
 			return err
 		}
 	}
 	fmt.Fprintln(env.Stdout, "Updated deployment successfully.")
+
+	if sm != nil && oldSecretName != "" {
+		if err := sm.delete(oldSecretName); err != nil {
+			fmt.Fprintf(env.Stderr, "Failed to delete old secret %q: %v\n", oldSecretName, err)
+		} else {
+			fmt.Fprintf(env.Stdout, "Deleted old secret %q.\n", oldSecretName)
+		}
+	}
 
 	return nil
 }
@@ -286,14 +302,15 @@ func runCmdStop(ctx *context.T, env *cmdline.Env, args []string, config *vkubeCo
 	}
 	fmt.Fprintln(env.Stdout, "Stopped deployment.")
 	if secretName != "" {
-		agentAddr, err := findClusterAgent(config, true)
+		sm, err := newSecretManager(ctx, config, namespace)
 		if err != nil {
 			return err
 		}
-		if err := deleteSecret(ctx, agentAddr, secretName, namespace); err != nil {
+		if err := sm.delete(secretName); err != nil {
+			fmt.Fprintf(env.Stderr, "Failed to delete secret %q: %v\n", secretName, err)
 			return err
 		}
-		fmt.Fprintln(env.Stdout, "Deleted secret.")
+		fmt.Fprintf(env.Stdout, "Deleted secret %q.\n", secretName)
 	}
 	return nil
 }

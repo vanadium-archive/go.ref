@@ -131,13 +131,18 @@ The vkube start flags are:
 
 Vkube update
 
-Updates an application to a new version with a rolling update, preserving the
-existing blessings.
+Updates an application to a new version with a rolling update.
 
 Usage:
-   vkube update [flags]
+   vkube update [flags] [<extension>]
+
+<extension> The new blessing name extension to give to the application. If
+omitted, the existing blessings are preserved.
 
 The vkube update flags are:
+ -base-blessings=
+   Base blessings to extend, base64url-vom-encoded. If empty, the default
+   blessings are used.
  -f=
    Filename to use to update the kubernetes resource.
  -wait=false
