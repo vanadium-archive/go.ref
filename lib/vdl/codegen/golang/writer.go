@@ -50,7 +50,6 @@ func (g *genWrite) genUnionDef(def *compile.TypeDef) string {
 	var s string
 	for ix := 0; ix < def.Type.NumField(); ix++ {
 		field := def.Type.Field(ix)
-		unionType := typedConst(g.goData, vdl.TypeObjectValue(def.Type))
 		body := g.bodyUnion(field, namedArg{"x", false})
 		s += fmt.Sprintf(`
 func (x %[1]s%[2]s) VDLWrite(enc %[3]sEncoder) error {
@@ -59,7 +58,7 @@ func (x %[1]s%[2]s) VDLWrite(enc %[3]sEncoder) error {
 	}%[5]s
 	return enc.FinishValue()
 }
-`, def.Name, field.Name, g.Pkg("v.io/v23/vdl"), unionType, body)
+`, def.Name, field.Name, g.Pkg("v.io/v23/vdl"), g.TypeOf(def.Type), body)
 	}
 	return s
 }
@@ -90,7 +89,7 @@ func (g *genWrite) body(tt *vdl.Type, arg namedArg, skipNilCheck, topLevel bool)
 	sta := fmt.Sprintf(`
 	if err := enc.StartValue(%[1]s); err != nil {
 		return err
-	}`, typedConst(g.goData, vdl.TypeObjectValue(tt)))
+	}`, g.TypeOf(tt))
 	fin := `
 	if err := enc.FinishValue(); err != nil {
 		return err
@@ -195,7 +194,6 @@ func (g *genWrite) bodyCallVDLWrite(tt *vdl.Type, arg namedArg, skipNilCheck boo
 	//   Union:          Needs handling below.
 	//   Any:            Needs handling below.
 	if k := tt.Kind(); !skipNilCheck && (k == vdl.Union || k == vdl.Any) {
-		ttType := typedConst(g.goData, vdl.TypeObjectValue(tt))
 		s = fmt.Sprintf(`
 	switch {
 	case %[1]s == nil:
@@ -204,7 +202,7 @@ func (g *genWrite) bodyCallVDLWrite(tt *vdl.Type, arg namedArg, skipNilCheck boo
 			return err
 		}
 	default:%[5]s
-	}`, arg.Ref(), k.String(), g.Pkg("v.io/v23/vdl"), ttType, s)
+	}`, arg.Ref(), k.String(), g.Pkg("v.io/v23/vdl"), g.TypeOf(tt), s)
 	}
 	return s
 }
@@ -368,7 +366,7 @@ func (g *genWrite) bodyOptional(tt *vdl.Type, arg namedArg, skipNilCheck bool) s
 			return err
 		}
 	} else {%[3]s
-	}`, arg.Name, typedConst(g.goData, vdl.TypeObjectValue(tt)), s)
+	}`, arg.Name, g.TypeOf(tt), s)
 	}
 	return s
 }

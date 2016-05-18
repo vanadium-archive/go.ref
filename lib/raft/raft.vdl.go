@@ -8,7 +8,6 @@
 package raft
 
 import (
-	"fmt"
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
@@ -35,7 +34,7 @@ func (x Term) VDLIsZero() bool {
 }
 
 func (x Term) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*Term)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_uint64_1); err != nil {
 		return err
 	}
 	if err := enc.EncodeUint(uint64(x)); err != nil {
@@ -45,7 +44,7 @@ func (x Term) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *Term) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_uint64_1); err != nil {
 		return err
 	}
 	tmp, err := dec.DecodeUint(64)
@@ -72,7 +71,7 @@ func (x Index) VDLIsZero() bool {
 }
 
 func (x Index) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*Index)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_uint64_2); err != nil {
 		return err
 	}
 	if err := enc.EncodeUint(uint64(x)); err != nil {
@@ -82,7 +81,7 @@ func (x Index) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *Index) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_uint64_2); err != nil {
 		return err
 	}
 	tmp, err := dec.DecodeUint(64)
@@ -125,7 +124,7 @@ func (x LogEntry) VDLIsZero() bool {
 }
 
 func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*LogEntry)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
 	if x.Term != 0 {
@@ -148,7 +147,7 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Cmd"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		if err := enc.StartValue(__VDLType_list_4); err != nil {
 			return err
 		}
 		if err := enc.EncodeBytes(x.Cmd); err != nil {
@@ -180,11 +179,8 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 
 func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 	*x = LogEntry{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -203,7 +199,7 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Cmd":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(__VDLType_list_4); err != nil {
 				return err
 			}
 			if err := dec.DecodeBytes(-1, &x.Cmd); err != nil {
@@ -213,7 +209,7 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Type":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.ByteType); err != nil {
 				return err
 			}
 			tmp, err := dec.DecodeUint(8)
@@ -685,6 +681,14 @@ func (s implraftProtoInstallSnapshotServerCallRecv) Err() error {
 	return s.s.errRecv
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_uint64_1 *vdl.Type
+	__VDLType_uint64_2 *vdl.Type
+	__VDLType_struct_3 *vdl.Type
+	__VDLType_list_4   *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -710,6 +714,12 @@ func __VDLInit() struct{} {
 	vdl.Register((*Term)(nil))
 	vdl.Register((*Index)(nil))
 	vdl.Register((*LogEntry)(nil))
+
+	// Initialize type definitions.
+	__VDLType_uint64_1 = vdl.TypeOf((*Term)(nil))
+	__VDLType_uint64_2 = vdl.TypeOf((*Index)(nil))
+	__VDLType_struct_3 = vdl.TypeOf((*LogEntry)(nil)).Elem()
+	__VDLType_list_4 = vdl.TypeOf((*[]byte)(nil))
 
 	return struct{}{}
 }

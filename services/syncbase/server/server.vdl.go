@@ -8,7 +8,6 @@
 package server
 
 import (
-	"fmt"
 	"v.io/v23/security/access"
 	"v.io/v23/services/syncbase"
 	"v.io/v23/vdl"
@@ -41,7 +40,7 @@ func (x ServiceData) VDLIsZero() bool {
 }
 
 func (x ServiceData) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*ServiceData)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if x.Version != 0 {
@@ -74,11 +73,8 @@ func (x ServiceData) VDLWrite(enc vdl.Encoder) error {
 
 func (x *ServiceData) VDLRead(dec vdl.Decoder) error {
 	*x = ServiceData{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -89,7 +85,7 @@ func (x *ServiceData) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Version":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -131,7 +127,7 @@ func (x DbInfo) VDLIsZero() bool {
 }
 
 func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*DbInfo)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
 	if x.Id != (syncbase.Id{}) {
@@ -178,11 +174,8 @@ func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
 
 func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
 	*x = DbInfo{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -197,7 +190,7 @@ func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "RootDir":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -208,7 +201,7 @@ func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Engine":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -257,7 +250,7 @@ func (x DatabaseData) VDLIsZero() bool {
 }
 
 func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*DatabaseData)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_5); err != nil {
 		return err
 	}
 	if x.Id != (syncbase.Id{}) {
@@ -309,11 +302,8 @@ func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
 
 func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 	*x = DatabaseData{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_5); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -328,7 +318,7 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Version":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -343,13 +333,10 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "SchemaMetadata":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(__VDLType_optional_6); err != nil {
 				return err
 			}
 			if dec.IsNil() {
-				if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x.SchemaMetadata), dec.Type()) {
-					return fmt.Errorf("incompatible optional %T, from %v", x.SchemaMetadata, dec.Type())
-				}
 				x.SchemaMetadata = nil
 				if err := dec.FinishValue(); err != nil {
 					return err
@@ -390,7 +377,7 @@ func (x CollectionPerms) VDLIsZero() bool {
 }
 
 func (x CollectionPerms) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*CollectionPerms)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_map_8); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -420,11 +407,8 @@ func (x CollectionPerms) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_map_8); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	var tmpMap CollectionPerms
 	if len := dec.LenHint(); len > 0 {
@@ -440,7 +424,7 @@ func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
 		}
 		var key string
 		{
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -463,6 +447,19 @@ func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
 		tmpMap[key] = elem
 	}
 }
+
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1   *vdl.Type
+	__VDLType_map_2      *vdl.Type
+	__VDLType_struct_3   *vdl.Type
+	__VDLType_struct_4   *vdl.Type
+	__VDLType_struct_5   *vdl.Type
+	__VDLType_optional_6 *vdl.Type
+	__VDLType_struct_7   *vdl.Type
+	__VDLType_map_8      *vdl.Type
+	__VDLType_struct_9   *vdl.Type
+)
 
 var __VDLInitCalled bool
 
@@ -490,6 +487,17 @@ func __VDLInit() struct{} {
 	vdl.Register((*DbInfo)(nil))
 	vdl.Register((*DatabaseData)(nil))
 	vdl.Register((*CollectionPerms)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*ServiceData)(nil)).Elem()
+	__VDLType_map_2 = vdl.TypeOf((*access.Permissions)(nil))
+	__VDLType_struct_3 = vdl.TypeOf((*DbInfo)(nil)).Elem()
+	__VDLType_struct_4 = vdl.TypeOf((*syncbase.Id)(nil)).Elem()
+	__VDLType_struct_5 = vdl.TypeOf((*DatabaseData)(nil)).Elem()
+	__VDLType_optional_6 = vdl.TypeOf((*syncbase.SchemaMetadata)(nil))
+	__VDLType_struct_7 = vdl.TypeOf((*syncbase.SchemaMetadata)(nil)).Elem()
+	__VDLType_map_8 = vdl.TypeOf((*CollectionPerms)(nil))
+	__VDLType_struct_9 = vdl.TypeOf((*access.AccessList)(nil)).Elem()
 
 	return struct{}{}
 }

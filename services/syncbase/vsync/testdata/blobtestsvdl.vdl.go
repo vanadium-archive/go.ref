@@ -34,7 +34,7 @@ func (x BlobInfo) VDLIsZero() bool {
 }
 
 func (x BlobInfo) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlobInfo)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if x.Info != "" {
@@ -67,11 +67,8 @@ func (x BlobInfo) VDLWrite(enc vdl.Encoder) error {
 
 func (x *BlobInfo) VDLRead(dec vdl.Decoder) error {
 	*x = BlobInfo{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -82,7 +79,7 @@ func (x *BlobInfo) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Info":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -152,7 +149,7 @@ func (x BlobUnionBi) VDLIsZero() bool {
 }
 
 func (x BlobUnionNum) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlobUnion)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_union_3); err != nil {
 		return err
 	}
 	if err := enc.NextField("Num"); err != nil {
@@ -174,7 +171,7 @@ func (x BlobUnionNum) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x BlobUnionBi) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlobUnion)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_union_3); err != nil {
 		return err
 	}
 	if err := enc.NextField("Bi"); err != nil {
@@ -190,11 +187,8 @@ func (x BlobUnionBi) VDLWrite(enc vdl.Encoder) error {
 }
 
 func VDLReadBlobUnion(dec vdl.Decoder, x *BlobUnion) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_union_3); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x), dec.Type()) {
-		return fmt.Errorf("incompatible union %T, from %v", x, dec.Type())
 	}
 	f, err := dec.NextField()
 	if err != nil {
@@ -203,7 +197,7 @@ func VDLReadBlobUnion(dec vdl.Decoder, x *BlobUnion) error {
 	switch f {
 	case "Num":
 		var field BlobUnionNum
-		if err := dec.StartValue(); err != nil {
+		if err := dec.StartValue(vdl.Int32Type); err != nil {
 			return err
 		}
 		tmp, err := dec.DecodeInt(32)
@@ -256,7 +250,7 @@ func (x BlobSet) VDLIsZero() bool {
 }
 
 func (x BlobSet) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlobSet)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_4); err != nil {
 		return err
 	}
 	if x.Info != "" {
@@ -288,7 +282,7 @@ func (x BlobSet) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_set_1(enc vdl.Encoder, x map[syncbase.BlobRef]struct{}) error {
-	if err := enc.StartValue(vdl.TypeOf((*map[syncbase.BlobRef]struct{})(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_set_5); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -310,11 +304,8 @@ func __VDLWriteAnon_set_1(enc vdl.Encoder, x map[syncbase.BlobRef]struct{}) erro
 
 func (x *BlobSet) VDLRead(dec vdl.Decoder) error {
 	*x = BlobSet{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_4); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -325,7 +316,7 @@ func (x *BlobSet) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Info":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -348,11 +339,8 @@ func (x *BlobSet) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_set_1(dec vdl.Decoder, x *map[syncbase.BlobRef]struct{}) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_set_5); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
 	}
 	var tmpMap map[syncbase.BlobRef]struct{}
 	if len := dec.LenHint(); len > 0 {
@@ -400,7 +388,7 @@ func (x BlobAny) VDLIsZero() bool {
 }
 
 func (x BlobAny) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlobAny)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_6); err != nil {
 		return err
 	}
 	if x.Info != "" {
@@ -432,7 +420,7 @@ func (x BlobAny) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_list_2(enc vdl.Encoder, x []*vom.RawBytes) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]*vom.RawBytes)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_7); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -460,11 +448,8 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []*vom.RawBytes) error {
 
 func (x *BlobAny) VDLRead(dec vdl.Decoder) error {
 	*x = BlobAny{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_6); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -475,7 +460,7 @@ func (x *BlobAny) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Info":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -498,11 +483,8 @@ func (x *BlobAny) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]*vom.RawBytes) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_7); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len > 0:
@@ -547,7 +529,7 @@ func (x NonBlobSet) VDLIsZero() bool {
 }
 
 func (x NonBlobSet) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*NonBlobSet)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_8); err != nil {
 		return err
 	}
 	if x.Info != "" {
@@ -579,7 +561,7 @@ func (x NonBlobSet) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_set_3(enc vdl.Encoder, x map[string]struct{}) error {
-	if err := enc.StartValue(vdl.TypeOf((*map[string]struct{})(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_set_9); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -607,11 +589,8 @@ func __VDLWriteAnon_set_3(enc vdl.Encoder, x map[string]struct{}) error {
 
 func (x *NonBlobSet) VDLRead(dec vdl.Decoder) error {
 	*x = NonBlobSet{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_8); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -622,7 +601,7 @@ func (x *NonBlobSet) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Info":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -645,11 +624,8 @@ func (x *NonBlobSet) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_set_3(dec vdl.Decoder, x *map[string]struct{}) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_set_9); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
 	}
 	var tmpMap map[string]struct{}
 	if len := dec.LenHint(); len > 0 {
@@ -665,7 +641,7 @@ func __VDLReadAnon_set_3(dec vdl.Decoder, x *map[string]struct{}) error {
 		}
 		var key string
 		{
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -698,7 +674,7 @@ func (x BlobOpt) VDLIsZero() bool {
 }
 
 func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlobOpt)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_10); err != nil {
 		return err
 	}
 	if x.Info != "" {
@@ -734,11 +710,8 @@ func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
 
 func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 	*x = BlobOpt{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_10); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -749,7 +722,7 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Info":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -760,13 +733,10 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Bo":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(__VDLType_optional_11); err != nil {
 				return err
 			}
 			if dec.IsNil() {
-				if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x.Bo), dec.Type()) {
-					return fmt.Errorf("incompatible optional %T, from %v", x.Bo, dec.Type())
-				}
 				x.Bo = nil
 				if err := dec.FinishValue(); err != nil {
 					return err
@@ -785,6 +755,21 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 		}
 	}
 }
+
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1    *vdl.Type
+	__VDLType_string_2    *vdl.Type
+	__VDLType_union_3     *vdl.Type
+	__VDLType_struct_4    *vdl.Type
+	__VDLType_set_5       *vdl.Type
+	__VDLType_struct_6    *vdl.Type
+	__VDLType_list_7      *vdl.Type
+	__VDLType_struct_8    *vdl.Type
+	__VDLType_set_9       *vdl.Type
+	__VDLType_struct_10   *vdl.Type
+	__VDLType_optional_11 *vdl.Type
+)
 
 var __VDLInitCalled bool
 
@@ -814,6 +799,19 @@ func __VDLInit() struct{} {
 	vdl.Register((*BlobAny)(nil))
 	vdl.Register((*NonBlobSet)(nil))
 	vdl.Register((*BlobOpt)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*BlobInfo)(nil)).Elem()
+	__VDLType_string_2 = vdl.TypeOf((*syncbase.BlobRef)(nil))
+	__VDLType_union_3 = vdl.TypeOf((*BlobUnion)(nil))
+	__VDLType_struct_4 = vdl.TypeOf((*BlobSet)(nil)).Elem()
+	__VDLType_set_5 = vdl.TypeOf((*map[syncbase.BlobRef]struct{})(nil))
+	__VDLType_struct_6 = vdl.TypeOf((*BlobAny)(nil)).Elem()
+	__VDLType_list_7 = vdl.TypeOf((*[]*vom.RawBytes)(nil))
+	__VDLType_struct_8 = vdl.TypeOf((*NonBlobSet)(nil)).Elem()
+	__VDLType_set_9 = vdl.TypeOf((*map[string]struct{})(nil))
+	__VDLType_struct_10 = vdl.TypeOf((*BlobOpt)(nil)).Elem()
+	__VDLType_optional_11 = vdl.TypeOf((*BlobInfo)(nil))
 
 	return struct{}{}
 }

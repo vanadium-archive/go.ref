@@ -780,21 +780,21 @@ func TestMethodErrors(t *testing.T) {
 			wantMessage: "results, but want",
 		},
 		{
-			testName:    "mismatched arg types",
+			testName:    "incompatible arg types",
 			objectName:  name,
 			method:      "Echo",
 			args:        []interface{}{1},
 			results:     []interface{}{&s},
 			wantID:      verror.ErrBadProtocol.ID,
-			wantMessage: "compatible",
+			wantMessage: "incompatible",
 		},
 		{
-			testName:    "mismatched result types",
+			testName:    "incompatible result types",
 			objectName:  name,
 			method:      "Ping",
 			results:     []interface{}{&i},
 			wantID:      verror.ErrBadProtocol.ID,
-			wantMessage: "compatible",
+			wantMessage: "incompatible",
 		},
 	}
 

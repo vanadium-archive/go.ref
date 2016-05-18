@@ -8,7 +8,6 @@
 package security
 
 import (
-	"fmt"
 	"time"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
@@ -32,7 +31,7 @@ func (x blessingRootsState) VDLIsZero() bool {
 }
 
 func (x blessingRootsState) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*blessingRootsState)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_map_1); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -62,7 +61,7 @@ func (x blessingRootsState) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_list_1(enc vdl.Encoder, x []security.BlessingPattern) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]security.BlessingPattern)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_2); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -83,11 +82,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []security.BlessingPattern) error 
 }
 
 func (x *blessingRootsState) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_map_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	var tmpMap blessingRootsState
 	if len := dec.LenHint(); len > 0 {
@@ -103,7 +99,7 @@ func (x *blessingRootsState) VDLRead(dec vdl.Decoder) error {
 		}
 		var key string
 		{
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -128,11 +124,8 @@ func (x *blessingRootsState) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]security.BlessingPattern) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_2); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len > 0:
@@ -167,7 +160,7 @@ func (x dischargeCacheKey) VDLIsZero() bool {
 }
 
 func (x dischargeCacheKey) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*dischargeCacheKey)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_array_4); err != nil {
 		return err
 	}
 	if err := enc.EncodeBytes([]byte(x[:])); err != nil {
@@ -177,7 +170,7 @@ func (x dischargeCacheKey) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *dischargeCacheKey) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_array_4); err != nil {
 		return err
 	}
 	bytes := x[:]
@@ -209,7 +202,7 @@ func (x CachedDischarge) VDLIsZero() bool {
 }
 
 func (x CachedDischarge) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*CachedDischarge)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_5); err != nil {
 		return err
 	}
 	if !x.Discharge.VDLIsZero() {
@@ -244,11 +237,8 @@ func (x CachedDischarge) VDLWrite(enc vdl.Encoder) error {
 
 func (x *CachedDischarge) VDLRead(dec vdl.Decoder) error {
 	*x = CachedDischarge{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_5); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -327,7 +317,7 @@ func (x blessingStoreState) VDLIsZero() bool {
 }
 
 func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*blessingStoreState)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_8); err != nil {
 		return err
 	}
 	if len(x.PeerBlessings) != 0 {
@@ -387,7 +377,7 @@ func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_map_2(enc vdl.Encoder, x map[security.BlessingPattern]security.Blessings) error {
-	if err := enc.StartValue(vdl.TypeOf((*map[security.BlessingPattern]security.Blessings)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_map_9); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -415,7 +405,7 @@ func __VDLWriteAnon_map_2(enc vdl.Encoder, x map[security.BlessingPattern]securi
 }
 
 func __VDLWriteAnon_map_3(enc vdl.Encoder, x map[dischargeCacheKey]security.Discharge) error {
-	if err := enc.StartValue(vdl.TypeOf((*map[dischargeCacheKey]security.Discharge)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_map_11); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -435,7 +425,7 @@ func __VDLWriteAnon_map_3(enc vdl.Encoder, x map[dischargeCacheKey]security.Disc
 		switch {
 		case wire == nil:
 			// Write the zero value of the union type.
-			if err := vdl.ZeroValue(vdl.TypeOf((*security.WireDischarge)(nil))).VDLWrite(enc); err != nil {
+			if err := vdl.ZeroValue(__VDLType_union_6).VDLWrite(enc); err != nil {
 				return err
 			}
 		default:
@@ -451,7 +441,7 @@ func __VDLWriteAnon_map_3(enc vdl.Encoder, x map[dischargeCacheKey]security.Disc
 }
 
 func __VDLWriteAnon_map_4(enc vdl.Encoder, x map[dischargeCacheKey]CachedDischarge) error {
-	if err := enc.StartValue(vdl.TypeOf((*map[dischargeCacheKey]CachedDischarge)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_map_12); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -476,11 +466,8 @@ func __VDLWriteAnon_map_4(enc vdl.Encoder, x map[dischargeCacheKey]CachedDischar
 
 func (x *blessingStoreState) VDLRead(dec vdl.Decoder) error {
 	*x = blessingStoreState{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_8); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -511,7 +498,7 @@ func (x *blessingStoreState) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "CacheKeyFormat":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint32Type); err != nil {
 				return err
 			}
 			tmp, err := dec.DecodeUint(32)
@@ -531,11 +518,8 @@ func (x *blessingStoreState) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_map_2(dec vdl.Decoder, x *map[security.BlessingPattern]security.Blessings) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_map_9); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	var tmpMap map[security.BlessingPattern]security.Blessings
 	if len := dec.LenHint(); len > 0 {
@@ -573,11 +557,8 @@ func __VDLReadAnon_map_2(dec vdl.Decoder, x *map[security.BlessingPattern]securi
 }
 
 func __VDLReadAnon_map_3(dec vdl.Decoder, x *map[dischargeCacheKey]security.Discharge) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_map_11); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	var tmpMap map[dischargeCacheKey]security.Discharge
 	if len := dec.LenHint(); len > 0 {
@@ -615,11 +596,8 @@ func __VDLReadAnon_map_3(dec vdl.Decoder, x *map[dischargeCacheKey]security.Disc
 }
 
 func __VDLReadAnon_map_4(dec vdl.Decoder, x *map[dischargeCacheKey]CachedDischarge) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_map_12); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	var tmpMap map[dischargeCacheKey]CachedDischarge
 	if len := dec.LenHint(); len > 0 {
@@ -652,6 +630,22 @@ func __VDLReadAnon_map_4(dec vdl.Decoder, x *map[dischargeCacheKey]CachedDischar
 	}
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_map_1     *vdl.Type
+	__VDLType_list_2    *vdl.Type
+	__VDLType_string_3  *vdl.Type
+	__VDLType_array_4   *vdl.Type
+	__VDLType_struct_5  *vdl.Type
+	__VDLType_union_6   *vdl.Type
+	__VDLType_struct_7  *vdl.Type
+	__VDLType_struct_8  *vdl.Type
+	__VDLType_map_9     *vdl.Type
+	__VDLType_struct_10 *vdl.Type
+	__VDLType_map_11    *vdl.Type
+	__VDLType_map_12    *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -678,6 +672,20 @@ func __VDLInit() struct{} {
 	vdl.Register((*dischargeCacheKey)(nil))
 	vdl.Register((*CachedDischarge)(nil))
 	vdl.Register((*blessingStoreState)(nil))
+
+	// Initialize type definitions.
+	__VDLType_map_1 = vdl.TypeOf((*blessingRootsState)(nil))
+	__VDLType_list_2 = vdl.TypeOf((*[]security.BlessingPattern)(nil))
+	__VDLType_string_3 = vdl.TypeOf((*security.BlessingPattern)(nil))
+	__VDLType_array_4 = vdl.TypeOf((*dischargeCacheKey)(nil))
+	__VDLType_struct_5 = vdl.TypeOf((*CachedDischarge)(nil)).Elem()
+	__VDLType_union_6 = vdl.TypeOf((*security.WireDischarge)(nil))
+	__VDLType_struct_7 = vdl.TypeOf((*vdltime.Time)(nil)).Elem()
+	__VDLType_struct_8 = vdl.TypeOf((*blessingStoreState)(nil)).Elem()
+	__VDLType_map_9 = vdl.TypeOf((*map[security.BlessingPattern]security.Blessings)(nil))
+	__VDLType_struct_10 = vdl.TypeOf((*security.WireBlessings)(nil)).Elem()
+	__VDLType_map_11 = vdl.TypeOf((*map[dischargeCacheKey]security.Discharge)(nil))
+	__VDLType_map_12 = vdl.TypeOf((*map[dischargeCacheKey]CachedDischarge)(nil))
 
 	return struct{}{}
 }

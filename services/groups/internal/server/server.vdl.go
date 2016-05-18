@@ -8,7 +8,6 @@
 package server
 
 import (
-	"fmt"
 	"v.io/v23/security/access"
 	"v.io/v23/services/groups"
 	"v.io/v23/vdl"
@@ -42,7 +41,7 @@ func (x groupData) VDLIsZero() bool {
 }
 
 func (x groupData) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*groupData)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if len(x.Perms) != 0 {
@@ -68,7 +67,7 @@ func (x groupData) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_set_1(enc vdl.Encoder, x map[groups.BlessingPatternChunk]struct{}) error {
-	if err := enc.StartValue(vdl.TypeOf((*map[groups.BlessingPatternChunk]struct{})(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_set_3); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -90,11 +89,8 @@ func __VDLWriteAnon_set_1(enc vdl.Encoder, x map[groups.BlessingPatternChunk]str
 
 func (x *groupData) VDLRead(dec vdl.Decoder) error {
 	*x = groupData{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -121,11 +117,8 @@ func (x *groupData) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_set_1(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]struct{}) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_set_3); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
 	}
 	var tmpMap map[groups.BlessingPatternChunk]struct{}
 	if len := dec.LenHint(); len > 0 {
@@ -152,6 +145,14 @@ func __VDLReadAnon_set_1(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]str
 	}
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_map_2    *vdl.Type
+	__VDLType_set_3    *vdl.Type
+	__VDLType_string_4 *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -175,6 +176,12 @@ func __VDLInit() struct{} {
 
 	// Register types.
 	vdl.Register((*groupData)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*groupData)(nil)).Elem()
+	__VDLType_map_2 = vdl.TypeOf((*access.Permissions)(nil))
+	__VDLType_set_3 = vdl.TypeOf((*map[groups.BlessingPatternChunk]struct{})(nil))
+	__VDLType_string_4 = vdl.TypeOf((*groups.BlessingPatternChunk)(nil))
 
 	return struct{}{}
 }

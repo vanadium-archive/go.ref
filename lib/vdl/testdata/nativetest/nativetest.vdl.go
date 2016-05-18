@@ -9,7 +9,6 @@
 package nativetest
 
 import (
-	"fmt"
 	"time"
 	"v.io/v23/vdl"
 	"v.io/v23/vdl/testdata/nativetest"
@@ -32,7 +31,7 @@ func (x WireString) VDLIsZero() bool {
 }
 
 func (x WireString) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*WireString)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_int32_1); err != nil {
 		return err
 	}
 	if err := enc.EncodeInt(int64(x)); err != nil {
@@ -42,7 +41,7 @@ func (x WireString) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *WireString) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_int32_1); err != nil {
 		return err
 	}
 	tmp, err := dec.DecodeInt(32)
@@ -65,7 +64,7 @@ func (x WireTime) VDLIsZero() bool {
 }
 
 func (x WireTime) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*WireTime)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_int32_2); err != nil {
 		return err
 	}
 	if err := enc.EncodeInt(int64(x)); err != nil {
@@ -75,7 +74,7 @@ func (x WireTime) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *WireTime) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_int32_2); err != nil {
 		return err
 	}
 	tmp, err := dec.DecodeInt(32)
@@ -98,7 +97,7 @@ func (x WireSamePkg) VDLIsZero() bool {
 }
 
 func (x WireSamePkg) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*WireSamePkg)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_int32_3); err != nil {
 		return err
 	}
 	if err := enc.EncodeInt(int64(x)); err != nil {
@@ -108,7 +107,7 @@ func (x WireSamePkg) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *WireSamePkg) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_int32_3); err != nil {
 		return err
 	}
 	tmp, err := dec.DecodeInt(32)
@@ -131,7 +130,7 @@ func (x WireMultiImport) VDLIsZero() bool {
 }
 
 func (x WireMultiImport) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*WireMultiImport)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_int32_4); err != nil {
 		return err
 	}
 	if err := enc.EncodeInt(int64(x)); err != nil {
@@ -141,7 +140,7 @@ func (x WireMultiImport) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *WireMultiImport) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_int32_4); err != nil {
 		return err
 	}
 	tmp, err := dec.DecodeInt(32)
@@ -164,7 +163,7 @@ func (x WireRenameMe) VDLIsZero() bool {
 }
 
 func (x WireRenameMe) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*WireRenameMe)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_int32_5); err != nil {
 		return err
 	}
 	if err := enc.EncodeInt(int64(x)); err != nil {
@@ -174,7 +173,7 @@ func (x WireRenameMe) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *WireRenameMe) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_int32_5); err != nil {
 		return err
 	}
 	tmp, err := dec.DecodeInt(32)
@@ -218,7 +217,7 @@ func (x WireAll) VDLIsZero() bool {
 }
 
 func (x WireAll) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*WireAll)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_6); err != nil {
 		return err
 	}
 	if x.A != "" {
@@ -285,11 +284,8 @@ func (x WireAll) VDLWrite(enc vdl.Encoder) error {
 
 func (x *WireAll) VDLRead(dec vdl.Decoder) error {
 	*x = WireAll{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_6); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -355,7 +351,7 @@ func (x ignoreme) VDLIsZero() bool {
 }
 
 func (x ignoreme) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*ignoreme)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_string_7); err != nil {
 		return err
 	}
 	if err := enc.EncodeString(string(x)); err != nil {
@@ -365,7 +361,7 @@ func (x ignoreme) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *ignoreme) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_string_7); err != nil {
 		return err
 	}
 	tmp, err := dec.DecodeString()
@@ -386,6 +382,17 @@ var (
 	_ func(*WireString, string) error                                      = WireStringFromNative
 	_ func(WireTime, *time.Time) error                                     = WireTimeToNative
 	_ func(*WireTime, time.Time) error                                     = WireTimeFromNative
+)
+
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_int32_1  *vdl.Type
+	__VDLType_int32_2  *vdl.Type
+	__VDLType_int32_3  *vdl.Type
+	__VDLType_int32_4  *vdl.Type
+	__VDLType_int32_5  *vdl.Type
+	__VDLType_struct_6 *vdl.Type
+	__VDLType_string_7 *vdl.Type
 )
 
 var __VDLInitCalled bool
@@ -423,6 +430,15 @@ func __VDLInit() struct{} {
 	vdl.Register((*WireRenameMe)(nil))
 	vdl.Register((*WireAll)(nil))
 	vdl.Register((*ignoreme)(nil))
+
+	// Initialize type definitions.
+	__VDLType_int32_1 = vdl.TypeOf((*WireString)(nil))
+	__VDLType_int32_2 = vdl.TypeOf((*WireTime)(nil))
+	__VDLType_int32_3 = vdl.TypeOf((*WireSamePkg)(nil))
+	__VDLType_int32_4 = vdl.TypeOf((*WireMultiImport)(nil))
+	__VDLType_int32_5 = vdl.TypeOf((*WireRenameMe)(nil))
+	__VDLType_struct_6 = vdl.TypeOf((*WireAll)(nil)).Elem()
+	__VDLType_string_7 = vdl.TypeOf((*ignoreme)(nil))
 
 	return struct{}{}
 }

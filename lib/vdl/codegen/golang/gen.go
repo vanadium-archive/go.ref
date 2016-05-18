@@ -29,6 +29,7 @@ type goData struct {
 	anonTargets    map[*vdl.Type]int  // tracks unnamed target numbers
 	anonReaders    map[*vdl.Type]int  // tracks unnamed decoder numbers
 	anonWriters    map[*vdl.Type]int  // tracks unnamed encoder numbers
+	typeOfs        map[*vdl.Type]int  // tracks vdl.TypeOf var numbers
 
 	collectImports bool // is this the import collecting pass instead of normal generation
 	importMap      importMap
@@ -102,6 +103,102 @@ func (data *goData) SkipGenZeroReadWrite(def *compile.TypeDef) bool {
 	return false
 }
 
+func (data *goData) TypeOf(tt *vdl.Type) string {
+	if builtin := builtInTypeVars[tt]; builtin != "" {
+		return data.Pkg("v.io/v23/vdl") + builtin
+	}
+	// Keep track of all other types, so we can define the vars later.
+	id := data.typeOfs[tt]
+	if id == 0 {
+		id = len(data.typeOfs) + 1
+		data.typeOfs[tt] = id
+	}
+	return typeOfVarName(tt, id)
+}
+
+func typeOfVarName(tt *vdl.Type, id int) string {
+	return fmt.Sprintf("__VDLType_%s_%d", tt.Kind(), id)
+}
+
+func (data *goData) idToTypeOfs() map[int]*vdl.Type {
+	// Create a reverse typeOfs map, so that we dump the vars in order.
+	idToType := make(map[int]*vdl.Type, len(data.typeOfs))
+	for tt, id := range data.typeOfs {
+		idToType[id] = tt
+	}
+	return idToType
+}
+
+func (data *goData) DeclareTypeOfVars() string {
+	idToType := data.idToTypeOfs()
+	if len(idToType) == 0 {
+		return ""
+	}
+	s := `
+// Hold type definitions in package-level variables, for better performance.
+var (`
+	for id := 1; id <= len(idToType); id++ {
+		tt := idToType[id]
+		s += fmt.Sprintf(`
+	%[1]s *%[2]sType`, typeOfVarName(tt, id), data.Pkg("v.io/v23/vdl"))
+	}
+	return s + `
+)`
+}
+
+// DefineTypeOfVars defines the vars holding type definitions.  They are
+// declared as unexported package-level vars, and defined separately in the
+// __VDLInit func, to ensure they are initialized as early as possible.
+func (data *goData) DefineTypeOfVars() string {
+	idToType := data.idToTypeOfs()
+	if len(idToType) == 0 {
+		return ""
+	}
+	s := `
+// Initialize type definitions.`
+	for id := 1; id <= len(idToType); id++ {
+		// We need to generate a Go expression of type *vdl.Type that represents the
+		// type.  Since the rest of our logic can already generate the Go code for
+		// any value, we just wrap it in vdl.TypeOf to produce the final result.
+		//
+		// This may seem like a strange roundtrip, but results in less generator and
+		// generated code.
+		//
+		// There's no need to convert the value to its native representation, since
+		// it'll just be converted back in vdl.TypeOf.
+		tt := idToType[id]
+		typeOf := typeGoWire(data, tt)
+		if tt.Kind() != vdl.Optional {
+			typeOf = "*" + typeOf
+		}
+		typeOf = "((" + typeOf + ")(nil))"
+		if tt.CanBeOptional() && tt.Kind() != vdl.Optional {
+			typeOf += ".Elem()"
+		}
+		s += fmt.Sprintf(`
+	%[1]s = %[2]sTypeOf%[3]s`, typeOfVarName(tt, id), data.Pkg("v.io/v23/vdl"), typeOf)
+	}
+	return s
+}
+
+var builtInTypeVars = map[*vdl.Type]string{
+	vdl.AnyType:        "AnyType",
+	vdl.BoolType:       "BoolType",
+	vdl.ByteType:       "ByteType",
+	vdl.Uint16Type:     "Uint16Type",
+	vdl.Uint32Type:     "Uint32Type",
+	vdl.Uint64Type:     "Uint64Type",
+	vdl.Int8Type:       "Int8Type",
+	vdl.Int16Type:      "Int16Type",
+	vdl.Int32Type:      "Int32Type",
+	vdl.Int64Type:      "Int64Type",
+	vdl.Float32Type:    "Float32Type",
+	vdl.Float64Type:    "Float64Type",
+	vdl.StringType:     "StringType",
+	vdl.TypeObjectType: "TypeObjectType",
+	vdl.ErrorType:      "ErrorType",
+}
+
 // Generate takes a populated compile.Package and returns a byte slice
 // containing the generated Go source code.
 func Generate(pkg *compile.Package, env *compile.Env) []byte {
@@ -115,6 +212,7 @@ func Generate(pkg *compile.Package, env *compile.Env) []byte {
 		anonTargets:    make(map[*vdl.Type]int),
 		anonReaders:    make(map[*vdl.Type]int),
 		anonWriters:    make(map[*vdl.Type]int),
+		typeOfs:        make(map[*vdl.Type]int),
 	}
 	// The implementation uses the template mechanism from text/template and
 	// executes the template against the goData instance.
@@ -140,6 +238,7 @@ func Generate(pkg *compile.Package, env *compile.Env) []byte {
 	data.anonTargets = make(map[*vdl.Type]int)
 	data.anonReaders = make(map[*vdl.Type]int)
 	data.anonWriters = make(map[*vdl.Type]int)
+	data.typeOfs = make(map[*vdl.Type]int)
 	buf.Reset()
 	if err := goTemplate.Execute(&buf, data); err != nil {
 		// We shouldn't see an error; it means our template is buggy.
@@ -894,6 +993,8 @@ func (s {{$serverSendImpl}}) Send(item {{typeGo $data $method.OutStream}}) error
 }
 {{end}}{{end}}{{end}}{{end}}{{end}}
 
+{{$data.DeclareTypeOfVars}}
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -922,6 +1023,7 @@ func __VDLInit() struct{} {
 	// Register types.{{range $tdef := $pkg.TypeDefs}}{{if typeHasNoCustomNative $data $tdef}}
 	{{$data.Pkg "v.io/v23/vdl"}}Register((*{{$tdef.Name}})(nil)){{end}}{{end}}
 {{end}}
+{{$data.DefineTypeOfVars}}
 {{if $pkg.ErrorDefs}}
 	// Set error format strings.{{/* TODO(toddw): Don't set "en-US" or "en" again, since it's already set by the original verror.Register call. */}}{{range $edef := $pkg.ErrorDefs}}{{range $lf := $edef.Formats}}
 	{{$data.Pkg "v.io/v23/i18n"}}Cat().SetWithBase({{$data.Pkg "v.io/v23/i18n"}}LangID("{{$lf.Lang}}"), {{$data.Pkg "v.io/v23/i18n"}}MsgID({{errorName $edef}}.ID), "{{$lf.Fmt}}"){{end}}{{end}}

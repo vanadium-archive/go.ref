@@ -147,25 +147,7 @@ func untypedConstWire(data *goData, v *vdl.Value) string {
 		}
 		return "nil"
 	case vdl.TypeObject:
-		// Special-case all types that are simple to return statically.
-		if typeVar := constBuiltInTypeVar(v.TypeObject()); typeVar != "" {
-			return data.Pkg("v.io/v23/vdl") + typeVar
-		}
-		// We need to generate a Go expression of type *vdl.Type that represents the
-		// type.  Since the rest of our logic can already generate the Go code for
-		// any value, we just wrap it in vdl.TypeOf to produce the final result.
-		//
-		// This may seem like a strange roundtrip, but results in less generator and
-		// generated code.
-		//
-		// There's no need to convert the value to its native representation, since
-		// it'll just be converted back in vdl.TypeOf.
-		tt := v.TypeObject()
-		typeOf := data.Pkg("v.io/v23/vdl") + "TypeOf((*" + typeGoWire(data, tt) + ")(nil))"
-		if tt.CanBeOptional() && tt.Kind() != vdl.Optional {
-			typeOf += ".Elem()"
-		}
-		return typeOf
+		return data.TypeOf(v.TypeObject())
 	case vdl.Bool:
 		return strconv.FormatBool(v.Bool())
 	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
@@ -269,44 +251,6 @@ func fieldConst(data *goData, v *vdl.Value) string {
 	// attached to it, and we don't need to convert this to the union interface
 	// type, since the concrete union struct is assignable to the union interface.
 	return untypedConst(data, v)
-}
-
-func constBuiltInTypeVar(tt *vdl.Type) string {
-	// Only return exact matches against the built-in types; named and composite
-	// types need special handling to generate the correct type.
-	switch tt {
-	case vdl.AnyType:
-		return "AnyType"
-	case vdl.BoolType:
-		return "BoolType"
-	case vdl.ByteType:
-		return "ByteType"
-	case vdl.Uint16Type:
-		return "Uint16Type"
-	case vdl.Uint32Type:
-		return "Uint32Type"
-	case vdl.Uint64Type:
-		return "Uint64Type"
-	case vdl.Int8Type:
-		return "Int8Type"
-	case vdl.Int16Type:
-		return "Int16Type"
-	case vdl.Int32Type:
-		return "Int32Type"
-	case vdl.Int64Type:
-		return "Int64Type"
-	case vdl.Float32Type:
-		return "Float32Type"
-	case vdl.Float64Type:
-		return "Float64Type"
-	case vdl.StringType:
-		return "StringType"
-	case vdl.TypeObjectType:
-		return "TypeObjectType"
-	case vdl.ErrorType:
-		return "ErrorType"
-	}
-	return ""
 }
 
 func formatFloat(x float64, kind vdl.Kind) string {

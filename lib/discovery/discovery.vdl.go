@@ -8,7 +8,6 @@
 package discovery
 
 import (
-	"fmt"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/discovery"
@@ -36,7 +35,7 @@ func (x Uuid) VDLIsZero() bool {
 }
 
 func (x Uuid) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*Uuid)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_1); err != nil {
 		return err
 	}
 	if err := enc.EncodeBytes([]byte(x)); err != nil {
@@ -46,7 +45,7 @@ func (x Uuid) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *Uuid) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_1); err != nil {
 		return err
 	}
 	var bytes []byte
@@ -69,7 +68,7 @@ func (x EncryptionAlgorithm) VDLIsZero() bool {
 }
 
 func (x EncryptionAlgorithm) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*EncryptionAlgorithm)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_int32_2); err != nil {
 		return err
 	}
 	if err := enc.EncodeInt(int64(x)); err != nil {
@@ -79,7 +78,7 @@ func (x EncryptionAlgorithm) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *EncryptionAlgorithm) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_int32_2); err != nil {
 		return err
 	}
 	tmp, err := dec.DecodeInt(32)
@@ -102,7 +101,7 @@ func (x EncryptionKey) VDLIsZero() bool {
 }
 
 func (x EncryptionKey) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*EncryptionKey)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_3); err != nil {
 		return err
 	}
 	if err := enc.EncodeBytes([]byte(x)); err != nil {
@@ -112,7 +111,7 @@ func (x EncryptionKey) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *EncryptionKey) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_3); err != nil {
 		return err
 	}
 	var bytes []byte
@@ -135,7 +134,7 @@ func (x AdStatus) VDLIsZero() bool {
 }
 
 func (x AdStatus) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*AdStatus)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_byte_4); err != nil {
 		return err
 	}
 	if err := enc.EncodeUint(uint64(x)); err != nil {
@@ -145,7 +144,7 @@ func (x AdStatus) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *AdStatus) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_byte_4); err != nil {
 		return err
 	}
 	tmp, err := dec.DecodeUint(8)
@@ -169,7 +168,7 @@ func (x AdHash) VDLIsZero() bool {
 }
 
 func (x AdHash) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*AdHash)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_array_5); err != nil {
 		return err
 	}
 	if err := enc.EncodeBytes([]byte(x[:])); err != nil {
@@ -179,7 +178,7 @@ func (x AdHash) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *AdHash) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_array_5); err != nil {
 		return err
 	}
 	bytes := x[:]
@@ -246,7 +245,7 @@ func (x AdInfo) VDLIsZero() bool {
 }
 
 func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*AdInfo)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_6); err != nil {
 		return err
 	}
 	if !x.Ad.VDLIsZero() {
@@ -332,7 +331,7 @@ func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_list_1(enc vdl.Encoder, x []EncryptionKey) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]EncryptionKey)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_8); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -353,7 +352,7 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []EncryptionKey) error {
 }
 
 func __VDLWriteAnon_list_2(enc vdl.Encoder, x []string) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_9); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -381,11 +380,8 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []string) error {
 
 func (x *AdInfo) VDLRead(dec vdl.Decoder) error {
 	*x = AdInfo{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_6); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -412,7 +408,7 @@ func (x *AdInfo) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "TimestampNs":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Int64Type); err != nil {
 				return err
 			}
 			var err error
@@ -431,7 +427,7 @@ func (x *AdInfo) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Lost":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.BoolType); err != nil {
 				return err
 			}
 			var err error
@@ -450,11 +446,8 @@ func (x *AdInfo) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]EncryptionKey) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_8); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len > 0:
@@ -478,11 +471,8 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]EncryptionKey) error {
 }
 
 func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]string) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_9); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len > 0:
@@ -498,7 +488,7 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]string) error {
 			return dec.FinishValue()
 		}
 		var elem string
-		if err := dec.StartValue(); err != nil {
+		if err := dec.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		var err error
@@ -710,6 +700,19 @@ var descDirectory = rpc.InterfaceDesc{
 	},
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_list_1   *vdl.Type
+	__VDLType_int32_2  *vdl.Type
+	__VDLType_list_3   *vdl.Type
+	__VDLType_byte_4   *vdl.Type
+	__VDLType_array_5  *vdl.Type
+	__VDLType_struct_6 *vdl.Type
+	__VDLType_struct_7 *vdl.Type
+	__VDLType_list_8   *vdl.Type
+	__VDLType_list_9   *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -738,6 +741,17 @@ func __VDLInit() struct{} {
 	vdl.Register((*AdStatus)(nil))
 	vdl.Register((*AdHash)(nil))
 	vdl.Register((*AdInfo)(nil))
+
+	// Initialize type definitions.
+	__VDLType_list_1 = vdl.TypeOf((*Uuid)(nil))
+	__VDLType_int32_2 = vdl.TypeOf((*EncryptionAlgorithm)(nil))
+	__VDLType_list_3 = vdl.TypeOf((*EncryptionKey)(nil))
+	__VDLType_byte_4 = vdl.TypeOf((*AdStatus)(nil))
+	__VDLType_array_5 = vdl.TypeOf((*AdHash)(nil))
+	__VDLType_struct_6 = vdl.TypeOf((*AdInfo)(nil)).Elem()
+	__VDLType_struct_7 = vdl.TypeOf((*discovery.Advertisement)(nil)).Elem()
+	__VDLType_list_8 = vdl.TypeOf((*[]EncryptionKey)(nil))
+	__VDLType_list_9 = vdl.TypeOf((*[]string)(nil))
 
 	// Set error format strings.
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAdvertisementNotFound.ID), "{1:}{2:} advertisement not found: {3}")

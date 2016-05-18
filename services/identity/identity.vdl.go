@@ -9,7 +9,6 @@
 package identity
 
 import (
-	"fmt"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
@@ -47,7 +46,7 @@ func (x BlessingRootResponse) VDLIsZero() bool {
 }
 
 func (x BlessingRootResponse) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlessingRootResponse)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if len(x.Names) != 0 {
@@ -79,7 +78,7 @@ func (x BlessingRootResponse) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_2); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -107,11 +106,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 
 func (x *BlessingRootResponse) VDLRead(dec vdl.Decoder) error {
 	*x = BlessingRootResponse{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -126,7 +122,7 @@ func (x *BlessingRootResponse) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "PublicKey":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -145,11 +141,8 @@ func (x *BlessingRootResponse) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_2); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len > 0:
@@ -165,7 +158,7 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
 			return dec.FinishValue()
 		}
 		var elem string
-		if err := dec.StartValue(); err != nil {
+		if err := dec.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		var err error
@@ -291,6 +284,12 @@ var descMacaroonBlesser = rpc.InterfaceDesc{
 	},
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_list_2   *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -314,6 +313,10 @@ func __VDLInit() struct{} {
 
 	// Register types.
 	vdl.Register((*BlessingRootResponse)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*BlessingRootResponse)(nil)).Elem()
+	__VDLType_list_2 = vdl.TypeOf((*[]string)(nil))
 
 	return struct{}{}
 }

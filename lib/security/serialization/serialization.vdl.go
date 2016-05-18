@@ -32,7 +32,7 @@ func (x SignedHeader) VDLIsZero() bool {
 }
 
 func (x SignedHeader) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*SignedHeader)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if x.ChunkSizeBytes != 0 {
@@ -57,11 +57,8 @@ func (x SignedHeader) VDLWrite(enc vdl.Encoder) error {
 
 func (x *SignedHeader) VDLRead(dec vdl.Decoder) error {
 	*x = SignedHeader{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -72,7 +69,7 @@ func (x *SignedHeader) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "ChunkSizeBytes":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Int64Type); err != nil {
 				return err
 			}
 			var err error
@@ -102,7 +99,7 @@ func (x HashCode) VDLIsZero() bool {
 }
 
 func (x HashCode) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*HashCode)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_array_2); err != nil {
 		return err
 	}
 	if err := enc.EncodeBytes([]byte(x[:])); err != nil {
@@ -112,7 +109,7 @@ func (x HashCode) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *HashCode) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_array_2); err != nil {
 		return err
 	}
 	bytes := x[:]
@@ -172,7 +169,7 @@ func (x SignedDataHash) VDLIsZero() bool {
 }
 
 func (x SignedDataSignature) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*SignedData)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_union_4); err != nil {
 		return err
 	}
 	if err := enc.NextField("Signature"); err != nil {
@@ -188,7 +185,7 @@ func (x SignedDataSignature) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x SignedDataHash) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*SignedData)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_union_4); err != nil {
 		return err
 	}
 	if err := enc.NextField("Hash"); err != nil {
@@ -204,11 +201,8 @@ func (x SignedDataHash) VDLWrite(enc vdl.Encoder) error {
 }
 
 func VDLReadSignedData(dec vdl.Decoder, x *SignedData) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_union_4); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x), dec.Type()) {
-		return fmt.Errorf("incompatible union %T, from %v", x, dec.Type())
 	}
 	f, err := dec.NextField()
 	if err != nil {
@@ -241,6 +235,14 @@ func VDLReadSignedData(dec vdl.Decoder, x *SignedData) error {
 	return dec.FinishValue()
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_array_2  *vdl.Type
+	__VDLType_struct_3 *vdl.Type
+	__VDLType_union_4  *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -266,6 +268,12 @@ func __VDLInit() struct{} {
 	vdl.Register((*SignedHeader)(nil))
 	vdl.Register((*HashCode)(nil))
 	vdl.Register((*SignedData)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*SignedHeader)(nil)).Elem()
+	__VDLType_array_2 = vdl.TypeOf((*HashCode)(nil))
+	__VDLType_struct_3 = vdl.TypeOf((*security.Signature)(nil)).Elem()
+	__VDLType_union_4 = vdl.TypeOf((*SignedData)(nil))
 
 	return struct{}{}
 }

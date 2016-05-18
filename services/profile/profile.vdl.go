@@ -9,7 +9,6 @@
 package profile
 
 import (
-	"fmt"
 	"v.io/v23/services/build"
 	"v.io/v23/vdl"
 )
@@ -39,7 +38,7 @@ func (x Library) VDLIsZero() bool {
 }
 
 func (x Library) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*Library)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if x.Name != "" {
@@ -92,11 +91,8 @@ func (x Library) VDLWrite(enc vdl.Encoder) error {
 
 func (x *Library) VDLRead(dec vdl.Decoder) error {
 	*x = Library{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -107,7 +103,7 @@ func (x *Library) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Name":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -118,7 +114,7 @@ func (x *Library) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "MajorVersion":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -129,7 +125,7 @@ func (x *Library) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "MinorVersion":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -193,7 +189,7 @@ func (x Specification) VDLIsZero() bool {
 }
 
 func (x Specification) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*Specification)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_2); err != nil {
 		return err
 	}
 	if x.Label != "" {
@@ -263,7 +259,7 @@ func (x Specification) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_set_1(enc vdl.Encoder, x map[Library]struct{}) error {
-	if err := enc.StartValue(vdl.TypeOf((*map[Library]struct{})(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_set_6); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -285,11 +281,8 @@ func __VDLWriteAnon_set_1(enc vdl.Encoder, x map[Library]struct{}) error {
 
 func (x *Specification) VDLRead(dec vdl.Decoder) error {
 	*x = Specification{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_2); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -300,7 +293,7 @@ func (x *Specification) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Label":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -311,7 +304,7 @@ func (x *Specification) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Description":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -346,11 +339,8 @@ func (x *Specification) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_set_1(dec vdl.Decoder, x *map[Library]struct{}) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_set_6); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible set %T, from %v", *x, dec.Type())
 	}
 	var tmpMap map[Library]struct{}
 	if len := dec.LenHint(); len > 0 {
@@ -377,6 +367,16 @@ func __VDLReadAnon_set_1(dec vdl.Decoder, x *map[Library]struct{}) error {
 	}
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_struct_2 *vdl.Type
+	__VDLType_enum_3   *vdl.Type
+	__VDLType_enum_4   *vdl.Type
+	__VDLType_enum_5   *vdl.Type
+	__VDLType_set_6    *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -401,6 +401,14 @@ func __VDLInit() struct{} {
 	// Register types.
 	vdl.Register((*Library)(nil))
 	vdl.Register((*Specification)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*Library)(nil)).Elem()
+	__VDLType_struct_2 = vdl.TypeOf((*Specification)(nil)).Elem()
+	__VDLType_enum_3 = vdl.TypeOf((*build.Architecture)(nil))
+	__VDLType_enum_4 = vdl.TypeOf((*build.OperatingSystem)(nil))
+	__VDLType_enum_5 = vdl.TypeOf((*build.Format)(nil))
+	__VDLType_set_6 = vdl.TypeOf((*map[Library]struct{})(nil))
 
 	return struct{}{}
 }

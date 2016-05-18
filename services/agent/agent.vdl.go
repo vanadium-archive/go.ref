@@ -66,7 +66,7 @@ func (x ConnInfo) VDLIsZero() bool {
 }
 
 func (x ConnInfo) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*ConnInfo)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if x.MinVersion != 0 {
@@ -105,11 +105,8 @@ func (x ConnInfo) VDLWrite(enc vdl.Encoder) error {
 
 func (x *ConnInfo) VDLRead(dec vdl.Decoder) error {
 	*x = ConnInfo{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -120,7 +117,7 @@ func (x *ConnInfo) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "MinVersion":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Int32Type); err != nil {
 				return err
 			}
 			tmp, err := dec.DecodeInt(32)
@@ -132,7 +129,7 @@ func (x *ConnInfo) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "MaxVersion":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Int32Type); err != nil {
 				return err
 			}
 			tmp, err := dec.DecodeInt(32)
@@ -167,7 +164,7 @@ func (x RpcRequest) VDLIsZero() bool {
 }
 
 func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*RpcRequest)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_2); err != nil {
 		return err
 	}
 	if x.Id != 0 {
@@ -220,11 +217,8 @@ func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
 
 func (x *RpcRequest) VDLRead(dec vdl.Decoder) error {
 	*x = RpcRequest{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_2); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -235,7 +229,7 @@ func (x *RpcRequest) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Id":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -246,7 +240,7 @@ func (x *RpcRequest) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Method":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -257,7 +251,7 @@ func (x *RpcRequest) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "NumArgs":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint32Type); err != nil {
 				return err
 			}
 			tmp, err := dec.DecodeUint(32)
@@ -292,7 +286,7 @@ func (x RpcResponse) VDLIsZero() bool {
 }
 
 func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*RpcResponse)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
 	if x.Id != 0 {
@@ -339,11 +333,8 @@ func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
 
 func (x *RpcResponse) VDLRead(dec vdl.Decoder) error {
 	*x = RpcResponse{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -354,7 +345,7 @@ func (x *RpcResponse) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Id":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -369,7 +360,7 @@ func (x *RpcResponse) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "NumArgs":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint32Type); err != nil {
 				return err
 			}
 			tmp, err := dec.DecodeUint(32)
@@ -436,7 +427,7 @@ func (x RpcMessageResp) VDLIsZero() bool {
 }
 
 func (x RpcMessageReq) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*RpcMessage)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_union_4); err != nil {
 		return err
 	}
 	if err := enc.NextField("Req"); err != nil {
@@ -452,7 +443,7 @@ func (x RpcMessageReq) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x RpcMessageResp) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*RpcMessage)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_union_4); err != nil {
 		return err
 	}
 	if err := enc.NextField("Resp"); err != nil {
@@ -468,11 +459,8 @@ func (x RpcMessageResp) VDLWrite(enc vdl.Encoder) error {
 }
 
 func VDLReadRpcMessage(dec vdl.Decoder, x *RpcMessage) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_union_4); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x), dec.Type()) {
-		return fmt.Errorf("incompatible union %T, from %v", x, dec.Type())
 	}
 	f, err := dec.NextField()
 	if err != nil {
@@ -1089,6 +1077,14 @@ func (s implAgentNotifyWhenChangedServerCallSend) Send(item bool) error {
 	return s.s.Send(item)
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_struct_2 *vdl.Type
+	__VDLType_struct_3 *vdl.Type
+	__VDLType_union_4  *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -1115,6 +1111,12 @@ func __VDLInit() struct{} {
 	vdl.Register((*RpcRequest)(nil))
 	vdl.Register((*RpcResponse)(nil))
 	vdl.Register((*RpcMessage)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*ConnInfo)(nil)).Elem()
+	__VDLType_struct_2 = vdl.TypeOf((*RpcRequest)(nil)).Elem()
+	__VDLType_struct_3 = vdl.TypeOf((*RpcResponse)(nil)).Elem()
+	__VDLType_union_4 = vdl.TypeOf((*RpcMessage)(nil))
 
 	return struct{}{}
 }

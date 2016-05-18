@@ -9,7 +9,6 @@
 package stats
 
 import (
-	"fmt"
 	"v.io/v23/vdl"
 )
 
@@ -36,7 +35,7 @@ func (x HistogramBucket) VDLIsZero() bool {
 }
 
 func (x HistogramBucket) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*HistogramBucket)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if x.LowBound != 0 {
@@ -75,11 +74,8 @@ func (x HistogramBucket) VDLWrite(enc vdl.Encoder) error {
 
 func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
 	*x = HistogramBucket{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -90,7 +86,7 @@ func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "LowBound":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Int64Type); err != nil {
 				return err
 			}
 			var err error
@@ -101,7 +97,7 @@ func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Count":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Int64Type); err != nil {
 				return err
 			}
 			var err error
@@ -158,7 +154,7 @@ func (x HistogramValue) VDLIsZero() bool {
 }
 
 func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*HistogramValue)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_2); err != nil {
 		return err
 	}
 	if x.Count != 0 {
@@ -232,7 +228,7 @@ func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_list_1(enc vdl.Encoder, x []HistogramBucket) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]HistogramBucket)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_3); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -254,11 +250,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []HistogramBucket) error {
 
 func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 	*x = HistogramValue{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_2); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -269,7 +262,7 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Count":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Int64Type); err != nil {
 				return err
 			}
 			var err error
@@ -280,7 +273,7 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Sum":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Int64Type); err != nil {
 				return err
 			}
 			var err error
@@ -291,7 +284,7 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Min":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Int64Type); err != nil {
 				return err
 			}
 			var err error
@@ -302,7 +295,7 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Max":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Int64Type); err != nil {
 				return err
 			}
 			var err error
@@ -325,11 +318,8 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]HistogramBucket) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_3); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len > 0:
@@ -351,6 +341,13 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]HistogramBucket) error {
 		*x = append(*x, elem)
 	}
 }
+
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_struct_2 *vdl.Type
+	__VDLType_list_3   *vdl.Type
+)
 
 var __VDLInitCalled bool
 
@@ -376,6 +373,11 @@ func __VDLInit() struct{} {
 	// Register types.
 	vdl.Register((*HistogramBucket)(nil))
 	vdl.Register((*HistogramValue)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*HistogramBucket)(nil)).Elem()
+	__VDLType_struct_2 = vdl.TypeOf((*HistogramValue)(nil)).Elem()
+	__VDLType_list_3 = vdl.TypeOf((*[]HistogramBucket)(nil))
 
 	return struct{}{}
 }

@@ -47,7 +47,7 @@ func (x Blessings) VDLIsZero() bool {
 }
 
 func (x Blessings) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*Blessings)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if !x.Blessings.IsZero() {
@@ -84,11 +84,8 @@ func (x Blessings) VDLWrite(enc vdl.Encoder) error {
 
 func (x *Blessings) VDLRead(dec vdl.Decoder) error {
 	*x = Blessings{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -107,7 +104,7 @@ func (x *Blessings) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "BKey":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -152,7 +149,7 @@ func (x EncryptedBlessings) VDLIsZero() bool {
 }
 
 func (x EncryptedBlessings) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*EncryptedBlessings)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
 	if len(x.Ciphertexts) != 0 {
@@ -184,7 +181,7 @@ func (x EncryptedBlessings) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_list_1(enc vdl.Encoder, x []bcrypter.WireCiphertext) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]bcrypter.WireCiphertext)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_4); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -206,11 +203,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []bcrypter.WireCiphertext) error {
 
 func (x *EncryptedBlessings) VDLRead(dec vdl.Decoder) error {
 	*x = EncryptedBlessings{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -225,7 +219,7 @@ func (x *EncryptedBlessings) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "BKey":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -244,11 +238,8 @@ func (x *EncryptedBlessings) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]bcrypter.WireCiphertext) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_4); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len > 0:
@@ -302,7 +293,7 @@ func (x Discharges) VDLIsZero() bool {
 }
 
 func (x Discharges) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*Discharges)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_6); err != nil {
 		return err
 	}
 	if len(x.Discharges) != 0 {
@@ -348,7 +339,7 @@ func (x Discharges) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_list_2(enc vdl.Encoder, x []security.Discharge) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]security.Discharge)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_7); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -365,7 +356,7 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []security.Discharge) error {
 		switch {
 		case wire == nil:
 			// Write the zero value of the union type.
-			if err := vdl.ZeroValue(vdl.TypeOf((*security.WireDischarge)(nil))).VDLWrite(enc); err != nil {
+			if err := vdl.ZeroValue(__VDLType_union_8).VDLWrite(enc); err != nil {
 				return err
 			}
 		default:
@@ -382,11 +373,8 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []security.Discharge) error {
 
 func (x *Discharges) VDLRead(dec vdl.Decoder) error {
 	*x = Discharges{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_6); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -401,7 +389,7 @@ func (x *Discharges) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "DKey":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -412,7 +400,7 @@ func (x *Discharges) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "BKey":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -431,11 +419,8 @@ func (x *Discharges) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]security.Discharge) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_7); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len > 0:
@@ -495,7 +480,7 @@ func (x EncryptedDischarges) VDLIsZero() bool {
 }
 
 func (x EncryptedDischarges) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*EncryptedDischarges)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_9); err != nil {
 		return err
 	}
 	if len(x.Ciphertexts) != 0 {
@@ -542,11 +527,8 @@ func (x EncryptedDischarges) VDLWrite(enc vdl.Encoder) error {
 
 func (x *EncryptedDischarges) VDLRead(dec vdl.Decoder) error {
 	*x = EncryptedDischarges{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_9); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -561,7 +543,7 @@ func (x *EncryptedDischarges) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "DKey":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -572,7 +554,7 @@ func (x *EncryptedDischarges) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "BKey":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -665,7 +647,7 @@ func (x BlessingsFlowMessageEncryptedDischarges) VDLIsZero() bool {
 }
 
 func (x BlessingsFlowMessageBlessings) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlessingsFlowMessage)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_union_10); err != nil {
 		return err
 	}
 	if err := enc.NextField("Blessings"); err != nil {
@@ -681,7 +663,7 @@ func (x BlessingsFlowMessageBlessings) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x BlessingsFlowMessageDischarges) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlessingsFlowMessage)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_union_10); err != nil {
 		return err
 	}
 	if err := enc.NextField("Discharges"); err != nil {
@@ -697,7 +679,7 @@ func (x BlessingsFlowMessageDischarges) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x BlessingsFlowMessageEncryptedBlessings) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlessingsFlowMessage)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_union_10); err != nil {
 		return err
 	}
 	if err := enc.NextField("EncryptedBlessings"); err != nil {
@@ -713,7 +695,7 @@ func (x BlessingsFlowMessageEncryptedBlessings) VDLWrite(enc vdl.Encoder) error 
 }
 
 func (x BlessingsFlowMessageEncryptedDischarges) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlessingsFlowMessage)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_union_10); err != nil {
 		return err
 	}
 	if err := enc.NextField("EncryptedDischarges"); err != nil {
@@ -729,11 +711,8 @@ func (x BlessingsFlowMessageEncryptedDischarges) VDLWrite(enc vdl.Encoder) error
 }
 
 func VDLReadBlessingsFlowMessage(dec vdl.Decoder, x *BlessingsFlowMessage) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_union_10); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(x), dec.Type()) {
-		return fmt.Errorf("incompatible union %T, from %v", x, dec.Type())
 	}
 	f, err := dec.NextField()
 	if err != nil {
@@ -922,6 +901,20 @@ func NewErrIdleConnKilled(ctx *context.T) error {
 	return verror.New(ErrIdleConnKilled, ctx)
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_struct_2 *vdl.Type
+	__VDLType_struct_3 *vdl.Type
+	__VDLType_list_4   *vdl.Type
+	__VDLType_struct_5 *vdl.Type
+	__VDLType_struct_6 *vdl.Type
+	__VDLType_list_7   *vdl.Type
+	__VDLType_union_8  *vdl.Type
+	__VDLType_struct_9 *vdl.Type
+	__VDLType_union_10 *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -949,6 +942,18 @@ func __VDLInit() struct{} {
 	vdl.Register((*Discharges)(nil))
 	vdl.Register((*EncryptedDischarges)(nil))
 	vdl.Register((*BlessingsFlowMessage)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*Blessings)(nil)).Elem()
+	__VDLType_struct_2 = vdl.TypeOf((*security.WireBlessings)(nil)).Elem()
+	__VDLType_struct_3 = vdl.TypeOf((*EncryptedBlessings)(nil)).Elem()
+	__VDLType_list_4 = vdl.TypeOf((*[]bcrypter.WireCiphertext)(nil))
+	__VDLType_struct_5 = vdl.TypeOf((*bcrypter.WireCiphertext)(nil)).Elem()
+	__VDLType_struct_6 = vdl.TypeOf((*Discharges)(nil)).Elem()
+	__VDLType_list_7 = vdl.TypeOf((*[]security.Discharge)(nil))
+	__VDLType_union_8 = vdl.TypeOf((*security.WireDischarge)(nil))
+	__VDLType_struct_9 = vdl.TypeOf((*EncryptedDischarges)(nil)).Elem()
+	__VDLType_union_10 = vdl.TypeOf((*BlessingsFlowMessage)(nil))
 
 	// Set error format strings.
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrMissingSetupOption.ID), "{1:}{2:} missing required setup option{:3}.")

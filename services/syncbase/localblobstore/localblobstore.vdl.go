@@ -8,7 +8,6 @@
 package localblobstore
 
 import (
-	"fmt"
 	"time"
 	"v.io/v23/vdl"
 	vdltime "v.io/v23/vdlroot/time"
@@ -51,7 +50,7 @@ func (x BlobMetadata) VDLIsZero() bool {
 }
 
 func (x BlobMetadata) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*BlobMetadata)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if len(x.OwnerShares) != 0 {
@@ -94,11 +93,8 @@ func (x BlobMetadata) VDLWrite(enc vdl.Encoder) error {
 
 func (x *BlobMetadata) VDLRead(dec vdl.Decoder) error {
 	*x = BlobMetadata{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -156,7 +152,7 @@ func (x PerSyncgroup) VDLIsZero() bool {
 }
 
 func (x PerSyncgroup) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*PerSyncgroup)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_4); err != nil {
 		return err
 	}
 	if !x.Priority.VDLIsZero() {
@@ -175,11 +171,8 @@ func (x PerSyncgroup) VDLWrite(enc vdl.Encoder) error {
 
 func (x *PerSyncgroup) VDLRead(dec vdl.Decoder) error {
 	*x = PerSyncgroup{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_4); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -200,6 +193,15 @@ func (x *PerSyncgroup) VDLRead(dec vdl.Decoder) error {
 		}
 	}
 }
+
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_map_2    *vdl.Type
+	__VDLType_struct_3 *vdl.Type
+	__VDLType_struct_4 *vdl.Type
+	__VDLType_struct_5 *vdl.Type
+)
 
 var __VDLInitCalled bool
 
@@ -225,6 +227,13 @@ func __VDLInit() struct{} {
 	// Register types.
 	vdl.Register((*BlobMetadata)(nil))
 	vdl.Register((*PerSyncgroup)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*BlobMetadata)(nil)).Elem()
+	__VDLType_map_2 = vdl.TypeOf((*interfaces.BlobSharesBySyncgroup)(nil))
+	__VDLType_struct_3 = vdl.TypeOf((*vdltime.Time)(nil)).Elem()
+	__VDLType_struct_4 = vdl.TypeOf((*PerSyncgroup)(nil)).Elem()
+	__VDLType_struct_5 = vdl.TypeOf((*interfaces.SgPriority)(nil)).Elem()
 
 	return struct{}{}
 }

@@ -55,9 +55,9 @@ func (x *%[1]s) VDLRead(dec %[2]sDecoder) error {`, def.Name, g.Pkg("v.io/v23/vd
 func (g *genRead) genUnionDef(def *compile.TypeDef) string {
 	s := fmt.Sprintf(`
 func %[1]s(dec %[2]sDecoder, x *%[3]s) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(%[4]s); err != nil {
 		return err
-	}`, unionReadFuncName(def), g.Pkg("v.io/v23/vdl"), def.Name)
+	}`, unionReadFuncName(def), g.Pkg("v.io/v23/vdl"), def.Name, g.TypeOf(def.Type))
 	s += g.bodyUnion(def.Type, namedArg{"x", true}) + `
 	return dec.FinishValue()
 }
@@ -95,10 +95,10 @@ func %[1]s(dec %[2]sDecoder, x *%[3]s) error {`, g.anonReaderName(anon), g.Pkg("
 
 func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 	kind := tt.Kind()
-	sta := `
-	if err := dec.StartValue(); err != nil {
+	sta := fmt.Sprintf(`
+	if err := dec.StartValue(%[1]s); err != nil {
 		return err
-	}`
+	}`, g.TypeOf(tt))
 	fin := `
 	if err := dec.FinishValue(); err != nil {
 		return err
@@ -294,18 +294,10 @@ func (g *genRead) bodyBytes(tt *vdl.Type, arg namedArg) string {
 	return s
 }
 
-func (g *genRead) checkCompatible(kind vdl.Kind, varName string) string {
-	return fmt.Sprintf(`
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !%[1]sCompatible(%[1]sTypeOf(%[4]s), dec.Type()) {
-		return %[2]sErrorf("incompatible %[3]s %%T, from %%v", %[4]s, dec.Type())
-	}`, g.Pkg("v.io/v23/vdl"), g.Pkg("fmt"), kind, varName)
-}
-
 func (g *genRead) bodyArray(tt *vdl.Type, arg namedArg) string {
-	s := g.checkCompatible(tt.Kind(), arg.Ref())
 	elemArg := arg.ArrayIndex("index", tt.Elem())
 	elemBody := g.body(tt.Elem(), elemArg, false)
-	return s + fmt.Sprintf(`
+	return fmt.Sprintf(`
 	index := 0
 	for {
 		switch done, err := dec.NextEntry(); {
@@ -321,10 +313,9 @@ func (g *genRead) bodyArray(tt *vdl.Type, arg namedArg) string {
 }
 
 func (g *genRead) bodyList(tt *vdl.Type, arg namedArg) string {
-	s := g.checkCompatible(tt.Kind(), arg.Ref())
 	elemArg := typedArg("elem", tt.Elem())
 	elemBody := g.body(tt.Elem(), elemArg, false)
-	return s + fmt.Sprintf(`
+	return fmt.Sprintf(`
 	switch len := dec.LenHint(); {
 	case len > 0:
 		%[1]s = make(%[2]s, 0, len)
@@ -344,10 +335,9 @@ func (g *genRead) bodyList(tt *vdl.Type, arg namedArg) string {
 }
 
 func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
-	s := g.checkCompatible(tt.Kind(), arg.Ref())
 	keyArg := typedArg("key", tt.Key())
 	keyBody := g.body(tt.Key(), keyArg, false)
-	s += fmt.Sprintf(`
+	s := fmt.Sprintf(`
 	var tmpMap %[1]s
 	if len := dec.LenHint(); len > 0 {
 		tmpMap = make(%[1]s, len)
@@ -382,7 +372,7 @@ func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
 }
 
 func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {
-	s := g.checkCompatible(tt.Kind(), arg.Ref()) + `
+	s := `
 	for {
 		f, err := dec.NextField()
 		if err != nil {
@@ -407,7 +397,7 @@ func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {
 }
 
 func (g *genRead) bodyUnion(tt *vdl.Type, arg namedArg) string {
-	s := g.checkCompatible(tt.Kind(), arg.Ptr()) + `
+	s := `
 	f, err := dec.NextField()
 	if err != nil {
 		return err
@@ -440,18 +430,17 @@ func (g *genRead) bodyUnion(tt *vdl.Type, arg namedArg) string {
 
 func (g *genRead) bodyOptional(tt *vdl.Type, arg namedArg) string {
 	// NOTE: arg.IsPtr is always true here, since tt is optional.
-	compat := g.checkCompatible(tt.Kind(), arg.Name)
 	body := g.body(tt.Elem(), arg, false)
 	return fmt.Sprintf(`
-	if dec.IsNil() {%[1]s
-		%[2]s = nil
+	if dec.IsNil() {
+		%[1]s = nil
 		if err := dec.FinishValue(); err != nil {
 			return err
 		}
 	} else {
-		%[2]s = new(%[3]s)
-		dec.IgnoreNextStartValue()%[4]s
-	}`, compat, arg.Name, typeGo(g.goData, tt.Elem()), body)
+		%[1]s = new(%[2]s)
+		dec.IgnoreNextStartValue()%[3]s
+	}`, arg.Name, typeGo(g.goData, tt.Elem()), body)
 }
 
 func (g *genRead) bodyAny(tt *vdl.Type, arg namedArg) string {

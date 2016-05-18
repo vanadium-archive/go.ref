@@ -8,7 +8,6 @@
 package vclock
 
 import (
-	"fmt"
 	"time"
 	"v.io/v23/vdl"
 	vdltime "v.io/v23/vdlroot/time"
@@ -68,7 +67,7 @@ func (x VClockData) VDLIsZero() bool {
 }
 
 func (x VClockData) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*VClockData)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if !x.SystemTimeAtBoot.IsZero() {
@@ -155,11 +154,8 @@ func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 
 func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 	*x = VClockData{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -202,7 +198,7 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "NumReboots":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint16Type); err != nil {
 				return err
 			}
 			tmp, err := dec.DecodeUint(16)
@@ -214,7 +210,7 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "NumHops":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint16Type); err != nil {
 				return err
 			}
 			tmp, err := dec.DecodeUint(16)
@@ -232,6 +228,13 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 		}
 	}
 }
+
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_struct_2 *vdl.Type
+	__VDLType_struct_3 *vdl.Type
+)
 
 var __VDLInitCalled bool
 
@@ -256,6 +259,11 @@ func __VDLInit() struct{} {
 
 	// Register types.
 	vdl.Register((*VClockData)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*VClockData)(nil)).Elem()
+	__VDLType_struct_2 = vdl.TypeOf((*vdltime.Time)(nil)).Elem()
+	__VDLType_struct_3 = vdl.TypeOf((*vdltime.Duration)(nil)).Elem()
 
 	return struct{}{}
 }

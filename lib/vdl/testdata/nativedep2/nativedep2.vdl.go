@@ -30,7 +30,7 @@ func (x MyTime) VDLIsZero() bool {
 }
 
 func (x MyTime) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*MyTime)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_int32_1); err != nil {
 		return err
 	}
 	if err := enc.EncodeInt(int64(x)); err != nil {
@@ -40,7 +40,7 @@ func (x MyTime) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *MyTime) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_int32_1); err != nil {
 		return err
 	}
 	tmp, err := dec.DecodeInt(32)
@@ -50,6 +50,11 @@ func (x *MyTime) VDLRead(dec vdl.Decoder) error {
 	*x = MyTime(tmp)
 	return dec.FinishValue()
 }
+
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_int32_1 *vdl.Type
+)
 
 var __VDLInitCalled bool
 
@@ -74,6 +79,9 @@ func __VDLInit() struct{} {
 
 	// Register types.
 	vdl.Register((*MyTime)(nil))
+
+	// Initialize type definitions.
+	__VDLType_int32_1 = vdl.TypeOf((*MyTime)(nil))
 
 	return struct{}{}
 }

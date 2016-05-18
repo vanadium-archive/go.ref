@@ -8,7 +8,6 @@
 package bcrypter
 
 import (
-	"fmt"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/security"
@@ -52,7 +51,7 @@ func (x WireCiphertext) VDLIsZero() bool {
 }
 
 func (x WireCiphertext) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*WireCiphertext)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if x.PatternId != "" {
@@ -84,7 +83,7 @@ func (x WireCiphertext) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_map_1(enc vdl.Encoder, x map[string][]byte) error {
-	if err := enc.StartValue(vdl.TypeOf((*map[string][]byte)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_map_2); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -103,7 +102,7 @@ func __VDLWriteAnon_map_1(enc vdl.Encoder, x map[string][]byte) error {
 		if err := enc.FinishValue(); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		if err := enc.StartValue(__VDLType_list_3); err != nil {
 			return err
 		}
 		if err := enc.EncodeBytes(elem); err != nil {
@@ -121,11 +120,8 @@ func __VDLWriteAnon_map_1(enc vdl.Encoder, x map[string][]byte) error {
 
 func (x *WireCiphertext) VDLRead(dec vdl.Decoder) error {
 	*x = WireCiphertext{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -136,7 +132,7 @@ func (x *WireCiphertext) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "PatternId":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -159,11 +155,8 @@ func (x *WireCiphertext) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_map_1(dec vdl.Decoder, x *map[string][]byte) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_map_2); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible map %T, from %v", *x, dec.Type())
 	}
 	var tmpMap map[string][]byte
 	if len := dec.LenHint(); len > 0 {
@@ -179,7 +172,7 @@ func __VDLReadAnon_map_1(dec vdl.Decoder, x *map[string][]byte) error {
 		}
 		var key string
 		{
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -192,7 +185,7 @@ func __VDLReadAnon_map_1(dec vdl.Decoder, x *map[string][]byte) error {
 		}
 		var elem []byte
 		{
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(__VDLType_list_3); err != nil {
 				return err
 			}
 			if err := dec.DecodeBytes(-1, &elem); err != nil {
@@ -237,7 +230,7 @@ func (x WireParams) VDLIsZero() bool {
 }
 
 func (x WireParams) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*WireParams)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_4); err != nil {
 		return err
 	}
 	if x.Blessing != "" {
@@ -258,7 +251,7 @@ func (x WireParams) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Params"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		if err := enc.StartValue(__VDLType_list_3); err != nil {
 			return err
 		}
 		if err := enc.EncodeBytes(x.Params); err != nil {
@@ -276,11 +269,8 @@ func (x WireParams) VDLWrite(enc vdl.Encoder) error {
 
 func (x *WireParams) VDLRead(dec vdl.Decoder) error {
 	*x = WireParams{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_4); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -291,7 +281,7 @@ func (x *WireParams) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Blessing":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -302,7 +292,7 @@ func (x *WireParams) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Params":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(__VDLType_list_3); err != nil {
 				return err
 			}
 			if err := dec.DecodeBytes(-1, &x.Params); err != nil {
@@ -363,7 +353,7 @@ func (x WirePrivateKey) VDLIsZero() bool {
 }
 
 func (x WirePrivateKey) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*WirePrivateKey)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_5); err != nil {
 		return err
 	}
 	if x.Blessing != "" {
@@ -403,7 +393,7 @@ func (x WirePrivateKey) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_list_2(enc vdl.Encoder, x [][]byte) error {
-	if err := enc.StartValue(vdl.TypeOf((*[][]byte)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_6); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -413,7 +403,7 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x [][]byte) error {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		if err := enc.StartValue(__VDLType_list_3); err != nil {
 			return err
 		}
 		if err := enc.EncodeBytes(x[i]); err != nil {
@@ -431,11 +421,8 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x [][]byte) error {
 
 func (x *WirePrivateKey) VDLRead(dec vdl.Decoder) error {
 	*x = WirePrivateKey{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_5); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -446,7 +433,7 @@ func (x *WirePrivateKey) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Blessing":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.StringType); err != nil {
 				return err
 			}
 			var err error
@@ -473,11 +460,8 @@ func (x *WirePrivateKey) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_list_2(dec vdl.Decoder, x *[][]byte) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_6); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len > 0:
@@ -493,7 +477,7 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[][]byte) error {
 			return dec.FinishValue()
 		}
 		var elem []byte
-		if err := dec.StartValue(); err != nil {
+		if err := dec.StartValue(__VDLType_list_3); err != nil {
 			return err
 		}
 		if err := dec.DecodeBytes(-1, &elem); err != nil {
@@ -536,6 +520,16 @@ func NewErrInvalidPrivateKey(ctx *context.T, err error) error {
 	return verror.New(ErrInvalidPrivateKey, ctx, err)
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_map_2    *vdl.Type
+	__VDLType_list_3   *vdl.Type
+	__VDLType_struct_4 *vdl.Type
+	__VDLType_struct_5 *vdl.Type
+	__VDLType_list_6   *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -561,6 +555,14 @@ func __VDLInit() struct{} {
 	vdl.Register((*WireCiphertext)(nil))
 	vdl.Register((*WireParams)(nil))
 	vdl.Register((*WirePrivateKey)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*WireCiphertext)(nil)).Elem()
+	__VDLType_map_2 = vdl.TypeOf((*map[string][]byte)(nil))
+	__VDLType_list_3 = vdl.TypeOf((*[]byte)(nil))
+	__VDLType_struct_4 = vdl.TypeOf((*WireParams)(nil)).Elem()
+	__VDLType_struct_5 = vdl.TypeOf((*WirePrivateKey)(nil)).Elem()
+	__VDLType_list_6 = vdl.TypeOf((*[][]byte)(nil))
 
 	// Set error format strings.
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInternal.ID), "{1:}{2:} internal error: {3}")

@@ -8,7 +8,6 @@
 package nativedep
 
 import (
-	"fmt"
 	"time"
 	"v.io/v23/vdl"
 	"v.io/v23/vdl/testdata/nativetest"
@@ -49,7 +48,7 @@ func (x All) VDLIsZero() bool {
 }
 
 func (x All) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*All)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if x.A != "" {
@@ -108,11 +107,8 @@ func (x All) VDLWrite(enc vdl.Encoder) error {
 
 func (x *All) VDLRead(dec vdl.Decoder) error {
 	*x = All{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -162,6 +158,15 @@ func (x *All) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_int32_2  *vdl.Type
+	__VDLType_int32_3  *vdl.Type
+	__VDLType_int32_4  *vdl.Type
+	__VDLType_int32_5  *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -185,6 +190,13 @@ func __VDLInit() struct{} {
 
 	// Register types.
 	vdl.Register((*All)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*All)(nil)).Elem()
+	__VDLType_int32_2 = vdl.TypeOf((*nativetest_2.WireString)(nil))
+	__VDLType_int32_3 = vdl.TypeOf((*nativetest_2.WireTime)(nil))
+	__VDLType_int32_4 = vdl.TypeOf((*nativetest_2.WireSamePkg)(nil))
+	__VDLType_int32_5 = vdl.TypeOf((*nativetest_2.WireMultiImport)(nil))
 
 	return struct{}{}
 }

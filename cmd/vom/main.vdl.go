@@ -69,7 +69,7 @@ func (x dataRep) VDLIsZero() bool {
 }
 
 func (x dataRep) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*dataRep)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_enum_1); err != nil {
 		return err
 	}
 	if err := enc.EncodeString(x.String()); err != nil {
@@ -79,7 +79,7 @@ func (x dataRep) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *dataRep) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_enum_1); err != nil {
 		return err
 	}
 	enum, err := dec.DecodeString()
@@ -91,6 +91,11 @@ func (x *dataRep) VDLRead(dec vdl.Decoder) error {
 	}
 	return dec.FinishValue()
 }
+
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_enum_1 *vdl.Type
+)
 
 var __VDLInitCalled bool
 
@@ -115,6 +120,9 @@ func __VDLInit() struct{} {
 
 	// Register types.
 	vdl.Register((*dataRep)(nil))
+
+	// Initialize type definitions.
+	__VDLType_enum_1 = vdl.TypeOf((*dataRep)(nil))
 
 	return struct{}{}
 }

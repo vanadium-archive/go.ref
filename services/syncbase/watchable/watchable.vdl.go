@@ -47,7 +47,7 @@ func (x SyncgroupOp) VDLIsZero() bool {
 }
 
 func (x SyncgroupOp) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*SyncgroupOp)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if x.SgId != "" {
@@ -87,7 +87,7 @@ func (x SyncgroupOp) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
-	if err := enc.StartValue(vdl.TypeOf((*[]string)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_list_3); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -115,11 +115,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 
 func (x *SyncgroupOp) VDLRead(dec vdl.Decoder) error {
 	*x = SyncgroupOp{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -138,7 +135,7 @@ func (x *SyncgroupOp) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Remove":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.BoolType); err != nil {
 				return err
 			}
 			var err error
@@ -157,11 +154,8 @@ func (x *SyncgroupOp) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_list_3); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible list %T, from %v", *x, dec.Type())
 	}
 	switch len := dec.LenHint(); {
 	case len > 0:
@@ -177,7 +171,7 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
 			return dec.FinishValue()
 		}
 		var elem string
-		if err := dec.StartValue(); err != nil {
+		if err := dec.StartValue(vdl.StringType); err != nil {
 			return err
 		}
 		var err error
@@ -219,14 +213,14 @@ func (x SyncSnapshotOp) VDLIsZero() bool {
 }
 
 func (x SyncSnapshotOp) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*SyncSnapshotOp)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_4); err != nil {
 		return err
 	}
 	if len(x.Key) != 0 {
 		if err := enc.NextField("Key"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		if err := enc.StartValue(__VDLType_list_5); err != nil {
 			return err
 		}
 		if err := enc.EncodeBytes(x.Key); err != nil {
@@ -240,7 +234,7 @@ func (x SyncSnapshotOp) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("Version"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		if err := enc.StartValue(__VDLType_list_5); err != nil {
 			return err
 		}
 		if err := enc.EncodeBytes(x.Version); err != nil {
@@ -258,11 +252,8 @@ func (x SyncSnapshotOp) VDLWrite(enc vdl.Encoder) error {
 
 func (x *SyncSnapshotOp) VDLRead(dec vdl.Decoder) error {
 	*x = SyncSnapshotOp{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_4); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -273,7 +264,7 @@ func (x *SyncSnapshotOp) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Key":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(__VDLType_list_5); err != nil {
 				return err
 			}
 			if err := dec.DecodeBytes(-1, &x.Key); err != nil {
@@ -283,7 +274,7 @@ func (x *SyncSnapshotOp) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Version":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(__VDLType_list_5); err != nil {
 				return err
 			}
 			if err := dec.DecodeBytes(-1, &x.Version); err != nil {
@@ -353,7 +344,7 @@ func (x StateChange) VDLIsZero() bool {
 }
 
 func (x StateChange) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*StateChange)(nil))); err != nil {
+	if err := enc.StartValue(__VDLType_enum_6); err != nil {
 		return err
 	}
 	if err := enc.EncodeString(x.String()); err != nil {
@@ -363,7 +354,7 @@ func (x StateChange) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *StateChange) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_enum_6); err != nil {
 		return err
 	}
 	enum, err := dec.DecodeString()
@@ -395,7 +386,7 @@ func (x DbStateChangeRequestOp) VDLIsZero() bool {
 }
 
 func (x DbStateChangeRequestOp) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*DbStateChangeRequestOp)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_7); err != nil {
 		return err
 	}
 	if x.RequestType != StateChangePauseSync {
@@ -414,11 +405,8 @@ func (x DbStateChangeRequestOp) VDLWrite(enc vdl.Encoder) error {
 
 func (x *DbStateChangeRequestOp) VDLRead(dec vdl.Decoder) error {
 	*x = DbStateChangeRequestOp{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_7); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -439,6 +427,17 @@ func (x *DbStateChangeRequestOp) VDLRead(dec vdl.Decoder) error {
 		}
 	}
 }
+
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_string_2 *vdl.Type
+	__VDLType_list_3   *vdl.Type
+	__VDLType_struct_4 *vdl.Type
+	__VDLType_list_5   *vdl.Type
+	__VDLType_enum_6   *vdl.Type
+	__VDLType_struct_7 *vdl.Type
+)
 
 var __VDLInitCalled bool
 
@@ -466,6 +465,15 @@ func __VDLInit() struct{} {
 	vdl.Register((*SyncSnapshotOp)(nil))
 	vdl.Register((*StateChange)(nil))
 	vdl.Register((*DbStateChangeRequestOp)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*SyncgroupOp)(nil)).Elem()
+	__VDLType_string_2 = vdl.TypeOf((*interfaces.GroupId)(nil))
+	__VDLType_list_3 = vdl.TypeOf((*[]string)(nil))
+	__VDLType_struct_4 = vdl.TypeOf((*SyncSnapshotOp)(nil)).Elem()
+	__VDLType_list_5 = vdl.TypeOf((*[]byte)(nil))
+	__VDLType_enum_6 = vdl.TypeOf((*StateChange)(nil))
+	__VDLType_struct_7 = vdl.TypeOf((*DbStateChangeRequestOp)(nil)).Elem()
 
 	return struct{}{}
 }

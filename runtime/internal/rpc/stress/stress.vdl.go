@@ -8,7 +8,6 @@
 package stress
 
 import (
-	"fmt"
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
@@ -47,7 +46,7 @@ func (x SumArg) VDLIsZero() bool {
 }
 
 func (x SumArg) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*SumArg)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
 	if x.ABool {
@@ -82,7 +81,7 @@ func (x SumArg) VDLWrite(enc vdl.Encoder) error {
 		if err := enc.NextField("AListOfBytes"); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.TypeOf((*[]byte)(nil))); err != nil {
+		if err := enc.StartValue(__VDLType_list_2); err != nil {
 			return err
 		}
 		if err := enc.EncodeBytes(x.AListOfBytes); err != nil {
@@ -100,11 +99,8 @@ func (x SumArg) VDLWrite(enc vdl.Encoder) error {
 
 func (x *SumArg) VDLRead(dec vdl.Decoder) error {
 	*x = SumArg{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -115,7 +111,7 @@ func (x *SumArg) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "ABool":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.BoolType); err != nil {
 				return err
 			}
 			var err error
@@ -126,7 +122,7 @@ func (x *SumArg) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "AInt64":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Int64Type); err != nil {
 				return err
 			}
 			var err error
@@ -137,7 +133,7 @@ func (x *SumArg) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "AListOfBytes":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(__VDLType_list_2); err != nil {
 				return err
 			}
 			if err := dec.DecodeBytes(-1, &x.AListOfBytes); err != nil {
@@ -171,7 +167,7 @@ func (x SumStats) VDLIsZero() bool {
 }
 
 func (x SumStats) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(vdl.TypeOf((*SumStats)(nil)).Elem()); err != nil {
+	if err := enc.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
 	if x.SumCount != 0 {
@@ -238,11 +234,8 @@ func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 
 func (x *SumStats) VDLRead(dec vdl.Decoder) error {
 	*x = SumStats{}
-	if err := dec.StartValue(); err != nil {
+	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
-	}
-	if (dec.StackDepth() == 1 || dec.IsAny()) && !vdl.Compatible(vdl.TypeOf(*x), dec.Type()) {
-		return fmt.Errorf("incompatible struct %T, from %v", *x, dec.Type())
 	}
 	for {
 		f, err := dec.NextField()
@@ -253,7 +246,7 @@ func (x *SumStats) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "SumCount":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -264,7 +257,7 @@ func (x *SumStats) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "SumStreamCount":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -275,7 +268,7 @@ func (x *SumStats) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "BytesRecv":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -286,7 +279,7 @@ func (x *SumStats) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "BytesSent":
-			if err := dec.StartValue(); err != nil {
+			if err := dec.StartValue(vdl.Uint64Type); err != nil {
 				return err
 			}
 			var err error
@@ -693,6 +686,13 @@ func (s implStressSumStreamServerCallSend) Send(item []byte) error {
 	return s.s.Send(item)
 }
 
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_list_2   *vdl.Type
+	__VDLType_struct_3 *vdl.Type
+)
+
 var __VDLInitCalled bool
 
 // __VDLInit performs vdl initialization.  It is safe to call multiple times.
@@ -717,6 +717,11 @@ func __VDLInit() struct{} {
 	// Register types.
 	vdl.Register((*SumArg)(nil))
 	vdl.Register((*SumStats)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*SumArg)(nil)).Elem()
+	__VDLType_list_2 = vdl.TypeOf((*[]byte)(nil))
+	__VDLType_struct_3 = vdl.TypeOf((*SumStats)(nil)).Elem()
 
 	return struct{}{}
 }
