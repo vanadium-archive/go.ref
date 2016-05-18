@@ -842,21 +842,29 @@ func implementsSyncbaseInterface(ctx *context.T, server string) (bool, error) {
 	return false, nil
 }
 
+func internalServerError(w http.ResponseWriter, doing string, err error) {
+	w.WriteHeader(http.StatusInternalServerError)
+	fmt.Fprintf(w, "Problem %s: %v", doing, err)
+}
+
+func badRequest(w http.ResponseWriter, problem string) {
+	w.WriteHeader(http.StatusBadRequest)
+	fmt.Fprintf(w, problem)
+}
+
 func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
 		server = r.FormValue("n")
 	)
 	ctx, tracer := newTracer(h.ctx)
 	if len(server) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Must specify a server with the URL query parameter 'n'")
+		badRequest(w, "Must specify a server with the URL query parameter 'n'")
 		return
 	}
 
 	hasSyncbase, err := implementsSyncbaseInterface(ctx, server)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Problem getting interfaces: %v", err)
+		internalServerError(w, "getting interfaces", err)
 		return
 	}
 
@@ -878,16 +886,20 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	dbIds, err := service.ListDatabases(ctx)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Problem listing databases: %v", err)
+		internalServerError(w, "listing databases", err)
 		return
 	}
 
 	// Assemble the data to be displayed as tree of nested slices
+	type SyncgroupTree struct {
+		Syncgroup syncbase.Syncgroup
+		Spec      sbwire.SyncgroupSpec
+		Members   map[string]sbwire.SyncgroupMemberInfo
+	}
 	type databaseTree struct {
 		Database    syncbase.Database
 		Collections []syncbase.Collection
-		Syncgroups  []syncbase.Syncgroup
+		Syncgroups  []SyncgroupTree
 	}
 	tree := make([]databaseTree, len(dbIds))
 	for i := range dbIds {
@@ -897,8 +909,7 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Assemble collections
 		collIds, err := db.ListCollections(ctx)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Problem listing collections: %v", err)
+			internalServerError(w, "listing collections", err)
 			return
 		}
 		colls := make([]syncbase.Collection, len(collIds))
@@ -909,13 +920,23 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Assemble syncgroups
 		sgIds, err := db.ListSyncgroups(ctx)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Problem listing syncgroups: %v", err)
+			internalServerError(w, "listing syncgroups", err)
 			return
 		}
-		sgs := make([]syncbase.Syncgroup, len(sgIds))
+		sgs := make([]SyncgroupTree, len(sgIds))
 		for j := range sgIds {
-			sgs[j] = db.SyncgroupForId(sgIds[i])
+			sg := db.SyncgroupForId(sgIds[i])
+			spec, _, err := sg.GetSpec(ctx)
+			if err != nil {
+				internalServerError(w, "getting spec of syncgroup", err)
+				return
+			}
+			members, err := sg.GetMembers(ctx)
+			if err != nil {
+				internalServerError(w, "getting members of syncgroup", err)
+				return
+			}
+			sgs[j] = SyncgroupTree{sg, spec, members}
 		}
 
 		tree[i] = databaseTree{db, colls, sgs}
@@ -1026,8 +1047,7 @@ func (h *collectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	)
 	ctx, tracer := newTracer(h.ctx)
 	if len(server) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "Must specify a server with the URL query parameter 'n'")
+		badRequest(w, "Must specify a server with the URL query parameter 'n'")
 		return
 	}
 
