@@ -368,3 +368,16 @@ func findNativeType(env *compile.Env, tt *vdl.Type) (vdltool.GoType, *compile.Pa
 	}
 	return vdltool.GoType{}, nil, false
 }
+
+// isNativeType returns true iff t is a native type.
+func isNativeType(env *compile.Env, t *vdl.Type) bool {
+	if def := env.FindTypeDef(t); def != nil {
+		key := def.Name
+		if t.Kind() == vdl.Optional {
+			key = "*" + key
+		}
+		_, ok := def.File.Package.Config.Go.WireToNativeTypes[key]
+		return ok
+	}
+	return false
+}
