@@ -925,7 +925,7 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		sgs := make([]SyncgroupTree, len(sgIds))
 		for j := range sgIds {
-			sg := db.SyncgroupForId(sgIds[i])
+			sg := db.SyncgroupForId(sgIds[j])
 			spec, _, err := sg.GetSpec(ctx)
 			if err != nil {
 				internalServerError(w, "getting spec of syncgroup", err)
