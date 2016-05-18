@@ -28,8 +28,8 @@ import (
 const pkgPath = "v.io/x/ref/services/allocator/allocatord"
 
 var (
-	errLimitExceeded       = verror.Register(pkgPath+".errLimitExceeded", verror.NoRetry, "{1:}{2:} limit exceeded")
-	errGlobalLimitExceeded = verror.Register(pkgPath+".errGlobalLimitExceeded", verror.NoRetry, "{1:}{2:} global limit exceeded")
+	errLimitExceeded       = verror.Register(pkgPath+".errLimitExceeded", verror.NoRetry, "{1:}{2:} limit ({3}) exceeded")
+	errGlobalLimitExceeded = verror.Register(pkgPath+".errGlobalLimitExceeded", verror.NoRetry, "{1:}{2:} global limit ({3}) exceeded")
 )
 
 type allocatorImpl struct {
@@ -46,20 +46,47 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 	if email == "" {
 		return "", verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
 	}
+	return create(ctx, email, i.baseBlessings)
+}
 
+// Destroy destroys the instance with the given name.
+func (i *allocatorImpl) Destroy(ctx *context.T, call rpc.ServerCall, mName string) error {
+	b, _ := security.RemoteBlessingNames(ctx, call.Security())
+	ctx.Infof("Destroy(%q) called by %v", mName, b)
+
+	email := emailFromBlessingNames(b)
+	if email == "" {
+		return verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
+	}
+	return destroy(ctx, email, mName)
+}
+
+// List returns a list of all the instances owned by the caller.
+func (i *allocatorImpl) List(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	b, _ := security.RemoteBlessingNames(ctx, call.Security())
+	ctx.Infof("List() called by %v", b)
+
+	email := emailFromBlessingNames(b)
+	if email == "" {
+		return nil, verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
+	}
+	return list(ctx, email)
+}
+
+func create(ctx *context.T, email string, baseBlessings security.Blessings) (string, error) {
 	// Enforce a limit on the number of instances. These tests are a little
 	// bit racy. It's possible that multiple calls to Create() will run
 	// concurrently and that we'll end up with too many instances.
 	if n, err := serverInstances(email); err != nil {
 		return "", err
 	} else if len(n) >= maxInstancesPerUserFlag {
-		return "", verror.New(errLimitExceeded, ctx)
+		return "", verror.New(errLimitExceeded, ctx, maxInstancesPerUserFlag)
 	}
 
 	if n, err := serverInstances(""); err != nil {
 		return "", err
 	} else if len(n) >= maxInstancesFlag {
-		return "", verror.New(errGlobalLimitExceeded, ctx)
+		return "", verror.New(errGlobalLimitExceeded, ctx, maxInstancesFlag)
 	}
 
 	kName, err := newKubeName()
@@ -74,7 +101,7 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 		return "", err
 	}
 
-	vomBlessings, err := vom.Encode(i.baseBlessings)
+	vomBlessings, err := vom.Encode(baseBlessings)
 	if err != nil {
 		return "", err
 	}
@@ -97,15 +124,7 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 	return mName, nil
 }
 
-// Destroy destroys the instance with the given name.
-func (i *allocatorImpl) Destroy(ctx *context.T, call rpc.ServerCall, mName string) error {
-	b, _ := security.RemoteBlessingNames(ctx, call.Security())
-	ctx.Infof("Destroy(%q) called by %v", mName, b)
-
-	email := emailFromBlessingNames(b)
-	if email == "" {
-		return verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
-	}
+func destroy(ctx *context.T, email, mName string) error {
 	kName := kubeNameFromMountName(mName)
 
 	found := false
@@ -140,14 +159,7 @@ func (i *allocatorImpl) Destroy(ctx *context.T, call rpc.ServerCall, mName strin
 	return nil
 }
 
-// List returns a list of all the instances owned by the caller.
-func (i *allocatorImpl) List(ctx *context.T, call rpc.ServerCall) ([]string, error) {
-	b, _ := security.RemoteBlessingNames(ctx, call.Security())
-	ctx.Infof("List() called by %v", b)
-	email := emailFromBlessingNames(b)
-	if email == "" {
-		return nil, verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
-	}
+func list(ctx *context.T, email string) ([]string, error) {
 	kNames, err := serverInstances(email)
 	if err != nil {
 		return nil, err

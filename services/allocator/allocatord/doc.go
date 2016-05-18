@@ -19,17 +19,30 @@ The allocatord flags are:
    The address of the cluster-agent.
  -deployment-template=
    The template for the deployment of the servers to allocate.
+ -external-url=
+   Public URL for the HTTP server.  Must be specified if --http-addr is
+   specified.
  -gcloud=gcloud
    The gcloud binary to use.
  -global-admins=
    A comma-separated list of blessing patterns that have access to all the
    server instances.
+ -http-addr=
+   Address on which the HTTP server listens on.  If empty, no HTTP server is
+   started.
  -max-instances=10
    The maximum total number of server instances to create.
  -max-instances-per-user=1
    The maximum number of server instances to create per user.
  -name=
    Name to publish for this service.
+ -oauth-client-creds-file=
+   JSON-encoded file containing Google Oauth2 client ID and secret
+   (https://developers.google.com/identity/protocols/OAuth2#basicsteps), as well
+   as the HMAC cookie signing key
+ -secure-cookies=true
+   Whether to use only secure cookies.  Should be true unless running the server
+   without TLS for testing.
  -server-disk-size=50GB
    The size of the persistent disk to allocate with the servers.
  -server-name=

@@ -38,6 +38,12 @@ var (
 	clusterAgentFlag        string
 	blessingSecretFlag      string
 
+	// HTTP flags.
+	httpAddrFlag       string
+	externalURLFlag    string
+	oauthCredsFileFlag string
+	secureCookiesFlag  bool
+
 	cmdRoot = &cmdline.Command{
 		Runner: v23cmd.RunnerFunc(runAllocator),
 		Name:   "allocatord",
@@ -46,9 +52,14 @@ var (
 	}
 )
 
+const (
+	serverNameFlagName     = "server-name"
+	oauthCredsFileFlagName = "oauth-client-creds-file"
+)
+
 func main() {
 	cmdRoot.Flags.StringVar(&nameFlag, "name", "", "Name to publish for this service.")
-	cmdRoot.Flags.StringVar(&serverNameFlag, "server-name", "", "Name of the servers to allocate. This name is part of the published names in the Vanadium namespace and the names of the Deployments in Kubernetes.")
+	cmdRoot.Flags.StringVar(&serverNameFlag, serverNameFlagName, "", "Name of the servers to allocate. This name is part of the published names in the Vanadium namespace and the names of the Deployments in Kubernetes.")
 	cmdRoot.Flags.StringVar(&deploymentTemplateFlag, "deployment-template", "", "The template for the deployment of the servers to allocate.")
 	cmdRoot.Flags.StringVar(&globalAdminsFlag, "global-admins", "", "A comma-separated list of blessing patterns that have access to all the server instances.")
 	cmdRoot.Flags.IntVar(&maxInstancesFlag, "max-instances", 10, "The maximum total number of server instances to create.")
@@ -59,6 +70,10 @@ func main() {
 	cmdRoot.Flags.StringVar(&vkubeCfgFlag, "vkube-cfg", "vkube.cfg", "The vkube.cfg to use.")
 	cmdRoot.Flags.StringVar(&clusterAgentFlag, "cluster-agent", "", "The address of the cluster-agent.")
 	cmdRoot.Flags.StringVar(&blessingSecretFlag, "blessings-secret-file", "", "If set, this file contains the secret to present to the cluster-agent to get the base blessings for the allocated servers.")
+	cmdRoot.Flags.StringVar(&httpAddrFlag, "http-addr", "", "Address on which the HTTP server listens on.  If empty, no HTTP server is started.")
+	cmdRoot.Flags.StringVar(&externalURLFlag, "external-url", "", "Public URL for the HTTP server.  Must be specified if --http-addr is specified.")
+	cmdRoot.Flags.StringVar(&oauthCredsFileFlag, oauthCredsFileFlagName, "", "JSON-encoded file containing Google Oauth2 client ID and secret (https://developers.google.com/identity/protocols/OAuth2#basicsteps), as well as the HMAC cookie signing key")
+	cmdRoot.Flags.BoolVar(&secureCookiesFlag, "secure-cookies", true, "Whether to use only secure cookies.  Should be true unless running the server without TLS for testing.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }
@@ -67,7 +82,7 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 	if len(serverNameFlag) > 30 {
 		// The names in Kubernetes have to be 63 characters or less. We
 		// use <server-name>-<md5> as name, where "-<md5>" is 33 chars.
-		return env.UsageErrorf("--server-name value too long. Must be <= 30 characters")
+		return env.UsageErrorf("--%s value too long. Must be <= 30 characters", serverNameFlagName)
 	}
 
 	var baseBlessings security.Blessings
@@ -98,6 +113,23 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 		return err
 	}
 	ctx.Infof("Listening on: %v", server.Status().Endpoints)
+	if httpAddrFlag != "" {
+		if oauthCredsFileFlag == "" {
+			return env.UsageErrorf("--%s must be provided", oauthCredsFileFlagName)
+		}
+		oauthCreds, err := clientCredsFromFile(oauthCredsFileFlag)
+		if err != nil {
+			return err
+		}
+		startHTTP(ctx, httpArgs{
+			addr:          httpAddrFlag,
+			externalURL:   externalURLFlag,
+			oauthCreds:    oauthCreds,
+			serverName:    serverNameFlag,
+			secureCookies: secureCookiesFlag,
+			baseBlessings: baseBlessings,
+		})
+	}
 	<-signals.ShutdownOnSignals(ctx)
 	return nil
 }
