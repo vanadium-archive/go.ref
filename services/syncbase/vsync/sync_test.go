@@ -76,10 +76,7 @@ func TestSyncgroupDiscovery(t *testing.T) {
 	checkSyncgroupAdmins := func(sgName string, want []*discovery.Advertisement) {
 		dbId := wire.Id{Name: fmt.Sprintf("d%s", sgName), Blessing: "dblessing"}
 		sgId := wire.Id{Name: sgName, Blessing: "blessing"}
-		fmt.Printf("checkSyncgroupAdmins: Checking admin groups for %+v, %+v, expect %+v\n", dbId, sgId, want)
 		got := s.filterSyncgroupAdmins(dbId, sgId)
-
-		fmt.Printf("checkSyncgroupAdmins: filtered admin groups for %+v are %+v\n", sgId, got)
 
 		g := make(map[*discovery.Advertisement]bool)
 		for _, e := range got {

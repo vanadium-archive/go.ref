@@ -269,7 +269,7 @@ func (pm *peerManagerImpl) pickPeersToPingRandom(ctx *context.T) ([]*connInfo, b
 		for m := range members {
 			if _, ok := pm.healthyPeerCache[m]; !ok {
 				// Decide if this member is to be chosen.
-				if randIntn(n) < k {
+				if pm.s.randIntn(n) < k {
 					info := pm.s.copyMemberInfo(ctx, m)
 					p := &connInfo{
 						relName: m,
@@ -312,7 +312,7 @@ func (pm *peerManagerImpl) pickPeersToPingRandom(ctx *context.T) ([]*connInfo, b
 	k := pingFanout
 	for nbr, svc := range neighbors {
 		if _, ok := pm.healthyPeerCache[nbr]; !ok {
-			if randIntn(n) < k {
+			if pm.s.randIntn(n) < k {
 				p := &connInfo{relName: nbr, addrs: svc.Addresses}
 				peers = append(peers, p)
 
@@ -349,7 +349,7 @@ func (pm *peerManagerImpl) pickPeerRandom(ctx *context.T) (connInfo, error) {
 	}
 
 	// Pick a peer at random.
-	ind := randIntn(len(pm.healthyPeerCache))
+	ind := pm.s.randIntn(len(pm.healthyPeerCache))
 	for _, info := range pm.healthyPeerCache {
 		if ind == 0 {
 			return *info, nil

@@ -148,10 +148,7 @@ func TestWatchPrefixes(t *testing.T) {
 	}
 
 	for _, test := range checkSyncableTests {
-		log := &watchable.LogEntry{
-			Op: vom.RawBytesOf(&watchable.PutOp{Key: []byte(makeRowKey(test.key))}),
-		}
-		res := syncable(test.dbId, log)
+		res := syncable(test.dbId, makeRowKey(test.key))
 		if res != test.result {
 			t.Errorf("checkSyncable: invalid output: %v, %s: got %t instead of %t", test.dbId, test.key, res, test.result)
 		}

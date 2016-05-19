@@ -129,27 +129,30 @@ func (s *syncService) processDatabase(ctx *context.T, dbId wire.Id, st store.Sto
 		// ignore this database and proceed.
 		vlog.Errorf("sync: processDatabase: %v: cannot get watch log batch: %v", dbId, verror.DebugString(err))
 		return false
+	} else if logs == nil {
+		return false
 	}
-	if logs != nil {
-		s.processWatchLogBatch(ctx, dbId, st, logs, nextResmark)
-		return true
+
+	if err = s.processWatchLogBatch(ctx, dbId, st, logs, nextResmark); err != nil {
+		// TODO(rdaoud): quarantine this database.
+		return false
 	}
-	return false
+	return true
 }
 
 // processWatchLogBatch parses the given batch of watch log records, updates the
 // watchable syncgroup prefixes, uses the prefixes to filter the batch to the
 // subset of syncable records, and transactionally applies these updates to the
 // sync metadata (DAG & log records) and updates the watch resume marker.
-func (s *syncService) processWatchLogBatch(ctx *context.T, dbId wire.Id, st store.Store, logs []*watchable.LogEntry, resMark watch.ResumeMarker) {
+func (s *syncService) processWatchLogBatch(ctx *context.T, dbId wire.Id, st store.Store, logs []*watchable.LogEntry, resMark watch.ResumeMarker) error {
 	if len(logs) == 0 {
-		return
+		return nil
 	}
 
 	if processDbStateChangeLogRecord(ctx, s, st, dbId, logs[0], resMark) {
 		// A batch containing DbStateChange will not have any more records.
 		// This batch is done processing.
-		return
+		return nil
 	}
 
 	// If the first log entry is a syncgroup prefix operation, then this is
@@ -157,44 +160,64 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, dbId wire.Id, st stor
 	// handle the syncgroup prefix changes by updating the watch prefixes
 	// and exclude the first entry from the batch.  Also inform the batch
 	// processing below to not assign it a batch ID in the DAG.
+	sgop, err := processSyncgroupLogRecord(dbId, logs[0])
+	if err != nil {
+		vlog.Errorf("sync: processWatchLogBatch: %v: bad 1st entry: %v: %v", dbId, *logs[0], err)
+		return err
+	}
+
 	appBatch := true
-	sgop := processSyncgroupLogRecord(dbId, logs[0])
 	if sgop != nil {
 		appBatch = false
 		logs = logs[1:]
 	}
 
-	// Filter out the log entries for keys not part of any syncgroup.
-	// Ignore as well log entries made by sync (echo suppression).
+	// Preprocess the log entries before calling RunInTransaction():
+	// - Filter out log entries made by sync (echo suppression).
+	// - Convert the log entries to initial sync log records that contain
+	//   the metadata from the log entries.  These records will be later
+	//   augmented with DAG information inside RunInTransaction().
+	// - Determine which entries are syncable (included in some syncgroup)
+	//   and ignore the private ones (not currently shared in a syncgroup).
+	// - Extract blob refs from syncable values and update blob metadata.
+	//
+	// These steps are idempotent.  If Syncbase crashes before completing
+	// the transaction below (which updates the resume marker), these steps
+	// are re-executed.
 	totalCount := uint64(len(logs))
+	batch := make([]*LocalLogRec, 0, totalCount)
 
-	i := 0
-	for _, entry := range logs {
-		if !entry.FromSync && syncable(dbId, entry) {
-			logs[i] = entry
-			i++
-		}
-	}
-	logs = logs[:i]
-	vlog.VI(3).Infof("sync: processWatchLogBatch: %v: sg snap %t, syncable %d, total %d", dbId, !appBatch, len(logs), totalCount)
-
-	// Transactional processing of the batch: convert these syncable log
-	// records to a batch of sync log records, filling their parent versions
-	// from the DAG head nodes.
-	batch := make([]*LocalLogRec, len(logs))
-	err := store.RunInTransaction(st, func(tx store.Transaction) error {
-		i := 0
-		for _, entry := range logs {
-			if rec, err := convertLogRecord(ctx, tx, entry); err != nil {
+	for _, e := range logs {
+		if !e.FromSync {
+			if rec, err := convertLogRecord(ctx, s.id, e); err != nil {
+				vlog.Errorf("sync: processWatchLogBatch: %v: bad entry: %v: %v", dbId, *e, err)
 				return err
 			} else if rec != nil {
-				batch[i] = rec
-				i++
+				if syncable(dbId, rec.Metadata.ObjId) {
+					batch = append(batch, rec)
+				}
 			}
 		}
-		batch = batch[:i]
+	}
 
-		if err := s.processBatch(ctx, dbId, batch, appBatch, totalCount, tx); err != nil {
+	vlog.VI(3).Infof("sync: processWatchLogBatch: %v: sg snap %t, syncable %d, total %d", dbId, !appBatch, len(batch), totalCount)
+
+	if err := s.processWatchBlobRefs(ctx, dbId, st, batch); err != nil {
+		// There may be an error here if the database is recently
+		// destroyed.  Ignore the error and continue to another database.
+		vlog.Errorf("sync: processWatchLogBatch: %v: watcher cannot process blob refs: %v", dbId, err)
+		return nil
+	}
+
+	// Transactional processing of the batch: Fixup syncable log records to
+	// augment them with DAG information.
+	err = store.RunInTransaction(st, func(tx store.Transaction) error {
+		txBatch, err := fixupLogRecordBatch(ctx, tx, batch, appBatch)
+		if err != nil {
+			return err
+		}
+
+		if err := s.processBatch(ctx, dbId, txBatch, appBatch, totalCount, tx); err != nil {
 			return err
 		}
 
@@ -208,31 +231,12 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, dbId wire.Id, st stor
 	})
 
 	if err != nil {
+		// There may be an error here if the database is recently
+		// destroyed. Ignore the error and continue to another database.
 		// TODO(rdaoud): quarantine this database for other errors.
-		// There may be an error here if the database is recently
-		// destroyed. Ignore the error and continue to another database.
 		vlog.Errorf("sync: processWatchLogBatch: %v: watcher cannot process batch: %v", dbId, err)
-		return
 	}
-
-	// Extract blob refs from batch values and update blob metadata.
-	// TODO(rdaoud): the core of this step, extracting blob refs from the
-	// app data, is idempotent and should be done before the transaction
-	// above, which updated the resume marker.  If Syncbase crashes here it
-	// does not re-do this blob ref processing at restart and the metadata
-	// becomes lower quality.  Unfortunately, the log conversion must happen
-	// inside the transaction because it accesses DAG information that must
-	// be in the Tx read-set for optimistic locking.  The TODO is to split
-	// the conversion into two phases, one non-transactional that happens
-	// first outside the transaction, followed by blob ref processing also
-	// outside the transaction (idempotent), then inside the transaction
-	// patch-up the log records in a 2nd phase.
-	if err = s.processWatchBlobRefs(ctx, dbId, st, batch); err != nil {
-		// There may be an error here if the database is recently
-		// destroyed. Ignore the error and continue to another database.
-		vlog.Errorf("sync: processWatchLogBatch:: %v: watcher cannot process blob refs: %v", dbId, err)
-		return
-	}
+	return nil
 }
 
 // processBatch applies a single batch of changes (object mutations) received
@@ -259,9 +263,7 @@ func (s *syncService) processBatch(ctx *context.T, dbId wire.Id, batch []*LocalL
 	for _, rec := range batch {
 		// Update the log record. Portions of the record Metadata must
 		// already be filled.
-		rec.Metadata.Id = s.id
 		rec.Metadata.Gen = gen
-		rec.Metadata.RecType = interfaces.NodeRec
 
 		rec.Metadata.BatchId = batchId
 		rec.Metadata.BatchCount = totalCount
@@ -377,74 +379,101 @@ func setSyncgroupWatchable(ctx *context.T, tx store.Transaction, sgop *sbwatchab
 	return setSGIdEntry(ctx, tx, sgop.SgId, state)
 }
 
-// convertLogRecord converts a store log entry to a sync log record.  It fills
-// the previous object version (parent) by fetching its current DAG head if it
-// has one.  For a delete, it generates a new object version because the store
-// does not version a deletion.
+// convertLogRecord converts a store log entry to an initial sync log record
+// that contains metadata from the store log entry and the Syncbase ID, but no
+// information from the DAG which is filled later within the scope of a store
+// transaction.  For a delete, it generates a new object version because the
+// store does not version a deletion.
 // TODO(rdaoud): change Syncbase to store and version a deleted object to
 // simplify the store-to-sync interaction.  A deleted key would still have a
 // version and its value entry would encode the "deleted" flag, either in the
 // key or probably in a value wrapper that would contain other metadata.
-func convertLogRecord(ctx *context.T, tx store.Transaction, logEnt *watchable.LogEntry) (*LocalLogRec, error) {
-	var rec *LocalLogRec
-	timestamp := logEnt.CommitTimestamp
-
+func convertLogRecord(ctx *context.T, syncId uint64, logEnt *watchable.LogEntry) (*LocalLogRec, error) {
 	var op interface{}
 	if err := logEnt.Op.ToValue(&op); err != nil {
 		return nil, err
 	}
+
+	var key, version string
+	deleted := false
+	timestamp := logEnt.CommitTimestamp
+
 	switch op := op.(type) {
+	case *watchable.PutOp:
+		key, version = string(op.Key), string(op.Version)
+
+	case *sbwatchable.SyncSnapshotOp:
+		key, version = string(op.Key), string(op.Version)
+
+	case *watchable.DeleteOp:
+		key, version, deleted = string(op.Key), string(watchable.NewVersion()), true
+
 	case *watchable.GetOp:
 		// TODO(rdaoud): save read-set in sync.
+		return nil, nil
 
 	case *watchable.ScanOp:
 		// TODO(rdaoud): save scan-set in sync.
-
-	case *watchable.PutOp:
-		rec = newLocalLogRec(ctx, tx, op.Key, op.Version, false, timestamp)
-
-	case *sbwatchable.SyncSnapshotOp:
-		// Create records for object versions not already in the DAG.
-		// Duplicates can appear here in cases of nested syncgroups or
-		// peer syncgroups.
-		if ok, err := hasNode(ctx, tx, string(op.Key), string(op.Version)); err != nil {
-			return nil, err
-		} else if !ok {
-			rec = newLocalLogRec(ctx, tx, op.Key, op.Version, false, timestamp)
-		}
-
-	case *watchable.DeleteOp:
-		rec = newLocalLogRec(ctx, tx, op.Key, watchable.NewVersion(), true, timestamp)
+		return nil, nil
 
 	case *sbwatchable.SyncgroupOp:
-		vlog.Errorf("sync: convertLogRecord: watch LogEntry for syncgroup should not be converted: %v", logEnt)
 		return nil, verror.New(verror.ErrInternal, ctx, "cannot convert a watch log OpSyncgroup entry")
 
 	default:
-		vlog.Errorf("sync: convertLogRecord: invalid watch LogEntry: %v", logEnt)
 		return nil, verror.New(verror.ErrInternal, ctx, "cannot convert unknown watch log entry")
 	}
 
+	rec := &LocalLogRec{
+		Metadata: interfaces.LogRecMetadata{
+			ObjId:   key,
+			CurVers: version,
+			Delete:  deleted,
+			UpdTime: unixNanoToTime(timestamp),
+			Id:      syncId,
+			RecType: interfaces.NodeRec,
+		},
+	}
 	return rec, nil
 }
 
-// newLocalLogRec creates a local sync log record given its information: key,
-// version, deletion flag, and timestamp.  It retrieves the current DAG head
-// for the key (if one exists) to use as its parent (previous) version.
-func newLocalLogRec(ctx *context.T, tx store.Transaction, key, version []byte, deleted bool, timestamp int64) *LocalLogRec {
-	rec := LocalLogRec{}
-	oid := string(key)
+// fixupLogRecordBatch updates the sync log records in a batch with information
+// retrieved from the DAG within the scope of a store transaction and returns
+// an updated batch.  This allows the transaction to track these data fetches in
+// its read-set, which is required for the proper handling of optimistic locking
+// between store transactions.  If the input batch is not an application batch
+// (e.g. one generated by a syncgroup snapshot), the returned batch may include
+// fewer log records because duplicates were filtered out.
+func fixupLogRecordBatch(ctx *context.T, tx store.Transaction, batch []*LocalLogRec, appBatch bool) ([]*LocalLogRec, error) {
+	newBatch := make([]*LocalLogRec, 0, len(batch))
 
-	rec.Metadata.ObjId = oid
-	rec.Metadata.CurVers = string(version)
-	rec.Metadata.Delete = deleted
-	if head, err := getHead(ctx, tx, oid); err == nil {
-		rec.Metadata.Parents = []string{head}
-	} else if deleted || (verror.ErrorID(err) != verror.ErrNoExist.ID) {
-		vlog.Fatalf("sync: newLocalLogRec: cannot getHead to convert log record for %s: %v", oid, err)
+	for _, rec := range batch {
+		m := &rec.Metadata
+
+		// Check if this object version already exists in the DAG.  This
+		// is only allowed for non-application batches and can happen in
+		// the cases of syncgroup initialization snapshots for nested or
+		// peer syncgroups creating duplicate log records that are
+		// skipped here.  Otherwise this is an error.
+		if ok, err := hasNode(ctx, tx, m.ObjId, m.CurVers); err != nil {
+			return nil, err
+		} else if ok {
+			if appBatch {
+				return nil, verror.New(verror.ErrInternal, ctx, "duplicate log record", m.ObjId, m.CurVers)
+			}
+		} else {
+			// Set the current DAG head as the parent of this update.
+			m.Parents = nil
+			if head, err := getHead(ctx, tx, m.ObjId); err == nil {
+				m.Parents = []string{head}
+			} else if m.Delete || (verror.ErrorID(err) != verror.ErrNoExist.ID) {
+				return nil, verror.New(verror.ErrInternal, ctx, "cannot getHead to fixup log record", m.ObjId)
+			}
+
+			newBatch = append(newBatch, rec)
+		}
 	}
-	rec.Metadata.UpdTime = unixNanoToTime(timestamp)
-	return &rec
+
+	return newBatch, nil
 }
 
 // processDbStateChangeLogRecord checks if the log entry is a
@@ -492,13 +521,14 @@ func processDbStateChangeLogRecord(ctx *context.T, s *syncService, st store.Stor
 
 // processSyncgroupLogRecord checks if the log entry is a syncgroup update and,
 // if it is, updates the watch prefixes for the database and returns a syncgroup
-// operation.  Otherwise it returns nil with no other changes.
-// TODO(razvanm): change the return to also include an error.
-func processSyncgroupLogRecord(dbId wire.Id, logEnt *watchable.LogEntry) *sbwatchable.SyncgroupOp {
+// operation.  Otherwise it returns a nil operation with no other changes.
+func processSyncgroupLogRecord(dbId wire.Id, logEnt *watchable.LogEntry) (*sbwatchable.SyncgroupOp, error) {
 	var op interface{}
+
 	if err := logEnt.Op.ToValue(&op); err != nil {
-		vlog.Fatalf("sync: processSyncgroupLogRecord: %v: bad VOM: %v", dbId, err)
+		return nil, err
 	}
+
 	switch op := op.(type) {
 	case *sbwatchable.SyncgroupOp:
 		gid, remove := op.SgId, op.Remove
@@ -509,39 +539,20 @@ func processSyncgroupLogRecord(dbId wire.Id, logEnt *watchable.LogEntry) *sbwatc
 				addWatchPrefixSyncgroup(dbId, prefix, gid)
 			}
 		}
-		vlog.VI(3).Infof("sync: processSyncgroupLogRecord: %v: gid %d, remove %t, prefixes: %q", dbId, gid, remove, op.Prefixes)
-		return op
+		vlog.VI(3).Infof("sync: processSyncgroupLogRecord: %v: gid %s, remove %t, prefixes: %q", dbId, gid, remove, op.Prefixes)
+		return op, nil
 
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
-// syncable returns true if the given log entry falls within the scope of a
-// syncgroup prefix for the given database, and thus should be synced. It is
-// used to pre-filter the batch of log entries before sync processing.
-// TODO(razvanm): change the return type to error.
-func syncable(dbId wire.Id, logEnt *watchable.LogEntry) bool {
-	var key string
-	var op interface{}
-	if err := logEnt.Op.ToValue(&op); err != nil {
-		vlog.Fatalf("sync: syncable: %v: bad VOM: %v", dbId, err)
-	}
-	switch op := op.(type) {
-	case *watchable.PutOp:
-		key = string(op.Key)
-	case *watchable.DeleteOp:
-		key = string(op.Key)
-	case *sbwatchable.SyncSnapshotOp:
-		key = string(op.Key)
-	default:
-		return false
-	}
-
+// syncable returns true if the given key falls within the scope of a syncgroup
+// prefix for the given database, and thus should be synced.
+func syncable(dbId wire.Id, key string) bool {
 	// The key starts with one of the store's reserved prefixes for managed
 	// namespaces (e.g. "r" for row, "c" for collection perms). Remove that
-	// prefix before comparing it with the syncgroup prefixes which are defined
-	// by the application.
+	// prefix before comparing it with the syncgroup prefixes.
 	key = common.StripFirstKeyPartOrDie(key)
 
 	for prefix := range watchPrefixes[dbId] {

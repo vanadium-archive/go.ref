@@ -169,7 +169,7 @@ func (s *syncService) startBatch(ctx *context.T, st store.StoreReader, btid uint
 	// If no batch ID is given, generate a new unused one.
 	if btid == NoBatchId {
 		for (btid == NoBatchId) || (s.batches[btid] != nil) {
-			btid = rand64()
+			btid = s.rand64()
 		}
 
 		s.batches[btid] = newBatchInfo()
@@ -262,8 +262,8 @@ func (s *syncService) endBatch(ctx *context.T, tx store.Transaction, btid, count
 }
 
 // addNode adds a new node for a DAG object, linking it to its parent nodes.
-// It verifies that the node does not exist and its parent nodes are valid.
-// If a batch ID is given, track the node membership in the batch.
+// It verifies that the parent nodes are valid.  If a batch ID is given, track
+// the node membership in the batch.
 //
 // Note: an in-memory grafting structure is passed to track DAG attachments
 // during a sync operation.  This is needed when nodes are being added due to

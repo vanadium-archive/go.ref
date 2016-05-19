@@ -51,6 +51,10 @@ type syncService struct {
 	// over neighborhood.
 	ctx *context.T
 
+	// Random number generator for this Sync service.
+	rng     *rand.Rand
+	rngLock sync.Mutex
+
 	// High-level lock to serialize the watcher and the initiator. This lock is
 	// needed to handle the following cases: (a) When the initiator is
 	// cutting a local generation, it waits for the watcher to commit the
@@ -144,10 +148,8 @@ type syncDatabase struct {
 }
 
 var (
-	ifName  = interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name
-	rng     = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	rngLock sync.Mutex
-	_       interfaces.SyncServerMethods = (*syncService)(nil)
+	ifName                              = interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name
+	_      interfaces.SyncServerMethods = (*syncService)(nil)
 )
 
 // New creates a new sync module.
@@ -172,6 +174,7 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 		sgPublishQueue:      list.New(),
 		vclock:              cl,
 		ctx:                 ctx,
+		rng:                 rand.New(rand.NewSource(time.Now().UTC().UnixNano())),
 		discovery:           discovery,
 		publishInNh:         publishInNh,
 		cancelAdvSyncgroups: make(map[wire.Id]context.CancelFunc),
@@ -185,7 +188,7 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 			}
 			// First invocation of vsync.New().
 			// TODO(sadovsky): Maybe move guid generation and storage to serviceData.
-			data.Id = rand64()
+			data.Id = s.rand64()
 			return store.Put(ctx, tx, s.stKey(), data)
 		}
 		return nil
@@ -559,17 +562,17 @@ func (s *syncService) isClosed() bool {
 }
 
 // rand64 generates an unsigned 64-bit pseudo-random number.
-func rand64() uint64 {
-	rngLock.Lock()
-	defer rngLock.Unlock()
-	return (uint64(rng.Int63()) << 1) | uint64(rng.Int63n(2))
+func (s *syncService) rand64() uint64 {
+	s.rngLock.Lock()
+	defer s.rngLock.Unlock()
+	return (uint64(s.rng.Int63()) << 1) | uint64(s.rng.Int63n(2))
 }
 
 // randIntn mimics rand.Intn (generates a non-negative pseudo-random number in [0,n)).
-func randIntn(n int) int {
-	rngLock.Lock()
-	defer rngLock.Unlock()
-	return rng.Intn(n)
+func (s *syncService) randIntn(n int) int {
+	s.rngLock.Lock()
+	defer s.rngLock.Unlock()
+	return s.rng.Intn(n)
 }
 
 func syncbaseIdToName(id uint64) string {

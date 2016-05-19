@@ -5,6 +5,7 @@
 package vsync
 
 import (
+	"math/rand"
 	"testing"
 
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -45,6 +46,10 @@ var (
 	p = makeRowKeyFromParts("u", "collection3", "p")
 	q = makeRowKeyFromParts("u", "collection3", "q")
 )
+
+func rand64() uint64 {
+	return uint64(rand.Int63())
+}
 
 func createObjConflictState(isConflict, hasLocal, hasRemote, hasAncestor bool) *objConflictState {
 	remote := NoVersion

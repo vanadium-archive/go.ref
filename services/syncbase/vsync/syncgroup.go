@@ -67,8 +67,8 @@ type memberInfo struct {
 type sgMemberInfo map[interfaces.GroupId]wire.SyncgroupMemberInfo
 
 // newSyncgroupVersion generates a random syncgroup version ("etag").
-func newSyncgroupVersion() string {
-	return fmt.Sprintf("%x", rand64())
+func (s *syncService) newSyncgroupVersion() string {
+	return fmt.Sprintf("%x", s.rand64())
 }
 
 // verifySyncgroup verifies if a Syncgroup struct is well-formed.
@@ -207,7 +207,7 @@ func (s *syncService) addSyncgroup(ctx *context.T, tx *watchable.Transaction, ve
 // apps can monitor SG changes as well.
 func (s *syncService) updateSyncgroupVersioning(ctx *context.T, tx *watchable.Transaction, gid interfaces.GroupId, version string, withLog bool, servId, gen, pos uint64, sg *interfaces.Syncgroup) error {
 	if version == NoVersion {
-		version = newSyncgroupVersion()
+		version = s.newSyncgroupVersion()
 	}
 
 	oid := sgOID(gid)
@@ -666,7 +666,7 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 	dbId := sd.db.Id()
 
 	// Instantiate sg. Add self as joiner.
-	gid, version := SgIdToGid(dbId, sgId), newSyncgroupVersion()
+	gid, version := SgIdToGid(dbId, sgId), ss.newSyncgroupVersion()
 	sg := &interfaces.Syncgroup{
 		Id:          sgId,
 		SpecVersion: version,
@@ -997,7 +997,7 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 		// Reserve a log generation and position counts for the new syncgroup.
 		gen, pos := ss.reserveGenAndPosInDbLog(ctx, sd.db.Id(), sgOID(gid), 1)
 
-		newVersion := newSyncgroupVersion()
+		newVersion := ss.newSyncgroupVersion()
 		sg.Spec = spec
 		sg.SpecVersion = newVersion
 		return ss.updateSyncgroupVersioning(ctx, tx, gid, newVersion, true, ss.id, gen, pos, sg)
@@ -1355,7 +1355,7 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 		return nullSG, "", nullGV, verror.New(verror.ErrNoExist, ctx, "Syncgroup not found", sgId)
 	}
 
-	version := newSyncgroupVersion()
+	version := s.newSyncgroupVersion()
 	sgoid := sgOID(gid)
 	var sg *interfaces.Syncgroup
 	var gen, pos uint64
