@@ -17,6 +17,10 @@ The allocatord flags are:
    the base blessings for the allocated servers.
  -cluster-agent=
    The address of the cluster-agent.
+ -dashboard-gcm-metric=
+   The metric name used to get data from GCM to render dashboard charts.
+ -dashboard-gcm-project=
+   The project name used to get data from GCM to render dashboard charts.
  -deployment-template=
    The template for the deployment of the servers to allocate.
  -external-url=
@@ -34,6 +38,8 @@ The allocatord flags are:
    The maximum total number of server instances to create.
  -max-instances-per-user=1
    The maximum number of server instances to create per user.
+ -monitoring-key-file=
+   The path to the service account's JSON credentials file.
  -name=
    Name to publish for this service.
  -oauth-client-creds-file=
@@ -48,6 +54,8 @@ The allocatord flags are:
  -server-name=
    Name of the servers to allocate. This name is part of the published names in
    the Vanadium namespace and the names of the Deployments in Kubernetes.
+ -static=
+   Directory to use for serving static files.
  -vkube=vkube
    The vkube binary to use.
  -vkube-cfg=vkube.cfg

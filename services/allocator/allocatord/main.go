@@ -37,12 +37,16 @@ var (
 	vkubeCfgFlag            string
 	clusterAgentFlag        string
 	blessingSecretFlag      string
+	monitoringKeyFileFlag   string
 
 	// HTTP flags.
-	httpAddrFlag       string
-	externalURLFlag    string
-	oauthCredsFileFlag string
-	secureCookiesFlag  bool
+	httpAddrFlag            string
+	externalURLFlag         string
+	oauthCredsFileFlag      string
+	secureCookiesFlag       bool
+	staticDirFlag           string
+	dashboardGCMMetricFlag  string
+	dashboardGCMProjectFlag string
 
 	cmdRoot = &cmdline.Command{
 		Runner: v23cmd.RunnerFunc(runAllocator),
@@ -72,8 +76,12 @@ func main() {
 	cmdRoot.Flags.StringVar(&blessingSecretFlag, "blessings-secret-file", "", "If set, this file contains the secret to present to the cluster-agent to get the base blessings for the allocated servers.")
 	cmdRoot.Flags.StringVar(&httpAddrFlag, "http-addr", "", "Address on which the HTTP server listens on.  If empty, no HTTP server is started.")
 	cmdRoot.Flags.StringVar(&externalURLFlag, "external-url", "", "Public URL for the HTTP server.  Must be specified if --http-addr is specified.")
+	cmdRoot.Flags.StringVar(&monitoringKeyFileFlag, "monitoring-key-file", "", "The path to the service account's JSON credentials file.")
 	cmdRoot.Flags.StringVar(&oauthCredsFileFlag, oauthCredsFileFlagName, "", "JSON-encoded file containing Google Oauth2 client ID and secret (https://developers.google.com/identity/protocols/OAuth2#basicsteps), as well as the HMAC cookie signing key")
 	cmdRoot.Flags.BoolVar(&secureCookiesFlag, "secure-cookies", true, "Whether to use only secure cookies.  Should be true unless running the server without TLS for testing.")
+	cmdRoot.Flags.StringVar(&staticDirFlag, "static", "", "Directory to use for serving static files.")
+	cmdRoot.Flags.StringVar(&dashboardGCMMetricFlag, "dashboard-gcm-metric", "", "The metric name used to get data from GCM to render dashboard charts.")
+	cmdRoot.Flags.StringVar(&dashboardGCMProjectFlag, "dashboard-gcm-project", "", "The project name used to get data from GCM to render dashboard charts.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }
@@ -122,12 +130,16 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 			return err
 		}
 		startHTTP(ctx, httpArgs{
-			addr:          httpAddrFlag,
-			externalURL:   externalURLFlag,
-			oauthCreds:    oauthCreds,
-			serverName:    serverNameFlag,
-			secureCookies: secureCookiesFlag,
-			baseBlessings: baseBlessings,
+			addr:                httpAddrFlag,
+			externalURL:         externalURLFlag,
+			staticDir:           staticDirFlag,
+			dashboardGCMMetric:  dashboardGCMMetricFlag,
+			dashboardGCMProject: dashboardGCMProjectFlag,
+			monitoringKeyFile:   monitoringKeyFileFlag,
+			oauthCreds:          oauthCreds,
+			serverName:          serverNameFlag,
+			secureCookies:       secureCookiesFlag,
+			baseBlessings:       baseBlessings,
 		})
 	}
 	<-signals.ShutdownOnSignals(ctx)

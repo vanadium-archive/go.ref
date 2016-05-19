@@ -33,7 +33,7 @@ var homeTmpl = template.Must(template.New("main").Parse(`<!doctype html>
       Your instances:
     </p>
     {{range $index, $element := .Instances}}
-       {{.Name}}  [<span id="destroyBtn{{$index}}"><a href="{{.DestroyURL}}" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes a few seconds) ...')">Destroy</a></span>]<br/>
+       {{.Name}}  [<span id="destroyBtn{{$index}}"><a href="{{.DestroyURL}}" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes a few seconds) ...')">Destroy</a></span>][<a href="{{.DashboardURL}}" target="_blank">Dashboard</a>]
     {{else}}
        None found.
     {{end}}
@@ -130,4 +130,56 @@ var rootTmpl = template.Must(template.New("Root").Parse(`<!doctype html>
   </p>
   </font>
 </body>
+</html>`))
+
+var dashboardTmpl = template.Must(template.New("Dashboard").Parse(`<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{.ServerName}} Dashboard</title>
+
+    <link href='//fonts.googleapis.com/css?family=Source+Code+Pro:400,500|Roboto:500,400italic,300,500italic,300italic,400'
+      rel='stylesheet'
+      type='text/css'>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-url-parser/2.3.1/purl.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js"></script>
+    <link href="static/style.css" rel="stylesheet">
+    <script src="static/dash.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {packages: ['corechart']});
+      google.charts.setOnLoadCallback(dash.init);
+    </script>
+  </head>
+  <body>
+    <div id="container">
+      <div id="header">
+        <div id="title">{{.ServerName}} Dashboard</div>
+        <div>{{.Instance}}</div>
+        <div id="email">{{.Email}}</div>
+      </div>
+      <div id="charts">
+        <div class="chart" id="latency"></div>
+        <div class="chart" id="qps"></div>
+        <div class="chart" id="cpu-usage-pct"></div>
+        <div class="chart" id="mem-usage-pct"></div>
+        <div class="chart" id="disk-usage-pct"></div>
+      </div>
+    </div>
+    <div id="durations-container">
+      <div id="loading-label">LOADING...</div>
+      <div id="durations">
+        <div class="duration-item selected">1h</div>
+        <div class="duration-item">2h</div>
+        <div class="duration-item">4h</div>
+        <div class="duration-item">6h</div>
+        <div class="duration-item">12h</div>
+        <div class="duration-item">1d</div>
+        <div class="duration-item">7d</div>
+      </div>
+    </div>
+    <div id="error-msg">
+      Failed to retrieve data. Please try again later.
+    </div>
+  </body>
 </html>`))

@@ -47,6 +47,10 @@ func kubeNameFromMountName(mName string) string {
 	return p[len(p)-1]
 }
 
+func relativeMountName(mName string) string {
+	return naming.Join(serverMountPrefix, kubeNameFromMountName(mName))
+}
+
 func emailFromBlessingNames(blessingNames []string) string {
 	for _, b := range conventions.ParseBlessingNames(blessingNames...) {
 		if b.IdentityProvider != identityProvider {

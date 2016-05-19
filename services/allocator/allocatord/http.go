@@ -16,15 +16,22 @@ import (
 )
 
 const (
-	routeRoot    = "/"
-	routeHome    = "/home"
-	routeCreate  = "/create"
-	routeDestroy = "/destroy"
-	routeOauth   = "/oauth2"
-	routeHealth  = "/health"
+	routeRoot      = "/"
+	routeHome      = "/home"
+	routeCreate    = "/create"
+	routeDashboard = "/dashboard"
+	routeDestroy   = "/destroy"
+	routeOauth     = "/oauth2"
+	routeStatic    = "/static/"
+	routeStats     = "/stats"
+	routeHealth    = "/health"
 
 	paramMessage = "message"
 	paramName    = "name"
+	// The following parameter names are hardcorded in static/dash.js,
+	// and should be changed in tandem.
+	paramDashboardName    = "n"
+	paramDashbordDuration = "d"
 
 	cookieValidity = 10 * time.Minute
 )
@@ -62,7 +69,11 @@ func replaceParam(ctx *context.T, origURL string, p param) string {
 type httpArgs struct {
 	addr,
 	externalURL,
-	serverName string
+	serverName,
+	staticDir,
+	dashboardGCMMetric,
+	dashboardGCMProject,
+	monitoringKeyFile string
 	secureCookies bool
 	oauthCreds    *oauthCredentials
 	baseBlessings security.Blessings
@@ -117,10 +128,13 @@ func startHTTP(ctx *context.T, args httpArgs) {
 	})
 	http.Handle(routeHome, newHandler(handleHome, false))
 	http.Handle(routeCreate, newHandler(handleCreate, true))
+	http.Handle(routeDashboard, newHandler(handleDashboard, false))
 	http.Handle(routeDestroy, newHandler(handleDestroy, true))
 	http.HandleFunc(routeOauth, func(w http.ResponseWriter, r *http.Request) {
 		handleOauth(ctx, args, baker, w, r)
 	})
+	http.Handle(routeStatic, http.StripPrefix(routeStatic, http.FileServer(http.Dir(args.staticDir))))
+	http.Handle(routeStats, newHandler(handleStats, false))
 	http.HandleFunc(routeHealth, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -186,7 +200,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx.Infof("%s[%s] : OK", r.Method, r.URL)
 }
 
-// All the non-oauth handlers follow below.  The oauth handler is in oauth.go.
+// The oauth handler is in oauth.go.
 
 func handleHome(ss *serverState, rs *requestState) error {
 	ctx := ss.ctx
@@ -194,7 +208,7 @@ func handleHome(ss *serverState, rs *requestState) error {
 	if err != nil {
 		return fmt.Errorf("list error: %v", err)
 	}
-	type instanceArg struct{ Name, DestroyURL string }
+	type instanceArg struct{ Name, DestroyURL, DashboardURL string }
 	tmplArgs := struct {
 		ServerName,
 		Email,
@@ -209,8 +223,9 @@ func handleHome(ss *serverState, rs *requestState) error {
 	}
 	for _, instance := range instances {
 		tmplArgs.Instances = append(tmplArgs.Instances, instanceArg{
-			Name:       instance,
-			DestroyURL: makeURL(ctx, routeDestroy, param{paramName, instance}, param{paramCSRF, rs.csrfToken}),
+			Name:         instance,
+			DestroyURL:   makeURL(ctx, routeDestroy, param{paramName, instance}, param{paramCSRF, rs.csrfToken}),
+			DashboardURL: makeURL(ctx, routeDashboard, param{paramDashboardName, relativeMountName(instance)}, param{paramCSRF, rs.csrfToken}),
 		})
 	}
 	if err := homeTmpl.Execute(rs.w, tmplArgs); err != nil {

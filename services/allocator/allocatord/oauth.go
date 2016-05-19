@@ -26,7 +26,9 @@ const (
 	csrfCookieName  = "VanadiumAllocatorCSRFCookie"
 	csrfCookieValue = "csrf"
 	csrfCookieLen   = 16
-	paramCSRF       = "csrf"
+	// This parameter name is hardcorded in static/dash.js,
+	// and should be changed in tandem.
+	paramCSRF = "csrf"
 )
 
 type claimSet struct {
