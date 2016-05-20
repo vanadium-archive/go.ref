@@ -10,11 +10,28 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/discovery"
 
 	idiscovery "v.io/x/ref/lib/discovery"
 )
 
+// TODO(jhahn): Remove the limit on the number of advertisements per interface.
+//
+// The current plan is
+//    * if there is only one advertisement
+//			- publish all information except attachments as is
+//		* if there are more than one advertisements
+//			- publish the latest directory addresses, # of advertisements
+//			- if there are <= 8 advertisements,
+//					- publish each advertisements up to 2K (4 characteristics)
+//						* if it doesn't fit, publish only id, hash
+//			- if there are <= 64 advertisements,
+//				  - publish a list of a pair of id and hash (24 bytes / <id, hash>)
+//
+//		* all missed advertisements / information will be fetched from directory server.
+
 type advertiser struct {
+	ctx    *context.T
 	driver Driver
 
 	mu        sync.Mutex
@@ -22,8 +39,9 @@ type advertiser struct {
 }
 
 type adRecord struct {
-	uuid   idiscovery.Uuid
-	expiry time.Time
+	uuid    idiscovery.Uuid
+	adinfos map[discovery.AdId][]byte
+	expiry  time.Time
 }
 
 const (
@@ -31,7 +49,7 @@ const (
 )
 
 func (a *advertiser) addAd(adinfo *idiscovery.AdInfo) error {
-	cs, err := encodeAdInfo(adinfo)
+	encoded, err := encodeAdInfo(adinfo)
 	if err != nil {
 		return err
 	}
@@ -42,20 +60,27 @@ func (a *advertiser) addAd(adinfo *idiscovery.AdInfo) error {
 	a.gcLocked()
 
 	rec := a.adRecords[adinfo.Ad.InterfaceName]
-	switch {
-	case rec == nil:
-		rec = &adRecord{uuid: newServiceUuid(adinfo.Ad.InterfaceName)}
+	if rec == nil {
+		rec = &adRecord{
+			uuid:    newServiceUuid(adinfo.Ad.InterfaceName),
+			adinfos: make(map[discovery.AdId][]byte),
+		}
 		a.adRecords[adinfo.Ad.InterfaceName] = rec
-	case rec.expiry.IsZero():
-		// We do not support multiple instances of a same service for now.
-		return fmt.Errorf("service already being advertised: %s", adinfo.Ad.InterfaceName)
-	default:
-		// The previous advertisement has been stopped recently. Use a toggled version
-		// of the previous uuid to avoid a new advertisement from being deduped by cache.
+	} else {
+		if len(rec.adinfos) >= maxNumPackedServices {
+			return fmt.Errorf("too many advertisements per interface: %d > %d", len(rec.adinfos), maxNumPackedServices)
+		}
+
+		// Stop the current advertising and restart with a toggled uuid to avoid a new
+		// advertisement from being deduped by cache.
+		a.driver.RemoveService(rec.uuid.String())
+
 		toggleServiceUuid(rec.uuid)
 		rec.expiry = time.Time{}
 	}
+	rec.adinfos[adinfo.Ad.Id] = encoded
 
+	cs := packToCharacteristics(rec.adinfos)
 	err = a.driver.AddService(rec.uuid.String(), cs)
 	if err != nil {
 		rec.expiry = time.Now().Add(uuidGcDelay)
@@ -63,14 +88,33 @@ func (a *advertiser) addAd(adinfo *idiscovery.AdInfo) error {
 	return err
 }
 
-func (a *advertiser) removeAd(interfaceName string) {
+func (a *advertiser) removeAd(adinfo *idiscovery.AdInfo) {
 	a.mu.Lock()
-	if rec := a.adRecords[interfaceName]; rec != nil {
-		a.driver.RemoveService(rec.uuid.String())
-		rec.expiry = time.Now().Add(uuidGcDelay)
-	}
+	defer a.mu.Unlock()
+
 	a.gcLocked()
-	a.mu.Unlock()
+
+	rec := a.adRecords[adinfo.Ad.InterfaceName]
+	if rec == nil {
+		return
+	}
+
+	a.driver.RemoveService(rec.uuid.String())
+	delete(rec.adinfos, adinfo.Ad.Id)
+
+	if len(rec.adinfos) == 0 {
+		rec.expiry = time.Now().Add(uuidGcDelay)
+	} else {
+		// Restart advertising with a toggled uuid to avoid the updated advertisement
+		// from being deduped by cache.
+		toggleServiceUuid(rec.uuid)
+
+		cs := packToCharacteristics(rec.adinfos)
+		if err := a.driver.AddService(rec.uuid.String(), cs); err != nil {
+			a.ctx.Error(err)
+			rec.expiry = time.Now().Add(uuidGcDelay)
+		}
+	}
 }
 
 func (a *advertiser) gcLocked() {
@@ -88,6 +132,7 @@ func (a *advertiser) gcLocked() {
 
 func newAdvertiser(ctx *context.T, driver Driver) *advertiser {
 	return &advertiser{
+		ctx:       ctx,
 		driver:    driver,
 		adRecords: make(map[string]*adRecord),
 	}

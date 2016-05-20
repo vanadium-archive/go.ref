@@ -32,7 +32,7 @@ func (p *plugin) Advertise(ctx *context.T, adinfo *idiscovery.AdInfo, done func(
 		return err
 	}
 	stop := func() {
-		p.advertiser.removeAd(adinfo.Ad.InterfaceName)
+		p.advertiser.removeAd(adinfo)
 		done()
 	}
 	p.adStopper.Add(stop, ctx.Done())

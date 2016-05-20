@@ -5,6 +5,8 @@
 package ble
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 
 	"v.io/v23/context"
@@ -32,6 +34,9 @@ type mockPacket struct {
 
 func (d *mockDriver) AddService(uuid string, characteristics map[string][]byte) error {
 	d.mu.Lock()
+	if _, ok := d.services[uuid]; ok {
+		return fmt.Errorf("already being advertised: %s", uuid)
+	}
 	d.services[uuid] = characteristics
 	d.mu.Unlock()
 	d.broadcasting <- &mockPacket{d, uuid, characteristics}
@@ -46,6 +51,9 @@ func (d *mockDriver) RemoveService(uuid string) {
 
 func (d *mockDriver) StartScan(uuids []string, baseUuid, maskUUid string, handler ScanHandler) error {
 	d.mu.Lock()
+	if d.scanUuids != nil {
+		return errors.New("scan already started")
+	}
 	d.scanUuids = make(map[string]struct{})
 	for _, uuid := range uuids {
 		d.scanUuids[uuid] = struct{}{}

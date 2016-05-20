@@ -25,68 +25,80 @@ func TestEncode(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		adinfo := idiscovery.AdInfo{}
+		encodedAdinfos := make(map[discovery.AdId][]byte)
+		expectedAdinfos := make(map[discovery.AdId]idiscovery.AdInfo)
 
-		// Populate adinfo manually to test large payloads. testing.quick.Value()
-		// fills only with small values.
-		copy(adinfo.Ad.Id[:], randBytes(32))
-		adinfo.Ad.InterfaceName = randString(128)
-		adinfo.Ad.Addresses = make([]string, rand.Intn(3)+1)
-		for i, _ := range adinfo.Ad.Addresses {
-			adinfo.Ad.Addresses[i] = randString(128)
-		}
+		for j, n := 0, rand.Intn(maxNumPackedServices); j < n; j++ {
+			adinfo := idiscovery.AdInfo{}
 
-		if n := rand.Intn(5); n > 0 {
-			adinfo.Ad.Attributes = make(discovery.Attributes, n)
-			for i := 0; i < n; i++ {
-				adinfo.Ad.Attributes[randString(16)] = randString(256)
+			// Populate adinfo manually to test large payloads. testing.quick.Value()
+			// fills only with small values.
+			copy(adinfo.Ad.Id[:], randBytes(32))
+			adinfo.Ad.InterfaceName = randString(128)
+			adinfo.Ad.Addresses = make([]string, rand.Intn(3)+1)
+			for i, _ := range adinfo.Ad.Addresses {
+				adinfo.Ad.Addresses[i] = randString(128)
 			}
-		}
-		if n := rand.Intn(5); n > 0 {
-			adinfo.Ad.Attachments = make(discovery.Attachments, n)
-			for i := 0; i < n; i++ {
-				adinfo.Ad.Attachments[randString(16)] = randBytes(256)
+
+			if n := rand.Intn(5); n > 0 {
+				adinfo.Ad.Attributes = make(discovery.Attributes, n)
+				for i := 0; i < n; i++ {
+					adinfo.Ad.Attributes[randString(16)] = randString(256)
+				}
 			}
-		}
-
-		adinfo.EncryptionAlgorithm = idiscovery.EncryptionAlgorithm(rand.Intn(3))
-		if adinfo.EncryptionAlgorithm != idiscovery.NoEncryption {
-			adinfo.EncryptionKeys = make([]idiscovery.EncryptionKey, rand.Intn(3)+1)
-			for i, _ := range adinfo.EncryptionKeys {
-				adinfo.EncryptionKeys[i] = randBytes(128)
+			if n := rand.Intn(5); n > 0 {
+				adinfo.Ad.Attachments = make(discovery.Attachments, n)
+				for i := 0; i < n; i++ {
+					adinfo.Ad.Attachments[randString(16)] = randBytes(256)
+				}
 			}
+
+			adinfo.EncryptionAlgorithm = idiscovery.EncryptionAlgorithm(rand.Intn(3))
+			if adinfo.EncryptionAlgorithm != idiscovery.NoEncryption {
+				adinfo.EncryptionKeys = make([]idiscovery.EncryptionKey, rand.Intn(3)+1)
+				for i, _ := range adinfo.EncryptionKeys {
+					adinfo.EncryptionKeys[i] = randBytes(128)
+				}
+			}
+
+			copy(adinfo.Hash[:], randBytes(16))
+			adinfo.TimestampNs = rand.Int63()
+
+			adinfo.DirAddrs = make([]string, rand.Intn(3)+1)
+			for i, _ := range adinfo.DirAddrs {
+				adinfo.DirAddrs[i] = randString(128)
+			}
+
+			encoded, err := encodeAdInfo(&adinfo)
+			if err != nil {
+				t.Errorf("encode failed: %v", err)
+				continue
+			}
+			encodedAdinfos[adinfo.Ad.Id] = encoded
+
+			if len(adinfo.Ad.Attachments) > 0 {
+				adinfo.Status = idiscovery.AdPartiallyReady
+			} else {
+				adinfo.DirAddrs = nil
+				adinfo.Status = idiscovery.AdReady
+			}
+			adinfo.Ad.Attachments = nil
+			expectedAdinfos[adinfo.Ad.Id] = adinfo
 		}
 
-		copy(adinfo.Hash[:], randBytes(16))
-		adinfo.TimestampNs = rand.Int63()
+		cs := packToCharacteristics(encodedAdinfos)
+		unpacked := unpackFromCharacteristics(cs)
 
-		adinfo.DirAddrs = make([]string, rand.Intn(3)+1)
-		for i, _ := range adinfo.DirAddrs {
-			adinfo.DirAddrs[i] = randString(128)
-		}
+		for _, encoded := range unpacked {
+			adinfo, err := decodeAdInfo(encoded)
+			if err != nil {
+				t.Errorf("decode failed: %v", err)
+				continue
+			}
 
-		cs, err := encodeAdInfo(&adinfo)
-		if err != nil {
-			t.Errorf("encode failed: %v", err)
-			continue
-		}
-
-		if len(adinfo.Ad.Attachments) > 0 {
-			adinfo.Status = idiscovery.AdPartiallyReady
-		} else {
-			adinfo.DirAddrs = nil
-			adinfo.Status = idiscovery.AdReady
-		}
-		adinfo.Ad.Attachments = nil
-
-		decoded, err := decodeAdInfo(cs)
-		if err != nil {
-			t.Errorf("decode failed: %v", err)
-			continue
-		}
-
-		if !reflect.DeepEqual(decoded, &adinfo) {
-			t.Errorf("decoded to %#v, but want %#v", *decoded, adinfo)
+			if !reflect.DeepEqual(*adinfo, expectedAdinfos[adinfo.Ad.Id]) {
+				t.Errorf("decoded to %#v, but want %#v", *adinfo, expectedAdinfos[adinfo.Ad.Id])
+			}
 		}
 	}
 }

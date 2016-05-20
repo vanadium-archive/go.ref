@@ -138,18 +138,21 @@ func (s *scanner) scanLoop() {
 
 func (s *scanner) OnDiscovered(uuid string, characteristics map[string][]byte, rssi int) {
 	// TODO(jhahn): Add rssi to adinfo.
-	adinfo, err := decodeAdInfo(characteristics)
-	if err != nil {
-		s.ctx.Error(err)
-		return
-	}
+	unpacked := unpackFromCharacteristics(characteristics)
+	for _, encoded := range unpacked {
+		adinfo, err := decodeAdInfo(encoded)
+		if err != nil {
+			s.ctx.Error(err)
+			continue
+		}
 
-	s.mu.Lock()
-	s.scanRecords[adinfo.Ad.Id] = &scanRecord{adinfo.Ad.InterfaceName, time.Now().Add(s.ttl)}
-	for _, ch := range append(s.listeners[adinfo.Ad.InterfaceName], s.listeners[""]...) {
-		ch <- adinfo
+		s.mu.Lock()
+		s.scanRecords[adinfo.Ad.Id] = &scanRecord{adinfo.Ad.InterfaceName, time.Now().Add(s.ttl)}
+		for _, ch := range append(s.listeners[adinfo.Ad.InterfaceName], s.listeners[""]...) {
+			ch <- adinfo
+		}
+		s.mu.Unlock()
 	}
-	s.mu.Unlock()
 }
 
 func (s *scanner) gc() {

@@ -22,10 +22,6 @@ type Driver interface {
 	//
 	// There can be multiple services at any given time and it is the driver's
 	// responsibility to handle multiple advertisements in a compatible way.
-	//
-	// Unlike other discovery plugins, the ble plugin does not allow multiple instances
-	// of the same service - i.e., the same interface name for now. If we ever need to
-	// allow it, we also have to pass the instance id for a driver to handle it.
 	AddService(uuid string, characteristics map[string][]byte) error
 
 	// RemoveService removes the service from the GATT server and stops advertising

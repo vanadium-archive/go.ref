@@ -5,8 +5,11 @@
 package ble
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+
+	"v.io/v23/discovery"
 
 	idiscovery "v.io/x/ref/lib/discovery"
 )
@@ -25,20 +28,39 @@ const (
 	maxCharacteristicValueLen = 512
 
 	// Format string for packed characteristic uuids.
-	packedCharacteristicUuidFmt = "31ca10d5-0195-54fa-9344-25fcd7072ee%x"
+	packedCharacteristicUuidFmt = "31ca10d5-0195-54fa-9344-25fcd7072e%x%x"
 
 	// We should allow up to 16 packed characteristics to keep the packed
 	// characteristic uuids valid. This should be enough since we limit
 	// the size of advertisement except attachments to 512 bytes.
-	maxNumPackedCharacteristics = 16
+	maxNumPackedServices                  = 16
+	maxNumPackedCharacteristicsPerService = 16
 )
 
-func encodeAdInfo(adinfo *idiscovery.AdInfo) (map[string][]byte, error) {
+func cUuid(i, j int) string {
+	return fmt.Sprintf(packedCharacteristicUuidFmt, i, j)
+}
+
+func packToCharacteristics(encoded map[discovery.AdId][]byte) map[string][]byte {
+	cs := make(map[string][]byte)
+
+	i := 0
+	for _, v := range encoded {
+		buf := bytes.NewBuffer(v)
+		for j := 0; buf.Len() > 0; j++ {
+			cs[cUuid(i, j)] = buf.Next(maxCharacteristicValueLen)
+		}
+		i++
+	}
+	return cs
+}
+
+func encodeAdInfo(adinfo *idiscovery.AdInfo) ([]byte, error) {
 	// The current encoding format is
 	//
 	//	<Id>
 	//	<InterfaceName>
-	//      <Addresses encoded using idiscovery.PackAddresses>
+	//	<Addresses encoded using idiscovery.PackAddresses>
 	//	<#Attributes>[<AttributeKey><AttributeValue>...]
 	//	<EncryptionAlgorithm>[<#EncryptionKeys><EncryptionKey>...]
 	//	<Hash>
@@ -80,43 +102,48 @@ func encodeAdInfo(adinfo *idiscovery.AdInfo) (map[string][]byte, error) {
 		buf.WriteInt(int(idiscovery.AdPartiallyReady))
 	}
 
-	if buf.Len() > maxCharacteristicValueLen*maxNumPackedCharacteristics {
+	if buf.Len() > maxCharacteristicValueLen*maxNumPackedCharacteristicsPerService {
 		return nil, errors.New("max advertisement size exceeded")
 	}
-
-	cs := make(map[string][]byte)
-	for i := 0; buf.Len() > 0; i++ {
-		cs[fmt.Sprintf(packedCharacteristicUuidFmt, i)] = buf.Next(maxCharacteristicValueLen)
-	}
-	return cs, nil
+	return buf.Bytes(), nil
 }
 
-func decodeAdInfo(cs map[string][]byte) (*idiscovery.AdInfo, error) {
-	splitted := make([][]byte, len(cs))
-	for k, v := range cs {
-		var i int
-		_, err := fmt.Sscanf(k, packedCharacteristicUuidFmt, &i)
-		if err != nil {
-			return nil, err
+func unpackFromCharacteristics(cs map[string][]byte) [][]byte {
+	var unpacked [][]byte
+	for i := 0; i < maxNumPackedServices; i++ {
+		if _, ok := cs[cUuid(i, 0)]; !ok {
+			break
 		}
-		splitted[i] = v
-	}
-	var encoded []byte
-	if len(splitted) == 1 {
-		// Short-cut for a single characteristic.
-		encoded = splitted[0]
-	} else {
-		n := 0
-		for _, d := range splitted {
-			n += len(d)
-		}
-		encoded = make([]byte, n)
-		i := 0
-		for _, v := range splitted {
-			i += copy(encoded[i:], v)
-		}
-	}
 
+		var splitted [][]byte
+		for j := 0; j < maxNumPackedCharacteristicsPerService; j++ {
+			c, ok := cs[cUuid(i, j)]
+			if !ok {
+				break
+			}
+			splitted = append(splitted, c)
+		}
+
+		if len(splitted) == 1 {
+			// Short-cut for a single characteristic.
+			unpacked = append(unpacked, splitted[0])
+		} else {
+			n := 0
+			for _, d := range splitted {
+				n += len(d)
+			}
+			merged := make([]byte, n)
+			i := 0
+			for _, v := range splitted {
+				i += copy(merged[i:], v)
+			}
+			unpacked = append(unpacked, merged)
+		}
+	}
+	return unpacked
+}
+
+func decodeAdInfo(encoded []byte) (*idiscovery.AdInfo, error) {
 	var (
 		err error
 		buf *idiscovery.EncodingBuffer = idiscovery.NewEncodingBuffer(encoded)

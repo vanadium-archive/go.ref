@@ -95,16 +95,8 @@ func TestBasic(t *testing.T) {
 	}
 	defer scanStop()
 
-	for retry := 0; ; retry++ {
-		// We might lose the existing advertisements before rescanning under very
-		// heavy load. Try to read the expected advertisement again in that case.
-		got := *<-scanCh
-		if testutil.MatchFound([]idiscovery.AdInfo{got}, adinfos[1]) {
-			break
-		}
-		if retry > 0 {
-			t.Errorf("Unexpected scan: %v, but want %v", got, adinfos[1])
-		}
+	if got := *<-scanCh; !testutil.MatchFound([]idiscovery.AdInfo{got}, adinfos[1]) {
+		t.Errorf("Unexpected scan: %v, but want %v", got, adinfos[1])
 	}
 
 	// Make sure scan returns the lost advertisement when advertising is stopped.
@@ -306,7 +298,14 @@ func TestMultipleInstances(t *testing.T) {
 			Ad: discovery.Advertisement{
 				Id:            discovery.AdId{4, 5, 6},
 				InterfaceName: "v.io/x",
-				Addresses:     []string{"/@6@wsh@foo.com:1234@@/x"},
+				Addresses:     []string{"/@6@wsh@foo.com:5678@@/x"},
+			},
+		},
+		{
+			Ad: discovery.Advertisement{
+				Id:            discovery.AdId{7, 8, 9},
+				InterfaceName: "v.io/x",
+				Addresses:     []string{"/@6@wsh@bar.com:1234@@/x"},
 			},
 		},
 	}
@@ -320,39 +319,118 @@ func TestMultipleInstances(t *testing.T) {
 	}
 	defer p1.Close()
 
-	stop, err := testutil.Advertise(ctx, p1, &adinfos[0])
+	stop0, err := testutil.Advertise(ctx, p1, &adinfos[0])
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stop()
 
-	// Try to advertise another instance of the same interface; Should fail.
-	_, err = testutil.Advertise(ctx, p1, &adinfos[1])
-	if err == nil {
-		t.Error("Expected an error; but got none")
-	}
-
-	// But other device should be able to advertise it.
-	p2, err := newWithTTL(ctx, "h2", defaultTTL)
+	p2, err := newWithTTL(ctx, "h2", 10*time.Millisecond)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
 	defer p2.Close()
 
-	stop, err = testutil.Advertise(ctx, p2, &adinfos[1])
+	// Open a new scan channel and consume an expected advertisement first.
+	scanCh, scanStop, err := testutil.Scan(ctx, p2, "v.io/x")
+	if err != nil {
+		t.Error(err)
+	}
+	defer scanStop()
+
+	if got := *<-scanCh; !testutil.MatchFound([]idiscovery.AdInfo{got}, adinfos[0]) {
+		t.Errorf("Unexpected scan: %v, but want %v", got, adinfos[0])
+	}
+
+	// Try to advertise another instance of the same interface.
+	stop1, err := testutil.Advertise(ctx, p1, &adinfos[1])
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer stop()
+	defer stop1()
 
-	// Make sure all advertisements are discovered.
+	// We might lose the existing advertisements before rescanning under very
+	// heavy load. Wait until the expected advertisement is scanned.
+	if err := testutil.WaitUntilMatchFound(scanCh, adinfos[1]); err != nil {
+		t.Error(err)
+	}
+
+	// Make sure scan returns the lost advertisement when advertising is stopped.
+	stop0()
+
+	if err := testutil.WaitUntilMatchLost(scanCh, adinfos[0]); err != nil {
+		t.Error(err)
+	}
+
+	// Other device should be able to advertise an instance of the same interface too.
 	p3, err := newWithTTL(ctx, "h3", defaultTTL)
 	if err != nil {
 		t.Fatalf("New() failed: %v", err)
 	}
 	defer p3.Close()
 
-	if err := testutil.ScanAndMatch(ctx, p3, "", adinfos...); err != nil {
+	stop2, err := testutil.Advertise(ctx, p3, &adinfos[2])
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stop2()
+
+	if err := testutil.WaitUntilMatchFound(scanCh, adinfos[2]); err != nil {
+		t.Error(err)
+	}
+
+	// Make sure all active advertisements are discovered by a new scan.
+	if err := testutil.ScanAndMatch(ctx, p2, "", adinfos[1], adinfos[2]); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMaximumMultipleInstances(t *testing.T) {
+	ctx, shutdown := test.TestContext()
+	defer shutdown()
+
+	neighborhood := newNeighborhood()
+	defer neighborhood.shutdown()
+
+	p1, err := newWithTTL(ctx, "h1", defaultTTL)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+	defer p1.Close()
+
+	var adinfos []idiscovery.AdInfo
+	for i := 0; i < maxNumPackedServices; i++ {
+		adinfo := idiscovery.AdInfo{
+			Ad: discovery.Advertisement{
+				Id:            discovery.AdId{byte(i + 1)},
+				InterfaceName: "v.io/y",
+				Addresses:     []string{"/@6@wsh@foo.com:1234@@/y"},
+			},
+		}
+		stop, err := testutil.Advertise(ctx, p1, &adinfo)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		defer stop()
+
+		adinfos = append(adinfos, adinfo)
+	}
+
+	// Make sure no more instance is allowed.
+	oneMore := adinfos[0]
+	oneMore.Ad.Id[0] = byte(maxNumPackedServices + 1)
+	if _, err := testutil.Advertise(ctx, p1, &oneMore); err == nil {
+		t.Error("Expected an error; but got none")
+	}
+
+	// Make sure all advertisements are discovered.
+	p2, err := newWithTTL(ctx, "h2", defaultTTL)
+	if err != nil {
+		t.Fatalf("New() failed: %v", err)
+	}
+	defer p2.Close()
+
+	if err := testutil.ScanAndMatch(ctx, p2, "", adinfos...); err != nil {
 		t.Error(err)
 	}
 }

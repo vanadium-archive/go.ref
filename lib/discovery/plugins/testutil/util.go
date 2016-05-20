@@ -119,3 +119,27 @@ func match(adinfos []idiscovery.AdInfo, lost bool, wants ...idiscovery.AdInfo) b
 	}
 	return len(adinfoMap) == 0
 }
+
+func WaitUntilMatchFound(ch <-chan *idiscovery.AdInfo, want idiscovery.AdInfo) error {
+	return waitUntilMatches(ch, false, want)
+}
+
+func WaitUntilMatchLost(ch <-chan *idiscovery.AdInfo, want idiscovery.AdInfo) error {
+	return waitUntilMatches(ch, true, want)
+}
+
+func waitUntilMatches(ch <-chan *idiscovery.AdInfo, lost bool, want idiscovery.AdInfo) error {
+	timeout := time.After(10 * time.Second)
+
+	for {
+		select {
+		case adinfo := <-ch:
+			if match([]idiscovery.AdInfo{*adinfo}, lost, want) {
+				return nil
+			}
+		case <-timeout:
+			want.Lost = lost
+			return fmt.Errorf("Match failed; got none, but wanted %#v", want)
+		}
+	}
+}
