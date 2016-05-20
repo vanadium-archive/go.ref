@@ -9,8 +9,10 @@ import (
 	"sync"
 
 	"v.io/v23/context"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/services/watch"
 	"v.io/v23/syncbase"
+	"v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/longevity_tests/model"
 )
@@ -68,11 +70,10 @@ func (w *Watcher) Start(ctx *context.T, sbName string, dbModels model.DatabaseSe
 		for db, colSlice := range w.dbColMap {
 			for _, col := range colSlice {
 				// Create a watch stream for the collection.
-				stream, err := db.Watch(ctx, col.Id(), w.Prefix, w.ResumeMarker)
-				if err != nil {
-					w.setError(err)
-					return
-				}
+				// TODO(ivanpi): Simplify now that Watch can span collections.
+				stream := db.Watch(ctx, w.ResumeMarker, []wire.CollectionRowPattern{
+					util.RowPrefixPattern(col.Id(), w.Prefix),
+				})
 				defer stream.Cancel()
 
 				// Spawn a goroutine to repeatedly call stream.Advance() and
