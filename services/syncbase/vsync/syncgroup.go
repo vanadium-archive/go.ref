@@ -100,39 +100,34 @@ func verifySyncgroupSpec(ctx *context.T, spec *wire.SyncgroupSpec) error {
 	if spec == nil {
 		return verror.New(verror.ErrBadArg, ctx, "group spec not specified")
 	}
-	if len(spec.Prefixes) == 0 {
-		return verror.New(verror.ErrBadArg, ctx, "group has no prefixes specified")
+	if len(spec.Collections) == 0 {
+		return verror.New(verror.ErrBadArg, ctx, "group has no collections specified")
 	}
 
-	// Duplicate prefixes are not allowed.
-	prefixes := make(map[string]bool, len(spec.Prefixes))
-	for _, p := range spec.Prefixes {
-		if err := pubutil.ValidateId(p.CollectionId); err != nil {
-			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a CollectionRow with invalid collection id %v: %v", p.CollectionId, err))
+	// Duplicate collections are not allowed.
+	colls := make(map[wire.Id]bool, len(spec.Collections))
+	for _, c := range spec.Collections {
+		if err := pubutil.ValidateId(c); err != nil {
+			return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has an invalid collection id %v", c))
 		}
-		if p.Row != "" {
-			if err := pubutil.ValidateRowKey(p.Row); err != nil {
-				return verror.New(verror.ErrBadArg, ctx, fmt.Sprintf("group has a CollectionRow with invalid row prefix %q: %v", p.Row, err))
-			}
-		}
-		prefixes[toCollectionRowPrefixStr(p)] = true
+		colls[c] = true
 	}
-	if len(prefixes) != len(spec.Prefixes) {
-		return verror.New(verror.ErrBadArg, ctx, "group has duplicate prefixes specified")
+	if len(colls) != len(spec.Collections) {
+		return verror.New(verror.ErrBadArg, ctx, "group has duplicate collections specified")
 	}
 	return nil
 }
 
-// samePrefixes returns true if the two sets of prefixes are the same.
-func samePrefixes(pfx1, pfx2 []wire.CollectionRow) bool {
-	pfxMap := make(map[string]uint8)
-	for _, p := range pfx1 {
-		pfxMap[toCollectionRowPrefixStr(p)] |= 0x01
+// sameCollections returns true if the two sets of collections are the same.
+func sameCollections(coll1, coll2 []wire.Id) bool {
+	collMap := make(map[wire.Id]uint8)
+	for _, c := range coll1 {
+		collMap[c] |= 0x01
 	}
-	for _, p := range pfx2 {
-		pfxMap[toCollectionRowPrefixStr(p)] |= 0x02
+	for _, c := range coll2 {
+		collMap[c] |= 0x02
 	}
-	for _, mask := range pfxMap {
+	for _, mask := range collMap {
 		if mask != 0x03 {
 			return false
 		}
@@ -683,6 +678,17 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 			return err
 		}
 
+		// Check that all the collections on which the syncgroup is
+		// being created exist.
+		for _, c := range spec.Collections {
+			collKey := common.JoinKeyParts(common.CollectionPermsPrefix, pubutil.EncodeId(c), "")
+			if err := store.Get(ctx, tx, collKey, &interfaces.CollectionPerms{}); err != nil {
+				// TODO(hpucha): Is this error ok to return to
+				// the end user in terms of error visibility.
+				return verror.New(verror.ErrNoExist, ctx, "collection missing", c)
+			}
+		}
+
 		// TODO(hpucha): Check prefix ACLs on all SG prefixes.
 		// This may need another method on util.Database interface.
 		// TODO(hpucha): Do some SG ACL checking. Check creator
@@ -696,7 +702,7 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 		}
 
 		// Take a snapshot of the data to bootstrap the syncgroup.
-		return sd.bootstrapSyncgroup(ctx, tx, gid, spec.Prefixes)
+		return sd.bootstrapSyncgroup(ctx, tx, gid, spec.Collections)
 	})
 
 	if err != nil {
@@ -786,7 +792,7 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remot
 		}
 
 		if sgState.NumLocalJoiners == 0 {
-			if err := sd.bootstrapSyncgroup(ctx, tx, gid, sg.Spec.Prefixes); err != nil {
+			if err := sd.bootstrapSyncgroup(ctx, tx, gid, sg.Spec.Collections); err != nil {
 				return err
 			}
 		}
@@ -830,7 +836,7 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remot
 		}
 
 		// Take a snapshot of the data to bootstrap the syncgroup.
-		return sd.bootstrapSyncgroup(ctx, tx, gid, sg2.Spec.Prefixes)
+		return sd.bootstrapSyncgroup(ctx, tx, gid, sg2.Spec.Collections)
 	})
 
 	if err != nil {
@@ -968,9 +974,9 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 			return verror.NewErrBadVersion(ctx)
 		}
 
-		// Client must not modify the set of prefixes for this syncgroup.
-		if !samePrefixes(spec.Prefixes, sg.Spec.Prefixes) {
-			return verror.New(verror.ErrBadArg, ctx, "cannot modify prefixes")
+		// Client must not modify the set of collections for this syncgroup.
+		if !sameCollections(spec.Collections, sg.Spec.Collections) {
+			return verror.New(verror.ErrBadArg, ctx, "cannot modify collections")
 		}
 
 		sgState, err := getSGIdEntry(ctx, tx, gid)
@@ -1114,15 +1120,15 @@ func (sd *syncDatabase) publishSyncgroup(ctx *context.T, call rpc.ServerCall, sg
 
 // bootstrapSyncgroup inserts into the transaction log a syncgroup operation and
 // a set of Snapshot operations to notify the sync watcher about the syncgroup
-// prefixes to start accepting and the initial state of existing store keys that
-// match these prefixes (both data and permission keys).
+// collections to start accepting and the initial state of existing store keys that
+// match these collections (both data and permission keys).
 // TODO(rdaoud): this operation scans the managed keys of the database and can
 // be time consuming.  Consider doing it asynchronously and letting the server
 // reply to the client earlier.  However it must happen within the scope of this
 // transaction (and its snapshot view).
-func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx *watchable.Transaction, sgId interfaces.GroupId, prefixes []wire.CollectionRow) error {
-	if len(prefixes) == 0 {
-		return verror.New(verror.ErrInternal, ctx, "no prefixes specified")
+func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx *watchable.Transaction, sgId interfaces.GroupId, collections []wire.Id) error {
+	if len(collections) == 0 {
+		return verror.New(verror.ErrInternal, ctx, "no collections specified")
 	}
 
 	// Get the store options to retrieve the list of managed key prefixes.
@@ -1134,12 +1140,15 @@ func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx *watchable.Transac
 		return verror.New(verror.ErrInternal, ctx, "store has no managed prefixes")
 	}
 
-	prefixStrs := make([]string, len(prefixes))
-	for i, p := range prefixes {
-		prefixStrs[i] = toCollectionRowPrefixStr(p)
+	// While a syncgroup is defined over a list of collections, the sync
+	// protocol treats them as key prefixes (with an "" row component).
+	pfxStrs := make([]string, len(collections))
+	for i, c := range collections {
+		pfxStrs[i] = toCollectionPrefixStr(c)
 	}
+
 	// Notify the watcher of the syncgroup prefixes to start accepting.
-	if err := sbwatchable.AddSyncgroupOp(ctx, tx, sgId, prefixStrs, false); err != nil {
+	if err := sbwatchable.AddSyncgroupOp(ctx, tx, sgId, pfxStrs, false); err != nil {
 		return err
 	}
 
@@ -1150,7 +1159,7 @@ func (sd *syncDatabase) bootstrapSyncgroup(ctx *context.T, tx *watchable.Transac
 	// their version numbers (the key values).  Remove the version prefix
 	// from the key used in the snapshot operation.
 	for _, mp := range opts.ManagedPrefixes {
-		for _, p := range prefixStrs {
+		for _, p := range pfxStrs {
 			start, limit := common.ScanPrefixArgs(common.JoinKeyParts(common.VersionPrefix, mp), p)
 			stream := tx.Scan(start, limit)
 			for stream.Advance() {

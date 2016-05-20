@@ -160,16 +160,15 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, dbId wire.Id, st stor
 	// handle the syncgroup prefix changes by updating the watch prefixes
 	// and exclude the first entry from the batch.  Also inform the batch
 	// processing below to not assign it a batch ID in the DAG.
-	sgop, err := processSyncgroupLogRecord(dbId, logs[0])
+	sgop, err := processSyncgroupLogRecord(dbId, logs)
 	if err != nil {
-		vlog.Errorf("sync: processWatchLogBatch: %v: bad 1st entry: %v: %v", dbId, *logs[0], err)
+		vlog.Errorf("sync: processWatchLogBatch: %v: bad log entry: %v", dbId, err)
 		return err
 	}
 
 	appBatch := true
 	if sgop != nil {
 		appBatch = false
-		logs = logs[1:]
 	}
 
 	// Preprocess the log entries before calling RunInTransaction():
@@ -417,7 +416,8 @@ func convertLogRecord(ctx *context.T, syncId uint64, logEnt *watchable.LogEntry)
 		return nil, nil
 
 	case *sbwatchable.SyncgroupOp:
-		return nil, verror.New(verror.ErrInternal, ctx, "cannot convert a watch log OpSyncgroup entry")
+		// We can ignore the syncgroup op.
+		return nil, nil
 
 	default:
 		return nil, verror.New(verror.ErrInternal, ctx, "cannot convert unknown watch log entry")
@@ -519,32 +519,33 @@ func processDbStateChangeLogRecord(ctx *context.T, s *syncService, st store.Stor
 	}
 }
 
-// processSyncgroupLogRecord checks if the log entry is a syncgroup update and,
-// if it is, updates the watch prefixes for the database and returns a syncgroup
-// operation.  Otherwise it returns a nil operation with no other changes.
-func processSyncgroupLogRecord(dbId wire.Id, logEnt *watchable.LogEntry) (*sbwatchable.SyncgroupOp, error) {
-	var op interface{}
+// processSyncgroupLogRecord checks if the log entries contain a syncgroup
+// update and, if they do, updates the watch prefixes for the database and
+// returns a syncgroup operation. Otherwise it returns a nil operation with no
+// other changes.
+func processSyncgroupLogRecord(dbId wire.Id, logs []*watchable.LogEntry) (*sbwatchable.SyncgroupOp, error) {
+	for _, logEnt := range logs {
+		var op interface{}
 
-	if err := logEnt.Op.ToValue(&op); err != nil {
-		return nil, err
-	}
-
-	switch op := op.(type) {
-	case *sbwatchable.SyncgroupOp:
-		gid, remove := op.SgId, op.Remove
-		for _, prefix := range op.Prefixes {
-			if remove {
-				rmWatchPrefixSyncgroup(dbId, prefix, gid)
-			} else {
-				addWatchPrefixSyncgroup(dbId, prefix, gid)
-			}
+		if err := logEnt.Op.ToValue(&op); err != nil {
+			return nil, err
 		}
-		vlog.VI(3).Infof("sync: processSyncgroupLogRecord: %v: gid %s, remove %t, prefixes: %q", dbId, gid, remove, op.Prefixes)
-		return op, nil
 
-	default:
-		return nil, nil
+		switch op := op.(type) {
+		case *sbwatchable.SyncgroupOp:
+			gid, remove := op.SgId, op.Remove
+			for _, prefix := range op.Prefixes {
+				if remove {
+					rmWatchPrefixSyncgroup(dbId, prefix, gid)
+				} else {
+					addWatchPrefixSyncgroup(dbId, prefix, gid)
+				}
+			}
+			vlog.VI(3).Infof("sync: processSyncgroupLogRecord: %v: gid %s, remove %t, prefixes: %q", dbId, gid, remove, op.Prefixes)
+			return op, nil
+		}
 	}
+	return nil, nil
 }
 
 // syncable returns true if the given key falls within the scope of a syncgroup

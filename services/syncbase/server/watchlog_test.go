@@ -16,6 +16,7 @@ import (
 	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/common"
+	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/memstore"
 	"v.io/x/ref/services/syncbase/store/watchable"
@@ -62,7 +63,7 @@ func TestWatchLogPerms(t *testing.T) {
 	for _, tag := range access.AllTypicalTags() {
 		perms.Add(security.BlessingPattern("root"), string(tag))
 	}
-	storedPerms := CollectionPerms(perms)
+	storedPerms := interfaces.CollectionPerms(perms)
 	store.Put(ctx, st, c.permsKey(), &storedPerms)
 	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	call := &mockCall{b: blessings}

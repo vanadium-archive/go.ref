@@ -67,11 +67,10 @@ func unixNanoToTime(timestamp int64) time.Time {
 	return time.Unix(timestamp/nanoPerSec, timestamp%nanoPerSec)
 }
 
-// toCollectionRowPrefixStr converts a CollectionRow (collection id and row key
-// or prefix pair) to a string of the form used for storing perms and row data
-// in the underlying storage engine.
-func toCollectionRowPrefixStr(p wire.CollectionRow) string {
-	return common.JoinKeyParts(pubutil.EncodeId(p.CollectionId), p.Row)
+// toCollectionPrefixStr converts a collection id to a string of the form used
+// for storing perms and row data in the underlying storage engine.
+func toCollectionPrefixStr(c wire.Id) string {
+	return common.JoinKeyParts(pubutil.EncodeId(c), "")
 }
 
 // toRowKey prepends RowPrefix to what is presumably a "<collection>:<row>"

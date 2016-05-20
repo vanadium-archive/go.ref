@@ -4,6 +4,11 @@
 
 package interfaces
 
+import (
+	"v.io/v23/security/access"
+	"v.io/x/ref/services/syncbase/server/util"
+)
+
 func (in Knowledge) DeepCopy() Knowledge {
 	out := make(Knowledge)
 	for p, inpgv := range in {
@@ -62,4 +67,12 @@ func (a GenVector) Compare(b GenVector) int {
 	}
 
 	return res
+}
+
+var (
+	_ util.Permser = (*CollectionPerms)(nil)
+)
+
+func (perms *CollectionPerms) GetPerms() access.Permissions {
+	return access.Permissions(*perms)
 }

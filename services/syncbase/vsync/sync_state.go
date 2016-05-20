@@ -181,8 +181,8 @@ func (s *syncService) initSync(ctx *context.T) error {
 				return false
 			}
 			if state.Watched {
-				for _, prefix := range sg.Spec.Prefixes {
-					addWatchPrefixSyncgroup(dbId, toCollectionRowPrefixStr(prefix), gid)
+				for _, c := range sg.Spec.Collections {
+					addWatchPrefixSyncgroup(dbId, toCollectionPrefixStr(c), gid)
 				}
 			}
 

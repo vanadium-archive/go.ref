@@ -111,17 +111,15 @@ func (sg *Syncgroup) Name() string {
 }
 
 func (sg *Syncgroup) Spec(rootBlessing string) wire.SyncgroupSpec {
-	collectionRows := make([]wire.CollectionRow, len(sg.Collections))
+	collections := make([]wire.Id, len(sg.Collections))
+
 	for i, col := range sg.Collections {
-		collectionRows[i] = wire.CollectionRow{
-			CollectionId: col.Id(),
-			Row:          "",
-		}
+		collections[i] = col.Id()
 	}
 
 	return wire.SyncgroupSpec{
 		Description: sg.Description,
-		Prefixes:    collectionRows,
+		Collections: collections,
 		Perms:       sg.Permissions.ToWire(rootBlessing),
 		IsPrivate:   sg.IsPrivate,
 	}

@@ -12,7 +12,6 @@ import (
 var (
 	_ util.Permser = (*ServiceData)(nil)
 	_ util.Permser = (*DatabaseData)(nil)
-	_ util.Permser = (*CollectionPerms)(nil)
 )
 
 func (data *ServiceData) GetPerms() access.Permissions {
@@ -21,8 +20,4 @@ func (data *ServiceData) GetPerms() access.Permissions {
 
 func (data *DatabaseData) GetPerms() access.Permissions {
 	return data.Perms
-}
-
-func (perms *CollectionPerms) GetPerms() access.Permissions {
-	return access.Permissions(*perms)
 }

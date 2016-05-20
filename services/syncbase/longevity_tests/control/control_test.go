@@ -610,12 +610,7 @@ func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name stri
 	sbSpec := wire.SyncgroupSpec{
 		Description: "test syncgroup",
 		Perms:       openPerms,
-		Prefixes: []wire.CollectionRow{
-			wire.CollectionRow{
-				CollectionId: sb1Col.Id(),
-				Row:          "",
-			},
-		},
+		Collections: []wire.Id{sb1Col.Id()},
 		MountTables: []string{mounttable},
 	}
 	sb1Sg := sb1Db.SyncgroupForId(wire.Id{Name: sgName, Blessing: "blessing"})

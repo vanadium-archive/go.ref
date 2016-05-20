@@ -8,7 +8,6 @@ package vsync
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -66,7 +65,7 @@ func TestAddSyncgroup(t *testing.T) {
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
-			Prefixes: []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}, {CollectionId: makeCxId("bar"), Row: ""}},
+			Collections: []wire.Id{makeCxId("foo"), makeCxId("bar")},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -188,7 +187,7 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 			Creator:     "mockCreator",
 			SpecVersion: "etag-0",
 			Spec: wire.SyncgroupSpec{
-				Prefixes: []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}, {CollectionId: makeCxId("bar"), Row: ""}},
+				Collections: []wire.Id{makeCxId("foo"), makeCxId("bar")},
 			},
 			Joiners: map[string]wire.SyncgroupMemberInfo{
 				"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -227,28 +226,24 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 	checkBadAddSyncgroup(t, st, sg, "SG w/o Joiners")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = nil
-	checkBadAddSyncgroup(t, st, sg, "SG w/o Prefixes")
+	sg.Spec.Collections = nil
+	checkBadAddSyncgroup(t, st, sg, "SG w/o Collections")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}, {CollectionId: makeCxId("bar"), Row: ""}, {CollectionId: makeCxId("foo"), Row: ""}}
-	checkBadAddSyncgroup(t, st, sg, "SG with duplicate Prefixes")
+	sg.Spec.Collections = []wire.Id{makeCxId("foo"), makeCxId("bar"), makeCxId("foo")}
+	checkBadAddSyncgroup(t, st, sg, "SG with duplicate collections")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionId: wire.Id{}, Row: ""}}
+	sg.Spec.Collections = []wire.Id{wire.Id{}}
 	checkBadAddSyncgroup(t, st, sg, "SG with invalid (empty) collection id")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionId: wire.Id{Blessing: "foo"}, Row: ""}}
+	sg.Spec.Collections = []wire.Id{wire.Id{Blessing: "foo"}}
 	checkBadAddSyncgroup(t, st, sg, "SG with invalid (empty Name) collection id")
 
 	sg = mkSg()
-	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionId: wire.Id{Name: "bar"}, Row: ""}}
+	sg.Spec.Collections = []wire.Id{wire.Id{Name: "bar"}}
 	checkBadAddSyncgroup(t, st, sg, "SG with invalid (empty Blessing) collection id")
-
-	sg = mkSg()
-	sg.Spec.Prefixes = []wire.CollectionRow{{CollectionId: makeCxId("a"), Row: "\xfe"}}
-	checkBadAddSyncgroup(t, st, sg, "SG with invalid row prefix")
 }
 
 // TestDeleteSyncgroup tests deleting a syncgroup.
@@ -284,7 +279,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
-			Prefixes: []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}, {CollectionId: makeCxId("bar"), Row: ""}},
+			Collections: []wire.Id{makeCxId("foo"), makeCxId("bar")},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -367,7 +362,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		SpecVersion: "etag-1",
 		Spec: wire.SyncgroupSpec{
 			MountTables: []string{"mt1"},
-			Prefixes:    []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}},
+			Collections: []wire.Id{makeCxId("foo")},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -382,7 +377,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		SpecVersion: "etag-2",
 		Spec: wire.SyncgroupSpec{
 			MountTables: []string{"mt2", "mt3"},
-			Prefixes:    []wire.CollectionRow{{CollectionId: makeCxId("bar"), Row: ""}},
+			Collections: []wire.Id{makeCxId("bar")},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"tablet": wire.SyncgroupMemberInfo{SyncPriority: 111},
@@ -546,34 +541,28 @@ func TestMultiSyncgroups(t *testing.T) {
 	}
 }
 
-// TestPrefixCompare tests the prefix comparison utility.
-func TestPrefixCompare(t *testing.T) {
-	mksgps := func(strs []string) []wire.CollectionRow {
-		res := make([]wire.CollectionRow, len(strs))
+// TestCollectionCompare tests the collection comparison utility.
+func TestCollectionCompare(t *testing.T) {
+	mksgcs := func(strs []string) []wire.Id {
+		res := make([]wire.Id, len(strs))
 		for i, v := range strs {
-			parts := strings.SplitN(v, ":", 2)
-			if len(parts) != 2 {
-				t.Fatalf("invalid CollectionRow string: %s", v)
-			}
-			res[i] = wire.CollectionRow{CollectionId: wire.Id{"u", parts[0]}, Row: parts[1]}
+			res[i] = wire.Id{"u", v}
 		}
 		return res
 	}
 
 	check := func(t *testing.T, strs1, strs2 []string, want bool, msg string) {
-		if got := samePrefixes(mksgps(strs1), mksgps(strs2)); got != want {
-			t.Errorf("samePrefixes: %s: got %t instead of %t", msg, got, want)
+		if got := sameCollections(mksgcs(strs1), mksgcs(strs2)); got != want {
+			t.Errorf("sameCollections: %s: got %t instead of %t", msg, got, want)
 		}
 	}
 
 	check(t, nil, nil, true, "both nil")
 	check(t, []string{}, nil, true, "empty vs nil")
-	check(t, []string{"a:", "b:"}, []string{"b:", "a:"}, true, "different ordering")
-	check(t, []string{"a:", "b:", "c:"}, []string{"b:", "a:"}, false, "p1 superset of p2")
-	check(t, []string{"a:", "b:"}, []string{"b:", "a:", "c:"}, false, "p2 superset of p1")
-	check(t, []string{"a:", "b:", "c:"}, []string{"b:", "d:", "a:"}, false, "overlap")
-	check(t, []string{"a:", "b:", "c:"}, []string{"x:", "y:"}, false, "no overlap")
-	check(t, []string{"a:", "b:"}, []string{"B:", "a:"}, false, "upper/lowercases")
-	check(t, []string{"a:b", "b:c"}, []string{"b:c", "a:b"}, true, "different ordering, with non-empty row prefixes")
-	check(t, []string{"a:b"}, []string{"a:b", "a:c"}, false, "p2 superset, with non-empty row prefixes")
+	check(t, []string{"a", "b"}, []string{"b", "a"}, true, "different ordering")
+	check(t, []string{"a", "b", "c"}, []string{"b", "a"}, false, "c1 superset of c2")
+	check(t, []string{"a", "b"}, []string{"b", "a", "c"}, false, "c2 superset of c1")
+	check(t, []string{"a", "b", "c"}, []string{"b", "d", "a"}, false, "overlap")
+	check(t, []string{"a", "b", "c"}, []string{"x", "y"}, false, "no overlap")
+	check(t, []string{"a", "b"}, []string{"B", "a"}, false, "upper/lowercases")
 }

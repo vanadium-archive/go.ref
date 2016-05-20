@@ -14,6 +14,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/common"
+	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
 )
@@ -41,7 +42,7 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 		}
 
 		// Check for "collection already exists".
-		if err := store.Get(ctx, tx, c.permsKey(), &CollectionPerms{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		if err := store.Get(ctx, tx, c.permsKey(), &interfaces.CollectionPerms{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
 			}
@@ -51,7 +52,7 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 			perms = dData.Perms
 		}
 		// Write new CollectionPerms.
-		storedPerms := CollectionPerms(perms)
+		storedPerms := interfaces.CollectionPerms(perms)
 		return store.Put(ctx, tx, c.permsKey(), &storedPerms)
 	}
 	return c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
@@ -64,7 +65,7 @@ func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, bh wire.Bat
 	impl := func(ts *transactionState) error {
 		tx := ts.tx
 		// Read-check-delete CollectionPerms.
-		if err := util.GetWithAuth(ctx, call, tx, c.permsKey(), &CollectionPerms{}); err != nil {
+		if err := util.GetWithAuth(ctx, call, tx, c.permsKey(), &interfaces.CollectionPerms{}); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoExist.ID {
 				return nil // delete is idempotent
 			}
@@ -95,13 +96,13 @@ func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, bh wire.Bat
 
 func (c *collectionReq) Exists(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (bool, error) {
 	impl := func(sntx store.SnapshotOrTransaction) error {
-		return util.GetWithAuth(ctx, call, c.d.st, c.permsKey(), &CollectionPerms{})
+		return util.GetWithAuth(ctx, call, c.d.st, c.permsKey(), &interfaces.CollectionPerms{})
 	}
 	return util.ErrorToExists(c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl))
 }
 
 func (c *collectionReq) GetPermissions(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (perms access.Permissions, err error) {
-	var res CollectionPerms
+	var res interfaces.CollectionPerms
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		return util.GetWithAuth(ctx, call, sntx, c.permsKey(), &res)
 	}
@@ -119,7 +120,7 @@ func (c *collectionReq) SetPermissions(ctx *context.T, call rpc.ServerCall, bh w
 			return err
 		}
 		ts.MarkPermsChanged(c.id, currentPerms, newPerms)
-		storedPerms := CollectionPerms(newPerms)
+		storedPerms := interfaces.CollectionPerms(newPerms)
 		return store.Put(ctx, tx, c.permsKey(), &storedPerms)
 	}
 	return c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
@@ -217,7 +218,7 @@ func (c *collectionReq) stKeyPart() string {
 // collection-level access check to be a check for "Resolve", i.e. also check
 // access to service and database.
 func (c *collectionReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) (access.Permissions, error) {
-	collectionPerms := &CollectionPerms{}
+	collectionPerms := &interfaces.CollectionPerms{}
 	if err := util.GetWithAuth(ctx, call, sntx, c.permsKey(), collectionPerms); err != nil {
 		return nil, err
 	}

@@ -355,7 +355,7 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		Creator:     "mockCreator",
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
-			Prefixes:    []wire.CollectionRow{{CollectionId: makeCxId("foo"), Row: ""}, {CollectionId: makeCxId("bar"), Row: ""}},
+			Collections: []wire.Id{makeCxId("foo"), makeCxId("bar")},
 			MountTables: []string{"1/2/3/4", "5/6/7/8"},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
@@ -390,8 +390,8 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 	sgs := make(sgSet)
 	sgs[sgId1] = struct{}{}
 	iSt.config.sharedSgPfxs = map[string]sgSet{
-		toCollectionRowPrefixStr(sg1.Spec.Prefixes[0]): sgs,
-		toCollectionRowPrefixStr(sg1.Spec.Prefixes[1]): sgs,
+		toCollectionPrefixStr(sg1.Spec.Collections[0]): sgs,
+		toCollectionPrefixStr(sg1.Spec.Collections[1]): sgs,
 	}
 
 	sort.Strings(iSt.config.peer.mtTbls)

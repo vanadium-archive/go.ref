@@ -157,10 +157,10 @@ func (s *syncService) identifyPeer(ctx *context.T, peer connInfo) []string {
 	return blessingNames
 }
 
-// addPrefixesToMap adds to map m the prefixes of syncgroup *sg and its ID.
+// addPrefixesToMap adds to map m the prefixes of syncgroup *sg and their IDs.
 func addPrefixesToMap(m map[string]sgSet, gid interfaces.GroupId, sg *interfaces.Syncgroup) {
-	for _, p := range sg.Spec.Prefixes {
-		pfxStr := toCollectionRowPrefixStr(p)
+	for _, c := range sg.Spec.Collections {
+		pfxStr := toCollectionPrefixStr(c)
 		sgs, ok := m[pfxStr]
 		if !ok {
 			sgs = make(sgSet)

@@ -1056,6 +1056,98 @@ func __VDLReadAnon_map_2(dec vdl.Decoder, x *map[string]syncbase.SyncgroupMember
 	}
 }
 
+// CollectionPerms represent the persistent, synced permissions of a Collection.
+// Existence of CollectionPerms in the store determines existence of the
+// Collection.
+// Note: Since CollectionPerms is synced and conflict resolved, the sync
+// protocol needs to be aware of it. Any potential additions to synced
+// Collection metadata should be written to a separate, synced key prefix,
+// written in the same transaction with CollectionPerms and incorporated into
+// the sync protocol. All persistent Collection metadata should be synced;
+// local-only metadata is acceptable only if optional (e.g. stats).
+type CollectionPerms access.Permissions
+
+func (CollectionPerms) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.CollectionPerms"`
+}) {
+}
+
+func (x CollectionPerms) VDLIsZero() bool {
+	return len(x) == 0
+}
+
+func (x CollectionPerms) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(__VDLType_map_15); err != nil {
+		return err
+	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
+	for key, elem := range x {
+		if err := enc.NextEntry(false); err != nil {
+			return err
+		}
+		if err := enc.StartValue(vdl.StringType); err != nil {
+			return err
+		}
+		if err := enc.EncodeString(key); err != nil {
+			return err
+		}
+		if err := enc.FinishValue(); err != nil {
+			return err
+		}
+		if err := elem.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
+	if err := dec.StartValue(__VDLType_map_15); err != nil {
+		return err
+	}
+	var tmpMap CollectionPerms
+	if len := dec.LenHint(); len > 0 {
+		tmpMap = make(CollectionPerms, len)
+	}
+	for {
+		switch done, err := dec.NextEntry(); {
+		case err != nil:
+			return err
+		case done:
+			*x = tmpMap
+			return dec.FinishValue()
+		}
+		var key string
+		{
+			if err := dec.StartValue(vdl.StringType); err != nil {
+				return err
+			}
+			var err error
+			if key, err = dec.DecodeString(); err != nil {
+				return err
+			}
+			if err := dec.FinishValue(); err != nil {
+				return err
+			}
+		}
+		var elem access.AccessList
+		{
+			if err := elem.VDLRead(dec); err != nil {
+				return err
+			}
+		}
+		if tmpMap == nil {
+			tmpMap = make(CollectionPerms)
+		}
+		tmpMap[key] = elem
+	}
+}
+
 // SgDeltaReq contains the initiator's genvectors for the syncgroups it is
 // interested in within a database when requesting deltas for those syncgroups.
 type SgDeltaReq struct {
@@ -1079,7 +1171,7 @@ func (x SgDeltaReq) VDLIsZero() bool {
 }
 
 func (x SgDeltaReq) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_struct_15); err != nil {
+	if err := enc.StartValue(__VDLType_struct_17); err != nil {
 		return err
 	}
 	if x.DbId != (syncbase.Id{}) {
@@ -1106,7 +1198,7 @@ func (x SgDeltaReq) VDLWrite(enc vdl.Encoder) error {
 
 func (x *SgDeltaReq) VDLRead(dec vdl.Decoder) error {
 	*x = SgDeltaReq{}
-	if err := dec.StartValue(__VDLType_struct_15); err != nil {
+	if err := dec.StartValue(__VDLType_struct_17); err != nil {
 		return err
 	}
 	for {
@@ -1160,7 +1252,7 @@ func (x DataDeltaReq) VDLIsZero() bool {
 }
 
 func (x DataDeltaReq) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_struct_16); err != nil {
+	if err := enc.StartValue(__VDLType_struct_18); err != nil {
 		return err
 	}
 	if x.DbId != (syncbase.Id{}) {
@@ -1194,7 +1286,7 @@ func (x DataDeltaReq) VDLWrite(enc vdl.Encoder) error {
 }
 
 func __VDLWriteAnon_set_3(enc vdl.Encoder, x map[GroupId]struct{}) error {
-	if err := enc.StartValue(__VDLType_set_17); err != nil {
+	if err := enc.StartValue(__VDLType_set_19); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -1216,7 +1308,7 @@ func __VDLWriteAnon_set_3(enc vdl.Encoder, x map[GroupId]struct{}) error {
 
 func (x *DataDeltaReq) VDLRead(dec vdl.Decoder) error {
 	*x = DataDeltaReq{}
-	if err := dec.StartValue(__VDLType_struct_16); err != nil {
+	if err := dec.StartValue(__VDLType_struct_18); err != nil {
 		return err
 	}
 	for {
@@ -1248,7 +1340,7 @@ func (x *DataDeltaReq) VDLRead(dec vdl.Decoder) error {
 }
 
 func __VDLReadAnon_set_3(dec vdl.Decoder, x *map[GroupId]struct{}) error {
-	if err := dec.StartValue(__VDLType_set_17); err != nil {
+	if err := dec.StartValue(__VDLType_set_19); err != nil {
 		return err
 	}
 	var tmpMap map[GroupId]struct{}
@@ -1327,7 +1419,7 @@ func (x DeltaReqData) VDLIsZero() bool {
 }
 
 func (x DeltaReqSgs) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_union_18); err != nil {
+	if err := enc.StartValue(__VDLType_union_20); err != nil {
 		return err
 	}
 	if err := enc.NextField("Sgs"); err != nil {
@@ -1343,7 +1435,7 @@ func (x DeltaReqSgs) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x DeltaReqData) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_union_18); err != nil {
+	if err := enc.StartValue(__VDLType_union_20); err != nil {
 		return err
 	}
 	if err := enc.NextField("Data"); err != nil {
@@ -1359,7 +1451,7 @@ func (x DeltaReqData) VDLWrite(enc vdl.Encoder) error {
 }
 
 func VDLReadDeltaReq(dec vdl.Decoder, x *DeltaReq) error {
-	if err := dec.StartValue(__VDLType_union_18); err != nil {
+	if err := dec.StartValue(__VDLType_union_20); err != nil {
 		return err
 	}
 	f, err := dec.NextField()
@@ -1444,7 +1536,7 @@ func (x DeltaRespGvs) VDLIsZero() bool {
 }
 
 func (x DeltaRespRec) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_union_19); err != nil {
+	if err := enc.StartValue(__VDLType_union_21); err != nil {
 		return err
 	}
 	if err := enc.NextField("Rec"); err != nil {
@@ -1460,7 +1552,7 @@ func (x DeltaRespRec) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x DeltaRespGvs) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_union_19); err != nil {
+	if err := enc.StartValue(__VDLType_union_21); err != nil {
 		return err
 	}
 	if err := enc.NextField("Gvs"); err != nil {
@@ -1476,7 +1568,7 @@ func (x DeltaRespGvs) VDLWrite(enc vdl.Encoder) error {
 }
 
 func VDLReadDeltaResp(dec vdl.Decoder, x *DeltaResp) error {
-	if err := dec.StartValue(__VDLType_union_19); err != nil {
+	if err := dec.StartValue(__VDLType_union_21); err != nil {
 		return err
 	}
 	f, err := dec.NextField()
@@ -1537,7 +1629,7 @@ func (x SgPriority) VDLIsZero() bool {
 }
 
 func (x SgPriority) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_struct_20); err != nil {
+	if err := enc.StartValue(__VDLType_struct_22); err != nil {
 		return err
 	}
 	if x.DevType != 0 {
@@ -1588,7 +1680,7 @@ func (x SgPriority) VDLWrite(enc vdl.Encoder) error {
 
 func (x *SgPriority) VDLRead(dec vdl.Decoder) error {
 	*x = SgPriority{}
-	if err := dec.StartValue(__VDLType_struct_20); err != nil {
+	if err := dec.StartValue(__VDLType_struct_22); err != nil {
 		return err
 	}
 	for {
@@ -1654,7 +1746,7 @@ func (x SgPriorities) VDLIsZero() bool {
 }
 
 func (x SgPriorities) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_map_21); err != nil {
+	if err := enc.StartValue(__VDLType_map_23); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -1678,7 +1770,7 @@ func (x SgPriorities) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *SgPriorities) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_map_21); err != nil {
+	if err := dec.StartValue(__VDLType_map_23); err != nil {
 		return err
 	}
 	var tmpMap SgPriorities
@@ -1730,7 +1822,7 @@ func (x DeltaFinalResp) VDLIsZero() bool {
 }
 
 func (x DeltaFinalResp) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_struct_22); err != nil {
+	if err := enc.StartValue(__VDLType_struct_24); err != nil {
 		return err
 	}
 	if len(x.SgPriorities) != 0 {
@@ -1749,7 +1841,7 @@ func (x DeltaFinalResp) VDLWrite(enc vdl.Encoder) error {
 
 func (x *DeltaFinalResp) VDLRead(dec vdl.Decoder) error {
 	*x = DeltaFinalResp{}
-	if err := dec.StartValue(__VDLType_struct_22); err != nil {
+	if err := dec.StartValue(__VDLType_struct_24); err != nil {
 		return err
 	}
 	for {
@@ -1790,7 +1882,7 @@ func (x ChunkHash) VDLIsZero() bool {
 }
 
 func (x ChunkHash) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_struct_23); err != nil {
+	if err := enc.StartValue(__VDLType_struct_25); err != nil {
 		return err
 	}
 	if len(x.Hash) != 0 {
@@ -1815,7 +1907,7 @@ func (x ChunkHash) VDLWrite(enc vdl.Encoder) error {
 
 func (x *ChunkHash) VDLRead(dec vdl.Decoder) error {
 	*x = ChunkHash{}
-	if err := dec.StartValue(__VDLType_struct_23); err != nil {
+	if err := dec.StartValue(__VDLType_struct_25); err != nil {
 		return err
 	}
 	for {
@@ -1862,7 +1954,7 @@ func (x ChunkData) VDLIsZero() bool {
 }
 
 func (x ChunkData) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_struct_24); err != nil {
+	if err := enc.StartValue(__VDLType_struct_26); err != nil {
 		return err
 	}
 	if len(x.Data) != 0 {
@@ -1887,7 +1979,7 @@ func (x ChunkData) VDLWrite(enc vdl.Encoder) error {
 
 func (x *ChunkData) VDLRead(dec vdl.Decoder) error {
 	*x = ChunkData{}
-	if err := dec.StartValue(__VDLType_struct_24); err != nil {
+	if err := dec.StartValue(__VDLType_struct_26); err != nil {
 		return err
 	}
 	for {
@@ -1934,7 +2026,7 @@ func (x TimeReq) VDLIsZero() bool {
 }
 
 func (x TimeReq) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_struct_25); err != nil {
+	if err := enc.StartValue(__VDLType_struct_27); err != nil {
 		return err
 	}
 	if !x.SendTs.IsZero() {
@@ -1957,7 +2049,7 @@ func (x TimeReq) VDLWrite(enc vdl.Encoder) error {
 
 func (x *TimeReq) VDLRead(dec vdl.Decoder) error {
 	*x = TimeReq{}
-	if err := dec.StartValue(__VDLType_struct_25); err != nil {
+	if err := dec.StartValue(__VDLType_struct_27); err != nil {
 		return err
 	}
 	for {
@@ -2029,7 +2121,7 @@ func (x TimeResp) VDLIsZero() bool {
 }
 
 func (x TimeResp) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_struct_26); err != nil {
+	if err := enc.StartValue(__VDLType_struct_28); err != nil {
 		return err
 	}
 	if !x.OrigTs.IsZero() {
@@ -2116,7 +2208,7 @@ func (x TimeResp) VDLWrite(enc vdl.Encoder) error {
 
 func (x *TimeResp) VDLRead(dec vdl.Decoder) error {
 	*x = TimeResp{}
-	if err := dec.StartValue(__VDLType_struct_26); err != nil {
+	if err := dec.StartValue(__VDLType_struct_28); err != nil {
 		return err
 	}
 	for {
@@ -2205,7 +2297,7 @@ func (x BlobSharesBySyncgroup) VDLIsZero() bool {
 }
 
 func (x BlobSharesBySyncgroup) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_map_27); err != nil {
+	if err := enc.StartValue(__VDLType_map_29); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -2235,7 +2327,7 @@ func (x BlobSharesBySyncgroup) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *BlobSharesBySyncgroup) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_map_27); err != nil {
+	if err := dec.StartValue(__VDLType_map_29); err != nil {
 		return err
 	}
 	var tmpMap BlobSharesBySyncgroup
@@ -2304,7 +2396,7 @@ func (x LocationData) VDLIsZero() bool {
 }
 
 func (x LocationData) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_struct_28); err != nil {
+	if err := enc.StartValue(__VDLType_struct_30); err != nil {
 		return err
 	}
 	if !x.WhenSeen.IsZero() {
@@ -2355,7 +2447,7 @@ func (x LocationData) VDLWrite(enc vdl.Encoder) error {
 
 func (x *LocationData) VDLRead(dec vdl.Decoder) error {
 	*x = LocationData{}
-	if err := dec.StartValue(__VDLType_struct_28); err != nil {
+	if err := dec.StartValue(__VDLType_struct_30); err != nil {
 		return err
 	}
 	for {
@@ -2417,7 +2509,7 @@ func (x PeerToLocationDataMap) VDLIsZero() bool {
 }
 
 func (x PeerToLocationDataMap) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_map_29); err != nil {
+	if err := enc.StartValue(__VDLType_map_31); err != nil {
 		return err
 	}
 	if err := enc.SetLenHint(len(x)); err != nil {
@@ -2447,7 +2539,7 @@ func (x PeerToLocationDataMap) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *PeerToLocationDataMap) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_map_29); err != nil {
+	if err := dec.StartValue(__VDLType_map_31); err != nil {
 		return err
 	}
 	var tmpMap PeerToLocationDataMap
@@ -2512,7 +2604,7 @@ func (x Signpost) VDLIsZero() bool {
 }
 
 func (x Signpost) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_struct_30); err != nil {
+	if err := enc.StartValue(__VDLType_struct_32); err != nil {
 		return err
 	}
 	if len(x.Locations) != 0 {
@@ -2539,7 +2631,7 @@ func (x Signpost) VDLWrite(enc vdl.Encoder) error {
 
 func (x *Signpost) VDLRead(dec vdl.Decoder) error {
 	*x = Signpost{}
-	if err := dec.StartValue(__VDLType_struct_30); err != nil {
+	if err := dec.StartValue(__VDLType_struct_32); err != nil {
 		return err
 	}
 	for {
@@ -3747,22 +3839,24 @@ var (
 	__VDLType_struct_12 *vdl.Type
 	__VDLType_map_13    *vdl.Type
 	__VDLType_struct_14 *vdl.Type
-	__VDLType_struct_15 *vdl.Type
+	__VDLType_map_15    *vdl.Type
 	__VDLType_struct_16 *vdl.Type
-	__VDLType_set_17    *vdl.Type
-	__VDLType_union_18  *vdl.Type
-	__VDLType_union_19  *vdl.Type
-	__VDLType_struct_20 *vdl.Type
-	__VDLType_map_21    *vdl.Type
+	__VDLType_struct_17 *vdl.Type
+	__VDLType_struct_18 *vdl.Type
+	__VDLType_set_19    *vdl.Type
+	__VDLType_union_20  *vdl.Type
+	__VDLType_union_21  *vdl.Type
 	__VDLType_struct_22 *vdl.Type
-	__VDLType_struct_23 *vdl.Type
+	__VDLType_map_23    *vdl.Type
 	__VDLType_struct_24 *vdl.Type
 	__VDLType_struct_25 *vdl.Type
 	__VDLType_struct_26 *vdl.Type
-	__VDLType_map_27    *vdl.Type
+	__VDLType_struct_27 *vdl.Type
 	__VDLType_struct_28 *vdl.Type
 	__VDLType_map_29    *vdl.Type
 	__VDLType_struct_30 *vdl.Type
+	__VDLType_map_31    *vdl.Type
+	__VDLType_struct_32 *vdl.Type
 )
 
 var __VDLInitCalled bool
@@ -3794,6 +3888,7 @@ func __VDLInit() struct{} {
 	vdl.Register((*GroupId)(nil))
 	vdl.Register((*SyncgroupStatus)(nil))
 	vdl.Register((*Syncgroup)(nil))
+	vdl.Register((*CollectionPerms)(nil))
 	vdl.Register((*SgDeltaReq)(nil))
 	vdl.Register((*DataDeltaReq)(nil))
 	vdl.Register((*DeltaReq)(nil))
@@ -3825,22 +3920,24 @@ func __VDLInit() struct{} {
 	__VDLType_struct_12 = vdl.TypeOf((*syncbase.SyncgroupSpec)(nil)).Elem()
 	__VDLType_map_13 = vdl.TypeOf((*map[string]syncbase.SyncgroupMemberInfo)(nil))
 	__VDLType_struct_14 = vdl.TypeOf((*syncbase.SyncgroupMemberInfo)(nil)).Elem()
-	__VDLType_struct_15 = vdl.TypeOf((*SgDeltaReq)(nil)).Elem()
-	__VDLType_struct_16 = vdl.TypeOf((*DataDeltaReq)(nil)).Elem()
-	__VDLType_set_17 = vdl.TypeOf((*map[GroupId]struct{})(nil))
-	__VDLType_union_18 = vdl.TypeOf((*DeltaReq)(nil))
-	__VDLType_union_19 = vdl.TypeOf((*DeltaResp)(nil))
-	__VDLType_struct_20 = vdl.TypeOf((*SgPriority)(nil)).Elem()
-	__VDLType_map_21 = vdl.TypeOf((*SgPriorities)(nil))
-	__VDLType_struct_22 = vdl.TypeOf((*DeltaFinalResp)(nil)).Elem()
-	__VDLType_struct_23 = vdl.TypeOf((*ChunkHash)(nil)).Elem()
-	__VDLType_struct_24 = vdl.TypeOf((*ChunkData)(nil)).Elem()
-	__VDLType_struct_25 = vdl.TypeOf((*TimeReq)(nil)).Elem()
-	__VDLType_struct_26 = vdl.TypeOf((*TimeResp)(nil)).Elem()
-	__VDLType_map_27 = vdl.TypeOf((*BlobSharesBySyncgroup)(nil))
-	__VDLType_struct_28 = vdl.TypeOf((*LocationData)(nil)).Elem()
-	__VDLType_map_29 = vdl.TypeOf((*PeerToLocationDataMap)(nil))
-	__VDLType_struct_30 = vdl.TypeOf((*Signpost)(nil)).Elem()
+	__VDLType_map_15 = vdl.TypeOf((*CollectionPerms)(nil))
+	__VDLType_struct_16 = vdl.TypeOf((*access.AccessList)(nil)).Elem()
+	__VDLType_struct_17 = vdl.TypeOf((*SgDeltaReq)(nil)).Elem()
+	__VDLType_struct_18 = vdl.TypeOf((*DataDeltaReq)(nil)).Elem()
+	__VDLType_set_19 = vdl.TypeOf((*map[GroupId]struct{})(nil))
+	__VDLType_union_20 = vdl.TypeOf((*DeltaReq)(nil))
+	__VDLType_union_21 = vdl.TypeOf((*DeltaResp)(nil))
+	__VDLType_struct_22 = vdl.TypeOf((*SgPriority)(nil)).Elem()
+	__VDLType_map_23 = vdl.TypeOf((*SgPriorities)(nil))
+	__VDLType_struct_24 = vdl.TypeOf((*DeltaFinalResp)(nil)).Elem()
+	__VDLType_struct_25 = vdl.TypeOf((*ChunkHash)(nil)).Elem()
+	__VDLType_struct_26 = vdl.TypeOf((*ChunkData)(nil)).Elem()
+	__VDLType_struct_27 = vdl.TypeOf((*TimeReq)(nil)).Elem()
+	__VDLType_struct_28 = vdl.TypeOf((*TimeResp)(nil)).Elem()
+	__VDLType_map_29 = vdl.TypeOf((*BlobSharesBySyncgroup)(nil))
+	__VDLType_struct_30 = vdl.TypeOf((*LocationData)(nil)).Elem()
+	__VDLType_map_31 = vdl.TypeOf((*PeerToLocationDataMap)(nil))
+	__VDLType_struct_32 = vdl.TypeOf((*Signpost)(nil)).Elem()
 
 	// Set error format strings.
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDupSyncgroupPublish.ID), "{1:}{2:} duplicate publish on syncgroup: {3}")

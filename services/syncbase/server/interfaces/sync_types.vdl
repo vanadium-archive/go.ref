@@ -8,6 +8,7 @@ import (
 	"time"
 
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/security/access"
 )
 
 const (
@@ -97,6 +98,17 @@ type Syncgroup struct {
 	Status      SyncgroupStatus                     // Status of the syncgroup
 	Joiners     map[string]wire.SyncgroupMemberInfo // map of joiners to their metadata
 }
+
+// CollectionPerms represent the persistent, synced permissions of a Collection.
+// Existence of CollectionPerms in the store determines existence of the
+// Collection.
+// Note: Since CollectionPerms is synced and conflict resolved, the sync
+// protocol needs to be aware of it. Any potential additions to synced
+// Collection metadata should be written to a separate, synced key prefix,
+// written in the same transaction with CollectionPerms and incorporated into
+// the sync protocol. All persistent Collection metadata should be synced;
+// local-only metadata is acceptable only if optional (e.g. stats).
+type CollectionPerms access.Permissions
 
 // DeltaReq contains a request to sync either data or syncgroup metadata for a
 // Database.

@@ -356,98 +356,6 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 	}
 }
 
-// CollectionPerms represent the persistent, synced permissions of a Collection.
-// Existence of CollectionPerms in the store determines existence of the
-// Collection.
-// Note: Since CollectionPerms is synced and conflict resolved, the sync
-// protocol needs to be aware of it. Any potential additions to synced
-// Collection metadata should be written to a separate, synced key prefix,
-// written in the same transaction with CollectionPerms and incorporated into
-// the sync protocol. All persistent Collection metadata should be synced;
-// local-only metadata is acceptable only if optional (e.g. stats).
-type CollectionPerms access.Permissions
-
-func (CollectionPerms) __VDLReflect(struct {
-	Name string `vdl:"v.io/x/ref/services/syncbase/server.CollectionPerms"`
-}) {
-}
-
-func (x CollectionPerms) VDLIsZero() bool {
-	return len(x) == 0
-}
-
-func (x CollectionPerms) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_map_8); err != nil {
-		return err
-	}
-	if err := enc.SetLenHint(len(x)); err != nil {
-		return err
-	}
-	for key, elem := range x {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(key); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-		if err := elem.VDLWrite(enc); err != nil {
-			return err
-		}
-	}
-	if err := enc.NextEntry(true); err != nil {
-		return err
-	}
-	return enc.FinishValue()
-}
-
-func (x *CollectionPerms) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_map_8); err != nil {
-		return err
-	}
-	var tmpMap CollectionPerms
-	if len := dec.LenHint(); len > 0 {
-		tmpMap = make(CollectionPerms, len)
-	}
-	for {
-		switch done, err := dec.NextEntry(); {
-		case err != nil:
-			return err
-		case done:
-			*x = tmpMap
-			return dec.FinishValue()
-		}
-		var key string
-		{
-			if err := dec.StartValue(vdl.StringType); err != nil {
-				return err
-			}
-			var err error
-			if key, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
-			}
-		}
-		var elem access.AccessList
-		{
-			if err := elem.VDLRead(dec); err != nil {
-				return err
-			}
-		}
-		if tmpMap == nil {
-			tmpMap = make(CollectionPerms)
-		}
-		tmpMap[key] = elem
-	}
-}
-
 // Hold type definitions in package-level variables, for better performance.
 var (
 	__VDLType_struct_1   *vdl.Type
@@ -457,8 +365,6 @@ var (
 	__VDLType_struct_5   *vdl.Type
 	__VDLType_optional_6 *vdl.Type
 	__VDLType_struct_7   *vdl.Type
-	__VDLType_map_8      *vdl.Type
-	__VDLType_struct_9   *vdl.Type
 )
 
 var __VDLInitCalled bool
@@ -486,7 +392,6 @@ func __VDLInit() struct{} {
 	vdl.Register((*ServiceData)(nil))
 	vdl.Register((*DbInfo)(nil))
 	vdl.Register((*DatabaseData)(nil))
-	vdl.Register((*CollectionPerms)(nil))
 
 	// Initialize type definitions.
 	__VDLType_struct_1 = vdl.TypeOf((*ServiceData)(nil)).Elem()
@@ -496,8 +401,6 @@ func __VDLInit() struct{} {
 	__VDLType_struct_5 = vdl.TypeOf((*DatabaseData)(nil)).Elem()
 	__VDLType_optional_6 = vdl.TypeOf((*syncbase.SchemaMetadata)(nil))
 	__VDLType_struct_7 = vdl.TypeOf((*syncbase.SchemaMetadata)(nil)).Elem()
-	__VDLType_map_8 = vdl.TypeOf((*CollectionPerms)(nil))
-	__VDLType_struct_9 = vdl.TypeOf((*access.AccessList)(nil)).Elem()
 
 	return struct{}{}
 }
