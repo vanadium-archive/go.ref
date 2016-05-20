@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin
+// +build darwin,cgo
 
 // Package corebluetooth provides an implementation of ble.Driver using the CoreBluetooth Objective-C API
 //
@@ -126,7 +126,7 @@ func (d *CoreBluetoothDriver) AddService(uuid string, characteristics map[string
 	// Call objective-c
 	var errorOut *C.char = nil
 	// This is thread-safe in obj-c
-	if err := objcBOOL2Error(C.v23_cbdriver_addService(C.CString(uuid), entries, C.int(len(characteristics)), &errorOut), &errorOut); err != nil {
+	if err := objcBOOL2Error(C.v23_cbdriver_addService(C.CString(uuid), (*C.CBDriverCharacteristicMapEntry)(entries), C.int(len(characteristics)), &errorOut), &errorOut); err != nil {
 		return err
 	}
 	// Success
@@ -172,7 +172,7 @@ func (d *CoreBluetoothDriver) StartScan(uuids []string, baseUuid, maskUuid strin
 	d.scanHandler = handler
 	// Call Objective-C
 	var errorOut *C.char = nil
-	if err := objcBOOL2Error(C.v23_cbdriver_startScan(cUuids, C.int(len(uuids)), cBaseUuid, cMaskUuid, &errorOut), &errorOut); err != nil {
+	if err := objcBOOL2Error(C.v23_cbdriver_startScan((**C.char)(cUuids), C.int(len(uuids)), cBaseUuid, cMaskUuid, &errorOut), &errorOut); err != nil {
 		d.scanHandler = nil
 		return err
 	}
