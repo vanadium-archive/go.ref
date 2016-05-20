@@ -937,12 +937,7 @@ func BuildConfigValue(fileName string, src io.Reader, imports []string, env *com
 	if vconfig == nil {
 		return
 	}
-	target, err := vdl.ReflectTarget(rv)
-	if err != nil {
-		env.Errors.Errorf("can't create reflect target for %T (%v)", value, err)
-		return
-	}
-	if err := vdl.FromValue(target, vconfig); err != nil {
+	if err := vdl.ConvertReflect(rv, reflect.ValueOf(vconfig)); err != nil {
 		env.Errors.Errorf("can't convert to %T from %v (%v)", value, vconfig, err)
 		return
 	}
