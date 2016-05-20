@@ -7,6 +7,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -40,28 +41,30 @@ type param struct {
 	key, value string
 }
 
-func makeURL(ctx *context.T, baseURL string, params ...param) string {
+type params map[string]string
+
+func makeURL(ctx *context.T, baseURL string, p params) string {
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		ctx.Errorf("Parse url error for %v: %v", baseURL, err)
 		return ""
 	}
 	v := url.Values{}
-	for _, p := range params {
-		v.Add(p.key, p.value)
+	for param, value := range p {
+		v.Add(param, value)
 	}
 	u.RawQuery = v.Encode()
 	return u.String()
 }
 
-func replaceParam(ctx *context.T, origURL string, p param) string {
+func replaceParam(ctx *context.T, origURL, param, value string) string {
 	u, err := url.Parse(origURL)
 	if err != nil {
 		ctx.Errorf("Parse url error for %v: %v", origURL, err)
 		return ""
 	}
 	v := u.Query()
-	v.Set(p.key, p.value)
+	v.Set(param, value)
 	u.RawQuery = v.Encode()
 	return u.String()
 }
@@ -93,8 +96,9 @@ func (a httpArgs) validate() error {
 }
 
 // startHTTP is the entry point to the http interface.  It configures and
-// launches the http server.
-func startHTTP(ctx *context.T, args httpArgs) {
+// launches the http server, and returns a cleanup method to be called at
+// shutdown time.
+func startHTTP(ctx *context.T, args httpArgs) func() error {
 	if err := args.validate(); err != nil {
 		ctx.Fatalf("Invalid args %#v: %v", args, err)
 	}
@@ -139,12 +143,21 @@ func startHTTP(ctx *context.T, args httpArgs) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	ctx.Infof("HTTP server at %v [%v]", args.addr, args.externalURL)
+	ln, err := net.Listen("tcp", args.addr)
+	if err != nil {
+		ctx.Fatalf("Listen failed: %v", err)
+	}
+	ctx.Infof("HTTP server at %v [%v]", ln.Addr(), args.externalURL)
 	go func() {
-		if err := http.ListenAndServe(args.addr, nil); err != nil {
-			ctx.Fatalf("ListenAndServe failed: %v", err)
+		if err := http.Serve(ln, nil); err != nil {
+			ctx.Fatalf("Serve failed: %v", err)
 		}
 	}()
+	// NOTE(caprita): closing the listener is necessary but not sufficient
+	// for graceful HTTP server shutdown (which should include draining
+	// in-flight requests).  See https://github.com/facebookgo/httpdown for
+	// example.
+	return ln.Close
 }
 
 type serverState struct {
@@ -193,7 +206,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r:         r,
 	}
 	if err := h.f(h.ss, rs); err != nil {
-		errorOccurred(ctx, w, r, makeURL(ctx, routeHome, param{paramCSRF, csrfToken}), err)
+		errorOccurred(ctx, w, r, makeURL(ctx, routeHome, params{paramCSRF: csrfToken}), err)
 		ctx.Infof("%s[%s] : error %v", r.Method, r.URL, err)
 		return
 	}
@@ -218,14 +231,14 @@ func handleHome(ss *serverState, rs *requestState) error {
 	}{
 		ServerName: ss.args.serverName,
 		Email:      rs.email,
-		CreateURL:  makeURL(ctx, routeCreate, param{paramCSRF, rs.csrfToken}),
+		CreateURL:  makeURL(ctx, routeCreate, params{paramCSRF: rs.csrfToken}),
 		Message:    rs.r.FormValue(paramMessage),
 	}
 	for _, instance := range instances {
 		tmplArgs.Instances = append(tmplArgs.Instances, instanceArg{
 			Name:         instance,
-			DestroyURL:   makeURL(ctx, routeDestroy, param{paramName, instance}, param{paramCSRF, rs.csrfToken}),
-			DashboardURL: makeURL(ctx, routeDashboard, param{paramDashboardName, relativeMountName(instance)}, param{paramCSRF, rs.csrfToken}),
+			DestroyURL:   makeURL(ctx, routeDestroy, params{paramName: instance, paramCSRF: rs.csrfToken}),
+			DashboardURL: makeURL(ctx, routeDashboard, params{paramDashboardName: relativeMountName(instance), paramCSRF: rs.csrfToken}),
 		})
 	}
 	if err := homeTmpl.Execute(rs.w, tmplArgs); err != nil {
@@ -240,7 +253,7 @@ func handleCreate(ss *serverState, rs *requestState) error {
 	if err != nil {
 		return fmt.Errorf("create failed: %v", err)
 	}
-	redirectTo := makeURL(ctx, routeHome, param{paramMessage, "created " + name}, param{paramCSRF, rs.csrfToken})
+	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "created " + name, paramCSRF: rs.csrfToken})
 	http.Redirect(rs.w, rs.r, redirectTo, http.StatusFound)
 	return nil
 }
@@ -251,7 +264,7 @@ func handleDestroy(ss *serverState, rs *requestState) error {
 	if err := destroy(ctx, rs.email, name); err != nil {
 		return fmt.Errorf("destroy failed: %v", err)
 	}
-	redirectTo := makeURL(ctx, routeHome, param{paramMessage, "destroyed " + name}, param{paramCSRF, rs.csrfToken})
+	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "destroyed " + name, paramCSRF: rs.csrfToken})
 	http.Redirect(rs.w, rs.r, redirectTo, http.StatusFound)
 	return nil
 }

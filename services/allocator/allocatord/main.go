@@ -129,7 +129,7 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 		if err != nil {
 			return err
 		}
-		startHTTP(ctx, httpArgs{
+		cleanup := startHTTP(ctx, httpArgs{
 			addr:                httpAddrFlag,
 			externalURL:         externalURLFlag,
 			staticDir:           staticDirFlag,
@@ -141,6 +141,7 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 			secureCookies:       secureCookiesFlag,
 			baseBlessings:       baseBlessings,
 		})
+		defer cleanup()
 	}
 	<-signals.ShutdownOnSignals(ctx)
 	return nil

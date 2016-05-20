@@ -22,14 +22,17 @@ import (
 )
 
 const (
-	emailCookieName = "VanadiumAllocatorEmailCookie"
-	csrfCookieName  = "VanadiumAllocatorCSRFCookie"
+	cookieName = "VanadiumAllocatorCookie"
+	// Payload for cookie during the oauth flow.  Should never match a valid
+	// email address.
 	csrfCookieValue = "csrf"
-	csrfCookieLen   = 16
+	csrfTokenLen    = 16
 	// This parameter name is hardcorded in static/dash.js,
 	// and should be changed in tandem.
 	paramCSRF = "csrf"
 )
+
+var errOauthInProgress = errors.New("oauth login in process")
 
 type claimSet struct {
 	jws.ClaimSet
@@ -75,7 +78,7 @@ type oauthCredentials struct {
 	//
 	// TODO(caprita): Consider signing cookies with the server's private key
 	// (and verify signatures using blessings) instead of maintaining a
-	// separate sign key.
+	// separate signing key.
 	HashKey string `json:"hashKey"`
 }
 
@@ -137,7 +140,7 @@ func (s *oauthState) decode(enc string) error {
 }
 
 func generateCSRFToken(ctx *context.T) string {
-	b := make([]byte, csrfCookieLen)
+	b := make([]byte, csrfTokenLen)
 	if _, err := rand.Read(b); err != nil {
 		ctx.Errorf("Failed to generate csrf cookie: %v", err)
 		return ""
@@ -146,7 +149,7 @@ func generateCSRFToken(ctx *context.T) string {
 }
 
 func validateCSRF(ctx *context.T, req *http.Request, baker cookieBaker, csrfToken string) bool {
-	cookieToken, err := baker.get(req, csrfCookieName, csrfToken)
+	cookieToken, err := baker.get(req, cookieName, csrfToken)
 	if cookieToken == "" && err == nil {
 		err = errors.New("missing cookie")
 	}
@@ -159,21 +162,33 @@ func validateCSRF(ctx *context.T, req *http.Request, baker cookieBaker, csrfToke
 
 func requireSession(ctx *context.T, oauthCfg *oauth2.Config, baker cookieBaker, w http.ResponseWriter, r *http.Request, mutating bool) (string, string, error) {
 	csrfToken := r.FormValue(paramCSRF)
-	email, err := baker.get(r, emailCookieName, csrfToken)
-	if email != "" && err == nil {
+	email, err := baker.get(r, cookieName, csrfToken)
+	switch {
+	case err == nil && email != "" && email != csrfCookieValue:
+		// The user is already logged in.
 		return email, csrfToken, nil
-	}
-	if err != nil {
-		ctx.Infof("Re-authenticating. Bad email cookie: %v", err)
-	} else {
+	case err == nil && email == csrfCookieValue:
+		// The user is in the middle of the oauth flow.
+		//
+		// TODO(caprita): Rather then presenting an error page to the
+		// user, we can gracefully ask the client to retry a bit later
+		// (via a redirect or by sending a 503 with retry-after).  This
+		// will invariably trigger a new oauth sequence (since the
+		// request's CSRF token will no longer match on the retry).
+		return "", "", errOauthInProgress
+	case err == nil:
+		// Proceed with the oauth flow.
 		ctx.Infof("Authenticating. Missing email cookie.")
+	case err != nil:
+		// Proceed with the oauth flow.
+		ctx.Infof("Re-authenticating. Bad email cookie: %v", err)
 	}
 	// Do the oauth.
 	csrfToken = generateCSRFToken(ctx)
 	if csrfToken == "" {
 		return "", "", errors.New("failed to generate CSRF token")
 	}
-	redirectTo := makeURL(ctx, routeHome, param{paramMessage, "Re-authentication was required."})
+	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "Re-authentication was required."})
 	if !mutating {
 		redirectTo = r.URL.String()
 	}
@@ -181,7 +196,7 @@ func requireSession(ctx *context.T, oauthCfg *oauth2.Config, baker cookieBaker, 
 	if err != nil {
 		return "", "", fmt.Errorf("failed to encode state: %v", err)
 	}
-	if err := baker.set(r, w, csrfCookieName, csrfCookieValue, csrfToken); err != nil {
+	if err := baker.set(w, cookieName, csrfCookieValue, csrfToken); err != nil {
 		return "", "", fmt.Errorf("failed to set CSRF cookie: %v", err)
 	}
 	authURL := oauthCfg.AuthCodeURL(s)
@@ -224,8 +239,8 @@ func handleOauth(ctx *context.T, args httpArgs, baker cookieBaker, w http.Respon
 	}
 	email := claimSet.Email
 	csrfToken := generateCSRFToken(ctx)
-	if err := baker.set(r, w, emailCookieName, email, csrfToken); err != nil {
-		ctx.Errorf("failed to set email cookie: %v", err)
+	if err := baker.set(w, cookieName, email, csrfToken); err != nil {
+		ctx.Errorf("Failed to set email cookie: %v", err)
 		errorOccurred(ctx, w, r, routeHome, err)
 		return
 	}
@@ -233,6 +248,6 @@ func handleOauth(ctx *context.T, args httpArgs, baker cookieBaker, w http.Respon
 		badRequest(ctx, w, r, errors.New("no redirect url provided"))
 		return
 	}
-	redirectTo := replaceParam(ctx, state.RedirectURL, param{paramCSRF, csrfToken})
+	redirectTo := replaceParam(ctx, state.RedirectURL, paramCSRF, csrfToken)
 	http.Redirect(w, r, redirectTo, http.StatusFound)
 }
