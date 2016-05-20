@@ -13,7 +13,7 @@ error (
 		"en": "wrong number of input arguments for {suffix}.{method} (called with {numCalled} args, want {numWanted})",
 	}
 	badInputArg(suffix, method string, index uint64, err error) {
-		"en": "failed to decode request {suffix}.{method} arg #{index}: {err}",
+		"en": "method {suffix}.{method} has bad arg #{index}: {err}",
 	}
 	badBlessings(err error) {
 		"en": "failed to decode blessings: {err}",

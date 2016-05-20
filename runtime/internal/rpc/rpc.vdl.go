@@ -23,7 +23,7 @@ var (
 	// Internal errors.
 	errBadRequest                    = verror.Register("v.io/x/ref/runtime/internal/rpc.badRequest", verror.NoRetry, "{1:}{2:} failed to decode request: {3}")
 	errBadNumInputArgs               = verror.Register("v.io/x/ref/runtime/internal/rpc.badNumInputArgs", verror.NoRetry, "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
-	errBadInputArg                   = verror.Register("v.io/x/ref/runtime/internal/rpc.badInputArg", verror.NoRetry, "{1:}{2:} failed to decode request {3}.{4} arg #{5}: {6}")
+	errBadInputArg                   = verror.Register("v.io/x/ref/runtime/internal/rpc.badInputArg", verror.NoRetry, "{1:}{2:} method {3}.{4} has bad arg #{5}: {6}")
 	errBadBlessings                  = verror.Register("v.io/x/ref/runtime/internal/rpc.badBlessings", verror.NoRetry, "{1:}{2:} failed to decode blessings: {3}")
 	errBadBlessingsCache             = verror.Register("v.io/x/ref/runtime/internal/rpc.badBlessingsCache", verror.NoRetry, "{1:}{2:} failed to find blessings in cache: {3}")
 	errBadDischarge                  = verror.Register("v.io/x/ref/runtime/internal/rpc.badDischarge", verror.NoRetry, "{1:}{2:} failed to decode discharge #{3}: {4}")
@@ -113,7 +113,7 @@ func __VDLInit() struct{} {
 	// Set error format strings.
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadRequest.ID), "{1:}{2:} failed to decode request: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadNumInputArgs.ID), "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadInputArg.ID), "{1:}{2:} failed to decode request {3}.{4} arg #{5}: {6}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadInputArg.ID), "{1:}{2:} method {3}.{4} has bad arg #{5}: {6}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadBlessings.ID), "{1:}{2:} failed to decode blessings: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadBlessingsCache.ID), "{1:}{2:} failed to find blessings in cache: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadDischarge.ID), "{1:}{2:} failed to decode discharge #{3}: {4}")
