@@ -40,11 +40,11 @@ var (
 	monitoringKeyFileFlag   string
 
 	// HTTP flags.
+	assetsFlag              string
 	httpAddrFlag            string
 	externalURLFlag         string
 	oauthCredsFileFlag      string
 	secureCookiesFlag       bool
-	staticDirFlag           string
 	dashboardGCMMetricFlag  string
 	dashboardGCMProjectFlag string
 
@@ -74,12 +74,12 @@ func main() {
 	cmdRoot.Flags.StringVar(&vkubeCfgFlag, "vkube-cfg", "vkube.cfg", "The vkube.cfg to use.")
 	cmdRoot.Flags.StringVar(&clusterAgentFlag, "cluster-agent", "", "The address of the cluster-agent.")
 	cmdRoot.Flags.StringVar(&blessingSecretFlag, "blessings-secret-file", "", "If set, this file contains the secret to present to the cluster-agent to get the base blessings for the allocated servers.")
+	cmdRoot.Flags.StringVar(&assetsFlag, "assets", "", "If set, the directory containing assets (template definitions, css, javascript files etc.) to use in the web interface. If not set, compiled-in assets will be used instead.")
 	cmdRoot.Flags.StringVar(&httpAddrFlag, "http-addr", "", "Address on which the HTTP server listens on.  If empty, no HTTP server is started.")
 	cmdRoot.Flags.StringVar(&externalURLFlag, "external-url", "", "Public URL for the HTTP server.  Must be specified if --http-addr is specified.")
 	cmdRoot.Flags.StringVar(&monitoringKeyFileFlag, "monitoring-key-file", "", "The path to the service account's JSON credentials file.")
 	cmdRoot.Flags.StringVar(&oauthCredsFileFlag, oauthCredsFileFlagName, "", "JSON-encoded file containing Google Oauth2 client ID and secret (https://developers.google.com/identity/protocols/OAuth2#basicsteps), as well as the HMAC cookie signing key")
 	cmdRoot.Flags.BoolVar(&secureCookiesFlag, "secure-cookies", true, "Whether to use only secure cookies.  Should be true unless running the server without TLS for testing.")
-	cmdRoot.Flags.StringVar(&staticDirFlag, "static", "", "Directory to use for serving static files.")
 	cmdRoot.Flags.StringVar(&dashboardGCMMetricFlag, "dashboard-gcm-metric", "", "The metric name used to get data from GCM to render dashboard charts.")
 	cmdRoot.Flags.StringVar(&dashboardGCMProjectFlag, "dashboard-gcm-project", "", "The project name used to get data from GCM to render dashboard charts.")
 	cmdline.HideGlobalFlagsExcept()
@@ -120,6 +120,10 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
+	ah, err := newAssetsHelper(assetsFlag)
+	if err != nil {
+		return err
+	}
 	ctx.Infof("Listening on: %v", server.Status().Endpoints)
 	if httpAddrFlag != "" {
 		if oauthCredsFileFlag == "" {
@@ -132,7 +136,6 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 		cleanup := startHTTP(ctx, httpArgs{
 			addr:                httpAddrFlag,
 			externalURL:         externalURLFlag,
-			staticDir:           staticDirFlag,
 			dashboardGCMMetric:  dashboardGCMMetricFlag,
 			dashboardGCMProject: dashboardGCMProjectFlag,
 			monitoringKeyFile:   monitoringKeyFileFlag,
@@ -140,6 +143,7 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 			serverName:          serverNameFlag,
 			secureCookies:       secureCookiesFlag,
 			baseBlessings:       baseBlessings,
+			assets:              ah,
 		})
 		defer cleanup()
 	}

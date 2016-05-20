@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <title>Vanadium Allocator</title>
+</head>
+
+<body>
+  <script>
+    function changeBtn(id, newHTML) {
+      document.getElementById(id).innerHTML = "<font color='gray'>"+newHTML+"</font>";
+    }
+  </script>
+  <main>
+    <font face="courier">
+    <h1>Create and Manage Instances of <<{{.ServerName}}>></h1>
+    <p>
+      <font size="2" color="gray">Logged in as: <b>{{.Email}}</b></font>
+    </p>
+    <p>
+      Your instances:
+    </p>
+    {{range $index, $element := .Instances}}
+       {{.Name}}  [<span id="destroyBtn{{$index}}"><a href="{{.DestroyURL}}" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes a few seconds) ...')">Destroy</a></span>][<a href="{{.DashboardURL}}" target="_blank">Dashboard</a>]<br/>
+    {{else}}
+       None found.
+    {{end}}
+    <p>
+      [<span id="createBtn"><a href="{{.CreateURL}}" onclick="changeBtn('createBtn', 'Creating (takes a few seconds) ...')">Create New</a></span>]
+    </p>
+    {{with .Message -}}
+    <hr>
+    <p>
+      <font size="2">{{.}}</font>
+    </p>
+    {{end}}
+    </font>
+  </main>
+</body>
+</html>

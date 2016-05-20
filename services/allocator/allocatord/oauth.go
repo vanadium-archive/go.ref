@@ -211,41 +211,41 @@ func handleOauth(ctx *context.T, args httpArgs, baker cookieBaker, w http.Respon
 	)
 	var state oauthState
 	if err := state.decode(r.FormValue(paramState)); err != nil {
-		badRequest(ctx, w, r, fmt.Errorf("invalid state: %v", err))
+		args.assets.badRequest(ctx, w, r, fmt.Errorf("invalid state: %v", err))
 		return
 	}
 	if token := state.CSRFToken; !validateCSRF(ctx, r, baker, token) {
-		badRequest(ctx, w, r, fmt.Errorf("invalid csrf token: %v", token))
+		args.assets.badRequest(ctx, w, r, fmt.Errorf("invalid csrf token: %v", token))
 		return
 	}
 	code := r.FormValue(paramCode)
 	oauthCfg := oauthConfig(args.externalURL, args.oauthCreds)
 	t, err := oauthCfg.Exchange(oauth2.NoContext, code)
 	if err != nil {
-		badRequest(ctx, w, r, fmt.Errorf("exchange failed: %v", err))
+		args.assets.badRequest(ctx, w, r, fmt.Errorf("exchange failed: %v", err))
 		return
 	}
 	idToken, ok := t.Extra("id_token").(string)
 	if !ok {
-		badRequest(ctx, w, r, errors.New("invalid id token"))
+		args.assets.badRequest(ctx, w, r, errors.New("invalid id token"))
 		return
 	}
 
 	claimSet, err := decodeToken(idToken)
 	if err != nil {
 		ctx.Errorf("oauth2: error decoding JWT token: %v", err)
-		errorOccurred(ctx, w, r, routeHome, err)
+		args.assets.errorOccurred(ctx, w, r, routeHome, err)
 		return
 	}
 	email := claimSet.Email
 	csrfToken := generateCSRFToken(ctx)
 	if err := baker.set(w, cookieName, email, csrfToken); err != nil {
 		ctx.Errorf("Failed to set email cookie: %v", err)
-		errorOccurred(ctx, w, r, routeHome, err)
+		args.assets.errorOccurred(ctx, w, r, routeHome, err)
 		return
 	}
 	if state.RedirectURL == "" {
-		badRequest(ctx, w, r, errors.New("no redirect url provided"))
+		args.assets.badRequest(ctx, w, r, errors.New("no redirect url provided"))
 		return
 	}
 	redirectTo := replaceParam(ctx, state.RedirectURL, paramCSRF, csrfToken)

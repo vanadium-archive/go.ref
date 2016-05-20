@@ -12,6 +12,10 @@ Usage:
    allocatord [flags]
 
 The allocatord flags are:
+ -assets=
+   If set, the directory containing assets (template definitions, css,
+   javascript files etc.) to use in the web interface. If not set, compiled-in
+   assets will be used instead.
  -blessings-secret-file=
    If set, this file contains the secret to present to the cluster-agent to get
    the base blessings for the allocated servers.
@@ -54,8 +58,6 @@ The allocatord flags are:
  -server-name=
    Name of the servers to allocate. This name is part of the published names in
    the Vanadium namespace and the names of the Deployments in Kubernetes.
- -static=
-   Directory to use for serving static files.
  -vkube=vkube
    The vkube binary to use.
  -vkube-cfg=vkube.cfg

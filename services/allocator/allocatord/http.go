@@ -73,13 +73,13 @@ type httpArgs struct {
 	addr,
 	externalURL,
 	serverName,
-	staticDir,
 	dashboardGCMMetric,
 	dashboardGCMProject,
 	monitoringKeyFile string
 	secureCookies bool
 	oauthCreds    *oauthCredentials
 	baseBlessings security.Blessings
+	assets        *assetsHelper
 }
 
 func (a httpArgs) validate() error {
@@ -125,8 +125,8 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 
 	http.HandleFunc(routeRoot, func(w http.ResponseWriter, r *http.Request) {
 		tmplArgs := struct{ Home, ServerName string }{routeHome, args.serverName}
-		if err := rootTmpl.Execute(w, tmplArgs); err != nil {
-			errorOccurred(ctx, w, r, routeHome, err)
+		if err := args.assets.executeTemplate(w, rootTmpl, tmplArgs); err != nil {
+			args.assets.errorOccurred(ctx, w, r, routeHome, err)
 			ctx.Infof("%s[%s] : error %v", r.Method, r.URL, err)
 		}
 	})
@@ -137,7 +137,7 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 	http.HandleFunc(routeOauth, func(w http.ResponseWriter, r *http.Request) {
 		handleOauth(ctx, args, baker, w, r)
 	})
-	http.Handle(routeStatic, http.StripPrefix(routeStatic, http.FileServer(http.Dir(args.staticDir))))
+	http.Handle(routeStatic, http.StripPrefix(routeStatic, args.assets))
 	http.Handle(routeStats, newHandler(handleStats, false))
 	http.HandleFunc(routeHealth, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -191,7 +191,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	oauthCfg := oauthConfig(h.ss.args.externalURL, h.ss.args.oauthCreds)
 	email, csrfToken, err := requireSession(ctx, oauthCfg, h.baker, w, r, h.mutating)
 	if err != nil {
-		errorOccurred(ctx, w, r, routeHome, err)
+		h.ss.args.assets.errorOccurred(ctx, w, r, routeHome, err)
 		ctx.Infof("%s[%s] : error %v", r.Method, r.URL, err)
 		return
 	}
@@ -206,7 +206,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r:         r,
 	}
 	if err := h.f(h.ss, rs); err != nil {
-		errorOccurred(ctx, w, r, makeURL(ctx, routeHome, params{paramCSRF: csrfToken}), err)
+		h.ss.args.assets.errorOccurred(ctx, w, r, makeURL(ctx, routeHome, params{paramCSRF: csrfToken}), err)
 		ctx.Infof("%s[%s] : error %v", r.Method, r.URL, err)
 		return
 	}
@@ -241,7 +241,7 @@ func handleHome(ss *serverState, rs *requestState) error {
 			DashboardURL: makeURL(ctx, routeDashboard, params{paramDashboardName: relativeMountName(instance), paramCSRF: rs.csrfToken}),
 		})
 	}
-	if err := homeTmpl.Execute(rs.w, tmplArgs); err != nil {
+	if err := ss.args.assets.executeTemplate(rs.w, homeTmpl, tmplArgs); err != nil {
 		return fmt.Errorf("failed to render home template: %v", err)
 	}
 	return nil

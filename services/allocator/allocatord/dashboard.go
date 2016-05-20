@@ -67,7 +67,7 @@ func handleDashboard(ss *serverState, rs *requestState) error {
 		Instance:   instance,
 		Email:      rs.email,
 	}
-	if err := dashboardTmpl.Execute(rs.w, tmplArgs); err != nil {
+	if err := ss.args.assets.executeTemplate(rs.w, dashboardTmpl, tmplArgs); err != nil {
 		return fmt.Errorf("failed to render dashboard template: %v", err)
 	}
 	return nil
