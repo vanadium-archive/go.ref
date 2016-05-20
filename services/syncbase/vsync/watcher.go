@@ -16,7 +16,6 @@ package vsync
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"v.io/v23/context"
 	wire "v.io/v23/services/syncbase"
@@ -44,64 +43,58 @@ var (
 // syncgroups.
 type sgPrefixes map[string]sgSet
 
+// StartStoreWatcher starts a Sync goroutine to watch the database store for
+// updates and process them into the Sync subsystem.  This function is called
+// when a database is created or reopened during service restart, thus spawning
+// a Sync watcher for each database.
+func (sd *syncDatabase) StartStoreWatcher(ctx *context.T) {
+	s := sd.sync.(*syncService)
+	dbId, st := sd.db.Id(), sd.db.St()
+
+	s.pending.Add(1)
+	ctx, cancel := context.WithCancel(ctx)
+
+	go func() {
+		s.watchStore(ctx, dbId, st)
+		cancel()
+		s.pending.Done()
+	}()
+}
+
 // watchStore processes updates obtained by watching the store.  This is the
 // sync watcher goroutine that learns about store updates asynchronously by
 // reading log records that track object mutation histories in each database.
 // For each batch mutation, the watcher updates the sync DAG and log records.
 // When an application makes a single non-transactional put, it is represented
 // as a batch of one log record. Thus the watcher only deals with batches.
-func (s *syncService) watchStore(ctx *context.T) {
-	defer s.pending.Done()
+func (s *syncService) watchStore(ctx *context.T, dbId wire.Id, st *watchable.Store) {
+	vlog.VI(1).Infof("sync: watchStore: DB %v: start watching updates", dbId)
 
-	ticker := time.NewTicker(watchPollInterval)
-	defer ticker.Stop()
-
-	ctx, cancel := context.WithCancel(ctx)
+	updatesChan, cancel := watchable.WatchUpdates(st)
 	defer cancel()
 
-	for !s.isClosed() {
-		select {
-		case <-ticker.C:
-			if s.isClosed() {
-				break
-			}
-			s.processStoreUpdates(ctx)
+	moreWork := true
+	for moreWork && !s.isClosed() {
+		if s.processDatabase(ctx, dbId, st) {
+			vlog.VI(2).Infof("sync: watchStore: DB %v: had updates", dbId)
+		} else {
+			vlog.VI(2).Infof("sync: watchStore: DB %v: idle, wait for updates", dbId)
+			select {
+			case _, moreWork = <-updatesChan:
 
-		case <-s.closed:
-			break
+			case <-s.closed:
+				moreWork = false
+			}
 		}
 	}
 
-	vlog.VI(1).Info("sync: watchStore: channel closed, stop watching and exit")
-}
-
-// processStoreUpdates fetches updates from all databases and processes them.
-// To maintain fairness among databases, it processes one batch update from
-// each database, in a round-robin manner, until there are no further updates
-// from any database.
-func (s *syncService) processStoreUpdates(ctx *context.T) {
-	for {
-		total, active := 0, 0
-		s.forEachDatabaseStore(ctx, func(dbId wire.Id, st *watchable.Store) bool {
-			if s.processDatabase(ctx, dbId, st) {
-				active++
-			}
-			total++
-			return false
-		})
-
-		vlog.VI(2).Infof("sync: processStoreUpdates: %d/%d databases had updates", active, total)
-		if active == 0 {
-			break
-		}
-	}
+	vlog.VI(1).Infof("sync: watchStore: DB %v: channel closed, stop watching and exit", dbId)
 }
 
 // processDatabase fetches from the given database at most one new batch update
-// (transaction) and processes it.  The one-batch limit prevents one database
-// from starving others.  A batch is stored as a contiguous set of log records
-// ending with one record having the "continued" flag set to false.  The call
-// returns true if a new batch update was processed.
+// (transaction) and processes it.  A batch is stored as a contiguous set of log
+// records ending with one record having the "continued" flag set to false.  The
+// call returns true if a new batch update was processed.
 func (s *syncService) processDatabase(ctx *context.T, dbId wire.Id, st store.Store) bool {
 	s.thLock.Lock()
 	defer s.thLock.Unlock()

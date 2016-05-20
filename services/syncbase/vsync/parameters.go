@@ -47,13 +47,6 @@ var (
 	// management actions.
 	peerManagementInterval = peerSyncInterval / 5
 
-	// watchPollInterval is the duration between consecutive watch polling events
-	// across all databases.  Every watch event loops across all databases and
-	// fetches from each one at most one batch update (transaction) to process.
-	// TODO(rdaoud): add a channel between store and watch to get change
-	// notifications instead of using a polling solution.
-	watchPollInterval = 100 * time.Millisecond
-
 	// maxLocationsInSignpost is the maximum number of Locations that
 	// mergeSignposts() will permit in a Signpost.  Locations with more
 	// recent WhenSeen values are kept preferentially.  Also, locateBlob

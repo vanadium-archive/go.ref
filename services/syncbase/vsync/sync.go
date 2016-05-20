@@ -154,12 +154,12 @@ var (
 
 // New creates a new sync module.
 //
-// Concurrency: sync initializes four goroutines at startup: a "watcher", a
-// "syncer", a "neighborhood scanner", and a "peer manager". The "watcher"
-// thread is responsible for watching the store for changes to its objects. The
-// "syncer" thread is responsible for periodically contacting peers to fetch
-// changes from them. The "neighborhood scanner" thread continuously scans the
-// neighborhood to learn of other Syncbases and syncgroups in its
+// Concurrency: sync initializes 3 goroutines at startup: a "syncer", a
+// "neighborhood scanner", and a "peer manager".  In addition, one "watcher"
+// thread is started for each database to watch its store for changes to its
+// objects. The "syncer" thread is responsible for periodically contacting peers
+// to fetch changes from them. The "neighborhood scanner" thread continuously
+// scans the neighborhood to learn of other Syncbases and syncgroups in its
 // neighborhood. The "peer manager" thread continuously maintains viable peers
 // that the syncer can pick from. In addition, the sync module responds to
 // incoming RPCs from remote sync modules and local clients.
@@ -215,10 +215,7 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 
 	// Channel to propagate close event to all threads.
 	s.closed = make(chan struct{})
-	s.pending.Add(4)
-
-	// Start watcher thread to watch for updates to local store.
-	go s.watchStore(ctx)
+	s.pending.Add(3)
 
 	// Initialize a peer manager with the peer selection policy.
 	s.pm = newPeerManager(ctx, s, selectRandom)

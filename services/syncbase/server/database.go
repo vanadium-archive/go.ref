@@ -29,6 +29,7 @@ import (
 	"v.io/x/ref/services/syncbase/store"
 	storeutil "v.io/x/ref/services/syncbase/store/util"
 	"v.io/x/ref/services/syncbase/store/watchable"
+	"v.io/x/ref/services/syncbase/vsync"
 	sbwatchable "v.io/x/ref/services/syncbase/watchable"
 )
 
@@ -171,7 +172,7 @@ func openDatabase(ctx *context.T, s *service, id wire.Id, opts DatabaseOptions, 
 		// TODO(ivanpi): Since ManagedPrefixes control what gets synced, they
 		// should be moved to a more visible place (e.g. constants). Also consider
 		// decoupling managed and synced prefixes.
-		ManagedPrefixes: []string{common.RowPrefix, common.CollectionPermsPrefix},
+		ManagedPrefixes: []string{common.CollectionPermsPrefix, common.RowPrefix},
 	})
 	if err != nil {
 		return nil, err
@@ -203,6 +204,10 @@ func newDatabase(ctx *context.T, s *service, id wire.Id, metadata *wire.SchemaMe
 	if err := store.Put(ctx, d.st, d.stKey(), data); err != nil {
 		return nil, err
 	}
+
+	// Start a Sync watcher on this newly created database store.
+	vsync.NewSyncDatabase(d).StartStoreWatcher(ctx)
+
 	return d, nil
 }
 

@@ -188,6 +188,12 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		return nil, err
 	}
 
+	// With Sync and the pre-existing DBs initialized, the store can start a
+	// Sync watcher for each DB store, similar to the flow of a DB creation.
+	for _, d := range s.dbs {
+		vsync.NewSyncDatabase(d).StartStoreWatcher(ctx)
+	}
+
 	// Start the vclock daemon. For now, we disable NTP when running in dev mode.
 	// If we decide to change this behavior, we'll need to update the tests in
 	// v.io/v23/syncbase/featuretests/vclock_v23_test.go to disable NTP some other

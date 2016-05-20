@@ -75,7 +75,6 @@ func TestSetResmark(t *testing.T) {
 
 // TestWatchPrefixes tests setting and updating the watch prefixes map.
 func TestWatchPrefixes(t *testing.T) {
-	watchPollInterval = time.Millisecond
 	svc := createService(t)
 	defer destroyService(t, svc)
 
