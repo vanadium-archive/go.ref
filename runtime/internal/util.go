@@ -76,17 +76,7 @@ func (IPAddressChooser) ChooseAddresses(network string, addrs []net.Addr) ([]net
 	if !strings.HasSuffix(network, "4") {
 		predicates = append(predicates, netstate.IsPublicUnicastIPv6, netstate.IsUnicastIPv6)
 	}
-	for _, predicate := range predicates {
-		if addrs := accessible.Filter(predicate); len(addrs) > 0 {
-			onDefaultRoutes := addrs.Filter(netstate.IsOnDefaultRoute)
-			if len(onDefaultRoutes) > 0 {
-				return onDefaultRoutes.AsNetAddrs(), nil
-			}
-		}
-	}
 
-	// We failed to find any addresses with default routes, try again
-	// but without the default route requirement.
 	for _, predicate := range predicates {
 		if addrs := accessible.Filter(predicate); len(addrs) > 0 {
 			return addrs.AsNetAddrs(), nil
