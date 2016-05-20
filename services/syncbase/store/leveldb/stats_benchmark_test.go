@@ -18,8 +18,8 @@ var (
 func BenchmarkStats_FileSystemBytes_NoData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
-	defer b.StopTimer() // called before cleanup() to avoid timing it
-	b.ResetTimer()      // Ignore timing of init stuff above
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
+	b.ResetTimer()      // Ignore timing of init stuff above.
 
 	for i := 0; i < b.N; i++ {
 		accumulate += int(bs.filesystemBytes())
@@ -30,9 +30,9 @@ func BenchmarkStats_FileSystemBytes_NoData(b *testing.B) {
 func BenchmarkStats_FileSystemBytes_SomeData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
-	defer b.StopTimer() // called before cleanup() to avoid timing it
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
 	write10kB(bs)
-	b.ResetTimer() // Ignore timing of init stuff above
+	b.ResetTimer() // Ignore timing of init stuff above.
 
 	for i := 0; i < b.N; i++ {
 		accumulate += int(bs.filesystemBytes())
@@ -43,9 +43,9 @@ func BenchmarkStats_FileSystemBytes_SomeData(b *testing.B) {
 func BenchmarkStats_FileSystemBytes_LotsOfData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
-	defer b.StopTimer() // called before cleanup() to avoid timing it
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
 	write100MB(bs)
-	b.ResetTimer() // Ignore timing of init stuff above
+	b.ResetTimer() // Ignore timing of init stuff above.
 
 	for i := 0; i < b.N; i++ {
 		accumulate += int(bs.filesystemBytes())
@@ -56,8 +56,8 @@ func BenchmarkStats_FileSystemBytes_LotsOfData(b *testing.B) {
 func BenchmarkStats_FileCount_NoData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
-	defer b.StopTimer() // called before cleanup() to avoid timing it
-	b.ResetTimer()      // Ignore timing of init stuff above
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
+	b.ResetTimer()      // Ignore timing of init stuff above.
 
 	for i := 0; i < b.N; i++ {
 		accumulate += bs.fileCount()
@@ -68,9 +68,9 @@ func BenchmarkStats_FileCount_NoData(b *testing.B) {
 func BenchmarkStats_FileCount_SomeData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
-	defer b.StopTimer() // called before cleanup() to avoid timing it
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
 	write10kB(bs)
-	b.ResetTimer() // Ignore timing of init stuff above
+	b.ResetTimer() // Ignore timing of init stuff above.
 
 	for i := 0; i < b.N; i++ {
 		accumulate += bs.fileCount()
@@ -81,9 +81,9 @@ func BenchmarkStats_FileCount_SomeData(b *testing.B) {
 func BenchmarkStats_FileCount_LotsOfData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
-	defer b.StopTimer() // called before cleanup() to avoid timing it
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
 	write100MB(bs)
-	b.ResetTimer() // Ignore timing of init stuff above
+	b.ResetTimer() // Ignore timing of init stuff above.
 
 	for i := 0; i < b.N; i++ {
 		accumulate += bs.fileCount()
@@ -94,8 +94,8 @@ func BenchmarkStats_FileCount_LotsOfData(b *testing.B) {
 func BenchmarkStats_Stats_NoData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
-	defer b.StopTimer() // called before cleanup() to avoid timing it
-	b.ResetTimer()      // Ignore timing of init stuff above
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
+	b.ResetTimer()      // Ignore timing of init stuff above.
 
 	for i := 0; i < b.N; i++ {
 		var c, s, r, w []int
@@ -108,9 +108,9 @@ func BenchmarkStats_Stats_NoData(b *testing.B) {
 func BenchmarkStats_Stats_SomeData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
-	defer b.StopTimer() // called before cleanup() to avoid timing it
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
 	write10kB(bs)
-	b.ResetTimer() // Ignore timing of init stuff above
+	b.ResetTimer() // Ignore timing of init stuff above.
 
 	for i := 0; i < b.N; i++ {
 		var c, s, r, w []int
@@ -123,9 +123,9 @@ func BenchmarkStats_Stats_SomeData(b *testing.B) {
 func BenchmarkStats_Stats_LotsOfData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
-	defer b.StopTimer() // called before cleanup() to avoid timing it
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
 	write100MB(bs)
-	b.ResetTimer() // Ignore timing of init stuff above
+	b.ResetTimer() // Ignore timing of init stuff above.
 
 	for i := 0; i < b.N; i++ {
 		var c, s, r, w []int
@@ -135,14 +135,14 @@ func BenchmarkStats_Stats_LotsOfData(b *testing.B) {
 
 }
 
-// For comparison with stats calls, benchmark single Get call on small DB
+// For comparison with stats calls, benchmark single Get call on small DB.
 func BenchmarkStats_Get_SomeData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
-	defer b.StopTimer() // called before cleanup() to avoid timing it
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
 	keys := write10kB(bs)
 	n := len(keys)
-	b.ResetTimer() // Ignore timing of init stuff above
+	b.ResetTimer() // Ignore timing of init stuff above.
 
 	for i := 0; i < b.N; i++ {
 		var val []byte
@@ -152,14 +152,14 @@ func BenchmarkStats_Get_SomeData(b *testing.B) {
 
 }
 
-// For comparison with stats calls, benchmark single Get call on large DB
+// For comparison with stats calls, benchmark single Get call on large DB.
 func BenchmarkStats_Get_LotsOfData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
-	defer b.StopTimer() // called before cleanup() to avoid timing it
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
 	keys := write100MB(bs)
 	n := len(keys)
-	b.ResetTimer() // Ignore timing of init stuff above
+	b.ResetTimer() // Ignore timing of init stuff above.
 
 	for i := 0; i < b.N; i++ {
 		var val []byte

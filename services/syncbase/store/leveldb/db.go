@@ -261,8 +261,8 @@ func (d *db) stats() (fileCounts, fileMBs, readMBs, writeMBs []int, err error) {
 	return
 }
 
-// fileCount eturns the number of "level" files.  The performance of this is
-// constant for different sizes databases, and is about the same as the
+// fileCount returns the number of "level" files.  The performance of this is
+// constant for different size databases, and is about the same as the
 // performance of a Get on a small database.
 func (d *db) fileCount() int {
 	return int(C.syncbase_leveldb_file_count(d.cDb))

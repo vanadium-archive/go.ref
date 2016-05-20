@@ -7,6 +7,7 @@ package leveldb
 import (
 	"fmt"
 	"io/ioutil"
+	"math"
 	"math/rand"
 	"testing"
 
@@ -70,7 +71,7 @@ func TestWithLotsOfData(t *testing.T) {
 		t.Errorf("Wanted more than a kB. Got %d B", byteCount)
 	}
 
-	// Accoridng to https://rawgit.com/google/leveldb/master/doc/impl.html
+	// According to https://rawgit.com/google/leveldb/master/doc/impl.html
 	// the files are of size 2 MB, so because we have writen 100 MB we
 	// expect that eventually that will be 50 files.  But let's be
 	// conservative and assume only half of the data has made it out to the
@@ -94,7 +95,7 @@ func TestWithLotsOfData(t *testing.T) {
 	if sum(fileCountsFromStats) != fileCount {
 		t.Errorf("Got %d files, want %d", sum(fileCountsFromStats), fileCount)
 	}
-	// Wealso previously got this a different way.  Let's make sure the two
+	// We also previously got this a different way.  Let's make sure the two
 	// ways match, at least approximately.
 	totFileBytes := uint64(sum(fileMBs)) * 1024 * 1024
 	if !approxEquals(totFileBytes, byteCount) {
@@ -102,7 +103,7 @@ func TestWithLotsOfData(t *testing.T) {
 			totFileBytes, byteCount)
 	}
 	// As LevelDB does compression, we assume it has to read a significant
-	// mount from the file system.
+	// amount from the file system.
 	if sum(readMBs) < 10 {
 		t.Errorf("Got %d MB of reads, want 1 MB or more", sum(readMBs))
 	}
@@ -113,9 +114,11 @@ func TestWithLotsOfData(t *testing.T) {
 	}
 }
 
-// True if within 10%
+// True if within 10%.
 func approxEquals(a, b uint64) bool {
-	return a > 90*b/100 && a < 110*b/100
+	diff := math.Abs(float64(a) - float64(b))
+	mean := float64(a+b) / 2.0
+	return diff/mean < 0.1
 }
 
 func newBatchStore() (bs *db, cleanup func()) {
@@ -140,7 +143,7 @@ func newBatchStore() (bs *db, cleanup func()) {
 	return
 }
 
-// Write 10 bytes each to 1024 keys, returning keys written
+// Write 10 bytes each to 1024 keys, returning keys written.
 func write10kB(bs transactions.BatchStore) (keys [][]byte) {
 	tenB := make([]byte, 10)
 
@@ -161,7 +164,7 @@ func write10kB(bs transactions.BatchStore) (keys [][]byte) {
 	return
 }
 
-// Write 100 kB each to 1024 keys, returning keys written
+// Write 100 kB each to 1024 keys, returning keys written.
 func write100MB(bs transactions.BatchStore) (keys [][]byte) {
 	hundredKB := make([]byte, 100*1024)
 
