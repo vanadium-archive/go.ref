@@ -740,7 +740,7 @@ func (m *manager) DialSideChannel(ctx *context.T, remote naming.Endpoint, auth f
 func (m *manager) DialCached(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer, channelTimeout time.Duration) (flow.Flow, error) {
 	var (
 		err                        error
-		c                          *conn.Conn
+		cached                     cachedConn
 		names                      []string
 		rejected                   []security.RejectedBlessing
 		addr                       = remote.Addr()
@@ -751,9 +751,9 @@ func (m *manager) DialCached(ctx *context.T, remote naming.Endpoint, auth flow.P
 		// In the case the endpoint has a RoutingID we only want to check the cache
 		// for the RoutingID because we want to guarantee that the connection we
 		// return is to the end server and not a connection to an intermediate proxy.
-		c, names, rejected, err = m.cache.FindWithRoutingID(ctx, remote, auth)
+		cached, names, rejected, err = m.cache.FindWithRoutingID(ctx, remote, auth)
 	} else {
-		c, names, rejected, err = m.cache.Find(ctx, remote, unresNetwork, unresAddress, auth, protocol)
+		cached, names, rejected, err = m.cache.Find(ctx, remote, unresNetwork, unresAddress, auth, protocol)
 		if err == nil {
 			m.cache.Unreserve(unresNetwork, unresAddress)
 		}
@@ -761,10 +761,10 @@ func (m *manager) DialCached(ctx *context.T, remote naming.Endpoint, auth flow.P
 	if err != nil {
 		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 	}
-	if c == nil {
+	if cached == nil {
 		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, NewErrConnNotInCache(ctx, remote.String()))
 	}
-
+	c := cached.(*conn.Conn)
 	return dialFlow(ctx, c, remote, names, rejected, channelTimeout, auth, false)
 }
 
@@ -776,6 +776,7 @@ func (m *manager) internalDial(
 	proxy, sideChannel bool) (flow.Flow, error) {
 	// Fast path, look for the conn based on unresolved network, address, and routingId first.
 	var (
+		c                          *conn.Conn
 		addr                       = remote.Addr()
 		unresNetwork, unresAddress = addr.Network(), addr.String()
 		protocol, _                = flow.RegisteredProtocol(unresNetwork)
@@ -783,11 +784,12 @@ func (m *manager) internalDial(
 	if m.ls != nil && len(m.ls.serverAuthorizedPeers) > 0 {
 		auth = &peerAuthorizer{auth, m.ls.serverAuthorizedPeers}
 	}
-	c, names, rejected, err := m.cache.Find(ctx, remote, unresNetwork, unresAddress, auth, protocol)
+	cached, names, rejected, err := m.cache.Find(ctx, remote, unresNetwork, unresAddress, auth, protocol)
 	if err != nil {
 		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 	}
-	if c != nil {
+	if cached != nil {
+		c = cached.(*conn.Conn)
 		m.cache.Unreserve(unresNetwork, unresAddress)
 	} else {
 		// We didn't find the connection we want in the cache.  Dial it.

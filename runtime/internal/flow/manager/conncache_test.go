@@ -155,8 +155,8 @@ func TestCache(t *testing.T) {
 		t.Errorf("got %v, want <nil>, err: %v", got, err)
 	}
 	// Looking it up again should block until a matching Unreserve call is made.
-	ch := make(chan *connpackage.Conn, 1)
-	go func(ch chan *connpackage.Conn) {
+	ch := make(chan cachedConn, 1)
+	go func(ch chan cachedConn) {
 		conn, _, _, err := c.Find(ctx, nullOtherEP, otherEP.Protocol, otherEP.Address, otherAuth, p)
 		if err != nil {
 			t.Fatal(err)
@@ -411,6 +411,108 @@ func TestIdleConns(t *testing.T) {
 		}
 	}
 }
+
+func TestMultiRTTConns(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	c := NewConnCache(0)
+	remote := naming.Endpoint{
+		Protocol:  "tcp",
+		Address:   "127.0.0.1:1111",
+		RoutingID: naming.FixedRoutingID(0x5555),
+	}.WithBlessingNames(unionBlessing(ctx, "A", "B", "C"))
+	auth := flowtest.NewPeerAuthorizer(remote.BlessingNames())
+	slow, med, fast := 3*time.Millisecond, 2*time.Millisecond, 1*time.Millisecond
+	// Add a slow connection into the cache and ensure it is found.
+	slowConn := newRTTConn(ctx, remote, slow)
+	if err := c.Insert(slowConn, false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _, _, err := c.Find(ctx, remote, remote.Protocol, remote.Address, auth, nil); err != nil || got != slowConn {
+		t.Errorf("got %v, want %v, err: %v", got, slowConn, err)
+	}
+	c.Unreserve(remote.Protocol, remote.Address)
+
+	// Add a fast connection into the cache and ensure it is found over the slow one.
+	fastConn := newRTTConn(ctx, remote, fast)
+	if err := c.Insert(fastConn, false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _, _, err := c.Find(ctx, remote, remote.Protocol, remote.Address, auth, nil); err != nil || got != fastConn {
+		t.Errorf("got %v, want %v, err: %v", got, fastConn, err)
+	}
+	c.Unreserve(remote.Protocol, remote.Address)
+
+	// Add a med connection into the cache and ensure that the fast one is still found.
+	medConn := newRTTConn(ctx, remote, med)
+	if err := c.Insert(medConn, false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _, _, err := c.Find(ctx, remote, remote.Protocol, remote.Address, auth, nil); err != nil || got != fastConn {
+		t.Errorf("got %v, want %v, err: %v", got, fastConn, err)
+	}
+	c.Unreserve(remote.Protocol, remote.Address)
+
+	// Kill the fast connection and ensure the med connection is found.
+	fastConn.Close(ctx, nil)
+	if got, _, _, err := c.Find(ctx, remote, remote.Protocol, remote.Address, auth, nil); err != nil || got != medConn {
+		t.Errorf("got %v, want %v, err: %v", got, medConn, err)
+	}
+	c.Unreserve(remote.Protocol, remote.Address)
+}
+
+func newRTTConn(ctx *context.T, ep naming.Endpoint, rtt time.Duration) *rttConn {
+	return &rttConn{
+		ctx:    ctx,
+		ep:     ep,
+		rtt:    rtt,
+		closed: make(chan struct{}),
+	}
+}
+
+type rttConn struct {
+	ctx    *context.T
+	ep     naming.Endpoint
+	rtt    time.Duration
+	closed chan struct{}
+}
+
+func (c *rttConn) Status() connpackage.Status {
+	select {
+	case <-c.closed:
+		return connpackage.Closed
+	default:
+		return connpackage.Active
+	}
+}
+func (c *rttConn) IsEncapsulated() bool                  { return false }
+func (c *rttConn) IsIdle(*context.T, time.Duration) bool { return false }
+func (c *rttConn) EnterLameDuck(*context.T) chan struct{} {
+	ch := make(chan struct{})
+	close(ch)
+	return ch
+}
+func (c *rttConn) RemoteLameDuck() bool                       { return false }
+func (c *rttConn) CloseIfIdle(*context.T, time.Duration) bool { return false }
+func (c *rttConn) Close(*context.T, error) {
+	select {
+	case <-c.closed:
+	default:
+		close(c.closed)
+	}
+}
+func (c *rttConn) RemoteEndpoint() naming.Endpoint { return c.ep }
+func (c *rttConn) LocalEndpoint() naming.Endpoint  { return c.ep }
+func (c *rttConn) RemoteBlessings() security.Blessings {
+	b, _ := v23.GetPrincipal(c.ctx).BlessingStore().Default()
+	return b
+}
+func (c *rttConn) RemoteDischarges() map[string]security.Discharge { return nil }
+func (c *rttConn) RTT() time.Duration                              { return c.rtt }
+func (c *rttConn) LastUsed() time.Time                             { return time.Now() }
+func (c *rttConn) DebugString() string                             { return "" }
 
 func isInCache(t *testing.T, ctx *context.T, c *ConnCache, conn *connpackage.Conn) bool {
 	p, _ := flow.RegisteredProtocol("local")
