@@ -33,7 +33,7 @@ var homeTmpl = template.Must(template.New("main").Parse(`<!doctype html>
       Your instances:
     </p>
     {{range $index, $element := .Instances}}
-       {{.Name}}  [<span id="destroyBtn{{$index}}"><a href="{{.DestroyURL}}" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes a few seconds) ...')">Destroy</a></span>][<a href="{{.DashboardURL}}" target="_blank">Dashboard</a>]
+       {{.Name}}  [<span id="destroyBtn{{$index}}"><a href="{{.DestroyURL}}" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes a few seconds) ...')">Destroy</a></span>][<a href="{{.DashboardURL}}" target="_blank">Dashboard</a>]<br/>
     {{else}}
        None found.
     {{end}}
