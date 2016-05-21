@@ -634,6 +634,7 @@ var cmdRoot = &cmdline.Command{
 		},
 		cmdBrowse,
 		cmdDelegate,
+		cmdDiscovery,
 	},
 }
 

@@ -19,6 +19,7 @@ The debug commands are:
    pprof       Accesses profiling data
    browse      Starts an interactive interface for debugging
    delegate    Create credentials to delegate debugging to another user
+   discovery   Scan and advertise using the v23 discovery API
    help        Display help for commands or topics
 
 The debug flags are:
@@ -350,6 +351,42 @@ The debug delegate flags are:
    Comma-separated list of access tags on methods that can be invoked by the
    delegate
 
+ -timeout=10s
+   Time to wait for various RPCs
+
+Debug discovery - Scan and advertise using the v23 discovery API
+
+Usage:
+   debug discovery [flags] <command>
+
+The debug discovery commands are:
+   scan        Scan for advertised v23 services
+
+The debug discovery flags are:
+ -timeout=10s
+   Time to wait for various RPCs
+
+Debug discovery scan - Scan for advertised v23 services
+
+Scans for advertised v23 services that match the provided query. The set of
+protocols over which services are scanned for depends on the platform on which
+this command is being run. As of May 2016, services advertised over mDNS should
+be scannable on all platforms but services advertised over BluetoothLE would be
+scannable only on OS X.
+
+Usage:
+   debug discovery scan [flags] [<query>]
+
+<query> scans for services that match the provided query. An empty query causes
+all services to be scanned for. See https://godoc.org/v.io/v23/discovery#T for
+details.
+
+Sample queries:
+  v.InterfaceName = "v.io/i"
+  v.InterfaceName = "v.io/i" AND v.Attributes["a"] = "v"
+  v.Attributes["a"] = "v1" OR v.Attributes["a"] = "v2"
+
+The debug discovery scan flags are:
  -timeout=10s
    Time to wait for various RPCs
 
