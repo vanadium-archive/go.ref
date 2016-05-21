@@ -47,6 +47,7 @@ var (
 	secureCookiesFlag       bool
 	dashboardGCMMetricFlag  string
 	dashboardGCMProjectFlag string
+	staticAssetsPrefixFlag  string
 
 	cmdRoot = &cmdline.Command{
 		Runner: v23cmd.RunnerFunc(runAllocator),
@@ -82,6 +83,7 @@ func main() {
 	cmdRoot.Flags.BoolVar(&secureCookiesFlag, "secure-cookies", true, "Whether to use only secure cookies.  Should be true unless running the server without TLS for testing.")
 	cmdRoot.Flags.StringVar(&dashboardGCMMetricFlag, "dashboard-gcm-metric", "", "The metric name used to get data from GCM to render dashboard charts.")
 	cmdRoot.Flags.StringVar(&dashboardGCMProjectFlag, "dashboard-gcm-project", "", "The project name used to get data from GCM to render dashboard charts.")
+	cmdRoot.Flags.StringVar(&staticAssetsPrefixFlag, "static-assets-prefix", "", "Host serving the web assets.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }
@@ -143,6 +145,7 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 			serverName:          serverNameFlag,
 			secureCookies:       secureCookiesFlag,
 			baseBlessings:       baseBlessings,
+			staticAssetsPrefix:  staticAssetsPrefixFlag,
 			assets:              ah,
 		})
 		defer cleanup()

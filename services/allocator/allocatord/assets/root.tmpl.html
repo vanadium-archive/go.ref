@@ -1,14 +1,16 @@
 <!doctype html>
 <html>
 <head>
-  <title>Vanadium Allocator</title>
+  <title>Vanadium {{title .ServerName}} Allocator</title>
+  {{template "head" .}}
 </head>
-<body>
-  <font face="courier">
-  <h1>Create and Manage Instances of <<{{.ServerName}}>></h1>
-  <p>
-    <a href="{{.Home}}">Log in</a>
-  </p>
-  </font>
+<body class="identityprovider-layout">
+  {{template "header" .}}>
+  <main>
+    <h1 class="page-head">Create and Manage Instances of {{title .ServerName}}</h1>
+    <p>
+      <a href="{{.Home}}">Log in</a>
+    </p>
+  </main>
 </body>
 </html>

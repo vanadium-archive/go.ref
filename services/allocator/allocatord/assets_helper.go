@@ -31,11 +31,13 @@ var contentTypes = map[string]string{
 }
 
 const (
-	badRequestTmpl = "bad-request.tmpl.html"
-	dashboardTmpl  = "dashboard.tmpl.html"
-	errorTmpl      = "error.tmpl.html"
-	homeTmpl       = "home.tmpl.html"
-	rootTmpl       = "root.tmpl.html"
+	badRequestTmpl    = "bad-request.tmpl.html"
+	dashboardTmpl     = "dashboard.tmpl.html"
+	errorTmpl         = "error.tmpl.html"
+	homeTmpl          = "home.tmpl.html"
+	rootTmpl          = "root.tmpl.html"
+	headPartialTmpl   = "head.tmpl.html"
+	headerPartialTmpl = "header.tmpl.html"
 )
 
 // newAssetsHelper returns an object that provides compiled-in assets if dir is
@@ -103,7 +105,10 @@ func (a *assetsHelper) template(name string) (*template.Template, error) {
 	if err != nil {
 		return nil, err
 	}
-	t, err := template.New(name).Parse(string(data))
+	t, err := template.New(name).Funcs(template.FuncMap{
+		"title":    strings.Title,
+		"kubeName": kubeNameFromMountName,
+	}).Parse(string(data))
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +118,20 @@ func (a *assetsHelper) template(name string) (*template.Template, error) {
 func (a *assetsHelper) executeTemplate(w http.ResponseWriter, tmpl string, args interface{}) error {
 	t, err := a.template(tmpl)
 	if err != nil {
+		return err
+	}
+	addPartial := func(partialTmpl string) error {
+		partialData, err := a.file(partialTmpl)
+		if err != nil {
+			return err
+		}
+		t, err = t.Parse(string(partialData))
+		return err
+	}
+	if err := addPartial(headPartialTmpl); err != nil {
+		return err
+	}
+	if err := addPartial(headerPartialTmpl); err != nil {
 		return err
 	}
 	return t.Execute(w, args)

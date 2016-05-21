@@ -79,7 +79,10 @@ type httpArgs struct {
 	secureCookies bool
 	oauthCreds    *oauthCredentials
 	baseBlessings security.Blessings
-	assets        *assetsHelper
+	// URI prefix for static assets served from (another) content server.
+	staticAssetsPrefix string
+	// Manages locally served resources.
+	assets *assetsHelper
 }
 
 func (a httpArgs) validate() error {
@@ -124,7 +127,17 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 	}
 
 	http.HandleFunc(routeRoot, func(w http.ResponseWriter, r *http.Request) {
-		tmplArgs := struct{ Home, ServerName string }{routeHome, args.serverName}
+		tmplArgs := struct {
+			AssetsPrefix,
+			Home,
+			Email,
+			ServerName string
+		}{
+			AssetsPrefix: args.staticAssetsPrefix,
+			Home:         routeHome,
+			Email:        "", // Ask the user to log in.
+			ServerName:   args.serverName,
+		}
 		if err := args.assets.executeTemplate(w, rootTmpl, tmplArgs); err != nil {
 			args.assets.errorOccurred(ctx, w, r, routeHome, err)
 			ctx.Infof("%s[%s] : error %v", r.Method, r.URL, err)
@@ -223,16 +236,18 @@ func handleHome(ss *serverState, rs *requestState) error {
 	}
 	type instanceArg struct{ Name, DestroyURL, DashboardURL string }
 	tmplArgs := struct {
+		AssetsPrefix,
 		ServerName,
 		Email,
 		CreateURL,
 		Message string
 		Instances []instanceArg
 	}{
-		ServerName: ss.args.serverName,
-		Email:      rs.email,
-		CreateURL:  makeURL(ctx, routeCreate, params{paramCSRF: rs.csrfToken}),
-		Message:    rs.r.FormValue(paramMessage),
+		AssetsPrefix: ss.args.staticAssetsPrefix,
+		ServerName:   ss.args.serverName,
+		Email:        rs.email,
+		CreateURL:    makeURL(ctx, routeCreate, params{paramCSRF: rs.csrfToken}),
+		Message:      rs.r.FormValue(paramMessage),
 	}
 	for _, instance := range instances {
 		tmplArgs.Instances = append(tmplArgs.Instances, instanceArg{
