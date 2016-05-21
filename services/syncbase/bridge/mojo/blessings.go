@@ -52,22 +52,15 @@
 package bridge_mojo
 
 import (
-	"encoding/base64"
 	"fmt"
-	"io/ioutil"
-	"net/http"
+	"runtime"
 
 	"mojo/public/go/application"
 	"mojo/public/go/bindings"
 	"mojo/services/authentication/interfaces/authentication"
-	"net/url"
-	"runtime"
 
-	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/security"
-	"v.io/v23/vom"
-	seclib "v.io/x/ref/lib/security"
+	"v.io/x/ref/services/syncbase/bridge"
 )
 
 type selectAccountFailed struct {
@@ -100,17 +93,7 @@ func SetBlessings(v23ctx *context.T, appctx application.Context) error {
 		}
 		return err
 	}
-	v23ctx.Infof("Obtained OAuth2 token, will exchange for blessings")
-	p := v23.GetPrincipal(v23ctx)
-	blessings, err := token2blessings(appctx, token, p.PublicKey())
-	if err != nil {
-		return err
-	}
-	v23ctx.Infof("Obtained blessings %v", blessings)
-	if err := seclib.SetDefaultBlessings(p, blessings); err != nil {
-		return fmt.Errorf("failed to use blessings: %v", err)
-	}
-	return nil
+	return bridge.SetBlessings(v23ctx, "google", token)
 }
 
 func oauthToken(ctx application.Context) (string, error) {
@@ -126,48 +109,4 @@ func oauthToken(ctx application.Context) (string, error) {
 		return "", fmt.Errorf("failed to obtain an OAuth2 token for %q: %v", *name, errstr)
 	}
 	return *token, nil
-}
-
-func token2blessings(ctx application.Context, token string, key security.PublicKey) (security.Blessings, error) {
-	var ret security.Blessings
-	url, err := token2blessingURL(token, key)
-	if err != nil {
-		return ret, err
-	}
-
-	resp, err := http.Get(url)
-	if err != nil {
-		return ret, fmt.Errorf("HTTP request to exchange OAuth token for blessings failed: %v", err)
-	}
-
-	defer resp.Body.Close()
-	b64bytes, err := ioutil.ReadAll(resp.Body)
-
-	vombytes, err := base64.URLEncoding.DecodeString(string(b64bytes))
-	if err != nil {
-		return ret, fmt.Errorf("invalid base64 encoded blessings: %v", err)
-	}
-	if err := vom.Decode(vombytes, &ret); err != nil {
-		return ret, fmt.Errorf("invalid encoded blessings: %v", err)
-	}
-	return ret, nil
-}
-
-func token2blessingURL(token string, key security.PublicKey) (string, error) {
-	base, err := url.Parse("https://dev.v.io/auth/google/bless")
-	if err != nil {
-		return "", fmt.Errorf("failed to parse blessing URL: %v", err)
-	}
-	pub, err := key.MarshalBinary()
-	if err != nil {
-		return "", fmt.Errorf("invalid public key: %v", err)
-	}
-
-	params := url.Values{}
-	params.Add("public_key", base64.URLEncoding.EncodeToString(pub))
-	params.Add("token", token)
-	params.Add("output_format", "base64vom")
-
-	base.RawQuery = params.Encode()
-	return base.String(), nil
 }
