@@ -41,15 +41,13 @@ func (x WireString) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *WireString) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_int32_1); err != nil {
+	switch value, err := dec.ReadValueInt(32); {
+	case err != nil:
 		return err
+	default:
+		*x = WireString(value)
 	}
-	tmp, err := dec.DecodeInt(32)
-	if err != nil {
-		return err
-	}
-	*x = WireString(tmp)
-	return dec.FinishValue()
+	return nil
 }
 
 type WireTime int32
@@ -74,15 +72,13 @@ func (x WireTime) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *WireTime) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_int32_2); err != nil {
+	switch value, err := dec.ReadValueInt(32); {
+	case err != nil:
 		return err
+	default:
+		*x = WireTime(value)
 	}
-	tmp, err := dec.DecodeInt(32)
-	if err != nil {
-		return err
-	}
-	*x = WireTime(tmp)
-	return dec.FinishValue()
+	return nil
 }
 
 type WireSamePkg int32
@@ -107,15 +103,13 @@ func (x WireSamePkg) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *WireSamePkg) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_int32_3); err != nil {
+	switch value, err := dec.ReadValueInt(32); {
+	case err != nil:
 		return err
+	default:
+		*x = WireSamePkg(value)
 	}
-	tmp, err := dec.DecodeInt(32)
-	if err != nil {
-		return err
-	}
-	*x = WireSamePkg(tmp)
-	return dec.FinishValue()
+	return nil
 }
 
 type WireMultiImport int32
@@ -140,15 +134,13 @@ func (x WireMultiImport) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *WireMultiImport) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_int32_4); err != nil {
+	switch value, err := dec.ReadValueInt(32); {
+	case err != nil:
 		return err
+	default:
+		*x = WireMultiImport(value)
 	}
-	tmp, err := dec.DecodeInt(32)
-	if err != nil {
-		return err
-	}
-	*x = WireMultiImport(tmp)
-	return dec.FinishValue()
+	return nil
 }
 
 type WireRenameMe int32
@@ -173,15 +165,13 @@ func (x WireRenameMe) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *WireRenameMe) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_int32_5); err != nil {
+	switch value, err := dec.ReadValueInt(32); {
+	case err != nil:
 		return err
+	default:
+		*x = WireRenameMe(value)
 	}
-	tmp, err := dec.DecodeInt(32)
-	if err != nil {
-		return err
-	}
-	*x = WireRenameMe(tmp)
-	return dec.FinishValue()
+	return nil
 }
 
 type WireAll struct {
@@ -328,8 +318,11 @@ func (x *WireAll) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "E":
-			if err := x.E.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueInt(32); {
+			case err != nil:
 				return err
+			default:
+				x.E = WireRenameMe(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -361,15 +354,13 @@ func (x ignoreme) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *ignoreme) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_string_7); err != nil {
+	switch value, err := dec.ReadValueString(); {
+	case err != nil:
 		return err
+	default:
+		*x = ignoreme(value)
 	}
-	tmp, err := dec.DecodeString()
-	if err != nil {
-		return err
-	}
-	*x = ignoreme(tmp)
-	return dec.FinishValue()
+	return nil
 }
 
 // Type-check native conversion functions.

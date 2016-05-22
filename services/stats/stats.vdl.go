@@ -86,26 +86,18 @@ func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "LowBound":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.LowBound, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.LowBound = value
 			}
 		case "Count":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Count, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Count = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -262,48 +254,32 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Count":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Count, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Count = value
 			}
 		case "Sum":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Sum, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Sum = value
 			}
 		case "Min":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Min, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Min = value
 			}
 		case "Max":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Max, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Max = value
 			}
 		case "Buckets":
 			if err := __VDLReadAnon_list_1(dec, &x.Buckets); err != nil {
@@ -321,10 +297,9 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]HistogramBucket) error {
 	if err := dec.StartValue(__VDLType_list_3); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]HistogramBucket, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
@@ -333,12 +308,13 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]HistogramBucket) error {
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			var elem HistogramBucket
+			if err := elem.VDLRead(dec); err != nil {
+				return err
+			}
+			*x = append(*x, elem)
 		}
-		var elem HistogramBucket
-		if err := elem.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 

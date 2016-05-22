@@ -92,15 +92,11 @@ func (x *GameId) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Id":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Id, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Id = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -132,15 +128,13 @@ func (x GameTypeTag) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *GameTypeTag) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_byte_2); err != nil {
+	switch value, err := dec.ReadValueUint(8); {
+	case err != nil:
 		return err
+	default:
+		*x = GameTypeTag(value)
 	}
-	tmp, err := dec.DecodeUint(8)
-	if err != nil {
-		return err
-	}
-	*x = GameTypeTag(tmp)
-	return dec.FinishValue()
+	return nil
 }
 
 // GameOptions specifies the parameters of a game.
@@ -204,20 +198,18 @@ func (x *GameOptions) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "NumRounds":
-			if err := dec.StartValue(vdl.Int32Type); err != nil {
+			switch value, err := dec.ReadValueInt(32); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeInt(32)
-			if err != nil {
-				return err
-			}
-			x.NumRounds = int32(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.NumRounds = int32(value)
 			}
 		case "GameType":
-			if err := x.GameType.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueUint(8); {
+			case err != nil:
 				return err
+			default:
+				x.GameType = GameTypeTag(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -367,15 +359,11 @@ func VDLReadPlayerAction(dec vdl.Decoder, x *PlayerAction) error {
 	switch f {
 	case "Move":
 		var field PlayerActionMove
-		if err := dec.StartValue(vdl.StringType); err != nil {
+		switch value, err := dec.ReadValueString(); {
+		case err != nil:
 			return err
-		}
-		var err error
-		if field.Value, err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
-			return err
+		default:
+			field.Value = value
 		}
 		*x = field
 	case "Quit":
@@ -437,28 +425,23 @@ func (x *PlayersMoves) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_array_6); err != nil {
 		return err
 	}
-	index := 0
-	for {
-		switch done, err := dec.NextEntry(); {
+	for index := 0; index < 2; index++ {
+		switch done, elem, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
-		case done != (index >= len(*x)):
-			return fmt.Errorf("array len mismatch, done:%v index:%d len:%d %T)", done, index, len(*x), *x)
 		case done:
-			return dec.FinishValue()
+			return fmt.Errorf("short array, got len %d < 2 %T)", index, *x)
+		default:
+			x[index] = elem
 		}
-		if err := dec.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		var err error
-		if x[index], err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
-			return err
-		}
-		index++
 	}
+	switch done, err := dec.NextEntry(); {
+	case err != nil:
+		return err
+	case !done:
+		return fmt.Errorf("long array, got len > 2 %T", *x)
+	}
+	return dec.FinishValue()
 }
 
 // WinnerTag is a type used to indicate whether a round or a game was a draw,
@@ -485,15 +468,13 @@ func (x WinnerTag) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *WinnerTag) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_byte_7); err != nil {
+	switch value, err := dec.ReadValueUint(8); {
+	case err != nil:
 		return err
+	default:
+		*x = WinnerTag(value)
 	}
-	tmp, err := dec.DecodeUint(8)
-	if err != nil {
-		return err
-	}
-	*x = WinnerTag(tmp)
-	return dec.FinishValue()
+	return nil
 }
 
 // Round represents the state of a round.
@@ -611,19 +592,18 @@ func (x *Round) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Comment":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Comment, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Comment = value
 			}
 		case "Winner":
-			if err := x.Winner.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueUint(8); {
+			case err != nil:
 				return err
+			default:
+				x.Winner = WinnerTag(value)
 			}
 		case "StartTime":
 			var wire vdltime.Time
@@ -835,15 +815,11 @@ func (x *ScoreCard) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Judge":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Judge, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Judge = value
 			}
 		case "Players":
 			if err := __VDLReadAnon_list_1(dec, &x.Players); err != nil {
@@ -870,8 +846,11 @@ func (x *ScoreCard) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Winner":
-			if err := x.Winner.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueUint(8); {
+			case err != nil:
 				return err
+			default:
+				x.Winner = WinnerTag(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -885,31 +864,20 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
 	if err := dec.StartValue(__VDLType_list_11); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]string, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, elem, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			*x = append(*x, elem)
 		}
-		var elem string
-		if err := dec.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		var err error
-		if elem, err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 
@@ -917,10 +885,9 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]Round) error {
 	if err := dec.StartValue(__VDLType_list_12); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]Round, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
@@ -929,12 +896,13 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]Round) error {
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			var elem Round
+			if err := elem.VDLRead(dec); err != nil {
+				return err
+			}
+			*x = append(*x, elem)
 		}
-		var elem Round
-		if err := elem.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 
@@ -1124,29 +1092,20 @@ func VDLReadJudgeAction(dec vdl.Decoder, x *JudgeAction) error {
 	switch f {
 	case "PlayerNum":
 		var field JudgeActionPlayerNum
-		if err := dec.StartValue(vdl.Int32Type); err != nil {
+		switch value, err := dec.ReadValueInt(32); {
+		case err != nil:
 			return err
-		}
-		tmp, err := dec.DecodeInt(32)
-		if err != nil {
-			return err
-		}
-		field.Value = int32(tmp)
-		if err := dec.FinishValue(); err != nil {
-			return err
+		default:
+			field.Value = int32(value)
 		}
 		*x = field
 	case "OpponentName":
 		var field JudgeActionOpponentName
-		if err := dec.StartValue(vdl.StringType); err != nil {
+		switch value, err := dec.ReadValueString(); {
+		case err != nil:
 			return err
-		}
-		var err error
-		if field.Value, err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
-			return err
+		default:
+			field.Value = value
 		}
 		*x = field
 	case "MoveOptions":
@@ -1233,15 +1192,11 @@ func (x *PlayResult) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "YouWon":
-			if err := dec.StartValue(vdl.BoolType); err != nil {
+			switch value, err := dec.ReadValueBool(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.YouWon, err = dec.DecodeBool(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.YouWon = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {

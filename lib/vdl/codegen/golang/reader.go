@@ -6,6 +6,7 @@ package golang
 
 import (
 	"fmt"
+	"strconv"
 
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/compile"
@@ -103,9 +104,12 @@ func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 	if err := dec.FinishValue(); err != nil {
 		return err
 	}`
+	retnil := ""
 	if topLevel {
 		fin = `
 	return dec.FinishValue()`
+		retnil = `
+	return nil`
 	}
 	// Handle special cases.  The ordering of the cases is very important.
 	switch {
@@ -124,16 +128,16 @@ func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 		// wire type.  Appears as early as possible, so that all subsequent cases
 		// have nativity handled correctly.
 		return g.bodyNative(tt, arg)
-	case !topLevel && tt.Name() != "":
+	case tt.IsBytes():
+		// Bytes call the fast Decoder.ReadValueBytes method.  Appears before named
+		// types to avoid an extra VDLRead method call, and appears before anonymous
+		// lists to avoid slow byte-at-a-time decoding.
+		return g.bodyBytes(tt, arg) + retnil
+	case !topLevel && tt.Name() != "" && !hasScalarInfo(tt):
 		// Non-top-level named types call the VDLRead method defined on the arg.
 		// The top-level type is always named, and needs a real body generated.
-		// Appears before bytes, so that we use the defined method rather than
-		// re-generating extra code.
+		// We let scalars drop through, to avoid the extra method call.
 		return g.bodyCallVDLRead(tt, arg)
-	case tt.IsBytes() && tt.Elem() == vdl.ByteType:
-		// Bytes use the special Decoder.DecodeBytes method.  Appears before
-		// anonymous types, to avoid processing bytes as a list or array.
-		return sta + g.bodyBytes(tt, arg) + fin
 	case !topLevel && (kind == vdl.List || kind == vdl.Set || kind == vdl.Map):
 		// Non-top-level anonymous types call the unexported __VDLRead* functions
 		// generated in g.Gen, after the main VDLRead method has been generated.
@@ -142,23 +146,12 @@ func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 		return g.bodyAnon(tt, arg)
 	}
 	// Handle each kind of type.
+	if hasScalarInfo(tt) {
+		return g.bodyScalar(tt, arg) + retnil
+	}
 	switch kind {
-	case vdl.Bool:
-		return sta + g.bodyScalar(tt, vdl.BoolType, arg, "Bool") + fin
-	case vdl.String:
-		return sta + g.bodyScalar(tt, vdl.StringType, arg, "String") + fin
-	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
-		return sta + g.bodyScalar(tt, vdl.Uint64Type, arg, "Uint", kind.BitLen()) + fin
-	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
-		return sta + g.bodyScalar(tt, vdl.Int64Type, arg, "Int", kind.BitLen()) + fin
-	case vdl.Float32, vdl.Float64:
-		return sta + g.bodyScalar(tt, vdl.Float64Type, arg, "Float", kind.BitLen()) + fin
-	case vdl.TypeObject:
-		return sta + g.bodyScalar(tt, vdl.TypeObjectType, arg, "TypeObject") + fin
-	case vdl.Enum:
-		return sta + g.bodyEnum(arg) + fin
 	case vdl.Array:
-		return sta + g.bodyArray(tt, arg)
+		return sta + g.bodyArray(tt, arg) + fin
 	case vdl.List:
 		return sta + g.bodyList(tt, arg)
 	case vdl.Set, vdl.Map:
@@ -223,152 +216,234 @@ func (g *genRead) bodyAnon(tt *vdl.Type, arg namedArg) string {
 	}`, g.anonReaderName(tt), arg.Ptr())
 }
 
-func (g *genRead) bodyScalar(tt, exact *vdl.Type, arg namedArg, method string, params ...interface{}) string {
-	var paramStr string
-	for i, p := range params {
-		if i > 0 {
-			paramStr += ", "
-		}
-		paramStr += fmt.Sprint(p)
-	}
-	if tt == exact {
-		return fmt.Sprintf(`
-	var err error
-	if %[1]s, err = dec.Decode%[2]s(%[3]s); err != nil {
-		return err
-	}`, arg.Ref(), method, paramStr)
-	}
-	// The types don't have an exact match, so we need a conversion.  This
-	// occurs for all named types, as well as numeric types where the bitlen
-	// isn't exactly the same.  E.g.
-	//
-	//   type Foo uint16
-	//
-	//   tmp, err := dec.DecodeUint(16) // returns uint64
-	//   if err != nil { return err }
-	//   *x = Foo(tmp)
-	return fmt.Sprintf(`
-	tmp, err := dec.Decode%[2]s(%[3]s)
-	if err != nil {
-		return err
-	}
-	%[1]s = %[4]s(tmp)`, arg.Ref(), method, paramStr, typeGoWire(g.goData, tt))
+func hasScalarInfo(tt *vdl.Type) bool {
+	_, _, exact := scalarInfo(tt)
+	return exact != nil
 }
 
-func (g *genRead) bodyEnum(arg namedArg) string {
-	return fmt.Sprintf(`
-	enum, err := dec.DecodeString()
-	if err != nil {
-		return err
+func scalarInfo(tt *vdl.Type) (method, params string, exact *vdl.Type) {
+	bitlen := strconv.Itoa(tt.Kind().BitLen())
+	switch tt.Kind() {
+	case vdl.Bool:
+		return "Bool", "", vdl.BoolType
+	case vdl.String, vdl.Enum:
+		return "String", "", vdl.StringType
+	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
+		return "Uint", bitlen, vdl.Uint64Type
+	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
+		return "Int", bitlen, vdl.Int64Type
+	case vdl.Float32, vdl.Float64:
+		return "Float", bitlen, vdl.Float64Type
+	case vdl.TypeObject:
+		return "TypeObject", "", vdl.TypeObjectType
 	}
-	if err := %[1]s.Set(enum); err != nil {
+	return "", "", nil
+}
+
+func setEnum(argEnum, argLabel string) string {
+	return fmt.Sprintf(`
+	if err := %[1]s.Set(%[2]s); err != nil {
 		return err
-	}`, arg.Name)
+	}`, argEnum, argLabel)
+}
+
+func (g *genRead) bodyScalar(tt *vdl.Type, arg namedArg) string {
+	method, params, exact := scalarInfo(tt)
+	valueCast := "value"
+	if tt != exact {
+		// The types don't have an exact match, so we need a conversion.  This
+		// occurs for all named types, as well as numeric types where the bitlen
+		// isn't exactly the same.  E.g.
+		//
+		//   type Foo uint16
+		//
+		//   switch value, err := dec.ReadValueUint(16); {
+		//   case err != nil:
+		//     return err
+		//   default:
+		//     *x = Foo(value)
+		//   }
+		valueCast = typeGoWire(g.goData, tt) + "(value)"
+	}
+	s := fmt.Sprintf(`
+	switch value, err := dec.ReadValue%[1]s(%[2]s); {
+	case err != nil:
+		return err
+	default:`, method, params)
+	if tt.Kind() == vdl.Enum {
+		s += setEnum(arg.Name, "value")
+	} else {
+		s += fmt.Sprintf(`
+		%[1]s = %[2]s`, arg.Ref(), valueCast)
+	}
+	return s + `
+	}`
 }
 
 func (g *genRead) bodyBytes(tt *vdl.Type, arg namedArg) string {
-	s, decodeVar := "", arg.Ptr()
-	var max int
-	var assignEnd bool
-	switch tt.Kind() {
-	case vdl.Array:
-		s += fmt.Sprintf(`
-	bytes := %[1]s[:]`, arg.Name)
-		decodeVar, max = "&bytes", tt.Len()
-	case vdl.List:
-		max = -1
-		if tt.Name() != "" {
-			s += `
-	var bytes []byte`
-			decodeVar, assignEnd = "&bytes", true
+	kind := tt.Kind()
+	// Go doesn't allow type conversions from []MyByte to []byte, but the reflect
+	// package does let us perform this conversion.  We slice arrays so that we
+	// can fill them in directly.
+	init, fixedLen, needAssign := "", -1, false
+	switch {
+	case kind == vdl.Array:
+		fixedLen = tt.Len()
+		if tt.Elem() == vdl.ByteType {
+			init = fmt.Sprintf(`bytes := %s[:]`, arg.Name)
+		} else {
+			init = fmt.Sprintf(`bytes := %sValueOf(%s[:]).Bytes()`, g.Pkg("reflect"), arg.Name)
 		}
+	case tt.Name() != "" || tt.Elem() != vdl.ByteType:
+		init, needAssign = `var bytes []byte`, true
 	}
-	s += fmt.Sprintf(`
-	if err := dec.DecodeBytes(%[1]d, %[2]s); err != nil {
+	fillArg := arg.Ptr()
+	if init != "" {
+		fillArg = "&bytes"
+		init = "\n" + init
+	}
+	s := fmt.Sprintf(`%[1]s
+	if err := dec.ReadValueBytes(%[2]d, %[3]s); err != nil {
 		return err
-	}`, max, decodeVar)
-	if assignEnd {
-		s += fmt.Sprintf(`
+	}`, init, fixedLen, fillArg)
+	switch {
+	case needAssign:
+		if tt.Elem() == vdl.ByteType {
+			s += fmt.Sprintf(`
 	%[1]s = bytes`, arg.Ref())
+		} else {
+			s += fmt.Sprintf(`
+	%[1]sValueOf(%[2]s).Elem().SetBytes(bytes)`, g.Pkg("reflect"), arg.Ptr())
+		}
 	}
 	return s
 }
 
+func nextEntrySwitch(varName string, ttEntry *vdl.Type) (string, *vdl.Type) {
+	s := `
+	switch done, err := dec.NextEntry(); {`
+	method, params, exact := scalarInfo(ttEntry)
+	if exact != nil {
+		s = fmt.Sprintf(`
+	switch done, %[1]s, err := dec.NextEntryValue%[2]s(%[3]s); {`, varName, method, params)
+	}
+	return s, exact
+}
+
 func (g *genRead) bodyArray(tt *vdl.Type, arg namedArg) string {
-	elemArg := arg.ArrayIndex("index", tt.Elem())
-	elemBody := g.body(tt.Elem(), elemArg, false)
-	return fmt.Sprintf(`
-	index := 0
-	for {
-		switch done, err := dec.NextEntry(); {
+	s := fmt.Sprintf(`
+	for index := 0; index < %[1]d; index++ {`, tt.Len())
+	elem := "elem"
+	switchLine, exact := nextEntrySwitch(elem, tt.Elem())
+	s += switchLine + fmt.Sprintf(`
 		case err != nil:
 			return err
-		case done != (index >= len(%[2]s)):
-			return %[1]sErrorf("array len mismatch, done:%%v index:%%d len:%%d %%T)", done, index, len(%[2]s), %[2]s)
 		case done:
-			return dec.FinishValue()
-		}%[3]s
-		index++
-	}`, g.Pkg("fmt"), arg.Ref(), elemBody)
+			return %[1]sErrorf("short array, got len %%d < %[2]d %%T)", index, %[3]s)
+		default:`, g.Pkg("fmt"), tt.Len(), arg.Ref())
+	elemArg := arg.ArrayIndex("index", tt.Elem())
+	switch {
+	case exact == nil:
+		s += g.body(tt.Elem(), elemArg, false)
+	case tt.Elem().Kind() == vdl.Enum:
+		s += setEnum(elemArg.Name, elem)
+	default:
+		if tt.Elem() != exact {
+			elem = typeGoWire(g.goData, tt.Elem()) + "(" + elem + ")"
+		}
+		s += fmt.Sprintf(`
+			%[1]s = %[2]s`, elemArg.Name, elem)
+	}
+	return s + fmt.Sprintf(`
+		}
+	}
+	switch done, err := dec.NextEntry(); {
+	case err != nil:
+		return err
+	case !done:
+		return %[1]sErrorf("long array, got len > %[2]d %%T", %[3]s)
+	}`, g.Pkg("fmt"), tt.Len(), arg.Ref())
 }
 
 func (g *genRead) bodyList(tt *vdl.Type, arg namedArg) string {
-	elemArg := typedArg("elem", tt.Elem())
-	elemBody := g.body(tt.Elem(), elemArg, false)
-	return fmt.Sprintf(`
-	switch len := dec.LenHint(); {
-	case len > 0:
+	s := fmt.Sprintf(`
+	if len := dec.LenHint(); len > 0 {
 		%[1]s = make(%[2]s, 0, len)
-	default:
+	} else {
 		%[1]s = nil
 	}
-	for {
-		switch done, err := dec.NextEntry(); {
+	for {`, arg.Ref(), typeGoWire(g.goData, tt))
+	elem := "elem"
+	switchLine, exact := nextEntrySwitch(elem, tt.Elem())
+	s += switchLine + `
 		case err != nil:
 			return err
 		case done:
 			return dec.FinishValue()
+		default:`
+	switch {
+	case exact == nil:
+		elemArg := typedArg(elem, tt.Elem())
+		elemBody := g.body(tt.Elem(), elemArg, false)
+		s += fmt.Sprintf(`
+			var %[1]s %[2]s%[3]s`, elem, typeGo(g.goData, tt.Elem()), elemBody)
+	case tt.Elem().Kind() == vdl.Enum:
+		s += fmt.Sprintf(`
+			var enum %[1]s%[2]s`, typeGo(g.goData, tt.Elem()), setEnum("enum", elem))
+		elem = "enum"
+	case tt.Elem() != exact:
+		elem = typeGoWire(g.goData, tt.Elem()) + "(" + elem + ")"
+	}
+	return s + fmt.Sprintf(`
+			%[1]s = append(%[1]s, %[2]s)
 		}
-		var elem %[3]s%[4]s
-		%[1]s = append(%[1]s, elem)
-	}`, arg.Ref(), typeGoWire(g.goData, tt), typeGo(g.goData, tt.Elem()), elemBody)
+	}`, arg.Ref(), elem)
 }
 
 func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
-	keyArg := typedArg("key", tt.Key())
-	keyBody := g.body(tt.Key(), keyArg, false)
 	s := fmt.Sprintf(`
 	var tmpMap %[1]s
 	if len := dec.LenHint(); len > 0 {
 		tmpMap = make(%[1]s, len)
   }
-	for {
-		switch done, err := dec.NextEntry(); {
+	for {`, typeGoWire(g.goData, tt))
+	key := "key"
+	switchLine, exact := nextEntrySwitch(key, tt.Key())
+	s += switchLine + fmt.Sprintf(`
 		case err != nil:
 			return err
 		case done:
-			%[2]s = tmpMap
+			%[1]s = tmpMap
 			return dec.FinishValue()
-		}
-		var key %[3]s
-		{%[4]s
-		}`, typeGoWire(g.goData, tt), arg.Ref(), typeGo(g.goData, tt.Key()), keyBody)
-	elemValue := "struct{}{}"
+		default:`, arg.Ref())
+	switch {
+	case exact == nil:
+		keyArg := typedArg(key, tt.Key())
+		keyBody := g.body(tt.Key(), keyArg, false)
+		s += fmt.Sprintf(`
+			var %[1]s %[2]s%[3]s`, key, typeGo(g.goData, tt.Key()), keyBody)
+	case tt.Key().Kind() == vdl.Enum:
+		s += fmt.Sprintf(`
+			var keyEnum %[1]s%[2]s`, typeGo(g.goData, tt.Key()), setEnum("keyEnum", key))
+		key = "keyEnum"
+	case tt.Key() != exact:
+		key = typeGoWire(g.goData, tt.Key()) + "(" + key + ")"
+	}
+	elem := "struct{}{}"
 	if tt.Kind() == vdl.Map {
-		elemValue = "elem"
-		elemArg := typedArg("elem", tt.Elem())
+		elem = "elem"
+		elemArg := typedArg(elem, tt.Elem())
 		elemBody := g.body(tt.Elem(), elemArg, false)
 		s += fmt.Sprintf(`
-		var elem %[1]s
-		{%[2]s
-		}`, typeGo(g.goData, tt.Elem()), elemBody)
+			var %[1]s %[2]s%[3]s`, elem, typeGo(g.goData, tt.Elem()), elemBody)
 	}
 	return s + fmt.Sprintf(`
-		if tmpMap == nil {
-			tmpMap = make(%[1]s)
+			if tmpMap == nil {
+				tmpMap = make(%[1]s)
+			}
+			tmpMap[%[2]s] = %[3]s
 		}
-		tmpMap[key] = %[2]s
-	}`, typeGoWire(g.goData, tt), elemValue)
+	}`, typeGoWire(g.goData, tt), key, elem)
 }
 
 func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {

@@ -103,37 +103,25 @@ func (x *Library) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Name":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Name, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Name = value
 			}
 		case "MajorVersion":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.MajorVersion, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.MajorVersion = value
 			}
 		case "MinorVersion":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.MinorVersion, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.MinorVersion = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -293,38 +281,45 @@ func (x *Specification) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Label":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Label, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Label = value
 			}
 		case "Description":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Description, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Description = value
 			}
 		case "Arch":
-			if err := x.Arch.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
+			default:
+				if err := x.Arch.Set(value); err != nil {
+					return err
+				}
 			}
 		case "Os":
-			if err := x.Os.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
+			default:
+				if err := x.Os.Set(value); err != nil {
+					return err
+				}
 			}
 		case "Format":
-			if err := x.Format.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
+			default:
+				if err := x.Format.Set(value); err != nil {
+					return err
+				}
 			}
 		case "Libraries":
 			if err := __VDLReadAnon_set_1(dec, &x.Libraries); err != nil {
@@ -353,17 +348,16 @@ func __VDLReadAnon_set_1(dec vdl.Decoder, x *map[Library]struct{}) error {
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
-		}
-		var key Library
-		{
+		default:
+			var key Library
 			if err := key.VDLRead(dec); err != nil {
 				return err
 			}
+			if tmpMap == nil {
+				tmpMap = make(map[Library]struct{})
+			}
+			tmpMap[key] = struct{}{}
 		}
-		if tmpMap == nil {
-			tmpMap = make(map[Library]struct{})
-		}
-		tmpMap[key] = struct{}{}
 	}
 }
 

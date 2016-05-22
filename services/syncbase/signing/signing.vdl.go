@@ -132,25 +132,13 @@ func VDLReadItem(dec vdl.Decoder, x *Item) error {
 	switch f {
 	case "Data":
 		var field ItemData
-		if err := dec.StartValue(__VDLType_list_1); err != nil {
-			return err
-		}
-		if err := dec.DecodeBytes(-1, &field.Value); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
+		if err := dec.ReadValueBytes(-1, &field.Value); err != nil {
 			return err
 		}
 		*x = field
 	case "Hash":
 		var field ItemHash
-		if err := dec.StartValue(__VDLType_list_1); err != nil {
-			return err
-		}
-		if err := dec.DecodeBytes(-1, &field.Value); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
+		if err := dec.ReadValueBytes(-1, &field.Value); err != nil {
 			return err
 		}
 		*x = field
@@ -358,13 +346,7 @@ func (x *DataWithSignature) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "BlessingsHash":
-			if err := dec.StartValue(__VDLType_list_1); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.BlessingsHash); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.BlessingsHash); err != nil {
 				return err
 			}
 		case "AuthorSigned":
@@ -372,24 +354,14 @@ func (x *DataWithSignature) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "IsValidated":
-			if err := dec.StartValue(vdl.BoolType); err != nil {
+			switch value, err := dec.ReadValueBool(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.IsValidated, err = dec.DecodeBool(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.IsValidated = value
 			}
 		case "ValidatorDataHash":
-			if err := dec.StartValue(__VDLType_list_1); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.ValidatorDataHash); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.ValidatorDataHash); err != nil {
 				return err
 			}
 		case "ValidatorSigned":
@@ -408,10 +380,9 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]Item) error {
 	if err := dec.StartValue(__VDLType_list_4); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]Item, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
@@ -420,12 +391,13 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]Item) error {
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			var elem Item
+			if err := VDLReadItem(dec, &elem); err != nil {
+				return err
+			}
+			*x = append(*x, elem)
 		}
-		var elem Item
-		if err := VDLReadItem(dec, &elem); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 
@@ -528,13 +500,7 @@ func (x *WireValidatorData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "MarshalledPublicKey":
-			if err := dec.StartValue(__VDLType_list_1); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.MarshalledPublicKey); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.MarshalledPublicKey); err != nil {
 				return err
 			}
 		default:
@@ -549,31 +515,20 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]string) error {
 	if err := dec.StartValue(__VDLType_list_7); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]string, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, elem, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			*x = append(*x, elem)
 		}
-		var elem string
-		if err := dec.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		var err error
-		if elem, err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 

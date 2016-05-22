@@ -72,13 +72,7 @@ func (x *GetOp) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Key":
-			if err := dec.StartValue(__VDLType_list_2); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.Key); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.Key); err != nil {
 				return err
 			}
 		default:
@@ -162,23 +156,11 @@ func (x *ScanOp) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Start":
-			if err := dec.StartValue(__VDLType_list_2); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.Start); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.Start); err != nil {
 				return err
 			}
 		case "Limit":
-			if err := dec.StartValue(__VDLType_list_2); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.Limit); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.Limit); err != nil {
 				return err
 			}
 		default:
@@ -264,23 +246,11 @@ func (x *PutOp) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Key":
-			if err := dec.StartValue(__VDLType_list_2); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.Key); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.Key); err != nil {
 				return err
 			}
 		case "Version":
-			if err := dec.StartValue(__VDLType_list_2); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.Version); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.Version); err != nil {
 				return err
 			}
 		default:
@@ -346,13 +316,7 @@ func (x *DeleteOp) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Key":
-			if err := dec.StartValue(__VDLType_list_2); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.Key); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.Key); err != nil {
 				return err
 			}
 		default:
@@ -484,37 +448,25 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "CommitTimestamp":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.CommitTimestamp, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.CommitTimestamp = value
 			}
 		case "FromSync":
-			if err := dec.StartValue(vdl.BoolType); err != nil {
+			switch value, err := dec.ReadValueBool(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.FromSync, err = dec.DecodeBool(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.FromSync = value
 			}
 		case "Continued":
-			if err := dec.StartValue(vdl.BoolType); err != nil {
+			switch value, err := dec.ReadValueBool(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Continued, err = dec.DecodeBool(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Continued = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {

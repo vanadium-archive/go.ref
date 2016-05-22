@@ -79,19 +79,18 @@ func (x *BlobInfo) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Info":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Info, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Info = value
 			}
 		case "Br":
-			if err := x.Br.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
+			default:
+				x.Br = syncbase.BlobRef(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -197,16 +196,11 @@ func VDLReadBlobUnion(dec vdl.Decoder, x *BlobUnion) error {
 	switch f {
 	case "Num":
 		var field BlobUnionNum
-		if err := dec.StartValue(vdl.Int32Type); err != nil {
+		switch value, err := dec.ReadValueInt(32); {
+		case err != nil:
 			return err
-		}
-		tmp, err := dec.DecodeInt(32)
-		if err != nil {
-			return err
-		}
-		field.Value = int32(tmp)
-		if err := dec.FinishValue(); err != nil {
-			return err
+		default:
+			field.Value = int32(value)
 		}
 		*x = field
 	case "Bi":
@@ -316,15 +310,11 @@ func (x *BlobSet) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Info":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Info, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Info = value
 			}
 		case "Bs":
 			if err := __VDLReadAnon_set_1(dec, &x.Bs); err != nil {
@@ -347,23 +337,18 @@ func __VDLReadAnon_set_1(dec vdl.Decoder, x *map[syncbase.BlobRef]struct{}) erro
 		tmpMap = make(map[syncbase.BlobRef]struct{}, len)
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, key, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
-		}
-		var key syncbase.BlobRef
-		{
-			if err := key.VDLRead(dec); err != nil {
-				return err
+		default:
+			if tmpMap == nil {
+				tmpMap = make(map[syncbase.BlobRef]struct{})
 			}
+			tmpMap[syncbase.BlobRef(key)] = struct{}{}
 		}
-		if tmpMap == nil {
-			tmpMap = make(map[syncbase.BlobRef]struct{})
-		}
-		tmpMap[key] = struct{}{}
 	}
 }
 
@@ -460,15 +445,11 @@ func (x *BlobAny) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Info":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Info, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Info = value
 			}
 		case "Baa":
 			if err := __VDLReadAnon_list_2(dec, &x.Baa); err != nil {
@@ -486,10 +467,9 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]*vom.RawBytes) error {
 	if err := dec.StartValue(__VDLType_list_7); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]*vom.RawBytes, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
@@ -498,13 +478,14 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]*vom.RawBytes) error {
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			var elem *vom.RawBytes
+			elem = new(vom.RawBytes)
+			if err := elem.VDLRead(dec); err != nil {
+				return err
+			}
+			*x = append(*x, elem)
 		}
-		var elem *vom.RawBytes
-		elem = new(vom.RawBytes)
-		if err := elem.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 
@@ -601,15 +582,11 @@ func (x *NonBlobSet) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Info":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Info, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Info = value
 			}
 		case "S":
 			if err := __VDLReadAnon_set_3(dec, &x.S); err != nil {
@@ -632,30 +609,18 @@ func __VDLReadAnon_set_3(dec vdl.Decoder, x *map[string]struct{}) error {
 		tmpMap = make(map[string]struct{}, len)
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, key, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
-		}
-		var key string
-		{
-			if err := dec.StartValue(vdl.StringType); err != nil {
-				return err
+		default:
+			if tmpMap == nil {
+				tmpMap = make(map[string]struct{})
 			}
-			var err error
-			if key, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
-			}
+			tmpMap[key] = struct{}{}
 		}
-		if tmpMap == nil {
-			tmpMap = make(map[string]struct{})
-		}
-		tmpMap[key] = struct{}{}
 	}
 }
 
@@ -722,15 +687,11 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Info":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Info, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Info = value
 			}
 		case "Bo":
 			if err := dec.StartValue(__VDLType_optional_11); err != nil {

@@ -198,28 +198,18 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "NumReboots":
-			if err := dec.StartValue(vdl.Uint16Type); err != nil {
+			switch value, err := dec.ReadValueUint(16); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeUint(16)
-			if err != nil {
-				return err
-			}
-			x.NumReboots = uint16(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.NumReboots = uint16(value)
 			}
 		case "NumHops":
-			if err := dec.StartValue(vdl.Uint16Type); err != nil {
+			switch value, err := dec.ReadValueUint(16); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeUint(16)
-			if err != nil {
-				return err
-			}
-			x.NumHops = uint16(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.NumHops = uint16(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {

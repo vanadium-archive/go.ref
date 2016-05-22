@@ -125,23 +125,18 @@ func __VDLReadAnon_set_1(dec vdl.Decoder, x *map[groups.BlessingPatternChunk]str
 		tmpMap = make(map[groups.BlessingPatternChunk]struct{}, len)
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, key, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
-		}
-		var key groups.BlessingPatternChunk
-		{
-			if err := key.VDLRead(dec); err != nil {
-				return err
+		default:
+			if tmpMap == nil {
+				tmpMap = make(map[groups.BlessingPatternChunk]struct{})
 			}
+			tmpMap[groups.BlessingPatternChunk(key)] = struct{}{}
 		}
-		if tmpMap == nil {
-			tmpMap = make(map[groups.BlessingPatternChunk]struct{})
-		}
-		tmpMap[key] = struct{}{}
 	}
 }
 

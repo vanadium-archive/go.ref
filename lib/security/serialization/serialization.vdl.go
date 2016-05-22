@@ -69,15 +69,11 @@ func (x *SignedHeader) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "ChunkSizeBytes":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.ChunkSizeBytes, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.ChunkSizeBytes = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -109,14 +105,11 @@ func (x HashCode) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *HashCode) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_array_2); err != nil {
-		return err
-	}
 	bytes := x[:]
-	if err := dec.DecodeBytes(32, &bytes); err != nil {
+	if err := dec.ReadValueBytes(32, &bytes); err != nil {
 		return err
 	}
-	return dec.FinishValue()
+	return nil
 }
 
 type (
@@ -217,7 +210,8 @@ func VDLReadSignedData(dec vdl.Decoder, x *SignedData) error {
 		*x = field
 	case "Hash":
 		var field SignedDataHash
-		if err := field.Value.VDLRead(dec); err != nil {
+		bytes := field.Value[:]
+		if err := dec.ReadValueBytes(32, &bytes); err != nil {
 			return err
 		}
 		*x = field

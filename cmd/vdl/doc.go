@@ -38,8 +38,8 @@ The vdl flags are:
 The global flags are:
  -metadata=<just specify -metadata to activate>
    Displays metadata for the program and exits.
- -skip-gen-write-read=false
-   skip generation of vdl write and read
+ -skip-go-methods=false
+   Skip go generation of VDL{Read,Write,Zero} methods.
  -time=false
    Dump timing information to stderr before exiting the program.
 

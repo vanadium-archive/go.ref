@@ -87,28 +87,18 @@ func (x *Struct) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "X":
-			if err := dec.StartValue(vdl.Int32Type); err != nil {
+			switch value, err := dec.ReadValueInt(32); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeInt(32)
-			if err != nil {
-				return err
-			}
-			x.X = int32(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.X = int32(value)
 			}
 		case "Y":
-			if err := dec.StartValue(vdl.Int32Type); err != nil {
+			switch value, err := dec.ReadValueInt(32); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeInt(32)
-			if err != nil {
-				return err
-			}
-			x.Y = int32(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Y = int32(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -157,29 +147,23 @@ func (x *Array2Int) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_array_2); err != nil {
 		return err
 	}
-	index := 0
-	for {
-		switch done, err := dec.NextEntry(); {
+	for index := 0; index < 2; index++ {
+		switch done, elem, err := dec.NextEntryValueInt(32); {
 		case err != nil:
 			return err
-		case done != (index >= len(*x)):
-			return fmt.Errorf("array len mismatch, done:%v index:%d len:%d %T)", done, index, len(*x), *x)
 		case done:
-			return dec.FinishValue()
+			return fmt.Errorf("short array, got len %d < 2 %T)", index, *x)
+		default:
+			x[index] = int32(elem)
 		}
-		if err := dec.StartValue(vdl.Int32Type); err != nil {
-			return err
-		}
-		tmp, err := dec.DecodeInt(32)
-		if err != nil {
-			return err
-		}
-		x[index] = int32(tmp)
-		if err := dec.FinishValue(); err != nil {
-			return err
-		}
-		index++
 	}
+	switch done, err := dec.NextEntry(); {
+	case err != nil:
+		return err
+	case !done:
+		return fmt.Errorf("long array, got len > 2 %T", *x)
+	}
+	return dec.FinishValue()
 }
 
 //////////////////////////////////////////////////

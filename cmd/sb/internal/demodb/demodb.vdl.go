@@ -116,48 +116,32 @@ func (x *AddressInfo) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Street":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Street, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Street = value
 			}
 		case "City":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.City, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.City = value
 			}
 		case "State":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.State, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.State = value
 			}
 		case "Zip":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Zip, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Zip = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -235,17 +219,15 @@ func (x CreditAgency) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *CreditAgency) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_enum_2); err != nil {
+	switch value, err := dec.ReadValueString(); {
+	case err != nil:
 		return err
+	default:
+		if err := x.Set(value); err != nil {
+			return err
+		}
 	}
-	enum, err := dec.DecodeString()
-	if err != nil {
-		return err
-	}
-	if err := x.Set(enum); err != nil {
-		return err
-	}
-	return dec.FinishValue()
+	return nil
 }
 
 type ExperianRating int
@@ -310,17 +292,15 @@ func (x ExperianRating) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *ExperianRating) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_enum_3); err != nil {
+	switch value, err := dec.ReadValueString(); {
+	case err != nil:
 		return err
+	default:
+		if err := x.Set(value); err != nil {
+			return err
+		}
 	}
-	enum, err := dec.DecodeString()
-	if err != nil {
-		return err
-	}
-	if err := x.Set(enum); err != nil {
-		return err
-	}
-	return dec.FinishValue()
+	return nil
 }
 
 type EquifaxCreditReport struct {
@@ -374,16 +354,11 @@ func (x *EquifaxCreditReport) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Rating":
-			if err := dec.StartValue(vdl.ByteType); err != nil {
+			switch value, err := dec.ReadValueUint(8); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeUint(8)
-			if err != nil {
-				return err
-			}
-			x.Rating = byte(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Rating = byte(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -438,8 +413,13 @@ func (x *ExperianCreditReport) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Rating":
-			if err := x.Rating.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
+			default:
+				if err := x.Rating.Set(value); err != nil {
+					return err
+				}
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -500,16 +480,11 @@ func (x *TransUnionCreditReport) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Rating":
-			if err := dec.StartValue(vdl.Int16Type); err != nil {
+			switch value, err := dec.ReadValueInt(16); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeInt(16)
-			if err != nil {
-				return err
-			}
-			x.Rating = int16(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Rating = int16(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -729,8 +704,13 @@ func (x *CreditReport) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Agency":
-			if err := x.Agency.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
+			default:
+				if err := x.Agency.Set(value); err != nil {
+					return err
+				}
 			}
 		case "Report":
 			if err := VDLReadAgencyReport(dec, &x.Report); err != nil {
@@ -862,37 +842,25 @@ func (x *Customer) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Name":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Name, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Name = value
 			}
 		case "Id":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Id, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Id = value
 			}
 		case "Active":
-			if err := dec.StartValue(vdl.BoolType); err != nil {
+			switch value, err := dec.ReadValueBool(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Active, err = dec.DecodeBool(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Active = value
 			}
 		case "Address":
 			if err := x.Address.VDLRead(dec); err != nil {
@@ -1000,37 +968,25 @@ func (x *Invoice) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "CustId":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.CustId, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.CustId = value
 			}
 		case "InvoiceNum":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.InvoiceNum, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.InvoiceNum = value
 			}
 		case "Amount":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Amount, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Amount = value
 			}
 		case "ShipTo":
 			if err := x.ShipTo.VDLRead(dec); err != nil {
@@ -1215,109 +1171,67 @@ func (x *Numbers) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "B":
-			if err := dec.StartValue(vdl.ByteType); err != nil {
+			switch value, err := dec.ReadValueUint(8); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeUint(8)
-			if err != nil {
-				return err
-			}
-			x.B = byte(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.B = byte(value)
 			}
 		case "Ui16":
-			if err := dec.StartValue(vdl.Uint16Type); err != nil {
+			switch value, err := dec.ReadValueUint(16); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeUint(16)
-			if err != nil {
-				return err
-			}
-			x.Ui16 = uint16(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Ui16 = uint16(value)
 			}
 		case "Ui32":
-			if err := dec.StartValue(vdl.Uint32Type); err != nil {
+			switch value, err := dec.ReadValueUint(32); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeUint(32)
-			if err != nil {
-				return err
-			}
-			x.Ui32 = uint32(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Ui32 = uint32(value)
 			}
 		case "Ui64":
-			if err := dec.StartValue(vdl.Uint64Type); err != nil {
+			switch value, err := dec.ReadValueUint(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Ui64, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Ui64 = value
 			}
 		case "I16":
-			if err := dec.StartValue(vdl.Int16Type); err != nil {
+			switch value, err := dec.ReadValueInt(16); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeInt(16)
-			if err != nil {
-				return err
-			}
-			x.I16 = int16(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.I16 = int16(value)
 			}
 		case "I32":
-			if err := dec.StartValue(vdl.Int32Type); err != nil {
+			switch value, err := dec.ReadValueInt(32); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeInt(32)
-			if err != nil {
-				return err
-			}
-			x.I32 = int32(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.I32 = int32(value)
 			}
 		case "I64":
-			if err := dec.StartValue(vdl.Int64Type); err != nil {
+			switch value, err := dec.ReadValueInt(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.I64, err = dec.DecodeInt(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.I64 = value
 			}
 		case "F32":
-			if err := dec.StartValue(vdl.Float32Type); err != nil {
+			switch value, err := dec.ReadValueFloat(32); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeFloat(32)
-			if err != nil {
-				return err
-			}
-			x.F32 = float32(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.F32 = float32(value)
 			}
 		case "F64":
-			if err := dec.StartValue(vdl.Float64Type); err != nil {
+			switch value, err := dec.ReadValueFloat(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.F64, err = dec.DecodeFloat(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.F64 = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -1429,28 +1343,20 @@ func VDLReadTitleOrValueType(dec vdl.Decoder, x *TitleOrValueType) error {
 	switch f {
 	case "Title":
 		var field TitleOrValueTypeTitle
-		if err := dec.StartValue(vdl.StringType); err != nil {
+		switch value, err := dec.ReadValueString(); {
+		case err != nil:
 			return err
-		}
-		var err error
-		if field.Value, err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
-			return err
+		default:
+			field.Value = value
 		}
 		*x = field
 	case "Value":
 		var field TitleOrValueTypeValue
-		if err := dec.StartValue(vdl.Int64Type); err != nil {
+		switch value, err := dec.ReadValueInt(64); {
+		case err != nil:
 			return err
-		}
-		var err error
-		if field.Value, err = dec.DecodeInt(64); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
-			return err
+		default:
+			field.Value = value
 		}
 		*x = field
 	case "":
@@ -1535,15 +1441,11 @@ func (x *BazType) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Name":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Name, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Name = value
 			}
 		case "TitleOrValue":
 			if err := VDLReadTitleOrValueType(dec, &x.TitleOrValue); err != nil {
@@ -1724,28 +1626,23 @@ func (x *Array2String) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_array_16); err != nil {
 		return err
 	}
-	index := 0
-	for {
-		switch done, err := dec.NextEntry(); {
+	for index := 0; index < 2; index++ {
+		switch done, elem, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
-		case done != (index >= len(*x)):
-			return fmt.Errorf("array len mismatch, done:%v index:%d len:%d %T)", done, index, len(*x), *x)
 		case done:
-			return dec.FinishValue()
+			return fmt.Errorf("short array, got len %d < 2 %T)", index, *x)
+		default:
+			x[index] = elem
 		}
-		if err := dec.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		var err error
-		if x[index], err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
-			return err
-		}
-		index++
 	}
+	switch done, err := dec.NextEntry(); {
+	case err != nil:
+		return err
+	case !done:
+		return fmt.Errorf("long array, got len > 2 %T", *x)
+	}
+	return dec.FinishValue()
 }
 
 type Composite struct {
@@ -1949,32 +1846,20 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]int32) error {
 	if err := dec.StartValue(__VDLType_list_18); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]int32, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, elem, err := dec.NextEntryValueInt(32); {
 		case err != nil:
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			*x = append(*x, int32(elem))
 		}
-		var elem int32
-		if err := dec.StartValue(vdl.Int32Type); err != nil {
-			return err
-		}
-		tmp, err := dec.DecodeInt(32)
-		if err != nil {
-			return err
-		}
-		elem = int32(tmp)
-		if err := dec.FinishValue(); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 
@@ -1987,31 +1872,18 @@ func __VDLReadAnon_set_2(dec vdl.Decoder, x *map[int32]struct{}) error {
 		tmpMap = make(map[int32]struct{}, len)
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, key, err := dec.NextEntryValueInt(32); {
 		case err != nil:
 			return err
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
-		}
-		var key int32
-		{
-			if err := dec.StartValue(vdl.Int32Type); err != nil {
-				return err
+		default:
+			if tmpMap == nil {
+				tmpMap = make(map[int32]struct{})
 			}
-			tmp, err := dec.DecodeInt(32)
-			if err != nil {
-				return err
-			}
-			key = int32(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
-			}
+			tmpMap[int32(key)] = struct{}{}
 		}
-		if tmpMap == nil {
-			tmpMap = make(map[int32]struct{})
-		}
-		tmpMap[key] = struct{}{}
 	}
 }
 
@@ -2024,44 +1896,25 @@ func __VDLReadAnon_map_3(dec vdl.Decoder, x *map[string]int32) error {
 		tmpMap = make(map[string]int32, len)
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, key, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
+		default:
+			var elem int32
+			switch value, err := dec.ReadValueInt(32); {
+			case err != nil:
+				return err
+			default:
+				elem = int32(value)
+			}
+			if tmpMap == nil {
+				tmpMap = make(map[string]int32)
+			}
+			tmpMap[key] = elem
 		}
-		var key string
-		{
-			if err := dec.StartValue(vdl.StringType); err != nil {
-				return err
-			}
-			var err error
-			if key, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
-			}
-		}
-		var elem int32
-		{
-			if err := dec.StartValue(vdl.Int32Type); err != nil {
-				return err
-			}
-			tmp, err := dec.DecodeInt(32)
-			if err != nil {
-				return err
-			}
-			elem = int32(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
-			}
-		}
-		if tmpMap == nil {
-			tmpMap = make(map[string]int32)
-		}
-		tmpMap[key] = elem
 	}
 }
 
@@ -2304,23 +2157,20 @@ func __VDLReadAnon_map_4(dec vdl.Decoder, x *map[Array2String]Recursive) error {
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
-		}
-		var key Array2String
-		{
+		default:
+			var key Array2String
 			if err := key.VDLRead(dec); err != nil {
 				return err
 			}
-		}
-		var elem Recursive
-		{
+			var elem Recursive
 			if err := elem.VDLRead(dec); err != nil {
 				return err
 			}
+			if tmpMap == nil {
+				tmpMap = make(map[Array2String]Recursive)
+			}
+			tmpMap[key] = elem
 		}
-		if tmpMap == nil {
-			tmpMap = make(map[Array2String]Recursive)
-		}
-		tmpMap[key] = elem
 	}
 }
 
@@ -2426,30 +2276,20 @@ func VDLReadActOrSatScore(dec vdl.Decoder, x *ActOrSatScore) error {
 	switch f {
 	case "ActScore":
 		var field ActOrSatScoreActScore
-		if err := dec.StartValue(vdl.Uint16Type); err != nil {
+		switch value, err := dec.ReadValueUint(16); {
+		case err != nil:
 			return err
-		}
-		tmp, err := dec.DecodeUint(16)
-		if err != nil {
-			return err
-		}
-		field.Value = uint16(tmp)
-		if err := dec.FinishValue(); err != nil {
-			return err
+		default:
+			field.Value = uint16(value)
 		}
 		*x = field
 	case "SatScore":
 		var field ActOrSatScoreSatScore
-		if err := dec.StartValue(vdl.Uint16Type); err != nil {
+		switch value, err := dec.ReadValueUint(16); {
+		case err != nil:
 			return err
-		}
-		tmp, err := dec.DecodeUint(16)
-		if err != nil {
-			return err
-		}
-		field.Value = uint16(tmp)
-		if err := dec.FinishValue(); err != nil {
-			return err
+		default:
+			field.Value = uint16(value)
 		}
 		*x = field
 	case "":
@@ -2550,15 +2390,11 @@ func (x *Student) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Name":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Name, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Name = value
 			}
 		case "TestTime":
 			var wire vdltime.Time
@@ -2648,15 +2484,11 @@ func (x *AnythingGoes) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "NameOfType":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.NameOfType, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.NameOfType = value
 			}
 		case "Anything":
 			x.Anything = new(vom.RawBytes)

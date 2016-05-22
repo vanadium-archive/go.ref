@@ -104,15 +104,11 @@ func (x *Blessings) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "BKey":
-			if err := dec.StartValue(vdl.Uint64Type); err != nil {
+			switch value, err := dec.ReadValueUint(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.BKey, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.BKey = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -219,15 +215,11 @@ func (x *EncryptedBlessings) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "BKey":
-			if err := dec.StartValue(vdl.Uint64Type); err != nil {
+			switch value, err := dec.ReadValueUint(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.BKey, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.BKey = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -241,10 +233,9 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]bcrypter.WireCiphertext) error {
 	if err := dec.StartValue(__VDLType_list_4); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]bcrypter.WireCiphertext, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
@@ -253,12 +244,13 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]bcrypter.WireCiphertext) error {
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			var elem bcrypter.WireCiphertext
+			if err := elem.VDLRead(dec); err != nil {
+				return err
+			}
+			*x = append(*x, elem)
 		}
-		var elem bcrypter.WireCiphertext
-		if err := elem.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 
@@ -389,26 +381,18 @@ func (x *Discharges) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "DKey":
-			if err := dec.StartValue(vdl.Uint64Type); err != nil {
+			switch value, err := dec.ReadValueUint(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.DKey, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.DKey = value
 			}
 		case "BKey":
-			if err := dec.StartValue(vdl.Uint64Type); err != nil {
+			switch value, err := dec.ReadValueUint(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.BKey, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.BKey = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -422,10 +406,9 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]security.Discharge) error {
 	if err := dec.StartValue(__VDLType_list_7); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]security.Discharge, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
@@ -434,16 +417,17 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]security.Discharge) error {
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			var elem security.Discharge
+			var wire security.WireDischarge
+			if err := security.VDLReadWireDischarge(dec, &wire); err != nil {
+				return err
+			}
+			if err := security.WireDischargeToNative(wire, &elem); err != nil {
+				return err
+			}
+			*x = append(*x, elem)
 		}
-		var elem security.Discharge
-		var wire security.WireDischarge
-		if err := security.VDLReadWireDischarge(dec, &wire); err != nil {
-			return err
-		}
-		if err := security.WireDischargeToNative(wire, &elem); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 
@@ -543,26 +527,18 @@ func (x *EncryptedDischarges) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "DKey":
-			if err := dec.StartValue(vdl.Uint64Type); err != nil {
+			switch value, err := dec.ReadValueUint(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.DKey, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.DKey = value
 			}
 		case "BKey":
-			if err := dec.StartValue(vdl.Uint64Type); err != nil {
+			switch value, err := dec.ReadValueUint(64); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.BKey, err = dec.DecodeUint(64); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.BKey = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {

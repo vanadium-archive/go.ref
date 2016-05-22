@@ -90,36 +90,22 @@ func (x *blessingRootsState) VDLRead(dec vdl.Decoder) error {
 		tmpMap = make(blessingRootsState, len)
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, key, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
-		}
-		var key string
-		{
-			if err := dec.StartValue(vdl.StringType); err != nil {
-				return err
-			}
-			var err error
-			if key, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
-			}
-		}
-		var elem []security.BlessingPattern
-		{
+		default:
+			var elem []security.BlessingPattern
 			if err := __VDLReadAnon_list_1(dec, &elem); err != nil {
 				return err
 			}
+			if tmpMap == nil {
+				tmpMap = make(blessingRootsState)
+			}
+			tmpMap[key] = elem
 		}
-		if tmpMap == nil {
-			tmpMap = make(blessingRootsState)
-		}
-		tmpMap[key] = elem
 	}
 }
 
@@ -127,24 +113,20 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]security.BlessingPattern) error 
 	if err := dec.StartValue(__VDLType_list_2); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]security.BlessingPattern, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, elem, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			*x = append(*x, security.BlessingPattern(elem))
 		}
-		var elem security.BlessingPattern
-		if err := elem.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 
@@ -170,14 +152,11 @@ func (x dischargeCacheKey) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *dischargeCacheKey) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_array_4); err != nil {
-		return err
-	}
 	bytes := x[:]
-	if err := dec.DecodeBytes(32, &bytes); err != nil {
+	if err := dec.ReadValueBytes(32, &bytes); err != nil {
 		return err
 	}
-	return dec.FinishValue()
+	return nil
 }
 
 type CachedDischarge struct {
@@ -498,16 +477,11 @@ func (x *blessingStoreState) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "CacheKeyFormat":
-			if err := dec.StartValue(vdl.Uint32Type); err != nil {
+			switch value, err := dec.ReadValueUint(32); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeUint(32)
-			if err != nil {
-				return err
-			}
-			x.CacheKeyFormat = uint32(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.CacheKeyFormat = uint32(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -526,21 +500,14 @@ func __VDLReadAnon_map_2(dec vdl.Decoder, x *map[security.BlessingPattern]securi
 		tmpMap = make(map[security.BlessingPattern]security.Blessings, len)
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, key, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
-		}
-		var key security.BlessingPattern
-		{
-			if err := key.VDLRead(dec); err != nil {
-				return err
-			}
-		}
-		var elem security.Blessings
-		{
+		default:
+			var elem security.Blessings
 			var wire security.WireBlessings
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -548,11 +515,11 @@ func __VDLReadAnon_map_2(dec vdl.Decoder, x *map[security.BlessingPattern]securi
 			if err := security.WireBlessingsToNative(wire, &elem); err != nil {
 				return err
 			}
+			if tmpMap == nil {
+				tmpMap = make(map[security.BlessingPattern]security.Blessings)
+			}
+			tmpMap[security.BlessingPattern(key)] = elem
 		}
-		if tmpMap == nil {
-			tmpMap = make(map[security.BlessingPattern]security.Blessings)
-		}
-		tmpMap[key] = elem
 	}
 }
 
@@ -571,15 +538,13 @@ func __VDLReadAnon_map_3(dec vdl.Decoder, x *map[dischargeCacheKey]security.Disc
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
-		}
-		var key dischargeCacheKey
-		{
-			if err := key.VDLRead(dec); err != nil {
+		default:
+			var key dischargeCacheKey
+			bytes := key[:]
+			if err := dec.ReadValueBytes(32, &bytes); err != nil {
 				return err
 			}
-		}
-		var elem security.Discharge
-		{
+			var elem security.Discharge
 			var wire security.WireDischarge
 			if err := security.VDLReadWireDischarge(dec, &wire); err != nil {
 				return err
@@ -587,11 +552,11 @@ func __VDLReadAnon_map_3(dec vdl.Decoder, x *map[dischargeCacheKey]security.Disc
 			if err := security.WireDischargeToNative(wire, &elem); err != nil {
 				return err
 			}
+			if tmpMap == nil {
+				tmpMap = make(map[dischargeCacheKey]security.Discharge)
+			}
+			tmpMap[key] = elem
 		}
-		if tmpMap == nil {
-			tmpMap = make(map[dischargeCacheKey]security.Discharge)
-		}
-		tmpMap[key] = elem
 	}
 }
 
@@ -610,23 +575,21 @@ func __VDLReadAnon_map_4(dec vdl.Decoder, x *map[dischargeCacheKey]CachedDischar
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
-		}
-		var key dischargeCacheKey
-		{
-			if err := key.VDLRead(dec); err != nil {
+		default:
+			var key dischargeCacheKey
+			bytes := key[:]
+			if err := dec.ReadValueBytes(32, &bytes); err != nil {
 				return err
 			}
-		}
-		var elem CachedDischarge
-		{
+			var elem CachedDischarge
 			if err := elem.VDLRead(dec); err != nil {
 				return err
 			}
+			if tmpMap == nil {
+				tmpMap = make(map[dischargeCacheKey]CachedDischarge)
+			}
+			tmpMap[key] = elem
 		}
-		if tmpMap == nil {
-			tmpMap = make(map[dischargeCacheKey]CachedDischarge)
-		}
-		tmpMap[key] = elem
 	}
 }
 

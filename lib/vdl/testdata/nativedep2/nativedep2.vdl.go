@@ -40,15 +40,13 @@ func (x MyTime) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *MyTime) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_int32_1); err != nil {
+	switch value, err := dec.ReadValueInt(32); {
+	case err != nil:
 		return err
+	default:
+		*x = MyTime(value)
 	}
-	tmp, err := dec.DecodeInt(32)
-	if err != nil {
-		return err
-	}
-	*x = MyTime(tmp)
-	return dec.FinishValue()
+	return nil
 }
 
 // Hold type definitions in package-level variables, for better performance.

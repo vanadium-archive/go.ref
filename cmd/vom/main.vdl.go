@@ -79,17 +79,15 @@ func (x dataRep) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *dataRep) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_enum_1); err != nil {
+	switch value, err := dec.ReadValueString(); {
+	case err != nil:
 		return err
+	default:
+		if err := x.Set(value); err != nil {
+			return err
+		}
 	}
-	enum, err := dec.DecodeString()
-	if err != nil {
-		return err
-	}
-	if err := x.Set(enum); err != nil {
-		return err
-	}
-	return dec.FinishValue()
+	return nil
 }
 
 // Hold type definitions in package-level variables, for better performance.

@@ -90,28 +90,18 @@ func (x *WindowSize) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Rows":
-			if err := dec.StartValue(vdl.Uint16Type); err != nil {
+			switch value, err := dec.ReadValueUint(16); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeUint(16)
-			if err != nil {
-				return err
-			}
-			x.Rows = uint16(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Rows = uint16(value)
 			}
 		case "Cols":
-			if err := dec.StartValue(vdl.Uint16Type); err != nil {
+			switch value, err := dec.ReadValueUint(16); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeUint(16)
-			if err != nil {
-				return err
-			}
-			x.Cols = uint16(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Cols = uint16(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
@@ -226,15 +216,11 @@ func (x *ShellOpts) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "UsePty":
-			if err := dec.StartValue(vdl.BoolType); err != nil {
+			switch value, err := dec.ReadValueBool(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.UsePty, err = dec.DecodeBool(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.UsePty = value
 			}
 		case "Environment":
 			if err := __VDLReadAnon_list_1(dec, &x.Environment); err != nil {
@@ -256,31 +242,20 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
 	if err := dec.StartValue(__VDLType_list_3); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]string, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, elem, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			*x = append(*x, elem)
 		}
-		var elem string
-		if err := dec.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		var err error
-		if elem, err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 
@@ -459,13 +434,7 @@ func VDLReadClientShellPacket(dec vdl.Decoder, x *ClientShellPacket) error {
 	switch f {
 	case "Stdin":
 		var field ClientShellPacketStdin
-		if err := dec.StartValue(__VDLType_list_5); err != nil {
-			return err
-		}
-		if err := dec.DecodeBytes(-1, &field.Value); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
+		if err := dec.ReadValueBytes(-1, &field.Value); err != nil {
 			return err
 		}
 		*x = field
@@ -601,25 +570,13 @@ func VDLReadServerShellPacket(dec vdl.Decoder, x *ServerShellPacket) error {
 	switch f {
 	case "Stdout":
 		var field ServerShellPacketStdout
-		if err := dec.StartValue(__VDLType_list_5); err != nil {
-			return err
-		}
-		if err := dec.DecodeBytes(-1, &field.Value); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
+		if err := dec.ReadValueBytes(-1, &field.Value); err != nil {
 			return err
 		}
 		*x = field
 	case "Stderr":
 		var field ServerShellPacketStderr
-		if err := dec.StartValue(__VDLType_list_5); err != nil {
-			return err
-		}
-		if err := dec.DecodeBytes(-1, &field.Value); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
+		if err := dec.ReadValueBytes(-1, &field.Value); err != nil {
 			return err
 		}
 		*x = field

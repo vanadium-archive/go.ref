@@ -44,15 +44,13 @@ func (x Term) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *Term) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_uint64_1); err != nil {
+	switch value, err := dec.ReadValueUint(64); {
+	case err != nil:
 		return err
+	default:
+		*x = Term(value)
 	}
-	tmp, err := dec.DecodeUint(64)
-	if err != nil {
-		return err
-	}
-	*x = Term(tmp)
-	return dec.FinishValue()
+	return nil
 }
 
 // Index is an index into the log.  The log entries are numbered sequentially.  At the moment
@@ -81,15 +79,13 @@ func (x Index) VDLWrite(enc vdl.Encoder) error {
 }
 
 func (x *Index) VDLRead(dec vdl.Decoder) error {
-	if err := dec.StartValue(__VDLType_uint64_2); err != nil {
+	switch value, err := dec.ReadValueUint(64); {
+	case err != nil:
 		return err
+	default:
+		*x = Index(value)
 	}
-	tmp, err := dec.DecodeUint(64)
-	if err != nil {
-		return err
-	}
-	*x = Index(tmp)
-	return dec.FinishValue()
+	return nil
 }
 
 // The LogEntry is what the log consists of.  'error' starts nil and is never written to stable
@@ -191,34 +187,29 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Term":
-			if err := x.Term.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueUint(64); {
+			case err != nil:
 				return err
+			default:
+				x.Term = Term(value)
 			}
 		case "Index":
-			if err := x.Index.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueUint(64); {
+			case err != nil:
 				return err
+			default:
+				x.Index = Index(value)
 			}
 		case "Cmd":
-			if err := dec.StartValue(__VDLType_list_4); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.Cmd); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.Cmd); err != nil {
 				return err
 			}
 		case "Type":
-			if err := dec.StartValue(vdl.ByteType); err != nil {
+			switch value, err := dec.ReadValueUint(8); {
+			case err != nil:
 				return err
-			}
-			tmp, err := dec.DecodeUint(8)
-			if err != nil {
-				return err
-			}
-			x.Type = byte(tmp)
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Type = byte(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {

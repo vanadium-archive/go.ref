@@ -132,15 +132,11 @@ func (x *WireCiphertext) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "PatternId":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.PatternId, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.PatternId = value
 			}
 		case "Bytes":
 			if err := __VDLReadAnon_map_1(dec, &x.Bytes); err != nil {
@@ -163,42 +159,22 @@ func __VDLReadAnon_map_1(dec vdl.Decoder, x *map[string][]byte) error {
 		tmpMap = make(map[string][]byte, len)
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, key, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			*x = tmpMap
 			return dec.FinishValue()
+		default:
+			var elem []byte
+			if err := dec.ReadValueBytes(-1, &elem); err != nil {
+				return err
+			}
+			if tmpMap == nil {
+				tmpMap = make(map[string][]byte)
+			}
+			tmpMap[key] = elem
 		}
-		var key string
-		{
-			if err := dec.StartValue(vdl.StringType); err != nil {
-				return err
-			}
-			var err error
-			if key, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
-			}
-		}
-		var elem []byte
-		{
-			if err := dec.StartValue(__VDLType_list_3); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &elem); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
-			}
-		}
-		if tmpMap == nil {
-			tmpMap = make(map[string][]byte)
-		}
-		tmpMap[key] = elem
 	}
 }
 
@@ -281,24 +257,14 @@ func (x *WireParams) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Blessing":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Blessing, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Blessing = value
 			}
 		case "Params":
-			if err := dec.StartValue(__VDLType_list_3); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.Params); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.Params); err != nil {
 				return err
 			}
 		default:
@@ -433,15 +399,11 @@ func (x *WirePrivateKey) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Blessing":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Blessing, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Blessing = value
 			}
 		case "Params":
 			if err := x.Params.VDLRead(dec); err != nil {
@@ -463,10 +425,9 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[][]byte) error {
 	if err := dec.StartValue(__VDLType_list_6); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([][]byte, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
@@ -475,18 +436,13 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[][]byte) error {
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			var elem []byte
+			if err := dec.ReadValueBytes(-1, &elem); err != nil {
+				return err
+			}
+			*x = append(*x, elem)
 		}
-		var elem []byte
-		if err := dec.StartValue(__VDLType_list_3); err != nil {
-			return err
-		}
-		if err := dec.DecodeBytes(-1, &elem); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 

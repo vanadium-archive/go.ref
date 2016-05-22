@@ -117,13 +117,7 @@ func (x *PackAddressTest) VDLRead(dec vdl.Decoder) error {
 				return err
 			}
 		case "Packed":
-			if err := dec.StartValue(__VDLType_list_3); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.Packed); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.Packed); err != nil {
 				return err
 			}
 		default:
@@ -138,31 +132,20 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
 	if err := dec.StartValue(__VDLType_list_2); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]string, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
-		switch done, err := dec.NextEntry(); {
+		switch done, elem, err := dec.NextEntryValueString(); {
 		case err != nil:
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			*x = append(*x, elem)
 		}
-		var elem string
-		if err := dec.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		var err error
-		if elem, err = dec.DecodeString(); err != nil {
-			return err
-		}
-		if err := dec.FinishValue(); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 
@@ -271,21 +254,18 @@ func (x *PackEncryptionKeysTest) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "Algo":
-			if err := x.Algo.VDLRead(dec); err != nil {
+			switch value, err := dec.ReadValueInt(32); {
+			case err != nil:
 				return err
+			default:
+				x.Algo = discovery.EncryptionAlgorithm(value)
 			}
 		case "Keys":
 			if err := __VDLReadAnon_list_2(dec, &x.Keys); err != nil {
 				return err
 			}
 		case "Packed":
-			if err := dec.StartValue(__VDLType_list_3); err != nil {
-				return err
-			}
-			if err := dec.DecodeBytes(-1, &x.Packed); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
+			if err := dec.ReadValueBytes(-1, &x.Packed); err != nil {
 				return err
 			}
 		default:
@@ -300,10 +280,9 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]discovery.EncryptionKey) error {
 	if err := dec.StartValue(__VDLType_list_6); err != nil {
 		return err
 	}
-	switch len := dec.LenHint(); {
-	case len > 0:
+	if len := dec.LenHint(); len > 0 {
 		*x = make([]discovery.EncryptionKey, 0, len)
-	default:
+	} else {
 		*x = nil
 	}
 	for {
@@ -312,12 +291,15 @@ func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]discovery.EncryptionKey) error {
 			return err
 		case done:
 			return dec.FinishValue()
+		default:
+			var elem discovery.EncryptionKey
+			var bytes []byte
+			if err := dec.ReadValueBytes(-1, &bytes); err != nil {
+				return err
+			}
+			elem = bytes
+			*x = append(*x, elem)
 		}
-		var elem discovery.EncryptionKey
-		if err := elem.VDLRead(dec); err != nil {
-			return err
-		}
-		*x = append(*x, elem)
 	}
 }
 
@@ -390,26 +372,18 @@ func (x *UuidTestData) VDLRead(dec vdl.Decoder) error {
 		case "":
 			return dec.FinishValue()
 		case "In":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.In, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.In = value
 			}
 		case "Want":
-			if err := dec.StartValue(vdl.StringType); err != nil {
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
 				return err
-			}
-			var err error
-			if x.Want, err = dec.DecodeString(); err != nil {
-				return err
-			}
-			if err := dec.FinishValue(); err != nil {
-				return err
+			default:
+				x.Want = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {
