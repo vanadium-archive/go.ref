@@ -118,7 +118,8 @@ var dash = function() {
             count: -1,
             units: {
               days: {format: ['MMM dd']},
-              hours: {format: ['h:mm a', 'h a']}
+              hours: {format: ['h:mm a', 'h a']},
+              milliseconds: {format: ['h:mm a']}
             },
           }
         }
@@ -132,9 +133,13 @@ var dash = function() {
     var dt  = new google.visualization.DataTable();
     dt.addColumn('datetime', '');
     dt.addColumn('number', '');
-    dt.addRows(points.map(function(pt) {
-      return [new Date(pt.Timestamp * 1000), pt.Value];
-    }));
+    if (points) {
+      dt.addRows(points.map(function(pt) {
+        return [new Date(pt.Timestamp * 1000), pt.Value];
+      }));
+    } else {
+      dt.addRow([new Date(), 0]);
+    }
     return dt;
   }
 

@@ -35,6 +35,9 @@ body {
   font-size: 16px;
   font-weight: 400;
   z-index: 9999;
+  position: absolute;
+  top: 0px;
+  left: 0px;
 }
 
 #header div {
@@ -67,8 +70,10 @@ body {
   display: flex;
   flex-wrap: wrap;
   overflow-y: auto;
-  flex-grow: 1;
   align-content: flex-start;
+  position: absolute;
+  top: 48px;
+  bottom: 0px;
 }
 
 .chart {
