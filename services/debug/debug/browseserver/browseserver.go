@@ -25,17 +25,15 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/rpc/reserved"
 	"v.io/v23/security"
 	"v.io/v23/services/logreader"
 	"v.io/v23/services/stats"
-	sbwire "v.io/v23/services/syncbase"
 	svtrace "v.io/v23/services/vtrace"
-	"v.io/v23/syncbase"
 	"v.io/v23/uniqueid"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
+	"v.io/x/ref/services/debug/debug/browseserver/sbtree"
 	"v.io/x/ref/services/internal/pproflib"
 )
 
@@ -825,23 +823,6 @@ func (v *vtraceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // collections, and has links to the detailed collection page.
 type syncbaseHandler struct{ *handler }
 
-func implementsSyncbaseInterface(ctx *context.T, server string) (bool, error) {
-	const (
-		syncbasePkgPath = "v.io/v23/services/syncbase"
-		syncbaseName    = "Service"
-	)
-	interfaces, err := reserved.Signature(ctx, server)
-	if err != nil {
-		return false, err
-	}
-	for _, ifc := range interfaces {
-		if ifc.Name == syncbaseName && ifc.PkgPath == syncbasePkgPath {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 func internalServerError(w http.ResponseWriter, doing string, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
 	fmt.Fprintf(w, "Problem %s: %v", doing, err)
@@ -862,99 +843,38 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hasSyncbase, err := implementsSyncbaseInterface(ctx, server)
+	sbTree, err := sbtree.AssembleSyncbaseTree(ctx, server)
+
 	if err != nil {
-		internalServerError(w, "getting interfaces", err)
-		return
-	}
-
-	if !hasSyncbase {
-		args := struct {
-			ServerName  string
-			CommandLine string
-			Vtrace      *Tracer
-		}{
-			ServerName:  server,
-			CommandLine: "(no command line)",
-			Vtrace:      tracer,
-		}
-		h.execute(h.ctx, w, r, noSyncbaseTmpl, args)
-		return
-	}
-
-	service := syncbase.NewService(server)
-
-	dbIds, err := service.ListDatabases(ctx)
-	if err != nil {
-		internalServerError(w, "listing databases", err)
-		return
-	}
-
-	// Assemble the data to be displayed as tree of nested slices
-	type SyncgroupTree struct {
-		Syncgroup syncbase.Syncgroup
-		Spec      sbwire.SyncgroupSpec
-		Members   map[string]sbwire.SyncgroupMemberInfo
-	}
-	type databaseTree struct {
-		Database    syncbase.Database
-		Collections []syncbase.Collection
-		Syncgroups  []SyncgroupTree
-	}
-	tree := make([]databaseTree, len(dbIds))
-	for i := range dbIds {
-		// TODO(eobrain) Confirm nil for schema is appropriate
-		db := service.DatabaseForId(dbIds[i], nil)
-
-		// Assemble collections
-		collIds, err := db.ListCollections(ctx)
-		if err != nil {
-			internalServerError(w, "listing collections", err)
-			return
-		}
-		colls := make([]syncbase.Collection, len(collIds))
-		for j := range collIds {
-			colls[j] = db.CollectionForId(collIds[i])
-		}
-
-		// Assemble syncgroups
-		sgIds, err := db.ListSyncgroups(ctx)
-		if err != nil {
-			internalServerError(w, "listing syncgroups", err)
-			return
-		}
-		sgs := make([]SyncgroupTree, len(sgIds))
-		for j := range sgIds {
-			sg := db.SyncgroupForId(sgIds[j])
-			spec, _, err := sg.GetSpec(ctx)
-			if err != nil {
-				internalServerError(w, "getting spec of syncgroup", err)
-				return
+		if err == sbtree.NoSyncbaseError {
+			// Error because no Syncbase, send to no-syncbase page.
+			args := struct {
+				ServerName  string
+				CommandLine string
+				Vtrace      *Tracer
+			}{
+				ServerName:  server,
+				CommandLine: "(no command line)",
+				Vtrace:      tracer,
 			}
-			members, err := sg.GetMembers(ctx)
-			if err != nil {
-				internalServerError(w, "getting members of syncgroup", err)
-				return
-			}
-			sgs[j] = SyncgroupTree{sg, spec, members}
+			h.execute(h.ctx, w, r, noSyncbaseTmpl, args)
+		} else {
+			// Some other error.
+			internalServerError(w, "getting syncbase information", err)
 		}
-
-		tree[i] = databaseTree{db, colls, sgs}
+		return
 	}
 
-	// Assemble data and send it to the template to generate HTML
 	args := struct {
 		ServerName  string
 		CommandLine string
 		Vtrace      *Tracer
-		Service     syncbase.Service
-		Tree        []databaseTree
+		Tree        *sbtree.SyncbaseTree
 	}{
 		ServerName:  server,
 		CommandLine: fmt.Sprintf(`debug glob "%s/*"`, server),
 		Vtrace:      tracer,
-		Service:     service,
-		Tree:        tree,
+		Tree:        sbTree,
 	}
 	h.execute(h.ctx, w, r, syncbaseTmpl, args)
 }
@@ -963,76 +883,7 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // main Syncbase viewer page.
 type collectionHandler struct{ *handler }
 
-type keyVal struct {
-	Index int
-	Key   string
-	Value interface{}
-}
-
-// keysPage is a contiguous subset of the keys, used for pagination.
-type keysPage struct {
-	HasPrev bool
-	KeyVals []keyVal
-	NextKey string
-}
-
-// scanCollection gets some statistics, plus a page of key-value pairs starting
-// with firstKey.
-func scanCollection(
-	ctx *context.T, coll syncbase.Collection, firstKey string,
-) (rowCount int, totKeySize uint64, page keysPage) {
-	const keysPerPage = 7
-	page.KeyVals = make([]keyVal, 0, keysPerPage)
-
-	stream := coll.Scan(ctx, syncbase.Prefix(""))
-
-	// We scan through all the keys lexicographically, and when we come to a
-	// key >= firstKey we start gathering a "page" of keys. As we scan, a
-	// state machine keeps track of whether we are before the page, in the
-	// page, or after the page.
-	const (
-		before    = 0
-		gathering = iota
-		done      = iota
-	)
-	state := before
-	for stream.Advance() {
-		key := stream.Key()
-		totKeySize += uint64(len(key))
-
-		switch state {
-		case before:
-			if key >= firstKey {
-				// First key found: transition to gathering the page
-				state = gathering
-			} else {
-				// There is at least one key before the page
-				page.HasPrev = true
-			}
-		case gathering:
-			if len(page.KeyVals) >= keysPerPage {
-				// Page full: transition to done.  There is at
-				// least one key after the page.
-				state = done
-				page.NextKey = key
-			}
-		case done:
-			// Done gathering.  Terminal state.
-		}
-		if state == gathering {
-			// Grab the value, put it and the key into a KeyVal, and
-			// add it to the page.
-			var value interface{}
-			err := stream.Value(&value)
-			if err != nil {
-				value = fmt.Sprintf("ERROR getting value: %v", err)
-			}
-			page.KeyVals = append(page.KeyVals, keyVal{rowCount, key, value})
-		}
-		rowCount++
-	}
-	return
-}
+const keysPerPage = 7
 
 func (h *collectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -1042,8 +893,6 @@ func (h *collectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		collBlessing = r.FormValue("cb")
 		collName     = r.FormValue("cn")
 		firstKey     = r.FormValue("firstkey")
-		dbId         = sbwire.Id{dbBlessing, dbName}
-		collId       = sbwire.Id{collBlessing, collName}
 	)
 	ctx, tracer := newTracer(h.ctx)
 	if len(server) == 0 {
@@ -1051,35 +900,23 @@ func (h *collectionHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	service := syncbase.NewService(server)
-
-	// TODO(eobrain) Confirm nil for schema is appropriate
-	db := service.DatabaseForId(dbId, nil)
-	coll := db.CollectionForId(collId)
-
-	rowCount, totKeySize, page := scanCollection(ctx, coll, firstKey)
+	collTree := sbtree.AssembleCollectionTree(
+		ctx, server,
+		dbBlessing, dbName,
+		collBlessing, collName,
+		firstKey, keysPerPage)
 
 	// Assemble data and send it to the template to generate HTML
 	args := struct {
 		ServerName  string
 		CommandLine string
 		Vtrace      *Tracer
-		Service     syncbase.Service
-		Database    syncbase.Database
-		Collection  syncbase.Collection
-		RowCount    int
-		TotKeySize  uint64
-		KeysPage    keysPage
+		Tree        *sbtree.CollectionTree
 	}{
 		ServerName:  server,
 		CommandLine: "(no command line)",
 		Vtrace:      tracer,
-		Service:     service,
-		Database:    db,
-		Collection:  coll,
-		RowCount:    rowCount,
-		TotKeySize:  totKeySize,
-		KeysPage:    page,
+		Tree:        collTree,
 	}
 	h.execute(h.ctx, w, r, collectionTmpl, args)
 }

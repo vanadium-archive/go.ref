@@ -67,6 +67,25 @@ func CreateCollection(t testing.TB, ctx *context.T, d syncbase.Database, name st
 	return c
 }
 
+func CreateSyncgroup(
+	t testing.TB,
+	ctx *context.T,
+	d syncbase.Database,
+	c syncbase.Collection,
+	name, description string,
+) syncbase.Syncgroup {
+	sg := d.SyncgroupForId(CxId(name))
+	sgSpec := wire.SyncgroupSpec{
+		Description: description,
+		Collections: []wire.Id{c.Id()},
+	}
+	sgMembership := wire.SyncgroupMemberInfo{}
+	if err := sg.Create(ctx, sgSpec, sgMembership); err != nil {
+		Fatalf(t, "sg.Create() failed: %v", err)
+	}
+	return sg
+}
+
 // TODO(sadovsky): Drop the 'perms' argument. The only client that passes
 // non-nil, syncgroup_test.go, should use SetupOrDieCustom instead.
 func SetupOrDie(perms access.Permissions) (clientCtx *context.T, serverName string, cleanup func()) {

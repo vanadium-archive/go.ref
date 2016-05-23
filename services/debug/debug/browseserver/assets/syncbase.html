@@ -9,11 +9,11 @@
 <section class="section--center mdl-grid">
     <h5>Syncbase</h5>
     <div class="mdl-cell mdl-cell--12-col">
-      Service "{{.Service.FullName}}"
+      Service "{{.Tree.Service.FullName}}"
     </div>
 </section>
 
-{{range .Tree}}
+{{range .Tree.Dbs}}
   <section class="section--center mdl-grid">
     {{ $db := .Database.Id }}
     <h5>Database "{{$db.Name}}"</h5>
