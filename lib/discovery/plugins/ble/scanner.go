@@ -20,6 +20,7 @@ type scanner struct {
 
 	rescan chan struct{}
 	done   chan struct{}
+	wg     sync.WaitGroup
 
 	mu          sync.Mutex
 	listeners   map[string][]chan<- *idiscovery.AdInfo // GUARDED_BY(mu)
@@ -81,10 +82,14 @@ func (s *scanner) removeListener(interfaceName string, ch chan *idiscovery.AdInf
 
 func (s *scanner) shutdown() {
 	close(s.done)
+	s.wg.Wait()
 }
 
 func (s *scanner) scanLoop() {
-	refreshInterval := s.ttl / 2
+	defer s.wg.Done()
+
+	var gcWg sync.WaitGroup
+	defer gcWg.Wait()
 
 	isScanning := false
 	stopScan := func() {
@@ -95,6 +100,7 @@ func (s *scanner) scanLoop() {
 	}
 	defer stopScan()
 
+	refreshInterval := s.ttl / 2
 	var refresh <-chan time.Time
 	for {
 		select {
@@ -131,7 +137,8 @@ func (s *scanner) scanLoop() {
 			isScanning = true
 		}
 
-		go s.gc()
+		gcWg.Add(1)
+		go s.gc(&gcWg)
 		refresh = time.After(refreshInterval)
 	}
 }
@@ -149,14 +156,23 @@ func (s *scanner) OnDiscovered(uuid string, characteristics map[string][]byte, r
 		s.mu.Lock()
 		s.scanRecords[adinfo.Ad.Id] = &scanRecord{adinfo.Ad.InterfaceName, time.Now().Add(s.ttl)}
 		for _, ch := range append(s.listeners[adinfo.Ad.InterfaceName], s.listeners[""]...) {
-			ch <- adinfo
+			select {
+			case ch <- adinfo:
+			case <-s.done:
+				s.mu.Unlock()
+				return
+			}
 		}
 		s.mu.Unlock()
 	}
 }
 
-func (s *scanner) gc() {
+func (s *scanner) gc(wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	now := time.Now()
 	for id, rec := range s.scanRecords {
 		if rec.expiry.After(now) {
@@ -166,10 +182,13 @@ func (s *scanner) gc() {
 		delete(s.scanRecords, id)
 		adinfo := &idiscovery.AdInfo{Ad: discovery.Advertisement{Id: id}, Lost: true}
 		for _, ch := range append(s.listeners[rec.interfaceName], s.listeners[""]...) {
-			ch <- adinfo
+			select {
+			case ch <- adinfo:
+			case <-s.done:
+				return
+			}
 		}
 	}
-	s.mu.Unlock()
 }
 
 func newScanner(ctx *context.T, driver Driver, ttl time.Duration) *scanner {
@@ -182,6 +201,7 @@ func newScanner(ctx *context.T, driver Driver, ttl time.Duration) *scanner {
 		scanRecords: make(map[discovery.AdId]*scanRecord),
 		ttl:         ttl,
 	}
+	s.wg.Add(1)
 	go s.scanLoop()
 	return s
 }

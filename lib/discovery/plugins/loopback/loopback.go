@@ -151,11 +151,11 @@ func (p *plugin) listenToUpdates(ctx *context.T) <-chan struct{} {
 }
 
 // New returns a new loopback plugin instance.
-func New() idiscovery.Plugin {
+func New(ctx *context.T, host string) (idiscovery.Plugin, error) {
 	p := &plugin{
 		adinfoMap: make(map[string]map[discovery.AdId]*idiscovery.AdInfo),
 		adStopper: idiscovery.NewTrigger(),
 	}
 	p.updated = sync.NewCond(&p.mu)
-	return p
+	return p, nil
 }

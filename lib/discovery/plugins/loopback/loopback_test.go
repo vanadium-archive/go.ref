@@ -48,7 +48,10 @@ func TestBasic(t *testing.T) {
 		},
 	}
 
-	p := loopback.New()
+	p, err := loopback.New(ctx, "h1")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var stops []func()
 	for i, _ := range adinfos {
