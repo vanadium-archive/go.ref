@@ -15,6 +15,7 @@ import (
 
 	"google.golang.org/api/monitoring/v3"
 
+	"v.io/v23/verror"
 	"v.io/x/lib/gcm"
 )
 
@@ -54,10 +55,17 @@ type statsResult struct {
 }
 
 func handleDashboard(ss *serverState, rs *requestState) error {
+	ctx := ss.ctx
 	instance := rs.r.FormValue(paramDashboardName)
 	if instance == "" {
 		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
 	}
+	if isOwner, err := isOwnerOfInstance(rs.email, kubeNameFromMountName(instance)); err != nil {
+		return err
+	} else if !isOwner {
+		return verror.New(verror.ErrNoExistOrNoAccess, ctx)
+	}
+
 	tmplArgs := struct {
 		ServerName,
 		Instance,
@@ -78,6 +86,16 @@ func handleDashboard(ss *serverState, rs *requestState) error {
 func handleStats(ss *serverState, rs *requestState) error {
 	ctx := ss.ctx
 
+	mountedName := rs.r.FormValue(paramDashboardName)
+	if mountedName == "" {
+		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
+	}
+	if isOwner, err := isOwnerOfInstance(rs.email, kubeNameFromMountName(mountedName)); err != nil {
+		return err
+	} else if !isOwner {
+		return verror.New(verror.ErrNoExistOrNoAccess, ctx)
+	}
+
 	now := time.Now()
 	if gcmService == nil || now.Sub(gcmLastAuthTime) > gcmAuthTimeout {
 		s, err := gcm.Authenticate(ss.args.monitoringKeyFile)
@@ -96,10 +114,6 @@ func handleStats(ss *serverState, rs *requestState) error {
 			return err
 		}
 		duration = time.Duration(d) * time.Second
-	}
-	mountedName := rs.r.FormValue(paramDashboardName)
-	if mountedName == "" {
-		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
 	}
 
 	// Get data from GCM.

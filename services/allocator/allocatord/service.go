@@ -127,18 +127,9 @@ func create(ctx *context.T, email string, baseBlessings security.Blessings) (str
 func destroy(ctx *context.T, email, mName string) error {
 	kName := kubeNameFromMountName(mName)
 
-	found := false
-	if instances, err := serverInstances(email); err != nil {
+	if isOwner, err := isOwnerOfInstance(email, kName); err != nil {
 		return err
-	} else {
-		for _, i := range instances {
-			if i == kName {
-				found = true
-				break
-			}
-		}
-	}
-	if !found {
+	} else if !isOwner {
 		return verror.New(verror.ErrNoExistOrNoAccess, ctx)
 	}
 
@@ -273,6 +264,23 @@ func emailHash(email string) string {
 }
 
 func serverInstances(email string) ([]string, error) {
+	args := []string{"kubectl", "get", "deployments", "-o", "json"}
+	if email != "" {
+		args = append(args, "-l", "ownerHash="+emailHash(email))
+	}
+
+	var out []byte
+	var err error
+	for retry := 0; retry < 10; retry++ {
+		if out, err = vkube(args...); err == nil {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	var list struct {
 		Items []struct {
 			Metadata struct {
@@ -280,13 +288,7 @@ func serverInstances(email string) ([]string, error) {
 			} `json:"metadata"`
 		} `json:"items"`
 	}
-	args := []string{"kubectl", "get", "deployments", "-o", "json"}
-	if email != "" {
-		args = append(args, "-l", "ownerHash="+emailHash(email))
-	}
-	if out, err := vkube(args...); err != nil {
-		return nil, err
-	} else if err := json.Unmarshal(out, &list); err != nil {
+	if err := json.Unmarshal(out, &list); err != nil {
 		return nil, err
 	}
 	kNames := []string{}
@@ -296,6 +298,19 @@ func serverInstances(email string) ([]string, error) {
 		}
 	}
 	return kNames, nil
+}
+
+func isOwnerOfInstance(email, kName string) (bool, error) {
+	instances, err := serverInstances(email)
+	if err != nil {
+		return false, err
+	}
+	for _, i := range instances {
+		if i == kName {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func createPersistentDisk(ctx *context.T, name string) error {
