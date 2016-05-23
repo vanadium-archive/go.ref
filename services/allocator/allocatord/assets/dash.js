@@ -21,14 +21,16 @@ var dash = function() {
       id: 'cpu-usage-pct'
     },
     {
-      title: 'Memory Usage (%)',
-      dataKey: 'SysMemUsagePct',
-      id: 'mem-usage-pct'
+      title: 'Memory Usage (GB)',
+      dataKey: 'SysMemUsageBytes',
+      id: 'mem-usage-bytes',
+      scale: 1/1024/1024/1024
     },
     {
-      title: 'Disk Usage (%)',
-      dataKey: 'SysDiskUsagePct',
-      id: 'disk-usage-pct'
+      title: 'Disk Usage (GB)',
+      dataKey: 'SysDiskUsageBytes',
+      id: 'disk-usage-bytes',
+      scale: 1/1024/1024/1024
     }
   ];
 
@@ -124,18 +126,21 @@ var dash = function() {
           }
         }
       };
-      c.draw(genDataTable(data[chart.dataKey]), options);
+      c.draw(genDataTable(data[chart.dataKey], chart.scale), options);
     });
   }
 
   // Generates DataTable object from the given points.
-  function genDataTable(points) {
+  function genDataTable(points, scale) {
     var dt  = new google.visualization.DataTable();
     dt.addColumn('datetime', '');
     dt.addColumn('number', '');
     if (points) {
       dt.addRows(points.map(function(pt) {
-        return [new Date(pt.Timestamp * 1000), pt.Value];
+        return [
+            new Date(pt.Timestamp * 1000),
+            scale ? pt.Value * scale : pt.Value
+        ];
       }));
     } else {
       dt.addRow([new Date(), 0]);

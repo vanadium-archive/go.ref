@@ -44,7 +44,7 @@ func (pts points) Sort()              { sort.Sort(pts) }
 type statsResult struct {
 	SysMemUsageBytes  points
 	SysMemUsagePct    points
-	SysDiskUsageButes points
+	SysDiskUsageBytes points
 	SysDiskUsagePct   points
 	SysCPUUsagePct    points
 	Qps               points
@@ -179,7 +179,7 @@ func handleStats(ss *serverState, rs *requestState) error {
 		case "sysmem-usage-pct":
 			result.SysMemUsagePct = pts
 		case "sysdisk-usage-bytes":
-			result.SysDiskUsageButes = pts
+			result.SysDiskUsageBytes = pts
 		case "sysdisk-usage-pct":
 			result.SysDiskUsagePct = pts
 		case "syscpu-usage-pct":
