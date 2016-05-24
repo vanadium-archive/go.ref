@@ -228,6 +228,10 @@ func NewDialed(
 	}
 	c.loopWG.Add(1)
 	go c.readLoop(ctx)
+
+	c.mu.Lock()
+	c.lastUsedTime = time.Now()
+	c.mu.Unlock()
 	return c, names, rejected, nil
 }
 
@@ -297,6 +301,9 @@ func NewAccepted(
 	c.loopWG.Add(2)
 	go c.blessingsLoop(ctx, refreshTime, lAuthorizedPeers)
 	go c.readLoop(ctx)
+	c.mu.Lock()
+	c.lastUsedTime = time.Now()
+	c.mu.Unlock()
 	return c, nil
 }
 
