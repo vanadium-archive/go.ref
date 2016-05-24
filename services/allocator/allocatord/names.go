@@ -25,7 +25,7 @@ const (
 // newKubeName returns a new kubernetes name.
 func newKubeName() (string, error) {
 	// Kubernetes names/labels are at most 63 characters long.
-	b := make([]byte, 16)
+	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
