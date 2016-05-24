@@ -7,14 +7,14 @@
 <!-- NOTE: we 'borrow' a lot of the styling of identityd, hence the
 security-related terminology in the style elements, like identity and
 blessing. -->
-<body class="identityprovider-layout">
+<body class="identityprovider-layout allocatord">
   {{template "header" .}}
   <script>
     function changeBtn(id, newHTML) {
       document.getElementById(id).innerHTML = "<font color='gray'>"+newHTML+"</font>";
     }
   </script>
-  <main>
+  <div class="main">
     <h1 class="page-head">Create and Manage Instances of {{title .ServerName}}</h1>
     <div class="blessings-list">
       <div class="blessings-header">
@@ -24,40 +24,41 @@ blessing. -->
       <div class="blessings-item">
         <div class="blessing-details">
           <h3>{{kubeName .Name}}</h3>
-          <p><b>Creation Time:</b>&nbsp;&nbsp;<span class="unixtime" data-unixtime={{.CreationTime.Unix}}>{{.CreationTime.String}}</span>
+          <p class="blessing-caveats">
+            <span>Creation Time</span><br/>
+            <span class="unixtime" data-unixtime={{.CreationTime.Unix}}>{{.CreationTime.String}}</span>
           </p>
-          <p>
-            <b>Mount Name</b><br/>
+          <p class="blessing-caveats">
+            <span>Mount Name</span><br/>
             <i>{{.NameRoot}}/</i><wbr/>{{relativeName .Name}}
           </p>
           <p class="blessing-caveats">
-            <b>Blessing Patterns</b><br/>
+            <span>Blessing Patterns</span><br/>
             {{range .BlessingPatterns}}
               {{.}}<br/>
             {{end}}
           </p>
         </div>
-        <div class="blessing-revoked">
-          <a href="{{.DashboardURL}}" class="button-passive" target="_blank">Dashboard</a>
-        </div>
-        <div class="blessing-revoked" id="destroyBtn{{$index}}">
-          <a href="{{.DestroyURL}}" class="button-passive" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes a few seconds) ...')">Destroy</a>
+        <div class="btns-col">
+          <div class="btn">
+            <a href="{{.DashboardURL}}" class="button-passive" target="_blank">Dashboard</a>
+          </div>
+          <div class="btn" id="destroyBtn{{$index}}">
+            <a href="{{.DestroyURL}}" class="button-passive" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes a few seconds) ...')">Destroy</a>
+          </div>
         </div>
       </div>
     {{else}}
       None found.
     {{end}}
-    <p>
-      <span id="createBtn"><a href="{{.CreateURL}}" class="button-passive" onclick="changeBtn('createBtn', 'Creating (takes a few seconds) ...')">Create New</a></span>
-    </p>
+    <div id="createBtn"><a href="{{.CreateURL}}" class="button-passive" onclick="changeBtn('createBtn', 'Creating (takes a few seconds) ...')">Create New</a></div>
     {{with .Message -}}
-    <hr>
-    <p>
-      <font size="2">{{.}}</font>
-    </p>
+    <div id="message">
+      {{.}}
+    </div>
     {{end}}
     </font>
-  </main>
+  </div>
   <script src="{{.AssetsPrefix}}/identity/moment.js"></script>
   <script src="{{.AssetsPrefix}}/identity/jquery.js"></script>
   <script>

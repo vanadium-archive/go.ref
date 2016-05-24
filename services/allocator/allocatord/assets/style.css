@@ -15,6 +15,56 @@ body {
   overflow: hidden;
 }
 
+.allocatord {
+  overflow: auto;
+}
+
+.allocatord .main {
+  margin: 84px 24em 28px 28px;
+  padding: 28px 56px;
+  max-width: 900px;
+  margin-right: 10px;
+}
+
+.allocatord .btns-col {
+  padding-top: 16px;
+  padding-right: 16px;
+  width: 130px;
+  flex: 0;
+}
+
+.allocatord .btns-col .button-passive {
+  width: 110px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.allocatord .blessings-item .blessing-details {
+  padding: 16px 10px 16px 10px;
+  flex: 1;
+}
+
+.allocatord .blessing-caveats {
+  font-size: 13px;
+  line-height: 15px;
+  padding-top: 8px;
+}
+
+.allocatord .blessing-caveats span {
+  font-weight: 500;
+}
+
+.allocatord #createBtn {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.allocatord #message {
+  padding-top: 2px;
+  font-size: 11px;
+  border-top: 1px solid #CCC;
+}
+
 #container {
   position: fixed;
   display: flex;
@@ -74,10 +124,13 @@ body {
   position: absolute;
   top: 48px;
   bottom: 0px;
+  justify-content: center;
 }
 
 .chart {
   margin-top: 20px;
+  width: 700;
+  height: 230;
 }
 
 #durations-container {
