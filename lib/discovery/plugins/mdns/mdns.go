@@ -30,6 +30,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/discovery"
 
+	"v.io/x/lib/netconfig"
 	idiscovery "v.io/x/ref/lib/discovery"
 )
 
@@ -64,6 +65,10 @@ var (
 )
 
 type plugin struct {
+	ctx    *context.T
+	closed chan struct{}
+	wg     sync.WaitGroup
+
 	mdns      *mdns.MDNS
 	adStopper *idiscovery.Trigger
 
@@ -160,7 +165,32 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscover
 	return nil
 }
 
-func (p *plugin) Close() {}
+func (p *plugin) Close() {
+	close(p.closed)
+	p.wg.Wait()
+}
+
+func (p *plugin) watchNetConfig() {
+	defer p.wg.Done()
+
+	// Watch the network configuration so that we can make MDNS reattach to
+	// interfaces when the network changes.
+	for {
+		ch, err := netconfig.NotifyChange()
+		if err != nil {
+			p.ctx.Error(err)
+			return
+		}
+		select {
+		case <-ch:
+			if _, err := p.mdns.ScanInterfaces(); err != nil {
+				p.ctx.Error(err)
+			}
+		case <-p.closed:
+			return
+		}
+	}
+}
 
 func (p *plugin) subscribeToService(serviceName string) {
 	p.subscriptionMu.Lock()
@@ -394,7 +424,7 @@ func New(ctx *context.T, host string) (idiscovery.Plugin, error) {
 	return newWithLoopback(ctx, host, 0, false)
 }
 
-func newWithLoopback(_ *context.T, host string, port int, loopback bool) (idiscovery.Plugin, error) {
+func newWithLoopback(ctx *context.T, host string, port int, loopback bool) (idiscovery.Plugin, error) {
 	switch {
 	case len(host) == 0:
 		// go-mdns-sd doesn't answer when the host name is not set.
@@ -422,6 +452,8 @@ func newWithLoopback(_ *context.T, host string, port int, loopback bool) (idisco
 		}
 	}
 	p := plugin{
+		ctx:       ctx,
+		closed:    make(chan struct{}),
 		mdns:      m,
 		adStopper: idiscovery.NewTrigger(),
 		// TODO(jhahn): Figure out a good subscription refresh time.
@@ -433,5 +465,7 @@ func newWithLoopback(_ *context.T, host string, port int, loopback bool) (idisco
 	} else {
 		p.subscriptionWaitTime = 50 * time.Millisecond
 	}
+	p.wg.Add(1)
+	go p.watchNetConfig()
 	return &p, nil
 }
