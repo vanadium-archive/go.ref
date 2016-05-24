@@ -7,6 +7,7 @@ package rpc
 import (
 	"fmt"
 	"io"
+	"net"
 	"reflect"
 	"strings"
 	"sync"
@@ -298,6 +299,24 @@ func (s *server) Status() rpc.ServerStatus {
 	for _, e := range s.endpoints {
 		status.Endpoints = append(status.Endpoints, e)
 	}
+	// HACK ALERT: Many tests seem to just pick out Endpoints[0] as the
+	// address of the server.  Furthermore, many tests run on Kubernetes
+	// inside Google Compute Engine (GCE). While GCE doesn't currently
+	// support IPv6 (as per
+	// https://cloud.google.com/compute/docs/networking), the containers
+	// created by kubernetes do show a link-local IPv6 address on the
+	// interfaces.
+	//
+	// Long story short, as a result of this, net.Dial() calls seem to
+	// fail.  For now, hack around this by ensuring that
+	// status.Endpoints[0] does not correspond to an IPv6 address.
+	for i, ep := range status.Endpoints {
+		if i > 0 && !mayBeIPv6(ep) {
+			status.Endpoints[0], status.Endpoints[i] = status.Endpoints[i], status.Endpoints[0]
+			break
+		}
+	}
+
 	mgrStat := s.flowMgr.Status()
 	status.ListenErrors = mgrStat.ListenErrors
 	status.ProxyErrors = mgrStat.ProxyErrors
@@ -979,4 +998,16 @@ func exportStatus(prefix string, s *server) {
 	})
 	stats.NewStringFunc(naming.Join(prefix, "proxy-errors"), func() string { return fmt.Sprint(s.Status().ProxyErrors) })
 	stats.NewStringFunc(naming.Join(prefix, "listen-errors"), func() string { return fmt.Sprint(s.Status().ListenErrors) })
+}
+
+func mayBeIPv6(ep naming.Endpoint) bool {
+	// Ignore the protocol because the set of protocols to test for isn't
+	// clear (tcp, wsh, vine, udp?) and false positives for this function
+	// aren't really troublesome.
+	host, _, err := net.SplitHostPort(ep.Addr().String())
+	if err != nil {
+		return false
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.To4() == nil
 }
