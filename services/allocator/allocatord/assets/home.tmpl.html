@@ -24,12 +24,21 @@ blessing. -->
       <div class="blessings-item">
         <div class="blessing-details">
           <h3>{{kubeName .Name}}</h3>
+          <p class="blessing-caveats unixtime" data-unixtime={{.CreationTime.Unix}}>
+            <b>Creation Time</b><br/>
+            {{.CreationTime.String}}
+          </p>
           <p>
-            <b>Mount Name</b><br>
-            {{.Name}}
+            <b>Mount Name</b><br/>
+            <i>{{.NameRoot}}/</i><wbr/>{{relativeName .Name}}
+          </p>
+          <p class="blessing-caveats">
+            <b>Blessing Patterns</b><br/>
+            {{range .BlessingPatterns}}
+              {{.}}<br/>
+            {{end}}
           </p>
         </div>
-        <div class="blessing-revoked"></div>
         <div class="blessing-revoked">
           <a href="{{.DashboardURL}}" class="button-passive" target="_blank">Dashboard</a>
         </div>

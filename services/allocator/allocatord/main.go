@@ -27,6 +27,7 @@ import (
 var (
 	nameFlag                string
 	serverNameFlag          string
+	serverNameRootFlag      string
 	deploymentTemplateFlag  string
 	globalAdminsFlag        string
 	maxInstancesFlag        int
@@ -59,12 +60,14 @@ var (
 
 const (
 	serverNameFlagName     = "server-name"
+	serverNameRootFlagName = "server-name-root"
 	oauthCredsFileFlagName = "oauth-client-creds-file"
 )
 
 func main() {
 	cmdRoot.Flags.StringVar(&nameFlag, "name", "", "Name to publish for this service.")
 	cmdRoot.Flags.StringVar(&serverNameFlag, serverNameFlagName, "", "Name of the servers to allocate. This name is part of the published names in the Vanadium namespace and the names of the Deployments in Kubernetes.")
+	cmdRoot.Flags.StringVar(&serverNameRootFlag, serverNameRootFlagName, "", "Namespace root for allocated servers to use when publishing in the Vanadium namespace.  If not set, the namespace root of the allocator server is used.")
 	cmdRoot.Flags.StringVar(&deploymentTemplateFlag, "deployment-template", "", "The template for the deployment of the servers to allocate.")
 	cmdRoot.Flags.StringVar(&globalAdminsFlag, "global-admins", "", "A comma-separated list of blessing patterns that have access to all the server instances.")
 	cmdRoot.Flags.IntVar(&maxInstancesFlag, "max-instances", 10, "The maximum total number of server instances to create.")
@@ -94,12 +97,21 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 		// use <server-name>-<md5> as name, where "-<md5>" is 33 chars.
 		return env.UsageErrorf("--%s value too long. Must be <= 30 characters", serverNameFlagName)
 	}
+	if nameRoot(ctx) == "" {
+		return env.UsageErrorf("--%s not specified, and no default namespace root found", serverNameRootFlagName)
+	}
 
 	var baseBlessings security.Blessings
 	if clusterAgentFlag == "" || blessingSecretFlag == "" {
-		fmt.Fprintln(env.Stderr, "WARNING: Using self-blessed blessings for allocated servers")
-		var err error
-		if baseBlessings, err = v23.GetPrincipal(ctx).BlessSelf("allocator"); err != nil {
+		fmt.Fprintln(env.Stderr, "WARNING: Using disabled blessings for allocated servers")
+		p := v23.GetPrincipal(ctx)
+		defaultB, _ := p.BlessingStore().Default()
+		// This caveat ensures that the blessing we create cannot be used.
+		disabled, err := security.NewCaveat(security.ConstCaveat, false)
+		if err != nil {
+			return err
+		}
+		if baseBlessings, err = p.Bless(p.PublicKey(), defaultB, "allocator", disabled); err != nil {
 			return err
 		}
 	} else {

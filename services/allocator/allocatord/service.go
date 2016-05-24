@@ -70,12 +70,20 @@ func (i *allocatorImpl) List(ctx *context.T, call rpc.ServerCall) ([]string, err
 	if email == "" {
 		return nil, verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
 	}
-	return list(ctx, email)
+	instances, err := list(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	mNames := make([]string, len(instances))
+	for i, instance := range instances {
+		mNames[i] = instance.mountName
+	}
+	return mNames, nil
 }
 
 func create(ctx *context.T, email string, baseBlessings security.Blessings) (string, error) {
 	// Enforce a limit on the number of instances. These tests are a little
-	// bit racy. It's possible that multiple calls to Create() will run
+	// bit racy. It's possible that multiple calls to create() will run
 	// concurrently and that we'll end up with too many instances.
 	if n, err := serverInstances(email); err != nil {
 		return "", err
@@ -150,16 +158,15 @@ func destroy(ctx *context.T, email, mName string) error {
 	return nil
 }
 
-func list(ctx *context.T, email string) ([]string, error) {
-	kNames, err := serverInstances(email)
+func list(ctx *context.T, email string) ([]serverInstance, error) {
+	instances, err := serverInstances(email)
 	if err != nil {
 		return nil, err
 	}
-	mNames := make([]string, len(kNames))
-	for i, n := range kNames {
-		mNames[i] = mountNameFromKubeName(ctx, n)
+	for i, instance := range instances {
+		instances[i].mountName = mountNameFromKubeName(ctx, instance.name)
 	}
-	return mNames, nil
+	return instances, err
 }
 
 func createDeploymentConfig(ctx *context.T, email, deploymentName, mountName string) (string, func(), error) {
@@ -263,7 +270,17 @@ func emailHash(email string) string {
 	return hex.EncodeToString(h[:])
 }
 
-func serverInstances(email string) ([]string, error) {
+type serverInstance struct {
+	name         string
+	mountName    string
+	creationTime time.Time
+}
+
+func serverInstances(email string) ([]serverInstance, error) {
+	// TODO(caprita): Store the mount name and server blessing name(s) as
+	// annotations in the deployment, and retrieve them here.  This should
+	// ensure that the values are accurate, and do not depend on the version
+	// of allocatord that is presenting them.
 	args := []string{"kubectl", "get", "deployments", "-o", "json"}
 	if email != "" {
 		args = append(args, "-l", "ownerHash="+emailHash(email))
@@ -284,20 +301,24 @@ func serverInstances(email string) ([]string, error) {
 	var list struct {
 		Items []struct {
 			Metadata struct {
-				Name string `json:"name"`
+				Name         string    `json:"name"`
+				CreationTime time.Time `json:"creationTimestamp"`
 			} `json:"metadata"`
 		} `json:"items"`
 	}
 	if err := json.Unmarshal(out, &list); err != nil {
 		return nil, err
 	}
-	kNames := []string{}
+	instances := []serverInstance{}
 	for _, l := range list.Items {
 		if strings.HasPrefix(l.Metadata.Name, serverNameFlag+"-") {
-			kNames = append(kNames, l.Metadata.Name)
+			instances = append(instances, serverInstance{
+				name:         l.Metadata.Name,
+				creationTime: l.Metadata.CreationTime,
+			})
 		}
 	}
-	return kNames, nil
+	return instances, nil
 }
 
 func isOwnerOfInstance(email, kName string) (bool, error) {
@@ -306,7 +327,7 @@ func isOwnerOfInstance(email, kName string) (bool, error) {
 		return false, err
 	}
 	for _, i := range instances {
-		if i == kName {
+		if i.name == kName {
 			return true, nil
 		}
 	}

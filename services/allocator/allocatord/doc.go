@@ -58,6 +58,9 @@ The allocatord flags are:
  -server-name=
    Name of the servers to allocate. This name is part of the published names in
    the Vanadium namespace and the names of the Deployments in Kubernetes.
+ -server-name-root=
+   Namespace root for allocated servers to use when publishing in the Vanadium
+   namespace.  If not set, the namespace root of the allocator server is used.
  -static-assets-prefix=
    Host serving the web assets.
  -vkube=vkube

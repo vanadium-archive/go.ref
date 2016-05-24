@@ -10,8 +10,10 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
 )
@@ -234,7 +236,14 @@ func handleHome(ss *serverState, rs *requestState) error {
 	if err != nil {
 		return fmt.Errorf("list error: %v", err)
 	}
-	type instanceArg struct{ Name, DestroyURL, DashboardURL string }
+	type instanceArg struct {
+		Name,
+		NameRoot,
+		DestroyURL,
+		DashboardURL string
+		BlessingPatterns []string
+		CreationTime     time.Time
+	}
 	tmplArgs := struct {
 		AssetsPrefix,
 		ServerName,
@@ -250,10 +259,19 @@ func handleHome(ss *serverState, rs *requestState) error {
 		Message:      rs.r.FormValue(paramMessage),
 	}
 	for _, instance := range instances {
+		var patterns []string
+		for _, b := range security.BlessingNames(v23.GetPrincipal(ctx), ss.args.baseBlessings) {
+			bName := strings.Join([]string{b, instance.name}, security.ChainSeparator)
+			patterns = append(patterns, bName)
+		}
+
 		tmplArgs.Instances = append(tmplArgs.Instances, instanceArg{
-			Name:         instance,
-			DestroyURL:   makeURL(ctx, routeDestroy, params{paramName: instance, paramCSRF: rs.csrfToken}),
-			DashboardURL: makeURL(ctx, routeDashboard, params{paramDashboardName: relativeMountName(instance), paramCSRF: rs.csrfToken}),
+			Name:             instance.mountName,
+			NameRoot:         nameRoot(ctx),
+			CreationTime:     instance.creationTime,
+			BlessingPatterns: patterns,
+			DestroyURL:       makeURL(ctx, routeDestroy, params{paramName: instance.mountName, paramCSRF: rs.csrfToken}),
+			DashboardURL:     makeURL(ctx, routeDashboard, params{paramDashboardName: relativeMountName(instance.mountName), paramCSRF: rs.csrfToken}),
 		})
 	}
 	if err := ss.args.assets.executeTemplate(rs.w, homeTmpl, tmplArgs); err != nil {

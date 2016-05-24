@@ -32,11 +32,18 @@ func newKubeName() (string, error) {
 	return serverNameFlag + "-" + hex.EncodeToString(b), nil
 }
 
-func mountNameFromKubeName(ctx *context.T, kName string) string {
-	if roots := v23.GetNamespace(ctx).Roots(); len(roots) > 0 {
-		return naming.Join(roots[0], serverMountPrefix, kName)
+func nameRoot(ctx *context.T) string {
+	if serverNameRootFlag != "" {
+		return serverNameRootFlag
 	}
-	return naming.Join(serverMountPrefix, kName)
+	if roots := v23.GetNamespace(ctx).Roots(); len(roots) > 0 {
+		return roots[0]
+	}
+	return ""
+}
+
+func mountNameFromKubeName(ctx *context.T, kName string) string {
+	return naming.Join(nameRoot(ctx), serverMountPrefix, kName)
 }
 
 func kubeNameFromMountName(mName string) string {
