@@ -5,18 +5,26 @@
 package ble
 
 import (
+	"fmt"
+	"runtime"
+	"sync"
 	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/discovery"
-
 	idiscovery "v.io/x/ref/lib/discovery"
+	"v.io/x/ref/lib/stats"
 )
 
 const (
 	// TTL for scanned advertisement. If we do not see the advertisement again
 	// during that period, we send a "Lost" notification.
 	defaultTTL = 90 * time.Second
+)
+
+var (
+	statMu  sync.Mutex
+	statIdx int
 )
 
 type plugin struct {
@@ -89,10 +97,18 @@ func newWithTTL(ctx *context.T, host string, ttl time.Duration) (idiscovery.Plug
 	if err != nil {
 		return nil, err
 	}
+	statMu.Lock()
+	statName := fmt.Sprintf("discovery/ble/driver/%d", statIdx)
+	statIdx++
+	stats.NewStringFunc(statName, func() string {
+		return driver.DebugString()
+	})
+	statMu.Unlock()
 	p := &plugin{
 		advertiser: newAdvertiser(ctx, driver),
 		scanner:    newScanner(ctx, driver, ttl),
 		adStopper:  idiscovery.NewTrigger(),
 	}
+	runtime.SetFinalizer(p, func(p *plugin) { stats.Delete(statName) })
 	return p, nil
 }
