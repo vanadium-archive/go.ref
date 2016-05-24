@@ -21,6 +21,7 @@ import (
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/services/watch"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -322,8 +323,12 @@ func (s *syncService) processWatchBlobRefs(ctx *context.T, dbId wire.Id, st stor
 		if err != nil {
 			return err
 		}
+		var rawValue *vom.RawBytes
+		if err = vom.Decode(buf, &rawValue); err != nil {
+			return err
+		}
 
-		if err = s.processBlobRefs(ctx, dbId, st, s.name, true, sgPfxs, nil, m, buf); err != nil {
+		if err = s.processBlobRefs(ctx, dbId, st, s.name, true, sgPfxs, nil, m, rawValue); err != nil {
 			return err
 		}
 	}

@@ -67,7 +67,7 @@ type LogRecMetadata struct {
 // metadata and data. Value is the actual value of a store object.
 type LogRec struct {
 	Metadata LogRecMetadata
-	Value    []byte
+	Value    any
 }
 
 // GroupId is a globally unique syncgroup ID.

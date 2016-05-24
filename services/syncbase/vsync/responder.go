@@ -459,26 +459,31 @@ func (rSt *responderState) diffGenVectors(respVec, initVec interfaces.GenVector)
 func (rSt *responderState) makeWireLogRec(ctx *context.T, rec *LocalLogRec) (*interfaces.LogRec, error) {
 	// Get the object value at the required version.
 	key, version := rec.Metadata.ObjId, rec.Metadata.CurVers
-	var value []byte
+	var rawValue *vom.RawBytes
 
 	if rSt.sg {
 		sg, err := getSGDataEntryByOID(ctx, rSt.st, key, version)
 		if err != nil {
 			return nil, err
 		}
-		value, err = vom.Encode(sg)
+		rawValue, err = vom.RawBytesFromValue(sg)
 		if err != nil {
 			return nil, err
 		}
 	} else if !rec.Metadata.Delete && rec.Metadata.RecType == interfaces.NodeRec {
+		var value []byte
 		var err error
 		value, err = watchable.GetAtVersion(ctx, rSt.st, []byte(key), nil, []byte(version))
 		if err != nil {
 			return nil, err
 		}
+		err = vom.Decode(value, &rawValue)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	wireRec := &interfaces.LogRec{Metadata: rec.Metadata, Value: value}
+	wireRec := &interfaces.LogRec{Metadata: rec.Metadata, Value: rawValue}
 	return wireRec, nil
 }
 

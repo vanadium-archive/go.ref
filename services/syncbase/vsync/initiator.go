@@ -714,23 +714,28 @@ func (iSt *initiationState) insertRecInLogAndDag(ctx *context.T, rec *LocalLogRe
 }
 
 // insertSgRecInDb inserts the versioned value of a syncgroup in the Database.
-func (iSt *initiationState) insertSgRecInDb(ctx *context.T, rec *LocalLogRec, valbuf []byte, tx store.Transaction) error {
+func (iSt *initiationState) insertSgRecInDb(ctx *context.T, rec *LocalLogRec, rawValue *vom.RawBytes, tx store.Transaction) error {
 	m := rec.Metadata
 	var sg interfaces.Syncgroup
-	if err := vom.Decode(valbuf, &sg); err != nil {
+	if err := rawValue.ToValue(&sg); err != nil {
 		return err
 	}
 	return setSGDataEntryByOID(ctx, tx, m.ObjId, m.CurVers, &sg)
 }
 
 // insertRecInDb inserts the versioned value in the Database.
-func (iSt *initiationState) insertRecInDb(ctx *context.T, rec *LocalLogRec, valbuf []byte, tx *watchable.Transaction) error {
+func (iSt *initiationState) insertRecInDb(ctx *context.T, rec *LocalLogRec, rawValue *vom.RawBytes, tx *watchable.Transaction) error {
 	m := rec.Metadata
 	// TODO(hpucha): Hack right now. Need to change Database's handling of
 	// deleted objects. Currently, the initiator needs to treat deletions
 	// specially since deletions do not get a version number or a special
 	// value in the Database.
 	if !rec.Metadata.Delete && rec.Metadata.RecType == interfaces.NodeRec {
+		var valbuf []byte
+		var err error
+		if valbuf, err = vom.Encode(rawValue); err != nil {
+			return err
+		}
 		return watchable.PutAtVersion(ctx, tx, []byte(m.ObjId), valbuf, []byte(m.CurVers))
 	}
 	return nil

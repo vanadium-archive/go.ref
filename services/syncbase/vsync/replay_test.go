@@ -354,14 +354,14 @@ func createReplayStream(t *testing.T, syncfile string) *dummyStream {
 		}
 
 		var val string = "abc"
-		valbuf, err := vom.Encode(val)
+		rawValue, err := vom.RawBytesFromValue(val)
 		if err != nil {
 			t.Fatalf("createReplayStream encode failed, err %v", err)
 		}
 
 		rec := interfaces.DeltaRespRec{interfaces.LogRec{
 			Metadata: createMetadata(t, ty, cmd),
-			Value:    valbuf,
+			Value:    rawValue,
 		}}
 
 		stream.add(rec)

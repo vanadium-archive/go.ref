@@ -14,6 +14,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/store/watchable"
@@ -385,7 +386,12 @@ func TestSendDataDeltas(t *testing.T) {
 					t.Fatalf("putLogRec(%d:%d) failed rec %v err %v", id, k, rec, err)
 				}
 				value := fmt.Sprintf("value_%s", okey)
-				if err := watchable.PutAtVersion(nil, tx, []byte(okey), []byte(value), []byte(vers)); err != nil {
+				var encodedValue []byte
+				var err error
+				if encodedValue, err = vom.Encode(value); err != nil {
+					t.Fatalf("vom.Encode(%q) failed err %v", value, err)
+				}
+				if err := watchable.PutAtVersion(nil, tx, []byte(okey), encodedValue, []byte(vers)); err != nil {
 					t.Fatalf("PutAtVersion(%d:%d) failed rec %v value %s: err %v", id, k, rec, value, err)
 				}
 

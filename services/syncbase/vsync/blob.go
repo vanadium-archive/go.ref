@@ -962,7 +962,7 @@ func peerLocationData(isServer bool, isProxy bool) interfaces.LocationData {
 // sharedSgPrefixes contains only those shared with a peer device that provided this data;
 // it is nil if the data was created locally.
 func (s *syncService) processBlobRefs(ctx *context.T, dbId wire.Id, st store.StoreReader, peer string, isCreator bool,
-	allSgPrefixes map[string]sgSet, sharedSgPrefixes map[string]sgSet, m *interfaces.LogRecMetadata, valbuf []byte) error {
+	allSgPrefixes map[string]sgSet, sharedSgPrefixes map[string]sgSet, m *interfaces.LogRecMetadata, rawValue *vom.RawBytes) error {
 
 	objid := m.ObjId
 	srcPeer := syncbaseIdToName(m.Id)
@@ -970,12 +970,12 @@ func (s *syncService) processBlobRefs(ctx *context.T, dbId wire.Id, st store.Sto
 	vlog.VI(4).Infof("sync: processBlobRefs: begin: objid %s, peer %s, src %s", objid, peer, srcPeer)
 	defer vlog.VI(4).Infof("sync: processBlobRefs: end: objid %s, peer %s, src %s", objid, peer, srcPeer)
 
-	if valbuf == nil {
+	if rawValue == nil {
 		return nil
 	}
 
 	var val *vdl.Value
-	if err := vom.Decode(valbuf, &val); err != nil {
+	if err := rawValue.ToValue(&val); err != nil {
 		// If we cannot decode the value, ignore blob processing and
 		// continue. This is fine since all stored values need not be
 		// vom encoded.
