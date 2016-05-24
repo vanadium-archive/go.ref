@@ -113,6 +113,7 @@ var dash = function() {
             color: CHART_COLOR
           }
         },
+        vAxis: {minValue: 0},
         hAxis: {
           minValue: new Date(data.MinTime * 1000),
           maxValue: new Date(data.MaxTime * 1000),
