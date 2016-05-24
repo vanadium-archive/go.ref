@@ -8,14 +8,21 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"unsafe"
 )
 
+// #include <stdlib.h>
 // #include "jni_wrapper.h"
+// #include "lib.h"
 import "C"
 
 var (
-	jVM *C.JavaVM
+	jVM            *C.JavaVM
+	arrayListClass jArrayListClass
+	idClass        jIdClass
+	verrorClass    jVErrorClass
 )
 
 // JNI_OnLoad is called when System.loadLibrary is called. We need to cache the
@@ -31,7 +38,26 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 		return C.JNI_ERR
 	}
 	jVM = vm
+
 	v23_syncbase_Init()
+
+	// We don't bother throwing errors in here because attempting to create
+	// an exception can also fail.
+	if arrayListClass.Init(env) != nil {
+		fmt.Fprintln(os.Stderr, "Error caching the ArrayList class")
+		return C.JNI_ERR
+	}
+
+	if idClass.Init(env) != nil {
+		fmt.Fprintln(os.Stderr, "Error caching the ID class")
+		return C.JNI_ERR
+	}
+
+	if verrorClass.Init(env) != nil {
+		fmt.Fprintln(os.Stderr, "Error caching the VError class")
+		return C.JNI_ERR
+	}
+
 	return C.JNI_VERSION_1_6
 }
 
@@ -39,8 +65,15 @@ func Java_io_v_syncbase_internal_Service_GetPermissions(env *C.JNIEnv, cls C.jcl
 	return nil
 }
 func Java_io_v_syncbase_internal_Service_SetPermissions(env *C.JNIEnv, cls C.jclass, obj C.jobject) {}
+
+//export Java_io_v_syncbase_internal_Service_ListDatabases
 func Java_io_v_syncbase_internal_Service_ListDatabases(env *C.JNIEnv, cls C.jclass) C.jobject {
-	return nil
+	var cIds C.v23_syncbase_Ids
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_ServiceListDatabases(&cIds, &cErr)
+	obj := C.NewObjectA(env, arrayListClass.class, arrayListClass.init, nil)
+	// TODO(razvanm): populate the obj based on the data from cIds.
+	return obj
 }
 
 func Java_io_v_syncbase_internal_Database_GetPermissions(env *C.JNIEnv, cls C.jclass, name C.jstring) C.jobject {
@@ -48,7 +81,35 @@ func Java_io_v_syncbase_internal_Database_GetPermissions(env *C.JNIEnv, cls C.jc
 }
 func Java_io_v_syncbase_internal_Database_SetPermissions(env *C.JNIEnv, cls C.jclass, name C.jstring, perms C.jobject) {
 }
+
+func throwException(env *C.JNIEnv, cErr *C.v23_syncbase_VError) {
+	obj := C.NewObjectA(env, verrorClass.class, verrorClass.init, nil)
+	if s, err := V23SStringToJString(env, cErr.id); err == nil {
+		C.SetObjectField(env, obj, verrorClass.id, s)
+	}
+	C.SetLongField(env, obj, verrorClass.actionCode, C.jlong(cErr.actionCode))
+	if s, err := V23SStringToJString(env, cErr.msg); err == nil {
+		C.SetObjectField(env, obj, verrorClass.message, s)
+	}
+	if s, err := V23SStringToJString(env, cErr.stack); err == nil {
+		C.SetObjectField(env, obj, verrorClass.stack, s)
+	}
+	C.Throw(env, obj)
+}
+
+//export Java_io_v_syncbase_internal_Database_Create
 func Java_io_v_syncbase_internal_Database_Create(env *C.JNIEnv, cls C.jclass, name C.jstring, perms C.jobject) {
+	cName, err := JStringToV23SString(env, name)
+	if err != nil {
+		return
+	}
+	var cErr C.v23_syncbase_VError
+	// TODO(razvanm): construct a proper C.v23_syncbase_Permissions based on
+	// the perms object.
+	v23_syncbase_DbCreate(cName, C.v23_syncbase_Permissions{}, &cErr)
+	if cErr.id.p != nil {
+		throwException(env, &cErr)
+	}
 }
 func Java_io_v_syncbase_internal_Database_Destroy(env *C.JNIEnv, cls C.jclass, name C.jstring) {}
 func Java_io_v_syncbase_internal_Database_Exists(env *C.JNIEnv, cls C.jclass, name C.jstring) C.jboolean {
