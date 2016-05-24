@@ -31,7 +31,7 @@ import (
 )
 
 /*
-#cgo CFLAGS: -x objective-c -fobjc-arc -DCBLOG_LEVEL=CBLOG_LEVEL_INFO
+#cgo CFLAGS: -x objective-c -fobjc-arc -DCBLOG_LEVEL=CBLOG_LEVEL_ERROR
 #cgo LDFLAGS: -framework Foundation -framework CoreBluetooth
 #import <CoreBluetooth/CoreBluetooth.h>
 #import "CBDriver.h"
