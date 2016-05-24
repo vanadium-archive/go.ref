@@ -24,9 +24,7 @@ blessing. -->
       <div class="blessings-item">
         <div class="blessing-details">
           <h3>{{kubeName .Name}}</h3>
-          <p class="blessing-caveats unixtime" data-unixtime={{.CreationTime.Unix}}>
-            <b>Creation Time</b><br/>
-            {{.CreationTime.String}}
+          <p><b>Creation Time:</b>&nbsp;&nbsp;<span class="unixtime" data-unixtime={{.CreationTime.Unix}}>{{.CreationTime.String}}</span>
           </p>
           <p>
             <b>Mount Name</b><br/>
@@ -60,5 +58,29 @@ blessing. -->
     {{end}}
     </font>
   </main>
+  <script src="{{.AssetsPrefix}}/identity/moment.js"></script>
+  <script src="{{.AssetsPrefix}}/identity/jquery.js"></script>
+  <script>
+  function setTimeText(elem) {
+    var timestamp = elem.data("unixtime");
+    var m = moment(timestamp*1000.0);
+    var style = elem.data("style");
+    if (style === "absolute") {
+      elem.html("<a href='#' onclick='return false;'>" + m.format("MMM DD, YYYY h:mm:ss a") + "</a>");
+      elem.data("style", "fromNow");
+    } else {
+      elem.html("<a href='#' onclick='return false;'>" + m.fromNow() + "</a>");
+      elem.data("style", "absolute");
+    }
+  }
+
+  $(document).ready(function() {
+    $(".unixtime").each(function() {
+      // clicking the timestamp should toggle the display format.
+      $(this).click(function() { setTimeText($(this)); });
+      setTimeText($(this));
+    });
+  });
+  </script>
 </body>
 </html>
