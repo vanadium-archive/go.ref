@@ -12,8 +12,7 @@ import (
 )
 
 type addressChooser struct {
-	logger    logging.Logger
-	ipChooser IPAddressChooser
+	logger logging.Logger
 }
 
 func (c *addressChooser) ChooseAddresses(protocol string, candidates []net.Addr) ([]net.Addr, error) {
@@ -21,15 +20,12 @@ func (c *addressChooser) ChooseAddresses(protocol string, candidates []net.Addr)
 		c.logger.Infof("CloudVM public IP address: %v", ipaddr)
 		return []net.Addr{ipaddr}, nil
 	}
-	return c.ipChooser.ChooseAddresses(protocol, candidates)
+	return candidates, nil
 }
 
-// NewAddressChooser will return the public IP of process if the process is
-// being hosted by a cloud service provider (e.g. Google Compute Engine,
-// Amazon EC2), and if not will be the same as IPAddressChooser.
+// NewAddressChooser prefers the public IP if a process is running on a cloud
+// service provider (such as Google Compute Engine or Amazon EC2), otherwise
+// it keeps all the addresses of all interfaces.
 func NewAddressChooser(logger logging.Logger) rpc.AddressChooser {
-	if HasPublicIP(logger) {
-		return IPAddressChooser{}
-	}
 	return &addressChooser{logger: logger}
 }
