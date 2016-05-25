@@ -54,11 +54,12 @@ type statsResult struct {
 }
 
 func handleDashboard(ss *serverState, rs *requestState) error {
+	ctx := ss.ctx
 	instance := rs.r.FormValue(paramDashboardName)
 	if instance == "" {
 		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
 	}
-	if err := checkOwner(rs.email, kubeNameFromMountName(instance)); err != nil {
+	if err := checkOwner(ctx, rs.email, kubeNameFromMountName(instance)); err != nil {
 		return err
 	}
 
@@ -86,7 +87,7 @@ func handleStats(ss *serverState, rs *requestState) error {
 	if mountedName == "" {
 		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
 	}
-	if err := checkOwner(rs.email, kubeNameFromMountName(mountedName)); err != nil {
+	if err := checkOwner(ctx, rs.email, kubeNameFromMountName(mountedName)); err != nil {
 		return err
 	}
 

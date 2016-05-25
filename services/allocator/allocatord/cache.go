@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang/groupcache/lru"
 
+	"v.io/v23/context"
 	"v.io/v23/verror"
 )
 
@@ -17,7 +18,7 @@ var (
 	ownerCacheMutex sync.Mutex
 )
 
-func checkOwner(email, kName string) error {
+func checkOwner(ctx *context.T, email, kName string) error {
 	ownerCacheMutex.Lock()
 	if ownerCache == nil {
 		ownerCache = lru.New(maxInstancesFlag)
@@ -30,7 +31,7 @@ func checkOwner(email, kName string) error {
 	}
 	ownerCacheMutex.Unlock()
 
-	if err := isOwnerOfInstance(email, kName); err != nil {
+	if err := isOwnerOfInstance(ctx, email, kName); err != nil {
 		return err
 	}
 	ownerCacheMutex.Lock()

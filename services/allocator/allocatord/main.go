@@ -101,19 +101,18 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 		return env.UsageErrorf("--%s not specified, and no default namespace root found", serverNameRootFlagName)
 	}
 
-	var baseBlessings security.Blessings
+	var (
+		baseBlessings     security.Blessings
+		baseBlessingNames []string
+	)
 	if clusterAgentFlag == "" || blessingSecretFlag == "" {
-		fmt.Fprintln(env.Stderr, "WARNING: Using disabled blessings for allocated servers")
-		p := v23.GetPrincipal(ctx)
-		defaultB, _ := p.BlessingStore().Default()
-		// This caveat ensures that the blessing we create cannot be used.
-		disabled, err := security.NewCaveat(security.ConstCaveat, false)
-		if err != nil {
+		fmt.Fprintln(env.Stderr, "WARNING: Using self-blessed blessings for allocated servers")
+		const selfName = "allocator"
+		var err error
+		if baseBlessings, err = v23.GetPrincipal(ctx).BlessSelf(selfName); err != nil {
 			return err
 		}
-		if baseBlessings, err = p.Bless(p.PublicKey(), defaultB, "allocator", disabled); err != nil {
-			return err
-		}
+		baseBlessingNames = []string{selfName}
 	} else {
 		secret, err := ioutil.ReadFile(blessingSecretFlag)
 		if err != nil {
@@ -123,12 +122,13 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 		if err != nil {
 			return err
 		}
+		baseBlessingNames = security.BlessingNames(v23.GetPrincipal(ctx), baseBlessings)
 	}
 
 	ctx, server, err := v23.WithNewServer(
 		ctx,
 		nameFlag,
-		allocator.AllocatorServer(&allocatorImpl{baseBlessings}),
+		allocator.AllocatorServer(&allocatorImpl{baseBlessings, baseBlessingNames}),
 		security.AllowEveryone(),
 	)
 	if err != nil {
@@ -157,6 +157,7 @@ func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
 			serverName:          serverNameFlag,
 			secureCookies:       secureCookiesFlag,
 			baseBlessings:       baseBlessings,
+			baseBlessingNames:   baseBlessingNames,
 			staticAssetsPrefix:  staticAssetsPrefixFlag,
 			assets:              ah,
 		})

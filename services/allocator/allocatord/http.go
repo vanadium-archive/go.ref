@@ -76,9 +76,10 @@ type httpArgs struct {
 	dashboardGCMMetric,
 	dashboardGCMProject,
 	monitoringKeyFile string
-	secureCookies bool
-	oauthCreds    *oauthCredentials
-	baseBlessings security.Blessings
+	secureCookies     bool
+	oauthCreds        *oauthCredentials
+	baseBlessings     security.Blessings
+	baseBlessingNames []string
 	// URI prefix for static assets served from (another) content server.
 	staticAssetsPrefix string
 	// Manages locally served resources.

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"v.io/v23"
 	"v.io/v23/security"
 )
 
@@ -43,17 +42,21 @@ func handleHome(ss *serverState, rs *requestState) error {
 		Message:      rs.r.FormValue(paramMessage),
 	}
 	for _, instance := range instances {
-		var patterns []string
-		for _, b := range security.BlessingNames(v23.GetPrincipal(ctx), ss.args.baseBlessings) {
-			bName := strings.Join([]string{b, instance.name}, security.ChainSeparator)
-			patterns = append(patterns, bName)
+		if len(instance.blessingNames) == 0 {
+			// TODO(rthellend): Remove when all instances have the new
+			// creatorInfo annotations.
+			ctx.Info("blessingNames missing from creatorInfo")
+			for _, b := range ss.args.baseBlessingNames {
+				bName := strings.Join([]string{b, instance.name}, security.ChainSeparator)
+				instance.blessingNames = append(instance.blessingNames, bName)
+			}
 		}
 
 		tmplArgs.Instances = append(tmplArgs.Instances, instanceArg{
 			Name:             instance.mountName,
 			NameRoot:         nameRoot(ctx),
 			CreationTime:     instance.creationTime,
-			BlessingPatterns: patterns,
+			BlessingPatterns: instance.blessingNames,
 			DestroyURL:       makeURL(ctx, routeDestroy, params{paramName: instance.mountName, paramCSRF: rs.csrfToken}),
 			DashboardURL:     makeURL(ctx, routeDashboard, params{paramDashboardName: relativeMountName(instance.mountName), paramCSRF: rs.csrfToken}),
 		})
@@ -66,7 +69,7 @@ func handleHome(ss *serverState, rs *requestState) error {
 
 func handleCreate(ss *serverState, rs *requestState) error {
 	ctx := ss.ctx
-	name, err := create(ctx, rs.email, ss.args.baseBlessings)
+	name, err := create(ctx, rs.email, ss.args.baseBlessings, ss.args.baseBlessingNames)
 	if err != nil {
 		return fmt.Errorf("create failed: %v", err)
 	}

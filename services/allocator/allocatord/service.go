@@ -33,7 +33,8 @@ var (
 )
 
 type allocatorImpl struct {
-	baseBlessings security.Blessings
+	baseBlessings     security.Blessings
+	baseBlessingNames []string
 }
 
 // Create creates a new instance of the service.
@@ -46,7 +47,7 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 	if email == "" {
 		return "", verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
 	}
-	return create(ctx, email, i.baseBlessings)
+	return create(ctx, email, i.baseBlessings, i.baseBlessingNames)
 }
 
 // Destroy destroys the instance with the given name.
@@ -81,17 +82,17 @@ func (i *allocatorImpl) List(ctx *context.T, call rpc.ServerCall) ([]string, err
 	return mNames, nil
 }
 
-func create(ctx *context.T, email string, baseBlessings security.Blessings) (string, error) {
+func create(ctx *context.T, email string, baseBlessings security.Blessings, baseBlessingNames []string) (string, error) {
 	// Enforce a limit on the number of instances. These tests are a little
 	// bit racy. It's possible that multiple calls to create() will run
 	// concurrently and that we'll end up with too many instances.
-	if n, err := serverInstances(email); err != nil {
+	if n, err := serverInstances(ctx, email); err != nil {
 		return "", err
 	} else if len(n) >= maxInstancesPerUserFlag {
 		return "", verror.New(errLimitExceeded, ctx, maxInstancesPerUserFlag)
 	}
 
-	if n, err := serverInstances(""); err != nil {
+	if n, err := serverInstances(ctx, ""); err != nil {
 		return "", err
 	} else if len(n) >= maxInstancesFlag {
 		return "", verror.New(errGlobalLimitExceeded, ctx, maxInstancesFlag)
@@ -103,7 +104,7 @@ func create(ctx *context.T, email string, baseBlessings security.Blessings) (str
 	}
 	mName := mountNameFromKubeName(ctx, kName)
 
-	cfg, cleanup, err := createDeploymentConfig(ctx, email, kName, mName)
+	cfg, cleanup, err := createDeploymentConfig(ctx, email, kName, mName, baseBlessingNames)
 	defer cleanup()
 	if err != nil {
 		return "", err
@@ -135,11 +136,11 @@ func create(ctx *context.T, email string, baseBlessings security.Blessings) (str
 func destroy(ctx *context.T, email, mName string) error {
 	kName := kubeNameFromMountName(mName)
 
-	if err := isOwnerOfInstance(email, kName); err != nil {
+	if err := isOwnerOfInstance(ctx, email, kName); err != nil {
 		return err
 	}
 
-	cfg, cleanup, err := createDeploymentConfig(ctx, email, kName, mName)
+	cfg, cleanup, err := createDeploymentConfig(ctx, email, kName, mName, nil)
 	defer cleanup()
 	if err != nil {
 		return err
@@ -157,23 +158,31 @@ func destroy(ctx *context.T, email, mName string) error {
 }
 
 func list(ctx *context.T, email string) ([]serverInstance, error) {
-	instances, err := serverInstances(email)
+	instances, err := serverInstances(ctx, email)
 	if err != nil {
 		return nil, err
 	}
 	for i, instance := range instances {
-		instances[i].mountName = mountNameFromKubeName(ctx, instance.name)
+		// TODO(rthellend): Remove when all instances have the new
+		// creatorInfo annotations.
+		if instances[i].mountName == "" {
+			instances[i].mountName = mountNameFromKubeName(ctx, instance.name)
+		}
 	}
 	return instances, err
 }
 
-func createDeploymentConfig(ctx *context.T, email, deploymentName, mountName string) (string, func(), error) {
+func createDeploymentConfig(ctx *context.T, email, deploymentName, mountName string, baseBlessingNames []string) (string, func(), error) {
 	cleanup := func() {}
 	acl, err := accessList(ctx, email)
 	if err != nil {
 		return "", cleanup, err
 	}
-	creatorInfo, err := creatorInfo(ctx, email)
+	blessingNames := make([]string, len(baseBlessingNames))
+	for i, b := range baseBlessingNames {
+		blessingNames[i] = b + security.ChainSeparator + deploymentName
+	}
+	creatorInfo, err := creatorInfo(ctx, email, mountName, blessingNames)
 	if err != nil {
 		return "", cleanup, err
 	}
@@ -239,18 +248,21 @@ func accessList(ctx *context.T, email string) (string, error) {
 	return string(j[1 : len(j)-1]), nil
 }
 
+type creatorInfoData struct {
+	Email         string   `json:"email"`
+	BlessingNames []string `json:"blessingNames"`
+	MountName     string   `json:"mountName"`
+}
+
 // creatorInfo returns a double encoded JSON access list that can be used as
 // annotation in a Deployment template, e.g.
 //   "annotations": {
-//     "v.io/allocatord/creator-info": {{.CreatorInfo}}
+//     "v.io/allocator-creator-info": {{.CreatorInfo}}
 //   }
-func creatorInfo(ctx *context.T, email string) (string, error) {
-	info := struct {
-		Email string `json:"email"`
-	}{email}
-	j, err := json.Marshal(info)
+func creatorInfo(ctx *context.T, email, mountName string, blessingNames []string) (string, error) {
+	j, err := json.Marshal(creatorInfoData{email, blessingNames, mountName})
 	if err != nil {
-		ctx.Errorf("json.Marshal(%#v) failed: %v", info, err)
+		ctx.Errorf("json.Marshal() failed: %v", err)
 		return "", err
 	}
 	// JSON encode again, because the annotation is in a JSON template.
@@ -263,22 +275,24 @@ func creatorInfo(ctx *context.T, email string) (string, error) {
 	return string(j), nil
 }
 
+func decodeCreatorInfo(s string) (data creatorInfoData, err error) {
+	err = json.Unmarshal([]byte(s), &data)
+	return
+}
+
 func emailHash(email string) string {
 	h := sha1.Sum([]byte(email))
 	return hex.EncodeToString(h[:])
 }
 
 type serverInstance struct {
-	name         string
-	mountName    string
-	creationTime time.Time
+	name          string
+	mountName     string
+	blessingNames []string
+	creationTime  time.Time
 }
 
-func serverInstances(email string) ([]serverInstance, error) {
-	// TODO(caprita): Store the mount name and server blessing name(s) as
-	// annotations in the deployment, and retrieve them here.  This should
-	// ensure that the values are accurate, and do not depend on the version
-	// of allocatord that is presenting them.
+func serverInstances(ctx *context.T, email string) ([]serverInstance, error) {
 	args := []string{"kubectl", "get", "deployments", "-o", "json"}
 	if email != "" {
 		args = append(args, "-l", "ownerHash="+emailHash(email))
@@ -299,8 +313,9 @@ func serverInstances(email string) ([]serverInstance, error) {
 	var list struct {
 		Items []struct {
 			Metadata struct {
-				Name         string    `json:"name"`
-				CreationTime time.Time `json:"creationTimestamp"`
+				Name         string            `json:"name"`
+				CreationTime time.Time         `json:"creationTimestamp"`
+				Annotations  map[string]string `json:"annotations"`
 			} `json:"metadata"`
 		} `json:"items"`
 	}
@@ -309,18 +324,26 @@ func serverInstances(email string) ([]serverInstance, error) {
 	}
 	instances := []serverInstance{}
 	for _, l := range list.Items {
-		if strings.HasPrefix(l.Metadata.Name, serverNameFlag+"-") {
-			instances = append(instances, serverInstance{
-				name:         l.Metadata.Name,
-				creationTime: l.Metadata.CreationTime,
-			})
+		if !strings.HasPrefix(l.Metadata.Name, serverNameFlag+"-") {
+			continue
 		}
+		cInfo, err := decodeCreatorInfo(l.Metadata.Annotations["v.io/allocator-creator-info"])
+		if err != nil {
+			ctx.Errorf("decodeCreatorInfo failed: %v", err)
+			continue
+		}
+		instances = append(instances, serverInstance{
+			name:          l.Metadata.Name,
+			mountName:     cInfo.MountName,
+			blessingNames: cInfo.BlessingNames,
+			creationTime:  l.Metadata.CreationTime,
+		})
 	}
 	return instances, nil
 }
 
-func isOwnerOfInstance(email, kName string) error {
-	instances, err := serverInstances(email)
+func isOwnerOfInstance(ctx *context.T, email, kName string) error {
+	instances, err := serverInstances(ctx, email)
 	if err != nil {
 		return err
 	}
