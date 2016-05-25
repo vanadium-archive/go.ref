@@ -135,10 +135,8 @@ func create(ctx *context.T, email string, baseBlessings security.Blessings) (str
 func destroy(ctx *context.T, email, mName string) error {
 	kName := kubeNameFromMountName(mName)
 
-	if isOwner, err := isOwnerOfInstance(email, kName); err != nil {
+	if err := isOwnerOfInstance(email, kName); err != nil {
 		return err
-	} else if !isOwner {
-		return verror.New(verror.ErrNoExistOrNoAccess, ctx)
 	}
 
 	cfg, cleanup, err := createDeploymentConfig(ctx, email, kName, mName)
@@ -321,17 +319,17 @@ func serverInstances(email string) ([]serverInstance, error) {
 	return instances, nil
 }
 
-func isOwnerOfInstance(email, kName string) (bool, error) {
+func isOwnerOfInstance(email, kName string) error {
 	instances, err := serverInstances(email)
 	if err != nil {
-		return false, err
+		return err
 	}
 	for _, i := range instances {
 		if i.name == kName {
-			return true, nil
+			return nil
 		}
 	}
-	return false, nil
+	return verror.New(verror.ErrNoExistOrNoAccess, nil)
 }
 
 func createPersistentDisk(ctx *context.T, name string) error {

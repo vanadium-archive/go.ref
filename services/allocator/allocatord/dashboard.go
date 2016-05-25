@@ -15,7 +15,6 @@ import (
 
 	"google.golang.org/api/monitoring/v3"
 
-	"v.io/v23/verror"
 	"v.io/x/lib/gcm"
 )
 
@@ -55,15 +54,12 @@ type statsResult struct {
 }
 
 func handleDashboard(ss *serverState, rs *requestState) error {
-	ctx := ss.ctx
 	instance := rs.r.FormValue(paramDashboardName)
 	if instance == "" {
 		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
 	}
-	if isOwner, err := isOwnerOfInstance(rs.email, kubeNameFromMountName(instance)); err != nil {
+	if err := checkOwner(rs.email, kubeNameFromMountName(instance)); err != nil {
 		return err
-	} else if !isOwner {
-		return verror.New(verror.ErrNoExistOrNoAccess, ctx)
 	}
 
 	tmplArgs := struct {
@@ -90,10 +86,8 @@ func handleStats(ss *serverState, rs *requestState) error {
 	if mountedName == "" {
 		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
 	}
-	if isOwner, err := isOwnerOfInstance(rs.email, kubeNameFromMountName(mountedName)); err != nil {
+	if err := checkOwner(rs.email, kubeNameFromMountName(mountedName)); err != nil {
 		return err
-	} else if !isOwner {
-		return verror.New(verror.ErrNoExistOrNoAccess, ctx)
 	}
 
 	now := time.Now()
