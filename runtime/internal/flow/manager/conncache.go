@@ -17,7 +17,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/x/ref/lib/stats"
-	iflow "v.io/x/ref/runtime/internal/flow"
 	"v.io/x/ref/runtime/internal/flow/conn"
 )
 
@@ -344,8 +343,9 @@ func (c *ConnCache) findWithResolvedAddress(ctx *context.T, remote naming.Endpoi
 	auth flow.PeerAuthorizer, p flow.Protocol) (cachedConn, []string, []security.RejectedBlessing, error) {
 	network, addresses, err := resolve(ctx, p, network, address)
 	if err != nil {
-		delete(c.started, key(network, address))
-		return nil, nil, nil, iflow.MaybeWrapError(flow.ErrResolveFailed, ctx, err)
+		// TODO(suharshs): Add a unittest for failed resolution.
+		ctx.Errorf("Failed to resolve (%v, %v): %v", network, address, err)
+		return nil, nil, nil, nil
 	}
 
 	for _, address := range addresses {
