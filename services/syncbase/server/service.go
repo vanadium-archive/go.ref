@@ -31,7 +31,6 @@ import (
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
-	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/server/util"
@@ -90,10 +89,10 @@ func defaultPerms(blessingPatterns []security.BlessingPattern) access.Permission
 }
 
 // PermsString returns a JSON-based string representation of the permissions.
-func PermsString(perms access.Permissions) string {
+func PermsString(ctx *context.T, perms access.Permissions) string {
 	var buf bytes.Buffer
 	if err := access.WritePermissions(&buf, perms); err != nil {
-		vlog.Errorf("Failed to serialize permissions %+v: %v", perms, err)
+		ctx.Errorf("Failed to serialize permissions %+v: %v", perms, err)
 		return fmt.Sprintf("[unserializable] %+v", perms)
 	}
 	return buf.String()
@@ -111,7 +110,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		if opts.RootDir, err = ioutil.TempDir("", "syncbased-"); err != nil {
 			return nil, err
 		}
-		vlog.Infof("Created new root dir: %s", opts.RootDir)
+		ctx.Infof("Created new root dir: %s", opts.RootDir)
 	}
 
 	st, err := storeutil.OpenStore(opts.Engine, filepath.Join(opts.RootDir, opts.Engine), storeutil.OpenOptions{CreateIfMissing: true, ErrorIfExists: false})
@@ -120,7 +119,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		// db-level stores. util.OpenStore moved the top-level store aside, but
 		// it didn't do anything about the db-level stores.
 		if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
-			vlog.Errorf("top-level store is corrupt, moving all databases aside")
+			ctx.Errorf("top-level store is corrupt, moving all databases aside")
 			appDir := filepath.Join(opts.RootDir, common.AppDir)
 			newPath := appDir + ".corrupt." + time.Now().Format(time.RFC3339)
 			if err := os.Rename(appDir, newPath); err != nil {
@@ -151,10 +150,10 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		readPerms := sd.Perms.Normalize()
 		if opts.Perms != nil {
 			if givenPerms := opts.Perms.Copy().Normalize(); !reflect.DeepEqual(givenPerms, readPerms) {
-				vlog.Infof("Warning: configured permissions will be ignored: %v", PermsString(givenPerms))
+				ctx.Infof("Warning: configured permissions will be ignored: %v", PermsString(ctx, givenPerms))
 			}
 		}
-		vlog.Infof("Using persisted permissions: %v", PermsString(readPerms))
+		ctx.Infof("Using persisted permissions: %v", PermsString(ctx, readPerms))
 		// Service exists.
 		// Run garbage collection of inactive databases.
 		// TODO(ivanpi): This is currently unsafe to call concurrently with
@@ -170,10 +169,10 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		perms := opts.Perms
 		// Service does not exist.
 		if perms == nil {
-			vlog.Info("Permissions flag not set. Giving local principal all permissions.")
+			ctx.Info("Permissions flag not set. Giving local principal all permissions.")
 			perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
 		}
-		vlog.Infof("Using permissions: %v", PermsString(perms))
+		ctx.Infof("Using permissions: %v", PermsString(ctx, perms))
 		data := &ServiceData{
 			Perms: perms,
 		}
@@ -228,9 +227,9 @@ func (s *service) openDatabases(ctx *context.T) error {
 			// need to delete the service's reference to the database so that the
 			// client application can recreate the database the next time it starts.
 			if verror.ErrorID(err) == wire.ErrCorruptDatabase.ID {
-				vlog.Errorf("database %v is corrupt, deleting the reference to it", info.Id)
+				ctx.Errorf("database %v is corrupt, deleting the reference to it", info.Id)
 				if err2 := delDbInfo(ctx, s.st, info.Id); err2 != nil {
-					vlog.Errorf("failed to delete reference to corrupt database %v: %v", info.Id, err2)
+					ctx.Errorf("failed to delete reference to corrupt database %v: %v", info.Id, err2)
 					// Return the ErrCorruptDatabase, not err2.
 				}
 				return err
@@ -410,7 +409,7 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 
 	// 2. Put dbInfo record into garbage collection log, to clean up database if
 	//    remaining steps fail or syncbased crashes.
-	rootDir, err := s.rootDirForDb(dbId)
+	rootDir, err := s.rootDirForDb(ctx, dbId)
 	if err != nil {
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
@@ -430,7 +429,7 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 			// TODO(ivanpi): Consider running asynchronously. However, see TODO in
 			// finalizeDatabaseDestroy.
 			if err := finalizeDatabaseDestroy(ctx, s.st, dbInfo, stRef); err != nil {
-				vlog.Error(err)
+				ctx.Error(err)
 			}
 		}
 	}()
@@ -526,7 +525,7 @@ func (s *service) destroyDatabase(ctx *context.T, call rpc.ServerCall, dbId wire
 	// TODO(ivanpi): Consider running asynchronously. However, see TODO in
 	// finalizeDatabaseDestroy.
 	if err := finalizeDatabaseDestroy(ctx, s.st, dbInfo, d.St()); err != nil {
-		vlog.Error(err)
+		ctx.Error(err)
 	}
 
 	return nil
@@ -571,7 +570,7 @@ func dirNameFrom(s string) string {
 	return safePrefix + "-" + hashHex
 }
 
-func (s *service) rootDirForDb(dbId wire.Id) (string, error) {
+func (s *service) rootDirForDb(ctx *context.T, dbId wire.Id) (string, error) {
 	appDir := dirNameFrom(dbId.Blessing)
 	dbDir := dirNameFrom(dbId.Name)
 	// To allow recreating databases independently of garbage collecting old
@@ -590,7 +589,7 @@ func (s *service) rootDirForDb(dbId wire.Id) (string, error) {
 	// for dbDir; appDir does not include the suffix, so it is even shorter:
 	// <= 32 + 1 + 64 = 97 < 255
 	if len(appDir) > 255 || len(dbDir) > 255 {
-		vlog.Fatalf("appDir %s or dbDir %s is too long", appDir, dbDir)
+		ctx.Fatalf("appDir %s or dbDir %s is too long", appDir, dbDir)
 	}
 	return filepath.Join(s.opts.RootDir, common.AppDir, appDir, common.DbDir, dbDir), nil
 }
