@@ -31,13 +31,10 @@ func (x WireString) VDLIsZero() bool {
 }
 
 func (x WireString) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_int32_1); err != nil {
+	if err := enc.WriteValueInt(__VDLType_int32_1, int64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeInt(int64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *WireString) VDLRead(dec vdl.Decoder) error {
@@ -62,13 +59,10 @@ func (x WireTime) VDLIsZero() bool {
 }
 
 func (x WireTime) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_int32_2); err != nil {
+	if err := enc.WriteValueInt(__VDLType_int32_2, int64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeInt(int64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *WireTime) VDLRead(dec vdl.Decoder) error {
@@ -93,13 +87,10 @@ func (x WireSamePkg) VDLIsZero() bool {
 }
 
 func (x WireSamePkg) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_int32_3); err != nil {
+	if err := enc.WriteValueInt(__VDLType_int32_3, int64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeInt(int64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *WireSamePkg) VDLRead(dec vdl.Decoder) error {
@@ -124,13 +115,10 @@ func (x WireMultiImport) VDLIsZero() bool {
 }
 
 func (x WireMultiImport) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_int32_4); err != nil {
+	if err := enc.WriteValueInt(__VDLType_int32_4, int64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeInt(int64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *WireMultiImport) VDLRead(dec vdl.Decoder) error {
@@ -155,13 +143,10 @@ func (x WireRenameMe) VDLIsZero() bool {
 }
 
 func (x WireRenameMe) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_int32_5); err != nil {
+	if err := enc.WriteValueInt(__VDLType_int32_5, int64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeInt(int64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *WireRenameMe) VDLRead(dec vdl.Decoder) error {
@@ -211,58 +196,43 @@ func (x WireAll) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.A != "" {
-		if err := enc.NextField("A"); err != nil {
-			return err
-		}
 		var wire WireString
 		if err := WireStringFromNative(&wire, x.A); err != nil {
 			return err
 		}
-		if err := wire.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueInt("A", __VDLType_int32_1, int64(wire)); err != nil {
 			return err
 		}
 	}
 	if !x.B.IsZero() {
-		if err := enc.NextField("B"); err != nil {
-			return err
-		}
 		var wire WireTime
 		if err := WireTimeFromNative(&wire, x.B); err != nil {
 			return err
 		}
-		if err := wire.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueInt("B", __VDLType_int32_2, int64(wire)); err != nil {
 			return err
 		}
 	}
 	if x.C != "" {
-		if err := enc.NextField("C"); err != nil {
-			return err
-		}
 		var wire WireSamePkg
 		if err := WireSamePkgFromNative(&wire, x.C); err != nil {
 			return err
 		}
-		if err := wire.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueInt("C", __VDLType_int32_3, int64(wire)); err != nil {
 			return err
 		}
 	}
 	if x.D != nil {
-		if err := enc.NextField("D"); err != nil {
-			return err
-		}
 		var wire WireMultiImport
 		if err := WireMultiImportFromNative(&wire, x.D); err != nil {
 			return err
 		}
-		if err := wire.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueInt("D", __VDLType_int32_4, int64(wire)); err != nil {
 			return err
 		}
 	}
 	if x.E != 0 {
-		if err := enc.NextField("E"); err != nil {
-			return err
-		}
-		if err := x.E.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueInt("E", __VDLType_int32_5, int64(x.E)); err != nil {
 			return err
 		}
 	}
@@ -344,13 +314,10 @@ func (x ignoreme) VDLIsZero() bool {
 }
 
 func (x ignoreme) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_string_7); err != nil {
+	if err := enc.WriteValueString(__VDLType_string_7, string(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeString(string(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *ignoreme) VDLRead(dec vdl.Decoder) error {

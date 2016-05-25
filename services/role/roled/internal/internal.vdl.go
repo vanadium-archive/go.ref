@@ -94,44 +94,17 @@ func (x Config) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Extend {
-		if err := enc.NextField("Extend"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.BoolType); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.Extend); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBool("Extend", vdl.BoolType, x.Extend); err != nil {
 			return err
 		}
 	}
 	if x.Audit {
-		if err := enc.NextField("Audit"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.BoolType); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.Audit); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBool("Audit", vdl.BoolType, x.Audit); err != nil {
 			return err
 		}
 	}
 	if x.Expiry != "" {
-		if err := enc.NextField("Expiry"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Expiry); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Expiry", vdl.StringType, x.Expiry); err != nil {
 			return err
 		}
 	}
@@ -156,17 +129,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x[i]); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueString(vdl.StringType, elem); err != nil {
 			return err
 		}
 	}
@@ -183,11 +147,8 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []security.BlessingPattern) error 
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := x[i].VDLWrite(enc); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueString(__VDLType_string_4, string(elem)); err != nil {
 			return err
 		}
 	}

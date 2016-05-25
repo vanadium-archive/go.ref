@@ -52,50 +52,38 @@ func (x All) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.A != "" {
-		if err := enc.NextField("A"); err != nil {
-			return err
-		}
 		var wire nativetest_2.WireString
 		if err := nativetest_2.WireStringFromNative(&wire, x.A); err != nil {
 			return err
 		}
-		if err := wire.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueInt("A", __VDLType_int32_2, int64(wire)); err != nil {
 			return err
 		}
 	}
 	if !x.B.IsZero() {
-		if err := enc.NextField("B"); err != nil {
-			return err
-		}
 		var wire nativetest_2.WireTime
 		if err := nativetest_2.WireTimeFromNative(&wire, x.B); err != nil {
 			return err
 		}
-		if err := wire.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueInt("B", __VDLType_int32_3, int64(wire)); err != nil {
 			return err
 		}
 	}
 	if x.C != "" {
-		if err := enc.NextField("C"); err != nil {
-			return err
-		}
 		var wire nativetest_2.WireSamePkg
 		if err := nativetest_2.WireSamePkgFromNative(&wire, x.C); err != nil {
 			return err
 		}
-		if err := wire.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueInt("C", __VDLType_int32_4, int64(wire)); err != nil {
 			return err
 		}
 	}
 	if x.D != nil {
-		if err := enc.NextField("D"); err != nil {
-			return err
-		}
 		var wire nativetest_2.WireMultiImport
 		if err := nativetest_2.WireMultiImportFromNative(&wire, x.D); err != nil {
 			return err
 		}
-		if err := wire.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueInt("D", __VDLType_int32_5, int64(wire)); err != nil {
 			return err
 		}
 	}

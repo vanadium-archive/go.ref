@@ -63,16 +63,7 @@ func (x Blessings) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.BKey != 0 {
-		if err := enc.NextField("BKey"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.BKey); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("BKey", vdl.Uint64Type, x.BKey); err != nil {
 			return err
 		}
 	}
@@ -157,16 +148,7 @@ func (x EncryptedBlessings) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.BKey != 0 {
-		if err := enc.NextField("BKey"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.BKey); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("BKey", vdl.Uint64Type, x.BKey); err != nil {
 			return err
 		}
 	}
@@ -183,11 +165,11 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []bcrypter.WireCiphertext) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
+	for _, elem := range x {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := x[i].VDLWrite(enc); err != nil {
+		if err := elem.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -297,30 +279,12 @@ func (x Discharges) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.DKey != 0 {
-		if err := enc.NextField("DKey"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.DKey); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("DKey", vdl.Uint64Type, x.DKey); err != nil {
 			return err
 		}
 	}
 	if x.BKey != 0 {
-		if err := enc.NextField("BKey"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.BKey); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("BKey", vdl.Uint64Type, x.BKey); err != nil {
 			return err
 		}
 	}
@@ -337,12 +301,12 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []security.Discharge) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
+	for _, elem := range x {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
 		var wire security.WireDischarge
-		if err := security.WireDischargeFromNative(&wire, x[i]); err != nil {
+		if err := security.WireDischargeFromNative(&wire, elem); err != nil {
 			return err
 		}
 		switch {
@@ -476,30 +440,12 @@ func (x EncryptedDischarges) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.DKey != 0 {
-		if err := enc.NextField("DKey"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.DKey); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("DKey", vdl.Uint64Type, x.DKey); err != nil {
 			return err
 		}
 	}
 	if x.BKey != 0 {
-		if err := enc.NextField("BKey"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.BKey); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("BKey", vdl.Uint64Type, x.BKey); err != nil {
 			return err
 		}
 	}

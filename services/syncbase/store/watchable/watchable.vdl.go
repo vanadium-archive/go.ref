@@ -39,16 +39,7 @@ func (x GetOp) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Key) != 0 {
-		if err := enc.NextField("Key"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_2); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.Key); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("Key", __VDLType_list_2, x.Key); err != nil {
 			return err
 		}
 	}
@@ -109,30 +100,12 @@ func (x ScanOp) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Start) != 0 {
-		if err := enc.NextField("Start"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_2); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.Start); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("Start", __VDLType_list_2, x.Start); err != nil {
 			return err
 		}
 	}
 	if len(x.Limit) != 0 {
-		if err := enc.NextField("Limit"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_2); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.Limit); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("Limit", __VDLType_list_2, x.Limit); err != nil {
 			return err
 		}
 	}
@@ -199,30 +172,12 @@ func (x PutOp) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Key) != 0 {
-		if err := enc.NextField("Key"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_2); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.Key); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("Key", __VDLType_list_2, x.Key); err != nil {
 			return err
 		}
 	}
 	if len(x.Version) != 0 {
-		if err := enc.NextField("Version"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_2); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.Version); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("Version", __VDLType_list_2, x.Version); err != nil {
 			return err
 		}
 	}
@@ -283,16 +238,7 @@ func (x DeleteOp) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Key) != 0 {
-		if err := enc.NextField("Key"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_2); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.Key); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("Key", __VDLType_list_2, x.Key); err != nil {
 			return err
 		}
 	}
@@ -380,44 +326,17 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.CommitTimestamp != 0 {
-		if err := enc.NextField("CommitTimestamp"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.CommitTimestamp); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("CommitTimestamp", vdl.Int64Type, x.CommitTimestamp); err != nil {
 			return err
 		}
 	}
 	if x.FromSync {
-		if err := enc.NextField("FromSync"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.BoolType); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.FromSync); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBool("FromSync", vdl.BoolType, x.FromSync); err != nil {
 			return err
 		}
 	}
 	if x.Continued {
-		if err := enc.NextField("Continued"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.BoolType); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.Continued); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBool("Continued", vdl.BoolType, x.Continued); err != nil {
 			return err
 		}
 	}

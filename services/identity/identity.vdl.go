@@ -58,16 +58,7 @@ func (x BlessingRootResponse) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.PublicKey != "" {
-		if err := enc.NextField("PublicKey"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.PublicKey); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("PublicKey", vdl.StringType, x.PublicKey); err != nil {
 			return err
 		}
 	}
@@ -84,17 +75,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x[i]); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueString(vdl.StringType, elem); err != nil {
 			return err
 		}
 	}

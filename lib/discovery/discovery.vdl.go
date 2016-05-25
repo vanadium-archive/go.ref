@@ -35,13 +35,10 @@ func (x Uuid) VDLIsZero() bool {
 }
 
 func (x Uuid) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_list_1); err != nil {
+	if err := enc.WriteValueBytes(__VDLType_list_1, []byte(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeBytes([]byte(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *Uuid) VDLRead(dec vdl.Decoder) error {
@@ -65,13 +62,10 @@ func (x EncryptionAlgorithm) VDLIsZero() bool {
 }
 
 func (x EncryptionAlgorithm) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_int32_2); err != nil {
+	if err := enc.WriteValueInt(__VDLType_int32_2, int64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeInt(int64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *EncryptionAlgorithm) VDLRead(dec vdl.Decoder) error {
@@ -96,13 +90,10 @@ func (x EncryptionKey) VDLIsZero() bool {
 }
 
 func (x EncryptionKey) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_list_3); err != nil {
+	if err := enc.WriteValueBytes(__VDLType_list_3, []byte(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeBytes([]byte(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *EncryptionKey) VDLRead(dec vdl.Decoder) error {
@@ -126,13 +117,10 @@ func (x AdStatus) VDLIsZero() bool {
 }
 
 func (x AdStatus) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_byte_4); err != nil {
+	if err := enc.WriteValueUint(__VDLType_byte_4, uint64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeUint(uint64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *AdStatus) VDLRead(dec vdl.Decoder) error {
@@ -158,13 +146,10 @@ func (x AdHash) VDLIsZero() bool {
 }
 
 func (x AdHash) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_array_5); err != nil {
+	if err := enc.WriteValueBytes(__VDLType_array_5, x[:]); err != nil {
 		return err
 	}
-	if err := enc.EncodeBytes([]byte(x[:])); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *AdHash) VDLRead(dec vdl.Decoder) error {
@@ -244,10 +229,7 @@ func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.EncryptionAlgorithm != 0 {
-		if err := enc.NextField("EncryptionAlgorithm"); err != nil {
-			return err
-		}
-		if err := x.EncryptionAlgorithm.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueInt("EncryptionAlgorithm", __VDLType_int32_2, int64(x.EncryptionAlgorithm)); err != nil {
 			return err
 		}
 	}
@@ -260,24 +242,12 @@ func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Hash != (AdHash{}) {
-		if err := enc.NextField("Hash"); err != nil {
-			return err
-		}
-		if err := x.Hash.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueBytes("Hash", __VDLType_array_5, x.Hash[:]); err != nil {
 			return err
 		}
 	}
 	if x.TimestampNs != 0 {
-		if err := enc.NextField("TimestampNs"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.TimestampNs); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("TimestampNs", vdl.Int64Type, x.TimestampNs); err != nil {
 			return err
 		}
 	}
@@ -290,24 +260,12 @@ func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Status != 0 {
-		if err := enc.NextField("Status"); err != nil {
-			return err
-		}
-		if err := x.Status.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueUint("Status", __VDLType_byte_4, uint64(x.Status)); err != nil {
 			return err
 		}
 	}
 	if x.Lost {
-		if err := enc.NextField("Lost"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.BoolType); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.Lost); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBool("Lost", vdl.BoolType, x.Lost); err != nil {
 			return err
 		}
 	}
@@ -324,11 +282,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []EncryptionKey) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := x[i].VDLWrite(enc); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueBytes(__VDLType_list_3, []byte(elem)); err != nil {
 			return err
 		}
 	}
@@ -345,17 +300,8 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []string) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x[i]); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueString(vdl.StringType, elem); err != nil {
 			return err
 		}
 	}

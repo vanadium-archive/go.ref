@@ -41,44 +41,17 @@ func (x Cpu) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Architecture != "" {
-		if err := enc.NextField("Architecture"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Architecture); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Architecture", vdl.StringType, x.Architecture); err != nil {
 			return err
 		}
 	}
 	if x.Description != "" {
-		if err := enc.NextField("Description"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Description); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Description", vdl.StringType, x.Description); err != nil {
 			return err
 		}
 	}
 	if x.ClockSpeedMhz != 0 {
-		if err := enc.NextField("ClockSpeedMhz"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint32Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(uint64(x.ClockSpeedMhz)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("ClockSpeedMhz", vdl.Uint32Type, uint64(x.ClockSpeedMhz)); err != nil {
 			return err
 		}
 	}
@@ -150,30 +123,12 @@ func (x Os) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Name != "" {
-		if err := enc.NextField("Name"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Name); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Name", vdl.StringType, x.Name); err != nil {
 			return err
 		}
 	}
 	if x.Version != "" {
-		if err := enc.NextField("Version"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Version); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Version", vdl.StringType, x.Version); err != nil {
 			return err
 		}
 	}
@@ -255,16 +210,7 @@ func (x Scenario) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Label != "" {
-		if err := enc.NextField("Label"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Label); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Label", vdl.StringType, x.Label); err != nil {
 			return err
 		}
 	}
@@ -328,13 +274,10 @@ func (x SourceCode) VDLIsZero() bool {
 }
 
 func (x SourceCode) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_string_4); err != nil {
+	if err := enc.WriteValueString(__VDLType_string_4, string(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeString(string(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *SourceCode) VDLRead(dec vdl.Decoder) error {
@@ -372,100 +315,37 @@ func (x Run) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Name != "" {
-		if err := enc.NextField("Name"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Name); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Name", vdl.StringType, x.Name); err != nil {
 			return err
 		}
 	}
 	if x.Iterations != 0 {
-		if err := enc.NextField("Iterations"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.Iterations); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("Iterations", vdl.Uint64Type, x.Iterations); err != nil {
 			return err
 		}
 	}
 	if x.NanoSecsPerOp != 0 {
-		if err := enc.NextField("NanoSecsPerOp"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Float64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeFloat(x.NanoSecsPerOp); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueFloat("NanoSecsPerOp", vdl.Float64Type, x.NanoSecsPerOp); err != nil {
 			return err
 		}
 	}
 	if x.AllocsPerOp != 0 {
-		if err := enc.NextField("AllocsPerOp"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.AllocsPerOp); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("AllocsPerOp", vdl.Uint64Type, x.AllocsPerOp); err != nil {
 			return err
 		}
 	}
 	if x.AllocedBytesPerOp != 0 {
-		if err := enc.NextField("AllocedBytesPerOp"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.AllocedBytesPerOp); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("AllocedBytesPerOp", vdl.Uint64Type, x.AllocedBytesPerOp); err != nil {
 			return err
 		}
 	}
 	if x.MegaBytesPerSec != 0 {
-		if err := enc.NextField("MegaBytesPerSec"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Float64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeFloat(x.MegaBytesPerSec); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueFloat("MegaBytesPerSec", vdl.Float64Type, x.MegaBytesPerSec); err != nil {
 			return err
 		}
 	}
 	if x.Parallelism != 0 {
-		if err := enc.NextField("Parallelism"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint32Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(uint64(x.Parallelism)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("Parallelism", vdl.Uint32Type, uint64(x.Parallelism)); err != nil {
 			return err
 		}
 	}

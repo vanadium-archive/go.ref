@@ -6,6 +6,7 @@ package golang
 
 import (
 	"fmt"
+	"strings"
 
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/compile"
@@ -94,9 +95,12 @@ func (g *genWrite) body(tt *vdl.Type, arg namedArg, skipNilCheck, topLevel bool)
 	if err := enc.FinishValue(); err != nil {
 		return err
 	}`
+	retnil := ""
 	if topLevel {
 		fin = `
 	return enc.FinishValue()`
+		retnil = `
+	return nil`
 	}
 	// Handle special cases.  The ordering of the cases is very important.
 	switch {
@@ -115,16 +119,16 @@ func (g *genWrite) body(tt *vdl.Type, arg namedArg, skipNilCheck, topLevel bool)
 		// wire type.  Appears as early as possible, so that all subsequent cases
 		// have nativity handled correctly.
 		return g.bodyNative(tt, arg, skipNilCheck)
-	case !topLevel && tt.Name() != "":
+	case tt.IsBytes():
+		// Bytes call the fast Encoder.WriteValueBytes method.  Appears before named
+		// types to avoid an extra VDLWrite method call, and appears before
+		// anonymous lists to avoid slow byte-at-a-time encoding.
+		return g.bodyFastpath(tt, arg, false) + retnil
+	case !topLevel && tt.Name() != "" && !g.hasFastpath(tt, false):
 		// Non-top-level named types call the VDLWrite method defined on the arg.
 		// The top-level type is always named, and needs a real body generated.
-		// Appears before bytes, so that we use the defined method rather than
-		// re-generating extra code.
+		// We let fastpath types drop through, to avoid the extra method call.
 		return g.bodyCallVDLWrite(tt, arg, skipNilCheck)
-	case tt.IsBytes() && tt.Elem() == vdl.ByteType:
-		// Bytes use the special Encoder.EncodeBytes method.  Appears before
-		// anonymous types, to avoid processing bytes as a list or array.
-		return sta + g.bodyBytes(tt, arg) + fin
 	case !topLevel && (kind == vdl.List || kind == vdl.Set || kind == vdl.Map):
 		// Non-top-level anonymous types call the unexported __VDLWrite* functions
 		// generated in g.Gen, after the main VDLWrite method has been generated.
@@ -133,21 +137,12 @@ func (g *genWrite) body(tt *vdl.Type, arg namedArg, skipNilCheck, topLevel bool)
 		return g.bodyAnon(tt, arg)
 	}
 	// Handle each kind of type.
+	if g.hasFastpath(tt, false) {
+		// Don't perform native conversions, since they were already performed above.
+		// All scalar types have a fastpath.
+		return g.bodyFastpath(tt, arg, false) + retnil
+	}
 	switch kind {
-	case vdl.Bool:
-		return sta + g.bodyScalar(tt, vdl.BoolType, arg, "Bool") + fin
-	case vdl.String:
-		return sta + g.bodyScalar(tt, vdl.StringType, arg, "String") + fin
-	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
-		return sta + g.bodyScalar(tt, vdl.Uint64Type, arg, "Uint") + fin
-	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
-		return sta + g.bodyScalar(tt, vdl.Int64Type, arg, "Int") + fin
-	case vdl.Float32, vdl.Float64:
-		return sta + g.bodyScalar(tt, vdl.Float64Type, arg, "Float") + fin
-	case vdl.TypeObject:
-		return g.bodyCallVDLWrite(tt, arg, skipNilCheck)
-	case vdl.Enum:
-		return sta + g.bodyEnum(tt, arg) + fin
 	case vdl.Array:
 		return sta + g.bodyArray(tt, arg) + fin
 	case vdl.List:
@@ -225,31 +220,89 @@ func (g *genWrite) bodyAnon(tt *vdl.Type, arg namedArg) string {
 	}`, g.anonWriterName(tt), arg.Ref())
 }
 
-func (g *genWrite) bodyScalar(tt, exact *vdl.Type, arg namedArg, method string) string {
-	param := arg.Ref()
+func (g *genWrite) hasFastpath(tt *vdl.Type, nativeConv bool) bool {
+	method, _, _ := g.fastpathInfo(tt, namedArg{}, nativeConv)
+	return method != ""
+}
+
+func (g *genWrite) fastpathInfo(tt *vdl.Type, arg namedArg, nativeConv bool) (method string, params []string, init string) {
+	kind := tt.Kind()
+	p1, p2 := "", ""
+	// When fastpathInfo is called in order to produce NextEntry* or NextField*
+	// methods, we must perform the native conversion if tt is a native type.
+	if nativeConv && isNativeType(g.Env, tt) {
+		init = fmt.Sprintf(`
+	var wire %[1]s
+	if err := %[1]sFromNative(&wire, %[2]s); err != nil {
+		return err
+	}`, typeGoWire(g.goData, tt), arg.Ref())
+		arg = typedArg("wire", tt)
+	}
+	// Handle bytes fastpath.  Go doesn't allow type conversions from []MyByte to
+	// []byte, but the reflect package does let us perform this conversion.
+	if tt.IsBytes() {
+		method, p1 = "Bytes", g.TypeOf(tt)
+		switch {
+		case tt.Elem() != vdl.ByteType:
+			slice := arg.Ref()
+			if kind == vdl.Array {
+				slice = arg.Name + "[:]"
+			}
+			p2 = fmt.Sprintf(`%sValueOf(%s).Bytes()`, g.Pkg("reflect"), slice)
+		case kind == vdl.Array:
+			p2 = arg.Name + "[:]"
+		default:
+			p2 = g.cast(arg.Ref(), tt, vdl.ListType(vdl.ByteType))
+		}
+	}
+	// Handle scalar fastpaths.
+	switch kind {
+	case vdl.Bool:
+		method, p1, p2 = "Bool", g.TypeOf(tt), g.cast(arg.Ref(), tt, vdl.BoolType)
+	case vdl.String:
+		method, p1, p2 = "String", g.TypeOf(tt), g.cast(arg.Ref(), tt, vdl.StringType)
+	case vdl.Enum:
+		method, p1, p2 = "String", g.TypeOf(tt), arg.Name+".String()"
+	case vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64:
+		method, p1, p2 = "Uint", g.TypeOf(tt), g.cast(arg.Ref(), tt, vdl.Uint64Type)
+	case vdl.Int8, vdl.Int16, vdl.Int32, vdl.Int64:
+		method, p1, p2 = "Int", g.TypeOf(tt), g.cast(arg.Ref(), tt, vdl.Int64Type)
+	case vdl.Float32, vdl.Float64:
+		method, p1, p2 = "Float", g.TypeOf(tt), g.cast(arg.Ref(), tt, vdl.Float64Type)
+	case vdl.TypeObject:
+		method, p2 = "TypeObject", arg.Ref()
+	}
+	if method == "" {
+		return "", nil, ""
+	}
+	if p1 != "" {
+		params = append(params, p1)
+	}
+	params = append(params, p2)
+	return
+}
+
+func (g *genWrite) cast(value string, tt, exact *vdl.Type) string {
 	if tt != exact {
-		param = typeGo(g.goData, exact) + "(" + arg.Ref() + ")"
+		// The types don't have an exact match, so we need a conversion.  This
+		// occurs for all named types, as well as numeric types where the bitlen
+		// isn't exactly the same.  E.g.
+		//
+		//   type Foo uint16
+		//
+		//   x := Foo(123)
+		//   enc.WriteValueUint(tt, uint64(x))
+		return typeGoWire(g.goData, exact) + "(" + value + ")"
 	}
-	return fmt.Sprintf(`
-	if err := enc.Encode%[1]s(%[2]s); err != nil {
-		return err
-	}`, method, param)
+	return value
 }
 
-var ttBytes = vdl.ListType(vdl.ByteType)
-
-func (g *genWrite) bodyBytes(tt *vdl.Type, arg namedArg) string {
-	if tt.Kind() == vdl.Array {
-		arg = arg.ArrayIndex(":", ttBytes)
-	}
-	return g.bodyScalar(tt, ttBytes, arg, "Bytes")
-}
-
-func (g *genWrite) bodyEnum(tt *vdl.Type, arg namedArg) string {
-	return fmt.Sprintf(`
-	if err := enc.EncodeString(%[1]s.String()); err != nil {
+func (g *genWrite) bodyFastpath(tt *vdl.Type, arg namedArg, nativeConv bool) string {
+	method, params, init := g.fastpathInfo(tt, arg, nativeConv)
+	return fmt.Sprintf(`%[1]s
+	if err := enc.WriteValue%[2]s(%[3]s); err != nil {
 		return err
-	}`, arg.Name)
+	}`, init, method, strings.Join(params, ", "))
 }
 
 const (
@@ -268,25 +321,41 @@ const (
 )
 
 func (g *genWrite) bodyArray(tt *vdl.Type, arg namedArg) string {
-	elemArg := arg.ArrayIndex("i", tt.Elem())
+	elemArg := typedArg("elem", tt.Elem())
 	s := fmt.Sprintf(`
-	for i := 0; i < %[1]d; i++ {`, tt.Len())
-	s += encNextEntry
-	s += g.body(tt.Elem(), elemArg, false, false)
+	for _, elem := range %[1]s {`, arg.Ref())
+	method, params, init := g.fastpathInfo(tt.Elem(), elemArg, true)
+	if method != "" {
+		s += fmt.Sprintf(`%[1]s
+	if err := enc.NextEntryValue%[2]s(%[3]s); err != nil {
+		return err
+	}`, init, method, strings.Join(params, ", "))
+	} else {
+		s += encNextEntry
+		s += g.body(tt.Elem(), elemArg, false, false)
+	}
 	s += `
 	}` + encNextEntryDone
 	return s
 }
 
 func (g *genWrite) bodyList(tt *vdl.Type, arg namedArg) string {
-	elemArg := arg.Index("i", tt.Elem())
+	elemArg := typedArg("elem", tt.Elem())
 	s := fmt.Sprintf(`
 	if err := enc.SetLenHint(len(%[1]s)); err != nil {
 		return err
 	}
-	for i := 0; i < len(%[1]s); i++ {`, arg.Ref())
-	s += encNextEntry
-	s += g.body(tt.Elem(), elemArg, false, false)
+	for _, elem := range %[1]s {`, arg.Ref())
+	method, params, init := g.fastpathInfo(tt.Elem(), elemArg, true)
+	if method != "" {
+		s += fmt.Sprintf(`%[1]s
+	if err := enc.NextEntryValue%[2]s(%[3]s); err != nil {
+		return err
+	}`, init, method, strings.Join(params, ", "))
+	} else {
+		s += encNextEntry
+		s += g.body(tt.Elem(), elemArg, false, false)
+	}
 	s += `
 	}` + encNextEntryDone
 	return s
@@ -299,8 +368,16 @@ func (g *genWrite) bodySet(tt *vdl.Type, arg namedArg) string {
 		return err
 	}
 	for key := range %[1]s {`, arg.Ref())
-	s += encNextEntry
-	s += g.body(tt.Key(), keyArg, false, false)
+	method, params, init := g.fastpathInfo(tt.Key(), keyArg, true)
+	if method != "" {
+		s += fmt.Sprintf(`%[1]s
+	if err := enc.NextEntryValue%[2]s(%[3]s); err != nil {
+		return err
+	}`, init, method, strings.Join(params, ", "))
+	} else {
+		s += encNextEntry
+		s += g.body(tt.Key(), keyArg, false, false)
+	}
 	s += `
 	}` + encNextEntryDone
 	return s
@@ -313,8 +390,16 @@ func (g *genWrite) bodyMap(tt *vdl.Type, arg namedArg) string {
 		return err
 	}
 	for key, elem := range %[1]s {`, arg.Ref())
-	s += encNextEntry
-	s += g.body(tt.Key(), keyArg, false, false)
+	method, params, init := g.fastpathInfo(tt.Key(), keyArg, true)
+	if method != "" {
+		s += fmt.Sprintf(`%[1]s
+	if err := enc.NextEntryValue%[2]s(%[3]s); err != nil {
+		return err
+	}`, init, method, strings.Join(params, ", "))
+	} else {
+		s += encNextEntry
+		s += g.body(tt.Key(), keyArg, false, false)
+	}
 	s += g.body(tt.Elem(), elemArg, false, false)
 	s += `
 	}` + encNextEntryDone
@@ -328,37 +413,55 @@ func (g *genWrite) bodyStruct(tt *vdl.Type, arg namedArg) string {
 		fieldArg := arg.Field(field)
 		zero := genIsZero{g.goData}
 		expr := zero.Expr(ifNeZero, field.Type, fieldArg, field.Name)
-		// The second-to-last true parameter indicates that nil checks can be
-		// skipped, since we've already ensured the field isn't zero here.
-		fieldBody := g.body(field.Type, fieldArg, true, false)
 		s += fmt.Sprintf(`
-	if %[1]s {
-		if err := enc.NextField(%[2]q); err != nil {
+	if %[1]s {`, expr)
+		method, params, init := g.fastpathInfo(field.Type, fieldArg, true)
+		if method != "" {
+			params = append([]string{`"` + field.Name + `"`}, params...)
+			s += fmt.Sprintf(`%[1]s
+		if err := enc.NextFieldValue%[2]s(%[3]s); err != nil {
 			return err
-		}%[3]s
-	}`, expr, field.Name, fieldBody)
+		}`, init, method, strings.Join(params, ", "))
+		} else {
+			// The second-to-last true parameter indicates that nil checks can be
+			// skipped, since we've already ensured the field isn't zero here.
+			fieldBody := g.body(field.Type, fieldArg, true, false)
+			s += fmt.Sprintf(`
+		if err := enc.NextField(%[1]q); err != nil {
+			return err
+		}%[2]s`, field.Name, fieldBody)
+		}
+		s += `
+	}`
 	}
 	s += encNextFieldDone
 	return s
 }
 
 func (g *genWrite) bodyUnion(field vdl.Field, arg namedArg) string {
+	var s string
 	fieldArg := typedArg(arg.Name+".Value", field.Type)
-	s := fmt.Sprintf(`
+	method, params, init := g.fastpathInfo(field.Type, fieldArg, true)
+	if method != "" {
+		params = append([]string{`"` + field.Name + `"`}, params...)
+		s += fmt.Sprintf(`%[1]s
+	if err := enc.NextFieldValue%[2]s(%[3]s); err != nil {
+		return err
+	}`, init, method, strings.Join(params, ", "))
+	} else {
+		s += fmt.Sprintf(`
 	if err := enc.NextField(%[1]q); err != nil {
 			return err
 	}`, field.Name)
-	s += g.body(field.Type, fieldArg, false, false)
+		s += g.body(field.Type, fieldArg, false, false)
+	}
 	s += encNextFieldDone
 	return s
 }
 
 func (g *genWrite) bodyOptional(tt *vdl.Type, arg namedArg, skipNilCheck bool) string {
-	body := g.body(tt.Elem(), arg, false, false)
-	s := fmt.Sprintf(`
-	enc.SetNextStartValueIsOptional()
-	%[1]s
-	`, body)
+	s := `
+	enc.SetNextStartValueIsOptional()` + g.body(tt.Elem(), arg, false, false)
 	if !skipNilCheck {
 		s = fmt.Sprintf(`
 	if %[1]s == nil {

@@ -40,30 +40,12 @@ func (x Struct) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.X != 0 {
-		if err := enc.NextField("X"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int32Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(int64(x.X)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("X", vdl.Int32Type, int64(x.X)); err != nil {
 			return err
 		}
 	}
 	if x.Y != 0 {
-		if err := enc.NextField("Y"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int32Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(int64(x.Y)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("Y", vdl.Int32Type, int64(x.Y)); err != nil {
 			return err
 		}
 	}
@@ -123,17 +105,8 @@ func (x Array2Int) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_array_2); err != nil {
 		return err
 	}
-	for i := 0; i < 2; i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int32Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(int64(x[i])); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueInt(vdl.Int32Type, int64(elem)); err != nil {
 			return err
 		}
 	}

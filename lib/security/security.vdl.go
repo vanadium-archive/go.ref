@@ -38,16 +38,7 @@ func (x blessingRootsState) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	for key, elem := range x {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(key); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextEntryValueString(vdl.StringType, key); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, elem); err != nil {
@@ -67,11 +58,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []security.BlessingPattern) error 
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := x[i].VDLWrite(enc); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueString(__VDLType_string_3, string(elem)); err != nil {
 			return err
 		}
 	}
@@ -142,13 +130,10 @@ func (x dischargeCacheKey) VDLIsZero() bool {
 }
 
 func (x dischargeCacheKey) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_array_4); err != nil {
+	if err := enc.WriteValueBytes(__VDLType_array_4, x[:]); err != nil {
 		return err
 	}
-	if err := enc.EncodeBytes([]byte(x[:])); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *dischargeCacheKey) VDLRead(dec vdl.Decoder) error {
@@ -336,16 +321,7 @@ func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.CacheKeyFormat != 0 {
-		if err := enc.NextField("CacheKeyFormat"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint32Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(uint64(x.CacheKeyFormat)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("CacheKeyFormat", vdl.Uint32Type, uint64(x.CacheKeyFormat)); err != nil {
 			return err
 		}
 	}
@@ -363,10 +339,7 @@ func __VDLWriteAnon_map_2(enc vdl.Encoder, x map[security.BlessingPattern]securi
 		return err
 	}
 	for key, elem := range x {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := key.VDLWrite(enc); err != nil {
+		if err := enc.NextEntryValueString(__VDLType_string_3, string(key)); err != nil {
 			return err
 		}
 		var wire security.WireBlessings
@@ -391,10 +364,7 @@ func __VDLWriteAnon_map_3(enc vdl.Encoder, x map[dischargeCacheKey]security.Disc
 		return err
 	}
 	for key, elem := range x {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := key.VDLWrite(enc); err != nil {
+		if err := enc.NextEntryValueBytes(__VDLType_array_4, key[:]); err != nil {
 			return err
 		}
 		var wire security.WireDischarge
@@ -427,10 +397,7 @@ func __VDLWriteAnon_map_4(enc vdl.Encoder, x map[dischargeCacheKey]CachedDischar
 		return err
 	}
 	for key, elem := range x {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := key.VDLWrite(enc); err != nil {
+		if err := enc.NextEntryValueBytes(__VDLType_array_4, key[:]); err != nil {
 			return err
 		}
 		if err := elem.VDLWrite(enc); err != nil {

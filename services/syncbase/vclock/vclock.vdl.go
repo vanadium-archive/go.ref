@@ -119,30 +119,12 @@ func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.NumReboots != 0 {
-		if err := enc.NextField("NumReboots"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint16Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(uint64(x.NumReboots)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("NumReboots", vdl.Uint16Type, uint64(x.NumReboots)); err != nil {
 			return err
 		}
 	}
 	if x.NumHops != 0 {
-		if err := enc.NextField("NumHops"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint16Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(uint64(x.NumHops)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("NumHops", vdl.Uint16Type, uint64(x.NumHops)); err != nil {
 			return err
 		}
 	}

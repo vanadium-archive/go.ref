@@ -59,16 +59,7 @@ func (x GameId) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Id != "" {
-		if err := enc.NextField("Id"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Id); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Id", vdl.StringType, x.Id); err != nil {
 			return err
 		}
 	}
@@ -118,13 +109,10 @@ func (x GameTypeTag) VDLIsZero() bool {
 }
 
 func (x GameTypeTag) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_byte_2); err != nil {
+	if err := enc.WriteValueUint(__VDLType_byte_2, uint64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeUint(uint64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *GameTypeTag) VDLRead(dec vdl.Decoder) error {
@@ -157,24 +145,12 @@ func (x GameOptions) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.NumRounds != 0 {
-		if err := enc.NextField("NumRounds"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int32Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(int64(x.NumRounds)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("NumRounds", vdl.Int32Type, int64(x.NumRounds)); err != nil {
 			return err
 		}
 	}
 	if x.GameType != 0 {
-		if err := enc.NextField("GameType"); err != nil {
-			return err
-		}
-		if err := x.GameType.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueUint("GameType", __VDLType_byte_2, uint64(x.GameType)); err != nil {
 			return err
 		}
 	}
@@ -314,16 +290,7 @@ func (x PlayerActionMove) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_5); err != nil {
 		return err
 	}
-	if err := enc.NextField("Move"); err != nil {
-		return err
-	}
-	if err := enc.StartValue(vdl.StringType); err != nil {
-		return err
-	}
-	if err := enc.EncodeString(x.Value); err != nil {
-		return err
-	}
-	if err := enc.FinishValue(); err != nil {
+	if err := enc.NextFieldValueString("Move", vdl.StringType, x.Value); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {
@@ -401,17 +368,8 @@ func (x PlayersMoves) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_array_6); err != nil {
 		return err
 	}
-	for i := 0; i < 2; i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x[i]); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueString(vdl.StringType, elem); err != nil {
 			return err
 		}
 	}
@@ -458,13 +416,10 @@ func (x WinnerTag) VDLIsZero() bool {
 }
 
 func (x WinnerTag) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_byte_7); err != nil {
+	if err := enc.WriteValueUint(__VDLType_byte_7, uint64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeUint(uint64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *WinnerTag) VDLRead(dec vdl.Decoder) error {
@@ -523,24 +478,12 @@ func (x Round) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Comment != "" {
-		if err := enc.NextField("Comment"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Comment); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Comment", vdl.StringType, x.Comment); err != nil {
 			return err
 		}
 	}
 	if x.Winner != 0 {
-		if err := enc.NextField("Winner"); err != nil {
-			return err
-		}
-		if err := x.Winner.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueUint("Winner", __VDLType_byte_7, uint64(x.Winner)); err != nil {
 			return err
 		}
 	}
@@ -682,16 +625,7 @@ func (x ScoreCard) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Judge != "" {
-		if err := enc.NextField("Judge"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Judge); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Judge", vdl.StringType, x.Judge); err != nil {
 			return err
 		}
 	}
@@ -736,10 +670,7 @@ func (x ScoreCard) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Winner != 0 {
-		if err := enc.NextField("Winner"); err != nil {
-			return err
-		}
-		if err := x.Winner.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueUint("Winner", __VDLType_byte_7, uint64(x.Winner)); err != nil {
 			return err
 		}
 	}
@@ -756,17 +687,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x[i]); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueString(vdl.StringType, elem); err != nil {
 			return err
 		}
 	}
@@ -783,11 +705,11 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []Round) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
+	for _, elem := range x {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := x[i].VDLWrite(enc); err != nil {
+		if err := elem.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
@@ -993,16 +915,7 @@ func (x JudgeActionPlayerNum) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_13); err != nil {
 		return err
 	}
-	if err := enc.NextField("PlayerNum"); err != nil {
-		return err
-	}
-	if err := enc.StartValue(vdl.Int32Type); err != nil {
-		return err
-	}
-	if err := enc.EncodeInt(int64(x.Value)); err != nil {
-		return err
-	}
-	if err := enc.FinishValue(); err != nil {
+	if err := enc.NextFieldValueInt("PlayerNum", vdl.Int32Type, int64(x.Value)); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {
@@ -1015,16 +928,7 @@ func (x JudgeActionOpponentName) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_13); err != nil {
 		return err
 	}
-	if err := enc.NextField("OpponentName"); err != nil {
-		return err
-	}
-	if err := enc.StartValue(vdl.StringType); err != nil {
-		return err
-	}
-	if err := enc.EncodeString(x.Value); err != nil {
-		return err
-	}
-	if err := enc.FinishValue(); err != nil {
+	if err := enc.NextFieldValueString("OpponentName", vdl.StringType, x.Value); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {
@@ -1159,16 +1063,7 @@ func (x PlayResult) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.YouWon {
-		if err := enc.NextField("YouWon"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.BoolType); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.YouWon); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBool("YouWon", vdl.BoolType, x.YouWon); err != nil {
 			return err
 		}
 	}

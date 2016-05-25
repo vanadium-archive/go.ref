@@ -133,7 +133,7 @@ func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 		// types to avoid an extra VDLRead method call, and appears before anonymous
 		// lists to avoid slow byte-at-a-time decoding.
 		return g.bodyBytes(tt, arg) + retnil
-	case !topLevel && tt.Name() != "" && !hasScalarInfo(tt):
+	case !topLevel && tt.Name() != "" && !g.hasScalarInfo(tt):
 		// Non-top-level named types call the VDLRead method defined on the arg.
 		// The top-level type is always named, and needs a real body generated.
 		// We let scalars drop through, to avoid the extra method call.
@@ -146,7 +146,7 @@ func (g *genRead) body(tt *vdl.Type, arg namedArg, topLevel bool) string {
 		return g.bodyAnon(tt, arg)
 	}
 	// Handle each kind of type.
-	if hasScalarInfo(tt) {
+	if g.hasScalarInfo(tt) {
 		return g.bodyScalar(tt, arg) + retnil
 	}
 	switch kind {
@@ -216,12 +216,14 @@ func (g *genRead) bodyAnon(tt *vdl.Type, arg namedArg) string {
 	}`, g.anonReaderName(tt), arg.Ptr())
 }
 
-func hasScalarInfo(tt *vdl.Type) bool {
-	_, _, exact := scalarInfo(tt)
+func (g *genRead) hasScalarInfo(tt *vdl.Type) bool {
+	_, _, exact := g.scalarInfo(tt)
 	return exact != nil
 }
 
-func scalarInfo(tt *vdl.Type) (method, params string, exact *vdl.Type) {
+// TODO(toddw): Change this to fastpathInfo and handle Bytes here as well, just
+// like the writer.  Also add Decoder.NextEntryValueBytes for symmetry.
+func (g *genRead) scalarInfo(tt *vdl.Type) (method, params string, exact *vdl.Type) {
 	bitlen := strconv.Itoa(tt.Kind().BitLen())
 	switch tt.Kind() {
 	case vdl.Bool:
@@ -240,7 +242,7 @@ func scalarInfo(tt *vdl.Type) (method, params string, exact *vdl.Type) {
 	return "", "", nil
 }
 
-func setEnum(argEnum, argLabel string) string {
+func (g *genRead) setEnum(argEnum, argLabel string) string {
 	return fmt.Sprintf(`
 	if err := %[1]s.Set(%[2]s); err != nil {
 		return err
@@ -248,7 +250,7 @@ func setEnum(argEnum, argLabel string) string {
 }
 
 func (g *genRead) bodyScalar(tt *vdl.Type, arg namedArg) string {
-	method, params, exact := scalarInfo(tt)
+	method, params, exact := g.scalarInfo(tt)
 	valueCast := "value"
 	if tt != exact {
 		// The types don't have an exact match, so we need a conversion.  This
@@ -271,7 +273,7 @@ func (g *genRead) bodyScalar(tt *vdl.Type, arg namedArg) string {
 		return err
 	default:`, method, params)
 	if tt.Kind() == vdl.Enum {
-		s += setEnum(arg.Name, "value")
+		s += g.setEnum(arg.Name, "value")
 	} else {
 		s += fmt.Sprintf(`
 		%[1]s = %[2]s`, arg.Ref(), valueCast)
@@ -319,11 +321,12 @@ func (g *genRead) bodyBytes(tt *vdl.Type, arg namedArg) string {
 	return s
 }
 
-func nextEntrySwitch(varName string, ttEntry *vdl.Type) (string, *vdl.Type) {
+func (g *genRead) nextEntrySwitch(varName string, ttEntry *vdl.Type) (string, *vdl.Type) {
 	s := `
 	switch done, err := dec.NextEntry(); {`
-	method, params, exact := scalarInfo(ttEntry)
-	if exact != nil {
+	method, params, exact := g.scalarInfo(ttEntry)
+	// TODO(toddw): Add fastpath support for native types with scalar wire types.
+	if exact != nil && !isNativeType(g.Env, ttEntry) {
 		s = fmt.Sprintf(`
 	switch done, %[1]s, err := dec.NextEntryValue%[2]s(%[3]s); {`, varName, method, params)
 	}
@@ -334,7 +337,7 @@ func (g *genRead) bodyArray(tt *vdl.Type, arg namedArg) string {
 	s := fmt.Sprintf(`
 	for index := 0; index < %[1]d; index++ {`, tt.Len())
 	elem := "elem"
-	switchLine, exact := nextEntrySwitch(elem, tt.Elem())
+	switchLine, exact := g.nextEntrySwitch(elem, tt.Elem())
 	s += switchLine + fmt.Sprintf(`
 		case err != nil:
 			return err
@@ -346,7 +349,7 @@ func (g *genRead) bodyArray(tt *vdl.Type, arg namedArg) string {
 	case exact == nil:
 		s += g.body(tt.Elem(), elemArg, false)
 	case tt.Elem().Kind() == vdl.Enum:
-		s += setEnum(elemArg.Name, elem)
+		s += g.setEnum(elemArg.Name, elem)
 	default:
 		if tt.Elem() != exact {
 			elem = typeGoWire(g.goData, tt.Elem()) + "(" + elem + ")"
@@ -374,7 +377,7 @@ func (g *genRead) bodyList(tt *vdl.Type, arg namedArg) string {
 	}
 	for {`, arg.Ref(), typeGoWire(g.goData, tt))
 	elem := "elem"
-	switchLine, exact := nextEntrySwitch(elem, tt.Elem())
+	switchLine, exact := g.nextEntrySwitch(elem, tt.Elem())
 	s += switchLine + `
 		case err != nil:
 			return err
@@ -389,7 +392,7 @@ func (g *genRead) bodyList(tt *vdl.Type, arg namedArg) string {
 			var %[1]s %[2]s%[3]s`, elem, typeGo(g.goData, tt.Elem()), elemBody)
 	case tt.Elem().Kind() == vdl.Enum:
 		s += fmt.Sprintf(`
-			var enum %[1]s%[2]s`, typeGo(g.goData, tt.Elem()), setEnum("enum", elem))
+			var enum %[1]s%[2]s`, typeGo(g.goData, tt.Elem()), g.setEnum("enum", elem))
 		elem = "enum"
 	case tt.Elem() != exact:
 		elem = typeGoWire(g.goData, tt.Elem()) + "(" + elem + ")"
@@ -408,7 +411,7 @@ func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
   }
 	for {`, typeGoWire(g.goData, tt))
 	key := "key"
-	switchLine, exact := nextEntrySwitch(key, tt.Key())
+	switchLine, exact := g.nextEntrySwitch(key, tt.Key())
 	s += switchLine + fmt.Sprintf(`
 		case err != nil:
 			return err
@@ -424,7 +427,7 @@ func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
 			var %[1]s %[2]s%[3]s`, key, typeGo(g.goData, tt.Key()), keyBody)
 	case tt.Key().Kind() == vdl.Enum:
 		s += fmt.Sprintf(`
-			var keyEnum %[1]s%[2]s`, typeGo(g.goData, tt.Key()), setEnum("keyEnum", key))
+			var keyEnum %[1]s%[2]s`, typeGo(g.goData, tt.Key()), g.setEnum("keyEnum", key))
 		key = "keyEnum"
 	case tt.Key() != exact:
 		key = typeGoWire(g.goData, tt.Key()) + "(" + key + ")"

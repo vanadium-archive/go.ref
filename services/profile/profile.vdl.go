@@ -42,44 +42,17 @@ func (x Library) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Name != "" {
-		if err := enc.NextField("Name"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Name); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Name", vdl.StringType, x.Name); err != nil {
 			return err
 		}
 	}
 	if x.MajorVersion != "" {
-		if err := enc.NextField("MajorVersion"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.MajorVersion); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("MajorVersion", vdl.StringType, x.MajorVersion); err != nil {
 			return err
 		}
 	}
 	if x.MinorVersion != "" {
-		if err := enc.NextField("MinorVersion"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.MinorVersion); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("MinorVersion", vdl.StringType, x.MinorVersion); err != nil {
 			return err
 		}
 	}
@@ -181,54 +154,27 @@ func (x Specification) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Label != "" {
-		if err := enc.NextField("Label"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Label); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Label", vdl.StringType, x.Label); err != nil {
 			return err
 		}
 	}
 	if x.Description != "" {
-		if err := enc.NextField("Description"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Description); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Description", vdl.StringType, x.Description); err != nil {
 			return err
 		}
 	}
 	if x.Arch != build.ArchitectureAmd64 {
-		if err := enc.NextField("Arch"); err != nil {
-			return err
-		}
-		if err := x.Arch.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueString("Arch", __VDLType_enum_3, x.Arch.String()); err != nil {
 			return err
 		}
 	}
 	if x.Os != build.OperatingSystemDarwin {
-		if err := enc.NextField("Os"); err != nil {
-			return err
-		}
-		if err := x.Os.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueString("Os", __VDLType_enum_4, x.Os.String()); err != nil {
 			return err
 		}
 	}
 	if x.Format != build.FormatElf {
-		if err := enc.NextField("Format"); err != nil {
-			return err
-		}
-		if err := x.Format.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueString("Format", __VDLType_enum_5, x.Format.String()); err != nil {
 			return err
 		}
 	}

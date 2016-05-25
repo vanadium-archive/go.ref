@@ -43,30 +43,12 @@ func (x WindowSize) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Rows != 0 {
-		if err := enc.NextField("Rows"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint16Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(uint64(x.Rows)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("Rows", vdl.Uint16Type, uint64(x.Rows)); err != nil {
 			return err
 		}
 	}
 	if x.Cols != 0 {
-		if err := enc.NextField("Cols"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint16Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(uint64(x.Cols)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("Cols", vdl.Uint16Type, uint64(x.Cols)); err != nil {
 			return err
 		}
 	}
@@ -140,16 +122,7 @@ func (x ShellOpts) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.UsePty {
-		if err := enc.NextField("UsePty"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.BoolType); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.UsePty); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBool("UsePty", vdl.BoolType, x.UsePty); err != nil {
 			return err
 		}
 	}
@@ -182,17 +155,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x[i]); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueString(vdl.StringType, elem); err != nil {
 			return err
 		}
 	}
@@ -373,16 +337,7 @@ func (x ClientShellPacketStdin) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_6); err != nil {
 		return err
 	}
-	if err := enc.NextField("Stdin"); err != nil {
-		return err
-	}
-	if err := enc.StartValue(__VDLType_list_5); err != nil {
-		return err
-	}
-	if err := enc.EncodeBytes(x.Value); err != nil {
-		return err
-	}
-	if err := enc.FinishValue(); err != nil {
+	if err := enc.NextFieldValueBytes("Stdin", __VDLType_list_5, x.Value); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {
@@ -519,16 +474,7 @@ func (x ServerShellPacketStdout) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_7); err != nil {
 		return err
 	}
-	if err := enc.NextField("Stdout"); err != nil {
-		return err
-	}
-	if err := enc.StartValue(__VDLType_list_5); err != nil {
-		return err
-	}
-	if err := enc.EncodeBytes(x.Value); err != nil {
-		return err
-	}
-	if err := enc.FinishValue(); err != nil {
+	if err := enc.NextFieldValueBytes("Stdout", __VDLType_list_5, x.Value); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {
@@ -541,16 +487,7 @@ func (x ServerShellPacketStderr) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_7); err != nil {
 		return err
 	}
-	if err := enc.NextField("Stderr"); err != nil {
-		return err
-	}
-	if err := enc.StartValue(__VDLType_list_5); err != nil {
-		return err
-	}
-	if err := enc.EncodeBytes(x.Value); err != nil {
-		return err
-	}
-	if err := enc.FinishValue(); err != nil {
+	if err := enc.NextFieldValueBytes("Stderr", __VDLType_list_5, x.Value); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {

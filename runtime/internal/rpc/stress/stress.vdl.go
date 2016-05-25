@@ -50,44 +50,17 @@ func (x SumArg) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.ABool {
-		if err := enc.NextField("ABool"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.BoolType); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.ABool); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBool("ABool", vdl.BoolType, x.ABool); err != nil {
 			return err
 		}
 	}
 	if x.AInt64 != 0 {
-		if err := enc.NextField("AInt64"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.AInt64); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("AInt64", vdl.Int64Type, x.AInt64); err != nil {
 			return err
 		}
 	}
 	if len(x.AListOfBytes) != 0 {
-		if err := enc.NextField("AListOfBytes"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_2); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.AListOfBytes); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("AListOfBytes", __VDLType_list_2, x.AListOfBytes); err != nil {
 			return err
 		}
 	}
@@ -157,58 +130,22 @@ func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.SumCount != 0 {
-		if err := enc.NextField("SumCount"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.SumCount); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("SumCount", vdl.Uint64Type, x.SumCount); err != nil {
 			return err
 		}
 	}
 	if x.SumStreamCount != 0 {
-		if err := enc.NextField("SumStreamCount"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.SumStreamCount); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("SumStreamCount", vdl.Uint64Type, x.SumStreamCount); err != nil {
 			return err
 		}
 	}
 	if x.BytesRecv != 0 {
-		if err := enc.NextField("BytesRecv"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.BytesRecv); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("BytesRecv", vdl.Uint64Type, x.BytesRecv); err != nil {
 			return err
 		}
 	}
 	if x.BytesSent != 0 {
-		if err := enc.NextField("BytesSent"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.BytesSent); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("BytesSent", vdl.Uint64Type, x.BytesSent); err != nil {
 			return err
 		}
 	}

@@ -70,30 +70,12 @@ func (x ConnInfo) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.MinVersion != 0 {
-		if err := enc.NextField("MinVersion"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int32Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(int64(x.MinVersion)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("MinVersion", vdl.Int32Type, int64(x.MinVersion)); err != nil {
 			return err
 		}
 	}
 	if x.MaxVersion != 0 {
-		if err := enc.NextField("MaxVersion"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int32Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(int64(x.MaxVersion)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("MaxVersion", vdl.Int32Type, int64(x.MaxVersion)); err != nil {
 			return err
 		}
 	}
@@ -158,44 +140,17 @@ func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Id != 0 {
-		if err := enc.NextField("Id"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.Id); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("Id", vdl.Uint64Type, x.Id); err != nil {
 			return err
 		}
 	}
 	if x.Method != "" {
-		if err := enc.NextField("Method"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Method); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Method", vdl.StringType, x.Method); err != nil {
 			return err
 		}
 	}
 	if x.NumArgs != 0 {
-		if err := enc.NextField("NumArgs"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint32Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(uint64(x.NumArgs)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("NumArgs", vdl.Uint32Type, uint64(x.NumArgs)); err != nil {
 			return err
 		}
 	}
@@ -267,16 +222,7 @@ func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Id != 0 {
-		if err := enc.NextField("Id"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.Id); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("Id", vdl.Uint64Type, x.Id); err != nil {
 			return err
 		}
 	}
@@ -289,16 +235,7 @@ func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.NumArgs != 0 {
-		if err := enc.NextField("NumArgs"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint32Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(uint64(x.NumArgs)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("NumArgs", vdl.Uint32Type, uint64(x.NumArgs)); err != nil {
 			return err
 		}
 	}

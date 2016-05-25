@@ -55,16 +55,7 @@ func (x WireCiphertext) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.PatternId != "" {
-		if err := enc.NextField("PatternId"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.PatternId); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("PatternId", vdl.StringType, x.PatternId); err != nil {
 			return err
 		}
 	}
@@ -90,25 +81,10 @@ func __VDLWriteAnon_map_1(enc vdl.Encoder, x map[string][]byte) error {
 		return err
 	}
 	for key, elem := range x {
-		if err := enc.NextEntry(false); err != nil {
+		if err := enc.NextEntryValueString(vdl.StringType, key); err != nil {
 			return err
 		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(key); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_3); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(elem); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.WriteValueBytes(__VDLType_list_3, elem); err != nil {
 			return err
 		}
 	}
@@ -210,30 +186,12 @@ func (x WireParams) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Blessing != "" {
-		if err := enc.NextField("Blessing"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Blessing); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Blessing", vdl.StringType, x.Blessing); err != nil {
 			return err
 		}
 	}
 	if len(x.Params) != 0 {
-		if err := enc.NextField("Params"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_3); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.Params); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("Params", __VDLType_list_3, x.Params); err != nil {
 			return err
 		}
 	}
@@ -323,16 +281,7 @@ func (x WirePrivateKey) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Blessing != "" {
-		if err := enc.NextField("Blessing"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Blessing); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Blessing", vdl.StringType, x.Blessing); err != nil {
 			return err
 		}
 	}
@@ -365,17 +314,8 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x [][]byte) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_3); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x[i]); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueBytes(__VDLType_list_3, elem); err != nil {
 			return err
 		}
 	}

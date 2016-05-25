@@ -81,16 +81,7 @@ func (x ItemData) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_2); err != nil {
 		return err
 	}
-	if err := enc.NextField("Data"); err != nil {
-		return err
-	}
-	if err := enc.StartValue(__VDLType_list_1); err != nil {
-		return err
-	}
-	if err := enc.EncodeBytes(x.Value); err != nil {
-		return err
-	}
-	if err := enc.FinishValue(); err != nil {
+	if err := enc.NextFieldValueBytes("Data", __VDLType_list_1, x.Value); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {
@@ -103,16 +94,7 @@ func (x ItemHash) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_2); err != nil {
 		return err
 	}
-	if err := enc.NextField("Hash"); err != nil {
-		return err
-	}
-	if err := enc.StartValue(__VDLType_list_1); err != nil {
-		return err
-	}
-	if err := enc.EncodeBytes(x.Value); err != nil {
-		return err
-	}
-	if err := enc.FinishValue(); err != nil {
+	if err := enc.NextFieldValueBytes("Hash", __VDLType_list_1, x.Value); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {
@@ -236,16 +218,7 @@ func (x DataWithSignature) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.BlessingsHash) != 0 {
-		if err := enc.NextField("BlessingsHash"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_1); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.BlessingsHash); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("BlessingsHash", __VDLType_list_1, x.BlessingsHash); err != nil {
 			return err
 		}
 	}
@@ -258,30 +231,12 @@ func (x DataWithSignature) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.IsValidated {
-		if err := enc.NextField("IsValidated"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.BoolType); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.IsValidated); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBool("IsValidated", vdl.BoolType, x.IsValidated); err != nil {
 			return err
 		}
 	}
 	if len(x.ValidatorDataHash) != 0 {
-		if err := enc.NextField("ValidatorDataHash"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_1); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.ValidatorDataHash); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("ValidatorDataHash", __VDLType_list_1, x.ValidatorDataHash); err != nil {
 			return err
 		}
 	}
@@ -306,18 +261,18 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []Item) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
+	for _, elem := range x {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
 		switch {
-		case x[i] == nil:
+		case elem == nil:
 			// Write the zero value of the union type.
 			if err := vdl.ZeroValue(__VDLType_union_2).VDLWrite(enc); err != nil {
 				return err
 			}
 		default:
-			if err := x[i].VDLWrite(enc); err != nil {
+			if err := elem.VDLWrite(enc); err != nil {
 				return err
 			}
 		}
@@ -436,16 +391,7 @@ func (x WireValidatorData) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.MarshalledPublicKey) != 0 {
-		if err := enc.NextField("MarshalledPublicKey"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_1); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.MarshalledPublicKey); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("MarshalledPublicKey", __VDLType_list_1, x.MarshalledPublicKey); err != nil {
 			return err
 		}
 	}
@@ -462,17 +408,8 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []string) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x[i]); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueString(vdl.StringType, elem); err != nil {
 			return err
 		}
 	}

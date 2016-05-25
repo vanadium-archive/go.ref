@@ -74,10 +74,7 @@ func __VDLWriteAnon_set_1(enc vdl.Encoder, x map[groups.BlessingPatternChunk]str
 		return err
 	}
 	for key := range x {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := key.VDLWrite(enc); err != nil {
+		if err := enc.NextEntryValueString(__VDLType_string_4, string(key)); err != nil {
 			return err
 		}
 	}

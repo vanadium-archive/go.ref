@@ -69,13 +69,10 @@ func (x dataRep) VDLIsZero() bool {
 }
 
 func (x dataRep) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_enum_1); err != nil {
+	if err := enc.WriteValueString(__VDLType_enum_1, x.String()); err != nil {
 		return err
 	}
-	if err := enc.EncodeString(x.String()); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *dataRep) VDLRead(dec vdl.Decoder) error {

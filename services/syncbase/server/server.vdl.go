@@ -44,16 +44,7 @@ func (x ServiceData) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Version != 0 {
-		if err := enc.NextField("Version"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.Version); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("Version", vdl.Uint64Type, x.Version); err != nil {
 			return err
 		}
 	}
@@ -135,30 +126,12 @@ func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.RootDir != "" {
-		if err := enc.NextField("RootDir"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.RootDir); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("RootDir", vdl.StringType, x.RootDir); err != nil {
 			return err
 		}
 	}
 	if x.Engine != "" {
-		if err := enc.NextField("Engine"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Engine); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Engine", vdl.StringType, x.Engine); err != nil {
 			return err
 		}
 	}
@@ -250,16 +223,7 @@ func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Version != 0 {
-		if err := enc.NextField("Version"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Uint64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(x.Version); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("Version", vdl.Uint64Type, x.Version); err != nil {
 			return err
 		}
 	}
@@ -276,11 +240,9 @@ func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 		enc.SetNextStartValueIsOptional()
-
 		if err := x.SchemaMetadata.VDLWrite(enc); err != nil {
 			return err
 		}
-
 	}
 	if err := enc.NextField(""); err != nil {
 		return err

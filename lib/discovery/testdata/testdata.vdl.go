@@ -53,16 +53,7 @@ func (x PackAddressTest) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.Packed) != 0 {
-		if err := enc.NextField("Packed"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_3); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.Packed); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("Packed", __VDLType_list_3, x.Packed); err != nil {
 			return err
 		}
 	}
@@ -79,17 +70,8 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x[i]); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueString(vdl.StringType, elem); err != nil {
 			return err
 		}
 	}
@@ -184,10 +166,7 @@ func (x PackEncryptionKeysTest) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Algo != 0 {
-		if err := enc.NextField("Algo"); err != nil {
-			return err
-		}
-		if err := x.Algo.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueInt("Algo", __VDLType_int32_5, int64(x.Algo)); err != nil {
 			return err
 		}
 	}
@@ -200,16 +179,7 @@ func (x PackEncryptionKeysTest) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.Packed) != 0 {
-		if err := enc.NextField("Packed"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_3); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.Packed); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("Packed", __VDLType_list_3, x.Packed); err != nil {
 			return err
 		}
 	}
@@ -226,11 +196,8 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []discovery.EncryptionKey) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := x[i].VDLWrite(enc); err != nil {
+	for _, elem := range x {
+		if err := enc.NextEntryValueBytes(__VDLType_list_7, []byte(elem)); err != nil {
 			return err
 		}
 	}
@@ -325,30 +292,12 @@ func (x UuidTestData) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.In != "" {
-		if err := enc.NextField("In"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.In); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("In", vdl.StringType, x.In); err != nil {
 			return err
 		}
 	}
 	if x.Want != "" {
-		if err := enc.NextField("Want"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Want); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Want", vdl.StringType, x.Want); err != nil {
 			return err
 		}
 	}

@@ -41,30 +41,12 @@ func (x PeerKey) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Dialer != "" {
-		if err := enc.NextField("Dialer"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Dialer); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Dialer", vdl.StringType, x.Dialer); err != nil {
 			return err
 		}
 	}
 	if x.Acceptor != "" {
-		if err := enc.NextField("Acceptor"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Acceptor); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Acceptor", vdl.StringType, x.Acceptor); err != nil {
 			return err
 		}
 	}
@@ -136,30 +118,12 @@ func (x PeerBehavior) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Reachable {
-		if err := enc.NextField("Reachable"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.BoolType); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.Reachable); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBool("Reachable", vdl.BoolType, x.Reachable); err != nil {
 			return err
 		}
 	}
 	if x.Discoverable {
-		if err := enc.NextField("Discoverable"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.BoolType); err != nil {
-			return err
-		}
-		if err := enc.EncodeBool(x.Discoverable); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBool("Discoverable", vdl.BoolType, x.Discoverable); err != nil {
 			return err
 		}
 	}

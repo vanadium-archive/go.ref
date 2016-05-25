@@ -39,30 +39,12 @@ func (x HistogramBucket) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.LowBound != 0 {
-		if err := enc.NextField("LowBound"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.LowBound); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("LowBound", vdl.Int64Type, x.LowBound); err != nil {
 			return err
 		}
 	}
 	if x.Count != 0 {
-		if err := enc.NextField("Count"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.Count); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("Count", vdl.Int64Type, x.Count); err != nil {
 			return err
 		}
 	}
@@ -150,58 +132,22 @@ func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Count != 0 {
-		if err := enc.NextField("Count"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.Count); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("Count", vdl.Int64Type, x.Count); err != nil {
 			return err
 		}
 	}
 	if x.Sum != 0 {
-		if err := enc.NextField("Sum"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.Sum); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("Sum", vdl.Int64Type, x.Sum); err != nil {
 			return err
 		}
 	}
 	if x.Min != 0 {
-		if err := enc.NextField("Min"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.Min); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("Min", vdl.Int64Type, x.Min); err != nil {
 			return err
 		}
 	}
 	if x.Max != 0 {
-		if err := enc.NextField("Max"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.Max); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("Max", vdl.Int64Type, x.Max); err != nil {
 			return err
 		}
 	}
@@ -226,11 +172,11 @@ func __VDLWriteAnon_list_1(enc vdl.Encoder, x []HistogramBucket) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
+	for _, elem := range x {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if err := x[i].VDLWrite(enc); err != nil {
+		if err := elem.VDLWrite(enc); err != nil {
 			return err
 		}
 	}

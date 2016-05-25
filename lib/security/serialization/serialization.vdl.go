@@ -36,16 +36,7 @@ func (x SignedHeader) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.ChunkSizeBytes != 0 {
-		if err := enc.NextField("ChunkSizeBytes"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.Int64Type); err != nil {
-			return err
-		}
-		if err := enc.EncodeInt(x.ChunkSizeBytes); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueInt("ChunkSizeBytes", vdl.Int64Type, x.ChunkSizeBytes); err != nil {
 			return err
 		}
 	}
@@ -95,13 +86,10 @@ func (x HashCode) VDLIsZero() bool {
 }
 
 func (x HashCode) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_array_2); err != nil {
+	if err := enc.WriteValueBytes(__VDLType_array_2, x[:]); err != nil {
 		return err
 	}
-	if err := enc.EncodeBytes([]byte(x[:])); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *HashCode) VDLRead(dec vdl.Decoder) error {
@@ -181,10 +169,7 @@ func (x SignedDataHash) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_4); err != nil {
 		return err
 	}
-	if err := enc.NextField("Hash"); err != nil {
-		return err
-	}
-	if err := x.Value.VDLWrite(enc); err != nil {
+	if err := enc.NextFieldValueBytes("Hash", __VDLType_array_2, x.Value[:]); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {

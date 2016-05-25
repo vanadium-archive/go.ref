@@ -38,24 +38,12 @@ func (x BlobInfo) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Info != "" {
-		if err := enc.NextField("Info"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Info); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Info", vdl.StringType, x.Info); err != nil {
 			return err
 		}
 	}
 	if x.Br != "" {
-		if err := enc.NextField("Br"); err != nil {
-			return err
-		}
-		if err := x.Br.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueString("Br", __VDLType_string_2, string(x.Br)); err != nil {
 			return err
 		}
 	}
@@ -151,16 +139,7 @@ func (x BlobUnionNum) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_3); err != nil {
 		return err
 	}
-	if err := enc.NextField("Num"); err != nil {
-		return err
-	}
-	if err := enc.StartValue(vdl.Int32Type); err != nil {
-		return err
-	}
-	if err := enc.EncodeInt(int64(x.Value)); err != nil {
-		return err
-	}
-	if err := enc.FinishValue(); err != nil {
+	if err := enc.NextFieldValueInt("Num", vdl.Int32Type, int64(x.Value)); err != nil {
 		return err
 	}
 	if err := enc.NextField(""); err != nil {
@@ -248,16 +227,7 @@ func (x BlobSet) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Info != "" {
-		if err := enc.NextField("Info"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Info); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Info", vdl.StringType, x.Info); err != nil {
 			return err
 		}
 	}
@@ -283,10 +253,7 @@ func __VDLWriteAnon_set_1(enc vdl.Encoder, x map[syncbase.BlobRef]struct{}) erro
 		return err
 	}
 	for key := range x {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := key.VDLWrite(enc); err != nil {
+		if err := enc.NextEntryValueString(__VDLType_string_2, string(key)); err != nil {
 			return err
 		}
 	}
@@ -377,16 +344,7 @@ func (x BlobAny) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Info != "" {
-		if err := enc.NextField("Info"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Info); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Info", vdl.StringType, x.Info); err != nil {
 			return err
 		}
 	}
@@ -411,16 +369,16 @@ func __VDLWriteAnon_list_2(enc vdl.Encoder, x []*vom.RawBytes) error {
 	if err := enc.SetLenHint(len(x)); err != nil {
 		return err
 	}
-	for i := 0; i < len(x); i++ {
+	for _, elem := range x {
 		if err := enc.NextEntry(false); err != nil {
 			return err
 		}
-		if x[i] == nil {
+		if elem == nil {
 			if err := enc.NilValue(vdl.AnyType); err != nil {
 				return err
 			}
 		} else {
-			if err := x[i].VDLWrite(enc); err != nil {
+			if err := elem.VDLWrite(enc); err != nil {
 				return err
 			}
 		}
@@ -514,16 +472,7 @@ func (x NonBlobSet) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Info != "" {
-		if err := enc.NextField("Info"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Info); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Info", vdl.StringType, x.Info); err != nil {
 			return err
 		}
 	}
@@ -549,16 +498,7 @@ func __VDLWriteAnon_set_3(enc vdl.Encoder, x map[string]struct{}) error {
 		return err
 	}
 	for key := range x {
-		if err := enc.NextEntry(false); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(key); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextEntryValueString(vdl.StringType, key); err != nil {
 			return err
 		}
 	}
@@ -643,16 +583,7 @@ func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Info != "" {
-		if err := enc.NextField("Info"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.StringType); err != nil {
-			return err
-		}
-		if err := enc.EncodeString(x.Info); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueString("Info", vdl.StringType, x.Info); err != nil {
 			return err
 		}
 	}
@@ -661,11 +592,9 @@ func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 		enc.SetNextStartValueIsOptional()
-
 		if err := x.Bo.VDLWrite(enc); err != nil {
 			return err
 		}
-
 	}
 	if err := enc.NextField(""); err != nil {
 		return err

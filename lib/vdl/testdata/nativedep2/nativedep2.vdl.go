@@ -30,13 +30,10 @@ func (x MyTime) VDLIsZero() bool {
 }
 
 func (x MyTime) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_int32_1); err != nil {
+	if err := enc.WriteValueInt(__VDLType_int32_1, int64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeInt(int64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *MyTime) VDLRead(dec vdl.Decoder) error {

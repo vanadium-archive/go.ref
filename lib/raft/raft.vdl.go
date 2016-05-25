@@ -34,13 +34,10 @@ func (x Term) VDLIsZero() bool {
 }
 
 func (x Term) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_uint64_1); err != nil {
+	if err := enc.WriteValueUint(__VDLType_uint64_1, uint64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeUint(uint64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *Term) VDLRead(dec vdl.Decoder) error {
@@ -69,13 +66,10 @@ func (x Index) VDLIsZero() bool {
 }
 
 func (x Index) VDLWrite(enc vdl.Encoder) error {
-	if err := enc.StartValue(__VDLType_uint64_2); err != nil {
+	if err := enc.WriteValueUint(__VDLType_uint64_2, uint64(x)); err != nil {
 		return err
 	}
-	if err := enc.EncodeUint(uint64(x)); err != nil {
-		return err
-	}
-	return enc.FinishValue()
+	return nil
 }
 
 func (x *Index) VDLRead(dec vdl.Decoder) error {
@@ -124,46 +118,22 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Term != 0 {
-		if err := enc.NextField("Term"); err != nil {
-			return err
-		}
-		if err := x.Term.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueUint("Term", __VDLType_uint64_1, uint64(x.Term)); err != nil {
 			return err
 		}
 	}
 	if x.Index != 0 {
-		if err := enc.NextField("Index"); err != nil {
-			return err
-		}
-		if err := x.Index.VDLWrite(enc); err != nil {
+		if err := enc.NextFieldValueUint("Index", __VDLType_uint64_2, uint64(x.Index)); err != nil {
 			return err
 		}
 	}
 	if len(x.Cmd) != 0 {
-		if err := enc.NextField("Cmd"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(__VDLType_list_4); err != nil {
-			return err
-		}
-		if err := enc.EncodeBytes(x.Cmd); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueBytes("Cmd", __VDLType_list_4, x.Cmd); err != nil {
 			return err
 		}
 	}
 	if x.Type != 0 {
-		if err := enc.NextField("Type"); err != nil {
-			return err
-		}
-		if err := enc.StartValue(vdl.ByteType); err != nil {
-			return err
-		}
-		if err := enc.EncodeUint(uint64(x.Type)); err != nil {
-			return err
-		}
-		if err := enc.FinishValue(); err != nil {
+		if err := enc.NextFieldValueUint("Type", vdl.ByteType, uint64(x.Type)); err != nil {
 			return err
 		}
 	}
