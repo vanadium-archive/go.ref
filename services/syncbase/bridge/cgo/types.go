@@ -10,7 +10,9 @@ import (
 
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/syncbase"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 )
 
 // All "x.toFoo" methods free the memory associated with x.
@@ -22,7 +24,7 @@ import (
 */
 import "C"
 
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_Bool
 
 func (x *C.v23_syncbase_Bool) init(b bool) {
@@ -40,7 +42,7 @@ func (x *C.v23_syncbase_Bool) toBool() bool {
 	return true
 }
 
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_String
 
 func (x *C.v23_syncbase_String) init(s string) {
@@ -56,7 +58,7 @@ func (x *C.v23_syncbase_String) toString() string {
 	return C.GoStringN(x.p, x.n)
 }
 
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_Bytes
 
 func init() {
@@ -67,7 +69,7 @@ func init() {
 
 func (x *C.v23_syncbase_Bytes) init(b []byte) {
 	x.n = C.int(len(b))
-	x.p = (*C.uint8_t)(C.malloc(C.size_t(len(b))))
+	x.p = (*C.uint8_t)(C.malloc(C.size_t(x.n)))
 	C.memcpy(unsafe.Pointer(x.p), unsafe.Pointer(&b[0]), C.size_t(len(b)))
 }
 
@@ -79,7 +81,7 @@ func (x *C.v23_syncbase_Bytes) toBytes() []byte {
 	return C.GoBytes(unsafe.Pointer(x.p), x.n)
 }
 
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_Strings
 
 func (x *C.v23_syncbase_Strings) at(i int) *C.v23_syncbase_String {
@@ -88,7 +90,7 @@ func (x *C.v23_syncbase_Strings) at(i int) *C.v23_syncbase_String {
 
 func (x *C.v23_syncbase_Strings) init(strs []string) {
 	x.n = C.int(len(strs))
-	x.p = (*C.v23_syncbase_String)(C.malloc(C.size_t(len(strs)) * C.sizeof_v23_syncbase_String))
+	x.p = (*C.v23_syncbase_String)(C.malloc(C.size_t(x.n) * C.sizeof_v23_syncbase_String))
 	for i, v := range strs {
 		x.at(i).init(v)
 	}
@@ -106,7 +108,7 @@ func (x *C.v23_syncbase_Strings) toStrings() []string {
 	return res
 }
 
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_VError
 
 func (x *C.v23_syncbase_VError) init(err error) {
@@ -119,7 +121,7 @@ func (x *C.v23_syncbase_VError) init(err error) {
 	x.stack.init(verror.Stack(err).String())
 }
 
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_Permissions
 
 func (x *C.v23_syncbase_Permissions) init(perms access.Permissions) {
@@ -142,7 +144,7 @@ func (x *C.v23_syncbase_Permissions) toPermissions() access.Permissions {
 	return perms
 }
 
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_Id
 
 func (x *C.v23_syncbase_Id) init(id wire.Id) {
@@ -157,7 +159,7 @@ func (x *C.v23_syncbase_Id) toId() wire.Id {
 	}
 }
 
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_Ids
 
 func (x *C.v23_syncbase_Ids) at(i int) *C.v23_syncbase_Id {
@@ -166,13 +168,25 @@ func (x *C.v23_syncbase_Ids) at(i int) *C.v23_syncbase_Id {
 
 func (x *C.v23_syncbase_Ids) init(ids []wire.Id) {
 	x.n = C.int(len(ids))
-	x.p = (*C.v23_syncbase_Id)(C.malloc(C.size_t(len(ids)) * C.sizeof_v23_syncbase_Id))
+	x.p = (*C.v23_syncbase_Id)(C.malloc(C.size_t(x.n) * C.sizeof_v23_syncbase_Id))
 	for i, v := range ids {
 		x.at(i).init(v)
 	}
 }
 
-////////////////////////////////////////
+func (x *C.v23_syncbase_Ids) toIds() []wire.Id {
+	if x.p == nil {
+		return nil
+	}
+	defer C.free(unsafe.Pointer(x.p))
+	res := make([]wire.Id, x.n)
+	for i := 0; i < int(x.n); i++ {
+		res[i] = x.at(i).toId()
+	}
+	return res
+}
+
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_BatchOptions
 
 func (x *C.v23_syncbase_BatchOptions) init(opts wire.BatchOptions) {
@@ -187,7 +201,69 @@ func (x *C.v23_syncbase_BatchOptions) toBatchOptions() wire.BatchOptions {
 	}
 }
 
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_CollectionRowPattern
+
+func (x *C.v23_syncbase_CollectionRowPattern) init(crp wire.CollectionRowPattern) {
+	x.collectionBlessing.init(crp.CollectionBlessing)
+	x.collectionName.init(crp.CollectionName)
+	x.rowKey.init(crp.RowKey)
+}
+
+func (x *C.v23_syncbase_CollectionRowPattern) toCollectionRowPattern() wire.CollectionRowPattern {
+	return wire.CollectionRowPattern{
+		CollectionBlessing: x.collectionBlessing.toString(),
+		CollectionName:     x.collectionName.toString(),
+		RowKey:             x.rowKey.toString(),
+	}
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_CollectionRowPatterns
+
+func (x *C.v23_syncbase_CollectionRowPatterns) at(i int) *C.v23_syncbase_CollectionRowPattern {
+	return (*C.v23_syncbase_CollectionRowPattern)(unsafe.Pointer(uintptr(unsafe.Pointer(x.p)) + uintptr(C.size_t(i)*C.sizeof_v23_syncbase_CollectionRowPattern)))
+}
+
+func (x *C.v23_syncbase_CollectionRowPatterns) init(crps []wire.CollectionRowPattern) {
+	x.n = C.int(len(crps))
+	x.p = (*C.v23_syncbase_CollectionRowPattern)(C.malloc(C.size_t(x.n) * C.sizeof_v23_syncbase_CollectionRowPattern))
+	for i, v := range crps {
+		x.at(i).init(v)
+	}
+}
+
+func (x *C.v23_syncbase_CollectionRowPatterns) toCollectionRowPatterns() []wire.CollectionRowPattern {
+	if x.p == nil {
+		return nil
+	}
+	defer C.free(unsafe.Pointer(x.p))
+	res := make([]wire.CollectionRowPattern, x.n)
+	for i := 0; i < int(x.n); i++ {
+		res[i] = x.at(i).toCollectionRowPattern()
+	}
+	return res
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_WatchChange
+
+func (x *C.v23_syncbase_WatchChange) init(wc syncbase.WatchChange) error {
+	x.collection.init(wc.Collection)
+	x.row.init(wc.Row)
+	x.changeType = C.v23_syncbase_ChangeType(wc.ChangeType)
+	value, err := vom.Encode(wc.Value)
+	if err != nil {
+		return err
+	}
+	x.value.init(value)
+	x.resumeMarker.init(string(wc.ResumeMarker))
+	x.fromSync = C.bool(wc.FromSync)
+	x.continued = C.bool(wc.Continued)
+	return nil
+}
+
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_KeyValue
 
 func (x *C.v23_syncbase_KeyValue) init(key string, value []byte) {
@@ -195,33 +271,62 @@ func (x *C.v23_syncbase_KeyValue) init(key string, value []byte) {
 	x.value.init(value)
 }
 
-// FIXME(sadovsky): Implement stubbed-out methods below.
-
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_SyncgroupSpec
 
 func (x *C.v23_syncbase_SyncgroupSpec) init(spec wire.SyncgroupSpec) {
-
+	x.description.init(spec.Description)
+	x.publishSyncbaseName.init(spec.PublishSyncbaseName)
+	x.perms.init(spec.Perms)
+	x.collections.init(spec.Collections)
+	x.mountTables.init(spec.MountTables)
+	x.isPrivate = C.bool(spec.IsPrivate)
 }
 
 func (x *C.v23_syncbase_SyncgroupSpec) toSyncgroupSpec() wire.SyncgroupSpec {
-	return wire.SyncgroupSpec{}
+	return wire.SyncgroupSpec{
+		Description:         x.description.toString(),
+		PublishSyncbaseName: x.publishSyncbaseName.toString(),
+		Perms:               x.perms.toPermissions(),
+		Collections:         x.collections.toIds(),
+		MountTables:         x.mountTables.toStrings(),
+		IsPrivate:           bool(x.isPrivate),
+	}
 }
 
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_SyncgroupMemberInfo
 
 func (x *C.v23_syncbase_SyncgroupMemberInfo) init(member wire.SyncgroupMemberInfo) {
-
+	x.syncPriority = C.uint8_t(member.SyncPriority)
+	x.blobDevType = C.uint8_t(member.BlobDevType)
 }
 
 func (x *C.v23_syncbase_SyncgroupMemberInfo) toSyncgroupMemberInfo() wire.SyncgroupMemberInfo {
-	return wire.SyncgroupMemberInfo{}
+	return wire.SyncgroupMemberInfo{
+		SyncPriority: byte(x.syncPriority),
+		BlobDevType:  byte(x.blobDevType),
+	}
 }
 
-////////////////////////////////////////
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_SyncgroupMemberInfoMap
 
-func (x *C.v23_syncbase_SyncgroupMemberInfoMap) init(members map[string]wire.SyncgroupMemberInfo) {
+func (x *C.v23_syncbase_SyncgroupMemberInfoMap) at(i int) (*C.v23_syncbase_String, *C.v23_syncbase_SyncgroupMemberInfo) {
+	k := (*C.v23_syncbase_String)(unsafe.Pointer(uintptr(unsafe.Pointer(x.keys)) + uintptr(C.size_t(i)*C.sizeof_v23_syncbase_String)))
+	v := (*C.v23_syncbase_SyncgroupMemberInfo)(unsafe.Pointer(uintptr(unsafe.Pointer(x.values)) + uintptr(C.size_t(i)*C.sizeof_v23_syncbase_SyncgroupMemberInfo)))
+	return k, v
+}
 
+func (x *C.v23_syncbase_SyncgroupMemberInfoMap) init(members map[string]wire.SyncgroupMemberInfo) {
+	x.n = C.int(len(members))
+	x.keys = (*C.v23_syncbase_String)(C.malloc(C.size_t(x.n) * C.sizeof_v23_syncbase_String))
+	x.values = (*C.v23_syncbase_SyncgroupMemberInfo)(C.malloc(C.size_t(x.n) * C.sizeof_v23_syncbase_SyncgroupMemberInfo))
+	i := 0
+	for k, v := range members {
+		ck, cv := x.at(i)
+		ck.init(k)
+		cv.init(v)
+		i++
+	}
 }

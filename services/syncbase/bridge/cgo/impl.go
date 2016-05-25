@@ -4,12 +4,18 @@
 
 // +build cgo
 
+// TODO(sadovsky): Make DbWatchPatterns and CollectionScan cancelable, e.g. by
+// returning a cancel closure handle to the client.
+
 // Syncbase C/Cgo API. Our strategy is to translate Cgo requests into Vanadium
 // stub requests, and Vanadium stub responses into Cgo responses. As part of
 // this procedure, we synthesize "fake" ctx and call objects to pass to the
 // Vanadium stubs.
 //
 // Implementation notes:
+// - This API partly mirrors the Syncbase RPC API. Many methods take 'cName' as
+//   their first argument; this is a service-relative Vanadium object name. For
+//   example, the 'cName' argument to DbCreate is an encoded database id.
 // - All exported function and type names start with "v23_syncbase_", to avoid
 //   colliding with desired client library names.
 // - Exported functions take input arguments by value, optional input arguments
@@ -32,6 +38,8 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/services/permissions"
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/services/watch"
+	"v.io/v23/syncbase"
 	"v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -42,6 +50,13 @@ import (
 
 /*
 #include "lib.h"
+
+static void CallDbWatchPatternsCallbacksOnChange(v23_syncbase_DbWatchPatternsCallbacks cbs, v23_syncbase_WatchChange wc) {
+  cbs.onChange(cbs.hOnChange, wc);
+}
+static void CallDbWatchPatternsCallbacksOnError(v23_syncbase_DbWatchPatternsCallbacks cbs, v23_syncbase_VError err) {
+  cbs.onError(cbs.hOnChange, cbs.hOnError, err);
+}
 
 static void CallCollectionScanCallbacksOnKeyValue(v23_syncbase_CollectionScanCallbacks cbs, v23_syncbase_KeyValue kv) {
   cbs.onKeyValue(cbs.hOnKeyValue, kv);
@@ -165,6 +180,7 @@ func v23_syncbase_ServiceSetPermissions(cPerms C.v23_syncbase_Permissions, cVers
 
 //export v23_syncbase_ServiceListDatabases
 func v23_syncbase_ServiceListDatabases(cIds *C.v23_syncbase_Ids, cErr *C.v23_syncbase_VError) {
+	// TODO(sadovsky): This is broken; it always returns an empty list.
 	listChildIds("", cIds, cErr)
 }
 
@@ -307,8 +323,6 @@ func v23_syncbase_DbSetPermissions(cName C.v23_syncbase_String, cPerms C.v23_syn
 	cErr.init(stub.SetPermissions(ctx, call, perms, version))
 }
 
-// TODO(sadovsky): Add watch API.
-
 //export v23_syncbase_DbGetResumeMarker
 func v23_syncbase_DbGetResumeMarker(cName, cBatchHandle C.v23_syncbase_String, cMarker *C.v23_syncbase_Bytes, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
@@ -327,10 +341,63 @@ func v23_syncbase_DbGetResumeMarker(cName, cBatchHandle C.v23_syncbase_String, c
 	cMarker.init(marker)
 }
 
+type watchStreamImpl struct {
+	ctx *context.T
+	cbs C.v23_syncbase_DbWatchPatternsCallbacks
+}
+
+func (s *watchStreamImpl) Send(item interface{}) error {
+	wireWC, ok := item.(watch.Change)
+	if !ok {
+		return verror.NewErrInternal(s.ctx)
+	}
+	// C.CallDbWatchPatternsCallbacksOnChange() blocks until the client acks the
+	// previous invocation, thus providing flow control.
+	cWatchChange := C.v23_syncbase_WatchChange{}
+	cWatchChange.init(syncbase.ToWatchChange(wireWC))
+	C.CallDbWatchPatternsCallbacksOnChange(s.cbs, cWatchChange)
+	return nil
+}
+
+func (s *watchStreamImpl) Recv(_ interface{}) error {
+	// This should never be called.
+	return verror.NewErrInternal(s.ctx)
+}
+
+var _ rpc.Stream = (*watchStreamImpl)(nil)
+
+//export v23_syncbase_DbWatchPatterns
+func v23_syncbase_DbWatchPatterns(cName, cResumeMarker C.v23_syncbase_String, cPatterns C.v23_syncbase_CollectionRowPatterns, cbs C.v23_syncbase_DbWatchPatternsCallbacks, cErr *C.v23_syncbase_VError) {
+	name := cName.toString()
+	resumeMarker := watch.ResumeMarker(cResumeMarker.toString())
+	patterns := cPatterns.toCollectionRowPatterns()
+	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseWatcherDesc, "WatchPatterns"))
+	stub, err := b.GetDb(ctx, call, name)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+
+	streamStub := &wire.DatabaseWatcherWatchPatternsServerCallStub{struct {
+		rpc.Stream
+		rpc.ServerCall
+	}{
+		&watchStreamImpl{ctx: ctx, cbs: cbs},
+		call,
+	}}
+
+	go func() {
+		err := stub.WatchPatterns(ctx, streamStub, resumeMarker, patterns)
+		// Note: Since we are now streaming, any new error must be sent back on the
+		// stream; the function itself should not return an error at this point.
+		cErr := C.v23_syncbase_VError{}
+		cErr.init(err)
+		C.CallDbWatchPatternsCallbacksOnError(cbs, cErr)
+	}()
+}
+
 ////////////////////////////////////////
 // SyncgroupManager
-
-// FIXME(sadovsky): Implement "NewErrNotImplemented" methods below.
 
 //export v23_syncbase_DbListSyncgroups
 func v23_syncbase_DbListSyncgroups(cName C.v23_syncbase_String, cIds *C.v23_syncbase_Ids, cErr *C.v23_syncbase_VError) {
@@ -341,8 +408,12 @@ func v23_syncbase_DbListSyncgroups(cName C.v23_syncbase_String, cIds *C.v23_sync
 		cErr.init(err)
 		return
 	}
-	cErr.init(verror.NewErrNotImplemented(nil))
-	_ = stub // prevent "declared and not used"
+	ids, err := stub.ListSyncgroups(ctx, call)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cIds.init(ids)
 }
 
 //export v23_syncbase_DbCreateSyncgroup
@@ -357,13 +428,14 @@ func v23_syncbase_DbCreateSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syn
 		cErr.init(err)
 		return
 	}
-	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _, _, _ = sgId, spec, myInfo, stub // prevent "declared and not used"
+	cErr.init(stub.CreateSyncgroup(ctx, call, sgId, spec, myInfo))
 }
 
 //export v23_syncbase_DbJoinSyncgroup
-func v23_syncbase_DbJoinSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cMyInfo C.v23_syncbase_SyncgroupMemberInfo, cSpec *C.v23_syncbase_SyncgroupSpec, cErr *C.v23_syncbase_VError) {
+func v23_syncbase_DbJoinSyncgroup(cName, cRemoteSyncbaseName C.v23_syncbase_String, cExpectedSyncbaseBlessings C.v23_syncbase_Strings, cSgId C.v23_syncbase_Id, cMyInfo C.v23_syncbase_SyncgroupMemberInfo, cSpec *C.v23_syncbase_SyncgroupSpec, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
+	remoteSyncbaseName := cRemoteSyncbaseName.toString()
+	expectedSyncbaseBlessings := cExpectedSyncbaseBlessings.toStrings()
 	sgId := cSgId.toId()
 	myInfo := cMyInfo.toSyncgroupMemberInfo()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "JoinSyncgroup"))
@@ -372,8 +444,12 @@ func v23_syncbase_DbJoinSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syncb
 		cErr.init(err)
 		return
 	}
-	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _, _ = sgId, myInfo, stub // prevent "declared and not used"
+	spec, err := stub.JoinSyncgroup(ctx, call, remoteSyncbaseName, expectedSyncbaseBlessings, sgId, myInfo)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cSpec.init(spec)
 }
 
 //export v23_syncbase_DbLeaveSyncgroup
@@ -386,8 +462,7 @@ func v23_syncbase_DbLeaveSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_sync
 		cErr.init(err)
 		return
 	}
-	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _ = sgId, stub // prevent "declared and not used"
+	cErr.init(stub.LeaveSyncgroup(ctx, call, sgId))
 }
 
 //export v23_syncbase_DbDestroySyncgroup
@@ -400,8 +475,7 @@ func v23_syncbase_DbDestroySyncgroup(cName C.v23_syncbase_String, cSgId C.v23_sy
 		cErr.init(err)
 		return
 	}
-	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _ = sgId, stub // prevent "declared and not used"
+	cErr.init(stub.DestroySyncgroup(ctx, call, sgId))
 }
 
 //export v23_syncbase_DbEjectFromSyncgroup
@@ -415,8 +489,7 @@ func v23_syncbase_DbEjectFromSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_
 		cErr.init(err)
 		return
 	}
-	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _, _ = sgId, member, stub // prevent "declared and not used"
+	cErr.init(stub.EjectFromSyncgroup(ctx, call, sgId, member))
 }
 
 //export v23_syncbase_DbGetSyncgroupSpec
@@ -429,8 +502,13 @@ func v23_syncbase_DbGetSyncgroupSpec(cName C.v23_syncbase_String, cSgId C.v23_sy
 		cErr.init(err)
 		return
 	}
-	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _ = sgId, stub // prevent "declared and not used"
+	spec, version, err := stub.GetSyncgroupSpec(ctx, call, sgId)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cSpec.init(spec)
+	cVersion.init(version)
 }
 
 //export v23_syncbase_DbSetSyncgroupSpec
@@ -445,8 +523,7 @@ func v23_syncbase_DbSetSyncgroupSpec(cName C.v23_syncbase_String, cSgId C.v23_sy
 		cErr.init(err)
 		return
 	}
-	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _, _, _ = sgId, spec, version, stub // prevent "declared and not used"
+	cErr.init(stub.SetSyncgroupSpec(ctx, call, sgId, spec, version))
 }
 
 //export v23_syncbase_DbGetSyncgroupMembers
@@ -459,8 +536,12 @@ func v23_syncbase_DbGetSyncgroupMembers(cName C.v23_syncbase_String, cSgId C.v23
 		cErr.init(err)
 		return
 	}
-	cErr.init(verror.NewErrNotImplemented(nil))
-	_, _ = sgId, stub // prevent "declared and not used"
+	members, err := stub.GetSyncgroupMembers(ctx, call, sgId)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	cMembers.init(members)
 }
 
 ////////////////////////////////////////
@@ -586,8 +667,6 @@ func (s *scanStreamImpl) Recv(_ interface{}) error {
 
 var _ rpc.Stream = (*scanStreamImpl)(nil)
 
-// TODO(nlacasse): Provide some way for the client to cancel the stream.
-
 //export v23_syncbase_CollectionScan
 func v23_syncbase_CollectionScan(cName, cBatchHandle C.v23_syncbase_String, cStart, cLimit C.v23_syncbase_Bytes, cbs C.v23_syncbase_CollectionScanCallbacks, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
@@ -600,7 +679,7 @@ func v23_syncbase_CollectionScan(cName, cBatchHandle C.v23_syncbase_String, cSta
 		return
 	}
 
-	collectionScanServerCallStub := &wire.CollectionScanServerCallStub{struct {
+	streamStub := &wire.CollectionScanServerCallStub{struct {
 		rpc.Stream
 		rpc.ServerCall
 	}{
@@ -609,10 +688,9 @@ func v23_syncbase_CollectionScan(cName, cBatchHandle C.v23_syncbase_String, cSta
 	}}
 
 	go func() {
-		err := stub.Scan(ctx, collectionScanServerCallStub, batchHandle, start, limit)
-		// NOTE(nlacasse): Since we are already streaming, we send any error back to
-		// the client on the stream. The CollectionScan function itself should not
-		// return an error at this point.
+		err := stub.Scan(ctx, streamStub, batchHandle, start, limit)
+		// Note: Since we are now streaming, any new error must be sent back on the
+		// stream; the function itself should not return an error at this point.
 		cErr := C.v23_syncbase_VError{}
 		cErr.init(err)
 		C.CallCollectionScanCallbacksOnDone(cbs, cErr)

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file provides utilities for exchanging an OAuth token for a blessing
-// via the Vanadium identity provider, and initializing a Vanadium context
-// with this blessing.
+// This file provides utilities for exchanging an OAuth token for a blessing via
+// the Vanadium identity provider, and initializing a Vanadium context with this
+// blessing.
 //
-// See v.io/x/ref/services/syncbase/bridge/mojo/blessings.go for more documentation.
+// See v.io/x/ref/services/syncbase/bridge/mojo/blessings.go for more
+// documentation.
 
 package bridge
 
@@ -25,20 +26,12 @@ import (
 	seclib "v.io/x/ref/lib/security"
 )
 
-// SetBlessings exchanges an oauth token for blessings from the dev.v.io server.
-// Currently oauthProvider must be set to "google".
+// SetBlessings exchanges an OAuth token for blessings from the dev.v.io server.
+// Currently, oauthProvider must be set to "google".
 func SetBlessings(ctx *context.T, oauthProvider string, oauthToken string) error {
 	if strings.ToLower(oauthProvider) != "google" {
-		return fmt.Errorf("unsupported oauthProvider %q; currently, \"google\" is the only supported provider",
-			oauthProvider)
+		return fmt.Errorf("unsupported oauthProvider %q; currently, \"google\" is the only supported provider", oauthProvider)
 	}
-	// Get an OAuth2 token from the mojo authentication service.
-	// TODO(ashankar,ataly): This is almost a duplicate of what
-	// is in
-	// https://github.com/domokit/mojo/blob/master/services/vanadium/security/principal_service.go
-	// - at some point this needs to be cleared up and this
-	// syncbase should use the principal service?
-	ctx.Infof("Obtained OAuth2 token, will exchange for blessings")
 	p := v23.GetPrincipal(ctx)
 	blessings, err := token2blessings(oauthToken, p.PublicKey())
 	if err != nil {

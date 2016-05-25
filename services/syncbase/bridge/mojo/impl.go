@@ -4,8 +4,10 @@
 
 // +build mojo
 
-// TODO(sadovsky): Finish updating to reflect new, simplified API. Some, but not
-// all, of this code has been updated.
+// NOTE(sadovsky): The code below reflects some, but not all, of the Syncbase
+// API changes and simplifications. If at some point we choose to update this
+// code, the person doing this work should compare against bridge/cgo/impl.go to
+// figure out what needs to change.
 
 // Implementation of Syncbase Mojo stubs. Our strategy is to translate Mojo stub
 // requests into Vanadium stub requests, and Vanadium stub responses into Mojo
@@ -13,6 +15,9 @@
 // objects to pass to the Vanadium stubs.
 //
 // Implementation notes:
+// - This API partly mirrors the Syncbase RPC API. Many methods take 'name' as
+//   their first argument; this is a service-relative Vanadium object name. For
+//   example, the 'name' argument to DbCreate is an encoded database id.
 // - Variables with Mojo-specific types have names that start with "m".
 
 package bridge_mojo

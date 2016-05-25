@@ -78,11 +78,11 @@ func SetBlessings(v23ctx *context.T, appctx application.Context) error {
 		v23ctx.Infof("Using default blessings for non-Android OS (%v)", runtime.GOOS)
 		return nil
 	}
-	// TODO(ashankar,ataly): This is almost a duplicate of what
-	// is in
+	// Get an OAuth2 token from the mojo authentication service.
+	// TODO(ashankar,ataly): This is almost a duplicate of:
 	// https://github.com/domokit/mojo/blob/master/services/vanadium/security/principal_service.go
-	// - at some point this needs to be cleared up and this
-	// syncbase should use the principal service?
+	// At some point this needs to be cleared up - the syncbase mojo service
+	// should talk to the principal mojo service.
 	token, err := oauthToken(appctx)
 	if err != nil {
 		if _, ok := err.(selectAccountFailed); ok {
@@ -93,6 +93,7 @@ func SetBlessings(v23ctx *context.T, appctx application.Context) error {
 		}
 		return err
 	}
+	ctx.Infof("Obtained OAuth2 token, will exchange for blessings")
 	return bridge.SetBlessings(v23ctx, "google", token)
 }
 

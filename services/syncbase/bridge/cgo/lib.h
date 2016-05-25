@@ -8,8 +8,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// TODO(sadovsky): Add types and functions for watch and sync.
-
 ////////////////////////////////////////
 // Generic types
 
@@ -71,6 +69,35 @@ typedef struct {
   bool readOnly;
 } v23_syncbase_BatchOptions;
 
+// syncbase.CollectionRowPattern
+typedef struct {
+  v23_syncbase_String collectionBlessing;
+  v23_syncbase_String collectionName;
+  v23_syncbase_String rowKey;
+} v23_syncbase_CollectionRowPattern;
+
+// []syncbase.CollectionRowPattern
+typedef struct {
+  v23_syncbase_CollectionRowPattern* p;
+  int n;
+} v23_syncbase_CollectionRowPatterns;
+
+typedef enum v23_syncbase_ChangeType {
+  kPut = 0,
+  kDelete = 1
+} v23_syncbase_ChangeType;
+
+// syncbase.WatchChange
+typedef struct {
+  v23_syncbase_Id collection;
+  v23_syncbase_String row;
+  v23_syncbase_ChangeType changeType;
+  v23_syncbase_Bytes value;
+  v23_syncbase_String resumeMarker;
+  bool fromSync;
+  bool continued;
+} v23_syncbase_WatchChange;
+
 // syncbase.KeyValue
 typedef struct {
   v23_syncbase_String key;
@@ -80,6 +107,7 @@ typedef struct {
 // syncbase.SyncgroupSpec
 typedef struct {
   v23_syncbase_String description;
+  v23_syncbase_String publishSyncbaseName;
   v23_syncbase_Permissions perms;
   v23_syncbase_Ids collections;
   v23_syncbase_Strings mountTables;
@@ -108,6 +136,13 @@ typedef struct {
 // https://forums.developer.apple.com/message/15725#15725
 
 typedef int v23_syncbase_Handle;
+
+typedef struct {
+  v23_syncbase_Handle hOnChange;
+  v23_syncbase_Handle hOnError;
+  void (*onChange)(v23_syncbase_Handle hOnChange, v23_syncbase_WatchChange);
+  void (*onError)(v23_syncbase_Handle hOnChange, v23_syncbase_Handle hOnError, v23_syncbase_VError);
+} v23_syncbase_DbWatchPatternsCallbacks;
 
 typedef struct {
   v23_syncbase_Handle hOnKeyValue;
