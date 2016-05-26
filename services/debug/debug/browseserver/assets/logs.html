@@ -9,7 +9,7 @@
     <h5>List of log files</h5>
     <div id="parent" class="mdl-cell mdl-cell--12-col">
         <script>
-            var source = new EventSource("/logs?n={{urlquery .ServerName}}");
+            var source = new EventSource("logs?n={{urlquery .ServerName}}");
             source.onmessage = function(event) {
                 var ol = document.getElementById("logfiles");
                 var li = document.createElement("li");

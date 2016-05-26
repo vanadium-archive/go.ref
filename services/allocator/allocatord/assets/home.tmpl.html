@@ -43,7 +43,10 @@ blessing. -->
           <div class="btn">
             <a href="{{.DashboardURL}}" class="button-passive" target="_blank">Dashboard</a>
           </div>
-          <div class="btn" id="destroyBtn{{$index}}">
+          <div class="btn">
+            <a href="{{.DebugURL}}" class="button-passive" target="_blank">Debug</a>
+          </div>
+          <div class="btn btn-destroy" id="destroyBtn{{$index}}">
             <a href="{{.DestroyURL}}" class="button-passive" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes a few seconds) ...')">Destroy</a>
           </div>
         </div>

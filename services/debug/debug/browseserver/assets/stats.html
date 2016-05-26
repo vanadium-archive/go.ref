@@ -39,7 +39,7 @@
     <div class="mdl-cell mdl-cell--12-col">
         <ul>
             {{range .Children}}
-            <li><a href="/stats?n={{urlquery $.ServerName}}&s={{urlquery .}}">{{.}}</a></li>
+            <li><a href="stats?n={{urlquery $.ServerName}}&s={{urlquery .}}">{{.}}</a></li>
             {{end}}
             {{range .ChildrenErrors}}
             <li>ERROR({{verrorID .}}): {{.}}</li>

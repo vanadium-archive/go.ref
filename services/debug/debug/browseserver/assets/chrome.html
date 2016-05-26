@@ -17,6 +17,10 @@
         .fixed-width {
             font-family: monospace;
         }
+
+        body header {
+            background-color: #00838F !important;
+        }
     </style>
 </head>
 
@@ -31,27 +35,27 @@
                 <div class="mdl-layout-spacer"></div>
                 <!-- Navigation. We hide it in small screens. -->
                 <nav class="mdl-navigation mdl-layout--large-screen-only">
-                    <a class="mdl-navigation__link" href="/?n={{.ServerName}}">Name</a>
-                    <a class="mdl-navigation__link" href="/blessings?n={{.ServerName}}">Blessings</a>
-                    <a class="mdl-navigation__link" href="/stats?n={{.ServerName}}">Stats</a>
-                    <a class="mdl-navigation__link" href="/logs?n={{.ServerName}}">Logs</a>
-                    <a class="mdl-navigation__link" href="/glob?n={{.ServerName}}">Glob</a>
-                    <a class="mdl-navigation__link" href="/profiles?n={{.ServerName}}">Profiles</a>
-                    <a class="mdl-navigation__link" href="/vtraces?n={{.ServerName}}">Traces</a>
-                    <a class="mdl-navigation__link" href="/syncbase?n={{.ServerName}}">SyncBase</a>
+                    <a class="mdl-navigation__link" href="name?n={{.ServerName}}">Name</a>
+                    <a class="mdl-navigation__link" href="blessings?n={{.ServerName}}">Blessings</a>
+                    <a class="mdl-navigation__link" href="stats?n={{.ServerName}}">Stats</a>
+                    <a class="mdl-navigation__link" href="logs?n={{.ServerName}}">Logs</a>
+                    <a class="mdl-navigation__link" href="glob?n={{.ServerName}}">Glob</a>
+                    <a class="mdl-navigation__link" href="profiles?n={{.ServerName}}">Profiles</a>
+                    <a class="mdl-navigation__link" href="vtraces?n={{.ServerName}}">Traces</a>
+                    <a class="mdl-navigation__link" href="syncbase?n={{.ServerName}}">SyncBase</a>
                 </nav>
             </div>
         </header>
         <div class="mdl-layout__drawer">
             <nav class="mdl-navigation">
-                <a class="mdl-navigation__link" href="/?n={{.ServerName}}">Name</a>
-                <a class="mdl-navigation__link" href="/blessings?n={{.ServerName}}">Blessings</a>
-                <a class="mdl-navigation__link" href="/stats?n={{.ServerName}}">Stats</a>
-                <a class="mdl-navigation__link" href="/logs?n={{.ServerName}}">Logs</a>
-                <a class="mdl-navigation__link" href="/glob?n={{.ServerName}}">Glob</a>
-                <a class="mdl-navigation__link" href="/profiles?n={{.ServerName}}">Profiles</a>
-                <a class="mdl-navigation__link" href="/vtraces?n={{.ServerName}}">Traces</a>
-                <a class="mdl-navigation__link" href="/syncbase?n={{.ServerName}}">SyncBase</a>
+                <a class="mdl-navigation__link" href="name?n={{.ServerName}}">Name</a>
+                <a class="mdl-navigation__link" href="blessings?n={{.ServerName}}">Blessings</a>
+                <a class="mdl-navigation__link" href="stats?n={{.ServerName}}">Stats</a>
+                <a class="mdl-navigation__link" href="logs?n={{.ServerName}}">Logs</a>
+                <a class="mdl-navigation__link" href="glob?n={{.ServerName}}">Glob</a>
+                <a class="mdl-navigation__link" href="profiles?n={{.ServerName}}">Profiles</a>
+                <a class="mdl-navigation__link" href="vtraces?n={{.ServerName}}">Traces</a>
+                <a class="mdl-navigation__link" href="syncbase?n={{.ServerName}}">SyncBase</a>
             </nav>
         </div>
         <main class="mdl-layout__content">

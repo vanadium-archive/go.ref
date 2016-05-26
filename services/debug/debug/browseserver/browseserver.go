@@ -61,23 +61,10 @@ const (
 // we additionally log debug information for these rpc requests.  Timeout defines the timeout for the
 // rpc calls.  The HTTPServer will run until the passed context is canceled.
 func Serve(ctx *context.T, httpAddr, name string, timeout time.Duration, log bool, assetDir string) error {
-	mux := http.NewServeMux()
-	h, err := newHandler(ctx, timeout, log, assetDir)
+	mux, err := CreateServeMux(ctx, timeout, log, assetDir, "")
 	if err != nil {
 		return err
 	}
-	mux.Handle("/", &resolveHandler{h})
-	mux.Handle("/stats", &statsHandler{h})
-	mux.Handle("/blessings", &blessingsHandler{h})
-	mux.Handle("/logs", &logsHandler{h})
-	mux.Handle("/glob", &globHandler{h})
-	mux.Handle(browseProfilesPath, &profilesHandler{h})
-	mux.Handle(browseProfilesPath+"/", &profilesHandler{h})
-	mux.Handle("/vtraces", &allTracesHandler{h})
-	mux.Handle("/vtrace", &vtraceHandler{h})
-	mux.Handle("/syncbase", &syncbaseHandler{h})
-	mux.Handle("/syncbase/collection", &collectionHandler{h})
-	mux.Handle("/favicon.ico", http.NotFoundHandler())
 	if len(httpAddr) == 0 {
 		httpAddr = "127.0.0.1:0"
 	}
@@ -102,20 +89,46 @@ func Serve(ctx *context.T, httpAddr, name string, timeout time.Duration, log boo
 	return http.Serve(ln, mux)
 }
 
-type handler struct {
-	ctx      *context.T
-	timeout  time.Duration
-	log      bool
-	file     func(name string) ([]byte, error)
-	cacheMap map[string]*template.Template
-	funcs    template.FuncMap
+// CreateServeMux returns a ServeMux object that has handlers set up.
+func CreateServeMux(ctx *context.T, timeout time.Duration, log bool, assetDir, urlPrefix string) (*http.ServeMux, error) {
+	mux := http.NewServeMux()
+	h, err := newHandler(ctx, timeout, log, assetDir, urlPrefix)
+	if err != nil {
+		return nil, err
+	}
+	mux.Handle("/", &resolveHandler{h})
+	mux.Handle("/name", &resolveHandler{h})
+	mux.Handle("/stats", &statsHandler{h})
+	mux.Handle("/blessings", &blessingsHandler{h})
+	mux.Handle("/logs", &logsHandler{h})
+	mux.Handle("/glob", &globHandler{h})
+	mux.Handle(browseProfilesPath, &profilesHandler{h})
+	mux.Handle(browseProfilesPath+"/", &profilesHandler{h})
+	mux.Handle("/vtraces", &allTracesHandler{h})
+	mux.Handle("/vtrace", &vtraceHandler{h})
+	mux.Handle("/syncbase", &syncbaseHandler{h})
+	mux.Handle("/syncbase/collection", &collectionHandler{h})
+	mux.Handle("/favicon.ico", http.NotFoundHandler())
+
+	return mux, nil
 }
 
-func newHandler(ctx *context.T, timeout time.Duration, log bool, assetDir string) (*handler, error) {
+type handler struct {
+	ctx       *context.T
+	timeout   time.Duration
+	log       bool
+	urlPrefix string
+	file      func(name string) ([]byte, error)
+	cacheMap  map[string]*template.Template
+	funcs     template.FuncMap
+}
+
+func newHandler(ctx *context.T, timeout time.Duration, log bool, assetDir, urlPrefix string) (*handler, error) {
 	h := &handler{
-		ctx:     ctx,
-		timeout: timeout,
-		log:     log,
+		ctx:       ctx,
+		timeout:   timeout,
+		log:       log,
+		urlPrefix: urlPrefix,
 	}
 	colors := []string{"red", "blue", "green"}
 	pos := 0
@@ -300,7 +313,7 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				q.Set("s", children[0])
 				redirect.RawQuery = q.Encode()
 				ctx.Infof("Redirecting from %v to %v", r.URL, redirect)
-				http.Redirect(w, r, redirect.String(), http.StatusTemporaryRedirect)
+				http.Redirect(w, r, fmt.Sprintf("%s/%s", h.urlPrefix, redirect.String()), http.StatusTemporaryRedirect)
 				return
 			}
 		}
@@ -505,8 +518,8 @@ func (h *profilesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Must specify a server with the URL query parameter 'n'")
 		return
 	}
-	if path := strings.TrimSuffix(r.URL.Path, "/"); path == strings.TrimSuffix(browseProfilesPath, "/") {
-		urlPrefix := fmt.Sprintf("http://%s%s/pprof", r.Host, path)
+	if path := strings.TrimSuffix(r.URL.Path, "/"); strings.HasSuffix(path, strings.TrimSuffix(browseProfilesPath, "/")) {
+		urlPrefix := fmt.Sprintf("%s/pprof", strings.TrimPrefix(browseProfilesPath, "/"))
 		args := struct {
 			ServerName  string
 			CommandLine string

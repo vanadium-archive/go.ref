@@ -14,6 +14,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/security"
+	"v.io/x/ref/services/debug/debug/browseserver"
 )
 
 const (
@@ -21,6 +22,7 @@ const (
 	routeHome      = "/home"
 	routeCreate    = "/create"
 	routeDashboard = "/dashboard"
+	routeDebug     = "/debug"
 	routeDestroy   = "/destroy"
 	routeOauth     = "/oauth2"
 	routeStatic    = "/static/"
@@ -28,7 +30,8 @@ const (
 	routeHealth    = "/health"
 
 	paramMessage = "message"
-	paramName    = "name"
+	// paramName has to match the name parameter in debug browser.
+	paramName = "n"
 	// The following parameter names are hardcorded in static/dash.js,
 	// and should be changed in tandem.
 	paramDashboardName    = "n"
@@ -76,10 +79,11 @@ type httpArgs struct {
 	dashboardGCMMetric,
 	dashboardGCMProject,
 	monitoringKeyFile string
-	secureCookies     bool
-	oauthCreds        *oauthCredentials
-	baseBlessings     security.Blessings
-	baseBlessingNames []string
+	secureCookies        bool
+	oauthCreds           *oauthCredentials
+	baseBlessings        security.Blessings
+	baseBlessingNames    []string
+	debugBrowserServeMux *http.ServeMux
 	// URI prefix for static assets served from (another) content server.
 	staticAssetsPrefix string
 	// Manages locally served resources.
@@ -111,6 +115,13 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 		signKey:  args.oauthCreds.HashKey,
 		validity: cookieValidity,
 	}
+
+	debugBrowserServeMux, err := browseserver.CreateServeMux(ctx, time.Second*10, false, "", routeDebug)
+	if err != nil {
+		ctx.Fatalf("Failed to setup debug browser handlers: %v", err)
+	}
+	args.debugBrowserServeMux = debugBrowserServeMux
+
 	// mutating should be true for handlers that mutate state.  For such
 	// handlers, any re-authentication should result in redirection to the
 	// home page (to foil CSRF attacks that trick the user into launching
@@ -147,6 +158,7 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 	http.Handle(routeHome, newHandler(handleHome, false))
 	http.Handle(routeCreate, newHandler(handleCreate, true))
 	http.Handle(routeDashboard, newHandler(handleDashboard, false))
+	http.Handle(routeDebug+"/", newHandler(handleDebug, false))
 	http.Handle(routeDestroy, newHandler(handleDestroy, true))
 	http.HandleFunc(routeOauth, func(w http.ResponseWriter, r *http.Request) {
 		handleOauth(ctx, args, baker, w, r)

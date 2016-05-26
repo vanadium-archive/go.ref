@@ -23,6 +23,7 @@ func handleHome(ss *serverState, rs *requestState) error {
 		Name,
 		NameRoot,
 		DestroyURL,
+		DebugURL,
 		DashboardURL string
 		BlessingPatterns []string
 		CreationTime     time.Time
@@ -59,6 +60,7 @@ func handleHome(ss *serverState, rs *requestState) error {
 			BlessingPatterns: instance.blessingNames,
 			DestroyURL:       makeURL(ctx, routeDestroy, params{paramName: instance.mountName, paramCSRF: rs.csrfToken}),
 			DashboardURL:     makeURL(ctx, routeDashboard, params{paramDashboardName: relativeMountName(instance.mountName), paramCSRF: rs.csrfToken}),
+			DebugURL:         makeURL(ctx, routeDebug+"/", params{paramName: instance.mountName, paramCSRF: rs.csrfToken}),
 		})
 	}
 	if err := ss.args.assets.executeTemplate(rs.w, homeTmpl, tmplArgs); err != nil {
@@ -86,5 +88,17 @@ func handleDestroy(ss *serverState, rs *requestState) error {
 	}
 	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "destroyed " + name, paramCSRF: rs.csrfToken})
 	http.Redirect(rs.w, rs.r, redirectTo, http.StatusFound)
+	return nil
+}
+
+func handleDebug(ss *serverState, rs *requestState) error {
+	instance := rs.r.FormValue(paramName)
+	if instance == "" {
+		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
+	}
+	if err := checkOwner(ss.ctx, rs.email, kubeNameFromMountName(instance)); err != nil {
+		return err
+	}
+	http.StripPrefix(routeDebug, ss.args.debugBrowserServeMux).ServeHTTP(rs.w, rs.r)
 	return nil
 }

@@ -31,12 +31,27 @@ body {
   padding-right: 16px;
   width: 130px;
   flex: 0;
+  position: relative;
 }
 
 .allocatord .btns-col .button-passive {
   width: 110px;
   text-align: center;
-  margin-bottom: 10px;
+  margin-top: 4px;
+}
+
+.allocatord .btn-destroy a {
+  position: absolute;
+  bottom: 20px;
+  color: #FF4F1A;
+  border: 1px solid #FF4F1A;
+  -webkit-transition: background-color 0.28s cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: background-color 0.28s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.allocatord .btn-destroy a:hover, .allocatord .btn-destroy a:active {
+  color: #FFFFFF;
+  background-color: #FF4F1A;
 }
 
 .allocatord .blessings-item .blessing-details {
@@ -129,8 +144,10 @@ body {
 
 .chart {
   margin-top: 20px;
+}
+
+.chart.filler {
   width: 700px;
-  height: 230px;
 }
 
 #durations-container {
