@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package syncbase provides data structs used by HTML templates to build the
+// Package sbtree provides data structures used by HTML templates to build the
 // web pages for the Syncbase debug viewer.  To minimize mixing of code and
 // presentation, all the data for use in the templates is in a form that is
 // convenient for accessing and iterating over, i.e struct fields, no-arg

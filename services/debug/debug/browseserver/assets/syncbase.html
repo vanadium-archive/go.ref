@@ -23,7 +23,7 @@
       <div class="mdl-cell mdl-cell--12-col">
         <dl>
         {{range .Collections}}
-          <dt>Collection "{{.Id.Name}}"<dt>
+          <dt>Collection: "{{.Id.Name}}"<dt>
           <dd>Creator's User Blessing "{{.Id.Blessing}}"</dd>
           <dd><a href="syncbase/collection?n={{$.ServerName}}&db={{$db.Blessing}}&dn={{$db.Name}}&cb={{.Id.Blessing}}&cn={{.Id.Name}}">More...</a></dd>
         {{else}}
@@ -43,11 +43,26 @@
               {{range $tag, $accessList := .Spec.Perms }}
                 <dt>{{$tag}} permission</dt>
                 <dd>+{{$accessList.In}}</dd>
-                <dd>-{{$accessList.NotIn}}</dd>
+                {{with $accessList.NotIn}}
+                <dd>-{{.}}</dd>
+                {{end}}
               {{end}}
             </dl>
           </dd>
-          <dd><dl><dt>Prefixes</dt><dd>{{.Spec.Prefixes}}</dd></dl></dd>
+          {{with .Spec.Description}}
+          <dd><dl><dt>Description</dt><dd>{{.}}</dd></dl></dd>
+          {{end}}
+          {{with .Spec.PublishSyncbaseName}}
+          <dd><dl><dt>PublishSyncbaseName</dt><dd>{{.}}</dd></dl></dd>
+          {{end}}
+          <dd>
+            <dl>
+            <dt>Collections</dt>
+            {{range .Spec.Collections}}
+            <dd>Name:[{{.Name}}] Blessing:[{{.Blessing}}]</dd>
+            {{end}}
+            </dl>
+          </dd>
           <dd><dl><dt>MountTables</dt><dd>{{.Spec.MountTables}}</dd></dl></dd>
           <dd><dl><dt>IsPrivate</dt><dd>{{.Spec.IsPrivate}}</dd></dl></dd>
           <dd>
