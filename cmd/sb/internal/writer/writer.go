@@ -26,8 +26,20 @@ const (
 	Right
 )
 
-// WriteTable formats the results as ASCII tables.
-func WriteTable(out io.Writer, columnNames []string, rs syncbase.ResultStream) error {
+type FormattingWriter interface {
+	Write(columnNames []string, rs syncbase.ResultStream) error
+}
+
+type tableWriter struct {
+	w io.Writer
+}
+
+func NewTableWriter(w io.Writer) FormattingWriter {
+	return &tableWriter{w}
+}
+
+// Write formats the results as ASCII tables.
+func (t *tableWriter) Write(columnNames []string, rs syncbase.ResultStream) error {
 	// Buffer the results so we can compute the column widths.
 	columnWidths := make([]int, len(columnNames))
 	for i, cName := range columnNames {
@@ -62,27 +74,27 @@ func WriteTable(out io.Writer, columnNames []string, rs syncbase.ResultStream) e
 		return rs.Err()
 	}
 
-	writeBorder(out, columnWidths)
+	writeBorder(t.w, columnWidths)
 	sep := "| "
 	for i, cName := range columnNames {
-		io.WriteString(out, fmt.Sprintf("%s%*s", sep, columnWidths[i], cName))
+		io.WriteString(t.w, fmt.Sprintf("%s%*s", sep, columnWidths[i], cName))
 		sep = " | "
 	}
-	io.WriteString(out, " |\n")
-	writeBorder(out, columnWidths)
+	io.WriteString(t.w, " |\n")
+	writeBorder(t.w, columnWidths)
 	for _, result := range results {
 		sep = "| "
 		for i, column := range result {
 			if justification[i] == Right {
-				io.WriteString(out, fmt.Sprintf("%s%*s", sep, columnWidths[i], column))
+				io.WriteString(t.w, fmt.Sprintf("%s%*s", sep, columnWidths[i], column))
 			} else {
-				io.WriteString(out, fmt.Sprintf("%s%-*s", sep, columnWidths[i], column))
+				io.WriteString(t.w, fmt.Sprintf("%s%-*s", sep, columnWidths[i], column))
 			}
 			sep = " | "
 		}
-		io.WriteString(out, " |\n")
+		io.WriteString(t.w, " |\n")
 	}
-	writeBorder(out, columnWidths)
+	writeBorder(t.w, columnWidths)
 	return nil
 }
 
@@ -107,15 +119,24 @@ func getJustification(val interface{}) Justification {
 	}
 }
 
-// WriteCSV formats the results as CSV as specified by https://tools.ietf.org/html/rfc4180.
-func WriteCSV(out io.Writer, columnNames []string, rs syncbase.ResultStream, delimiter string) error {
+type csvWriter struct {
+	w         io.Writer
+	delimiter string
+}
+
+func NewCSVWriter(w io.Writer, delimiter string) FormattingWriter {
+	return &csvWriter{w, delimiter}
+}
+
+// Write formats the results as CSV as specified by https://tools.ietf.org/html/rfc4180.
+func (c *csvWriter) Write(columnNames []string, rs syncbase.ResultStream) error {
 	delim := ""
 	for _, cName := range columnNames {
-		str := doubleQuoteForCSV(cName, delimiter)
-		io.WriteString(out, fmt.Sprintf("%s%s", delim, str))
-		delim = delimiter
+		str := doubleQuoteForCSV(cName, c.delimiter)
+		io.WriteString(c.w, fmt.Sprintf("%s%s", delim, str))
+		delim = c.delimiter
 	}
-	io.WriteString(out, "\n")
+	io.WriteString(c.w, "\n")
 	for rs.Advance() {
 		delim := ""
 		for i, n := 0, rs.ResultCount(); i != n; i++ {
@@ -123,11 +144,11 @@ func WriteCSV(out io.Writer, columnNames []string, rs syncbase.ResultStream, del
 			if err := rs.Result(i, &column); err != nil {
 				return err
 			}
-			str := doubleQuoteForCSV(toStringRaw(column, false), delimiter)
-			io.WriteString(out, fmt.Sprintf("%s%s", delim, str))
-			delim = delimiter
+			str := doubleQuoteForCSV(toStringRaw(column, false), c.delimiter)
+			io.WriteString(c.w, fmt.Sprintf("%s%s", delim, str))
+			delim = c.delimiter
 		}
-		io.WriteString(out, "\n")
+		io.WriteString(c.w, "\n")
 	}
 	return rs.Err()
 }
@@ -148,9 +169,17 @@ func doubleQuoteForCSV(str, delimiter string) string {
 	return str
 }
 
-// WriteJson formats the result as a JSON array of arrays (rows) of values.
-func WriteJson(out io.Writer, columnNames []string, rs syncbase.ResultStream) error {
-	io.WriteString(out, "[")
+type jsonWriter struct {
+	w io.Writer
+}
+
+func NewJSONWriter(w io.Writer) FormattingWriter {
+	return &jsonWriter{w}
+}
+
+// Write formats the result as a JSON array of arrays (rows) of values.
+func (j *jsonWriter) Write(columnNames []string, rs syncbase.ResultStream) error {
+	io.WriteString(j.w, "[")
 	jsonColNames := make([][]byte, len(columnNames))
 	for i, cName := range columnNames {
 		jsonCName, err := json.Marshal(cName)
@@ -161,7 +190,7 @@ func WriteJson(out io.Writer, columnNames []string, rs syncbase.ResultStream) er
 	}
 	bOpen := "{"
 	for rs.Advance() {
-		io.WriteString(out, bOpen)
+		io.WriteString(j.w, bOpen)
 		linestart := "\n  "
 		for i, n := 0, rs.ResultCount(); i != n; i++ {
 			var column interface{}
@@ -169,13 +198,13 @@ func WriteJson(out io.Writer, columnNames []string, rs syncbase.ResultStream) er
 				return err
 			}
 			str := toJson(column)
-			io.WriteString(out, fmt.Sprintf("%s%s: %s", linestart, jsonColNames[i], str))
+			io.WriteString(j.w, fmt.Sprintf("%s%s: %s", linestart, jsonColNames[i], str))
 			linestart = ",\n  "
 		}
-		io.WriteString(out, "\n}")
+		io.WriteString(j.w, "\n}")
 		bOpen = ", {"
 	}
-	io.WriteString(out, "]\n")
+	io.WriteString(j.w, "]\n")
 	return rs.Err()
 }
 

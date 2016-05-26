@@ -278,7 +278,7 @@ bar |
 	}
 	for _, test := range tests {
 		var b bytes.Buffer
-		if err := writer.WriteTable(&b, test.columns, newResultStream(test.rows)); err != nil {
+		if err := writer.NewTableWriter(&b).Write(test.columns, newResultStream(test.rows)); err != nil {
 			t.Errorf("Unexpected error: %v", err)
 			continue
 		}
@@ -392,7 +392,7 @@ c1
 	}
 	for _, test := range tests {
 		var b bytes.Buffer
-		if err := writer.WriteCSV(&b, test.columns, newResultStream(test.rows), test.delimiter); err != nil {
+		if err := writer.NewCSVWriter(&b, test.delimiter).Write(test.columns, newResultStream(test.rows)); err != nil {
 			t.Errorf("Unexpected error: %v", err)
 			continue
 		}
@@ -558,7 +558,7 @@ func TestWriteJson(t *testing.T) {
 	}
 	for _, test := range tests {
 		var b bytes.Buffer
-		if err := writer.WriteJson(&b, test.columns, newResultStream(test.rows)); err != nil {
+		if err := writer.NewJSONWriter(&b).Write(test.columns, newResultStream(test.rows)); err != nil {
 			t.Errorf("Unexpected error: %v", err)
 			continue
 		}
