@@ -267,7 +267,7 @@ func makeDecoder(t reflect.Type) decoderFunc {
 	return func(n uint32, dec *vom.Decoder) (result []reflect.Value, err error) {
 		if n != uint32(numArgs) {
 			for i := uint32(0); i < n; i++ {
-				if err = dec.Ignore(); err != nil {
+				if err = dec.Decoder().SkipValue(); err != nil {
 					return nil, err
 				}
 			}
@@ -289,7 +289,7 @@ func makeDecoder(t reflect.Type) decoderFunc {
 
 func noDecoder(n uint32, dec *vom.Decoder) (result []reflect.Value, err error) {
 	for i := uint32(0); i < n; i++ {
-		if err = dec.Ignore(); err != nil {
+		if err = dec.Decoder().SkipValue(); err != nil {
 			return nil, err
 		}
 	}
@@ -445,7 +445,7 @@ func (ipc *IPC) handleResp(c *IPCConn, resp agent.RpcResponse) error {
 		info.done <- resp.Err
 	} else {
 		for i := uint32(0); i < resp.NumArgs; i++ {
-			c.dec.Ignore()
+			c.dec.Decoder().SkipValue()
 		}
 		err := resp.Err
 		if err == nil {

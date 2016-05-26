@@ -818,7 +818,7 @@ func (fs *flowServer) processRequest() (*context.T, []interface{}, error) {
 // unnecessarily reading all arguments.
 func (fs *flowServer) drainDecoderArgs(n int) error {
 	for i := 0; i < n; i++ {
-		if err := fs.dec.Ignore(); err != nil {
+		if err := fs.dec.Decoder().SkipValue(); err != nil {
 			return err
 		}
 	}
