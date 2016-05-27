@@ -59,8 +59,8 @@ func handleHome(ss *serverState, rs *requestState) error {
 			CreationTime:     instance.creationTime,
 			BlessingPatterns: instance.blessingNames,
 			DestroyURL:       makeURL(ctx, routeDestroy, params{paramName: instance.mountName, paramCSRF: rs.csrfToken}),
-			DashboardURL:     makeURL(ctx, routeDashboard, params{paramDashboardName: relativeMountName(instance.mountName), paramCSRF: rs.csrfToken}),
-			DebugURL:         makeURL(ctx, routeDebug+"/", params{paramName: instance.mountName, paramCSRF: rs.csrfToken}),
+			DashboardURL:     makeURL(ctx, routeDashboard, params{paramDashboardName: relativeMountName(instance.mountName)}),
+			DebugURL:         makeURL(ctx, routeDebug+"/", params{paramName: instance.mountName}),
 		})
 	}
 	if err := ss.args.assets.executeTemplate(rs.w, homeTmpl, tmplArgs); err != nil {
@@ -75,7 +75,7 @@ func handleCreate(ss *serverState, rs *requestState) error {
 	if err != nil {
 		return fmt.Errorf("create failed: %v", err)
 	}
-	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "created " + name, paramCSRF: rs.csrfToken})
+	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "created " + name})
 	http.Redirect(rs.w, rs.r, redirectTo, http.StatusFound)
 	return nil
 }
@@ -86,7 +86,7 @@ func handleDestroy(ss *serverState, rs *requestState) error {
 	if err := destroy(ctx, rs.email, name); err != nil {
 		return fmt.Errorf("destroy failed: %v", err)
 	}
-	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "destroyed " + name, paramCSRF: rs.csrfToken})
+	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "destroyed " + name})
 	http.Redirect(rs.w, rs.r, redirectTo, http.StatusFound)
 	return nil
 }

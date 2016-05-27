@@ -15,8 +15,12 @@ import (
 )
 
 type cookieBaker interface {
+	// set creates the cookie with the given name and payload, and also
+	// stores the given csrf token in the cookie.
 	set(w http.ResponseWriter, name, payload, csrfToken string) error
-	get(req *http.Request, name, csrfToken string) (string, error)
+	// get retrieves the payload and csrf token from the cookie.  If the
+	// cookie does not exist, get returns ("", "", nil).
+	get(req *http.Request, name string) (string, string, error)
 }
 
 type signedCookieBaker struct {
@@ -33,30 +37,34 @@ type signedCookie struct {
 	// HMAC signs all the above fields and prevents tampering with the
 	// cookie.
 	HMAC []byte `json:"hmac"`
+	// CSRFToken prevents CSRF attacks by ensuring that requests must
+	// contain a csrf token that matches the cookie.
+	CSRFToken string `'json:"csrfToken"`
 }
 
-func (c *signedCookie) computeHMAC(name, csrfToken, signKey string) []byte {
+func (c *signedCookie) computeHMAC(name, signKey string) []byte {
 	mac := hmac.New(sha256.New, []byte(signKey))
 	put := func(data string) {
 		fmt.Fprintf(mac, "%08x%s", len(data), data)
 	}
 	put(name)
-	put(csrfToken)
 	put(c.Payload)
 	put(c.Expiry.String())
+	put(c.CSRFToken)
 	return mac.Sum(nil)
 }
 
-func (c *signedCookie) verifyHMAC(name, csrfToken, signKey string) bool {
-	return hmac.Equal(c.HMAC, c.computeHMAC(name, csrfToken, signKey))
+func (c *signedCookie) verifyHMAC(name, signKey string) bool {
+	return hmac.Equal(c.HMAC, c.computeHMAC(name, signKey))
 }
 
 func (b *signedCookieBaker) packCookie(name, payload, csrfToken string) (string, error) {
 	c := signedCookie{
-		Payload: payload,
-		Expiry:  time.Now().Add(b.validity),
+		Payload:   payload,
+		Expiry:    time.Now().Add(b.validity),
+		CSRFToken: csrfToken,
 	}
-	c.HMAC = c.computeHMAC(name, csrfToken, b.signKey)
+	c.HMAC = c.computeHMAC(name, b.signKey)
 	jsonData, err := json.Marshal(c)
 	if err != nil {
 		return "", err
@@ -64,22 +72,22 @@ func (b *signedCookieBaker) packCookie(name, payload, csrfToken string) (string,
 	return base64.URLEncoding.EncodeToString(jsonData), nil
 }
 
-func (b *signedCookieBaker) unpackCookie(name, value, csrfToken string) (string, error) {
+func (b *signedCookieBaker) unpackCookie(name, value string) (string, string, error) {
 	jsonData, err := base64.URLEncoding.DecodeString(value)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	var c signedCookie
 	if err := json.Unmarshal(jsonData, &c); err != nil {
-		return "", err
+		return "", "", err
 	}
 	if time.Now().After(c.Expiry) {
-		return "", fmt.Errorf("cookie expired on %v", c.Expiry)
+		return "", "", fmt.Errorf("cookie expired on %v", c.Expiry)
 	}
-	if !c.verifyHMAC(name, csrfToken, b.signKey) {
-		return "", fmt.Errorf("HMAC mismatching for cookie %v", c)
+	if !c.verifyHMAC(name, b.signKey) {
+		return "", "", fmt.Errorf("HMAC mismatching for cookie %v", c)
 	}
-	return c.Payload, nil
+	return c.Payload, c.CSRFToken, nil
 }
 
 func (b *signedCookieBaker) set(w http.ResponseWriter, name, payload, csrfToken string) error {
@@ -99,13 +107,13 @@ func (b *signedCookieBaker) set(w http.ResponseWriter, name, payload, csrfToken 
 	return nil
 }
 
-func (b *signedCookieBaker) get(req *http.Request, name, csrfToken string) (string, error) {
+func (b *signedCookieBaker) get(req *http.Request, name string) (string, string, error) {
 	cookie, err := req.Cookie(name)
 	if err == http.ErrNoCookie {
-		return "", nil
+		return "", "", nil
 	}
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return b.unpackCookie(name, cookie.Value, csrfToken)
+	return b.unpackCookie(name, cookie.Value)
 }

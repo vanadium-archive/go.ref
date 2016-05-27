@@ -233,7 +233,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r:         r,
 	}
 	if err := h.f(h.ss, rs); err != nil {
-		h.ss.args.assets.errorOccurred(ctx, w, r, makeURL(ctx, routeHome, params{paramCSRF: csrfToken}), err)
+		h.ss.args.assets.errorOccurred(ctx, w, r, routeHome, err)
 		ctx.Infof("%s[%s] : error %v", r.Method, r.URL, err)
 		return
 	}

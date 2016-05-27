@@ -149,7 +149,7 @@ func generateCSRFToken(ctx *context.T) string {
 }
 
 func validateCSRF(ctx *context.T, req *http.Request, baker cookieBaker, csrfToken string) bool {
-	cookieToken, err := baker.get(req, cookieName, csrfToken)
+	cookieToken, cookieCSRFToken, err := baker.get(req, cookieName)
 	if cookieToken == "" && err == nil {
 		err = errors.New("missing cookie")
 	}
@@ -157,16 +157,19 @@ func validateCSRF(ctx *context.T, req *http.Request, baker cookieBaker, csrfToke
 		ctx.Errorf("Failed to read csrf cookie: %v", err)
 		return false
 	}
-	return csrfCookieValue == cookieToken
+	return cookieToken == csrfCookieValue && cookieCSRFToken == csrfToken
 }
 
 func requireSession(ctx *context.T, oauthCfg *oauth2.Config, baker cookieBaker, w http.ResponseWriter, r *http.Request, mutating bool) (string, string, error) {
-	csrfToken := r.FormValue(paramCSRF)
-	email, err := baker.get(r, cookieName, csrfToken)
+	email, csrfToken, err := baker.get(r, cookieName)
 	switch {
 	case err == nil && email != "" && email != csrfCookieValue:
 		// The user is already logged in.
-		return email, csrfToken, nil
+		if mutating && r.FormValue(paramCSRF) != csrfToken {
+			ctx.Info("Re-authenticating. Bad CSRF token for mutating request.")
+		} else {
+			return email, csrfToken, nil
+		}
 	case err == nil && email == csrfCookieValue:
 		// The user is in the middle of the oauth flow.
 		//
@@ -248,6 +251,5 @@ func handleOauth(ctx *context.T, args httpArgs, baker cookieBaker, w http.Respon
 		args.assets.badRequest(ctx, w, r, errors.New("no redirect url provided"))
 		return
 	}
-	redirectTo := replaceParam(ctx, state.RedirectURL, paramCSRF, csrfToken)
-	http.Redirect(w, r, redirectTo, http.StatusFound)
+	http.Redirect(w, r, state.RedirectURL, http.StatusFound)
 }

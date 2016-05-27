@@ -18,21 +18,21 @@ func TestSignedCookie(t *testing.T) {
 		Payload: "flour, butter, eggs, chocolate",
 		Expiry:  currTime.Add(time.Hour),
 	}
-	hmac := c.computeHMAC("chocolate_chip", "Rumpelstiltskin", "key west")
+	hmac := c.computeHMAC("chocolate_chip", "key west")
 	if want, got := 32, len(hmac); want != got {
 		t.Errorf("Expected %d bytes, got %d instead: %v", want, got, hmac)
 	}
 	c.HMAC = hmac
-	if !c.verifyHMAC("chocolate_chip", "Rumpelstiltskin", "key west") {
+	if !c.verifyHMAC("chocolate_chip", "key west") {
 		t.Errorf("HMAC verification failed for %v | %v", hmac, c)
 	}
 	// Trying a different sign key should not work.
-	if c.verifyHMAC("chocolate_chip", "Rumpelstiltskin", "key east") {
+	if c.verifyHMAC("chocolate_chip", "key east") {
 		t.Errorf("HMAC verification should have failed for %v | %v", hmac, c)
 	}
 	// Fudging the cookie's stored HMAC value should fail validation.
 	c.HMAC[0]++
-	if c.verifyHMAC("chocolate_chip", "Rumpelstiltskin", "key west") {
+	if c.verifyHMAC("chocolate_chip", "key west") {
 		t.Errorf("HMAC verification should have failed for %v | %v", hmac, c)
 	}
 }
@@ -47,27 +47,25 @@ func TestPackUnpack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("packCookie failed: %v", err)
 	}
-	p, err := baker.unpackCookie("gingersnap", c, "Rumpelstiltskin")
+	p, csrf, err := baker.unpackCookie("gingersnap", c)
 	if err != nil {
 		t.Fatalf("unpackCookie failed: %v", err)
 	}
 	if want, got := "flour, butter, ginger", p; want != got {
 		t.Errorf("Expected payload %v, got %v instead", want, got)
 	}
-
-	// Using incorrect CSRF token should not work.
-	if _, err := baker.unpackCookie("gingersnap", c, "Wrong CSRF"); err == nil {
-		t.Errorf("unpackCookie should have failed")
+	if want, got := "Rumpelstiltskin", csrf; want != got {
+		t.Errorf("Expected csrf token %v, got %v instead", want, got)
 	}
 
 	// Using bogus string as cookie should not work (and not crash).
-	if _, err := baker.unpackCookie("gingersnap", "blah", "Rumpelstiltskin"); err == nil {
+	if _, _, err := baker.unpackCookie("gingersnap", "blah"); err == nil {
 		t.Errorf("unpackCookie should have failed")
 	}
 
 	// Using wrong sign key should not work.
 	baker.signKey = "key east"
-	if _, err := baker.unpackCookie("gingersnap", c, "Rumpelstiltskin"); err == nil {
+	if _, _, err := baker.unpackCookie("gingersnap", c); err == nil {
 		t.Errorf("unpackCookie should have failed")
 	}
 
@@ -76,7 +74,7 @@ func TestPackUnpack(t *testing.T) {
 	if c, err = baker.packCookie("gingersnap", "flour, butter, ginger", "Rumpelstiltskin"); err != nil {
 		t.Fatalf("packCookie failed: %v", err)
 	}
-	if _, err := baker.unpackCookie("gingersnap", c, "Rumpelstiltskin"); err == nil {
+	if _, _, err := baker.unpackCookie("gingersnap", c); err == nil {
 		t.Errorf("unpackCookie should have failed")
 	}
 }
@@ -123,17 +121,18 @@ func TestBaker(t *testing.T) {
 	}
 	req.AddCookie(&http.Cookie{Name: "butter_pecan", Value: parts[1][:strings.Index(parts[1], ";")]})
 
-	if p, err := baker.get(req, "butter_pecan", "Rumpelstiltskin"); err != nil {
+	if p, csrf, err := baker.get(req, "butter_pecan"); err != nil {
 		t.Fatalf("get failed: %v", err)
-	} else if want, got := "flour, butter, pecans", p; want != got {
-		t.Errorf("Expected payload %v, got %v instead", want, got)
+	} else {
+		if want, got := "flour, butter, pecans", p; want != got {
+			t.Errorf("Expected payload %v, got %v instead", want, got)
+		}
+		if want, got := "Rumpelstiltskin", csrf; want != got {
+			t.Errorf("Expected csrf token %v, got %v instead", want, got)
+		}
 	}
 
-	if p, err := baker.get(req, "chocolate_mint", "Rumpelstiltskin"); p != "" || err != nil {
-		t.Errorf("get should have returned empty payload for non-existant cookie")
-	}
-
-	if _, err := baker.get(req, "butter_pecan", "Wrong CSRF"); err == nil {
-		t.Errorf("get should have failed with wrong CSRF token")
+	if p, csrf, err := baker.get(req, "chocolate_mint"); p != "" || csrf != "" || err != nil {
+		t.Errorf("get should have returned empty payload and csrf token for non-existant cookie")
 	}
 }

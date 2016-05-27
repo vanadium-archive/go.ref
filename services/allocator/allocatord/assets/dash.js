@@ -50,12 +50,10 @@ var dash = function() {
 
   var durationInSeconds = 3600;
   var mountedName = '';
-  var csrf = '';
 
   function extractParameters() {
     var $url = $.url();
     mountedName = $url.param('n');
-    csrf = $url.param('csrf');
     return mountedName !== undefined;
   }
 
@@ -77,8 +75,7 @@ var dash = function() {
     $('#loading-label').show();
     var params = {
       n: mountedName,
-      d: durationInSeconds,
-      csrf: csrf
+      d: durationInSeconds
     };
     $('#error-msg').hide();
     $.ajax('stats?' + $.param(params))
