@@ -79,11 +79,10 @@ type httpArgs struct {
 	dashboardGCMMetric,
 	dashboardGCMProject,
 	monitoringKeyFile string
-	secureCookies        bool
-	oauthCreds           *oauthCredentials
-	baseBlessings        security.Blessings
-	baseBlessingNames    []string
-	debugBrowserServeMux *http.ServeMux
+	secureCookies     bool
+	oauthCreds        *oauthCredentials
+	baseBlessings     security.Blessings
+	baseBlessingNames []string
 	// URI prefix for static assets served from (another) content server.
 	staticAssetsPrefix string
 	// Manages locally served resources.
@@ -120,7 +119,6 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 	if err != nil {
 		ctx.Fatalf("Failed to setup debug browser handlers: %v", err)
 	}
-	args.debugBrowserServeMux = debugBrowserServeMux
 
 	// mutating should be true for handlers that mutate state.  For such
 	// handlers, any re-authentication should result in redirection to the
@@ -158,7 +156,10 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 	http.Handle(routeHome, newHandler(handleHome, false))
 	http.Handle(routeCreate, newHandler(handleCreate, true))
 	http.Handle(routeDashboard, newHandler(handleDashboard, false))
-	http.Handle(routeDebug+"/", newHandler(handleDebug, false))
+	http.Handle(routeDebug+"/", newHandler(
+		func(ss *serverState, rs *requestState) error {
+			return handleDebug(ss, rs, debugBrowserServeMux)
+		}, false))
 	http.Handle(routeDestroy, newHandler(handleDestroy, true))
 	http.HandleFunc(routeOauth, func(w http.ResponseWriter, r *http.Request) {
 		handleOauth(ctx, args, baker, w, r)

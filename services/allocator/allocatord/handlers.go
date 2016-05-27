@@ -91,7 +91,7 @@ func handleDestroy(ss *serverState, rs *requestState) error {
 	return nil
 }
 
-func handleDebug(ss *serverState, rs *requestState) error {
+func handleDebug(ss *serverState, rs *requestState, debugBrowserServeMux *http.ServeMux) error {
 	instance := rs.r.FormValue(paramName)
 	if instance == "" {
 		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
@@ -99,6 +99,6 @@ func handleDebug(ss *serverState, rs *requestState) error {
 	if err := checkOwner(ss.ctx, rs.email, kubeNameFromMountName(instance)); err != nil {
 		return err
 	}
-	http.StripPrefix(routeDebug, ss.args.debugBrowserServeMux).ServeHTTP(rs.w, rs.r)
+	http.StripPrefix(routeDebug, debugBrowserServeMux).ServeHTTP(rs.w, rs.r)
 	return nil
 }
