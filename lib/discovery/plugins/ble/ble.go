@@ -5,6 +5,7 @@
 package ble
 
 import (
+	"bytes"
 	"fmt"
 	"runtime"
 	"sync"
@@ -12,6 +13,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/discovery"
+	"v.io/v23/naming"
 	idiscovery "v.io/x/ref/lib/discovery"
 	"v.io/x/ref/lib/stats"
 )
@@ -30,8 +32,8 @@ var (
 type plugin struct {
 	advertiser *advertiser
 	scanner    *scanner
-
-	adStopper *idiscovery.Trigger
+	adStopper  *idiscovery.Trigger
+	statPrefix string
 }
 
 func (p *plugin) Advertise(ctx *context.T, adinfo *idiscovery.AdInfo, done func()) (err error) {
@@ -55,17 +57,38 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscover
 		defer p.scanner.removeListener(interfaceName, listener)
 
 		seen := make(map[discovery.AdId]*idiscovery.AdInfo)
+
+		// TODO(ashankar,jhahn): To prevent plugins from stepping over
+		// each other (e.g., a Lost even from one undoing a Found event
+		// from another), the discovery implementation that uses
+		// plugins should be made aware of the plugin that sent the event.
+		// In that case, perhaps these stats should also be exported there,
+		// rather than in each plugin implementation?
+		stat := naming.Join(p.statPrefix, "seen")
+		var seenMu sync.Mutex // Safety between this goroutine and stats
+		stats.NewStringFunc(stat, func() string {
+			seenMu.Lock()
+			defer seenMu.Unlock()
+			buf := new(bytes.Buffer)
+			for k, v := range seen {
+				fmt.Fprintf(buf, "%s: %v\n\n", k, *v)
+			}
+			return buf.String()
+		})
+		defer stats.Delete(stat)
 		for {
 			select {
 			case adinfo := <-listener:
 				if adinfo.Lost {
+					seenMu.Lock()
 					delete(seen, adinfo.Ad.Id)
+					seenMu.Unlock()
+				} else if prev := seen[adinfo.Ad.Id]; prev != nil && (prev.Hash == adinfo.Hash || prev.TimestampNs >= adinfo.TimestampNs) {
+					continue
 				} else {
-					prev := seen[adinfo.Ad.Id]
-					if prev != nil && (prev.Hash == adinfo.Hash || prev.TimestampNs >= adinfo.TimestampNs) {
-						continue
-					}
+					seenMu.Lock()
 					seen[adinfo.Ad.Id] = adinfo
+					seenMu.Unlock()
 				}
 				copied := *adinfo
 				select {
@@ -98,9 +121,9 @@ func newWithTTL(ctx *context.T, host string, ttl time.Duration) (idiscovery.Plug
 		return nil, err
 	}
 	statMu.Lock()
-	statName := fmt.Sprintf("discovery/ble/driver/%d", statIdx)
+	statPrefix := naming.Join("discovery", "ble", fmt.Sprint(statIdx))
 	statIdx++
-	stats.NewStringFunc(statName, func() string {
+	stats.NewStringFunc(naming.Join(statPrefix, "driver"), func() string {
 		return driver.DebugString()
 	})
 	statMu.Unlock()
@@ -108,7 +131,8 @@ func newWithTTL(ctx *context.T, host string, ttl time.Duration) (idiscovery.Plug
 		advertiser: newAdvertiser(ctx, driver),
 		scanner:    newScanner(ctx, driver, ttl),
 		adStopper:  idiscovery.NewTrigger(),
+		statPrefix: statPrefix,
 	}
-	runtime.SetFinalizer(p, func(p *plugin) { stats.Delete(statName) })
+	runtime.SetFinalizer(p, func(p *plugin) { stats.Delete(statPrefix) })
 	return p, nil
 }

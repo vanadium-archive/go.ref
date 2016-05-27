@@ -5,10 +5,12 @@
 package discovery
 
 import (
+	"fmt"
 	"sync"
 
 	"v.io/v23/context"
 	"v.io/v23/discovery"
+	"v.io/v23/naming"
 )
 
 type idiscovery struct {
@@ -26,7 +28,14 @@ type idiscovery struct {
 	adStopTrigger *Trigger
 
 	dirServer *dirServer
+
+	statsPrefix string
 }
+
+var (
+	statsMu  sync.Mutex
+	statsIdx int
+)
 
 type sessionId uint64
 
@@ -91,12 +100,17 @@ func newDiscovery(ctx *context.T, plugins []Plugin) (*idiscovery, error) {
 	if len(plugins) == 0 {
 		return nil, NewErrNoDiscoveryPlugin(ctx)
 	}
+	statsMu.Lock()
+	statsPrefix := naming.Join("discovery", fmt.Sprint(statsIdx))
+	statsIdx++
+	statsMu.Unlock()
 	d := &idiscovery{
 		plugins:       make([]Plugin, len(plugins)),
 		tasks:         make(map[*context.T]func()),
 		adSessions:    make(map[discovery.AdId]sessionId),
 		adSubtasks:    make(map[discovery.AdId]*adSubtask),
 		adStopTrigger: NewTrigger(),
+		statsPrefix:   statsPrefix,
 	}
 	copy(d.plugins, plugins)
 

@@ -5,12 +5,15 @@
 package discovery
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/discovery"
+	"v.io/v23/naming"
 	"v.io/v23/security"
+	"v.io/x/ref/lib/stats"
 )
 
 const (
@@ -114,6 +117,8 @@ func (d *idiscovery) getAdSession(id discovery.AdId) sessionId {
 }
 
 func (d *idiscovery) startAdvertising(ctx *context.T, adinfo *AdInfo) (func(), error) {
+	statName := naming.Join(d.statsPrefix, "ad", adinfo.Ad.Id.String())
+	stats.NewStringFunc(statName, func() string { return fmt.Sprint(*adinfo) })
 	ctx, cancel := context.WithCancel(ctx)
 	var wg sync.WaitGroup
 	for _, plugin := range d.plugins {
@@ -124,6 +129,7 @@ func (d *idiscovery) startAdvertising(ctx *context.T, adinfo *AdInfo) (func(), e
 	}
 
 	stop := func() {
+		stats.Delete(statName)
 		cancel()
 		wg.Wait()
 	}
