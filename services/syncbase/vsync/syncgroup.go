@@ -711,6 +711,10 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 
 	ss.initSyncStateInMem(ctx, dbId, sgOID(gid))
 
+	if err := ss.checkptSgLocalGen(ctx, dbId, gid); err != nil {
+		return err
+	}
+
 	// Advertise the Syncbase at the chosen mount table and in the
 	// neighborhood.
 	if err := ss.advertiseSyncbase(ctx, call, sg); err != nil {
@@ -957,7 +961,8 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 	}
 
 	ss := sd.sync.(*syncService)
-	gid := SgIdToGid(sd.db.Id(), sgId)
+	dbId := sd.db.Id()
+	gid := SgIdToGid(dbId, sgId)
 
 	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Check permissions on Database.
@@ -1001,18 +1006,36 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 		// advertising to change.
 
 		// Reserve a log generation and position counts for the new syncgroup.
-		gen, pos := ss.reserveGenAndPosInDbLog(ctx, sd.db.Id(), sgOID(gid), 1)
+		gen, pos := ss.reserveGenAndPosInDbLog(ctx, dbId, sgOID(gid), 1)
 
 		newVersion := ss.newSyncgroupVersion()
 		sg.Spec = spec
 		sg.SpecVersion = newVersion
 		return ss.updateSyncgroupVersioning(ctx, tx, gid, newVersion, true, ss.id, gen, pos, sg)
 	})
-	return err
+
+	if err != nil {
+		return err
+	}
+
+	return ss.checkptSgLocalGen(ctx, dbId, gid)
 }
 
 //////////////////////////////
 // Helper functions
+
+// checkptSgLocalGen cuts a local generation for the specified syncgroup to
+// capture its updates.
+func (s *syncService) checkptSgLocalGen(ctx *context.T, dbId wire.Id, sgid interfaces.GroupId) error {
+	// Cut a new generation to capture the syncgroup updates. Unlike the
+	// interaction between the watcher and the pause/resume bits, there is
+	// no guarantee of ordering between the syncgroup updates that are
+	// synced and when sync is paused/resumed. This is because in the
+	// current design syncgroup updates are not serialized through the watch
+	// queue.
+	sgs := sgSet{sgid: struct{}{}}
+	return s.checkptLocalGen(ctx, dbId, sgs)
+}
 
 // publishSyncgroup publishes the syncgroup at the remote peer and update its
 // status.  If the publish operation is either successful or rejected by the
@@ -1025,6 +1048,14 @@ func (sd *syncDatabase) publishSyncgroup(ctx *context.T, call rpc.ServerCall, sg
 	st := sd.db.St()
 	ss := sd.sync.(*syncService)
 	dbId := sd.db.Id()
+
+	// If this admin is offline, it shouldn't attempt to publish the syncgroup
+	// since it would be unable to send out the new syncgroup updates. However, it
+	// is still possible that the admin goes offline right after processing the
+	// request.
+	if !ss.isDbSyncable(ctx, dbId) {
+		return interfaces.NewErrDbOffline(ctx, dbId)
+	}
 
 	gid := SgIdToGid(dbId, sgId)
 	version, err := getSyncgroupVersion(ctx, st, gid)
@@ -1114,8 +1145,10 @@ func (sd *syncDatabase) publishSyncgroup(ctx *context.T, call rpc.ServerCall, sg
 	if err != nil {
 		vlog.Errorf("sync: publishSyncgroup: cannot update syncgroup %v status to %s: %v",
 			sgId, status.String(), err)
+		return err
 	}
-	return err
+
+	return ss.checkptSgLocalGen(ctx, dbId, gid)
 }
 
 // bootstrapSyncgroup inserts into the transaction log a syncgroup operation and
@@ -1240,7 +1273,7 @@ func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCa
 	for _, svc := range neighbors {
 		for _, addr := range svc.Addresses {
 			ctx, cancel := context.WithTimeout(ctxIn, peerConnectionTimeout)
-			// TODO(fredq) check that the service at addr has the expectedSyncbaseBlessings
+			// TODO(fredq): check that the service at addr has the expectedSyncbaseBlessings.
 			c := interfaces.SyncClient(naming.Join(addr, common.SyncbaseSuffix))
 			sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, dbId, sgId, localSyncbaseName, myInfo)
 			cancel()
@@ -1332,16 +1365,18 @@ func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publ
 		return s.addSyncgroup(ctx, tx, version, false, publisher, genvec, 0, 0, 0, &sg)
 	})
 
-	if err == nil {
-		s.initSyncStateInMem(ctx, sg.DbId, sgOID(gid))
-
-		// Advertise the Syncbase at the chosen mount table and in the
-		// neighborhood.
-		//
-		// TODO(hpucha): Implement failure handling. See note in
-		// CreateSyncgroup for more details.
-		err = s.advertiseSyncbase(ctx, call, &sg)
+	if err != nil {
+		return s.name, err
 	}
+
+	s.initSyncStateInMem(ctx, sg.DbId, sgOID(gid))
+
+	// Advertise the Syncbase at the chosen mount table and in the
+	// neighborhood.
+	//
+	// TODO(hpucha): Implement failure handling. See note in
+	// CreateSyncgroup for more details.
+	err = s.advertiseSyncbase(ctx, call, &sg)
 
 	return s.name, err
 }
@@ -1351,6 +1386,13 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 	defer vlog.VI(2).Infof("sync: JoinSyncgroupAtAdmin: end: %+v from peer %s", sgId, joinerName)
 
 	nullSG, nullGV := interfaces.Syncgroup{}, interfaces.GenVector{}
+
+	// If this admin is offline, it shouldn't accept the join request since it
+	// would be unable to send out the new syncgroup updates. However, it is still
+	// possible that the admin goes offline right after processing the request.
+	if !s.isDbSyncable(ctx, dbId) {
+		return nullSG, "", nullGV, interfaces.NewErrDbOffline(ctx, dbId)
+	}
 
 	// Find the database store for this syncgroup.
 	dbSt, err := s.getDbStore(ctx, call, dbId)
@@ -1406,6 +1448,10 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 
 	if err != nil {
 		vlog.VI(4).Infof("sync: JoinSyncgroupAtAdmin: end: %v from peer %s, err in tx %v", sgId, joinerName, err)
+		return nullSG, "", nullGV, err
+	}
+
+	if err := s.checkptSgLocalGen(ctx, dbId, gid); err != nil {
 		return nullSG, "", nullGV, err
 	}
 

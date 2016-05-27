@@ -97,9 +97,6 @@ func (s *syncService) watchStore(ctx *context.T, dbId wire.Id, st *watchable.Sto
 // records ending with one record having the "continued" flag set to false.  The
 // call returns true if a new batch update was processed.
 func (s *syncService) processDatabase(ctx *context.T, dbId wire.Id, st store.Store) bool {
-	s.thLock.Lock()
-	defer s.thLock.Unlock()
-
 	vlog.VI(2).Infof("sync: processDatabase: begin: %v", dbId)
 	defer vlog.VI(2).Infof("sync: processDatabase: end: %v", dbId)
 
@@ -130,6 +127,26 @@ func (s *syncService) processDatabase(ctx *context.T, dbId wire.Id, st store.Sto
 	if err = s.processWatchLogBatch(ctx, dbId, st, logs, nextResmark); err != nil {
 		// TODO(rdaoud): quarantine this database.
 		return false
+	}
+
+	// The requirement for pause is that any write after the pause must not
+	// be synced until sync is resumed. The same for resume is that every
+	// write before resume must be seen and added to sync data structures
+	// before sync resumes.
+	//
+	// Hence, at the end of processing a batch, the watcher checks if sync is
+	// paused/resumed. If it is paused, it does not cut any more generations for
+	// future batches. If sync is resumed, it cuts a new generation. Cutting a
+	// generation freezes the most recent batch of local changes. This frozen
+	// state is used by the responder when responding to GetDeltas RPC.
+	if s.isDbSyncable(ctx, dbId) {
+		// The database is online. Cut a gen.
+		if err := s.checkptLocalGen(ctx, dbId, nil); err != nil {
+			vlog.Errorf("sync: processDatabase: %v: cannot cut a generation: %v", dbId, verror.DebugString(err))
+			return false
+		}
+	} else {
+		vlog.VI(1).Infof("sync: processDatabase: %v database not allowed to sync, skipping cutting a gen", dbId)
 	}
 	return true
 }

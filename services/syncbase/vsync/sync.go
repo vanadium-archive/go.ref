@@ -55,22 +55,6 @@ type syncService struct {
 	rng     *rand.Rand
 	rngLock sync.Mutex
 
-	// High-level lock to serialize the watcher and the initiator. This lock is
-	// needed to handle the following cases: (a) When the initiator is
-	// cutting a local generation, it waits for the watcher to commit the
-	// latest local changes before including them in the checkpoint. (b)
-	// When the initiator is receiving updates, it reads the latest head of
-	// an object as per the DAG state in order to construct the in-memory
-	// graft map used for conflict detection. At the same time, if a watcher
-	// is processing local updates, it may move the object head. Hence the
-	// initiator and watcher contend on the DAG head of an object. Instead
-	// of retrying a transaction which causes the entire delta to be
-	// replayed, we use pessimistic locking to serialize the initiator and
-	// the watcher.
-	//
-	// TODO(hpucha): This is a temporary hack.
-	thLock sync.RWMutex
-
 	// State to coordinate shutdown of spawned goroutines.
 	pending sync.WaitGroup
 	closed  chan struct{}

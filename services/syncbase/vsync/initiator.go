@@ -431,46 +431,13 @@ func newInitiationState(ctx *context.T, c *initiationConfig, sg bool) *initiatio
 //
 // TODO(hpucha): Refactor this code with computeDelta code in sync_state.go.
 func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
-	iSt.config.sync.thLock.Lock()
-	defer iSt.config.sync.thLock.Unlock()
-
 	// isDbSyncable reads the in-memory syncState for this db to verify if
 	// it is allowed to sync or not. This state is mutated by watcher based
 	// on incoming pause/resume requests.
-	// The requirement for pause is that any write after the pause must not
-	// be synced until sync is resumed. The same for resume is that every write
-	// before resume must be seen and added to sync datastructure before sync
-	// resumes.
-	// thLock is used to achieve the above requirements. Watcher acquires this
-	// lock when it processes new entries in the queue. Before cutting a new
-	// generation the initiator acquires this lock and then checks if the
-	// database is syncable or not. If it is, it cuts a new generation and then
-	// releases the thLock. This makes sure that the generation cut by the
-	// initiator is either before sync is paused or no generation is cut and
-	// initiator aborts.
-	// Note: Responder does not need to acquire thLock since it uses the
-	// generation cut by initiator. See responder.go for more details.
 	if !iSt.config.sync.isDbSyncable(ctx, iSt.config.dbId) {
 		// The database is offline. Skip the db till it becomes syncable again.
 		vlog.VI(1).Infof("sync: prepareDataDeltaReq: database not allowed to sync, skipping sync on db %v", iSt.config.dbId)
 		return interfaces.NewErrDbOffline(ctx, iSt.config.dbId)
-	}
-
-	// Freeze the most recent batch of local changes before fetching
-	// remote changes from a peer. This frozen state is used by the
-	// responder when responding to GetDeltas RPC.
-	//
-	// We only allow an initiator to freeze local generations (not
-	// responders/watcher) in order to maintain a static baseline
-	// for the duration of a sync. This addresses the following race
-	// condition: If we allow responders to use newer local
-	// generations while the initiator is in progress, they may beat
-	// the initiator and send these new generations to remote
-	// devices.  These remote devices in turn can send these
-	// generations back to the initiator in progress which was
-	// started with older generation information.
-	if err := iSt.config.sync.checkptLocalGen(ctx, iSt.config.dbId, nil); err != nil {
-		return err
 	}
 
 	local, lgen, err := iSt.config.sync.copyDbGenInfo(ctx, iSt.config.dbId, nil)
@@ -543,17 +510,11 @@ func (iSt *initiationState) prepareDataDeltaReq(ctx *context.T) error {
 // knowledge for the initiator to send to the responder, and prepares the
 // request to start the syncgroup sync.
 func (iSt *initiationState) prepareSGDeltaReq(ctx *context.T) error {
-	iSt.config.sync.thLock.Lock()
-	defer iSt.config.sync.thLock.Unlock()
 
 	if !iSt.config.sync.isDbSyncable(ctx, iSt.config.dbId) {
 		// The database is offline. Skip the db till it becomes syncable again.
 		vlog.VI(1).Infof("sync: prepareSGDeltaReq: database not allowed to sync, skipping sync on db %v", iSt.config.dbId)
 		return interfaces.NewErrDbOffline(ctx, iSt.config.dbId)
-	}
-
-	if err := iSt.config.sync.checkptLocalGen(ctx, iSt.config.dbId, iSt.config.sgIds); err != nil {
-		return err
 	}
 
 	var err error

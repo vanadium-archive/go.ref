@@ -91,10 +91,16 @@ func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, 
 	return rSt, nil
 }
 
-// sendDeltasPerDatabase sends to an initiator all the missing generations
-// corresponding to the prefixes requested for this Database, and genvectors
-// summarizing the knowledge transferred from the responder to the
-// initiator. This happens in three phases:
+// sendDeltasPerDatabase sends to an initiator from the requesting Syncbase all
+// the missing generations corresponding to the prefixes requested for this
+// Database, and genvectors summarizing the knowledge transferred from the
+// responder to the initiator. Note that the responder does not send any
+// generations corresponding to the requesting Syncbase even if this responder
+// is ahead of the initiator in its knowledge. The responder can be ahead since
+// the responder on the requesting Syncbase can communicate generations newer
+// than when its initiator began its work.
+//
+// The responder operates in three phases:
 //
 // In the first phase, the initiator is checked against the syncgroup ACLs of
 // all the syncgroups it is requesting, and only those prefixes that belong to
@@ -131,11 +137,6 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 	// logging level specified is enabled.
 	vlog.VI(3).Infof("sync: sendDeltasPerDatabase: recvd %v: sgids %v, genvecs %v, sg %v", rSt.dbId, rSt.sgIds, rSt.initVecs, rSt.sg)
 
-	// There is no need to acquire syncService.thLock since responder uses
-	// the generation cut by initiator. The initiator maintains the atomicity
-	// of operations performed within a pause-resume block when a generation is
-	// cut. Hence either none of these operations are present within the
-	// generation or all of them are present.
 	if !rSt.sync.isDbSyncable(ctx, rSt.dbId) {
 		// The database is offline. Skip the db till it becomes syncable again.
 		vlog.VI(1).Infof("sync: sendDeltasPerDatabase: database not allowed to sync, skipping sync on db %v", rSt.dbId)
@@ -361,6 +362,18 @@ func (rSt *responderState) filterAndSendDeltas(ctx *context.T, pfx string) error
 	// Init the min heap, one entry per device in the diff.
 	mh := make(minHeap, 0, len(rSt.diff))
 	for dev, r := range rSt.diff {
+		// Do not send generations belonging to the initiator.
+		//
+		// TODO(hpucha): This needs to be relaxed to handle the case
+		// when the initiator has locally destroyed its
+		// database/collection, and has rejoined the syncgroup. In this
+		// case, it would like its data sent back as well. Perhaps the
+		// initiator's request will contain an indication about its
+		// status for the responder to distinguish between the 2 cases.
+		if syncbaseIdToName(dev) == rSt.initiator {
+			continue
+		}
+
 		r.cur = r.min
 		rec, err := getNextLogRec(ctx, rSt.st, pfx, dev, r)
 		if err != nil {
