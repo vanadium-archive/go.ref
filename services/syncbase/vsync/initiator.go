@@ -764,7 +764,7 @@ func (iSt *initiationState) insertRecInDb(ctx *context.T, rec *LocalLogRec, rawV
 // a Database update to simply update the Database to the latest value.
 //
 // * There is a conflict and we call into the app or use a well-known policy to
-// resolve the conflict, resulting in three possibilties: (a) conflict was
+// resolve the conflict, resulting in three possibilities: (a) conflict was
 // resolved by picking the local version. In this case, Database need not be
 // updated, but a link is added to record the choice. (b) conflict was resolved
 // by picking the remote version. In this case, Database is updated with the
