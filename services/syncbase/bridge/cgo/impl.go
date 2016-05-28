@@ -68,10 +68,17 @@ static void CallCollectionScanCallbacksOnDone(v23_syncbase_CollectionScanCallbac
 import "C"
 
 // Global state, initialized by v23_syncbase_Init.
-var b *bridge.Bridge
+var (
+	b *bridge.Bridge
+	// clientUnderstandsVOM specifies whether the Cgo layer should assume
+	// the client does VOM encoding and decoding. If false, the Cgo layer
+	// itself does VOM encoding and decoding, and the client deals in byte
+	// arrays.
+	clientUnderstandsVOM bool
+)
 
 //export v23_syncbase_Init
-func v23_syncbase_Init() {
+func v23_syncbase_Init(cClientUnderstandVom C.v23_syncbase_Bool) {
 	// Strip all flags beyond the binary name; otherwise, v23.Init will fail when it encounters
 	// unknown flags passed by Xcode, e.g. NSTreatUnknownArgumentsAsOpen.
 	os.Args = os.Args[:1]
@@ -79,6 +86,7 @@ func v23_syncbase_Init() {
 	ctx, _ := v23.Init()
 	srv, disp, _ := syncbaselib.Serve(ctx, syncbaselib.Opts{})
 	b = bridge.NewBridge(ctx, srv, disp)
+	clientUnderstandsVOM = cClientUnderstandVom.toBool()
 }
 
 ////////////////////////////////////////
@@ -648,7 +656,14 @@ func (s *scanStreamImpl) Send(item interface{}) error {
 	if !ok {
 		return verror.NewErrInternal(s.ctx)
 	}
-	value, err := vom.Encode(kv.Value)
+	var value []byte
+	var err error
+	if clientUnderstandsVOM {
+		value, err = vom.Encode(kv.Value)
+	} else {
+		rawBytes := (*vom.RawBytes)(kv.Value)
+		err = rawBytes.ToValue(&value)
+	}
 	if err != nil {
 		return err
 	}
@@ -729,7 +744,16 @@ func v23_syncbase_RowGet(cName, cBatchHandle C.v23_syncbase_String, cValue *C.v2
 		return
 	}
 	valueAsRawBytes, err := stub.Get(ctx, call, batchHandle)
-	value, err := vom.Encode(valueAsRawBytes)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	var value []byte
+	if clientUnderstandsVOM {
+		value, err = vom.Encode(valueAsRawBytes)
+	} else {
+		err = valueAsRawBytes.ToValue(&value)
+	}
 	if err != nil {
 		cErr.init(err)
 		return
@@ -748,12 +772,21 @@ func v23_syncbase_RowPut(cName, cBatchHandle C.v23_syncbase_String, cValue C.v23
 		cErr.init(err)
 		return
 	}
-	var valueAsRawBytes vom.RawBytes
-	if err := vom.Decode(value, &valueAsRawBytes); err != nil {
+	var valueAsRawBytes *vom.RawBytes
+	if clientUnderstandsVOM {
+		var bytes vom.RawBytes
+		err = vom.Decode(value, &bytes)
+		if err == nil {
+			valueAsRawBytes = &bytes
+		}
+	} else {
+		valueAsRawBytes, err = vom.RawBytesFromValue(value)
+	}
+	if err != nil {
 		cErr.init(err)
 		return
 	}
-	cErr.init(stub.Put(ctx, call, batchHandle, &valueAsRawBytes))
+	cErr.init(stub.Put(ctx, call, batchHandle, valueAsRawBytes))
 }
 
 //export v23_syncbase_RowDelete

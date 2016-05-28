@@ -25,6 +25,21 @@ import (
 import "C"
 
 ////////////////////////////////////////////////////////////
+// C.v23_syncbase_BatchOptions
+
+func (x *C.v23_syncbase_BatchOptions) init(opts wire.BatchOptions) {
+	x.hint.init(opts.Hint)
+	x.readOnly = C.bool(opts.ReadOnly)
+}
+
+func (x *C.v23_syncbase_BatchOptions) toBatchOptions() wire.BatchOptions {
+	return wire.BatchOptions{
+		Hint:     x.hint.toString(),
+		ReadOnly: bool(x.readOnly),
+	}
+}
+
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_Bool
 
 func (x *C.v23_syncbase_Bool) init(b bool) {
@@ -43,22 +58,6 @@ func (x *C.v23_syncbase_Bool) toBool() bool {
 }
 
 ////////////////////////////////////////////////////////////
-// C.v23_syncbase_String
-
-func (x *C.v23_syncbase_String) init(s string) {
-	x.n = C.int(len(s))
-	x.p = C.CString(s)
-}
-
-func (x *C.v23_syncbase_String) toString() string {
-	if x.p == nil {
-		return ""
-	}
-	defer C.free(unsafe.Pointer(x.p))
-	return C.GoStringN(x.p, x.n)
-}
-
-////////////////////////////////////////////////////////////
 // C.v23_syncbase_Bytes
 
 func init() {
@@ -68,6 +67,12 @@ func init() {
 }
 
 func (x *C.v23_syncbase_Bytes) init(b []byte) {
+	// Special-case for len(b) == 0, because memcpy fails on invalid pointers even if size is 0.
+	if len(b) == 0 {
+		x.n = 0
+		x.p = nil
+		return
+	}
 	x.n = C.int(len(b))
 	x.p = (*C.uint8_t)(C.malloc(C.size_t(x.n)))
 	C.memcpy(unsafe.Pointer(x.p), unsafe.Pointer(&b[0]), C.size_t(len(b)))
@@ -79,126 +84,6 @@ func (x *C.v23_syncbase_Bytes) toBytes() []byte {
 	}
 	defer C.free(unsafe.Pointer(x.p))
 	return C.GoBytes(unsafe.Pointer(x.p), x.n)
-}
-
-////////////////////////////////////////////////////////////
-// C.v23_syncbase_Strings
-
-func (x *C.v23_syncbase_Strings) at(i int) *C.v23_syncbase_String {
-	return (*C.v23_syncbase_String)(unsafe.Pointer(uintptr(unsafe.Pointer(x.p)) + uintptr(C.size_t(i)*C.sizeof_v23_syncbase_String)))
-}
-
-func (x *C.v23_syncbase_Strings) init(strs []string) {
-	x.n = C.int(len(strs))
-	x.p = (*C.v23_syncbase_String)(C.malloc(C.size_t(x.n) * C.sizeof_v23_syncbase_String))
-	for i, v := range strs {
-		x.at(i).init(v)
-	}
-}
-
-func (x *C.v23_syncbase_Strings) toStrings() []string {
-	if x.p == nil {
-		return nil
-	}
-	defer C.free(unsafe.Pointer(x.p))
-	res := make([]string, x.n)
-	for i := 0; i < int(x.n); i++ {
-		res[i] = x.at(i).toString()
-	}
-	return res
-}
-
-////////////////////////////////////////////////////////////
-// C.v23_syncbase_VError
-
-func (x *C.v23_syncbase_VError) init(err error) {
-	if err == nil {
-		return
-	}
-	x.id.init(string(verror.ErrorID(err)))
-	x.actionCode = C.uint(verror.Action(err))
-	x.msg.init(err.Error())
-	x.stack.init(verror.Stack(err).String())
-}
-
-////////////////////////////////////////////////////////////
-// C.v23_syncbase_Permissions
-
-func (x *C.v23_syncbase_Permissions) init(perms access.Permissions) {
-	b := new(bytes.Buffer)
-	if err := access.WritePermissions(b, perms); err != nil {
-		panic(err)
-	}
-	x.json.init(b.Bytes())
-}
-
-func (x *C.v23_syncbase_Permissions) toPermissions() access.Permissions {
-	b := x.json.toBytes()
-	if len(b) == 0 {
-		return nil
-	}
-	perms, err := access.ReadPermissions(bytes.NewReader(b))
-	if err != nil {
-		panic(err)
-	}
-	return perms
-}
-
-////////////////////////////////////////////////////////////
-// C.v23_syncbase_Id
-
-func (x *C.v23_syncbase_Id) init(id wire.Id) {
-	x.blessing.init(id.Blessing)
-	x.name.init(id.Name)
-}
-
-func (x *C.v23_syncbase_Id) toId() wire.Id {
-	return wire.Id{
-		Blessing: x.blessing.toString(),
-		Name:     x.name.toString(),
-	}
-}
-
-////////////////////////////////////////////////////////////
-// C.v23_syncbase_Ids
-
-func (x *C.v23_syncbase_Ids) at(i int) *C.v23_syncbase_Id {
-	return (*C.v23_syncbase_Id)(unsafe.Pointer(uintptr(unsafe.Pointer(x.p)) + uintptr(C.size_t(i)*C.sizeof_v23_syncbase_Id)))
-}
-
-func (x *C.v23_syncbase_Ids) init(ids []wire.Id) {
-	x.n = C.int(len(ids))
-	x.p = (*C.v23_syncbase_Id)(C.malloc(C.size_t(x.n) * C.sizeof_v23_syncbase_Id))
-	for i, v := range ids {
-		x.at(i).init(v)
-	}
-}
-
-func (x *C.v23_syncbase_Ids) toIds() []wire.Id {
-	if x.p == nil {
-		return nil
-	}
-	defer C.free(unsafe.Pointer(x.p))
-	res := make([]wire.Id, x.n)
-	for i := 0; i < int(x.n); i++ {
-		res[i] = x.at(i).toId()
-	}
-	return res
-}
-
-////////////////////////////////////////////////////////////
-// C.v23_syncbase_BatchOptions
-
-func (x *C.v23_syncbase_BatchOptions) init(opts wire.BatchOptions) {
-	x.hint.init(opts.Hint)
-	x.readOnly = C.bool(opts.ReadOnly)
-}
-
-func (x *C.v23_syncbase_BatchOptions) toBatchOptions() wire.BatchOptions {
-	return wire.BatchOptions{
-		Hint:     x.hint.toString(),
-		ReadOnly: bool(x.readOnly),
-	}
 }
 
 ////////////////////////////////////////////////////////////
@@ -246,21 +131,45 @@ func (x *C.v23_syncbase_CollectionRowPatterns) toCollectionRowPatterns() []wire.
 }
 
 ////////////////////////////////////////////////////////////
-// C.v23_syncbase_WatchChange
+// C.v23_syncbase_Id
 
-func (x *C.v23_syncbase_WatchChange) init(wc syncbase.WatchChange) error {
-	x.collection.init(wc.Collection)
-	x.row.init(wc.Row)
-	x.changeType = C.v23_syncbase_ChangeType(wc.ChangeType)
-	value, err := vom.Encode(wc.Value)
-	if err != nil {
-		return err
+func (x *C.v23_syncbase_Id) init(id wire.Id) {
+	x.blessing.init(id.Blessing)
+	x.name.init(id.Name)
+}
+
+func (x *C.v23_syncbase_Id) toId() wire.Id {
+	return wire.Id{
+		Blessing: x.blessing.toString(),
+		Name:     x.name.toString(),
 	}
-	x.value.init(value)
-	x.resumeMarker.init(string(wc.ResumeMarker))
-	x.fromSync = C.bool(wc.FromSync)
-	x.continued = C.bool(wc.Continued)
-	return nil
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_Ids
+
+func (x *C.v23_syncbase_Ids) at(i int) *C.v23_syncbase_Id {
+	return (*C.v23_syncbase_Id)(unsafe.Pointer(uintptr(unsafe.Pointer(x.p)) + uintptr(C.size_t(i)*C.sizeof_v23_syncbase_Id)))
+}
+
+func (x *C.v23_syncbase_Ids) init(ids []wire.Id) {
+	x.n = C.int(len(ids))
+	x.p = (*C.v23_syncbase_Id)(C.malloc(C.size_t(x.n) * C.sizeof_v23_syncbase_Id))
+	for i, v := range ids {
+		x.at(i).init(v)
+	}
+}
+
+func (x *C.v23_syncbase_Ids) toIds() []wire.Id {
+	if x.p == nil {
+		return nil
+	}
+	defer C.free(unsafe.Pointer(x.p))
+	res := make([]wire.Id, x.n)
+	for i := 0; i < int(x.n); i++ {
+		res[i] = x.at(i).toId()
+	}
+	return res
 }
 
 ////////////////////////////////////////////////////////////
@@ -269,6 +178,72 @@ func (x *C.v23_syncbase_WatchChange) init(wc syncbase.WatchChange) error {
 func (x *C.v23_syncbase_KeyValue) init(key string, value []byte) {
 	x.key.init(key)
 	x.value.init(value)
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_Permissions
+
+func (x *C.v23_syncbase_Permissions) init(perms access.Permissions) {
+	b := new(bytes.Buffer)
+	if err := access.WritePermissions(b, perms); err != nil {
+		panic(err)
+	}
+	x.json.init(b.Bytes())
+}
+
+func (x *C.v23_syncbase_Permissions) toPermissions() access.Permissions {
+	b := x.json.toBytes()
+	if len(b) == 0 {
+		return nil
+	}
+	perms, err := access.ReadPermissions(bytes.NewReader(b))
+	if err != nil {
+		panic(err)
+	}
+	return perms
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_String
+
+func (x *C.v23_syncbase_String) init(s string) {
+	x.n = C.int(len(s))
+	x.p = C.CString(s)
+}
+
+func (x *C.v23_syncbase_String) toString() string {
+	if x.p == nil {
+		return ""
+	}
+	defer C.free(unsafe.Pointer(x.p))
+	return C.GoStringN(x.p, x.n)
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_Strings
+
+func (x *C.v23_syncbase_Strings) at(i int) *C.v23_syncbase_String {
+	return (*C.v23_syncbase_String)(unsafe.Pointer(uintptr(unsafe.Pointer(x.p)) + uintptr(C.size_t(i)*C.sizeof_v23_syncbase_String)))
+}
+
+func (x *C.v23_syncbase_Strings) init(strs []string) {
+	x.n = C.int(len(strs))
+	x.p = (*C.v23_syncbase_String)(C.malloc(C.size_t(x.n) * C.sizeof_v23_syncbase_String))
+	for i, v := range strs {
+		x.at(i).init(v)
+	}
+}
+
+func (x *C.v23_syncbase_Strings) toStrings() []string {
+	if x.p == nil {
+		return nil
+	}
+	defer C.free(unsafe.Pointer(x.p))
+	res := make([]string, x.n)
+	for i := 0; i < int(x.n); i++ {
+		res[i] = x.at(i).toString()
+	}
+	return res
 }
 
 ////////////////////////////////////////////////////////////
@@ -329,4 +304,47 @@ func (x *C.v23_syncbase_SyncgroupMemberInfoMap) init(members map[string]wire.Syn
 		cv.init(v)
 		i++
 	}
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_VError
+
+func (x *C.v23_syncbase_VError) init(err error) {
+	if err == nil {
+		return
+	}
+	x.id.init(string(verror.ErrorID(err)))
+	x.actionCode = C.uint(verror.Action(err))
+	x.msg.init(err.Error())
+	x.stack.init(verror.Stack(err).String())
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_WatchChange
+
+func (x *C.v23_syncbase_WatchChange) init(wc syncbase.WatchChange) error {
+	x.collection.init(wc.Collection)
+	x.row.init(wc.Row)
+	x.changeType = C.v23_syncbase_ChangeType(wc.ChangeType)
+	var value []byte
+	if wc.ChangeType != syncbase.DeleteChange {
+		var valueAsRawBytes vom.RawBytes
+		var err error
+		if err = wc.Value(&valueAsRawBytes); err != nil {
+			return err
+		}
+		if clientUnderstandsVOM {
+			value, err = vom.Encode(valueAsRawBytes)
+		} else {
+			err = valueAsRawBytes.ToValue(&value)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	x.value.init(value)
+	x.resumeMarker.init(string(wc.ResumeMarker))
+	x.fromSync = C.bool(wc.FromSync)
+	x.continued = C.bool(wc.Continued)
+	return nil
 }
