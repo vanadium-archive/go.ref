@@ -6,6 +6,8 @@ package leveldb
 
 import (
 	"testing"
+
+	"v.io/x/ref/lib/stats"
 )
 
 var (
@@ -53,6 +55,20 @@ func BenchmarkStats_FileSystemBytes_LotsOfData(b *testing.B) {
 
 }
 
+func BenchmarkStats_FileSystemBytesViaStats_LotsOfData(b *testing.B) {
+	bs, cleanup := newBatchStore()
+	defer cleanup()
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
+	write100MB(bs)
+	b.ResetTimer() // Ignore timing of init stuff above.
+
+	for i := 0; i < b.N; i++ {
+		fileBytes, _ := stats.GetStatsObject(
+			bs.statsPrefix + "/filesystem_bytes")
+		accumulate += int(fileBytes.Value().(int64))
+	}
+}
+
 func BenchmarkStats_FileCount_NoData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
@@ -91,7 +107,21 @@ func BenchmarkStats_FileCount_LotsOfData(b *testing.B) {
 
 }
 
-func BenchmarkStats_Stats_NoData(b *testing.B) {
+func BenchmarkStats_FileCountViaStats_LotsOfData(b *testing.B) {
+	bs, cleanup := newBatchStore()
+	defer cleanup()
+	defer b.StopTimer() // Called before cleanup() to avoid timing it.
+	write100MB(bs)
+	b.ResetTimer() // Ignore timing of init stuff above.
+
+	for i := 0; i < b.N; i++ {
+		fileCount, _ := stats.GetStatsObject(
+			bs.statsPrefix + "/file_count")
+		accumulate += int(fileCount.Value().(int64))
+	}
+}
+
+func BenchmarkStats_LevelInfo_NoData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
 	defer b.StopTimer() // Called before cleanup() to avoid timing it.
@@ -99,13 +129,13 @@ func BenchmarkStats_Stats_NoData(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		var c, s, r, w []int
-		c, s, r, w, err = bs.stats()
+		c, s, r, w, err = bs.levelInfo()
 		accumulate += len(c) + len(s) + len(r) + len(w)
 	}
 
 }
 
-func BenchmarkStats_Stats_SomeData(b *testing.B) {
+func BenchmarkStats_LevelInfo_SomeData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
 	defer b.StopTimer() // Called before cleanup() to avoid timing it.
@@ -114,13 +144,13 @@ func BenchmarkStats_Stats_SomeData(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		var c, s, r, w []int
-		c, s, r, w, err = bs.stats()
+		c, s, r, w, err = bs.levelInfo()
 		accumulate += len(c) + len(s) + len(r) + len(w)
 	}
 
 }
 
-func BenchmarkStats_Stats_LotsOfData(b *testing.B) {
+func BenchmarkStats_LevelInfo_LotsOfData(b *testing.B) {
 	bs, cleanup := newBatchStore()
 	defer cleanup()
 	defer b.StopTimer() // Called before cleanup() to avoid timing it.
@@ -129,7 +159,7 @@ func BenchmarkStats_Stats_LotsOfData(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		var c, s, r, w []int
-		c, s, r, w, err = bs.stats()
+		c, s, r, w, err = bs.levelInfo()
 		accumulate += c[0] + s[0] + r[0] + w[0]
 	}
 

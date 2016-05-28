@@ -274,6 +274,7 @@ func (s *service) AddNames(ctx *context.T, svr rpc.Server) error {
 func (s *service) Close() {
 	s.vclockD.Close()
 	vsync.Close(s.sync)
+	s.st.Close()
 }
 
 ////////////////////////////////////////

@@ -11,12 +11,18 @@ package leveldb
 // #include "syncbase_leveldb.h"
 import "C"
 import (
+	"encoding/base64"
 	"fmt"
+	"hash/fnv"
+	"regexp"
 	"strings"
 	"sync"
 	"unsafe"
 
+	"v.io/v23/naming"
 	"v.io/v23/verror"
+	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/transactions"
 )
@@ -32,6 +38,7 @@ type db struct {
 	readOptions  *C.leveldb_readoptions_t
 	writeOptions *C.leveldb_writeoptions_t
 	err          error
+	statsPrefix  string
 }
 
 const defaultMaxOpenFiles = 100
@@ -43,12 +50,30 @@ type OpenOptions struct {
 }
 
 // Open opens the database located at the given path.
+//
+// This adds the following four stats for a syncbase service:
+//   syncbase/leveldb/service/{hash}/file_count
+//   syncbase/leveldb/service/{hash}/filesystem_bytes
+//   syncbase/leveldb/blobmap/{hash}/file_count
+//   syncbase/leveldb/blobmap/{hash}/filesystem_bytes
+// and the following two stats metrics per database:
+//   syncbase/leveldb/db/{blessing}/{DB-name}/{hash}/file_count
+//   syncbase/leveldb/db/{blessing}/{DB-name}/{hash}/filesystem_bytes
+// where {hash} is a hash of the file path of the store.
 func Open(path string, opts OpenOptions) (store.Store, error) {
 	bs, err := openBatchStore(path, opts)
 	if err != nil {
 		return nil, err
 	}
 	return transactions.Wrap(bs), nil
+}
+
+// addStatCallback creates a stats object and returns its key
+func addStatCallback(prefix string, metric string, callback func() int64) string {
+	statsKey := naming.Join(prefix, metric)
+	stats.NewIntegerFunc(statsKey, callback)
+	vlog.VI(1).Infof("Adding stats call at %q", statsKey)
+	return statsKey
 }
 
 // openBatchStore opens the non-transactional leveldb database that supports
@@ -87,18 +112,28 @@ func openBatchStore(path string, opts OpenOptions) (*db, error) {
 	}
 	readOptions := C.leveldb_readoptions_create()
 	C.leveldb_readoptions_set_verify_checksums(readOptions, 1)
-	return &db{
+
+	d := &db{
 		node:         store.NewResourceNode(),
 		cDb:          cDb,
 		readOptions:  readOptions,
 		writeOptions: C.leveldb_writeoptions_create(),
-	}, nil
+		statsPrefix:  statsPrefixFromPath(path),
+	}
+
+	addStatCallback(d.statsPrefix, "file_count", func() int64 { return int64(d.fileCount()) })
+	addStatCallback(d.statsPrefix, "filesystem_bytes", func() int64 { return int64(d.filesystemBytes()) })
+
+	return d, nil
 }
 
 // Close implements the store.Store interface.
 func (d *db) Close() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if err := stats.Delete(d.statsPrefix); err != nil {
+		vlog.Errorf("Problem deleting stats %q: %v", d.statsPrefix, err)
+	}
 	if d.err != nil {
 		return store.ConvertError(d.err)
 	}
@@ -217,10 +252,10 @@ func (d *db) property(propName string) string {
 	return C.GoString(value)
 }
 
-// stats returns per-level statistics as a set of parallel slices of the same
-// length.  For small databases this call is about 2X slower than a Get; for
-// large databases it is about one order of magnitude faster than a Get.
-func (d *db) stats() (fileCounts, fileMBs, readMBs, writeMBs []int, err error) {
+// levelInfo returns per-level statistics as a set of parallel slices of the
+// same length.  For small databases this call is about 2X slower than a Get;
+// for large databases it is about one order of magnitude faster than a Get.
+func (d *db) levelInfo() (fileCounts, fileMBs, readMBs, writeMBs []int, err error) {
 	// It's unfortunate that LevelDB only provides the stats in a formatted
 	// string, so we have to parse them out.
 	text := d.property("leveldb.stats")
@@ -266,4 +301,68 @@ func (d *db) stats() (fileCounts, fileMBs, readMBs, writeMBs []int, err error) {
 // performance of a Get on a small database.
 func (d *db) fileCount() int {
 	return int(C.syncbase_leveldb_file_count(d.cDb))
+}
+
+// statsPrefixFromPath transforms a leveldb file path into a string that is more
+// convenient as a stats key in the following ways:
+//
+// * it is shorter, filtering out long hex strings and redundant fixed strings
+//
+// * it is easy to query using the stats glob API, always starting with
+// "syncbase/leveldb/{storeType}", where store type is one of {"service",
+// "blobmap", "db", "test", "other"}
+//
+// * it preserves human-readable database name, blessing, and syncbase service
+// IDs if they appear in the file path.
+//
+// * it is unique to a service instance with high probability, by including a
+// short hash of the path
+func statsPrefixFromPath(path string) string {
+	return naming.Join("syncbase", "leveldb", applyRules(path), hash(path))
+}
+
+func applyRules(path string) string {
+	for _, rule := range rules {
+		if rule.from.MatchString(path) {
+			return rule.from.ReplaceAllString(path, rule.to)
+		}
+	}
+	return fmt.Sprintf("other/%s", defaultRuleDelete.ReplaceAllString(path, ""))
+}
+
+var rules = []struct {
+	from *regexp.Regexp
+	to   string
+}{
+	// From v.io/x/ref/services/syncbase/server.rootDirForDb
+	{regexp.MustCompile(
+		`.*/apps/(.+)\-[0-9a-f]+/dbs/(.+)\-[0-9a-f]+\-[0-9a-f]+/leveldb$`),
+		"db/$1/$2"},
+
+	// From v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore.Create
+	{regexp.MustCompile(
+		`.*/blobs/chunk$`),
+		"blobmap"},
+
+	// From v.io/x/ref/services/syncbase/server.NewService
+	{regexp.MustCompile(
+		`.*/leveldb$`),
+		"service"},
+
+	// From v.io/x/ref/services/syncbase/store/leveldb.newBatchStore
+	{regexp.MustCompile(
+		`.*/syncbase_leveldb[0-9]+$`),
+		"test"},
+}
+
+// Used only if none of the above rules match
+var defaultRuleDelete = regexp.MustCompile(`(/tmp|/leveldb|-[0-9a-f]{30,})`)
+
+// hash returns a hash string of s.  A small 32-bit non-crypto hash is good
+// enough, as it is just a fallback for the unlikely case we get a collision in
+// the filtered pathname.
+func hash(s string) string {
+	h := fnv.New32()
+	h.Write([]byte(s))
+	return base64.RawURLEncoding.EncodeToString(h.Sum([]byte{}))
 }
