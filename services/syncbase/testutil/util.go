@@ -24,6 +24,9 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
+	idiscovery "v.io/x/ref/lib/discovery"
+	fdiscovery "v.io/x/ref/lib/discovery/factory"
+	"v.io/x/ref/lib/discovery/plugins/mock"
 	"v.io/x/ref/services/syncbase/server"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/test"
@@ -96,6 +99,8 @@ func SetupOrDie(perms access.Permissions) (clientCtx *context.T, serverName stri
 // TODO(sadovsky): Switch unit tests to v23test.Shell, then delete this.
 func SetupOrDieCustom(clientSuffix, serverSuffix string, perms access.Permissions) (ctx, clientCtx *context.T, serverName string, rootp security.Principal, cleanup func()) {
 	ctx, shutdown := test.V23Init()
+	df, _ := idiscovery.NewFactory(ctx, mock.New())
+	fdiscovery.InjectFactory(df)
 	rootp = tsecurity.NewPrincipal("root")
 	clientCtx, serverCtx := NewCtx(ctx, rootp, clientSuffix), NewCtx(ctx, rootp, serverSuffix)
 
@@ -276,11 +281,10 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 	}
 	serverCtx, cancel := context.WithCancel(serverCtx)
 	service, err := server.NewService(serverCtx, server.ServiceOptions{
-		Perms:           perms,
-		RootDir:         rootDir,
-		Engine:          store.EngineForTest,
-		DevMode:         true,
-		SkipPublishInNh: true,
+		Perms:   perms,
+		RootDir: rootDir,
+		Engine:  store.EngineForTest,
+		DevMode: true,
 	})
 	if err != nil {
 		vlog.Fatal("server.NewService() failed: ", err)
@@ -289,6 +293,7 @@ func newServer(serverCtx *context.T, perms access.Permissions) (string, func()) 
 	if err != nil {
 		vlog.Fatal("v23.WithNewDispatchingServer() failed: ", err)
 	}
+	service.AddNames(serverCtx, s)
 	name := s.Status().Endpoints[0].Name()
 	return name, func() {
 		cancel()

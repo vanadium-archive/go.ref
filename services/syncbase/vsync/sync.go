@@ -24,7 +24,9 @@ import (
 	"v.io/v23/discovery"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/syncbase"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	idiscovery "v.io/x/ref/lib/discovery"
@@ -90,8 +92,9 @@ type syncService struct {
 
 	// Cancel functions for contexts derived from the root context when
 	// advertising over neighborhood. This is needed to stop advertising.
-	cancelAdvSyncbase   context.CancelFunc             // cancels Syncbase advertising.
-	cancelAdvSyncgroups map[wire.Id]context.CancelFunc // cancels syncgroup advertising.
+	cancelAdvSyncbase context.CancelFunc                            // cancels Syncbase advertising.
+	advSyncgroups     map[interfaces.GroupId]syncAdvertisementState // describes syncgroup advertising.
+	advLock           sync.Mutex
 
 	// Whether to enable neighborhood advertising.
 	publishInNh bool
@@ -131,6 +134,13 @@ type syncDatabase struct {
 	sync interfaces.SyncServerMethods
 }
 
+// syncAdvertisementState contains information about the most recent
+// advertisement for each advertised syncgroup.
+type syncAdvertisementState struct {
+	cancel      context.CancelFunc // cancels advertising.
+	specVersion string             // version of most recently advertised spec.
+}
+
 var (
 	ifName                              = interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name
 	_      interfaces.SyncServerMethods = (*syncService)(nil)
@@ -148,20 +158,20 @@ var (
 // that the syncer can pick from. In addition, the sync module responds to
 // incoming RPCs from remote sync modules and local clients.
 func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string, cl *vclock.VClock, publishInNh bool) (*syncService, error) {
-	discovery, err := v23.NewDiscovery(v23.WithListenSpec(ctx, rpc.ListenSpec{}))
+	discovery, err := syncbase.NewDiscovery(v23.WithListenSpec(ctx, rpc.ListenSpec{}))
 	if err != nil {
 		return nil, err
 	}
 	s := &syncService{
-		sv:                  sv,
-		batches:             make(batchSet),
-		sgPublishQueue:      list.New(),
-		vclock:              cl,
-		ctx:                 ctx,
-		rng:                 rand.New(rand.NewSource(time.Now().UTC().UnixNano())),
-		discovery:           discovery,
-		publishInNh:         publishInNh,
-		cancelAdvSyncgroups: make(map[wire.Id]context.CancelFunc),
+		sv:             sv,
+		batches:        make(batchSet),
+		sgPublishQueue: list.New(),
+		vclock:         cl,
+		ctx:            ctx,
+		rng:            rand.New(rand.NewSource(time.Now().UTC().UnixNano())),
+		discovery:      discovery,
+		publishInNh:    publishInNh,
+		advSyncgroups:  make(map[interfaces.GroupId]syncAdvertisementState),
 	}
 
 	data := &SyncData{}
@@ -302,7 +312,7 @@ func (s *syncService) updateDiscoveryInfo(id string, ad *discovery.Advertisement
 	}
 
 	// handle peers
-	if peer, ok := attrs[discoveryAttrPeer]; ok {
+	if peer, ok := attrs[wire.DiscoveryAttrPeer]; ok {
 		// The attribute value is the Syncbase peer name.
 		if ad != nil {
 			s.discoveryPeers[peer] = ad
@@ -312,10 +322,10 @@ func (s *syncService) updateDiscoveryInfo(id string, ad *discovery.Advertisement
 	}
 
 	// handle syngroups
-	if sgName, ok := attrs[discoveryAttrSyncgroupName]; ok {
+	if sgName, ok := attrs[wire.DiscoveryAttrSyncgroupName]; ok {
 		// The attribute value is the syncgroup name.
-		dbId := wire.Id{Name: attrs[discoveryAttrDatabaseName], Blessing: attrs[discoveryAttrDatabaseBlessing]}
-		sgId := wire.Id{Name: sgName, Blessing: attrs[discoveryAttrSyncgroupBlessing]}
+		dbId := wire.Id{Name: attrs[wire.DiscoveryAttrDatabaseName], Blessing: attrs[wire.DiscoveryAttrDatabaseBlessing]}
+		sgId := wire.Id{Name: sgName, Blessing: attrs[wire.DiscoveryAttrSyncgroupBlessing]}
 		gid := SgIdToGid(dbId, sgId)
 		admins := s.discoverySyncgroups[gid]
 		if ad != nil {
@@ -453,6 +463,8 @@ func (s *syncService) advertiseSyncbaseInNeighborhood() error {
 	vlog.VI(4).Infof("sync: advertiseSyncbaseInNeighborhood: begin")
 	defer vlog.VI(4).Infof("sync: advertiseSyncbaseInNeighborhood: end")
 
+	s.advLock.Lock()
+	defer s.advLock.Unlock()
 	// Syncbase is already being advertised.
 	if s.cancelAdvSyncbase != nil {
 		return nil
@@ -461,7 +473,7 @@ func (s *syncService) advertiseSyncbaseInNeighborhood() error {
 	sbService := discovery.Advertisement{
 		InterfaceName: ifName,
 		Attributes: discovery.Attributes{
-			discoveryAttrPeer: s.name,
+			wire.DiscoveryAttrPeer: s.name,
 		},
 	}
 
@@ -487,41 +499,62 @@ func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup)
 	if !s.publishInNh {
 		return nil
 	}
-
 	vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: begin")
 	defer vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: end")
 
-	if !syncgroupAdmin(s.ctx, sg.Spec.Perms) {
-		if cancel := s.cancelAdvSyncgroups[sg.Id]; cancel != nil {
-			cancel()
-			delete(s.cancelAdvSyncgroups, sg.Id)
-		}
-		return nil
+	s.advLock.Lock()
+	defer s.advLock.Unlock()
+
+	// Refresh the sg spec before advertising.  This prevents trampling
+	// when concurrent spec updates apply transactions in one ordering,
+	// but advertise in another.
+	gid := SgIdToGid(sg.DbId, sg.Id)
+	st, err := s.getDbStore(s.ctx, nil, sg.DbId)
+	if err != nil {
+		return err
+	}
+	sg, err = getSyncgroupByGid(s.ctx, st, gid)
+	if err != nil {
+		return err
 	}
 
-	// Syncgroup is already being advertised.
-	if s.cancelAdvSyncgroups[sg.Id] != nil {
+	if state, advertising := s.advSyncgroups[gid]; advertising {
+		// The spec hasn't changed since the last advertisement.
+		if sg.SpecVersion == state.specVersion {
+			return nil
+		}
+		state.cancel()
+		delete(s.advSyncgroups, gid)
+	}
+
+	// We only advertise if potential members could join by contacting us.
+	// For that reason we only advertise if we are an admin.
+	if !syncgroupAdmin(s.ctx, sg.Spec.Perms) {
 		return nil
 	}
 
 	sbService := discovery.Advertisement{
 		InterfaceName: ifName,
 		Attributes: discovery.Attributes{
-			discoveryAttrDatabaseName:      sg.DbId.Name,
-			discoveryAttrDatabaseBlessing:  sg.DbId.Blessing,
-			discoveryAttrSyncgroupName:     sg.Id.Name,
-			discoveryAttrSyncgroupBlessing: sg.Id.Blessing,
+			wire.DiscoveryAttrDatabaseName:      sg.DbId.Name,
+			wire.DiscoveryAttrDatabaseBlessing:  sg.DbId.Blessing,
+			wire.DiscoveryAttrSyncgroupName:     sg.Id.Name,
+			wire.DiscoveryAttrSyncgroupBlessing: sg.Id.Blessing,
 		},
 	}
 	ctx, stop := context.WithCancel(s.ctx)
 
 	vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: advertising %v", sbService)
 
-	// Note that duplicate calls to advertise will return an error.
-	_, err := idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, nil)
+	// TODO(mattr): Unfortunately, discovery visibility isn't as powerful
+	// as an ACL.  There's no way to represent the NotIn list.  For now
+	// if you match the In list you can see the advertisement, though you
+	// might not be able to join.
+	visibility := sg.Spec.Perms[string(access.Read)].In
+	_, err = idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, visibility)
 	if err == nil {
 		vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: successful")
-		s.cancelAdvSyncgroups[sg.Id] = stop
+		s.advSyncgroups[gid] = syncAdvertisementState{cancel: stop, specVersion: sg.SpecVersion}
 		return nil
 	}
 	stop()

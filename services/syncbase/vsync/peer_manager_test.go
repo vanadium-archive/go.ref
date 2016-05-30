@@ -59,11 +59,11 @@ func TestPeerManager(t *testing.T) {
 
 	// Add a few peers to simulate neighborhood.
 	s.updateDiscoveryInfo("a", &discovery.Advertisement{
-		Attributes: discovery.Attributes{discoveryAttrPeer: "a"},
+		Attributes: discovery.Attributes{wire.DiscoveryAttrPeer: "a"},
 		Addresses:  []string{"aa", "aaa"},
 	})
 	s.updateDiscoveryInfo("b", &discovery.Advertisement{
-		Attributes: discovery.Attributes{discoveryAttrPeer: "b"},
+		Attributes: discovery.Attributes{wire.DiscoveryAttrPeer: "b"},
 		Addresses:  []string{"bb", "bbb"},
 	})
 

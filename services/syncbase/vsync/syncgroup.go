@@ -963,6 +963,7 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 	ss := sd.sync.(*syncService)
 	dbId := sd.db.Id()
 	gid := SgIdToGid(dbId, sgId)
+	var sg *interfaces.Syncgroup
 
 	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Check permissions on Database.
@@ -970,7 +971,8 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 			return err
 		}
 
-		sg, err := getSyncgroupByGid(ctx, tx, gid)
+		var err error
+		sg, err = getSyncgroupByGid(ctx, tx, gid)
 		if err != nil {
 			return err
 		}
@@ -1017,7 +1019,9 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 	if err != nil {
 		return err
 	}
-
+	if err = ss.advertiseSyncgroupInNeighborhood(sg); err != nil {
+		return err
+	}
 	return ss.checkptSgLocalGen(ctx, dbId, gid)
 }
 
@@ -1235,9 +1239,8 @@ func (s *syncService) advertiseSyncbase(ctx *context.T, call rpc.ServerCall, sg 
 		// continue when members are online despite these errors.
 		vlog.Errorf("sync: advertiseSyncbaseInNeighborhood: failed with err %v", err)
 	}
-
 	// TODO(hpucha): In case of a joiner, this can be optimized such that we
-	// don't advertise until the syncgroup is in pending state.
+	// don't advertise until the syncgroup is out of the pending state.
 	if err := s.advertiseSyncgroupInNeighborhood(sg); err != nil {
 		// We ignore errors on neighborhood advertising since sync when
 		// members are online can continue despite these errors.

@@ -38,11 +38,11 @@ func TestPeerDiscovery(t *testing.T) {
 
 	// Add peer neighbors.
 	svcA := &discovery.Advertisement{
-		Attributes: discovery.Attributes{discoveryAttrPeer: "a"},
+		Attributes: discovery.Attributes{wire.DiscoveryAttrPeer: "a"},
 		Addresses:  []string{"aa", "aaa"},
 	}
 	svcB := &discovery.Advertisement{
-		Attributes: discovery.Attributes{discoveryAttrPeer: "b"},
+		Attributes: discovery.Attributes{wire.DiscoveryAttrPeer: "b"},
 		Addresses:  []string{"bb", "bbb"},
 	}
 
@@ -96,26 +96,26 @@ func TestSyncgroupDiscovery(t *testing.T) {
 	// Add syncgroup admin neighbors.
 	svcA := &discovery.Advertisement{
 		Attributes: discovery.Attributes{
-			discoveryAttrDatabaseName:      "dfoo",
-			discoveryAttrDatabaseBlessing:  "dblessing",
-			discoveryAttrSyncgroupName:     "foo",
-			discoveryAttrSyncgroupBlessing: "blessing"},
+			wire.DiscoveryAttrDatabaseName:      "dfoo",
+			wire.DiscoveryAttrDatabaseBlessing:  "dblessing",
+			wire.DiscoveryAttrSyncgroupName:     "foo",
+			wire.DiscoveryAttrSyncgroupBlessing: "blessing"},
 		Addresses: []string{"aa", "aaa"},
 	}
 	svcB := &discovery.Advertisement{
 		Attributes: discovery.Attributes{
-			discoveryAttrDatabaseName:      "dfoo",
-			discoveryAttrDatabaseBlessing:  "dblessing",
-			discoveryAttrSyncgroupName:     "foo",
-			discoveryAttrSyncgroupBlessing: "blessing"},
+			wire.DiscoveryAttrDatabaseName:      "dfoo",
+			wire.DiscoveryAttrDatabaseBlessing:  "dblessing",
+			wire.DiscoveryAttrSyncgroupName:     "foo",
+			wire.DiscoveryAttrSyncgroupBlessing: "blessing"},
 		Addresses: []string{"bb", "bbb"},
 	}
 	svcC := &discovery.Advertisement{
 		Attributes: discovery.Attributes{
-			discoveryAttrDatabaseName:      "dbar",
-			discoveryAttrDatabaseBlessing:  "dblessing",
-			discoveryAttrSyncgroupName:     "bar",
-			discoveryAttrSyncgroupBlessing: "blessing"},
+			wire.DiscoveryAttrDatabaseName:      "dbar",
+			wire.DiscoveryAttrDatabaseBlessing:  "dblessing",
+			wire.DiscoveryAttrSyncgroupName:     "bar",
+			wire.DiscoveryAttrSyncgroupBlessing: "blessing"},
 		Addresses: []string{"cc", "ccc"},
 	}
 

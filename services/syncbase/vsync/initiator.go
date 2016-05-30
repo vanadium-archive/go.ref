@@ -781,8 +781,9 @@ func (iSt *initiationState) processUpdatedObjects(ctx *context.T) error {
 				vlog.Fatalf("sync: processUpdatedObjects: putting geninfo in memory failed for db %v, err %v", iSt.config.dbId, err)
 			}
 
-			// Ignore errors.
-			iSt.advertiseSyncgroups(ctx)
+			// There is no need to wait for the new advertisement to finish so
+			// we just run it asynchronously in its own goroutine.
+			go iSt.advertiseSyncgroups(ctx)
 
 			vlog.VI(4).Info("sync: processUpdatedObjects: end: changes committed")
 			return nil

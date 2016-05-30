@@ -22,11 +22,4 @@ const (
 	// <logPrefix>:<sgoid> records (for syncgroup metadata), where <logDataPrefix>
 	// is defined below, and <sgoid> is <sgDataPrefix>:<GroupId>.
 	logDataPrefix = "d"
-
-	// Types of discovery service attributes.
-	discoveryAttrPeer              = "p"
-	discoveryAttrSyncgroupName     = "s"
-	discoveryAttrSyncgroupBlessing = "sb"
-	discoveryAttrDatabaseName      = "d"
-	discoveryAttrDatabaseBlessing  = "db"
 )
