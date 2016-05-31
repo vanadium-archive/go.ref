@@ -400,6 +400,7 @@ func vkube(args ...string) ([]byte, error) {
 	args = append(
 		[]string{
 			"--config=" + vkubeCfgFlag,
+			"--kubectl=" + kubectlBinFlag,
 			"--no-headers",
 		},
 		args...,

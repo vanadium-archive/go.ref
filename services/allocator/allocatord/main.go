@@ -10,6 +10,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os/exec"
 	"strings"
 
 	"v.io/v23"
@@ -34,6 +35,7 @@ var (
 	maxInstancesPerUserFlag int
 	diskSizeFlag            string
 	gcloudBinFlag           string
+	kubectlBinFlag          string
 	vkubeBinFlag            string
 	vkubeCfgFlag            string
 	clusterAgentFlag        string
@@ -62,6 +64,9 @@ const (
 	serverNameFlagName     = "server-name"
 	serverNameRootFlagName = "server-name-root"
 	oauthCredsFileFlagName = "oauth-client-creds-file"
+	gcloudFlagName         = "gcloud"
+	kubectlFlagName        = "kubectl"
+	vkubeFlagName          = "vkube"
 )
 
 func main() {
@@ -73,8 +78,9 @@ func main() {
 	cmdRoot.Flags.IntVar(&maxInstancesFlag, "max-instances", 10, "The maximum total number of server instances to create.")
 	cmdRoot.Flags.IntVar(&maxInstancesPerUserFlag, "max-instances-per-user", 1, "The maximum number of server instances to create per user.")
 	cmdRoot.Flags.StringVar(&diskSizeFlag, "server-disk-size", "50GB", "The size of the persistent disk to allocate with the servers.")
-	cmdRoot.Flags.StringVar(&gcloudBinFlag, "gcloud", "gcloud", "The gcloud binary to use.")
-	cmdRoot.Flags.StringVar(&vkubeBinFlag, "vkube", "vkube", "The vkube binary to use.")
+	cmdRoot.Flags.StringVar(&gcloudBinFlag, gcloudFlagName, "gcloud", "The gcloud binary to use.")
+	cmdRoot.Flags.StringVar(&kubectlBinFlag, kubectlFlagName, "kubectl", "The kubectl binary to use.")
+	cmdRoot.Flags.StringVar(&vkubeBinFlag, vkubeFlagName, "vkube", "The vkube binary to use.")
 	cmdRoot.Flags.StringVar(&vkubeCfgFlag, "vkube-cfg", "vkube.cfg", "The vkube.cfg to use.")
 	cmdRoot.Flags.StringVar(&clusterAgentFlag, "cluster-agent", "", "The address of the cluster-agent.")
 	cmdRoot.Flags.StringVar(&blessingSecretFlag, "blessings-secret-file", "", "If set, this file contains the secret to present to the cluster-agent to get the base blessings for the allocated servers.")
@@ -91,14 +97,21 @@ func main() {
 	cmdline.Main(cmdRoot)
 }
 
-func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
-	if len(serverNameFlag) > 30 {
-		// The names in Kubernetes have to be 63 characters or less. We
-		// use <server-name>-<md5> as name, where "-<md5>" is 33 chars.
-		return env.UsageErrorf("--%s value too long. Must be <= 30 characters", serverNameFlagName)
-	}
+func checkFlags(ctx *context.T, env *cmdline.Env) error {
 	if nameRoot(ctx) == "" {
 		return env.UsageErrorf("--%s not specified, and no default namespace root found", serverNameRootFlagName)
+	}
+	for f, b := range map[string]string{gcloudFlagName: gcloudBinFlag, kubectlFlagName: kubectlBinFlag, vkubeFlagName: vkubeBinFlag} {
+		if _, err := exec.LookPath(b); err != nil {
+			return env.UsageErrorf("--%s binary %s not found: %v", f, b, err)
+		}
+	}
+	return nil
+}
+
+func runAllocator(ctx *context.T, env *cmdline.Env, args []string) error {
+	if err := checkFlags(ctx, env); err != nil {
+		return err
 	}
 
 	var (

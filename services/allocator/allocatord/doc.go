@@ -38,6 +38,8 @@ The allocatord flags are:
  -http-addr=
    Address on which the HTTP server listens on.  If empty, no HTTP server is
    started.
+ -kubectl=kubectl
+   The kubectl binary to use.
  -max-instances=10
    The maximum total number of server instances to create.
  -max-instances-per-user=1
