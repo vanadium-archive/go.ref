@@ -160,13 +160,13 @@ func validateCSRF(ctx *context.T, req *http.Request, baker cookieBaker, csrfToke
 	return cookieToken == csrfCookieValue && cookieCSRFToken == csrfToken
 }
 
-func requireSession(ctx *context.T, oauthCfg *oauth2.Config, baker cookieBaker, w http.ResponseWriter, r *http.Request, mutating bool) (string, string, error) {
+func checkSession(baker cookieBaker, r *http.Request, mutating bool) (string, string, error) {
 	email, csrfToken, err := baker.get(r, cookieName)
 	switch {
 	case err == nil && email != "" && email != csrfCookieValue:
 		// The user is already logged in.
 		if mutating && r.FormValue(paramCSRF) != csrfToken {
-			ctx.Info("Re-authenticating. Bad CSRF token for mutating request.")
+			return "", "", errors.New("bad CSRF token for mutating request")
 		} else {
 			return email, csrfToken, nil
 		}
@@ -180,14 +180,20 @@ func requireSession(ctx *context.T, oauthCfg *oauth2.Config, baker cookieBaker, 
 		// request's CSRF token will no longer match on the retry).
 		return "", "", errOauthInProgress
 	case err == nil:
-		// Proceed with the oauth flow.
-		ctx.Infof("Authenticating. Missing email cookie.")
-	case err != nil:
-		// Proceed with the oauth flow.
-		ctx.Infof("Re-authenticating. Bad email cookie: %v", err)
+		return "", "", errors.New("missing cookie")
+	default:
+		return "", "", fmt.Errorf("bad cookie: %v", err)
 	}
-	// Do the oauth.
-	csrfToken = generateCSRFToken(ctx)
+}
+
+func requireSession(ctx *context.T, oauthCfg *oauth2.Config, baker cookieBaker, w http.ResponseWriter, r *http.Request, mutating bool) (string, string, error) {
+	if email, csrfToken, err := checkSession(baker, r, mutating); err == nil || err == errOauthInProgress {
+		return email, csrfToken, err
+	} else {
+		ctx.Infof("Re-authenticating: %v", err)
+	}
+	// Proceed with the oauth flow.
+	csrfToken := generateCSRFToken(ctx)
 	if csrfToken == "" {
 		return "", "", errors.New("failed to generate CSRF token")
 	}

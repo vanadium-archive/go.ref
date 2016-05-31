@@ -124,15 +124,16 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 	// handlers, any re-authentication should result in redirection to the
 	// home page (to foil CSRF attacks that trick the user into launching
 	// actions with consequences).
-	newHandler := func(f handlerFunc, mutating bool) *handler {
+	newHandler := func(f handlerFunc, mutating, forceLogin bool) *handler {
 		return &handler{
 			ss: &serverState{
 				ctx:  ctx,
 				args: args,
 			},
-			baker:    baker,
-			f:        f,
-			mutating: mutating,
+			baker:      baker,
+			f:          f,
+			mutating:   mutating,
+			forceLogin: forceLogin,
 		}
 	}
 
@@ -153,19 +154,19 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 			ctx.Infof("%s[%s] : error %v", r.Method, r.URL, err)
 		}
 	})
-	http.Handle(routeHome, newHandler(handleHome, false))
-	http.Handle(routeCreate, newHandler(handleCreate, true))
-	http.Handle(routeDashboard, newHandler(handleDashboard, false))
+	http.Handle(routeHome, newHandler(handleHome, false, true))
+	http.Handle(routeCreate, newHandler(handleCreate, true, true))
+	http.Handle(routeDashboard, newHandler(handleDashboard, false, true))
 	http.Handle(routeDebug+"/", newHandler(
 		func(ss *serverState, rs *requestState) error {
 			return handleDebug(ss, rs, debugBrowserServeMux)
-		}, false))
-	http.Handle(routeDestroy, newHandler(handleDestroy, true))
+		}, false, true))
+	http.Handle(routeDestroy, newHandler(handleDestroy, true, true))
 	http.HandleFunc(routeOauth, func(w http.ResponseWriter, r *http.Request) {
 		handleOauth(ctx, args, baker, w, r)
 	})
 	http.Handle(routeStatic, http.StripPrefix(routeStatic, args.assets))
-	http.Handle(routeStats, newHandler(handleStats, false))
+	http.Handle(routeStats, newHandler(handleStats, false, false))
 	http.HandleFunc(routeHealth, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
@@ -204,27 +205,39 @@ type handlerFunc func(ss *serverState, rs *requestState) error
 // Vanadium context, configuration args, and user's email address (performing
 // the oauth flow if the user is not logged in yet).
 type handler struct {
-	ss       *serverState
-	baker    cookieBaker
-	f        handlerFunc
-	mutating bool
+	ss         *serverState
+	baker      cookieBaker
+	f          handlerFunc
+	mutating   bool
+	forceLogin bool
 }
 
-// ServeHTTP verifies that the user is logged in, and redirects to the oauth
-// flow if not.  If the user is logged in, it extracts the email address from
-// the cookie and passes it to the handler function.
+// ServeHTTP verifies that the user is logged in.  If the user is logged in, it
+// extracts the email address from the cookie and passes it to the handler
+// function.  If the user is not logged in, and forceLogin is true, it redirects
+// to the oauth flow; otherwise, it leaves the email field blank when invoking
+// the handler function.
 func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := h.ss.ctx
-	oauthCfg := oauthConfig(h.ss.args.externalURL, h.ss.args.oauthCreds)
-	email, csrfToken, err := requireSession(ctx, oauthCfg, h.baker, w, r, h.mutating)
-	if err != nil {
-		h.ss.args.assets.errorOccurred(ctx, w, r, routeHome, err)
-		ctx.Infof("%s[%s] : error %v", r.Method, r.URL, err)
-		return
-	}
-	if email == "" {
-		ctx.Infof("%s[%s] -> login", r.Method, r.URL)
-		return
+	var (
+		email, csrfToken, sessionBlurb string
+		err                            error
+	)
+	if !h.forceLogin {
+		if email, csrfToken, err = checkSession(h.baker, r, h.mutating); err != nil {
+			sessionBlurb = fmt.Sprintf("no session (%v)", err)
+		}
+	} else {
+		oauthCfg := oauthConfig(h.ss.args.externalURL, h.ss.args.oauthCreds)
+		if email, csrfToken, err = requireSession(ctx, oauthCfg, h.baker, w, r, h.mutating); err != nil {
+			h.ss.args.assets.errorOccurred(ctx, w, r, routeHome, err)
+			ctx.Infof("%s[%s] : error %v", r.Method, r.URL, err)
+			return
+		}
+		if email == "" {
+			ctx.Infof("%s[%s] -> login", r.Method, r.URL)
+			return
+		}
 	}
 	rs := &requestState{
 		email:     email,
@@ -234,8 +247,8 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.f(h.ss, rs); err != nil {
 		h.ss.args.assets.errorOccurred(ctx, w, r, routeHome, err)
-		ctx.Infof("%s[%s] : error %v", r.Method, r.URL, err)
+		ctx.Infof("%s[%s] %s : error %v", r.Method, r.URL, sessionBlurb, err)
 		return
 	}
-	ctx.Infof("%s[%s] : OK", r.Method, r.URL)
+	ctx.Infof("%s[%s] %s : OK", r.Method, r.URL, sessionBlurb)
 }

@@ -51,6 +51,8 @@ type statsResult struct {
 
 	MinTime int64
 	MaxTime int64
+
+	NotLoggedIn bool
 }
 
 func handleDashboard(ss *serverState, rs *requestState) error {
@@ -78,10 +80,31 @@ func handleDashboard(ss *serverState, rs *requestState) error {
 	return nil
 }
 
+// TODO(jingjin): Returning an error from handleStats will cause an error page
+// to be rendered, which is not what we want when we consume the HTTP response
+// via Ajax.
+
 // handleStats responds to /stats request. It retrieves time series data
 // for the given syncbase instance from GCM.
 func handleStats(ss *serverState, rs *requestState) error {
 	ctx := ss.ctx
+
+	var result statsResult
+	writeResult := func() error {
+		// Convert result to json and return it.
+		b, err := json.MarshalIndent(&result, "", "  ")
+		if err != nil {
+			return err
+		}
+		rs.w.Header().Set("Content-Type", "application/json")
+		rs.w.Write(b)
+		return nil
+	}
+
+	if rs.email == "" {
+		result.NotLoggedIn = true
+		return writeResult()
+	}
 
 	mountedName := rs.r.FormValue(paramDashboardName)
 	if mountedName == "" {
@@ -157,7 +180,6 @@ func handleStats(ss *serverState, rs *requestState) error {
 	}
 
 	// Process data and put it into statsResult.
-	result := statsResult{}
 	minTime := int64(math.MaxInt64)
 	maxTime := int64(0)
 	for metricName, pts := range tsMap {
@@ -188,15 +210,7 @@ func handleStats(ss *serverState, rs *requestState) error {
 	result.MinTime = minTime
 	result.MaxTime = maxTime
 
-	// Convert result to json and return it.
-	b, err := json.MarshalIndent(&result, "", "  ")
-	if err != nil {
-		return err
-	}
-	rs.w.Header().Set("Content-Type", "application/json")
-	rs.w.Write(b)
-
-	return nil
+	return writeResult()
 }
 
 func getAlignmentPeriodInSeconds(duration time.Duration) int {
