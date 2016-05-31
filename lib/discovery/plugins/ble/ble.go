@@ -49,7 +49,7 @@ func (p *plugin) Advertise(ctx *context.T, adinfo *idiscovery.AdInfo, done func(
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscovery.AdInfo, done func()) error {
+func (p *plugin) Scan(ctx *context.T, interfaceName string, callback func(*idiscovery.AdInfo), done func()) error {
 	go func() {
 		defer done()
 
@@ -91,11 +91,7 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscover
 					seenMu.Unlock()
 				}
 				copied := *adinfo
-				select {
-				case ch <- &copied:
-				case <-ctx.Done():
-					return
-				}
+				callback(&copied)
 			case <-ctx.Done():
 				return
 			}

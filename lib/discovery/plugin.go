@@ -25,16 +25,16 @@ type Plugin interface {
 	Advertise(ctx *context.T, adinfo *AdInfo, done func()) error
 
 	// Scan scans advertisements that match the interface name and returns scanned
-	// advertisements to the channel.
+	// advertisements via the callback.
 	//
 	// An empty interface name means any advertisements.
 	//
-	// Advertisements that are returned through the channel can be changed.
-	// The plugin should not reuse the returned advertisement.
+	// The callback takes ownership of the provided AdInfo, and the plugin
+	// should not use the advertisement after invoking the callback.
 	//
 	// Scanning should continue until the context is canceled or exceeds its
 	// deadline. done should be called once when scanning is done or canceled.
-	Scan(ctx *context.T, interfaceName string, ch chan<- *AdInfo, done func()) error
+	Scan(ctx *context.T, interfaceName string, callback func(*AdInfo), done func()) error
 
 	// Close closes the plugin.
 	//

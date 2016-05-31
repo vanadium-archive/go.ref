@@ -445,6 +445,7 @@ var (
 	ErrBadQuery               = verror.Register("v.io/x/ref/lib/discovery.BadQuery", verror.NoRetry, "{1:}{2:} invalid query: {3}")
 	ErrDiscoveryClosed        = verror.Register("v.io/x/ref/lib/discovery.DiscoveryClosed", verror.NoRetry, "{1:}{2:} discovery closed")
 	ErrNoDiscoveryPlugin      = verror.Register("v.io/x/ref/lib/discovery.NoDiscoveryPlugin", verror.NoRetry, "{1:}{2:} no discovery plugin")
+	ErrTooManyPlugins         = verror.Register("v.io/x/ref/lib/discovery.TooManyPlugins", verror.NoRetry, "{1:}{2:} too many plugins ({3}), support at most {4}")
 )
 
 // NewErrAdvertisementNotFound returns an error with the ErrAdvertisementNotFound ID.
@@ -475,6 +476,11 @@ func NewErrDiscoveryClosed(ctx *context.T) error {
 // NewErrNoDiscoveryPlugin returns an error with the ErrNoDiscoveryPlugin ID.
 func NewErrNoDiscoveryPlugin(ctx *context.T) error {
 	return verror.New(ErrNoDiscoveryPlugin, ctx)
+}
+
+// NewErrTooManyPlugins returns an error with the ErrTooManyPlugins ID.
+func NewErrTooManyPlugins(ctx *context.T, actual int32, limit int32) error {
+	return verror.New(ErrTooManyPlugins, ctx, actual, limit)
 }
 
 //////////////////////////////////////////////////
@@ -683,6 +689,7 @@ func __VDLInit() struct{} {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrBadQuery.ID), "{1:}{2:} invalid query: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrDiscoveryClosed.ID), "{1:}{2:} discovery closed")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoDiscoveryPlugin.ID), "{1:}{2:} no discovery plugin")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrTooManyPlugins.ID), "{1:}{2:} too many plugins ({3}), support at most {4}")
 
 	return struct{}{}
 }

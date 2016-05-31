@@ -122,7 +122,7 @@ func (p *plugin) Advertise(ctx *context.T, adinfo *idiscovery.AdInfo, done func(
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscovery.AdInfo, done func()) error {
+func (p *plugin) Scan(ctx *context.T, interfaceName string, callback func(*idiscovery.AdInfo), done func()) error {
 	var serviceName string
 	if len(interfaceName) == 0 {
 		serviceName = v23ServiceName
@@ -155,11 +155,7 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscover
 				ctx.Error(err)
 				continue
 			}
-			select {
-			case ch <- adinfo:
-			case <-ctx.Done():
-				return
-			}
+			callback(adinfo)
 		}
 	}()
 	return nil

@@ -100,6 +100,11 @@ func newDiscovery(ctx *context.T, plugins []Plugin) (*idiscovery, error) {
 	if len(plugins) == 0 {
 		return nil, NewErrNoDiscoveryPlugin(ctx)
 	}
+	if actual, limit := int32(len(plugins)), int32(32); actual > limit {
+		// Because adref used in scan.go uses a 32-bit bitmap to
+		// associate ads with the plugin that found them.
+		return nil, NewErrTooManyPlugins(ctx, actual, limit)
+	}
 	statsMu.Lock()
 	statsPrefix := naming.Join("discovery", fmt.Sprint(statsIdx))
 	statsIdx++

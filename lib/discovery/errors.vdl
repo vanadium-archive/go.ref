@@ -32,4 +32,8 @@ error (
 	NoDiscoveryPlugin() {
 		"en": "no discovery plugin",
 	}
+
+	TooManyPlugins(actual, limit int32) {
+		"en": "too many plugins ({actual}), support at most {limit}",
+	}
 )

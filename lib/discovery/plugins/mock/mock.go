@@ -34,7 +34,7 @@ func (p *plugin) Advertise(ctx *context.T, adinfo *idiscovery.AdInfo, done func(
 	return nil
 }
 
-func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscovery.AdInfo, done func()) error {
+func (p *plugin) Scan(ctx *context.T, interfaceName string, callback func(*idiscovery.AdInfo), done func()) error {
 	rescan := make(chan struct{})
 	go func() {
 		defer close(rescan)
@@ -89,11 +89,7 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, ch chan<- *idiscover
 
 			// Push new changes.
 			for i := range changed {
-				select {
-				case ch <- &changed[i]:
-				case <-ctx.Done():
-					return
-				}
+				callback(&changed[i])
 			}
 
 			seen = current

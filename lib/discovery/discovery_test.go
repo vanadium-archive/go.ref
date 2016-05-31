@@ -6,6 +6,7 @@ package discovery_test
 
 import (
 	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -263,6 +264,99 @@ func TestMerge(t *testing.T) {
 	case update = <-scanCh:
 		t.Errorf("unexpected scan: %v", update)
 	case <-time.After(5 * time.Millisecond):
+	}
+
+	// Lost in both, should see a lost event once.
+	p1.UnregisterAd(&newAdinfo)
+	p2.UnregisterAd(&newAdinfo)
+	update = <-scanCh
+	if !testutil.MatchLost(ctx, []discovery.Update{update}, newAdinfo.Ad) {
+		t.Errorf("unexpected scan: %v", update)
+	}
+	select {
+	case update = <-scanCh:
+		t.Errorf("unexpected scan: %v", update)
+	case <-time.After(5 * time.Millisecond):
+	}
+}
+
+func TestLostInOneButNotAllPlugins(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	p1, p2 := mock.New(), mock.New()
+	df, _ := idiscovery.NewFactory(ctx, p1, p2)
+	defer df.Shutdown()
+
+	ad := idiscovery.AdInfo{
+		Ad: discovery.Advertisement{
+			Id:            discovery.AdId{1, 2, 3},
+			InterfaceName: "v.io/v23/a",
+			Addresses:     []string{"/h1:123/x"},
+		},
+		Hash:        idiscovery.AdHash{1, 2, 3},
+		TimestampNs: time.Now().UnixNano(),
+	}
+
+	olderAd := ad
+	olderAd.TimestampNs -= 1000000000
+	olderAd.Hash = idiscovery.AdHash{4, 5, 6}
+
+	newerAd := ad
+	newerAd.TimestampNs += 1000000000
+	newerAd.Hash = idiscovery.AdHash{7, 8, 9}
+
+	d, _ := df.New(ctx)
+	scanCh, scanStop, err := testutil.Scan(ctx, d, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer scanStop()
+
+	noevent := func() error {
+		select {
+		case update := <-scanCh:
+			return fmt.Errorf("unexpected scan: %v", update)
+		case <-time.After(5 * time.Millisecond):
+			return nil
+		}
+	}
+
+	p1.RegisterAd(&ad)
+	if update := <-scanCh; !testutil.MatchFound(ctx, []discovery.Update{update}, ad.Ad) {
+		t.Errorf("unexpected scan: %v", update)
+	}
+	// p2 sees the same ad, but no event should be delivered.
+	p2.RegisterAd(&ad)
+	if err := noevent(); err != nil {
+		t.Error(err)
+	}
+
+	// And if p1 loses ad, but p2 doesn't, then nothing should be delivered.
+	p1.UnregisterAd(&ad)
+	if err := noevent(); err != nil {
+		t.Error(err)
+	}
+
+	// An older ad should be ignored
+	p1.RegisterAd(&olderAd)
+	if err := noevent(); err != nil {
+		t.Error(err)
+	}
+
+	// But a newer one should be seen as a LOST + FOUND
+	p2.RegisterAd(&newerAd)
+	if update := <-scanCh; !testutil.MatchLost(ctx, []discovery.Update{update}, ad.Ad) {
+		t.Errorf("unexpected: %v", update)
+	}
+	if update := <-scanCh; !testutil.MatchFound(ctx, []discovery.Update{update}, newerAd.Ad) {
+		t.Errorf("unexpected: %v", update)
+	}
+
+	// Newer ad lost by p2 and never seen by p1, should be lost
+	p2.UnregisterAd(&newerAd)
+	if update := <-scanCh; !testutil.MatchLost(ctx, []discovery.Update{update}, ad.Ad) {
+		t.Errorf("unexpected: %v", update)
 	}
 }
 

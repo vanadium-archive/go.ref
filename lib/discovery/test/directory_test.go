@@ -153,7 +153,7 @@ func TestDirectoryRoaming(t *testing.T) {
 	}
 
 	updateCh := make(chan *idiscovery.AdInfo)
-	if err = mockPlugin.Scan(ctx, "", updateCh, func() {}); err != nil {
+	if err = mockPlugin.Scan(ctx, "", func(ad *idiscovery.AdInfo) { updateCh <- ad }, func() {}); err != nil {
 		t.Fatal(err)
 	}
 	<-updateCh

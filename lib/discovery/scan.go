@@ -12,6 +12,11 @@ import (
 	"v.io/v23/discovery"
 )
 
+type scanChanElem struct {
+	src uint // index into idiscovery.plugins
+	val *AdInfo
+}
+
 func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-chan discovery.Update, error) {
 	// TODO(jhahn): Consider to use multiple target services so that the plugins
 	// can filter advertisements more efficiently if possible.
@@ -26,7 +31,7 @@ func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-ch
 	}
 
 	// TODO(jhahn): Revisit the buffer size.
-	scanCh := make(chan *AdInfo, 10)
+	scanCh := make(chan scanChanElem, 10)
 	updateCh := make(chan discovery.Update, 10)
 
 	barrier := NewBarrier(func() {
@@ -34,8 +39,15 @@ func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-ch
 		close(updateCh)
 		d.removeTask(ctx)
 	})
-	for _, plugin := range d.plugins {
-		if err := plugin.Scan(ctx, matcher.TargetInterfaceName(), scanCh, barrier.Add()); err != nil {
+	for idx, plugin := range d.plugins {
+		p := uint(idx) // https://golang.org/doc/faq#closures_and_goroutines
+		callback := func(ad *AdInfo) {
+			select {
+			case scanCh <- scanChanElem{p, ad}:
+			case <-ctx.Done():
+			}
+		}
+		if err := plugin.Scan(ctx, matcher.TargetInterfaceName(), callback, barrier.Add()); err != nil {
 			cancel()
 			return nil, err
 		}
@@ -44,12 +56,36 @@ func (d *idiscovery) scan(ctx *context.T, session sessionId, query string) (<-ch
 	return updateCh, nil
 }
 
-func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher Matcher, scanCh chan *AdInfo, updateCh chan<- discovery.Update, done func()) {
+type adref struct {
+	adinfo *AdInfo
+	refs   uint32 // Bitmap of plugin indices that saw the ad
+}
+
+func (a *adref) set(plugin uint) {
+	mask := uint32(1) << plugin
+	a.refs = a.refs | mask
+}
+
+func (a *adref) unset(plugin uint) bool {
+	mask := uint32(1) << plugin
+	a.refs = a.refs & (^mask)
+	return a.refs == 0
+}
+
+func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher Matcher, scanCh chan scanChanElem, updateCh chan<- discovery.Update, done func()) {
 	// Some plugins may not return a full advertisement information when it is lost.
 	// So we keep the advertisements that we've seen so that we can provide the
 	// full advertisement information when it is lost. Note that plugins will not
 	// include attachments unless they're tiny enough.
-	seen := make(map[discovery.AdId]*AdInfo)
+	seen := make(map[discovery.AdId]*adref)
+	send := func(u discovery.Update) bool {
+		select {
+		case updateCh <- u:
+			return true
+		case <-ctx.Done():
+			return false
+		}
+	}
 
 	var wg sync.WaitGroup
 	defer func() {
@@ -59,37 +95,52 @@ func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher Matcher, 
 
 	for {
 		select {
-		case adinfo := <-scanCh:
-			if !adinfo.Lost {
-				// Filter out advertisements from the same session.
-				if d.getAdSession(adinfo.Ad.Id) == session {
+		case <-ctx.Done():
+			return
+		case e := <-scanCh:
+			plugin, adinfo := e.src, e.val
+			id := adinfo.Ad.Id
+			prev := seen[adinfo.Ad.Id]
+			if adinfo.Lost {
+				// A 'Lost' advertisement may not have complete
+				// information.  Send the lost notification on
+				// updateCh only if a found event was
+				// previously sent, and all plugins that found
+				// it have lost it.
+				if prev == nil || !prev.unset(plugin) {
 					continue
 				}
-				// Filter out already seen advertisements.
-				if prev := seen[adinfo.Ad.Id]; prev != nil && prev.Status == AdReady && prev.Hash == adinfo.Hash {
-					continue
-				}
-
-				if adinfo.Status == AdReady {
-					// Clear the unnecessary directory addresses.
-					adinfo.DirAddrs = nil
-				} else {
-					if len(adinfo.DirAddrs) == 0 {
-						ctx.Errorf("no directory address available for partial advertisement %v - ignored", adinfo.Ad.Id)
-						continue
-					}
-
-					// Fetch not-ready-to-serve advertisements from the directory server.
-					if adinfo.Status == AdNotReady {
-						wg.Add(1)
-						go fetchAd(ctx, adinfo.DirAddrs, adinfo.Ad.Id, scanCh, wg.Done)
-						continue
-					}
-
-					// Sort the directory addresses to make it easy to compare.
-					sort.Strings(adinfo.DirAddrs)
+				delete(seen, id)
+				prev.adinfo.Lost = true
+				if !send(NewUpdate(prev.adinfo)) {
+					return
 				}
 			}
+			if d.getAdSession(id) == session {
+				// Ignore advertisements made within the same session.
+				continue
+			}
+			if prev != nil && prev.adinfo.Hash == adinfo.Hash {
+				prev.set(plugin)
+				if prev.adinfo.Status == AdReady {
+					continue
+				}
+			}
+			if adinfo.Status == AdReady {
+				// Clear the unnecessary directory addresses.
+				adinfo.DirAddrs = nil
+			} else if len(adinfo.DirAddrs) == 0 {
+				ctx.Errorf("no directory address available for partial advertisement %v - ignored", id)
+				continue
+			} else if adinfo.Status == AdNotReady {
+				// Fetch not-ready-to-serve advertisements from the directory server.
+				wg.Add(1)
+				go fetchAd(ctx, adinfo.DirAddrs, id, plugin, scanCh, wg.Done)
+				continue
+			}
+
+			// Sort the directory addresses to make it easy to compare.
+			sort.Strings(adinfo.DirAddrs)
 
 			if err := decrypt(ctx, adinfo); err != nil {
 				// Couldn't decrypt it. Ignore it.
@@ -99,34 +150,43 @@ func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher Matcher, 
 				continue
 			}
 
-			// Note that 'Lost' advertisement may not have full information. Thus we do not match
-			// the query against it. newUpdates() will ignore it if it has not been scanned.
-			if !adinfo.Lost {
-				matched, err := matcher.Match(&adinfo.Ad)
-				if err != nil {
-					ctx.Error(err)
-					continue
-				}
-				if !matched {
-					continue
-				}
+			if matched, err := matcher.Match(&adinfo.Ad); err != nil {
+				ctx.Error(err)
+				continue
+			} else if !matched {
+				continue
 			}
 
-			for _, update := range newUpdates(seen, adinfo) {
-				select {
-				case updateCh <- update:
-				case <-ctx.Done():
+			if prev == nil {
+				// Never seen before
+				ref := &adref{adinfo: adinfo}
+				ref.set(plugin)
+				seen[id] = ref
+				if !send(NewUpdate(adinfo)) {
+					return
+				}
+				continue
+			}
+			if prev.adinfo.TimestampNs > adinfo.TimestampNs {
+				// Ignore old ad.
+				continue
+			}
+			// TODO(jhahn): Compare proximity as well
+			if prev.adinfo.Hash != adinfo.Hash || (prev.adinfo.Status != AdReady && !sortedStringsEqual(prev.adinfo.DirAddrs, adinfo.DirAddrs)) {
+				// Changed contents of a previously seen ad. Treat it like a newly seen ad.
+				ref := &adref{adinfo: adinfo}
+				ref.set(plugin)
+				seen[id] = ref
+				prev.adinfo.Lost = true
+				if !send(NewUpdate(prev.adinfo)) || !send(NewUpdate(adinfo)) {
 					return
 				}
 			}
-
-		case <-ctx.Done():
-			return
 		}
 	}
 }
 
-func fetchAd(ctx *context.T, dirAddrs []string, id discovery.AdId, scanCh chan<- *AdInfo, done func()) {
+func fetchAd(ctx *context.T, dirAddrs []string, id discovery.AdId, plugin uint, scanCh chan<- scanChanElem, done func()) {
 	defer done()
 
 	dir := newDirClient(dirAddrs)
@@ -140,38 +200,7 @@ func fetchAd(ctx *context.T, dirAddrs []string, id discovery.AdId, scanCh chan<-
 		return
 	}
 	select {
-	case scanCh <- adinfo:
+	case scanCh <- scanChanElem{plugin, adinfo}:
 	case <-ctx.Done():
 	}
-}
-
-func newUpdates(seen map[discovery.AdId]*AdInfo, adinfo *AdInfo) []discovery.Update {
-	var updates []discovery.Update
-	// The multiple plugins may return the same advertisements. We ignores the update
-	// if it has been already sent through the update channel.
-	prev := seen[adinfo.Ad.Id]
-	if adinfo.Lost {
-		// TODO(jhahn): If some plugins return 'Lost' events for an advertisement update, we may
-		// generates multiple 'Lost' and 'Found' events for the same update. In order to minimize
-		// this flakiness, we may need to delay the handling of 'Lost'.
-		if prev != nil {
-			delete(seen, prev.Ad.Id)
-			prev.Lost = true
-			updates = []discovery.Update{NewUpdate(prev)}
-		}
-	} else {
-		// TODO(jhahn): Need to compare the proximity as well.
-		switch {
-		case prev == nil:
-			updates = []discovery.Update{NewUpdate(adinfo)}
-			seen[adinfo.Ad.Id] = adinfo
-		case prev.TimestampNs > adinfo.TimestampNs:
-			// Ignore the old advertisement.
-		case prev.Hash != adinfo.Hash || (prev.Status != AdReady && !sortedStringsEqual(prev.DirAddrs, adinfo.DirAddrs)):
-			prev.Lost = true
-			updates = []discovery.Update{NewUpdate(prev), NewUpdate(adinfo)}
-			seen[adinfo.Ad.Id] = adinfo
-		}
-	}
-	return updates
 }

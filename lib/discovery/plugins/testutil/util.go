@@ -35,9 +35,10 @@ func Advertise(ctx *context.T, p idiscovery.Plugin, adinfos ...*idiscovery.AdInf
 func Scan(ctx *context.T, p idiscovery.Plugin, interfaceName string) (<-chan *idiscovery.AdInfo, func(), error) {
 	ctx, cancel := context.WithCancel(ctx)
 	scanCh := make(chan *idiscovery.AdInfo)
+	callback := func(ad *idiscovery.AdInfo) { scanCh <- ad }
 	var wg sync.WaitGroup
 	wg.Add(1)
-	if err := p.Scan(ctx, interfaceName, scanCh, wg.Done); err != nil {
+	if err := p.Scan(ctx, interfaceName, callback, wg.Done); err != nil {
 		return nil, nil, fmt.Errorf("Scan failed: %v", err)
 	}
 	stop := func() {
