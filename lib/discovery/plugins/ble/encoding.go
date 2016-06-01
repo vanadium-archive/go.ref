@@ -213,7 +213,7 @@ func decodeAdInfo(encoded []byte) (*idiscovery.AdInfo, error) {
 	adinfo.Status = idiscovery.AdStatus(readInt())
 
 	if err != nil {
-		adinfo = nil
+		return nil, err
 	}
 	return adinfo, nil
 }
