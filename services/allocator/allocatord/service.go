@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -396,7 +397,7 @@ func gcloud(args ...string) ([]byte, error) {
 	return exec.Command(gcloudBinFlag, args...).CombinedOutput()
 }
 
-func vkube(args ...string) ([]byte, error) {
+func vkube(args ...string) (out []byte, err error) {
 	args = append(
 		[]string{
 			"--config=" + vkubeCfgFlag,
@@ -405,5 +406,9 @@ func vkube(args ...string) ([]byte, error) {
 		},
 		args...,
 	)
-	return exec.Command(vkubeBinFlag, args...).CombinedOutput()
+	out, err = exec.Command(vkubeBinFlag, args...).CombinedOutput()
+	if err != nil {
+		err = fmt.Errorf("vkube(%v) failed: %v\n%s\n", args, err, string(out))
+	}
+	return
 }
