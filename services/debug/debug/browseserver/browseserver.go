@@ -313,7 +313,11 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				q.Set("s", children[0])
 				redirect.RawQuery = q.Encode()
 				ctx.Infof("Redirecting from %v to %v", r.URL, redirect)
-				http.Redirect(w, r, fmt.Sprintf("%s/%s", h.urlPrefix, redirect.String()), http.StatusTemporaryRedirect)
+				redirectString := redirect.String()
+				if h.urlPrefix != "" {
+					redirectString = fmt.Sprintf("%s/%s", h.urlPrefix, redirectString)
+				}
+				http.Redirect(w, r, redirectString, http.StatusTemporaryRedirect)
 				return
 			}
 		}
