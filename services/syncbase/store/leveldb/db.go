@@ -41,7 +41,7 @@ type db struct {
 	statsPrefix  string
 }
 
-const defaultMaxOpenFiles = 100
+const defaultMaxOpenFiles = 1000
 
 type OpenOptions struct {
 	CreateIfMissing bool
