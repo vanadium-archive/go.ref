@@ -86,7 +86,7 @@ func v23_syncbase_Init(cClientUnderstandVom C.v23_syncbase_Bool) {
 	ctx, _ := v23.Init()
 	srv, disp, _ := syncbaselib.Serve(ctx, syncbaselib.Opts{})
 	b = bridge.NewBridge(ctx, srv, disp)
-	clientUnderstandsVOM = cClientUnderstandVom.toBool()
+	clientUnderstandsVOM = cClientUnderstandVom.extract()
 }
 
 ////////////////////////////////////////
@@ -94,7 +94,7 @@ func v23_syncbase_Init(cClientUnderstandVom C.v23_syncbase_Bool) {
 
 //export v23_syncbase_Login
 func v23_syncbase_Login(cOAuthProvider C.v23_syncbase_String, cOAuthToken C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	cErr.init(bridge.SetBlessings(b.Ctx, cOAuthProvider.toString(), cOAuthToken.toString()))
+	cErr.init(bridge.SetBlessings(b.Ctx, cOAuthProvider.extract(), cOAuthToken.extract()))
 }
 
 ////////////////////////////////////////
@@ -175,8 +175,8 @@ func v23_syncbase_ServiceGetPermissions(cPerms *C.v23_syncbase_Permissions, cVer
 
 //export v23_syncbase_ServiceSetPermissions
 func v23_syncbase_ServiceSetPermissions(cPerms C.v23_syncbase_Permissions, cVersion C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	perms := cPerms.toPermissions()
-	version := cVersion.toString()
+	perms := cPerms.extract()
+	version := cVersion.extract()
 	ctx, call := b.NewCtxCall("", bridge.MethodDesc(permissions.ObjectDesc, "SetPermissions"))
 	stub, err := b.GetService(ctx, call)
 	if err != nil {
@@ -197,8 +197,8 @@ func v23_syncbase_ServiceListDatabases(cIds *C.v23_syncbase_Ids, cErr *C.v23_syn
 
 //export v23_syncbase_DbCreate
 func v23_syncbase_DbCreate(cName C.v23_syncbase_String, cPerms C.v23_syncbase_Permissions, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	perms := cPerms.toPermissions()
+	name := cName.extract()
+	perms := cPerms.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Create"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -210,7 +210,7 @@ func v23_syncbase_DbCreate(cName C.v23_syncbase_String, cPerms C.v23_syncbase_Pe
 
 //export v23_syncbase_DbDestroy
 func v23_syncbase_DbDestroy(cName C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
+	name := cName.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Destroy"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -222,7 +222,7 @@ func v23_syncbase_DbDestroy(cName C.v23_syncbase_String, cErr *C.v23_syncbase_VE
 
 //export v23_syncbase_DbExists
 func v23_syncbase_DbExists(cName C.v23_syncbase_String, cExists *C.v23_syncbase_Bool, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
+	name := cName.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Exists"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -239,8 +239,8 @@ func v23_syncbase_DbExists(cName C.v23_syncbase_String, cExists *C.v23_syncbase_
 
 //export v23_syncbase_DbListCollections
 func v23_syncbase_DbListCollections(cName, cBatchHandle C.v23_syncbase_String, cIds *C.v23_syncbase_Ids, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "ListCollections"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -257,8 +257,8 @@ func v23_syncbase_DbListCollections(cName, cBatchHandle C.v23_syncbase_String, c
 
 //export v23_syncbase_DbBeginBatch
 func v23_syncbase_DbBeginBatch(cName C.v23_syncbase_String, cOpts C.v23_syncbase_BatchOptions, cBatchHandle *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	opts := cOpts.toBatchOptions()
+	name := cName.extract()
+	opts := cOpts.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "BeginBatch"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -275,8 +275,8 @@ func v23_syncbase_DbBeginBatch(cName C.v23_syncbase_String, cOpts C.v23_syncbase
 
 //export v23_syncbase_DbCommit
 func v23_syncbase_DbCommit(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Commit"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -288,8 +288,8 @@ func v23_syncbase_DbCommit(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v2
 
 //export v23_syncbase_DbAbort
 func v23_syncbase_DbAbort(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Abort"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -301,7 +301,7 @@ func v23_syncbase_DbAbort(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v23
 
 //export v23_syncbase_DbGetPermissions
 func v23_syncbase_DbGetPermissions(cName C.v23_syncbase_String, cPerms *C.v23_syncbase_Permissions, cVersion *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
+	name := cName.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(permissions.ObjectDesc, "GetPermissions"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -319,9 +319,9 @@ func v23_syncbase_DbGetPermissions(cName C.v23_syncbase_String, cPerms *C.v23_sy
 
 //export v23_syncbase_DbSetPermissions
 func v23_syncbase_DbSetPermissions(cName C.v23_syncbase_String, cPerms C.v23_syncbase_Permissions, cVersion C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	perms := cPerms.toPermissions()
-	version := cVersion.toString()
+	name := cName.extract()
+	perms := cPerms.extract()
+	version := cVersion.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(permissions.ObjectDesc, "SetPermissions"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -333,8 +333,8 @@ func v23_syncbase_DbSetPermissions(cName C.v23_syncbase_String, cPerms C.v23_syn
 
 //export v23_syncbase_DbGetResumeMarker
 func v23_syncbase_DbGetResumeMarker(cName, cBatchHandle C.v23_syncbase_String, cMarker *C.v23_syncbase_Bytes, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseWatcherDesc, "GetResumeMarker"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -376,9 +376,9 @@ var _ rpc.Stream = (*watchStreamImpl)(nil)
 
 //export v23_syncbase_DbWatchPatterns
 func v23_syncbase_DbWatchPatterns(cName, cResumeMarker C.v23_syncbase_String, cPatterns C.v23_syncbase_CollectionRowPatterns, cbs C.v23_syncbase_DbWatchPatternsCallbacks, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	resumeMarker := watch.ResumeMarker(cResumeMarker.toString())
-	patterns := cPatterns.toCollectionRowPatterns()
+	name := cName.extract()
+	resumeMarker := watch.ResumeMarker(cResumeMarker.extract())
+	patterns := cPatterns.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseWatcherDesc, "WatchPatterns"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -409,7 +409,7 @@ func v23_syncbase_DbWatchPatterns(cName, cResumeMarker C.v23_syncbase_String, cP
 
 //export v23_syncbase_DbListSyncgroups
 func v23_syncbase_DbListSyncgroups(cName C.v23_syncbase_String, cIds *C.v23_syncbase_Ids, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
+	name := cName.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "ListSyncgroups"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -426,7 +426,7 @@ func v23_syncbase_DbListSyncgroups(cName C.v23_syncbase_String, cIds *C.v23_sync
 
 //export v23_syncbase_DbCreateSyncgroup
 func v23_syncbase_DbCreateSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cSpec C.v23_syncbase_SyncgroupSpec, cMyInfo C.v23_syncbase_SyncgroupMemberInfo, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
+	name := cName.extract()
 	sgId := cSgId.toId()
 	spec := cSpec.toSyncgroupSpec()
 	myInfo := cMyInfo.toSyncgroupMemberInfo()
@@ -441,9 +441,9 @@ func v23_syncbase_DbCreateSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syn
 
 //export v23_syncbase_DbJoinSyncgroup
 func v23_syncbase_DbJoinSyncgroup(cName, cRemoteSyncbaseName C.v23_syncbase_String, cExpectedSyncbaseBlessings C.v23_syncbase_Strings, cSgId C.v23_syncbase_Id, cMyInfo C.v23_syncbase_SyncgroupMemberInfo, cSpec *C.v23_syncbase_SyncgroupSpec, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	remoteSyncbaseName := cRemoteSyncbaseName.toString()
-	expectedSyncbaseBlessings := cExpectedSyncbaseBlessings.toStrings()
+	name := cName.extract()
+	remoteSyncbaseName := cRemoteSyncbaseName.extract()
+	expectedSyncbaseBlessings := cExpectedSyncbaseBlessings.extract()
 	sgId := cSgId.toId()
 	myInfo := cMyInfo.toSyncgroupMemberInfo()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "JoinSyncgroup"))
@@ -462,7 +462,7 @@ func v23_syncbase_DbJoinSyncgroup(cName, cRemoteSyncbaseName C.v23_syncbase_Stri
 
 //export v23_syncbase_DbLeaveSyncgroup
 func v23_syncbase_DbLeaveSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
+	name := cName.extract()
 	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "LeaveSyncgroup"))
 	stub, err := b.GetDb(ctx, call, name)
@@ -475,7 +475,7 @@ func v23_syncbase_DbLeaveSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_sync
 
 //export v23_syncbase_DbDestroySyncgroup
 func v23_syncbase_DbDestroySyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
+	name := cName.extract()
 	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "DestroySyncgroup"))
 	stub, err := b.GetDb(ctx, call, name)
@@ -488,9 +488,9 @@ func v23_syncbase_DbDestroySyncgroup(cName C.v23_syncbase_String, cSgId C.v23_sy
 
 //export v23_syncbase_DbEjectFromSyncgroup
 func v23_syncbase_DbEjectFromSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cMember C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
+	name := cName.extract()
 	sgId := cSgId.toId()
-	member := cMember.toString()
+	member := cMember.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "EjectFromSyncgroup"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -502,7 +502,7 @@ func v23_syncbase_DbEjectFromSyncgroup(cName C.v23_syncbase_String, cSgId C.v23_
 
 //export v23_syncbase_DbGetSyncgroupSpec
 func v23_syncbase_DbGetSyncgroupSpec(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cSpec *C.v23_syncbase_SyncgroupSpec, cVersion *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
+	name := cName.extract()
 	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupSpec"))
 	stub, err := b.GetDb(ctx, call, name)
@@ -521,10 +521,10 @@ func v23_syncbase_DbGetSyncgroupSpec(cName C.v23_syncbase_String, cSgId C.v23_sy
 
 //export v23_syncbase_DbSetSyncgroupSpec
 func v23_syncbase_DbSetSyncgroupSpec(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cSpec C.v23_syncbase_SyncgroupSpec, cVersion C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
+	name := cName.extract()
 	sgId := cSgId.toId()
 	spec := cSpec.toSyncgroupSpec()
-	version := cVersion.toString()
+	version := cVersion.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "SetSyncgroupSpec"))
 	stub, err := b.GetDb(ctx, call, name)
 	if err != nil {
@@ -536,7 +536,7 @@ func v23_syncbase_DbSetSyncgroupSpec(cName C.v23_syncbase_String, cSgId C.v23_sy
 
 //export v23_syncbase_DbGetSyncgroupMembers
 func v23_syncbase_DbGetSyncgroupMembers(cName C.v23_syncbase_String, cSgId C.v23_syncbase_Id, cMembers *C.v23_syncbase_SyncgroupMemberInfoMap, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
+	name := cName.extract()
 	sgId := cSgId.toId()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.SyncgroupManagerDesc, "GetSyncgroupMembers"))
 	stub, err := b.GetDb(ctx, call, name)
@@ -557,9 +557,9 @@ func v23_syncbase_DbGetSyncgroupMembers(cName C.v23_syncbase_String, cSgId C.v23
 
 //export v23_syncbase_CollectionCreate
 func v23_syncbase_CollectionCreate(cName, cBatchHandle C.v23_syncbase_String, cPerms C.v23_syncbase_Permissions, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
-	perms := cPerms.toPermissions()
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
+	perms := cPerms.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Create"))
 	stub, err := b.GetCollection(ctx, call, name)
 	if err != nil {
@@ -571,8 +571,8 @@ func v23_syncbase_CollectionCreate(cName, cBatchHandle C.v23_syncbase_String, cP
 
 //export v23_syncbase_CollectionDestroy
 func v23_syncbase_CollectionDestroy(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Destroy"))
 	stub, err := b.GetCollection(ctx, call, name)
 	if err != nil {
@@ -584,8 +584,8 @@ func v23_syncbase_CollectionDestroy(cName, cBatchHandle C.v23_syncbase_String, c
 
 //export v23_syncbase_CollectionExists
 func v23_syncbase_CollectionExists(cName, cBatchHandle C.v23_syncbase_String, cExists *C.v23_syncbase_Bool, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Exists"))
 	stub, err := b.GetCollection(ctx, call, name)
 	if err != nil {
@@ -602,8 +602,8 @@ func v23_syncbase_CollectionExists(cName, cBatchHandle C.v23_syncbase_String, cE
 
 //export v23_syncbase_CollectionGetPermissions
 func v23_syncbase_CollectionGetPermissions(cName, cBatchHandle C.v23_syncbase_String, cPerms *C.v23_syncbase_Permissions, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "GetPermissions"))
 	stub, err := b.GetCollection(ctx, call, name)
 	if err != nil {
@@ -620,9 +620,9 @@ func v23_syncbase_CollectionGetPermissions(cName, cBatchHandle C.v23_syncbase_St
 
 //export v23_syncbase_CollectionSetPermissions
 func v23_syncbase_CollectionSetPermissions(cName, cBatchHandle C.v23_syncbase_String, cPerms C.v23_syncbase_Permissions, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
-	perms := cPerms.toPermissions()
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
+	perms := cPerms.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "SetPermissions"))
 	stub, err := b.GetCollection(ctx, call, name)
 	if err != nil {
@@ -634,9 +634,9 @@ func v23_syncbase_CollectionSetPermissions(cName, cBatchHandle C.v23_syncbase_St
 
 //export v23_syncbase_CollectionDeleteRange
 func v23_syncbase_CollectionDeleteRange(cName, cBatchHandle C.v23_syncbase_String, cStart, cLimit C.v23_syncbase_Bytes, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
-	start, limit := cStart.toBytes(), cLimit.toBytes()
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
+	start, limit := cStart.extract(), cLimit.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "DeleteRange"))
 	stub, err := b.GetCollection(ctx, call, name)
 	if err != nil {
@@ -684,9 +684,9 @@ var _ rpc.Stream = (*scanStreamImpl)(nil)
 
 //export v23_syncbase_CollectionScan
 func v23_syncbase_CollectionScan(cName, cBatchHandle C.v23_syncbase_String, cStart, cLimit C.v23_syncbase_Bytes, cbs C.v23_syncbase_CollectionScanCallbacks, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
-	start, limit := cStart.toBytes(), cLimit.toBytes()
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
+	start, limit := cStart.extract(), cLimit.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Scan"))
 	stub, err := b.GetCollection(ctx, call, name)
 	if err != nil {
@@ -717,8 +717,8 @@ func v23_syncbase_CollectionScan(cName, cBatchHandle C.v23_syncbase_String, cSta
 
 //export v23_syncbase_RowExists
 func v23_syncbase_RowExists(cName, cBatchHandle C.v23_syncbase_String, cExists *C.v23_syncbase_Bool, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Exists"))
 	stub, err := b.GetRow(ctx, call, name)
 	if err != nil {
@@ -735,8 +735,8 @@ func v23_syncbase_RowExists(cName, cBatchHandle C.v23_syncbase_String, cExists *
 
 //export v23_syncbase_RowGet
 func v23_syncbase_RowGet(cName, cBatchHandle C.v23_syncbase_String, cValue *C.v23_syncbase_Bytes, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Get"))
 	stub, err := b.GetRow(ctx, call, name)
 	if err != nil {
@@ -763,9 +763,9 @@ func v23_syncbase_RowGet(cName, cBatchHandle C.v23_syncbase_String, cValue *C.v2
 
 //export v23_syncbase_RowPut
 func v23_syncbase_RowPut(cName, cBatchHandle C.v23_syncbase_String, cValue C.v23_syncbase_Bytes, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
-	value := cValue.toBytes()
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
+	value := cValue.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Put"))
 	stub, err := b.GetRow(ctx, call, name)
 	if err != nil {
@@ -791,8 +791,8 @@ func v23_syncbase_RowPut(cName, cBatchHandle C.v23_syncbase_String, cValue C.v23
 
 //export v23_syncbase_RowDelete
 func v23_syncbase_RowDelete(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	name := cName.toString()
-	batchHandle := wire.BatchHandle(cBatchHandle.toString())
+	name := cName.extract()
+	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Delete"))
 	stub, err := b.GetRow(ctx, call, name)
 	if err != nil {
@@ -807,7 +807,7 @@ func v23_syncbase_RowDelete(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v
 
 //export v23_syncbase_Encode
 func v23_syncbase_Encode(cName C.v23_syncbase_String, cEncoded *C.v23_syncbase_String) {
-	cEncoded.init(util.Encode(cName.toString()))
+	cEncoded.init(util.Encode(cName.extract()))
 }
 
 //export v23_syncbase_EncodeId
@@ -817,7 +817,7 @@ func v23_syncbase_EncodeId(cId C.v23_syncbase_Id, cEncoded *C.v23_syncbase_Strin
 
 //export v23_syncbase_NamingJoin
 func v23_syncbase_NamingJoin(cElements C.v23_syncbase_Strings, cJoined *C.v23_syncbase_String) {
-	cJoined.init(naming.Join(cElements.toStrings()...))
+	cJoined.init(naming.Join(cElements.extract()...))
 }
 
 ////////////////////////////////////////

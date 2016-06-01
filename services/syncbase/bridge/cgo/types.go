@@ -15,10 +15,9 @@ import (
 	"v.io/v23/vom"
 )
 
-// All "x.toFoo" methods leave x in the same state as "x.free".
-// The "x.free" methods are idempotent.
-//
-// TODO(razvanm): Change from "x.toFoo" to "x.extract".
+// All "x.extract" methods return a native Go type and leave x in the same state
+// as "x.free". The "x.free" methods are idempotent. A counterpart set of
+// "x.extractToJava" methods are in jni_types.go and jni.go.
 
 /*
 #include <stdlib.h>
@@ -35,9 +34,9 @@ func (x *C.v23_syncbase_BatchOptions) init(opts wire.BatchOptions) {
 	x.readOnly = C.bool(opts.ReadOnly)
 }
 
-func (x *C.v23_syncbase_BatchOptions) toBatchOptions() wire.BatchOptions {
+func (x *C.v23_syncbase_BatchOptions) extract() wire.BatchOptions {
 	return wire.BatchOptions{
-		Hint:     x.hint.toString(),
+		Hint:     x.hint.extract(),
 		ReadOnly: bool(x.readOnly),
 	}
 }
@@ -53,7 +52,7 @@ func (x *C.v23_syncbase_Bool) init(b bool) {
 	}
 }
 
-func (x *C.v23_syncbase_Bool) toBool() bool {
+func (x *C.v23_syncbase_Bool) extract() bool {
 	if *x == 0 {
 		return false
 	}
@@ -81,7 +80,7 @@ func (x *C.v23_syncbase_Bytes) init(b []byte) {
 	C.memcpy(unsafe.Pointer(x.p), unsafe.Pointer(&b[0]), C.size_t(len(b)))
 }
 
-func (x *C.v23_syncbase_Bytes) toBytes() []byte {
+func (x *C.v23_syncbase_Bytes) extract() []byte {
 	if x.p == nil {
 		return nil
 	}
@@ -109,11 +108,11 @@ func (x *C.v23_syncbase_CollectionRowPattern) init(crp wire.CollectionRowPattern
 	x.rowKey.init(crp.RowKey)
 }
 
-func (x *C.v23_syncbase_CollectionRowPattern) toCollectionRowPattern() wire.CollectionRowPattern {
+func (x *C.v23_syncbase_CollectionRowPattern) extract() wire.CollectionRowPattern {
 	return wire.CollectionRowPattern{
-		CollectionBlessing: x.collectionBlessing.toString(),
-		CollectionName:     x.collectionName.toString(),
-		RowKey:             x.rowKey.toString(),
+		CollectionBlessing: x.collectionBlessing.extract(),
+		CollectionName:     x.collectionName.extract(),
+		RowKey:             x.rowKey.extract(),
 	}
 }
 
@@ -132,13 +131,13 @@ func (x *C.v23_syncbase_CollectionRowPatterns) init(crps []wire.CollectionRowPat
 	}
 }
 
-func (x *C.v23_syncbase_CollectionRowPatterns) toCollectionRowPatterns() []wire.CollectionRowPattern {
+func (x *C.v23_syncbase_CollectionRowPatterns) extract() []wire.CollectionRowPattern {
 	if x.p == nil {
 		return nil
 	}
 	res := make([]wire.CollectionRowPattern, x.n)
 	for i := 0; i < int(x.n); i++ {
-		res[i] = x.at(i).toCollectionRowPattern()
+		res[i] = x.at(i).extract()
 	}
 	C.free(unsafe.Pointer(x.p))
 	x.p = nil
@@ -156,8 +155,8 @@ func (x *C.v23_syncbase_Id) init(id wire.Id) {
 
 func (x *C.v23_syncbase_Id) toId() wire.Id {
 	return wire.Id{
-		Blessing: x.blessing.toString(),
-		Name:     x.name.toString(),
+		Blessing: x.blessing.extract(),
+		Name:     x.name.extract(),
 	}
 }
 
@@ -181,7 +180,7 @@ func (x *C.v23_syncbase_Ids) init(ids []wire.Id) {
 	}
 }
 
-func (x *C.v23_syncbase_Ids) toIds() []wire.Id {
+func (x *C.v23_syncbase_Ids) extract() []wire.Id {
 	if x.p == nil {
 		return nil
 	}
@@ -226,8 +225,8 @@ func (x *C.v23_syncbase_Permissions) init(perms access.Permissions) {
 	x.json.init(b.Bytes())
 }
 
-func (x *C.v23_syncbase_Permissions) toPermissions() access.Permissions {
-	b := x.json.toBytes()
+func (x *C.v23_syncbase_Permissions) extract() access.Permissions {
+	b := x.json.extract()
 	if len(b) == 0 {
 		return nil
 	}
@@ -246,7 +245,7 @@ func (x *C.v23_syncbase_String) init(s string) {
 	x.p = C.CString(s)
 }
 
-func (x *C.v23_syncbase_String) toString() string {
+func (x *C.v23_syncbase_String) extract() string {
 	if x.p == nil {
 		return ""
 	}
@@ -280,13 +279,13 @@ func (x *C.v23_syncbase_Strings) init(strs []string) {
 	}
 }
 
-func (x *C.v23_syncbase_Strings) toStrings() []string {
+func (x *C.v23_syncbase_Strings) extract() []string {
 	if x.p == nil {
 		return nil
 	}
 	res := make([]string, x.n)
 	for i := 0; i < int(x.n); i++ {
-		res[i] = x.at(i).toString()
+		res[i] = x.at(i).extract()
 	}
 	C.free(unsafe.Pointer(x.p))
 	x.p = nil
@@ -308,11 +307,11 @@ func (x *C.v23_syncbase_SyncgroupSpec) init(spec wire.SyncgroupSpec) {
 
 func (x *C.v23_syncbase_SyncgroupSpec) toSyncgroupSpec() wire.SyncgroupSpec {
 	return wire.SyncgroupSpec{
-		Description:         x.description.toString(),
-		PublishSyncbaseName: x.publishSyncbaseName.toString(),
-		Perms:               x.perms.toPermissions(),
-		Collections:         x.collections.toIds(),
-		MountTables:         x.mountTables.toStrings(),
+		Description:         x.description.extract(),
+		PublishSyncbaseName: x.publishSyncbaseName.extract(),
+		Perms:               x.perms.extract(),
+		Collections:         x.collections.extract(),
+		MountTables:         x.mountTables.extract(),
 		IsPrivate:           bool(x.isPrivate),
 	}
 }
