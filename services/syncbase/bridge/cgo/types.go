@@ -15,7 +15,10 @@ import (
 	"v.io/v23/vom"
 )
 
-// All "x.toFoo" methods free the memory associated with x.
+// All "x.toFoo" methods leave x in the same state as "x.free".
+// The "x.free" methods are idempotent.
+//
+// TODO(razvanm): Change from "x.toFoo" to "x.extract".
 
 /*
 #include <stdlib.h>
@@ -82,8 +85,19 @@ func (x *C.v23_syncbase_Bytes) toBytes() []byte {
 	if x.p == nil {
 		return nil
 	}
-	defer C.free(unsafe.Pointer(x.p))
-	return C.GoBytes(unsafe.Pointer(x.p), x.n)
+	res := C.GoBytes(unsafe.Pointer(x.p), x.n)
+	C.free(unsafe.Pointer(x.p))
+	x.p = nil
+	x.n = 0
+	return res
+}
+
+func (x *C.v23_syncbase_Bytes) free() {
+	if x.p != nil {
+		C.free(unsafe.Pointer(x.p))
+		x.p = nil
+	}
+	x.n = 0
 }
 
 ////////////////////////////////////////////////////////////
@@ -122,11 +136,13 @@ func (x *C.v23_syncbase_CollectionRowPatterns) toCollectionRowPatterns() []wire.
 	if x.p == nil {
 		return nil
 	}
-	defer C.free(unsafe.Pointer(x.p))
 	res := make([]wire.CollectionRowPattern, x.n)
 	for i := 0; i < int(x.n); i++ {
 		res[i] = x.at(i).toCollectionRowPattern()
 	}
+	C.free(unsafe.Pointer(x.p))
+	x.p = nil
+	x.n = 0
 	return res
 }
 
@@ -143,6 +159,11 @@ func (x *C.v23_syncbase_Id) toId() wire.Id {
 		Blessing: x.blessing.toString(),
 		Name:     x.name.toString(),
 	}
+}
+
+func (x *C.v23_syncbase_Id) free() {
+	x.blessing.free()
+	x.name.free()
 }
 
 ////////////////////////////////////////////////////////////
@@ -164,12 +185,26 @@ func (x *C.v23_syncbase_Ids) toIds() []wire.Id {
 	if x.p == nil {
 		return nil
 	}
-	defer C.free(unsafe.Pointer(x.p))
 	res := make([]wire.Id, x.n)
 	for i := 0; i < int(x.n); i++ {
 		res[i] = x.at(i).toId()
 	}
+	C.free(unsafe.Pointer(x.p))
+	x.p = nil
+	x.n = 0
 	return res
+}
+
+func (x *C.v23_syncbase_Ids) free() {
+	if x.p == nil {
+		return
+	}
+	for i := 0; i < int(x.n); i++ {
+		x.at(i).free()
+	}
+	C.free(unsafe.Pointer(x.p))
+	x.p = nil
+	x.n = 0
 }
 
 ////////////////////////////////////////////////////////////
@@ -215,8 +250,19 @@ func (x *C.v23_syncbase_String) toString() string {
 	if x.p == nil {
 		return ""
 	}
-	defer C.free(unsafe.Pointer(x.p))
-	return C.GoStringN(x.p, x.n)
+	res := C.GoStringN(x.p, x.n)
+	C.free(unsafe.Pointer(x.p))
+	x.p = nil
+	x.n = 0
+	return res
+}
+
+func (x *C.v23_syncbase_String) free() {
+	if x.p != nil {
+		C.free(unsafe.Pointer(x.p))
+		x.p = nil
+	}
+	x.n = 0
 }
 
 ////////////////////////////////////////////////////////////
@@ -238,11 +284,13 @@ func (x *C.v23_syncbase_Strings) toStrings() []string {
 	if x.p == nil {
 		return nil
 	}
-	defer C.free(unsafe.Pointer(x.p))
 	res := make([]string, x.n)
 	for i := 0; i < int(x.n); i++ {
 		res[i] = x.at(i).toString()
 	}
+	C.free(unsafe.Pointer(x.p))
+	x.p = nil
+	x.n = 0
 	return res
 }
 
@@ -317,6 +365,13 @@ func (x *C.v23_syncbase_VError) init(err error) {
 	x.actionCode = C.uint(verror.Action(err))
 	x.msg.init(err.Error())
 	x.stack.init(verror.Stack(err).String())
+}
+
+func (x *C.v23_syncbase_VError) free() {
+	x.id.free()
+	x.actionCode = C.uint(0)
+	x.msg.free()
+	x.stack.free()
 }
 
 ////////////////////////////////////////////////////////////

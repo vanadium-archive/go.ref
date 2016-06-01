@@ -15,29 +15,101 @@ import "C"
 type jArrayListClass struct {
 	class C.jclass
 	init  C.jmethodID
+	add   C.jmethodID
 }
 
-func (c *jArrayListClass) Init(env *C.JNIEnv) error {
-	var err error
-	c.class, c.init, err = initClass(env, "java/util/ArrayList")
-	if err != nil {
-		return err
+func newJArrayListClass(env *C.JNIEnv) jArrayListClass {
+	cls, init := initClass(env, "java/util/ArrayList")
+	return jArrayListClass{
+		class: cls,
+		init:  init,
+		add:   jGetMethodID(env, cls, "add", "(Ljava/lang/Object;)Z"),
 	}
-	return nil
+}
+
+type jIteratorInterface struct {
+	hasNext C.jmethodID
+	next    C.jmethodID
+}
+
+func newJIteratorInterface(env *C.JNIEnv, obj C.jobject) jIteratorInterface {
+	cls := C.GetObjectClass(env, obj)
+	return jIteratorInterface{
+		hasNext: jGetMethodID(env, cls, "hasNext", "()Z"),
+		next:    jGetMethodID(env, cls, "next", "()Ljava/lang/Object;"),
+	}
 }
 
 type jIdClass struct {
-	class C.jclass
-	init  C.jmethodID
+	class    C.jclass
+	init     C.jmethodID
+	blessing C.jfieldID
+	name     C.jfieldID
 }
 
-func (c *jIdClass) Init(env *C.JNIEnv) error {
-	var err error
-	c.class, c.init, err = initClass(env, "io/v/syncbase/internal/Id")
-	if err != nil {
-		return err
+func newJIdClass(env *C.JNIEnv) jIdClass {
+	cls, init := initClass(env, "io/v/syncbase/internal/Id")
+	return jIdClass{
+		class:    cls,
+		init:     init,
+		blessing: jGetFieldID(env, cls, "blessing", "Ljava/lang/String;"),
+		name:     jGetFieldID(env, cls, "name", "Ljava/lang/String;"),
 	}
-	return nil
+}
+
+type jListInterface struct {
+	iterator C.jmethodID
+	size     C.jmethodID
+}
+
+func newJListInterface(env *C.JNIEnv, obj C.jobject) jListInterface {
+	cls := C.GetObjectClass(env, obj)
+	return jListInterface{
+		size:     jGetMethodID(env, cls, "size", "()I"),
+		iterator: jGetMethodID(env, cls, "iterator", "()Ljava/util/Iterator;"),
+	}
+}
+
+type jSyncgroupMemberInfo struct {
+	class        C.jclass
+	init         C.jmethodID
+	syncPriority C.jfieldID
+	blobDevType  C.jfieldID
+}
+
+func newJSyncgroupMemberInfo(env *C.JNIEnv) jSyncgroupMemberInfo {
+	cls, init := initClass(env, "io/v/syncbase/internal/Database$SyncgroupMemberInfo")
+	return jSyncgroupMemberInfo{
+		class:        cls,
+		init:         init,
+		syncPriority: jGetFieldID(env, cls, "syncPriority", "I"),
+		blobDevType:  jGetFieldID(env, cls, "blobDevType", "I"),
+	}
+}
+
+type jSyncgroupSpec struct {
+	class               C.jclass
+	init                C.jmethodID
+	description         C.jfieldID
+	publishSyncbaseName C.jfieldID
+	permissions         C.jfieldID
+	collections         C.jfieldID
+	mountTables         C.jfieldID
+	isPrivate           C.jfieldID
+}
+
+func newJSyncgroupSpec(env *C.JNIEnv) jSyncgroupSpec {
+	cls, init := initClass(env, "io/v/syncbase/internal/Database$SyncgroupSpec")
+	return jSyncgroupSpec{
+		class:               cls,
+		init:                init,
+		description:         jGetFieldID(env, cls, "description", "Ljava/lang/String;"),
+		publishSyncbaseName: jGetFieldID(env, cls, "publishSyncbaseName", "Ljava/lang/String;"),
+		permissions:         jGetFieldID(env, cls, "permissions", "Lio/v/syncbase/internal/Permissions;"),
+		collections:         jGetFieldID(env, cls, "collections", "Ljava/util/List;"),
+		mountTables:         jGetFieldID(env, cls, "mountTables", "Ljava/util/List;"),
+		isPrivate:           jGetFieldID(env, cls, "isPrivate", "Z"),
+	}
 }
 
 type jVErrorClass struct {
@@ -49,41 +121,27 @@ type jVErrorClass struct {
 	stack      C.jfieldID
 }
 
-func (c *jVErrorClass) Init(env *C.JNIEnv) error {
-	var err error
-	c.class, c.init, err = initClass(env, "io/v/syncbase/internal/VError")
-	if err != nil {
-		return err
+func newJVErrorClass(env *C.JNIEnv) jVErrorClass {
+	cls, init := initClass(env, "io/v/syncbase/internal/VError")
+	return jVErrorClass{
+		class:      cls,
+		init:       init,
+		id:         jGetFieldID(env, cls, "id", "Ljava/lang/String;"),
+		actionCode: jGetFieldID(env, cls, "actionCode", "J"),
+		message:    jGetFieldID(env, cls, "message", "Ljava/lang/String;"),
+		stack:      jGetFieldID(env, cls, "stack", "Ljava/lang/String;"),
 	}
-	c.id, err = JGetFieldID(env, c.class, "id", "Ljava/lang/String;")
-	if err != nil {
-		return err
-	}
-	c.actionCode, err = JGetFieldID(env, c.class, "actionCode", "J")
-	if err != nil {
-		return err
-	}
-	c.message, err = JGetFieldID(env, c.class, "message", "Ljava/lang/String;")
-	if err != nil {
-		return err
-	}
-	c.stack, err = JGetFieldID(env, c.class, "stack", "Ljava/lang/String;")
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // initClass returns the jclass and the jmethodID of the default constructor for
 // a class.
-func initClass(env *C.JNIEnv, name string) (C.jclass, C.jmethodID, error) {
-	cls, err := JFindClass(env, name)
+func initClass(env *C.JNIEnv, name string) (C.jclass, C.jmethodID) {
+	cls, err := jFindClass(env, name)
 	if err != nil {
-		return nil, nil, err
+		// The invariant is that we only deal with classes that must be
+		// known to the JVM. A panic indicates a bug in our code.
+		panic(err)
 	}
-	init, err := JGetMethodID(env, cls, "<init>", "()V")
-	if err != nil {
-		return nil, nil, err
-	}
-	return cls, init, nil
+	init := jGetMethodID(env, cls, "<init>", "()V")
+	return cls, init
 }

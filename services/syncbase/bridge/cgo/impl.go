@@ -716,7 +716,7 @@ func v23_syncbase_CollectionScan(cName, cBatchHandle C.v23_syncbase_String, cSta
 // Row
 
 //export v23_syncbase_RowExists
-func v23_syncbase_RowExists(cName, cBatchHandle C.v23_syncbase_String, cExists *bool, cErr *C.v23_syncbase_VError) {
+func v23_syncbase_RowExists(cName, cBatchHandle C.v23_syncbase_String, cExists *C.v23_syncbase_Bool, cErr *C.v23_syncbase_VError) {
 	name := cName.toString()
 	batchHandle := wire.BatchHandle(cBatchHandle.toString())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Exists"))
@@ -730,7 +730,7 @@ func v23_syncbase_RowExists(cName, cBatchHandle C.v23_syncbase_String, cExists *
 		cErr.init(err)
 		return
 	}
-	*cExists = exists
+	cExists.init(exists)
 }
 
 //export v23_syncbase_RowGet
