@@ -16,9 +16,16 @@ var (
 	// connections to peers.
 	channelTimeout = 2 * time.Second
 
-	// peerConnectionTimeout is the time duration we wait for a connection to be
-	// established with a peer.
-	peerConnectionTimeout = 2 * time.Second
+	// TODO(suharshs): Make the timeouts below more dynamic based on network. (i.e.
+	// bt vs tcp). Currently bt connection establishment takes ~3 seconds, so
+	// neighborhood connections get more time than cloud connections.
+	// neighborConnectionTimeout is the time duration we wait for a connection to be
+	// established with a peer discovered from the neighborhood.
+	neighborConnectionTimeout = 5 * time.Second
+
+	// cloudConnectionTimeout is the duration we wait for a connection to be
+	// established with a cloud peer.
+	cloudConnectionTimeout = 2 * time.Second
 
 	// syncConnectionTimeout is the duration we wait for syncing to begin with a
 	// peer. A value of 0 means we will only use connections that exist in our

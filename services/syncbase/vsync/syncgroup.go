@@ -1252,7 +1252,7 @@ func (s *syncService) advertiseSyncbase(ctx *context.T, call rpc.ServerCall, sg 
 func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCall, dbId, sgId wire.Id, remoteSyncbaseName string, expectedSyncbaseBlessings []string, localSyncbaseName string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.GenVector, error) {
 	vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: begin, dbId %v, sgId %v, remoteSyncbaseName %v", dbId, sgId, remoteSyncbaseName)
 
-	ctx, cancel := context.WithTimeout(ctxIn, peerConnectionTimeout)
+	ctx, cancel := context.WithTimeout(ctxIn, cloudConnectionTimeout)
 	c := interfaces.SyncClient(naming.Join(remoteSyncbaseName, common.SyncbaseSuffix))
 	sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, dbId, sgId, localSyncbaseName, myInfo)
 	cancel()
@@ -1275,7 +1275,7 @@ func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCa
 	neighbors := ss.filterSyncgroupAdmins(dbId, sgId)
 	for _, svc := range neighbors {
 		for _, addr := range svc.Addresses {
-			ctx, cancel := context.WithTimeout(ctxIn, peerConnectionTimeout)
+			ctx, cancel := context.WithTimeout(ctxIn, neighborConnectionTimeout)
 			// TODO(fredq): check that the service at addr has the expectedSyncbaseBlessings.
 			c := interfaces.SyncClient(naming.Join(addr, common.SyncbaseSuffix))
 			sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, dbId, sgId, localSyncbaseName, myInfo)
