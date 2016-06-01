@@ -22,9 +22,9 @@ const (
 	serverMountPrefix = "sb"
 )
 
-// newKubeName returns a new kubernetes name.
+// newKubeName returns a new kubernetes name.  This is used as the handle for
+// the instance created by allocatord.
 func newKubeName() (string, error) {
-	// Kubernetes names/labels are at most 63 characters long.
 	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
@@ -43,19 +43,11 @@ func nameRoot(ctx *context.T) string {
 }
 
 func mountNameFromKubeName(ctx *context.T, kName string) string {
-	return naming.Join(nameRoot(ctx), serverMountPrefix, kName)
+	return naming.Join(nameRoot(ctx), relativeMountName(kName))
 }
 
-func kubeNameFromMountName(mName string) string {
-	if mName == "" {
-		return ""
-	}
-	p := strings.Split(mName, "/")
-	return p[len(p)-1]
-}
-
-func relativeMountName(mName string) string {
-	return naming.Join(serverMountPrefix, kubeNameFromMountName(mName))
+func relativeMountName(kName string) string {
+	return naming.Join(serverMountPrefix, kName)
 }
 
 func emailFromBlessingNames(blessingNames []string) string {

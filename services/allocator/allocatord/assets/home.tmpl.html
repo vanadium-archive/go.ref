@@ -23,21 +23,23 @@ blessing. -->
     {{range $index, $element := .Instances}}
       <div class="blessings-item">
         <div class="blessing-details">
-          <h3>{{kubeName .Name}}</h3>
+          {{with .Instance}}
+          <h3>{{.Handle}}</h3>
           <p class="blessing-caveats">
             <span>Creation Time</span><br/>
             <span class="unixtime" data-unixtime={{.CreationTime.Unix}}>{{.CreationTime.String}}</span>
           </p>
           <p class="blessing-caveats">
             <span>Mount Name</span><br/>
-            <i>{{.NameRoot}}/</i><wbr/>{{relativeName .Name}}
+            {{.MountName}}
           </p>
           <p class="blessing-caveats">
             <span>Blessing Patterns</span><br/>
-            {{range .BlessingPatterns}}
+            {{range .BlessingNames}}
               {{.}}<br/>
             {{end}}
           </p>
+          {{end}}
         </div>
         <div class="btns-col">
           <div class="btn">

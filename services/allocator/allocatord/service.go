@@ -24,6 +24,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/ref/services/allocator"
 )
 
 const pkgPath = "v.io/x/ref/services/allocator/allocatord"
@@ -39,7 +40,7 @@ type allocatorImpl struct {
 }
 
 // Create creates a new instance of the service.
-// It returns the object name of the new instance.
+// It returns a handle for the new instance.
 func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, error) {
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	ctx.Infof("Create() called by %v", b)
@@ -51,20 +52,20 @@ func (i *allocatorImpl) Create(ctx *context.T, call rpc.ServerCall) (string, err
 	return create(ctx, email, i.baseBlessings, i.baseBlessingNames)
 }
 
-// Destroy destroys the instance with the given name.
-func (i *allocatorImpl) Destroy(ctx *context.T, call rpc.ServerCall, mName string) error {
+// Destroy destroys the instance with the given handle.
+func (i *allocatorImpl) Destroy(ctx *context.T, call rpc.ServerCall, kName string) error {
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
-	ctx.Infof("Destroy(%q) called by %v", mName, b)
+	ctx.Infof("Destroy(%q) called by %v", kName, b)
 
 	email := emailFromBlessingNames(b)
 	if email == "" {
 		return verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
 	}
-	return destroy(ctx, email, mName)
+	return destroy(ctx, email, kName)
 }
 
 // List returns a list of all the instances owned by the caller.
-func (i *allocatorImpl) List(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+func (i *allocatorImpl) List(ctx *context.T, call rpc.ServerCall) ([]allocator.Instance, error) {
 	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	ctx.Infof("List() called by %v", b)
 
@@ -72,15 +73,7 @@ func (i *allocatorImpl) List(ctx *context.T, call rpc.ServerCall) ([]string, err
 	if email == "" {
 		return nil, verror.New(verror.ErrNoAccess, ctx, "unable to determine caller's email address")
 	}
-	instances, err := list(ctx, email)
-	if err != nil {
-		return nil, err
-	}
-	mNames := make([]string, len(instances))
-	for i, instance := range instances {
-		mNames[i] = instance.mountName
-	}
-	return mNames, nil
+	return serverInstances(ctx, email)
 }
 
 func create(ctx *context.T, email string, baseBlessings security.Blessings, baseBlessingNames []string) (string, error) {
@@ -131,17 +124,15 @@ func create(ctx *context.T, email string, baseBlessings security.Blessings, base
 		deletePersistentDisk(ctx, kName)
 		return "", verror.New(verror.ErrInternal, ctx, err)
 	}
-	return mName, nil
+	return kName, nil
 }
 
-func destroy(ctx *context.T, email, mName string) error {
-	kName := kubeNameFromMountName(mName)
-
+func destroy(ctx *context.T, email, kName string) error {
 	if err := isOwnerOfInstance(ctx, email, kName); err != nil {
 		return err
 	}
 
-	cfg, cleanup, err := createDeploymentConfig(ctx, email, kName, mName, nil)
+	cfg, cleanup, err := createDeploymentConfig(ctx, email, kName, "", nil)
 	defer cleanup()
 	if err != nil {
 		return err
@@ -156,21 +147,6 @@ func destroy(ctx *context.T, email, mName string) error {
 		return err
 	}
 	return nil
-}
-
-func list(ctx *context.T, email string) ([]serverInstance, error) {
-	instances, err := serverInstances(ctx, email)
-	if err != nil {
-		return nil, err
-	}
-	for i, instance := range instances {
-		// TODO(rthellend): Remove when all instances have the new
-		// creatorInfo annotations.
-		if instances[i].mountName == "" {
-			instances[i].mountName = mountNameFromKubeName(ctx, instance.name)
-		}
-	}
-	return instances, err
 }
 
 func createDeploymentConfig(ctx *context.T, email, deploymentName, mountName string, baseBlessingNames []string) (string, func(), error) {
@@ -286,14 +262,7 @@ func emailHash(email string) string {
 	return hex.EncodeToString(h[:])
 }
 
-type serverInstance struct {
-	name          string
-	mountName     string
-	blessingNames []string
-	creationTime  time.Time
-}
-
-func serverInstances(ctx *context.T, email string) ([]serverInstance, error) {
+func serverInstances(ctx *context.T, email string) ([]allocator.Instance, error) {
 	args := []string{"kubectl", "get", "deployments", "-o", "json"}
 	if email != "" {
 		args = append(args, "-l", "ownerHash="+emailHash(email))
@@ -323,7 +292,7 @@ func serverInstances(ctx *context.T, email string) ([]serverInstance, error) {
 	if err := json.Unmarshal(out, &list); err != nil {
 		return nil, err
 	}
-	instances := []serverInstance{}
+	instances := []allocator.Instance{}
 	for _, l := range list.Items {
 		if !strings.HasPrefix(l.Metadata.Name, serverNameFlag+"-") {
 			continue
@@ -333,11 +302,11 @@ func serverInstances(ctx *context.T, email string) ([]serverInstance, error) {
 			ctx.Errorf("decodeCreatorInfo failed: %v", err)
 			continue
 		}
-		instances = append(instances, serverInstance{
-			name:          l.Metadata.Name,
-			mountName:     cInfo.MountName,
-			blessingNames: cInfo.BlessingNames,
-			creationTime:  l.Metadata.CreationTime,
+		instances = append(instances, allocator.Instance{
+			Handle:        l.Metadata.Name,
+			MountName:     cInfo.MountName,
+			BlessingNames: cInfo.BlessingNames,
+			CreationTime:  l.Metadata.CreationTime,
 		})
 	}
 	return instances, nil
@@ -349,7 +318,7 @@ func isOwnerOfInstance(ctx *context.T, email, kName string) error {
 		return err
 	}
 	for _, i := range instances {
-		if i.name == kName {
+		if i.Handle == kName {
 			return nil
 		}
 	}

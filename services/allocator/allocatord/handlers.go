@@ -5,28 +5,26 @@
 package main
 
 import (
+	"crypto/hmac"
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
-	"strings"
-	"time"
 
-	"v.io/v23/security"
+	"v.io/x/ref/services/allocator"
 )
 
 func handleHome(ss *serverState, rs *requestState) error {
 	ctx := ss.ctx
-	instances, err := list(ctx, rs.email)
+	instances, err := serverInstances(ctx, rs.email)
 	if err != nil {
 		return fmt.Errorf("list error: %v", err)
 	}
 	type instanceArg struct {
-		Name,
-		NameRoot,
+		Instance allocator.Instance
 		DestroyURL,
 		DebugURL,
 		DashboardURL string
-		BlessingPatterns []string
-		CreationTime     time.Time
 	}
 	tmplArgs := struct {
 		AssetsPrefix,
@@ -43,24 +41,17 @@ func handleHome(ss *serverState, rs *requestState) error {
 		Message:      rs.r.FormValue(paramMessage),
 	}
 	for _, instance := range instances {
-		if len(instance.blessingNames) == 0 {
-			// TODO(rthellend): Remove when all instances have the new
-			// creatorInfo annotations.
-			ctx.Info("blessingNames missing from creatorInfo")
-			for _, b := range ss.args.baseBlessingNames {
-				bName := strings.Join([]string{b, instance.name}, security.ChainSeparator)
-				instance.blessingNames = append(instance.blessingNames, bName)
-			}
-		}
-
 		tmplArgs.Instances = append(tmplArgs.Instances, instanceArg{
-			Name:             instance.mountName,
-			NameRoot:         nameRoot(ctx),
-			CreationTime:     instance.creationTime,
-			BlessingPatterns: instance.blessingNames,
-			DestroyURL:       makeURL(ctx, routeDestroy, params{paramName: instance.mountName, paramCSRF: rs.csrfToken}),
-			DashboardURL:     makeURL(ctx, routeDashboard, params{paramDashboardName: relativeMountName(instance.mountName)}),
-			DebugURL:         makeURL(ctx, routeDebug+"/", params{paramName: instance.mountName}),
+			Instance:     instance,
+			DestroyURL:   makeURL(ctx, routeDestroy, params{paramInstance: instance.Handle, paramCSRF: rs.csrfToken}),
+			DashboardURL: makeURL(ctx, routeDashboard, params{paramInstance: instance.Handle}),
+			DebugURL: makeURL(
+				ctx,
+				routeDebug+"/",
+				params{
+					paramInstance:  instance.Handle,
+					paramMountName: instance.MountName,
+					paramHMAC:      base64.URLEncoding.EncodeToString(computeHMAC(instance.Handle, instance.MountName))}),
 		})
 	}
 	if err := ss.args.assets.executeTemplate(rs.w, homeTmpl, tmplArgs); err != nil {
@@ -71,32 +62,50 @@ func handleHome(ss *serverState, rs *requestState) error {
 
 func handleCreate(ss *serverState, rs *requestState) error {
 	ctx := ss.ctx
-	name, err := create(ctx, rs.email, ss.args.baseBlessings, ss.args.baseBlessingNames)
+	instance, err := create(ctx, rs.email, ss.args.baseBlessings, ss.args.baseBlessingNames)
 	if err != nil {
 		return fmt.Errorf("create failed: %v", err)
 	}
-	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "created " + name})
+	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "created " + instance})
 	http.Redirect(rs.w, rs.r, redirectTo, http.StatusFound)
 	return nil
 }
 
 func handleDestroy(ss *serverState, rs *requestState) error {
 	ctx := ss.ctx
-	name := rs.r.FormValue(paramName)
-	if err := destroy(ctx, rs.email, name); err != nil {
+	instance := rs.r.FormValue(paramInstance)
+	if instance == "" {
+		return fmt.Errorf("parameter %q required for instance name", paramInstance)
+	}
+	if err := destroy(ctx, rs.email, instance); err != nil {
 		return fmt.Errorf("destroy failed: %v", err)
 	}
-	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "destroyed " + name})
+	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "destroyed " + instance})
 	http.Redirect(rs.w, rs.r, redirectTo, http.StatusFound)
 	return nil
 }
 
 func handleDebug(ss *serverState, rs *requestState, debugBrowserServeMux *http.ServeMux) error {
-	instance := rs.r.FormValue(paramName)
+	instance := rs.r.FormValue(paramInstance)
 	if instance == "" {
-		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
+		return fmt.Errorf("parameter %q required for instance name", paramInstance)
 	}
-	if err := checkOwner(ss.ctx, rs.email, kubeNameFromMountName(instance)); err != nil {
+	mountName := rs.r.FormValue(paramMountName)
+	if mountName == "" {
+		return fmt.Errorf("parameter %q required for instance mount name", paramMountName)
+	}
+	hmacBase64 := rs.r.FormValue(paramHMAC)
+	if hmacBase64 == "" {
+		return fmt.Errorf("parameter %q required for name signature", paramHMAC)
+	}
+	hmacSignature, err := base64.URLEncoding.DecodeString(hmacBase64)
+	if err != nil {
+		return fmt.Errorf("invalid signature: %v", err)
+	}
+	if !hmac.Equal(hmacSignature, computeHMAC(instance, mountName)) {
+		return errors.New("mismatching signature")
+	}
+	if err := checkOwner(ss.ctx, rs.email, instance); err != nil {
 		return err
 	}
 	http.StripPrefix(routeDebug, debugBrowserServeMux).ServeHTTP(rs.w, rs.r)

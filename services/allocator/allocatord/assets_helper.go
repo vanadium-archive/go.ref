@@ -106,9 +106,7 @@ func (a *assetsHelper) template(name string) (*template.Template, error) {
 		return nil, err
 	}
 	t, err := template.New(name).Funcs(template.FuncMap{
-		"title":        strings.Title,
-		"kubeName":     kubeNameFromMountName,
-		"relativeName": relativeMountName,
+		"title": strings.Title,
 	}).Parse(string(data))
 	if err != nil {
 		return nil, err

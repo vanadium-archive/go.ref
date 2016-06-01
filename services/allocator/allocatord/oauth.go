@@ -73,7 +73,7 @@ func base64Decode(s string) ([]byte, error) {
 type oauthCredentials struct {
 	ClientID     string `json:"clientId"`
 	ClientSecret string `json:"clientSecret"`
-	// HashKey is not stricly part of the OAuth credentials, but for
+	// HashKey is not strictly part of the OAuth credentials, but for
 	// convenience we put it in the same object.
 	//
 	// TODO(caprita): Consider signing cookies with the server's private key

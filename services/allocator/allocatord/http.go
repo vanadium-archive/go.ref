@@ -30,12 +30,13 @@ const (
 	routeHealth    = "/health"
 
 	paramMessage = "message"
-	// paramName has to match the name parameter in debug browser.
-	paramName = "n"
-	// The following parameter names are hardcorded in static/dash.js,
-	// and should be changed in tandem.
-	paramDashboardName    = "n"
+	paramHMAC    = "hmac"
+	// The following parameter names are hardcorded in static/dash.js, and
+	// should be changed in tandem.
+	paramInstance         = "instance"
 	paramDashbordDuration = "d"
+	// paramMountName has to match the name parameter in debug browser.
+	paramMountName = "n"
 
 	cookieValidity = 10 * time.Minute
 )

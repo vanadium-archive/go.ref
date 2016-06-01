@@ -4,14 +4,24 @@
 
 package allocator
 
+import "time"
+
+// Instance describes a service instance.
+type Instance struct {
+     Handle string
+     MountName string
+     BlessingNames []string
+     CreationTime time.Time
+}
+
 type Allocator interface {
 	// Create creates a new instance of the service.
-	// It returns the object name of the new instance.
-	Create() (name string | error)
+	// It returns a handle for the new instance.
+	Create() (handle string | error)
 
-	// Destroy destroys the instance with the given name.
-	Destroy(name string) error
+	// Destroy destroys the instance with the given handle.
+	Destroy(handle string) error
 
 	// List returns a list of all the instances owned by the caller.
-	List() (names []string | error)
+	List() (instances []Instance | error)
 }

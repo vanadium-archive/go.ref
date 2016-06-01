@@ -8,12 +8,173 @@
 package allocator
 
 import (
+	"time"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/vdl"
+	vdltime "v.io/v23/vdlroot/time"
 )
 
 var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
+
+//////////////////////////////////////////////////
+// Type definitions
+
+// Instance describes a service instance.
+type Instance struct {
+	Handle        string
+	MountName     string
+	BlessingNames []string
+	CreationTime  time.Time
+}
+
+func (Instance) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/allocator.Instance"`
+}) {
+}
+
+func (x Instance) VDLIsZero() bool {
+	if x.Handle != "" {
+		return false
+	}
+	if x.MountName != "" {
+		return false
+	}
+	if len(x.BlessingNames) != 0 {
+		return false
+	}
+	if !x.CreationTime.IsZero() {
+		return false
+	}
+	return true
+}
+
+func (x Instance) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(__VDLType_struct_1); err != nil {
+		return err
+	}
+	if x.Handle != "" {
+		if err := enc.NextFieldValueString("Handle", vdl.StringType, x.Handle); err != nil {
+			return err
+		}
+	}
+	if x.MountName != "" {
+		if err := enc.NextFieldValueString("MountName", vdl.StringType, x.MountName); err != nil {
+			return err
+		}
+	}
+	if len(x.BlessingNames) != 0 {
+		if err := enc.NextField("BlessingNames"); err != nil {
+			return err
+		}
+		if err := __VDLWriteAnon_list_1(enc, x.BlessingNames); err != nil {
+			return err
+		}
+	}
+	if !x.CreationTime.IsZero() {
+		if err := enc.NextField("CreationTime"); err != nil {
+			return err
+		}
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.CreationTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(""); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWriteAnon_list_1(enc vdl.Encoder, x []string) error {
+	if err := enc.StartValue(__VDLType_list_2); err != nil {
+		return err
+	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
+	for _, elem := range x {
+		if err := enc.NextEntryValueString(vdl.StringType, elem); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func (x *Instance) VDLRead(dec vdl.Decoder) error {
+	*x = Instance{}
+	if err := dec.StartValue(__VDLType_struct_1); err != nil {
+		return err
+	}
+	for {
+		f, err := dec.NextField()
+		if err != nil {
+			return err
+		}
+		switch f {
+		case "":
+			return dec.FinishValue()
+		case "Handle":
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
+				return err
+			default:
+				x.Handle = value
+			}
+		case "MountName":
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
+				return err
+			default:
+				x.MountName = value
+			}
+		case "BlessingNames":
+			if err := __VDLReadAnon_list_1(dec, &x.BlessingNames); err != nil {
+				return err
+			}
+		case "CreationTime":
+			var wire vdltime.Time
+			if err := wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err := vdltime.TimeToNative(wire, &x.CreationTime); err != nil {
+				return err
+			}
+		default:
+			if err := dec.SkipValue(); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]string) error {
+	if err := dec.StartValue(__VDLType_list_2); err != nil {
+		return err
+	}
+	if len := dec.LenHint(); len > 0 {
+		*x = make([]string, 0, len)
+	} else {
+		*x = nil
+	}
+	for {
+		switch done, elem, err := dec.NextEntryValueString(); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		default:
+			*x = append(*x, elem)
+		}
+	}
+}
 
 //////////////////////////////////////////////////
 // Interface definitions
@@ -22,12 +183,12 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 // containing Allocator methods.
 type AllocatorClientMethods interface {
 	// Create creates a new instance of the service.
-	// It returns the object name of the new instance.
-	Create(*context.T, ...rpc.CallOpt) (name string, _ error)
-	// Destroy destroys the instance with the given name.
-	Destroy(_ *context.T, name string, _ ...rpc.CallOpt) error
+	// It returns a handle for the new instance.
+	Create(*context.T, ...rpc.CallOpt) (handle string, _ error)
+	// Destroy destroys the instance with the given handle.
+	Destroy(_ *context.T, handle string, _ ...rpc.CallOpt) error
 	// List returns a list of all the instances owned by the caller.
-	List(*context.T, ...rpc.CallOpt) (names []string, _ error)
+	List(*context.T, ...rpc.CallOpt) (instances []Instance, _ error)
 }
 
 // AllocatorClientStub adds universal methods to AllocatorClientMethods.
@@ -55,7 +216,7 @@ func (c implAllocatorClientStub) Destroy(ctx *context.T, i0 string, opts ...rpc.
 	return
 }
 
-func (c implAllocatorClientStub) List(ctx *context.T, opts ...rpc.CallOpt) (o0 []string, err error) {
+func (c implAllocatorClientStub) List(ctx *context.T, opts ...rpc.CallOpt) (o0 []Instance, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "List", nil, []interface{}{&o0}, opts...)
 	return
 }
@@ -64,12 +225,12 @@ func (c implAllocatorClientStub) List(ctx *context.T, opts ...rpc.CallOpt) (o0 [
 // implements for Allocator.
 type AllocatorServerMethods interface {
 	// Create creates a new instance of the service.
-	// It returns the object name of the new instance.
-	Create(*context.T, rpc.ServerCall) (name string, _ error)
-	// Destroy destroys the instance with the given name.
-	Destroy(_ *context.T, _ rpc.ServerCall, name string) error
+	// It returns a handle for the new instance.
+	Create(*context.T, rpc.ServerCall) (handle string, _ error)
+	// Destroy destroys the instance with the given handle.
+	Destroy(_ *context.T, _ rpc.ServerCall, handle string) error
 	// List returns a list of all the instances owned by the caller.
-	List(*context.T, rpc.ServerCall) (names []string, _ error)
+	List(*context.T, rpc.ServerCall) (instances []Instance, _ error)
 }
 
 // AllocatorServerStubMethods is the server interface containing
@@ -115,7 +276,7 @@ func (s implAllocatorServerStub) Destroy(ctx *context.T, call rpc.ServerCall, i0
 	return s.impl.Destroy(ctx, call, i0)
 }
 
-func (s implAllocatorServerStub) List(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+func (s implAllocatorServerStub) List(ctx *context.T, call rpc.ServerCall) ([]Instance, error) {
 	return s.impl.List(ctx, call)
 }
 
@@ -137,27 +298,34 @@ var descAllocator = rpc.InterfaceDesc{
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "Create",
-			Doc:  "// Create creates a new instance of the service.\n// It returns the object name of the new instance.",
+			Doc:  "// Create creates a new instance of the service.\n// It returns a handle for the new instance.",
 			OutArgs: []rpc.ArgDesc{
-				{"name", ``}, // string
+				{"handle", ``}, // string
 			},
 		},
 		{
 			Name: "Destroy",
-			Doc:  "// Destroy destroys the instance with the given name.",
+			Doc:  "// Destroy destroys the instance with the given handle.",
 			InArgs: []rpc.ArgDesc{
-				{"name", ``}, // string
+				{"handle", ``}, // string
 			},
 		},
 		{
 			Name: "List",
 			Doc:  "// List returns a list of all the instances owned by the caller.",
 			OutArgs: []rpc.ArgDesc{
-				{"names", ``}, // []string
+				{"instances", ``}, // []Instance
 			},
 		},
 	},
 }
+
+// Hold type definitions in package-level variables, for better performance.
+var (
+	__VDLType_struct_1 *vdl.Type
+	__VDLType_list_2   *vdl.Type
+	__VDLType_struct_3 *vdl.Type
+)
 
 var __VDLInitCalled bool
 
@@ -179,6 +347,14 @@ func __VDLInit() struct{} {
 		return struct{}{}
 	}
 	__VDLInitCalled = true
+
+	// Register types.
+	vdl.Register((*Instance)(nil))
+
+	// Initialize type definitions.
+	__VDLType_struct_1 = vdl.TypeOf((*Instance)(nil)).Elem()
+	__VDLType_list_2 = vdl.TypeOf((*[]string)(nil))
+	__VDLType_struct_3 = vdl.TypeOf((*vdltime.Time)(nil)).Elem()
 
 	return struct{}{}
 }

@@ -9,6 +9,7 @@ package main
 
 import (
 	"fmt"
+	"text/template"
 
 	"v.io/v23/context"
 	"v.io/x/lib/cmdline"
@@ -20,7 +21,8 @@ import (
 const defaultExtension = "allocator"
 
 var (
-	flagAllocator string
+	flagAllocator   string
+	flagListDetails bool
 
 	cmdRoot = &cmdline.Command{
 		Name:  "allocator",
@@ -34,8 +36,19 @@ var (
 	}
 )
 
+const listDetailsEntry = `Handle: {{.Handle}}
+Created: {{.CreationTime}}
+MountName: {{.MountName}}
+BlessingPatterns: {{.BlessingNames}}
+`
+
+var listTmpl *template.Template
+
 func main() {
+	listTmpl = template.Must(template.New("list").Parse(listDetailsEntry))
+
 	cmdRoot.Flags.StringVar(&flagAllocator, "allocator", "syncbase-allocator", "The name or address of the allocator server.")
+	cmdList.Flags.BoolVar(&flagListDetails, "l", false, "Show details about each instance.")
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
 }
@@ -87,15 +100,25 @@ var cmdList = &cmdline.Command{
 }
 
 func runList(ctx *context.T, env *cmdline.Env, args []string) error {
-	names, err := allocator.AllocatorClient(flagAllocator).List(ctx)
+	instances, err := allocator.AllocatorClient(flagAllocator).List(ctx)
 	if err != nil {
 		return err
 	}
-	if len(names) == 0 {
+	if len(instances) == 0 {
 		fmt.Fprintln(env.Stderr, "No results")
 	}
-	for _, n := range names {
-		fmt.Fprintln(env.Stdout, n)
+	firstEntry := true
+	for _, instance := range instances {
+		if flagListDetails {
+			if firstEntry {
+				firstEntry = false
+			} else {
+				fmt.Fprintln(env.Stdout)
+			}
+			listTmpl.Execute(env.Stdout, instance)
+		} else {
+			fmt.Fprintln(env.Stdout, instance.Handle)
+		}
 	}
 	return nil
 }

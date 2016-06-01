@@ -49,12 +49,12 @@ var dash = function() {
   var CHART_COLOR = '#00838F';
 
   var durationInSeconds = 3600;
-  var mountedName = '';
+  var instance = '';
 
   function extractParameters() {
     var $url = $.url();
-    mountedName = $url.param('n');
-    return mountedName !== undefined;
+    instance = $url.param('instance');
+    return instance !== undefined;
   }
 
   // Sets up handlers for changing duration.
@@ -74,7 +74,7 @@ var dash = function() {
   function update() {
     $('#loading-label').show();
     var params = {
-      n: mountedName,
+      instance: instance,
       d: durationInSeconds
     };
     $('#error-msg').hide();

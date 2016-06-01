@@ -110,6 +110,9 @@ Usage:
    allocator list [flags]
 
 The allocator list flags are:
+ -l=false
+   Show details about each instance.
+
  -allocator=syncbase-allocator
    The name or address of the allocator server.
 

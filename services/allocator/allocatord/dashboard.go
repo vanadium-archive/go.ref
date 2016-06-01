@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/api/monitoring/v3"
+	monitoring "google.golang.org/api/monitoring/v3"
 
 	"v.io/x/lib/gcm"
 )
@@ -57,11 +57,11 @@ type statsResult struct {
 
 func handleDashboard(ss *serverState, rs *requestState) error {
 	ctx := ss.ctx
-	instance := rs.r.FormValue(paramDashboardName)
+	instance := rs.r.FormValue(paramInstance)
 	if instance == "" {
-		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
+		return fmt.Errorf("parameter %q required for instance name", paramInstance)
 	}
-	if err := checkOwner(ctx, rs.email, kubeNameFromMountName(instance)); err != nil {
+	if err := checkOwner(ctx, rs.email, instance); err != nil {
 		return err
 	}
 
@@ -106,11 +106,11 @@ func handleStats(ss *serverState, rs *requestState) error {
 		return writeResult()
 	}
 
-	mountedName := rs.r.FormValue(paramDashboardName)
-	if mountedName == "" {
-		return fmt.Errorf("parameter %q required for instance name", paramDashboardName)
+	instance := rs.r.FormValue(paramInstance)
+	if instance == "" {
+		return fmt.Errorf("parameter %q required for instance name", paramInstance)
 	}
-	if err := checkOwner(ctx, rs.email, kubeNameFromMountName(mountedName)); err != nil {
+	if err := checkOwner(ctx, rs.email, instance); err != nil {
 		return err
 	}
 
@@ -141,7 +141,9 @@ func handleStats(ss *serverState, rs *requestState) error {
 	}
 	filters := []string{
 		fmt.Sprintf("metric.type=%q", md.Type),
-		fmt.Sprintf("metric.label.mounted_name=%q", mountedName),
+		// TODO(jingjin): Can we make the key be just the instance name
+		// (without sb/ prefix)?
+		fmt.Sprintf("metric.label.mounted_name=%q", relativeMountName(instance)),
 	}
 	nextPageToken := ""
 	tsMap := map[string]points{}

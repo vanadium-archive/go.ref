@@ -42,16 +42,16 @@ type signedCookie struct {
 	CSRFToken string `'json:"csrfToken"`
 }
 
-func (c *signedCookie) computeHMAC(name, signKey string) []byte {
+func computeHMAC(signKey string, fields ...string) []byte {
 	mac := hmac.New(sha256.New, []byte(signKey))
-	put := func(data string) {
-		fmt.Fprintf(mac, "%08x%s", len(data), data)
+	for _, f := range fields {
+		fmt.Fprintf(mac, "%08x%s", len(f), f)
 	}
-	put(name)
-	put(c.Payload)
-	put(c.Expiry.String())
-	put(c.CSRFToken)
 	return mac.Sum(nil)
+}
+
+func (c *signedCookie) computeHMAC(name, signKey string) []byte {
+	return computeHMAC(signKey, name, c.Payload, c.Expiry.String(), c.CSRFToken)
 }
 
 func (c *signedCookie) verifyHMAC(name, signKey string) bool {
