@@ -35,7 +35,12 @@ func Advertise(ctx *context.T, p idiscovery.Plugin, adinfos ...*idiscovery.AdInf
 func Scan(ctx *context.T, p idiscovery.Plugin, interfaceName string) (<-chan *idiscovery.AdInfo, func(), error) {
 	ctx, cancel := context.WithCancel(ctx)
 	scanCh := make(chan *idiscovery.AdInfo)
-	callback := func(ad *idiscovery.AdInfo) { scanCh <- ad }
+	callback := func(ad *idiscovery.AdInfo) {
+		select {
+		case scanCh <- ad:
+		case <-ctx.Done():
+		}
+	}
 	var wg sync.WaitGroup
 	wg.Add(1)
 	if err := p.Scan(ctx, interfaceName, callback, wg.Done); err != nil {
