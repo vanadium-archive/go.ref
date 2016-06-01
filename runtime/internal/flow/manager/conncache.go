@@ -344,7 +344,7 @@ func (c *ConnCache) findWithResolvedAddress(ctx *context.T, remote naming.Endpoi
 	network, addresses, err := resolve(ctx, p, network, address)
 	if err != nil {
 		// TODO(suharshs): Add a unittest for failed resolution.
-		ctx.Errorf("Failed to resolve (%v, %v): %v", network, address, err)
+		ctx.VI(2).Infof("Failed to resolve (%v, %v): %v", network, address, err)
 		return nil, nil, nil, nil
 	}
 
