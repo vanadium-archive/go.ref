@@ -221,12 +221,14 @@ func createDeploymentConfig(ctx *context.T, email, deploymentName, mountName str
 		MountName   string
 		Name        string
 		OwnerHash   string
+		Version     string
 	}{
 		AccessList:  acl,
 		CreatorInfo: creatorInfo,
 		MountName:   mountName,
 		Name:        deploymentName,
 		OwnerHash:   emailHash(email),
+		Version:     serverVersionFlag,
 	}
 
 	f, err := ioutil.TempFile("", "allocator-deployment-")

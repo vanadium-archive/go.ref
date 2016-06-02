@@ -29,6 +29,7 @@ var (
 	nameFlag                string
 	serverNameFlag          string
 	serverNameRootFlag      string
+	serverVersionFlag       string
 	deploymentTemplateFlag  string
 	globalAdminsFlag        string
 	maxInstancesFlag        int
@@ -63,6 +64,7 @@ var (
 const (
 	serverNameFlagName     = "server-name"
 	serverNameRootFlagName = "server-name-root"
+	serverVersionFlagName  = "server-version"
 	oauthCredsFileFlagName = "oauth-client-creds-file"
 	gcloudFlagName         = "gcloud"
 	kubectlFlagName        = "kubectl"
@@ -73,6 +75,7 @@ func main() {
 	cmdRoot.Flags.StringVar(&nameFlag, "name", "", "Name to publish for this service.")
 	cmdRoot.Flags.StringVar(&serverNameFlag, serverNameFlagName, "", "Name of the servers to allocate. This name is part of the published names in the Vanadium namespace and the names of the Deployments in Kubernetes.")
 	cmdRoot.Flags.StringVar(&serverNameRootFlag, serverNameRootFlagName, "", "Namespace root for allocated servers to use when publishing in the Vanadium namespace.  If not set, the namespace root of the allocator server is used.")
+	cmdRoot.Flags.StringVar(&serverVersionFlag, serverVersionFlagName, "", "The version of the allocated servers. This value is used in the deployment template expansion.")
 	cmdRoot.Flags.StringVar(&deploymentTemplateFlag, "deployment-template", "", "The template for the deployment of the servers to allocate.")
 	cmdRoot.Flags.StringVar(&globalAdminsFlag, "global-admins", "", "A comma-separated list of blessing patterns that have access to all the server instances.")
 	cmdRoot.Flags.IntVar(&maxInstancesFlag, "max-instances", 10, "The maximum total number of server instances to create.")

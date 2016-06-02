@@ -63,6 +63,9 @@ The allocatord flags are:
  -server-name-root=
    Namespace root for allocated servers to use when publishing in the Vanadium
    namespace.  If not set, the namespace root of the allocator server is used.
+ -server-version=
+   The version of the allocated servers. This value is used in the deployment
+   template expansion.
  -static-assets-prefix=
    Host serving the web assets.
  -vkube=vkube
