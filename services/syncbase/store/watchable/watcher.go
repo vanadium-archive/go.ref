@@ -178,6 +178,7 @@ func ReadBatchFromLog(st store.Store, resumeMarker watch.ResumeMarker) ([]*LogEn
 		seq++
 		var logEnt LogEntry
 		if err := vom.Decode(stream.Value(nil), &logEnt); err != nil {
+			stream.Cancel()
 			return nil, resumeMarker, err
 		}
 
@@ -186,14 +187,15 @@ func ReadBatchFromLog(st store.Store, resumeMarker watch.ResumeMarker) ([]*LogEn
 		// Stop if this is the end of the batch.
 		if logEnt.Continued == false {
 			endOfBatch = true
+			stream.Cancel()
 			break
 		}
 	}
 
-	if err = stream.Err(); err != nil {
-		return nil, resumeMarker, err
-	}
 	if !endOfBatch {
+		if err = stream.Err(); err != nil {
+			return nil, resumeMarker, err
+		}
 		if len(logs) > 0 {
 			vlog.Fatalf("end of batch not found after %d entries", len(logs))
 		}
