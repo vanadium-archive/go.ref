@@ -91,7 +91,6 @@ func TestConnRTT(t *testing.T) {
 	go doWrite(t, df, payload)
 	af := <-flows
 
-	ctx.Infof("%v, %v", df.Conn().RTT(), af.Conn().RTT())
 	if df.Conn().RTT() == 0 {
 		t.Errorf("dialed conn's RTT should be non-zero")
 	}

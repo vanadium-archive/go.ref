@@ -360,7 +360,13 @@ func (c *Conn) MTU() uint64 {
 func (c *Conn) RTT() time.Duration {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	return c.hcstate.lastRTT
+	rtt := c.hcstate.lastRTT
+	if !c.hcstate.requestSent.IsZero() {
+		if waitRTT := time.Since(c.hcstate.requestSent); waitRTT > rtt {
+			rtt = waitRTT
+		}
+	}
+	return rtt
 }
 
 func (c *Conn) initializeHealthChecks(ctx *context.T, firstRTT time.Duration) {
@@ -401,6 +407,7 @@ func (c *Conn) handleHealthCheckResponse(ctx *context.T) {
 		c.hcstate.requestTimer.Reset(timeout / 2)
 		c.hcstate.requestDeadline = time.Now().Add(timeout / 2)
 		c.hcstate.lastRTT = time.Since(c.hcstate.requestSent)
+		c.hcstate.requestSent = time.Time{}
 	}
 }
 
