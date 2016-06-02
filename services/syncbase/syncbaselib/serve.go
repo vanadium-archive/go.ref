@@ -13,6 +13,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+	"v.io/x/ref/lib/dispatcher"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/services/syncbase/server"
 	"v.io/x/ref/services/syncbase/vsync"
@@ -36,6 +37,16 @@ func Serve(ctx *context.T, opts Opts) (rpc.Server, rpc.Dispatcher, func()) {
 		defer pprof.StopCPUProfile()
 	}
 
+	// Create the rpc server before the service so that connections are shared between
+	// clients in the service and the rpc server. (i.e. connections are shared if the
+	// context returned from WithNewDispatchingServer is used for client calls).
+	d := dispatcher.NewDispatcherWrapper()
+	ctx, cancel := context.WithCancel(ctx)
+	ctx, s, err := v23.WithNewDispatchingServer(ctx, opts.Name, d, options.ChannelTimeout(vsync.NeighborConnectionTimeout))
+	if err != nil {
+		ctx.Fatal("v23.WithNewDispatchingServer() failed: ", err)
+	}
+
 	perms, err := securityflag.PermissionsFromFlag()
 	if err != nil {
 		ctx.Fatal("securityflag.PermissionsFromFlag() failed: ", err)
@@ -53,14 +64,10 @@ func Serve(ctx *context.T, opts Opts) (rpc.Server, rpc.Dispatcher, func()) {
 	if err != nil {
 		ctx.Fatal("server.NewService() failed: ", err)
 	}
-	d := server.NewDispatcher(service)
 
-	// Publish the service in the mount table.
-	ctx, cancel := context.WithCancel(ctx)
-	ctx, s, err := v23.WithNewDispatchingServer(ctx, opts.Name, d, options.ChannelTimeout(vsync.NeighborConnectionTimeout))
-	if err != nil {
-		ctx.Fatal("v23.WithNewDispatchingServer() failed: ", err)
-	}
+	// Set the dispatcher in the dispatcher wrapper for the server to start responding
+	// to incoming rpcs.
+	d.SetDispatcher(server.NewDispatcher(service))
 
 	// Publish syncgroups and such in the various places that they should be
 	// published.
