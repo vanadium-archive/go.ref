@@ -38,6 +38,8 @@ type transaction struct {
 
 var _ store.Transaction = (*transaction)(nil)
 
+// newTransaction creates a new transaction and adds it to the mg.events queue.
+// Assumes mg.mu is held.
 func newTransaction(mg *manager) *transaction {
 	tx := &transaction{
 		mg:       mg,
@@ -45,7 +47,7 @@ func newTransaction(mg *manager) *transaction {
 		seq:      mg.seq,
 		writes:   ptrie.New(true),
 	}
-	tx.event = mg.events.PushFront(tx)
+	tx.event = mg.events.PushBack(tx)
 	return tx
 }
 

@@ -6,11 +6,17 @@ package transactions
 
 import (
 	"container/list"
+	"fmt"
 	"sync"
+	"time"
 
 	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/store"
 )
+
+// txGcInterval is the interval between transaction garbage collections.
+// TODO(nlacasse): Profile and optimize this value.
+const txGcInterval = 100 * time.Millisecond
 
 // BatchStore is a CRUD-capable storage engine that supports atomic batch
 // writes. BatchStore doesn't support transactions.
@@ -32,10 +38,13 @@ type BatchStore interface {
 // manager handles transaction-related operations of the store.
 type manager struct {
 	BatchStore
+	// stopTxGc is used to stop garbage collecting transactions.
+	stopTxGc func()
 	// mu protects the variables below, and is also held during transaction
 	// commits. It must always be acquired before the store-level lock.
 	mu sync.Mutex
-	// events is a queue of create/commit transaction events.
+	// events is a queue of create/commit transaction events.  Events are
+	// pushed to the back of the queue, and removed from the front via GC.
 	events *list.List
 	seq    uint64
 	// txTable is a set of keys written by recent transactions. This set
@@ -52,15 +61,27 @@ type commitedTransaction struct {
 
 // Wrap wraps the BatchStore with transaction functionality.
 func Wrap(bs BatchStore) store.Store {
-	return &manager{
+	mg := &manager{
 		BatchStore: bs,
 		events:     list.New(),
 		txTable:    newTrie(),
 	}
+
+	// Start a goroutine that garbage collects transactions every txGcInterval.
+	t := time.NewTicker(txGcInterval)
+	mg.stopTxGc = t.Stop
+	go func() {
+		for range t.C {
+			mg.gcTransactions()
+		}
+	}()
+
+	return mg
 }
 
 // Close implements the store.Store interface.
 func (mg *manager) Close() error {
+	mg.stopTxGc()
 	mg.mu.Lock()
 	if mg.txTable == nil {
 		mg.mu.Unlock()
@@ -136,7 +157,6 @@ func (mg *manager) trackBatch(batch ...WriteOp) {
 	if mg.events.Len() == 0 {
 		return
 	}
-	// TODO(rogulenko): do GC.
 	mg.seq++
 	var keys [][]byte
 	for _, write := range batch {
@@ -150,8 +170,40 @@ func (mg *manager) trackBatch(batch ...WriteOp) {
 	mg.events.PushBack(tx)
 }
 
+// gcTransactions cleans up all transactions that were commited before the
+// first open (non-commited) transaction.  Transactions are cleaned up in the
+// order that they were commited.  Note that this function holds mg.mu,
+// preventing other transaction operations from occurring while it runs.
+//
+// TODO(nlacasse): If a transaction never commits or aborts, then we will never
+// be able to GC any transaction that occurs after it.  Consider aborting any
+// transaction that has been open longer than a maximum amount of time.
+func (mg *manager) gcTransactions() {
+	mg.mu.Lock()
+	defer mg.mu.Unlock()
+	if mg.events == nil {
+		return
+	}
+	ev := mg.events.Front()
+	for ev != nil {
+		switch tx := ev.Value.(type) {
+		case *transaction:
+			return
+		case *commitedTransaction:
+			for _, batch := range tx.batch {
+				mg.txTable.remove(batch, tx.seq)
+			}
+			next := ev.Next()
+			mg.events.Remove(ev)
+			ev = next
+		default:
+			panic(fmt.Sprintf("unknown event type: %T", tx))
+		}
+	}
+}
+
 //////////////////////////////////////////////////////////////
-// Read and Write types used for storing transcation reads
+// Read and Write types used for storing transaction reads
 // and uncommitted writes.
 
 type WriteType int
