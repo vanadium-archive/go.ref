@@ -195,8 +195,16 @@ func Java_io_v_syncbase_internal_Database_JoinSyncgroup(env *C.JNIEnv, cls C.jcl
 }
 func Java_io_v_syncbase_internal_Database_LeaveSyncgroup(env *C.JNIEnv, cls C.jclass, name C.jstring, sgId C.jobject) {
 }
+
+//export Java_io_v_syncbase_internal_Database_DestroySyncgroup
 func Java_io_v_syncbase_internal_Database_DestroySyncgroup(env *C.JNIEnv, cls C.jclass, name C.jstring, sgId C.jobject) {
+	cName := newVStringFromJava(env, name)
+	cSgId := newVIdFromJava(env, sgId)
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_DbDestroySyncgroup(cName, cSgId, &cErr)
+	maybeThrowException(env, &cErr)
 }
+
 func Java_io_v_syncbase_internal_Database_EjectFromSyncgroup(env *C.JNIEnv, cls C.jclass, name C.jstring, sgId C.jobject, member C.jstring) {
 }
 func Java_io_v_syncbase_internal_Database_GetSyncgroupSpec(env *C.JNIEnv, cls C.jclass, name C.jstring, sgId C.jobject) C.jobject {
