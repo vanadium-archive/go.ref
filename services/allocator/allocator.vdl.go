@@ -27,6 +27,7 @@ type Instance struct {
 	MountName     string
 	BlessingNames []string
 	CreationTime  time.Time
+	Replicas      int32
 }
 
 func (Instance) __VDLReflect(struct {
@@ -45,6 +46,9 @@ func (x Instance) VDLIsZero() bool {
 		return false
 	}
 	if !x.CreationTime.IsZero() {
+		return false
+	}
+	if x.Replicas != 0 {
 		return false
 	}
 	return true
@@ -81,6 +85,11 @@ func (x Instance) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if x.Replicas != 0 {
+		if err := enc.NextFieldValueInt("Replicas", vdl.Int32Type, int64(x.Replicas)); err != nil {
 			return err
 		}
 	}
@@ -146,6 +155,13 @@ func (x *Instance) VDLRead(dec vdl.Decoder) error {
 			}
 			if err := vdltime.TimeToNative(wire, &x.CreationTime); err != nil {
 				return err
+			}
+		case "Replicas":
+			switch value, err := dec.ReadValueInt(32); {
+			case err != nil:
+				return err
+			default:
+				x.Replicas = int32(value)
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {

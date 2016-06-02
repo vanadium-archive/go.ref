@@ -40,6 +40,7 @@ const listDetailsEntry = `Handle: {{.Handle}}
 Created: {{.CreationTime}}
 MountName: {{.MountName}}
 BlessingPatterns: {{.BlessingNames}}
+Replicas: {{.Replicas}}
 `
 
 var listTmpl *template.Template

@@ -113,40 +113,87 @@ func create(ctx *context.T, email string, baseBlessings security.Blessings, base
 		return "", err
 	}
 
-	out, err := vkube(
+	if _, err := vkube(
 		"start", "-f", cfg,
 		"--base-blessings", base64.URLEncoding.EncodeToString(vomBlessings),
 		"--wait",
 		kName,
-	)
-	if err != nil {
-		ctx.Errorf("vkube start failed: %s", string(out))
+	); err != nil {
+		ctx.Errorf("Error: %v", err)
 		deletePersistentDisk(ctx, kName)
 		return "", verror.New(verror.ErrInternal, ctx, err)
 	}
 	return kName, nil
 }
 
+func scale(ctx *context.T, email, kName string, replicas int) error {
+	args := []string{"kubectl", "scale", "--timeout=1m", fmt.Sprintf("--replicas=%d", replicas), "deployment", kName}
+	if _, err := vkube(args...); err != nil {
+		ctx.Errorf("Error: %v", err)
+		return verror.New(verror.ErrInternal, ctx, err)
+	}
+	return nil
+}
+
+func suspendImpl(ctx *context.T, email, kName string) error {
+	return scale(ctx, email, kName, 0)
+}
+
+func suspend(ctx *context.T, email, kName string) error {
+	if err := isOwnerOfInstance(ctx, email, kName); err != nil {
+		return err
+	}
+	return suspendImpl(ctx, email, kName)
+}
+
+func resumeImpl(ctx *context.T, email, kName string) error {
+	return scale(ctx, email, kName, 1)
+}
+
+func resume(ctx *context.T, email, kName string) error {
+	if err := isOwnerOfInstance(ctx, email, kName); err != nil {
+		return err
+	}
+	return resumeImpl(ctx, email, kName)
+}
+
+func resetDisk(ctx *context.T, email, kName string) error {
+	instance, err := getInstance(ctx, email, kName)
+	if err != nil {
+		return err
+	}
+	if instance.Replicas > 0 {
+		if err := suspend(ctx, email, kName); err != nil {
+			return err
+		}
+	}
+	if err := deletePersistentDisk(ctx, kName); err != nil {
+		return err
+	}
+	if err := createPersistentDisk(ctx, kName); err != nil {
+		return err
+	}
+	if instance.Replicas > 0 {
+		return resume(ctx, email, kName)
+	}
+	return nil
+}
+
 func destroy(ctx *context.T, email, kName string) error {
 	if err := isOwnerOfInstance(ctx, email, kName); err != nil {
 		return err
 	}
-
 	cfg, cleanup, err := createDeploymentConfig(ctx, email, kName, "", nil)
 	defer cleanup()
 	if err != nil {
 		return err
 	}
 
-	out, err := vkube("stop", "-f", cfg)
-	if err != nil {
-		ctx.Errorf("vkube stop failed: %s", string(out))
+	if _, err := vkube("stop", "-f", cfg); err != nil {
+		ctx.Errorf("Error: %v", err)
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
-	if err := deletePersistentDisk(ctx, kName); err != nil {
-		return err
-	}
-	return nil
+	return deletePersistentDisk(ctx, kName)
 }
 
 func createDeploymentConfig(ctx *context.T, email, deploymentName, mountName string, baseBlessingNames []string) (string, func(), error) {
@@ -287,6 +334,9 @@ func serverInstances(ctx *context.T, email string) ([]allocator.Instance, error)
 				CreationTime time.Time         `json:"creationTimestamp"`
 				Annotations  map[string]string `json:"annotations"`
 			} `json:"metadata"`
+			Spec struct {
+				Replicas int32 `json:"replicas"`
+			} `json:"spec"`
 		} `json:"items"`
 	}
 	if err := json.Unmarshal(out, &list); err != nil {
@@ -307,22 +357,28 @@ func serverInstances(ctx *context.T, email string) ([]allocator.Instance, error)
 			MountName:     cInfo.MountName,
 			BlessingNames: cInfo.BlessingNames,
 			CreationTime:  l.Metadata.CreationTime,
+			Replicas:      l.Spec.Replicas,
 		})
 	}
 	return instances, nil
 }
 
-func isOwnerOfInstance(ctx *context.T, email, kName string) error {
+func getInstance(ctx *context.T, email, kName string) (allocator.Instance, error) {
 	instances, err := serverInstances(ctx, email)
 	if err != nil {
-		return err
+		return allocator.Instance{}, err
 	}
 	for _, i := range instances {
 		if i.Handle == kName {
-			return nil
+			return i, nil
 		}
 	}
-	return verror.New(verror.ErrNoExistOrNoAccess, nil)
+	return allocator.Instance{}, verror.New(verror.ErrNoExistOrNoAccess, nil)
+}
+
+func isOwnerOfInstance(ctx *context.T, email, kName string) error {
+	_, err := getInstance(ctx, email, kName)
+	return err
 }
 
 func createPersistentDisk(ctx *context.T, name string) error {

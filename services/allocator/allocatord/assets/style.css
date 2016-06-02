@@ -41,8 +41,9 @@ body {
 }
 
 .allocatord .btn-destroy a {
-  position: absolute;
-  bottom: 20px;
+  /* TODO(jingjin): Prettify :-) */
+  /* position: absolute; */
+  /* bottom: 20px; */
   color: #FF4F1A;
   border: 1px solid #FF4F1A;
   -webkit-transition: background-color 0.28s cubic-bezier(0.4, 0.0, 0.2, 1);

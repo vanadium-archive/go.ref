@@ -24,6 +24,9 @@ const (
 	routeDashboard = "/dashboard"
 	routeDebug     = "/debug"
 	routeDestroy   = "/destroy"
+	routeSuspend   = "/suspend"
+	routeResume    = "/resume"
+	routeReset     = "/reset"
 	routeOauth     = "/oauth2"
 	routeStatic    = "/static/"
 	routeStats     = "/stats"
@@ -163,6 +166,9 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 			return handleDebug(ss, rs, debugBrowserServeMux)
 		}, false, true))
 	http.Handle(routeDestroy, newHandler(handleDestroy, true, true))
+	http.Handle(routeSuspend, newHandler(handleSuspend, true, true))
+	http.Handle(routeResume, newHandler(handleResume, true, true))
+	http.Handle(routeReset, newHandler(handleReset, true, true))
 	http.HandleFunc(routeOauth, func(w http.ResponseWriter, r *http.Request) {
 		handleOauth(ctx, args, baker, w, r)
 	})

@@ -23,8 +23,11 @@ func handleHome(ss *serverState, rs *requestState) error {
 	type instanceArg struct {
 		Instance allocator.Instance
 		DestroyURL,
+		ResetURL,
 		DebugURL,
-		DashboardURL string
+		DashboardURL,
+		SuspendURL,
+		ResumeURL string
 	}
 	tmplArgs := struct {
 		AssetsPrefix,
@@ -44,6 +47,9 @@ func handleHome(ss *serverState, rs *requestState) error {
 		tmplArgs.Instances = append(tmplArgs.Instances, instanceArg{
 			Instance:     instance,
 			DestroyURL:   makeURL(ctx, routeDestroy, params{paramInstance: instance.Handle, paramCSRF: rs.csrfToken}),
+			ResetURL:     makeURL(ctx, routeReset, params{paramInstance: instance.Handle, paramCSRF: rs.csrfToken}),
+			SuspendURL:   makeURL(ctx, routeSuspend, params{paramInstance: instance.Handle, paramCSRF: rs.csrfToken}),
+			ResumeURL:    makeURL(ctx, routeResume, params{paramInstance: instance.Handle, paramCSRF: rs.csrfToken}),
 			DashboardURL: makeURL(ctx, routeDashboard, params{paramInstance: instance.Handle}),
 			DebugURL: makeURL(
 				ctx,
@@ -81,6 +87,48 @@ func handleDestroy(ss *serverState, rs *requestState) error {
 		return fmt.Errorf("destroy failed: %v", err)
 	}
 	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "destroyed " + instance})
+	http.Redirect(rs.w, rs.r, redirectTo, http.StatusFound)
+	return nil
+}
+
+func handleSuspend(ss *serverState, rs *requestState) error {
+	ctx := ss.ctx
+	instance := rs.r.FormValue(paramInstance)
+	if instance == "" {
+		return fmt.Errorf("parameter %q required for instance name", paramInstance)
+	}
+	if err := suspend(ctx, rs.email, instance); err != nil {
+		return fmt.Errorf("suspend failed: %v", err)
+	}
+	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "suspended " + instance})
+	http.Redirect(rs.w, rs.r, redirectTo, http.StatusFound)
+	return nil
+}
+
+func handleResume(ss *serverState, rs *requestState) error {
+	ctx := ss.ctx
+	instance := rs.r.FormValue(paramInstance)
+	if instance == "" {
+		return fmt.Errorf("parameter %q required for instance name", paramInstance)
+	}
+	if err := resume(ctx, rs.email, instance); err != nil {
+		return fmt.Errorf("resume failed: %v", err)
+	}
+	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "resumed " + instance})
+	http.Redirect(rs.w, rs.r, redirectTo, http.StatusFound)
+	return nil
+}
+
+func handleReset(ss *serverState, rs *requestState) error {
+	ctx := ss.ctx
+	instance := rs.r.FormValue(paramInstance)
+	if instance == "" {
+		return fmt.Errorf("parameter %q required for instance name", paramInstance)
+	}
+	if err := resetDisk(ctx, rs.email, instance); err != nil {
+		return fmt.Errorf("reset failed: %v", err)
+	}
+	redirectTo := makeURL(ctx, routeHome, params{paramMessage: "resetted " + instance})
 	http.Redirect(rs.w, rs.r, redirectTo, http.StatusFound)
 	return nil
 }

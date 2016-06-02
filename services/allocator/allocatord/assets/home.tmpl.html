@@ -24,7 +24,7 @@ blessing. -->
       <div class="blessings-item">
         <div class="blessing-details">
           {{with .Instance}}
-          <h3>{{.Handle}}</h3>
+          <h3>{{.Handle}} {{if eq .Replicas 0}}[Suspended]{{end}}</h3>
           <p class="blessing-caveats">
             <span>Creation Time</span><br/>
             <span class="unixtime" data-unixtime={{.CreationTime.Unix}}>{{.CreationTime.String}}</span>
@@ -47,6 +47,16 @@ blessing. -->
           </div>
           <div class="btn">
             <a href="{{.DebugURL}}" class="button-passive" target="_blank">Debug</a>
+          </div>
+          <div class="btn" id="suspendResumeBtn{{$index}}">
+            {{if eq .Instance.Replicas 0 }}
+            <a href="{{.ResumeURL}}" class="button-passive" onclick="changeBtn('suspendResumeBtn{{$index}}', 'Resuming (takes a few seconds) ...')">Resume</a>
+            {{else}}
+            <a href="{{.SuspendURL}}" class="button-passive" onclick="changeBtn('suspendResumeBtn{{$index}}', 'Suspending (takes a few seconds) ...')">Suspend</a>
+            {{end}}
+          </div>
+          <div class="btn btn-destroy" id="resetBtn{{$index}}">
+            <a href="{{.ResetURL}}" class="button-passive" onclick="changeBtn('resetBtn{{$index}}', 'Resetting (takes a few seconds) ...')">Reset</a>
           </div>
           <div class="btn btn-destroy" id="destroyBtn{{$index}}">
             <a href="{{.DestroyURL}}" class="button-passive" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes a few seconds) ...')">Destroy</a>
