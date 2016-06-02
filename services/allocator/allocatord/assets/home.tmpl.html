@@ -55,10 +55,10 @@ blessing. -->
             <a href="{{.SuspendURL}}" class="button-passive" onclick="changeBtn('suspendResumeBtn{{$index}}', 'Suspending (takes a few seconds) ...')">Suspend</a>
             {{end}}
           </div>
-          <div class="btn btn-destroy" id="resetBtn{{$index}}">
+          <div class="btn btn-warning" id="resetBtn{{$index}}">
             <a href="{{.ResetURL}}" class="button-passive" onclick="changeBtn('resetBtn{{$index}}', 'Resetting (takes a few seconds) ...')">Reset</a>
           </div>
-          <div class="btn btn-destroy" id="destroyBtn{{$index}}">
+          <div class="btn btn-warning" id="destroyBtn{{$index}}">
             <a href="{{.DestroyURL}}" class="button-passive" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes a few seconds) ...')">Destroy</a>
           </div>
         </div>

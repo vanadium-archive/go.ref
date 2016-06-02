@@ -27,8 +27,7 @@ body {
 }
 
 .allocatord .btns-col {
-  padding-top: 16px;
-  padding-right: 16px;
+  padding: 16px 16px 16px 0;
   width: 130px;
   flex: 0;
   position: relative;
@@ -40,17 +39,14 @@ body {
   margin-top: 4px;
 }
 
-.allocatord .btn-destroy a {
-  /* TODO(jingjin): Prettify :-) */
-  /* position: absolute; */
-  /* bottom: 20px; */
+.allocatord .btn-warning a {
   color: #FF4F1A;
   border: 1px solid #FF4F1A;
   -webkit-transition: background-color 0.28s cubic-bezier(0.4, 0.0, 0.2, 1);
   transition: background-color 0.28s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
-.allocatord .btn-destroy a:hover, .allocatord .btn-destroy a:active {
+.allocatord .btn-warning a:hover, .allocatord .btn-destroy a:active {
   color: #FFFFFF;
   background-color: #FF4F1A;
 }
