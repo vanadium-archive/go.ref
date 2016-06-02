@@ -375,7 +375,7 @@ func (s *watchStreamImpl) Recv(_ interface{}) error {
 var _ rpc.Stream = (*watchStreamImpl)(nil)
 
 //export v23_syncbase_DbWatchPatterns
-func v23_syncbase_DbWatchPatterns(cName, cResumeMarker C.v23_syncbase_String, cPatterns C.v23_syncbase_CollectionRowPatterns, cbs C.v23_syncbase_DbWatchPatternsCallbacks, cErr *C.v23_syncbase_VError) {
+func v23_syncbase_DbWatchPatterns(cName C.v23_syncbase_String, cResumeMarker C.v23_syncbase_Bytes, cPatterns C.v23_syncbase_CollectionRowPatterns, cbs C.v23_syncbase_DbWatchPatternsCallbacks, cErr *C.v23_syncbase_VError) {
 	name := cName.extract()
 	resumeMarker := watch.ResumeMarker(cResumeMarker.extract())
 	patterns := cPatterns.extract()
