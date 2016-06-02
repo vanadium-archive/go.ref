@@ -115,6 +115,7 @@ func (d *idiscovery) doScan(ctx *context.T, session sessionId, matcher Matcher, 
 				if !send(NewUpdate(prev.adinfo)) {
 					return
 				}
+				continue
 			}
 			if d.getAdSession(id) == session {
 				// Ignore advertisements made within the same session.

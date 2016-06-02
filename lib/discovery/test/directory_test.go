@@ -92,7 +92,6 @@ func TestDirectoryBasic(t *testing.T) {
 }
 
 func TestDirectoryRoaming(t *testing.T) {
-	t.Skip("v.io/i/1351")
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 
