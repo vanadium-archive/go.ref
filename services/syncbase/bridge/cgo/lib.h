@@ -82,9 +82,10 @@ typedef struct {
   int n;
 } v23_syncbase_CollectionRowPatterns;
 
+// syncbase.ChangeType
 typedef enum v23_syncbase_ChangeType {
-  kPut = 0,
-  kDelete = 1
+  v23_syncbase_ChangeTypePut = 0,
+  v23_syncbase_ChangeTypeDelete = 1
 } v23_syncbase_ChangeType;
 
 // syncbase.WatchChange
