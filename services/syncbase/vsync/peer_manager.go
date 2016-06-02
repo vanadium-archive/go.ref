@@ -456,7 +456,7 @@ func (pm *peerManagerImpl) pingPeers(ctx *context.T, peers []*connInfo) []*connI
 
 	vlog.VI(4).Infof("sync: pingPeers: sending names %v", names)
 
-	res, err := ping.PingInParallel(ctx, names, neighborConnectionTimeout, channelTimeout)
+	res, err := ping.PingInParallel(ctx, names, NeighborConnectionTimeout, channelTimeout)
 	if err != nil {
 		return nil
 	}

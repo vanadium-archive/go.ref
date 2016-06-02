@@ -11,9 +11,11 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/services/syncbase/server"
+	"v.io/x/ref/services/syncbase/vsync"
 )
 
 // Serve starts the Syncbase server. Returns rpc.Server and rpc.Dispatcher for
@@ -55,7 +57,7 @@ func Serve(ctx *context.T, opts Opts) (rpc.Server, rpc.Dispatcher, func()) {
 
 	// Publish the service in the mount table.
 	ctx, cancel := context.WithCancel(ctx)
-	ctx, s, err := v23.WithNewDispatchingServer(ctx, opts.Name, d)
+	ctx, s, err := v23.WithNewDispatchingServer(ctx, opts.Name, d, options.ChannelTimeout(vsync.NeighborConnectionTimeout))
 	if err != nil {
 		ctx.Fatal("v23.WithNewDispatchingServer() failed: ", err)
 	}

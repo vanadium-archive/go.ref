@@ -1275,7 +1275,7 @@ func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCa
 	neighbors := ss.filterSyncgroupAdmins(dbId, sgId)
 	for _, svc := range neighbors {
 		for _, addr := range svc.Addresses {
-			ctx, cancel := context.WithTimeout(ctxIn, neighborConnectionTimeout)
+			ctx, cancel := context.WithTimeout(ctxIn, NeighborConnectionTimeout)
 			// TODO(fredq): check that the service at addr has the expectedSyncbaseBlessings.
 			c := interfaces.SyncClient(naming.Join(addr, common.SyncbaseSuffix))
 			sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, dbId, sgId, localSyncbaseName, myInfo)
