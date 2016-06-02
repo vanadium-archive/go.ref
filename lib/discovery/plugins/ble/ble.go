@@ -27,6 +27,7 @@ const (
 var (
 	statMu  sync.Mutex
 	statIdx int
+	seenIdx int
 )
 
 type plugin struct {
@@ -64,12 +65,16 @@ func (p *plugin) Scan(ctx *context.T, interfaceName string, callback func(*idisc
 		// plugins should be made aware of the plugin that sent the event.
 		// In that case, perhaps these stats should also be exported there,
 		// rather than in each plugin implementation?
-		stat := naming.Join(p.statPrefix, "seen")
+		statMu.Lock()
+		stat := naming.Join(p.statPrefix, "seen", fmt.Sprint(seenIdx))
+		seenIdx++
+		statMu.Unlock()
 		var seenMu sync.Mutex // Safety between this goroutine and stats
 		stats.NewStringFunc(stat, func() string {
 			seenMu.Lock()
 			defer seenMu.Unlock()
 			buf := new(bytes.Buffer)
+			fmt.Fprintf(buf, "InterfaceName: %q\n", interfaceName)
 			for k, v := range seen {
 				fmt.Fprintf(buf, "%s: %v\n\n", k, *v)
 			}
