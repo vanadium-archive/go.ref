@@ -195,7 +195,9 @@ func (m *manager) Listen(ctx *context.T, protocol, address string) (<-chan struc
 	defer m.ls.mu.Unlock()
 	m.ls.mu.Lock()
 	if m.ls.listeners == nil {
-		ln.Close()
+		if ln != nil {
+			ln.Close()
+		}
 		return nil, flow.NewErrBadState(ctx, NewErrManagerClosed(ctx))
 	}
 	errKey := struct{ Protocol, Address string }{Protocol: protocol, Address: address}
