@@ -293,6 +293,18 @@ func (x *C.v23_syncbase_Strings) extract() []string {
 	return res
 }
 
+func (x *C.v23_syncbase_Strings) free() {
+	if x.p == nil {
+		return
+	}
+	for i := 0; i < int(x.n); i++ {
+		x.at(i).free()
+	}
+	C.free(unsafe.Pointer(x.p))
+	x.p = nil
+	x.n = 0
+}
+
 ////////////////////////////////////////////////////////////
 // C.v23_syncbase_SyncgroupSpec
 
@@ -351,6 +363,28 @@ func (x *C.v23_syncbase_SyncgroupMemberInfoMap) init(members map[string]wire.Syn
 		cv.init(v)
 		i++
 	}
+}
+
+func (x *C.v23_syncbase_SyncgroupMemberInfoMap) free() {
+	if x.n == 0 {
+		return
+	}
+	if x.keys == nil {
+		panic("v23_syncbase_SyncgroupMemberInfoMap keys corruption")
+	}
+	if x.values == nil {
+		panic("v23_syncbase_SyncgroupMemberInfoMap values corruption")
+	}
+	for i := 0; i < int(x.n); i++ {
+		// The values don't contain pointers.
+		k, _ := x.at(i)
+		k.free()
+	}
+	C.free(unsafe.Pointer(x.keys))
+	C.free(unsafe.Pointer(x.values))
+	x.keys = nil
+	x.values = nil
+	x.n = 0
 }
 
 ////////////////////////////////////////////////////////////

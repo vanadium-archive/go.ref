@@ -14,6 +14,10 @@ jobject CallObjectMethod(JNIEnv *env, jobject obj, jmethodID methodID) {
   return (*env)->CallObjectMethod(env,obj,methodID);
 }
 
+jobject CallObjectMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *args) {
+  return (*env)->CallObjectMethodA(env, obj, methodID, args);
+}
+
 void ExceptionClear(JNIEnv *env) {
   (*env)->ExceptionClear(env);
 }
@@ -78,12 +82,20 @@ jobject NewObjectA(JNIEnv *env, jclass cls, jmethodID methodID, jvalue *args) {
   return (*env)->NewObjectA(env, cls, methodID, args);
 }
 
+void SetBooleanField(JNIEnv *env, jobject obj, jfieldID fieldID, jboolean value) {
+  return (*env)->SetBooleanField(env, obj, fieldID, value);
+}
+
 void SetByteArrayRegion(JNIEnv *env, jbyteArray array, jsize start, jsize len, jbyte *buf) {
   return (*env)->SetByteArrayRegion(env, array, start, len, buf);
 }
 
 void SetLongField(JNIEnv *env, jobject obj, jfieldID fieldID, jlong value) {
   (*env)->SetLongField(env, obj, fieldID, value);
+}
+
+void SetByteField(JNIEnv *env, jobject obj, jfieldID fieldID, jbyte value) {
+  (*env)->SetByteField(env, obj, fieldID, value);
 }
 
 jbyteArray NewByteArray(JNIEnv *env, jsize length) {

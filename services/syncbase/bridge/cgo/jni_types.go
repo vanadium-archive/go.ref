@@ -21,7 +21,17 @@ import "unsafe"
 // #include "lib.h"
 import "C"
 
-// newVBytesFromJava creates a v23_syncbase_Bytes from a jbyteArray.
+// All the extractToJava methods return Java types and deallocate all the
+// pointers inside v23_syncbase_* variable.
+
+// extractToJava constructs a jboolean from a bool.
+func (x *C.bool) extractToJava() C.jboolean {
+	if *x == false {
+		return 0
+	}
+	return 1
+}
+
 func newVBytesFromJava(env *C.JNIEnv, array C.jbyteArray) C.v23_syncbase_Bytes {
 	r := C.v23_syncbase_Bytes{}
 	n := C.GetArrayLength(env, array)
@@ -34,8 +44,6 @@ func newVBytesFromJava(env *C.JNIEnv, array C.jbyteArray) C.v23_syncbase_Bytes {
 	return r
 }
 
-// extractToJava constructs a jbyteArray from a v23_syncbase_Bytes. The pointer
-// inside v23_syncbase_Bytes will be freed.
 func (x *C.v23_syncbase_Bytes) extractToJava(env *C.JNIEnv) C.jbyteArray {
 	obj := C.NewByteArray(env, C.jsize(x.n))
 	if C.ExceptionOccurred(env) != nil {
@@ -49,7 +57,7 @@ func (x *C.v23_syncbase_Bytes) extractToJava(env *C.JNIEnv) C.jbyteArray {
 	return obj
 }
 
-// newVIdFromJava creates a v23_syncbase_Id from a jobject.
+// newVIdFromJava creates a v23_syncbase_Id from an Id object.
 func newVIdFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_Id {
 	blessing := C.jstring(C.GetObjectField(env, obj, idClass.blessing))
 	if C.ExceptionOccurred(env) != nil {
@@ -73,6 +81,9 @@ func newVIdFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_Id {
 // UTF-8 strings (inner nulls are encoded as 0xC0, 0x80 and the string is
 // terminated with a null).
 func (x *C.v23_syncbase_String) extractToJava(env *C.JNIEnv) C.jstring {
+	if x.p == nil {
+		return nil
+	}
 	n := int(x.n)
 	srcPtr := uintptr(unsafe.Pointer(x.p))
 	numNulls := 0
@@ -103,7 +114,6 @@ func (x *C.v23_syncbase_String) extractToJava(env *C.JNIEnv) C.jstring {
 	return r
 }
 
-// newVStringFromJava creates a v23_syncbase_String from a jstring.
 func newVStringFromJava(env *C.JNIEnv, s C.jstring) C.v23_syncbase_String {
 	r := C.v23_syncbase_String{}
 	if s == nil {
@@ -149,7 +159,7 @@ func newVStringFromJava(env *C.JNIEnv, s C.jstring) C.v23_syncbase_String {
 }
 
 // newVSyncgroupMemberInfoFromJava creates a v23_syncbase_SyncgroupMemberInfo
-// from a jobject.
+// from a SyncgroupMemberInfo object.
 func newVSyncgroupMemberInfoFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_SyncgroupMemberInfo {
 	syncPriority := C.GetIntField(env, obj, syncgroupMemberInfoClass.syncPriority)
 	if C.ExceptionOccurred(env) != nil {
@@ -165,7 +175,8 @@ func newVSyncgroupMemberInfoFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbas
 	}
 }
 
-// newVSyngroupSpecFromJava creates a v23_syncbase_SyncgroupSpec from a jobject.
+// newVSyngroupSpecFromJava creates a v23_syncbase_SyncgroupSpec from a
+// SyncgroupSpec object.
 func newVSyngroupSpecFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_SyncgroupSpec {
 	description := C.jstring(C.GetObjectField(env, obj, syncgroupSpecClass.description))
 	if C.ExceptionOccurred(env) != nil {
@@ -198,4 +209,18 @@ func newVSyngroupSpecFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_Syncg
 		collections:         collectionsIds,
 		mountTables:         mountTablesStrings,
 	}
+}
+
+// newVSyngroupSpecAndVersionFromJava creates a v23_syncbase_SyncgroupSpec and
+// v23_syncbase_String version string from a VersionedSyncgroupSpec object.
+func newVSyngroupSpecAndVersionFromJava(env *C.JNIEnv, obj C.jobject) (C.v23_syncbase_SyncgroupSpec, C.v23_syncbase_String) {
+	version := C.jstring(C.GetObjectField(env, obj, versionedSyncgroupSpecClass.version))
+	if C.ExceptionOccurred(env) != nil {
+		panic("newVSyngroupSpecAndVersionFromJava exception while retrieving VersionedSyncgroupSpec.version")
+	}
+	spec := newVSyngroupSpecFromJava(env, C.GetObjectField(env, obj, versionedSyncgroupSpecClass.syncgroupSpec))
+	if C.ExceptionOccurred(env) != nil {
+		panic("newVSyngroupSpecAndVersionFromJava exception while retrieving VersionedSyncgroupSpec.syncgroupSpec")
+	}
+	return spec, newVStringFromJava(env, version)
 }

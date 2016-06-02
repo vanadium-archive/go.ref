@@ -27,6 +27,21 @@ func newJArrayListClass(env *C.JNIEnv) jArrayListClass {
 	}
 }
 
+type jHashMap struct {
+	class C.jclass
+	init  C.jmethodID
+	put   C.jmethodID
+}
+
+func newJHashMap(env *C.JNIEnv) jHashMap {
+	cls, init := initClass(env, "java/util/HashMap")
+	return jHashMap{
+		class: cls,
+		init:  init,
+		put:   jGetMethodID(env, cls, "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"),
+	}
+}
+
 type jIteratorInterface struct {
 	hasNext C.jmethodID
 	next    C.jmethodID
@@ -130,6 +145,23 @@ func newJVErrorClass(env *C.JNIEnv) jVErrorClass {
 		actionCode: jGetFieldID(env, cls, "actionCode", "J"),
 		message:    jGetFieldID(env, cls, "message", "Ljava/lang/String;"),
 		stack:      jGetFieldID(env, cls, "stack", "Ljava/lang/String;"),
+	}
+}
+
+type jVersionedSyncgroupSpec struct {
+	class         C.jclass
+	init          C.jmethodID
+	version       C.jfieldID
+	syncgroupSpec C.jfieldID
+}
+
+func newJVersionedSyncgroupSpec(env *C.JNIEnv) jVersionedSyncgroupSpec {
+	cls, init := initClass(env, "io/v/syncbase/internal/Database$VersionedSyncgroupSpec")
+	return jVersionedSyncgroupSpec{
+		class:         cls,
+		init:          init,
+		version:       jGetFieldID(env, cls, "version", "Ljava/lang/String;"),
+		syncgroupSpec: jGetFieldID(env, cls, "syncgroupSpec", "Lio/v/syncbase/internal/Database$SyncgroupSpec;"),
 	}
 }
 

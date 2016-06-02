@@ -13,6 +13,7 @@
 jboolean CallBooleanMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *args);
 jobject CallIntMethod(JNIEnv *env, jobject obj, jmethodID methodID);
 jobject CallObjectMethod(JNIEnv *env, jobject obj, jmethodID methodID);
+jobject CallObjectMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *args);
 void ExceptionClear(JNIEnv *env);
 jthrowable ExceptionOccurred(JNIEnv* env);
 jclass FindClass(JNIEnv* env, const char* name);
@@ -31,6 +32,8 @@ jbyteArray NewByteArray(JNIEnv *env, jsize length);
 jobject NewGlobalRef(JNIEnv* env, jobject obj);
 jobject NewObjectA(JNIEnv *env, jclass cls, jmethodID methodID, jvalue *args);
 jstring NewStringUTF(JNIEnv *env, const char *bytes);
+void SetBooleanField(JNIEnv *env, jobject obj, jfieldID fieldID, jboolean value);
+void SetByteField(JNIEnv *env, jobject obj, jfieldID fieldID, jbyte value);
 void SetByteArrayRegion(JNIEnv *env, jbyteArray array, jsize start, jsize len, jbyte *buf);
 void SetLongField(JNIEnv *env, jobject obj, jfieldID fieldID, jlong value);
 void SetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID, jobject value);

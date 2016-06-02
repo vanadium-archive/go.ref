@@ -11,19 +11,31 @@ import (
 	"unsafe"
 )
 
-// #include <stdlib.h>
-// #include <string.h>
-// #include "jni_wrapper.h"
-// #include "lib.h"
+/*
+#include <stdlib.h>
+#include <string.h>
+#include "jni_wrapper.h"
+#include "lib.h"
+
+static jvalue* allocJValueArray(int elements) {
+  return malloc(sizeof(jvalue) * elements);
+}
+
+static void setJValueArrayElement(jvalue* arr, int index, jvalue val) {
+  arr[index] = val;
+}
+*/
 import "C"
 
 var (
-	jVM                      *C.JavaVM
-	arrayListClass           jArrayListClass
-	idClass                  jIdClass
-	syncgroupMemberInfoClass jSyncgroupMemberInfo
-	syncgroupSpecClass       jSyncgroupSpec
-	verrorClass              jVErrorClass
+	jVM                         *C.JavaVM
+	arrayListClass              jArrayListClass
+	hashMapClass                jHashMap
+	idClass                     jIdClass
+	syncgroupMemberInfoClass    jSyncgroupMemberInfo
+	syncgroupSpecClass          jSyncgroupSpec
+	verrorClass                 jVErrorClass
+	versionedSyncgroupSpecClass jVersionedSyncgroupSpec
 )
 
 // JNI_OnLoad is called when System.loadLibrary is called. We need to cache the
@@ -42,10 +54,12 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 
 	v23_syncbase_Init(C.v23_syncbase_Bool(1))
 	arrayListClass = newJArrayListClass(env)
+	hashMapClass = newJHashMap(env)
 	idClass = newJIdClass(env)
 	syncgroupMemberInfoClass = newJSyncgroupMemberInfo(env)
 	syncgroupSpecClass = newJSyncgroupSpec(env)
 	verrorClass = newJVErrorClass(env)
+	versionedSyncgroupSpecClass = newJVersionedSyncgroupSpec(env)
 
 	return C.JNI_VERSION_1_6
 }
@@ -190,10 +204,27 @@ func Java_io_v_syncbase_internal_Database_CreateSyncgroup(env *C.JNIEnv, cls C.j
 	maybeThrowException(env, &cErr)
 }
 
-func Java_io_v_syncbase_internal_Database_JoinSyncgroup(env *C.JNIEnv, cls C.jclass, name C.jstring, sgId C.jobject, info C.jobject) C.jobject {
-	return nil
+//export Java_io_v_syncbase_internal_Database_JoinSyncgroup
+func Java_io_v_syncbase_internal_Database_JoinSyncgroup(env *C.JNIEnv, cls C.jclass, name C.jstring, remoteSyncbaseName C.jstring, expectedSyncbaseBlessings C.jobject, sgId C.jobject, info C.jobject) C.jobject {
+	cName := newVStringFromJava(env, name)
+	cRemoteSyncbaseName := newVStringFromJava(env, remoteSyncbaseName)
+	cExpectedSyncbaseBlessings := newVStringsFromJava(env, expectedSyncbaseBlessings)
+	cSgId := newVIdFromJava(env, sgId)
+	cMyInfo := newVSyncgroupMemberInfoFromJava(env, info)
+	var cSpec C.v23_syncbase_SyncgroupSpec
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_DbJoinSyncgroup(cName, cRemoteSyncbaseName, cExpectedSyncbaseBlessings, cSgId, cMyInfo, &cSpec, &cErr)
+	maybeThrowException(env, &cErr)
+	return cSpec.extractToJava(env)
 }
+
+//export Java_io_v_syncbase_internal_Database_LeaveSyncgroup
 func Java_io_v_syncbase_internal_Database_LeaveSyncgroup(env *C.JNIEnv, cls C.jclass, name C.jstring, sgId C.jobject) {
+	cName := newVStringFromJava(env, name)
+	cSgId := newVIdFromJava(env, sgId)
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_DbLeaveSyncgroup(cName, cSgId, &cErr)
+	maybeThrowException(env, &cErr)
 }
 
 //export Java_io_v_syncbase_internal_Database_DestroySyncgroup
@@ -205,16 +236,56 @@ func Java_io_v_syncbase_internal_Database_DestroySyncgroup(env *C.JNIEnv, cls C.
 	maybeThrowException(env, &cErr)
 }
 
+//export Java_io_v_syncbase_internal_Database_EjectFromSyncgroup
 func Java_io_v_syncbase_internal_Database_EjectFromSyncgroup(env *C.JNIEnv, cls C.jclass, name C.jstring, sgId C.jobject, member C.jstring) {
+	cName := newVStringFromJava(env, name)
+	cSgId := newVIdFromJava(env, sgId)
+	cMember := newVStringFromJava(env, member)
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_DbEjectFromSyncgroup(cName, cSgId, cMember, &cErr)
+	maybeThrowException(env, &cErr)
 }
+
+//export Java_io_v_syncbase_internal_Database_GetSyncgroupSpec
 func Java_io_v_syncbase_internal_Database_GetSyncgroupSpec(env *C.JNIEnv, cls C.jclass, name C.jstring, sgId C.jobject) C.jobject {
-	return nil
+	cName := newVStringFromJava(env, name)
+	cSgId := newVIdFromJava(env, sgId)
+	var cSpec C.v23_syncbase_SyncgroupSpec
+	var cVersion C.v23_syncbase_String
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_DbGetSyncgroupSpec(cName, cSgId, &cSpec, &cVersion, &cErr)
+	if maybeThrowException(env, &cErr) {
+		return nil
+	}
+	obj := C.NewObjectA(env, versionedSyncgroupSpecClass.class, versionedSyncgroupSpecClass.init, nil)
+	C.SetObjectField(env, obj, versionedSyncgroupSpecClass.version, cVersion.extractToJava(env))
+	C.SetObjectField(env, obj, versionedSyncgroupSpecClass.syncgroupSpec, cSpec.extractToJava(env))
+	return obj
 }
-func Java_io_v_syncbase_internal_Database_SetSyncgroupSpec(env *C.JNIEnv, cls C.jclass, name C.jstring, sgId C.jobject, spec C.jobject) {
+
+//export Java_io_v_syncbase_internal_Database_SetSyncgroupSpec
+func Java_io_v_syncbase_internal_Database_SetSyncgroupSpec(env *C.JNIEnv, cls C.jclass, name C.jstring, sgId C.jobject, versionedSpec C.jobject) {
+	cName := newVStringFromJava(env, name)
+	cSgId := newVIdFromJava(env, sgId)
+	cSpec, cVersion := newVSyngroupSpecAndVersionFromJava(env, versionedSpec)
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_DbSetSyncgroupSpec(cName, cSgId, cSpec, cVersion, &cErr)
+	maybeThrowException(env, &cErr)
 }
+
+//export Java_io_v_syncbase_internal_Database_GetSyncgroupMembers
 func Java_io_v_syncbase_internal_Database_GetSyncgroupMembers(env *C.JNIEnv, cls C.jclass, name C.jstring, sgId C.jobject) C.jobject {
-	return nil
+	cName := newVStringFromJava(env, name)
+	cSgId := newVIdFromJava(env, sgId)
+	var cMembers C.v23_syncbase_SyncgroupMemberInfoMap
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_DbGetSyncgroupMembers(cName, cSgId, &cMembers, &cErr)
+	if maybeThrowException(env, &cErr) {
+		return nil
+	}
+	return cMembers.extractToJava(env)
 }
+
 func Java_io_v_syncbase_internal_Database_WatchPatterns(env *C.JNIEnv, cls C.jclass, name C.jstring, resumeMaker C.jbyteArray, patters C.jobject, callbacks C.jobject) {
 }
 
@@ -363,7 +434,9 @@ func Java_io_v_syncbase_internal_Util_NamingJoin(env *C.JNIEnv, cls C.jclass, ob
 // "inconsistent definitions" errors for various functions (C.NewObjectA and
 // C.SetObjectField for example).
 
-// extractToJava creates an Id object from a v23_syncbase_Id.
+// All the extractToJava methods return Java types and deallocate all the
+// pointers inside v23_syncbase_* variable.
+
 func (x *C.v23_syncbase_Id) extractToJava(env *C.JNIEnv) C.jobject {
 	obj := C.NewObjectA(env, idClass.class, idClass.init, nil)
 	C.SetObjectField(env, obj, idClass.blessing, x.blessing.extractToJava(env))
@@ -404,8 +477,6 @@ func newVIdsFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_Ids {
 	return r
 }
 
-// extractToJava constructs a jobject from a v23_syncbase_Ids. The pointers
-// inside v23_syncbase_Ids will be freed.
 func (x *C.v23_syncbase_Ids) extractToJava(env *C.JNIEnv) C.jobject {
 	obj := C.NewObjectA(env, arrayListClass.class, arrayListClass.init, nil)
 	for i := 0; i < int(x.n); i++ {
@@ -449,8 +520,40 @@ func newVStringsFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_Strings {
 	return r
 }
 
-// extractToJava constructs a jobject from a v23_syncbase_VError. The pointers
-// from inside v23_syncbase_VError will be freed.
+func (x *C.v23_syncbase_SyncgroupSpec) extractToJava(env *C.JNIEnv) C.jobject {
+	obj := C.NewObjectA(env, syncgroupSpecClass.class, syncgroupSpecClass.init, nil)
+	C.SetObjectField(env, obj, syncgroupSpecClass.description, x.description.extractToJava(env))
+	C.SetObjectField(env, obj, syncgroupSpecClass.publishSyncbaseName, x.publishSyncbaseName.extractToJava(env))
+	// TODO(razvanm): Also extract the permissions.
+	C.SetObjectField(env, obj, syncgroupSpecClass.collections, x.collections.extractToJava(env))
+	C.SetObjectField(env, obj, syncgroupSpecClass.mountTables, x.mountTables.extractToJava(env))
+	C.SetBooleanField(env, obj, syncgroupSpecClass.isPrivate, x.isPrivate.extractToJava())
+	return obj
+}
+
+func (x *C.v23_syncbase_SyncgroupMemberInfo) extractToJava(env *C.JNIEnv) C.jobject {
+	obj := C.NewObjectA(env, syncgroupMemberInfoClass.class, syncgroupMemberInfoClass.init, nil)
+	C.SetByteField(env, obj, syncgroupMemberInfoClass.syncPriority, C.jbyte(x.syncPriority))
+	C.SetByteField(env, obj, syncgroupMemberInfoClass.blobDevType, C.jbyte(x.blobDevType))
+	return obj
+}
+
+func (x *C.v23_syncbase_SyncgroupMemberInfoMap) extractToJava(env *C.JNIEnv) C.jobject {
+	obj := C.NewObjectA(env, hashMapClass.class, hashMapClass.init, nil)
+	for i := 0; i < int(x.n); i++ {
+		k, v := x.at(i)
+		key := k.extractToJava(env)
+		value := v.extractToJava(env)
+		args := C.allocJValueArray(2)
+		C.setJValueArrayElement(args, 0, *(*C.jvalue)(unsafe.Pointer(&key)))
+		C.setJValueArrayElement(args, 1, *(*C.jvalue)(unsafe.Pointer(&value)))
+		C.CallObjectMethodA(env, obj, hashMapClass.put, args)
+		C.free(unsafe.Pointer(args))
+	}
+	x.free()
+	return obj
+}
+
 func (x *C.v23_syncbase_VError) extractToJava(env *C.JNIEnv) C.jobject {
 	if x.id.p == nil {
 		return nil
@@ -460,6 +563,17 @@ func (x *C.v23_syncbase_VError) extractToJava(env *C.JNIEnv) C.jobject {
 	C.SetLongField(env, obj, verrorClass.actionCode, C.jlong(x.actionCode))
 	C.SetObjectField(env, obj, verrorClass.message, x.msg.extractToJava(env))
 	C.SetObjectField(env, obj, verrorClass.stack, x.stack.extractToJava(env))
+	x.free()
+	return obj
+}
+
+func (x *C.v23_syncbase_Strings) extractToJava(env *C.JNIEnv) C.jobject {
+	obj := C.NewObjectA(env, arrayListClass.class, arrayListClass.init, nil)
+	for i := 0; i < int(x.n); i++ {
+		s := x.at(i).extractToJava(env)
+		arg := *(*C.jvalue)(unsafe.Pointer(&s))
+		C.CallBooleanMethodA(env, obj, arrayListClass.add, &arg)
+	}
 	x.free()
 	return obj
 }
