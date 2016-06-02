@@ -1,4 +1,4 @@
-// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Copyright 2016 The Vanadium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -42,13 +42,13 @@ func AssembleCollectionTree(
 	ctx *context.T, server, dbBlessing, dbName, collBlessing, collName, firstKey string, keysPerPage int,
 ) *CollectionTree {
 	var (
-		dbId    = wire.Id{dbBlessing, dbName}
-		collId  = wire.Id{collBlessing, collName}
+		dbID    = wire.Id{Blessing: dbBlessing, Name: dbName}
+		collID  = wire.Id{Blessing: collBlessing, Name: collName}
 		service = syncbase.NewService(server)
 
 		// TODO(eobrain) Confirm nil for schema is appropriate
-		db   = service.DatabaseForId(dbId, nil)
-		coll = db.CollectionForId(collId)
+		db   = service.DatabaseForId(dbID, nil)
+		coll = db.CollectionForId(collID)
 	)
 
 	rowCount, totKeySize, page := scanCollection(ctx, coll, firstKey, keysPerPage)

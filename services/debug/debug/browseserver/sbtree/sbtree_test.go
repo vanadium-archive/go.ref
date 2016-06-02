@@ -1,41 +1,31 @@
-// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Copyright 2016 The Vanadium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package sbtree_test
 
 import (
+	"errors"
 	"testing"
 
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/debug/debug/browseserver/sbtree"
+	"v.io/x/ref/services/syncbase/fake"
 	tu "v.io/x/ref/services/syncbase/testutil"
-	"v.io/x/ref/test"
 )
-
-func TestWithNoServer(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test, because has long timeout.")
-	}
-	ctx, cleanup := test.V23Init()
-	defer cleanup()
-
-	_, err := sbtree.AssembleSyncbaseTree(ctx, "no-such-server")
-
-	if err == nil || err == sbtree.NoSyncbaseError {
-		t.Errorf("Got %v, want not nil and not %v", err, sbtree.NoSyncbaseError)
-	}
-}
 
 func TestWithEmptyService(t *testing.T) {
 	ctx, serverName, cleanup := tu.SetupOrDie(nil)
 	defer cleanup()
-
-	got, err := sbtree.AssembleSyncbaseTree(ctx, serverName)
+	service := syncbase.NewService(serverName)
+	dbIds, err := service.ListDatabases(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	got := sbtree.AssembleSyncbaseTree(ctx, serverName, service, dbIds)
 
 	if got.Service.FullName() != serverName {
 		t.Errorf("got %q, want %q", got.Service.FullName(), serverName)
@@ -55,11 +45,15 @@ func TestWithMultipleEmptyDbs(t *testing.T) {
 	for _, dbName := range dbNames {
 		tu.CreateDatabase(t, ctx, service, dbName)
 	}
-
-	got, err := sbtree.AssembleSyncbaseTree(ctx, serverName)
+	dbIds, err := service.ListDatabases(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(dbIds) != 3 {
+		t.Fatalf("Got %d, want 3", len(dbIds))
+	}
+
+	got := sbtree.AssembleSyncbaseTree(ctx, serverName, service, dbIds)
 
 	if len(got.Dbs) != 3 {
 		t.Fatalf("want 3 databases, got %v", got.Dbs)
@@ -73,6 +67,9 @@ func TestWithMultipleEmptyDbs(t *testing.T) {
 		}
 		if len(db.Syncgroups) != 0 {
 			t.Errorf("want no syncgroups, got %v", db.Syncgroups)
+		}
+		if len(db.Errs) != 0 {
+			t.Errorf("want no errors, got %v", db.Errs)
 		}
 	}
 }
@@ -88,11 +85,15 @@ func TestWithMultipleCollections(t *testing.T) {
 	for _, collName := range collNames {
 		tu.CreateCollection(t, ctx, database, collName)
 	}
-
-	got, err := sbtree.AssembleSyncbaseTree(ctx, serverName)
+	dbIds, err := service.ListDatabases(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(dbIds) != 1 {
+		t.Fatalf("Got %d, want 1", len(dbIds))
+	}
+
+	got := sbtree.AssembleSyncbaseTree(ctx, serverName, service, dbIds)
 
 	if len(got.Dbs) != 1 {
 		t.Fatalf("want 1 database, got %v", got.Dbs)
@@ -125,10 +126,15 @@ func TestWithMultipleSyncgroups(t *testing.T) {
 		tu.CreateSyncgroup(t, ctx, database, coll, sgName, sgDescriptions[i])
 	}
 
-	got, err := sbtree.AssembleSyncbaseTree(ctx, serverName)
+	dbIds, err := service.ListDatabases(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(dbIds) != 1 {
+		t.Fatalf("Got %d, want 1", len(dbIds))
+	}
+
+	got := sbtree.AssembleSyncbaseTree(ctx, serverName, service, dbIds)
 
 	if len(got.Dbs) != 1 {
 		t.Fatalf("want 1 database, got %v", got.Dbs)
@@ -144,5 +150,82 @@ func TestWithMultipleSyncgroups(t *testing.T) {
 			t.Errorf(`got %q, want "the_collection"`,
 				sg.Spec.Collections[0].Name)
 		}
+		if len(sg.Errs) != 0 {
+			t.Errorf("want no errors, got %v", sg.Errs)
+		}
+	}
+}
+
+func TestWithNoErrs(t *testing.T) {
+	service := fake.Service(nil, nil)
+	dbIds := []wire.Id{wire.Id{}}
+
+	got := sbtree.AssembleSyncbaseTree(nil, "", service, dbIds)
+
+	if len(got.Dbs) != 1 {
+		t.Fatalf("want 1 database, got %v", got.Dbs)
+	}
+	if len(got.Dbs[0].Errs) != 0 {
+		t.Fatalf("want 0 error, got %v", got.Dbs[0].Errs)
+	}
+}
+
+func TestWithListCollectionsErr(t *testing.T) {
+	service := fake.Service(errors.New("<<injected list-collections error>>"), nil)
+	dbIds := []wire.Id{wire.Id{}}
+
+	got := sbtree.AssembleSyncbaseTree(nil, "", service, dbIds)
+
+	if len(got.Dbs) != 1 {
+		t.Fatalf("want 1 database, got %v", got.Dbs)
+	}
+	if len(got.Dbs[0].Errs) != 1 {
+		t.Fatalf("want 1 error, got %v", got.Dbs[0].Errs)
+	}
+	want := "Problem listing collections: <<injected list-collections error>>"
+	if got.Dbs[0].Errs[0].Error() != want {
+		t.Fatalf("got %v, want %q", got.Dbs[0].Errs, want)
+	}
+}
+
+func TestWithNoSyncgroupErrs(t *testing.T) {
+	service := fake.Service(nil, nil)
+	dbIds := []wire.Id{wire.Id{}}
+
+	got := sbtree.AssembleSyncbaseTree(nil, "", service, dbIds)
+
+	if len(got.Dbs) != 1 {
+		t.Fatalf("want 1 database, got %v", got.Dbs)
+	}
+	if len(got.Dbs[0].Syncgroups) != 1 {
+		t.Fatalf("want 1 syncgroups, got %v", got.Dbs[0].Syncgroups)
+	}
+
+	sg := got.Dbs[0].Syncgroups[0]
+	if len(sg.Errs) != 0 {
+		t.Fatalf("want 0 error, got %v", sg.Errs)
+	}
+}
+
+func TestWithSyncgroupErr(t *testing.T) {
+	service := fake.Service(nil, errors.New("<<injected syncgroup spec error>>"))
+	dbIds := []wire.Id{wire.Id{}}
+
+	got := sbtree.AssembleSyncbaseTree(nil, "", service, dbIds)
+
+	if len(got.Dbs) != 1 {
+		t.Fatalf("want 1 database, got %v", got.Dbs)
+	}
+	if len(got.Dbs[0].Syncgroups) != 1 {
+		t.Fatalf("want 1 syncgroups, got %v", got.Dbs[0].Syncgroups)
+	}
+
+	sg := got.Dbs[0].Syncgroups[0]
+	if len(sg.Errs) != 1 {
+		t.Fatalf("want 1 error, got %v", sg.Errs)
+	}
+	want := "Problem getting spec of syncgroup: <<injected syncgroup spec error>>"
+	if sg.Errs[0].Error() != want {
+		t.Fatalf("got %v, want %q", sg.Errs, want)
 	}
 }

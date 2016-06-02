@@ -20,6 +20,11 @@
       <div class="mdl-cell mdl-cell--12-col">
         App Blessing "{{$db.Blessing}}"
       </div>
+      {{range .Errs}}
+        <div class="mdl-cell mdl-cell--12-col">
+          <dl><dt>Error</dt><dd>{{.Error}}</dd></dl>
+        </div>
+      {{end}}
       <div class="mdl-cell mdl-cell--12-col">
         <dl>
         {{range .Collections}}
@@ -35,6 +40,9 @@
       <dl>
         {{range .Syncgroups}}
           <dt>Syncgroup: {{.Syncgroup.Id.Name}}<dt>
+          {{range .Errs}}
+            <dt>Error</dt><dd>{{.Error}}</dd>
+          {{end}}
           <dd><dl><dt>Blessing</dt><dd>{{.Syncgroup.Id.Blessing}}</dd></dl></dd>
           <dd><dl><dt>Description</dt><dd>"{{.Spec.Description}}"</dd></dl></dd>
           <dd><dl><dt>Publish Syncbase Name</dt><dd>{{.Spec.PublishSyncbaseName}}</dd></dl></dd>

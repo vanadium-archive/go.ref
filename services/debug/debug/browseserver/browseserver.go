@@ -8,6 +8,7 @@ package browseserver
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"html"
 	"html/template"
@@ -25,16 +26,19 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/rpc/reserved"
 	"v.io/v23/security"
 	"v.io/v23/services/logreader"
 	"v.io/v23/services/stats"
 	svtrace "v.io/v23/services/vtrace"
+	"v.io/v23/syncbase"
 	"v.io/v23/uniqueid"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/ref/services/debug/debug/browseserver/sbtree"
 	"v.io/x/ref/services/internal/pproflib"
+	"v.io/x/ref/services/syncbase/fake"
 )
 
 //go:generate ./gen_assets.sh
@@ -837,7 +841,8 @@ func (v *vtraceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // The syncbaseHandler handles the main Syncbase viewer page is linked from the
 // nav bar of the Debug browser. It displays a list of databases and their
-// collections, and has links to the detailed collection page.
+// collections, and has links to the detailed collection page.  It supports
+// adding a "&fake=true" query argument to inject a fake Syncbase service.
 type syncbaseHandler struct{ *handler }
 
 func internalServerError(w http.ResponseWriter, doing string, err error) {
@@ -853,6 +858,7 @@ func badRequest(w http.ResponseWriter, problem string) {
 func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var (
 		server = r.FormValue("n")
+		fakeIt = len(r.FormValue("fake")) > 0 // for testing
 	)
 	ctx, tracer := newTracer(h.ctx)
 	if len(server) == 0 {
@@ -860,27 +866,32 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sbTree, err := sbtree.AssembleSyncbaseTree(ctx, server)
-
+	service, hasSyncbase, err := syncbaseService(ctx, server, fakeIt)
 	if err != nil {
-		if err == sbtree.NoSyncbaseError {
-			// Error because no Syncbase, send to no-syncbase page.
-			args := struct {
-				ServerName  string
-				CommandLine string
-				Vtrace      *Tracer
-			}{
-				ServerName:  server,
-				CommandLine: "(no command line)",
-				Vtrace:      tracer,
-			}
-			h.execute(h.ctx, w, r, noSyncbaseTmpl, args)
-		} else {
-			// Some other error.
-			internalServerError(w, "getting syncbase information", err)
-		}
+		internalServerError(w, "getting interfaces", err)
 		return
 	}
+
+	if !hasSyncbase {
+		args := struct {
+			ServerName  string
+			CommandLine string
+			Vtrace      *Tracer
+		}{
+			ServerName:  server,
+			CommandLine: "(no command line)",
+			Vtrace:      tracer,
+		}
+		h.execute(h.ctx, w, r, noSyncbaseTmpl, args)
+		return
+	}
+
+	dbIds, err := service.ListDatabases(ctx)
+	if err != nil {
+		internalServerError(w, "listing databases", err)
+		return
+	}
+	sbTree := sbtree.AssembleSyncbaseTree(ctx, server, service, dbIds)
 
 	args := struct {
 		ServerName  string
@@ -894,6 +905,44 @@ func (h *syncbaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Tree:        sbTree,
 	}
 	h.execute(h.ctx, w, r, syncbaseTmpl, args)
+}
+
+func syncbaseService(ctx *context.T, server string, fakeIt bool) (service syncbase.Service, hasSyncbase bool, err error) {
+	if fakeIt {
+		service = fake.Service(
+			errors.New("pretend we cannot list collections"),
+			errors.New("pretend we cannot get syncgroup spec"),
+		)
+		hasSyncbase = true
+		return
+	}
+	hasSyncbase, err = hasSyncbaseService(ctx, server)
+	if err != nil {
+		return
+	}
+	if hasSyncbase {
+		service = syncbase.NewService(server)
+	}
+	return
+}
+
+// hasSyncbaseService determines whether the given server implements the
+// Syncbase interface.
+func hasSyncbaseService(ctx *context.T, server string) (bool, error) {
+	const (
+		syncbasePkgPath = "v.io/v23/services/syncbase"
+		syncbaseName    = "Service"
+	)
+	interfaces, err := reserved.Signature(ctx, server)
+	if err != nil {
+		return false, err
+	}
+	for _, ifc := range interfaces {
+		if ifc.Name == syncbaseName && ifc.PkgPath == syncbasePkgPath {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // collectionHandler handles the Collections details page that is linked off the
