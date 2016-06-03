@@ -7,9 +7,16 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sort"
 
 	"v.io/x/ref/services/allocator"
 )
+
+type byCreationTime []allocator.Instance
+
+func (c byCreationTime) Len() int           { return len(c) }
+func (c byCreationTime) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+func (c byCreationTime) Less(i, j int) bool { return c[i].CreationTime.After(c[j].CreationTime) }
 
 func handleHome(ss *serverState, rs *requestState) error {
 	ctx := ss.ctx
@@ -17,6 +24,7 @@ func handleHome(ss *serverState, rs *requestState) error {
 	if err != nil {
 		return fmt.Errorf("list error: %v", err)
 	}
+	sort.Sort(byCreationTime(instances))
 	type instanceArg struct {
 		Instance allocator.Instance
 		DestroyURL,
