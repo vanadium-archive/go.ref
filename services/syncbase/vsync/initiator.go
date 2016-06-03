@@ -1258,6 +1258,8 @@ func runAtPeer(ctx *context.T, peer connInfo, op remoteOp) (connInfo, interface{
 	return updPeer, nil, verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", updPeer.relName, updPeer.addrs)
 }
 
+// runRemoteOp runs the remoteOp on the server specified by absName.
+// It is the caller's responsibility to cancel the ctx argument.
 func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) (interface{}, error) {
 	vlog.VI(4).Infof("sync: runRemoteOp: begin for %v", absName)
 
@@ -1280,9 +1282,6 @@ func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) (interface{}, er
 		err = verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", absName)
 	}
 
-	// When the RPC is successful, cancelling the parent context will take
-	// care of cancelling the child context. When the err is non-nil, we
-	// cancel the context here.
 	cancel()
 	return nil, err
 }

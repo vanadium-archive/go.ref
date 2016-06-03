@@ -61,7 +61,7 @@ func (s *syncService) GetTime(ctx *context.T, call rpc.ServerCall, req interface
 // syncVClock syncs the local Syncbase vclock with peer's Syncbase vclock.
 // Works by treating the peer as an NTP server, obtaining a single sample, and
 // then updating the local VClockData as appropriate.
-func (s *syncService) syncVClock(ctx *context.T, peer connInfo) error {
+func (s *syncService) syncVClock(ctxIn *context.T, peer connInfo) error {
 	vlog.VI(2).Infof("sync: syncVClock: begin: contacting peer %v", peer)
 	defer vlog.VI(2).Infof("sync: syncVClock: end: contacting peer %v", peer)
 
@@ -72,6 +72,9 @@ func (s *syncService) syncVClock(ctx *context.T, peer connInfo) error {
 		vlog.Errorf("sync: syncVClock: SysClockVals failed: %v", err)
 		return err
 	}
+
+	ctx, cancel := context.WithCancel(ctxIn)
+	defer cancel()
 
 	// TODO(sadovsky): Propagate the returned connInfo back to syncer so that we
 	// leverage what we learned here about available mount tables and endpoints
