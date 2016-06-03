@@ -1277,7 +1277,7 @@ func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCa
 	// Try to join using an Admin on neighborhood in case this node does not
 	// have connectivity.
 	neighbors := ss.filterSyncgroupAdmins(dbId, sgId)
-	c = interfaces.SyncClient("")
+	c := interfaces.SyncClient("")
 	for _, svc := range neighbors {
 		me := &naming.MountEntry{IsLeaf: true, Name: common.SyncbaseSuffix}
 		// TODO(fredq): check that the service at addr has the expectedSyncbaseBlessings.

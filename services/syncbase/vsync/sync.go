@@ -139,6 +139,7 @@ type syncDatabase struct {
 type syncAdvertisementState struct {
 	cancel      context.CancelFunc // cancels advertising.
 	specVersion string             // version of most recently advertised spec.
+	adId        discovery.AdId
 }
 
 var (
@@ -518,7 +519,8 @@ func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup)
 		return err
 	}
 
-	if state, advertising := s.advSyncgroups[gid]; advertising {
+	state, advertising := s.advSyncgroups[gid]
+	if advertising {
 		// The spec hasn't changed since the last advertisement.
 		if sg.SpecVersion == state.specVersion {
 			return nil
@@ -542,6 +544,9 @@ func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup)
 			wire.DiscoveryAttrSyncgroupBlessing: sg.Id.Blessing,
 		},
 	}
+	if advertising {
+		sbService.Id = state.adId
+	}
 	ctx, stop := context.WithCancel(s.ctx)
 
 	vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: advertising %v", sbService)
@@ -554,7 +559,7 @@ func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup)
 	_, err = idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, visibility)
 	if err == nil {
 		vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: successful")
-		s.advSyncgroups[gid] = syncAdvertisementState{cancel: stop, specVersion: sg.SpecVersion}
+		s.advSyncgroups[gid] = syncAdvertisementState{cancel: stop, specVersion: sg.SpecVersion, adId: sbService.Id}
 		return nil
 	}
 	stop()
