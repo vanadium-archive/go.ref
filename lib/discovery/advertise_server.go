@@ -64,6 +64,7 @@ func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix st
 				}
 				curAddrs = newAddrs
 			case <-ctx.Done():
+				stop()
 				return
 			}
 		}

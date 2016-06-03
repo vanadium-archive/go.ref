@@ -481,11 +481,14 @@ func (s *syncService) advertiseSyncbaseInNeighborhood() error {
 	ctx, stop := context.WithCancel(s.ctx)
 
 	// Note that duplicate calls to advertise will return an error.
-	_, err := idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, nil)
+	ch, err := idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, nil)
 
 	if err == nil {
 		vlog.VI(4).Infof("sync: advertiseSyncbaseInNeighborhood: successful")
-		s.cancelAdvSyncbase = stop
+		s.cancelAdvSyncbase = func() {
+			stop()
+			<-ch
+		}
 		return nil
 	}
 	stop()
@@ -556,10 +559,14 @@ func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup)
 	// if you match the In list you can see the advertisement, though you
 	// might not be able to join.
 	visibility := sg.Spec.Perms[string(access.Read)].In
-	_, err = idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, visibility)
+	ch, err := idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, visibility)
 	if err == nil {
 		vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: successful")
-		s.advSyncgroups[gid] = syncAdvertisementState{cancel: stop, specVersion: sg.SpecVersion, adId: sbService.Id}
+		cancel := func() {
+			stop()
+			<-ch
+		}
+		s.advSyncgroups[gid] = syncAdvertisementState{cancel: cancel, specVersion: sg.SpecVersion, adId: sbService.Id}
 		return nil
 	}
 	stop()
