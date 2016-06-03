@@ -33,6 +33,9 @@ var (
 // RPC methods
 
 func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, perms access.Permissions) error {
+	if err := common.ValidatePerms(ctx, perms, wire.AllCollectionTags); err != nil {
+		return err
+	}
 	impl := func(ts *transactionState) error {
 		tx := ts.tx
 		// Check DatabaseData perms.
@@ -40,7 +43,11 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 		if err := util.GetWithAuth(ctx, call, tx, c.d.stKey(), dData); err != nil {
 			return err
 		}
-
+		// Check implicit perms derived from blessing pattern in id.
+		implicitPerms, err := common.CheckImplicitPerms(ctx, call, c.id, wire.AllCollectionTags)
+		if err != nil {
+			return err
+		}
 		// Check for "collection already exists".
 		if err := store.Get(ctx, tx, c.permsKey(), &interfaces.CollectionPerms{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
@@ -48,9 +55,10 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 			}
 			return verror.New(verror.ErrExist, ctx, c.id)
 		}
-		if perms == nil {
-			perms = dData.Perms
-		}
+		// Collection Create is equivalent to changing permissions from implicit to
+		// explicit. Note, the creator implicitly has all permissions (RWA), so it
+		// is legal to write data and drop the write permission in the same batch.
+		ts.MarkPermsChanged(c.id, implicitPerms, perms)
 		// Write new CollectionPerms.
 		storedPerms := interfaces.CollectionPerms(perms)
 		return store.Put(ctx, tx, c.permsKey(), &storedPerms)
@@ -60,11 +68,11 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 
 // TODO(ivanpi): Decouple collection key prefix from collection id to allow
 // collection data deletion to be deferred, making deletion faster (reference
-// removal). Same for database deletion.
+// removal).
 func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
 	impl := func(ts *transactionState) error {
 		tx := ts.tx
-		// Read-check-delete CollectionPerms.
+		// Read CollectionPerms.
 		if err := util.GetWithAuth(ctx, call, tx, c.permsKey(), &interfaces.CollectionPerms{}); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoExist.ID {
 				return nil // delete is idempotent
@@ -76,6 +84,9 @@ func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, bh wire.Bat
 		// destroyed. Also check that all collections exist when creating a
 		// syncgroup. Refactor with common part of DeleteRange.
 
+		// Reset all tracked changes to the collection. See comment on the method
+		// for more details.
+		ts.ResetCollectionChanges(c.id)
 		// Delete all data rows.
 		it := tx.Scan(common.ScanPrefixArgs(common.JoinKeyParts(common.RowPrefix, c.stKeyPart()), ""))
 		var key []byte
@@ -113,6 +124,9 @@ func (c *collectionReq) GetPermissions(ctx *context.T, call rpc.ServerCall, bh w
 }
 
 func (c *collectionReq) SetPermissions(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, newPerms access.Permissions) error {
+	if err := common.ValidatePerms(ctx, newPerms, wire.AllCollectionTags); err != nil {
+		return err
+	}
 	impl := func(ts *transactionState) error {
 		tx := ts.tx
 		currentPerms, err := c.checkAccess(ctx, call, tx)

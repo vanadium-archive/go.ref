@@ -29,6 +29,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
+	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/common"
@@ -83,10 +84,8 @@ type ServiceOptions struct {
 // provided blessing patterns.
 func defaultPerms(blessingPatterns []security.BlessingPattern) access.Permissions {
 	perms := access.Permissions{}
-	for _, tag := range access.AllTypicalTags() {
-		for _, bp := range blessingPatterns {
-			perms.Add(bp, string(tag))
-		}
+	for _, bp := range blessingPatterns {
+		perms.Add(bp, access.TagStrings(access.AllTypicalTags()...)...)
 	}
 	return perms
 }
@@ -145,9 +144,9 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		return nil, err
 	}
 
-	var sd ServiceData
 	newService := false
-	if err := store.Get(ctx, st, s.stKey(), &sd); verror.ErrorID(err) != verror.ErrNoExist.ID {
+	sd := &ServiceData{}
+	if err := store.Get(ctx, st, s.stKey(), sd); verror.ErrorID(err) != verror.ErrNoExist.ID {
 		if err != nil {
 			return nil, err
 		}
@@ -158,6 +157,10 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 			}
 		}
 		ctx.Infof("Using persisted permissions: %v", PermsString(ctx, readPerms))
+		// TODO(ivanpi): Check other persisted perms, at runtime or in fsck.
+		if err := common.ValidatePerms(ctx, readPerms, access.AllTypicalTags()); err != nil {
+			ctx.Errorf("Error: persisted service permissions are invalid, check top-level store and Syncbase principal: %v: %v", PermsString(ctx, readPerms), err)
+		}
 		// Service exists.
 		// Run garbage collection of inactive databases.
 		// TODO(ivanpi): This is currently unsafe to call concurrently with
@@ -170,18 +173,21 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 			return nil, verror.New(verror.ErrInternal, ctx, err)
 		}
 	} else {
+		// Service does not exist.
 		newService = true
 		perms := opts.Perms
-		// Service does not exist.
 		if perms == nil {
 			ctx.Info("Permissions flag not set. Giving local principal all permissions.")
 			perms = defaultPerms(security.DefaultBlessingPatterns(v23.GetPrincipal(ctx)))
 		}
+		if err := common.ValidatePerms(ctx, perms, access.AllTypicalTags()); err != nil {
+			return nil, err
+		}
 		ctx.Infof("Using permissions: %v", PermsString(ctx, perms))
-		data := &ServiceData{
+		sd = &ServiceData{
 			Perms: perms,
 		}
-		if err := store.Put(ctx, st, s.stKey(), data); err != nil {
+		if err := store.Put(ctx, st, s.stKey(), sd); err != nil {
 			return nil, err
 		}
 	}
@@ -193,8 +199,13 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 	}
 
 	if newService && opts.InitialDB != (wire.Id{}) {
-		ctx.Info("Creating initial database:", opts.InitialDB)
-		if err := s.createDatabase(ctx, nil, opts.InitialDB, nil, nil); err != nil {
+		// TODO(ivanpi): If service initialization fails after putting the service
+		// perms but before finishing initial database creation, initial database
+		// will never be created because service perms existence is used as a marker
+		// for a fully initialized service. Fix this with a separate marker.
+		ctx.Infof("Creating initial database: %v", opts.InitialDB)
+		dbPerms := pubutil.FilterTags(sd.GetPerms(), wire.AllDatabaseTags...)
+		if err := s.createDatabase(ctx, nil, opts.InitialDB, dbPerms, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -333,6 +344,10 @@ func (s *service) DevModeGetTime(ctx *context.T, call rpc.ServerCall) (time.Time
 }
 
 func (s *service) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
+	if err := common.ValidatePerms(ctx, perms, access.AllTypicalTags()); err != nil {
+		return err
+	}
+
 	return store.RunInTransaction(s.st, func(tx store.Transaction) error {
 		data := &ServiceData{}
 		return util.UpdateWithAuth(ctx, call, tx, s.stKey(), data, func() error {
@@ -401,8 +416,12 @@ func (s *service) DatabaseIds(ctx *context.T, call rpc.ServerCall) ([]wire.Id, e
 // Database management methods
 
 func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.Id, perms access.Permissions, metadata *wire.SchemaMetadata) (reterr error) {
+	if err := common.ValidatePerms(ctx, perms, wire.AllDatabaseTags); err != nil {
+		return err
+	}
+
 	// Steps:
-	// 1. Check serviceData perms.
+	// 1. Check serviceData perms. Also check implicit perms if not service admin.
 	// 2. Put dbInfo record into garbage collection log, to clean up database if
 	//    remaining steps fail or syncbased crashes.
 	// 3. Initialize database.
@@ -414,19 +433,25 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 		return verror.New(verror.ErrExist, ctx, dbId)
 	}
 
-	// 1. Check serviceData perms.
-	getServiceData := func() (sd *ServiceData, err error) {
-		sd = new(ServiceData)
-		if call != nil {
-			err = util.GetWithAuth(ctx, call, s.st, s.stKey(), sd)
-		} else {
-			err = store.Get(ctx, s.st, s.stKey(), sd)
+	// 1. Check serviceData perms. Also check implicit perms if not service admin.
+	sData := &ServiceData{}
+	if call == nil {
+		// call is nil (called from service initialization). Skip perms checks.
+		if err := store.Get(ctx, s.st, s.stKey(), sData); err != nil {
+			return err
 		}
-		return
-	}
-	sData, err := getServiceData()
-	if err != nil {
-		return err
+	} else {
+		// Check serviceData perms.
+		if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), sData); err != nil {
+			return err
+		}
+		if adminAcl, ok := sData.Perms[string(access.Admin)]; !ok || adminAcl.Authorize(ctx, call.Security()) != nil {
+			// Caller is not service admin. Check implicit perms derived from blessing
+			// pattern in id.
+			if _, err := common.CheckImplicitPerms(ctx, call, dbId, wire.AllDatabaseTags); err != nil {
+				return err
+			}
+		}
 	}
 
 	// 2. Put dbInfo record into garbage collection log, to clean up database if
@@ -457,10 +482,6 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 	}()
 
 	// 3. Initialize database.
-	// TODO(sadovsky): Revisit default perms.
-	if perms == nil {
-		perms = sData.Perms
-	}
 	// TODO(ivanpi): newDatabase doesn't close the store on failure.
 	d, err := newDatabase(ctx, s, dbId, metadata, DatabaseOptions{
 		Perms:   perms,
@@ -476,12 +497,16 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 
 	// 4. Move dbInfo from GC log into active dbs.
 	if err := store.RunInTransaction(s.st, func(tx store.Transaction) error {
-		// Note: To avoid a race, we must re-check service perms, and make sure the
+		// Note: To avoid a race, we must refetch service perms, making sure the
 		// perms version hasn't changed, inside the transaction that makes the new
-		// database visible.
-		if sDataRepeat, err := getServiceData(); err != nil {
+		// database visible. If the version matches, there is no need to authorize
+		// the caller again since they were already authorized against the same
+		// perms in step 1.
+		sDataRepeat := &ServiceData{}
+		if err := store.Get(ctx, s.st, s.stKey(), sDataRepeat); err != nil {
 			return err
-		} else if sData.Version != sDataRepeat.Version {
+		}
+		if sData.Version != sDataRepeat.Version {
 			return verror.NewErrBadVersion(ctx)
 		}
 		// Check for "database already exists".

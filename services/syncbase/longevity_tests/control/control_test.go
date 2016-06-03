@@ -128,7 +128,7 @@ func TestRunUniverseSingleDevice(t *testing.T) {
 	}
 
 	// Check that instance has correct blessing name.
-	gotBlessings := c.InternalGetInstance(deviceName).InternalDefaultBlessings().String()
+	gotBlessings := c.InternalGetInstance(deviceName).InternalDefaultBlessingNames()[0]
 	wantSuffix := strings.Join([]string{userName, deviceName}, security.ChainSeparator)
 	if !strings.HasSuffix(gotBlessings, wantSuffix) {
 		t.Errorf("wanted blessing name to have suffix %v but got %v", wantSuffix, gotBlessings)
@@ -401,21 +401,23 @@ func TestRunUniverseTwoDevicesWithClients(t *testing.T) {
 		Name: "test-user",
 	}
 	users := model.UserSet{user}
-	perms := model.Permissions{
+	permsDb := model.Permissions{
 		"Admin":   users,
 		"Read":    users,
 		"Resolve": users,
 		"Write":   users,
 	}
+	permsCx := permsDb.FilterTags(wire.AllCollectionTags...)
+	permsSg := permsDb.FilterTags(wire.AllSyncgroupTags...)
 	dbModel := &model.Database{
 		Name:        "test_db",
 		Blessing:    "root",
-		Permissions: perms,
+		Permissions: permsDb,
 		Collections: []model.Collection{
 			model.Collection{
 				Name:        "test_col",
 				Blessing:    "root",
-				Permissions: perms,
+				Permissions: permsCx,
 			},
 		},
 	}
@@ -434,9 +436,10 @@ func TestRunUniverseTwoDevicesWithClients(t *testing.T) {
 	// Construct a syncgroup and add it to the database.
 	sg := model.Syncgroup{
 		HostDevice:     writerDev,
-		NameSuffix:     "test_sg",
+		Name:           "test_sg",
+		Blessing:       "root",
 		Collections:    dbModel.Collections,
-		Permissions:    perms,
+		Permissions:    permsSg,
 		CreatorDevices: model.DeviceSet{writerDev},
 		JoinerDevices:  model.DeviceSet{watcherDev},
 	}
@@ -490,23 +493,25 @@ func TestRunUniverseTwoUsers(t *testing.T) {
 	userBob := &model.User{Name: "user-bob"}
 
 	// Alice has all permissions, and gives Bob read access.
-	permsAlice := model.Permissions{
+	permsAliceDb := model.Permissions{
 		"Admin":   model.UserSet{userAlice},
 		"Read":    model.UserSet{userAlice, userBob},
 		"Resolve": model.UserSet{userAlice},
 		"Write":   model.UserSet{userAlice},
 	}
+	permsAliceCx := permsAliceDb.FilterTags(wire.AllCollectionTags...)
+	permsAliceSg := permsAliceDb.FilterTags(wire.AllSyncgroupTags...)
 
 	// Alice is creator of the database and collection.
 	dbModel := &model.Database{
 		Name:        "test_db",
 		Blessing:    "root",
-		Permissions: permsAlice,
+		Permissions: permsAliceDb,
 		Collections: []model.Collection{
 			model.Collection{
 				Name:        "test_col",
 				Blessing:    "root",
-				Permissions: permsAlice,
+				Permissions: permsAliceCx,
 			},
 		},
 	}
@@ -530,9 +535,10 @@ func TestRunUniverseTwoUsers(t *testing.T) {
 	// Construct a syncgroup and add it to the database.
 	sg := model.Syncgroup{
 		HostDevice:     devAliceWriter,
-		NameSuffix:     "test_sg",
+		Name:           "test_sg",
+		Blessing:       "root",
 		Collections:    dbModel.Collections,
-		Permissions:    permsAlice,
+		Permissions:    permsAliceSg,
 		CreatorDevices: model.DeviceSet{devAliceWriter},
 		JoinerDevices:  model.DeviceSet{devBobWatcher},
 	}
@@ -575,31 +581,34 @@ var counter int
 // simplified.
 func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name string) bool {
 	ctx := c.InternalCtx()
+	blessing := security.DefaultBlessingNames(v23.GetPrincipal(ctx))[0]
 	sb1Service, sb2Service := syncbase.NewService(sb1Name), syncbase.NewService(sb2Name)
 
-	openPerms := testutil.DefaultPerms("...")
+	openPermsDb := testutil.DefaultPerms(wire.AllDatabaseTags, "...")
+	openPermsCx := testutil.DefaultPerms(wire.AllCollectionTags, "...")
+	openPermsSg := testutil.DefaultPerms(wire.AllSyncgroupTags, "...")
 
 	// Create databases on both syncbase servers.
 	counter++
 	dbName := fmt.Sprintf("test_database_%d", counter)
-	sb1Db := sb1Service.Database(ctx, dbName, nil)
-	if err := sb1Db.Create(ctx, openPerms); err != nil {
+	sb1Db := sb1Service.DatabaseForId(wire.Id{Blessing: blessing, Name: dbName}, nil)
+	if err := sb1Db.Create(ctx, openPermsDb); err != nil {
 		t.Fatal(err)
 	}
-	sb2Db := sb2Service.Database(ctx, dbName, nil)
-	if err := sb2Db.Create(ctx, openPerms); err != nil {
+	sb2Db := sb2Service.DatabaseForId(wire.Id{Blessing: blessing, Name: dbName}, nil)
+	if err := sb2Db.Create(ctx, openPermsDb); err != nil {
 		t.Fatal(err)
 	}
 
 	// Create collections on both syncbase servers.
 	counter++
 	colName := fmt.Sprintf("test_collection_%d", counter)
-	sb1Col := sb1Db.Collection(ctx, colName)
-	if err := sb1Col.Create(ctx, openPerms); err != nil {
+	sb1Col := sb1Db.CollectionForId(wire.Id{Blessing: blessing, Name: colName})
+	if err := sb1Col.Create(ctx, openPermsCx); err != nil {
 		t.Fatal(err)
 	}
-	sb2Col := sb2Db.Collection(ctx, colName)
-	if err := sb2Col.Create(ctx, openPerms); err != nil {
+	sb2Col := sb2Db.CollectionForId(wire.Id{Blessing: blessing, Name: colName})
+	if err := sb2Col.Create(ctx, openPermsCx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -609,11 +618,11 @@ func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name stri
 	mounttable := v23.GetNamespace(ctx).Roots()[0]
 	sbSpec := wire.SyncgroupSpec{
 		Description: "test syncgroup",
-		Perms:       openPerms,
+		Perms:       openPermsSg,
 		Collections: []wire.Id{sb1Col.Id()},
 		MountTables: []string{mounttable},
 	}
-	sb1Sg := sb1Db.SyncgroupForId(wire.Id{Name: sgName, Blessing: "blessing"})
+	sb1Sg := sb1Db.SyncgroupForId(wire.Id{Blessing: blessing, Name: sgName})
 	if err := sb1Sg.Create(ctx, sbSpec, wire.SyncgroupMemberInfo{}); err != nil {
 		t.Fatal(err)
 	}
@@ -621,7 +630,7 @@ func syncbasesCanSync(t *testing.T, c *control.Controller, sb1Name, sb2Name stri
 	// If second syncbase can join the syncgroup, they are connected.
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	sb2Sg := sb2Db.SyncgroupForId(wire.Id{Name: sgName, Blessing: "blessing"})
+	sb2Sg := sb2Db.SyncgroupForId(wire.Id{Blessing: blessing, Name: sgName})
 	_, err := sb2Sg.Join(ctxWithTimeout, sb1Name, nil, wire.SyncgroupMemberInfo{})
 	return err == nil
 }

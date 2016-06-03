@@ -371,8 +371,8 @@ func (c *Controller) newInstance(user *model.User, d *model.Device) (*instance, 
 		return nil, err
 	}
 
-	// Bless instance's principal with name root:<user>:<device>.
-	blessingName := strings.Join([]string{user.Name, d.Name}, security.ChainSeparator)
+	// Bless instance's principal with name root:u:<user>:<device>.
+	blessingName := strings.Join([]string{"u", user.Name, d.Name}, security.ChainSeparator)
 	if err := c.identityProvider.Bless(instancePrincipal, blessingName); err != nil {
 		return nil, err
 	}

@@ -66,6 +66,7 @@ func TestAddSyncgroup(t *testing.T) {
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
 			Collections: []wire.Id{makeCxId("foo"), makeCxId("bar")},
+			Perms:       mockSgPerms,
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -188,6 +189,7 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 			SpecVersion: "etag-0",
 			Spec: wire.SyncgroupSpec{
 				Collections: []wire.Id{makeCxId("foo"), makeCxId("bar")},
+				Perms:       mockSgPerms,
 			},
 			Joiners: map[string]wire.SyncgroupMemberInfo{
 				"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -280,6 +282,7 @@ func TestDeleteSyncgroup(t *testing.T) {
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
 			Collections: []wire.Id{makeCxId("foo"), makeCxId("bar")},
+			Perms:       mockSgPerms,
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -363,6 +366,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		Spec: wire.SyncgroupSpec{
 			MountTables: []string{"mt1"},
 			Collections: []wire.Id{makeCxId("foo")},
+			Perms:       mockSgPerms,
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
@@ -378,6 +382,7 @@ func TestMultiSyncgroups(t *testing.T) {
 		Spec: wire.SyncgroupSpec{
 			MountTables: []string{"mt2", "mt3"},
 			Collections: []wire.Id{makeCxId("bar")},
+			Perms:       mockSgPerms,
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{
 			"tablet": wire.SyncgroupMemberInfo{SyncPriority: 111},

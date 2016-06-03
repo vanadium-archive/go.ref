@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"v.io/v23/context"
@@ -46,7 +47,7 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	if err := self.Create(ctx, nil); err != nil {
 		t.Fatalf("self.Create() failed: %v", err)
 	}
-	if gotPerms, wantPerms := getPermsOrDie(t, ctx, self), DefaultPerms("root:client"); !reflect.DeepEqual(gotPerms, wantPerms) {
+	if gotPerms, wantPerms := getPermsOrDie(t, ctx, self), DefaultPerms(self.AllowedTags(), "root:o:app:client"); !reflect.DeepEqual(gotPerms, wantPerms) {
 		t.Errorf("Perms do not match: got %v, want %v", gotPerms, wantPerms)
 	}
 
@@ -70,7 +71,7 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	// Test create with non-default perms.
 	self2 := parent.Child("self2")
 	perms := access.Permissions{}
-	perms.Add(security.BlessingPattern("root:client"), string(access.Admin))
+	perms.Add(security.BlessingPattern("root:o:app:client"), string(access.Admin))
 	if err := self2.Create(ctx, perms); err != nil {
 		t.Fatalf("self2.Create() failed: %v", err)
 	}
@@ -83,8 +84,8 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self2, "self2", false)
 
 	// Test that create fails if the parent perms disallow access.
-	perms = DefaultPerms("root:client")
-	perms.Blacklist("root:client", string(access.Write))
+	perms = DefaultPerms(parent.AllowedTags(), "root:o:app:client")
+	perms.Blacklist("root:o:app:client", string(access.Write))
 	if err := parent.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("parent.SetPermissions() failed: %v", err)
 	}
@@ -139,8 +140,7 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 
 	assertExists(t, ctx, self, "self", true)
 
-	// By default, self perms are copied from parent, so self.Destroy should
-	// succeed.
+	// By default, perms allow the creator, so self.Destroy should succeed.
 	if err := self.Destroy(ctx); err != nil {
 		t.Fatalf("self.Destroy() failed: %v", err)
 	}
@@ -170,8 +170,9 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	if err := self2.Create(ctx, nil); err != nil {
 		t.Fatalf("self2.Create() failed: %v", err)
 	}
-	perms := DefaultPerms("root:client")
-	perms.Clear("root:client", string(access.Write), string(access.Admin))
+	perms := DefaultPerms(self2.AllowedTags(), "root:o:app:client")
+	perms.Clear("root:o:app:client", string(access.Write), string(access.Admin))
+	perms.Add("nobody", string(access.Admin))
 	if err := self2.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("self2.SetPermissions() failed: %v", err)
 	}
@@ -191,11 +192,13 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 
 	// Test that destroy succeeds even if the parent and child perms disallow
 	// access.
-	perms = DefaultPerms("root:client")
-	perms.Clear("root:client", string(access.Write), string(access.Admin))
+	perms = DefaultPerms(parent.AllowedTags(), "root:o:app:client")
+	perms.Clear("root:o:app:client", string(access.Write), string(access.Admin))
+	perms.Add("nobody", string(access.Admin))
 	if err := parent.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("parent.SetPermissions() failed: %v", err)
 	}
+	perms = DefaultPerms(child.AllowedTags(), "root:o:app:client")
 	if err := child.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("child.SetPermissions() failed: %v", err)
 	}
@@ -223,7 +226,7 @@ func copyAndSortStrings(strs []string) []string {
 	return sortedStrs
 }
 
-func TestListChildIds(t *testing.T, ctx *context.T, i interface{}, blessings, names []string) {
+func TestListChildIds(t *testing.T, ctx *context.T, rootp security.Principal, i interface{}, blessings, names []string) {
 	self := makeLayer(i)
 
 	var got, want []wire.Id
@@ -231,6 +234,13 @@ func TestListChildIds(t *testing.T, ctx *context.T, i interface{}, blessings, na
 
 	ids := []wire.Id{}
 	for _, blessing := range copyAndSortStrings(blessings) {
+		blessing = "root" + security.ChainSeparator + blessing
+		if len(blessing) > 1024 {
+			// Since we prepend "root:" to the blessing to pass implicit perms in
+			// Create, some otherwise valid blessings can exceed the 1024 byte limit
+			// for an Id blessing when the prefix is added, so we skip them.
+			continue
+		}
 		for _, name := range copyAndSortStrings(names) {
 			ids = append(ids, wire.Id{blessing, name})
 		}
@@ -252,7 +262,8 @@ func TestListChildIds(t *testing.T, ctx *context.T, i interface{}, blessings, na
 			break
 		}
 		id := ids[i]
-		if err := self.ChildForId(id).Create(ctx, nil); err != nil {
+		creatorCtx := NewCtx(ctx, rootp, strings.TrimPrefix(id.Blessing, "root"+security.ChainSeparator))
+		if err := self.ChildForId(id).Create(creatorCtx, access.Permissions{}.Add("nobody", string(access.Admin))); err != nil {
 			t.Fatalf("Create(%v) failed: %v", id, err)
 		}
 	}
@@ -264,7 +275,7 @@ func TestListChildIds(t *testing.T, ctx *context.T, i interface{}, blessings, na
 // Mirrors v.io/groups/x/ref/services/groups/internal/server/server_test.go.
 func TestPerms(t *testing.T, ctx *context.T, ac util.AccessController) {
 	myperms := access.Permissions{}
-	myperms.Add(security.BlessingPattern("root:client"), string(access.Admin))
+	myperms.Add(security.BlessingPattern("root:o:app:client"), string(access.Admin))
 	// Demonstrate that myperms differs from the current perms.
 	if reflect.DeepEqual(myperms, getPermsOrDie(t, ctx, ac)) {
 		t.Fatalf("Permissions should not match: %v", myperms)
@@ -312,7 +323,7 @@ func TestPerms(t *testing.T, ctx *context.T, ac util.AccessController) {
 
 	// SetPermissions with empty version should succeed.
 	permsBefore, versionBefore = permsAfter, versionAfter
-	myperms.Add(security.BlessingPattern("root:client"), string(access.Read))
+	myperms.Add(security.BlessingPattern("root:o:app:client"), string(access.Read))
 	if err := ac.SetPermissions(ctx, myperms, ""); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
@@ -341,7 +352,7 @@ func TestPerms(t *testing.T, ctx *context.T, ac util.AccessController) {
 	}
 
 	// Take away our access. SetPermissions and GetPermissions should fail.
-	if err := ac.SetPermissions(ctx, access.Permissions{}, ""); err != nil {
+	if err := ac.SetPermissions(ctx, access.Permissions{}.Add("nobody", string(access.Admin)), ""); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 	if _, _, err := ac.GetPermissions(ctx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
@@ -359,6 +370,7 @@ const notAvailable = "not available"
 
 type layer interface {
 	util.AccessController
+	AllowedTags() []access.Tag
 	FullName() string
 	Create(ctx *context.T, perms access.Permissions) error
 	Destroy(ctx *context.T) error
@@ -372,6 +384,9 @@ type service struct {
 	syncbase.Service
 }
 
+func (_ *service) AllowedTags() []access.Tag {
+	return access.AllTypicalTags()
+}
 func (s *service) Create(ctx *context.T, perms access.Permissions) error {
 	panic(notAvailable)
 }
@@ -385,7 +400,7 @@ func (s *service) ListChildIds(ctx *context.T) ([]wire.Id, error) {
 	return s.ListDatabases(ctx)
 }
 func (s *service) Child(childName string) layer {
-	return makeLayer(s.DatabaseForId(DbId(childName), nil))
+	return makeLayer(s.DatabaseForId(wire.Id{"root:o:app", childName}, nil))
 }
 func (s *service) ChildForId(childId wire.Id) layer {
 	return makeLayer(s.DatabaseForId(childId, nil))
@@ -395,11 +410,14 @@ type database struct {
 	syncbase.Database
 }
 
+func (_ *database) AllowedTags() []access.Tag {
+	return wire.AllDatabaseTags
+}
 func (d *database) ListChildIds(ctx *context.T) ([]wire.Id, error) {
 	return d.ListCollections(ctx)
 }
 func (d *database) Child(childName string) layer {
-	return makeLayer(d.CollectionForId(CxId(childName)))
+	return makeLayer(d.CollectionForId(wire.Id{"root:o:app:client", childName}))
 }
 func (d *database) ChildForId(childId wire.Id) layer {
 	return makeLayer(d.CollectionForId(childId))
@@ -409,6 +427,9 @@ type collection struct {
 	syncbase.Collection
 }
 
+func (_ *collection) AllowedTags() []access.Tag {
+	return wire.AllCollectionTags
+}
 func (c *collection) SetPermissions(ctx *context.T, perms access.Permissions, version string) error {
 	return c.Collection.SetPermissions(ctx, perms)
 }
@@ -431,6 +452,9 @@ type row struct {
 	c syncbase.Collection
 }
 
+func (_ *row) AllowedTags() []access.Tag {
+	return nil
+}
 func (r *row) Create(ctx *context.T, perms access.Permissions) error {
 	if perms != nil {
 		panic(fmt.Sprintf("bad perms: %v", perms))

@@ -15,13 +15,18 @@ var invalidBlessingPatterns = []string{
 	"a::b",
 	"a/b",
 	"a/",
+	"$",
 }
 
 var validBlessingPatterns = []string{
 	"a",
 	"a:b",
+	"a:%",
+	"a:%A",
 	"v.io",
 	"v.io:foo",
+	"v.io:foobar",
+	"v.io:foo:bar",
 	"v.io:a:admin@myapp.com",
 	"v.io:o:app:user",
 	"\x00",
@@ -59,7 +64,9 @@ var validIdentifiers = []string{
 	"a0_",
 	"a_b",
 	"a_0",
+	"foo",
 	"foobar",
+	"foo_bar",
 	"BARBAZ",
 	// 64 bytes
 	"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcd",

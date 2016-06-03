@@ -116,6 +116,11 @@ func verifySyncgroupSpec(ctx *context.T, spec *wire.SyncgroupSpec) error {
 	if len(colls) != len(spec.Collections) {
 		return verror.New(verror.ErrBadArg, ctx, "group has duplicate collections specified")
 	}
+
+	if err := common.ValidatePerms(ctx, spec.Perms, wire.AllSyncgroupTags); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -658,10 +663,16 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 	vlog.VI(2).Infof("sync: CreateSyncgroup: begin: %s, spec %+v", sgId, spec)
 	defer vlog.VI(2).Infof("sync: CreateSyncgroup: end: %s", sgId)
 
+	if err := pubutil.ValidateId(sgId); err != nil {
+		return verror.New(wire.ErrInvalidName, ctx, pubutil.EncodeId(sgId), err)
+	}
+
 	ss := sd.sync.(*syncService)
 	dbId := sd.db.Id()
 
 	// Instantiate sg. Add self as joiner.
+	// TODO(ivanpi): Spec is sanity checked later in addSyncgroup. Do it here
+	// instead to fail early?
 	gid, version := SgIdToGid(dbId, sgId), ss.newSyncgroupVersion()
 	sg := &interfaces.Syncgroup{
 		Id:          sgId,
@@ -679,6 +690,13 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 			return err
 		}
 
+		// Check implicit perms derived from blessing pattern in id.
+		// TODO(ivanpi): The signing blessing should be (re?)checked against the
+		// implicit perms when signing the syncgroup metadata.
+		if _, err := common.CheckImplicitPerms(ctx, call, sgId, wire.AllSyncgroupTags); err != nil {
+			return err
+		}
+
 		// Check that all the collections on which the syncgroup is
 		// being created exist.
 		for _, c := range spec.Collections {
@@ -690,10 +708,8 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 			}
 		}
 
-		// TODO(hpucha): Check prefix ACLs on all SG prefixes.
+		// TODO(hpucha): Check ACLs on all SG collections.
 		// This may need another method on util.Database interface.
-		// TODO(hpucha): Do some SG ACL checking. Check creator
-		// has Admin privilege.
 
 		// Reserve a log generation and position counts for the new syncgroup.
 		gen, pos := ss.reserveGenAndPosInDbLog(ctx, dbId, sgOID(gid), 1)
@@ -1006,7 +1022,6 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 		//   return verror.New(verror.ErrNoAccess, ctx)
 		// }
 
-		// TODO(hpucha): Check syncgroup ACL for sanity checking.
 		// TODO(hpucha): Check if the acl change causes neighborhood
 		// advertising to change.
 

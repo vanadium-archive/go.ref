@@ -8,7 +8,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security/access"
 	"v.io/v23/syncbase"
-	"v.io/x/ref/services/syncbase/testutil"
 )
 
 // Rows is a map from keys to values.
@@ -39,18 +38,12 @@ func SeedService(ctx *context.T, s syncbase.Service, dbs Databases) error {
 	for dbName, db := range dbs {
 		sdb := s.Database(ctx, dbName, nil)
 		dbPerms := db.Permissions
-		if len(dbPerms) == 0 {
-			dbPerms = testutil.DefaultPerms("...")
-		}
 		if err := sdb.Create(ctx, dbPerms); err != nil {
 			return err
 		}
 		for colName, col := range db.Collections {
 			scol := sdb.Collection(ctx, colName)
 			colPerms := col.Permissions
-			if len(colPerms) == 0 {
-				colPerms = testutil.DefaultPerms("...")
-			}
 			if err := scol.Create(ctx, colPerms); err != nil {
 				return err
 			}

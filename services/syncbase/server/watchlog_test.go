@@ -56,13 +56,10 @@ func TestWatchLogPerms(t *testing.T) {
 	st, _ := watchable.Wrap(memstore.New(), clk, &watchable.Options{
 		ManagedPrefixes: []string{common.RowPrefix, common.CollectionPermsPrefix},
 	})
-	db := &database{id: wire.Id{Blessing: "v.io:a:xyz", Name: "d"}, st: st}
-	c := &collectionReq{id: wire.Id{Blessing: "v.io:u:sam", Name: "c"}, d: db}
+	db := &database{id: wire.Id{Blessing: "a", Name: "d"}, st: st}
+	c := &collectionReq{id: wire.Id{Blessing: "u", Name: "c"}, d: db}
 	// Mock create the collection.
-	perms := access.Permissions{}
-	for _, tag := range access.AllTypicalTags() {
-		perms.Add(security.BlessingPattern("root"), string(tag))
-	}
+	perms := access.Permissions{}.Add("root", access.TagStrings(wire.AllCollectionTags...)...)
 	storedPerms := interfaces.CollectionPerms(perms)
 	store.Put(ctx, st, c.permsKey(), &storedPerms)
 	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()

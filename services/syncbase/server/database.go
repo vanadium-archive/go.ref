@@ -113,8 +113,19 @@ func (ts *transactionState) MarkPermsChanged(collectionId wire.Id, permsBefore a
 	state.finalPerms = permsAfter
 }
 
+// Resets all tracked changes to the collection. Used on collection destroy. Since destroy
+// cannot happen on a synced collection, the destroy and any updates before it will not be
+// seen remotely, so validation must start from the implicit permissions in case the
+// collection is created again. This also allows destroy to not require both write and
+// admin permissions.
+func (ts *transactionState) ResetCollectionChanges(collectionId wire.Id) {
+	delete(ts.permsChanges, collectionId)
+}
+
 // validatePermissionChanges performs an auth check on each collection that has a data change or
 // permission change and returns false if any of the auth checks fail.
+// TODO(ivanpi): This check should be done against signing blessings at signing time, in
+// both batch and non-batch cases.
 func (ts *transactionState) validatePermissionChanges(ctx *context.T, securityCall security.Call) bool {
 	for _, collectionState := range ts.permsChanges {
 		// This collection was modified, make sure that the write acl is either present at
@@ -136,7 +147,6 @@ func (ts *transactionState) validatePermissionChanges(ctx *context.T, securityCa
 				return false
 			}
 		}
-
 	}
 	return true
 }
@@ -218,8 +228,6 @@ func (d *database) Create(ctx *context.T, call rpc.ServerCall, metadata *wire.Sc
 	if d.exists {
 		return verror.New(verror.ErrExist, ctx, d.id)
 	}
-	// TODO(sadovsky): Require id.Blessing to match the client's blessing name.
-	// I.e. reserve names at the app level of the hierarchy.
 	// This database does not yet exist; d is just an ephemeral handle that holds
 	// {id wire.Id, s *service}. d.s.createDatabase will create a new database
 	// handle and store it in d.s.dbs[d.id].
@@ -240,10 +248,6 @@ func (d *database) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
 func (d *database) BeginBatch(ctx *context.T, call rpc.ServerCall, opts wire.BatchOptions) (wire.BatchHandle, error) {
-	return d.beginBatch(ctx, opts)
-}
-
-func (d *database) beginBatch(ctx *context.T, opts wire.BatchOptions) (wire.BatchHandle, error) {
 	if !d.exists {
 		return "", verror.New(verror.ErrNoExist, ctx, d.id)
 	}
@@ -555,14 +559,15 @@ func (qdb *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error)
 	// not, the writeAccessReq arg dictates whether a snapshot or a transaction is
 	// should be created.
 	// TODO(ivanpi): Allow passing in non-default user blessings.
-	blessing, err := pubutil.UserBlessingFromContext(qdb.ctx)
+	userBlessings, _ := security.RemoteBlessingNames(qdb.ctx, qdb.call.Security())
+	_, user, err := pubutil.AppAndUserPatternFromBlessings(userBlessings...)
 	if err != nil {
 		return nil, err
 	}
 	qt := &queryTable{
 		qdb: qdb,
 		cReq: &collectionReq{
-			id: wire.Id{Blessing: blessing, Name: name},
+			id: wire.Id{Blessing: string(user), Name: name},
 			d:  qdb.d,
 		},
 	}
@@ -782,8 +787,8 @@ func (d *database) batchTransaction(ctx *context.T, bh wire.BatchHandle) (*trans
 }
 
 // batchLookupInternal parses the batch handle and retrieves the corresponding
-// snapshot or batch. It returns an error if the handle is malformed or
-// the batch does not exist. Otherwise, exactly one of sn and b will be != nil.
+// snapshot or transaction. It returns an error if the handle is malformed or
+// the batch does not exist. Otherwise, exactly one of sn and ts will be != nil.
 func (d *database) batchLookupInternal(ctx *context.T, bh wire.BatchHandle) (sn store.Snapshot, ts *transactionState, batchId uint64, _ error) {
 	if bh == "" {
 		return nil, nil, 0, verror.New(verror.ErrInternal, ctx, "batch lookup for empty handle")
@@ -810,6 +815,9 @@ func (d *database) batchLookupInternal(ctx *context.T, bh wire.BatchHandle) (sn 
 func (d *database) setPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	if !d.exists {
 		vlog.Fatalf("database %v does not exist", d.id)
+	}
+	if err := common.ValidatePerms(ctx, perms, wire.AllDatabaseTags); err != nil {
+		return err
 	}
 	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
 		data := &DatabaseData{}

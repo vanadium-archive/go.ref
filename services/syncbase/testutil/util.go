@@ -11,6 +11,7 @@ import (
 	"os"
 	"reflect"
 	"runtime/debug"
+	"strings"
 	"testing"
 
 	"v.io/v23"
@@ -46,41 +47,28 @@ func Fatalf(t testing.TB, format string, args ...interface{}) {
 // TODO(sadovsky): Standardize on a small set of constants and helper functions
 // to share across all Syncbase tests. Currently, our 'featuretests' tests use a
 // different set of helpers from our other unit tests.
-func DbId(name string) wire.Id {
-	return wire.Id{Blessing: "v.io:a:xyz", Name: name}
-}
-
 func CreateDatabase(t testing.TB, ctx *context.T, s syncbase.Service, name string) syncbase.Database {
-	d := s.DatabaseForId(DbId(name), nil)
+	d := s.Database(ctx, name, nil)
 	if err := d.Create(ctx, nil); err != nil {
 		Fatalf(t, "d.Create() failed: %v", err)
 	}
 	return d
 }
 
-func CxId(name string) wire.Id {
-	return wire.Id{Blessing: "v.io:u:sam", Name: name}
-}
-
 func CreateCollection(t testing.TB, ctx *context.T, d syncbase.Database, name string) syncbase.Collection {
-	c := d.CollectionForId(CxId(name))
+	c := d.Collection(ctx, name)
 	if err := c.Create(ctx, nil); err != nil {
 		Fatalf(t, "c.Create() failed: %v", err)
 	}
 	return c
 }
 
-func CreateSyncgroup(
-	t testing.TB,
-	ctx *context.T,
-	d syncbase.Database,
-	c syncbase.Collection,
-	name, description string,
-) syncbase.Syncgroup {
-	sg := d.SyncgroupForId(CxId(name))
+func CreateSyncgroup(t testing.TB, ctx *context.T, d syncbase.Database, c syncbase.Collection, name, description string) syncbase.Syncgroup {
+	sg := d.Syncgroup(ctx, name)
 	sgSpec := wire.SyncgroupSpec{
 		Description: description,
 		Collections: []wire.Id{c.Id()},
+		Perms:       DefaultPerms(wire.AllSyncgroupTags, string(security.AllPrincipals)),
 	}
 	sgMembership := wire.SyncgroupMemberInfo{}
 	if err := sg.Create(ctx, sgSpec, sgMembership); err != nil {
@@ -92,7 +80,7 @@ func CreateSyncgroup(
 // TODO(sadovsky): Drop the 'perms' argument. The only client that passes
 // non-nil, syncgroup_test.go, should use SetupOrDieCustom instead.
 func SetupOrDie(perms access.Permissions) (clientCtx *context.T, serverName string, cleanup func()) {
-	_, clientCtx, serverName, _, cleanup = SetupOrDieCustom("client", "server", perms)
+	_, clientCtx, serverName, _, cleanup = SetupOrDieCustom(strings.Join([]string{"o", "app", "client"}, security.ChainSeparator), "server", perms)
 	return
 }
 
@@ -105,7 +93,7 @@ func SetupOrDieCustom(clientSuffix, serverSuffix string, perms access.Permission
 	clientCtx, serverCtx := NewCtx(ctx, rootp, clientSuffix), NewCtx(ctx, rootp, serverSuffix)
 
 	if perms == nil {
-		perms = DefaultPerms(fmt.Sprintf("%s%s%s", "root", security.ChainSeparator, clientSuffix))
+		perms = DefaultPerms(access.AllTypicalTags(), "root"+security.ChainSeparator+clientSuffix)
 	}
 	serverName, stopServer := newServer(serverCtx, perms)
 	cleanup = func() {
@@ -115,12 +103,10 @@ func SetupOrDieCustom(clientSuffix, serverSuffix string, perms access.Permission
 	return
 }
 
-func DefaultPerms(patterns ...string) access.Permissions {
+func DefaultPerms(tags []access.Tag, patterns ...string) access.Permissions {
 	perms := access.Permissions{}
-	for _, tag := range access.AllTypicalTags() {
-		for _, pattern := range patterns {
-			perms.Add(security.BlessingPattern(pattern), string(tag))
-		}
+	for _, pattern := range patterns {
+		perms.Add(security.BlessingPattern(pattern), access.TagStrings(tags...)...)
 	}
 	return perms
 }

@@ -32,15 +32,14 @@ func (i *instance) InternalPrincipal() security.Principal {
 	return i.principal
 }
 
-// InternalDefaultBlessings returns the default blessings for the instance.
-// Returns empty blessings in the case of an error.
-func (i *instance) InternalDefaultBlessings() security.Blessings {
+// InternalDefaultBlessingNames returns the default blessing names for the
+// instance. Returns nil in the case of an error.
+func (i *instance) InternalDefaultBlessingNames() []string {
 	p, err := vsecurity.LoadPersistentPrincipal(i.credsDir, nil)
 	if err != nil {
-		return security.Blessings{}
+		return nil
 	}
-	b, _ := p.BlessingStore().Default()
-	return b
+	return security.DefaultBlessingNames(p)
 }
 
 // InternalResetClientRegistry resets the client registry to an empty map.

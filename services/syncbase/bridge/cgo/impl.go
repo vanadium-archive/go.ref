@@ -36,6 +36,7 @@ import (
 	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/services/permissions"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/services/watch"
@@ -830,20 +831,22 @@ func v23_syncbase_BlessingStoreDebugString(cDebugString *C.v23_syncbase_String) 
 
 //export v23_syncbase_AppBlessingFromContext
 func v23_syncbase_AppBlessingFromContext(cAppBlessing *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	b, err := util.AppBlessingFromContext(b.Ctx)
+	// TODO(ivanpi): Rename to match Go.
+	ab, _, err := util.AppAndUserPatternFromBlessings(security.DefaultBlessingNames(v23.GetPrincipal(b.Ctx))...)
 	if err != nil {
 		cErr.init(err)
 		return
 	}
-	cAppBlessing.init(b)
+	cAppBlessing.init(string(ab))
 }
 
 //export v23_syncbase_UserBlessingFromContext
 func v23_syncbase_UserBlessingFromContext(cUserBlessing *C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	b, err := util.UserBlessingFromContext(b.Ctx)
+	// TODO(ivanpi): Rename to match Go.
+	_, ub, err := util.AppAndUserPatternFromBlessings(security.DefaultBlessingNames(v23.GetPrincipal(b.Ctx))...)
 	if err != nil {
 		cErr.init(err)
 		return
 	}
-	cUserBlessing.init(b)
+	cUserBlessing.init(string(ub))
 }

@@ -30,11 +30,11 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 	syncgroups := []syncbase.Syncgroup{}
 	dbColsMap := map[syncbase.Database][]syncbase.Collection{}
 	for _, dbModel := range dbModels {
-		dbPerms := defaultPerms(ctx)
+		dbPerms := defaultPerms(ctx, wire.AllDatabaseTags)
 		if dbModel.Permissions != nil {
 			dbPerms = dbModel.Permissions.ToWire("root")
 		}
-		allowChecker(dbPerms)
+		allowChecker(dbPerms, wire.AllDatabaseTags)
 
 		// Create Database.
 		// TODO(nlacasse): Don't create the database unless its blessings match
@@ -47,11 +47,11 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 
 		// Create collections for database.
 		for _, colModel := range dbModel.Collections {
-			colPerms := defaultPerms(ctx)
+			colPerms := defaultPerms(ctx, wire.AllCollectionTags)
 			if colModel.Permissions != nil {
 				colPerms = colModel.Permissions.ToWire("root")
 			}
-			allowChecker(colPerms)
+			allowChecker(colPerms, wire.AllCollectionTags)
 
 			// TODO(nlacasse): Don't create the collection unless its blessings
 			// match ours.
@@ -64,7 +64,7 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 
 		// Create or join syncgroups for database.
 		for _, sgModel := range dbModel.Syncgroups {
-			sg := db.SyncgroupForId(wire.Id{Name: sgModel.NameSuffix, Blessing: "blessing"})
+			sg := db.SyncgroupForId(sgModel.Id())
 			if sgModel.CreatorDevices.Lookup(sbName) != nil {
 				// Create the syncgroup.
 				spec := sgModel.Spec("root")
@@ -72,9 +72,9 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 
 				if len(spec.Perms) == 0 {
 					// Syncgroup permissions default to allow anybody.
-					spec.Perms = testutil.DefaultPerms("root")
+					spec.Perms = testutil.DefaultPerms(wire.AllSyncgroupTags, "root")
 				}
-				allowChecker(spec.Perms)
+				allowChecker(spec.Perms, wire.AllSyncgroupTags)
 
 				if err := sg.Create(ctx, spec, wire.SyncgroupMemberInfo{}); err != nil && verror.ErrorID(err) != verror.ErrExist.ID {
 					return nil, nil, err
@@ -98,7 +98,7 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 					}
 				}
 				if joinErr != nil {
-					return nil, nil, fmt.Errorf("could not join syncgroup %q: %v", sgModel.Name(), joinErr)
+					return nil, nil, fmt.Errorf("could not join syncgroup %q (blessing %q): %v", sgModel.Name, sgModel.Blessing, joinErr)
 				}
 			}
 		}
@@ -108,16 +108,14 @@ func CreateDbsAndCollections(ctx *context.T, sbName string, dbModels model.Datab
 }
 
 // allowChecker gives the checker access to all tags on the Permissions object.
-func allowChecker(perms access.Permissions) {
+func allowChecker(perms access.Permissions, allowedTags []access.Tag) {
 	checkerPattern := security.BlessingPattern("root:checker")
-	for _, tag := range access.AllTypicalTags() {
-		perms.Add(checkerPattern, string(tag))
-	}
+	perms.Add(checkerPattern, access.TagStrings(allowedTags...)...)
 }
 
 // defaultPerms returns a Permissions object that allows the context's default
 // blessings.
-func defaultPerms(ctx *context.T) access.Permissions {
-	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
-	return testutil.DefaultPerms(blessing.String())
+func defaultPerms(ctx *context.T, allowedTags []access.Tag) access.Permissions {
+	blessings := security.DefaultBlessingNames(v23.GetPrincipal(ctx))
+	return testutil.DefaultPerms(allowedTags, blessings[0])
 }

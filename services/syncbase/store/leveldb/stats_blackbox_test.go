@@ -13,7 +13,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	"v.io/x/ref/lib/stats"
 	_ "v.io/x/ref/runtime/factories/generic"
@@ -102,7 +102,7 @@ func TestWithMultipleDbs(t *testing.T) {
 	}
 
 	count = 0
-	for got := range statsValues("db/v_io_a_xyz/*/*/*", since) {
+	for got := range statsValues("db/root_o_app/*/*/*", since) {
 		count++
 
 		// All stats values should be zero (see stats_test.go)
@@ -127,12 +127,12 @@ func TestWithLotsOfData(t *testing.T) {
 	write100MB(ctx, db)
 
 	// Expect at least 50 MB (see stats_test.go)
-	fileBytes := <-statsValues("db/v_io_a_xyz/big_db/*/filesystem_bytes", since)
+	fileBytes := <-statsValues("db/root_o_app/big_db/*/filesystem_bytes", since)
 	if fileBytes.(int64) < 50*1024*1024 {
 		t.Errorf("Got %v, want more than 50 MB", fileBytes.(int64))
 	}
 	// Expect 25 or more (see stats_test.go)
-	fileCount := <-statsValues("db/v_io_a_xyz/big_db/*/file_count", since)
+	fileCount := <-statsValues("db/root_o_app/big_db/*/file_count", since)
 	if fileCount.(int64) < 25 {
 		t.Errorf("Got %v, want 25 or more", fileCount.(int64))
 	}
@@ -162,7 +162,7 @@ func statsValues(pattern string, since time.Time) <-chan interface{} {
 // Write 100 kB each to 1024 keys, returning keys written.
 func write100MB(ctx *context.T, db syncbase.Database) {
 	coll := db.Collection(ctx, "the_collection")
-	err := coll.Create(ctx, permissions)
+	err := coll.Create(ctx, cxPermissions)
 	if err != nil {
 		panic(err)
 	}
@@ -182,12 +182,5 @@ func write100MB(ctx *context.T, db syncbase.Database) {
 }
 
 var (
-	allAccess   = access.AccessList{In: []security.BlessingPattern{"..."}}
-	permissions = access.Permissions{
-		"Admin":   allAccess,
-		"Write":   allAccess,
-		"Read":    allAccess,
-		"Resolve": allAccess,
-		"Debug":   allAccess,
-	}
+	cxPermissions = tu.DefaultPerms(wire.AllCollectionTags, string(security.AllPrincipals))
 )

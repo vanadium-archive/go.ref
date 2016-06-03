@@ -30,12 +30,20 @@ func GlobChildren(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob
 	for it.Advance() {
 		key = it.Key(key)
 		parts := common.SplitKeyParts(string(key))
-		// For explanation of Encode(), see comment in server/dispatcher.go.
-		name := pubutil.Encode(parts[len(parts)-1])
-		if matcher.Match(name) {
+		id, err := pubutil.DecodeId(parts[len(parts)-1])
+		if err != nil {
+			return verror.New(verror.ErrBadState, ctx, err)
+		}
+		// Note, even though DecodeId followed by EncodeId are currently redundant
+		// (other than checking that the key component is a properly encoded Id),
+		// the Id encoding in the key will soon change to a different format than
+		// the pubutil (wire) encoding.
+		// TODO(ivanpi): Implement the new encoding.
+		encId := pubutil.EncodeId(id)
+		if matcher.Match(encId) {
 			// TODO(rogulenko): Check for resolve access. (For collection glob, this
 			// means checking prefix perms.)
-			if err := call.SendStream().Send(naming.GlobChildrenReplyName{Value: name}); err != nil {
+			if err := call.SendStream().Send(naming.GlobChildrenReplyName{Value: encId}); err != nil {
 				return err
 			}
 		}

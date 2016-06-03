@@ -13,7 +13,10 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/security/access"
+	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
+	sbutil "v.io/v23/syncbase/util"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/longevity_tests/checker"
 	"v.io/x/ref/services/syncbase/longevity_tests/model"
@@ -21,6 +24,7 @@ import (
 	"v.io/x/ref/services/syncbase/server"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/testutil"
+	tsecurity "v.io/x/ref/test/testutil"
 )
 
 func newServer(t *testing.T, ctx *context.T) (string, func()) {
@@ -28,7 +32,7 @@ func newServer(t *testing.T, ctx *context.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("ioutil.TempDir() failed: %v", err)
 	}
-	perms := testutil.DefaultPerms("...")
+	perms := testutil.DefaultPerms(access.AllTypicalTags(), "...")
 	serverCtx, cancel := context.WithCancel(ctx)
 	service, err := server.NewService(serverCtx, server.ServiceOptions{
 		Perms:           perms,
@@ -57,6 +61,10 @@ func newServer(t *testing.T, ctx *context.T) (string, func()) {
 // model universe containing the servers, and a cancel func.
 func setupServers(t *testing.T, n int) (*context.T, []syncbase.Service, model.Universe, func()) {
 	ctx, cancel := v23.Init()
+
+	principal := tsecurity.NewPrincipal("root:u:equality")
+	ctx, _ = v23.WithPrincipal(ctx, principal)
+
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}},
 	})
@@ -97,18 +105,19 @@ func TestEqualityEqualServices(t *testing.T) {
 	ctx, services, universe, cancel := setupServers(t, 3)
 	defer cancel()
 
-	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
-	myBlessing := blessing.String()
-	myPerms := testutil.DefaultPerms(myBlessing)
-	otherPerms := testutil.DefaultPerms(myBlessing, myBlessing+security.ChainSeparator+"alice")
+	myBlessing := security.DefaultBlessingNames(v23.GetPrincipal(ctx))[0]
+	myPermsDb := testutil.DefaultPerms(wire.AllDatabaseTags, myBlessing)
+	myPermsCx := sbutil.FilterTags(myPermsDb, wire.AllCollectionTags...)
+	otherPermsDb := testutil.DefaultPerms(wire.AllDatabaseTags, myBlessing, myBlessing+security.ChainSeparator+"alice")
+	otherPermsCx := sbutil.FilterTags(otherPermsDb, wire.AllCollectionTags...)
 
 	// Seed services with same data.
 	dbs := util.Databases{
 		"db1": util.Database{
-			Permissions: myPerms,
+			Permissions: myPermsDb,
 			Collections: util.Collections{
 				"col1": util.Collection{
-					Permissions: otherPerms,
+					Permissions: otherPermsCx,
 					Rows: util.Rows{
 						"key1": "val1",
 						"key2": "val2",
@@ -116,24 +125,24 @@ func TestEqualityEqualServices(t *testing.T) {
 					},
 				},
 				"col2": util.Collection{
-					Permissions: myPerms,
+					Permissions: myPermsCx,
 					Rows:        util.Rows{},
 				},
 			},
 		},
 		"db2": util.Database{
-			Permissions: otherPerms,
+			Permissions: otherPermsDb,
 			Collections: util.Collections{},
 		},
 		"db3": util.Database{
-			Permissions: otherPerms,
+			Permissions: otherPermsDb,
 			Collections: util.Collections{
 				"col3": util.Collection{
-					Permissions: myPerms,
+					Permissions: myPermsCx,
 					Rows:        util.Rows{},
 				},
 				"col4": util.Collection{
-					Permissions: otherPerms,
+					Permissions: otherPermsCx,
 					Rows: util.Rows{
 						"key4": "val4",
 						"key5": "val5",
@@ -350,15 +359,14 @@ func TestEqualityDifferentDatabasePermissions(t *testing.T) {
 	ctx, services, universe, cancel := setupServers(t, 2)
 	defer cancel()
 
-	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
-	myBlessing := blessing.String()
-	myPerms := testutil.DefaultPerms(myBlessing)
-	otherPerms := testutil.DefaultPerms(myBlessing, myBlessing+security.ChainSeparator+"alice")
+	myBlessing := security.DefaultBlessingNames(v23.GetPrincipal(ctx))[0]
+	myPermsDb := testutil.DefaultPerms(wire.AllDatabaseTags, myBlessing)
+	otherPermsDb := testutil.DefaultPerms(wire.AllDatabaseTags, myBlessing, myBlessing+security.ChainSeparator+"alice")
 
 	// Seed services with databases with different permissions.
 	dbs1 := util.Databases{
 		"db1": util.Database{
-			Permissions: myPerms, // Different.
+			Permissions: myPermsDb, // Different.
 			Collections: util.Collections{
 				"col1": util.Collection{
 					Rows: util.Rows{
@@ -372,7 +380,7 @@ func TestEqualityDifferentDatabasePermissions(t *testing.T) {
 	}
 	dbs2 := util.Databases{
 		"db1": util.Database{
-			Permissions: otherPerms, // Different.
+			Permissions: otherPermsDb, // Different.
 			Collections: util.Collections{
 				"col1": util.Collection{
 					Rows: util.Rows{
@@ -404,17 +412,16 @@ func TestEqualityDifferentCollectionPermissions(t *testing.T) {
 	ctx, services, universe, cancel := setupServers(t, 2)
 	defer cancel()
 
-	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
-	myBlessing := blessing.String()
-	myPerms := testutil.DefaultPerms(myBlessing)
-	otherPerms := testutil.DefaultPerms(myBlessing, myBlessing+security.ChainSeparator+"alice")
+	myBlessing := security.DefaultBlessingNames(v23.GetPrincipal(ctx))[0]
+	myPermsCx := testutil.DefaultPerms(wire.AllCollectionTags, myBlessing)
+	otherPermsCx := testutil.DefaultPerms(wire.AllCollectionTags, myBlessing, myBlessing+security.ChainSeparator+"alice")
 
 	// Seed services with databases with different collection name.
 	dbs1 := util.Databases{
 		"db1": util.Database{
 			Collections: util.Collections{
 				"col1": util.Collection{
-					Permissions: myPerms, // Different.
+					Permissions: myPermsCx, // Different.
 					Rows: util.Rows{
 						"key1": "val1",
 						"key2": "val2",
@@ -428,7 +435,7 @@ func TestEqualityDifferentCollectionPermissions(t *testing.T) {
 		"db1": util.Database{
 			Collections: util.Collections{
 				"col1": util.Collection{
-					Permissions: otherPerms, // Different.
+					Permissions: otherPermsCx, // Different.
 					Rows: util.Rows{
 						"key1": "val1",
 						"key2": "val2",

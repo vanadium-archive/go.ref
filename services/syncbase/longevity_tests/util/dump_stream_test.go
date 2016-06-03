@@ -26,22 +26,23 @@ func TestDumpStream(t *testing.T) {
 
 	// All database and collection blessings must be rooted in our context
 	// blessing, otherwise we can't write to them.
-	blessing, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
-	myBlessing := blessing.String()
+	myBlessing := security.DefaultBlessingNames(v23.GetPrincipal(ctx))[0]
 
 	// Create some permissions for the databases and collections.  The
 	// permissions must contain our own blessing, otherwise we will be
 	// prevented from writing to the database/collection.
-	myPerms := testutil.DefaultPerms(myBlessing)
-	meAndAlicePerms := testutil.DefaultPerms(myBlessing, myBlessing+security.ChainSeparator+"alice")
-	meAndBobPerms := testutil.DefaultPerms(myBlessing, myBlessing+security.ChainSeparator+"bob")
+	myPermsDb := testutil.DefaultPerms(wire.AllDatabaseTags, myBlessing)
+	meAndAlicePermsDb := testutil.DefaultPerms(wire.AllDatabaseTags, myBlessing, myBlessing+security.ChainSeparator+"alice")
+	meAndAlicePermsCx := sbUtil.FilterTags(meAndAlicePermsDb, wire.AllCollectionTags...)
+	meAndBobPermsDb := testutil.DefaultPerms(wire.AllDatabaseTags, myBlessing, myBlessing+security.ChainSeparator+"bob")
+	meAndBobPermsCx := sbUtil.FilterTags(meAndBobPermsDb, wire.AllCollectionTags...)
 
 	dbs := util.Databases{
 		"db1": util.Database{
-			Permissions: myPerms,
+			Permissions: myPermsDb,
 			Collections: util.Collections{
 				"col1": util.Collection{
-					Permissions: meAndAlicePerms,
+					Permissions: meAndAlicePermsCx,
 					Rows: util.Rows{
 						"key1": "val1",
 						"key2": "val2",
@@ -49,24 +50,24 @@ func TestDumpStream(t *testing.T) {
 					},
 				},
 				"col2": util.Collection{
-					Permissions: meAndBobPerms,
+					Permissions: meAndBobPermsCx,
 					Rows:        util.Rows{},
 				},
 			},
 		},
 		"db2": util.Database{
-			Permissions: meAndBobPerms,
+			Permissions: meAndBobPermsDb,
 			Collections: util.Collections{},
 		},
 		"db3": util.Database{
-			Permissions: meAndAlicePerms,
+			Permissions: meAndAlicePermsDb,
 			Collections: util.Collections{
 				"col3": util.Collection{
-					Permissions: meAndBobPerms,
+					Permissions: meAndBobPermsCx,
 					Rows:        util.Rows{},
 				},
 				"col4": util.Collection{
-					Permissions: meAndAlicePerms,
+					Permissions: meAndAlicePermsCx,
 					Rows: util.Rows{
 						"key4": "val4",
 						"key5": "val5",
@@ -84,23 +85,19 @@ func TestDumpStream(t *testing.T) {
 	}
 
 	// Get expected blessings for database and collection.
-	dbBlessing, err := sbUtil.AppBlessingFromContext(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	colBlessing, err := sbUtil.UserBlessingFromContext(ctx)
+	dbBlessing, colBlessing, err := sbUtil.AppAndUserPatternFromBlessings(myBlessing)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Get expected Ids for database and collection.
-	db1Id := wire.Id{Name: "db1", Blessing: dbBlessing}
-	db2Id := wire.Id{Name: "db2", Blessing: dbBlessing}
-	db3Id := wire.Id{Name: "db3", Blessing: dbBlessing}
-	col1Id := wire.Id{Name: "col1", Blessing: colBlessing}
-	col2Id := wire.Id{Name: "col2", Blessing: colBlessing}
-	col3Id := wire.Id{Name: "col3", Blessing: colBlessing}
-	col4Id := wire.Id{Name: "col4", Blessing: colBlessing}
+	db1Id := wire.Id{Name: "db1", Blessing: string(dbBlessing)}
+	db2Id := wire.Id{Name: "db2", Blessing: string(dbBlessing)}
+	db3Id := wire.Id{Name: "db3", Blessing: string(dbBlessing)}
+	col1Id := wire.Id{Name: "col1", Blessing: string(colBlessing)}
+	col2Id := wire.Id{Name: "col2", Blessing: string(colBlessing)}
+	col3Id := wire.Id{Name: "col3", Blessing: string(colBlessing)}
+	col4Id := wire.Id{Name: "col4", Blessing: string(colBlessing)}
 
 	// Get expected permissions.
 	db1Perms := dbs["db1"].Permissions

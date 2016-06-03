@@ -42,6 +42,7 @@ func TestPeerManager(t *testing.T) {
 		SpecVersion: "etag-0",
 		Spec: wire.SyncgroupSpec{
 			Collections: []wire.Id{makeCxId("foo"), makeCxId("bar")},
+			Perms:       mockSgPerms,
 			MountTables: []string{"1/2/3/4", "5/6/7/8"},
 		},
 		Joiners: map[string]wire.SyncgroupMemberInfo{

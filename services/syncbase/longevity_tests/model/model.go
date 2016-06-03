@@ -13,11 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"v.io/v23/naming"
+	"v.io/v23/conventions"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
-	"v.io/x/ref/services/syncbase/common"
 )
 
 func init() {
@@ -40,14 +39,28 @@ func (perms Permissions) ToWire(rootBlessing string) access.Permissions {
 	p := access.Permissions{}
 	for tag, users := range perms {
 		for _, user := range users {
-			userBlessing := user.Name
+			userBlessing := security.BlessingPattern(user.Name)
 			if rootBlessing != "" {
-				userBlessing = rootBlessing + security.ChainSeparator + user.Name
+				parsedBlessing := conventions.Blessing{
+					IdentityProvider: rootBlessing,
+					User:             user.Name,
+				}
+				userBlessing = parsedBlessing.UserPattern()
 			}
-			p.Add(security.BlessingPattern(userBlessing), tag)
+			p.Add(userBlessing, tag)
 		}
 	}
 	return p
+}
+
+func (perms Permissions) FilterTags(allowTags ...access.Tag) Permissions {
+	filtered := Permissions{}
+	for _, tag := range allowTags {
+		if users, ok := perms[string(tag)]; ok {
+			filtered[string(tag)] = users
+		}
+	}
+	return filtered
 }
 
 // ===========
@@ -95,7 +108,8 @@ func (cols CollectionSet) String() string {
 // Syncgroup represents a syncgroup.
 type Syncgroup struct {
 	HostDevice  *Device
-	NameSuffix  string
+	Name        string
+	Blessing    string
 	Description string
 	Collections []Collection
 	Permissions Permissions
@@ -106,8 +120,16 @@ type Syncgroup struct {
 	JoinerDevices DeviceSet
 }
 
-func (sg *Syncgroup) Name() string {
-	return naming.Join(sg.HostDevice.Name, common.SyncbaseSuffix, sg.NameSuffix)
+func (sg *Syncgroup) String() string {
+	// TODO(ivanpi): Include more info about syncgroup.
+	return fmt.Sprintf("{syncgroup %v blessing=%v}", sg.Name, sg.Blessing)
+}
+
+func (sg *Syncgroup) Id() wire.Id {
+	return wire.Id{
+		Name:     sg.Name,
+		Blessing: sg.Blessing,
+	}
 }
 
 func (sg *Syncgroup) Spec(rootBlessing string) wire.SyncgroupSpec {
@@ -130,7 +152,7 @@ type SyncgroupSet []Syncgroup
 func (sgs SyncgroupSet) String() string {
 	strs := []string{}
 	for _, sg := range sgs {
-		strs = append(strs, sg.Name())
+		strs = append(strs, sg.String())
 	}
 	return fmt.Sprintf("[%s]", strings.Join(strs, ", "))
 }
@@ -190,7 +212,8 @@ func GenerateDatabaseSet(n int) DatabaseSet {
 	dbs := DatabaseSet{}
 	for i := 0; i < n; i++ {
 		db := &Database{
-			Name: randomName("db"),
+			Name:     randomName("db"),
+			Blessing: string(security.AllPrincipals),
 		}
 		dbs = append(dbs, db)
 	}

@@ -15,6 +15,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
@@ -30,6 +31,7 @@ import (
 var (
 	mockDbId     = wire.Id{Blessing: "mockapp", Name: "mockdb"}
 	mockCRStream *conflictResolverStream
+	mockSgPerms  = access.Permissions{}.Add("mockuser", access.TagStrings(wire.AllSyncgroupTags...)...)
 )
 
 // mockService emulates a Syncbase service that includes store and sync.
@@ -159,7 +161,7 @@ func destroyService(t *testing.T, s *mockService) {
 
 // makeCxId returns a collection id with a default user blessing.
 func makeCxId(name string) wire.Id {
-	return wire.Id{Blessing: "v.io:u:sam", Name: name}
+	return wire.Id{Blessing: "mockuser", Name: name}
 }
 
 // makeRowKey returns the database row key for a given application key.
