@@ -61,7 +61,7 @@ func handleDashboard(ss *serverState, rs *requestState) error {
 	if instance == "" {
 		return fmt.Errorf("parameter %q required for instance name", paramInstance)
 	}
-	if err := checkOwner(ctx, rs.email, instance); err != nil {
+	if err := checkOwnerOfInstance(ctx, rs.email, instance); err != nil {
 		return err
 	}
 
@@ -110,7 +110,7 @@ func handleStats(ss *serverState, rs *requestState) error {
 	if instance == "" {
 		return fmt.Errorf("parameter %q required for instance name", paramInstance)
 	}
-	if err := checkOwner(ctx, rs.email, instance); err != nil {
+	if err := checkOwnerOfInstance(ctx, rs.email, instance); err != nil {
 		return err
 	}
 

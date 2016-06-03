@@ -41,7 +41,7 @@ const (
 	// paramMountName has to match the name parameter in debug browser.
 	paramMountName = "n"
 
-	cookieValidity = 10 * time.Minute
+	cookieValidity = 7 * 24 * time.Hour
 )
 
 type param struct {
@@ -131,10 +131,10 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 	newHandler := func(f handlerFunc, mutating, forceLogin bool) *handler {
 		return &handler{
 			ss: &serverState{
-				ctx:  ctx,
-				args: args,
+				ctx:   ctx,
+				args:  args,
+				baker: baker,
 			},
-			baker:      baker,
 			f:          f,
 			mutating:   mutating,
 			forceLogin: forceLogin,
@@ -196,8 +196,9 @@ func startHTTP(ctx *context.T, args httpArgs) func() error {
 }
 
 type serverState struct {
-	ctx  *context.T
-	args httpArgs
+	ctx   *context.T
+	args  httpArgs
+	baker cookieBaker
 }
 
 type requestState struct {
@@ -213,7 +214,6 @@ type handlerFunc func(ss *serverState, rs *requestState) error
 // the oauth flow if the user is not logged in yet).
 type handler struct {
 	ss         *serverState
-	baker      cookieBaker
 	f          handlerFunc
 	mutating   bool
 	forceLogin bool
@@ -231,12 +231,12 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		err                            error
 	)
 	if !h.forceLogin {
-		if email, csrfToken, err = checkSession(h.baker, r, h.mutating); err != nil {
+		if email, csrfToken, err = checkSession(h.ss.baker, r, h.mutating); err != nil {
 			sessionBlurb = fmt.Sprintf("no session (%v)", err)
 		}
 	} else {
 		oauthCfg := oauthConfig(h.ss.args.externalURL, h.ss.args.oauthCreds)
-		if email, csrfToken, err = requireSession(ctx, oauthCfg, h.baker, w, r, h.mutating); err != nil {
+		if email, csrfToken, err = requireSession(ctx, oauthCfg, h.ss.baker, w, r, h.mutating); err != nil {
 			h.ss.args.assets.errorOccurred(ctx, w, r, routeHome, err)
 			ctx.Infof("%s[%s] : error %v", r.Method, r.URL, err)
 			return

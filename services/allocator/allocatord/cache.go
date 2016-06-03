@@ -11,31 +11,62 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/allocator"
 )
 
 var (
-	ownerCache      *lru.Cache
-	ownerCacheMutex sync.Mutex
+	// instanceCache maps email to list of instances.
+	instanceCache      *lru.Cache
+	instanceCacheMutex sync.Mutex
 )
 
-func checkOwner(ctx *context.T, email, kName string) error {
-	ownerCacheMutex.Lock()
-	if ownerCache == nil {
-		ownerCache = lru.New(maxInstancesFlag)
-	} else if v, ok := ownerCache.Get(kName); ok {
-		ownerCacheMutex.Unlock()
-		if email != v {
-			return verror.New(verror.ErrNoExistOrNoAccess, nil)
-		}
-		return nil
-	}
-	ownerCacheMutex.Unlock()
+func checkOwnerOfInstance(ctx *context.T, email, handle string) error {
+	return checkOwner(ctx, email, func(instance allocator.Instance) bool {
+		return instance.Handle == handle
+	})
+}
 
-	if err := isOwnerOfInstance(ctx, email, kName); err != nil {
+func checkOwnerOfMountName(ctx *context.T, email, mName string) error {
+	return checkOwner(ctx, email, func(instance allocator.Instance) bool {
+		return instance.MountName == mName
+	})
+}
+
+// checkOwner returns the mount name of the instance if the given email has
+// access to it, or an error otherwise.
+func checkOwner(ctx *context.T, email string, predicate func(allocator.Instance) bool) error {
+	instanceCacheMutex.Lock()
+	if instanceCache == nil {
+		instanceCache = lru.New(maxInstancesFlag)
+		instanceCacheMutex.Unlock()
+	} else if v, ok := instanceCache.Get(email); ok {
+		instanceCacheMutex.Unlock()
+		if instances, ok := v.([]allocator.Instance); !ok {
+			// Our cache code is broken.  Proceed to refresh entry.
+			ctx.Errorf("invalid cache entry type %T for email %v", v, email)
+		} else {
+			for _, instance := range instances {
+				if predicate(instance) {
+					return nil
+				}
+			}
+		}
+	}
+
+	instances, err := serverInstances(ctx, email)
+	if err != nil {
 		return err
 	}
-	ownerCacheMutex.Lock()
-	ownerCache.Add(kName, email)
-	ownerCacheMutex.Unlock()
-	return nil
+	// Regardless of whether an instance matches or not, update the email's
+	// cache entry since the user is using the system.
+	instanceCacheMutex.Lock()
+	instanceCache.Add(email, instances)
+	instanceCacheMutex.Unlock()
+
+	for _, instance := range instances {
+		if predicate(instance) {
+			return nil
+		}
+	}
+	return verror.New(verror.ErrNoExistOrNoAccess, nil)
 }

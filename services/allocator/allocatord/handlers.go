@@ -5,9 +5,6 @@
 package main
 
 import (
-	"crypto/hmac"
-	"encoding/base64"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -51,13 +48,7 @@ func handleHome(ss *serverState, rs *requestState) error {
 			SuspendURL:   makeURL(ctx, routeSuspend, params{paramInstance: instance.Handle, paramCSRF: rs.csrfToken}),
 			ResumeURL:    makeURL(ctx, routeResume, params{paramInstance: instance.Handle, paramCSRF: rs.csrfToken}),
 			DashboardURL: makeURL(ctx, routeDashboard, params{paramInstance: instance.Handle}),
-			DebugURL: makeURL(
-				ctx,
-				routeDebug+"/",
-				params{
-					paramInstance:  instance.Handle,
-					paramMountName: instance.MountName,
-					paramHMAC:      base64.URLEncoding.EncodeToString(computeHMAC(instance.Handle, instance.MountName))}),
+			DebugURL:     makeURL(ctx, routeDebug+"/", params{paramMountName: instance.MountName}),
 		})
 	}
 	if err := ss.args.assets.executeTemplate(rs.w, homeTmpl, tmplArgs); err != nil {
@@ -134,26 +125,12 @@ func handleReset(ss *serverState, rs *requestState) error {
 }
 
 func handleDebug(ss *serverState, rs *requestState, debugBrowserServeMux *http.ServeMux) error {
-	instance := rs.r.FormValue(paramInstance)
-	if instance == "" {
-		return fmt.Errorf("parameter %q required for instance name", paramInstance)
-	}
+	ctx := ss.ctx
 	mountName := rs.r.FormValue(paramMountName)
 	if mountName == "" {
 		return fmt.Errorf("parameter %q required for instance mount name", paramMountName)
 	}
-	hmacBase64 := rs.r.FormValue(paramHMAC)
-	if hmacBase64 == "" {
-		return fmt.Errorf("parameter %q required for name signature", paramHMAC)
-	}
-	hmacSignature, err := base64.URLEncoding.DecodeString(hmacBase64)
-	if err != nil {
-		return fmt.Errorf("invalid signature: %v", err)
-	}
-	if !hmac.Equal(hmacSignature, computeHMAC(instance, mountName)) {
-		return errors.New("mismatching signature")
-	}
-	if err := checkOwner(ss.ctx, rs.email, instance); err != nil {
+	if err := checkOwnerOfMountName(ctx, rs.email, mountName); err != nil {
 		return err
 	}
 	http.StripPrefix(routeDebug, debugBrowserServeMux).ServeHTTP(rs.w, rs.r)
