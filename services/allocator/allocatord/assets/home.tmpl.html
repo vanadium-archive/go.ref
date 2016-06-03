@@ -30,7 +30,7 @@ blessing. -->
             <span class="unixtime" data-unixtime={{.CreationTime.Unix}}>{{.CreationTime.String}}</span>
           </p>
           <p class="blessing-caveats">
-            <span>Mount Name</span><br/>
+            <span>Address</span><br/>
             {{.MountName}}
           </p>
           <p class="blessing-caveats">
@@ -56,17 +56,17 @@ blessing. -->
             {{end}}
           </div>
           <div class="btn btn-warning" id="resetBtn{{$index}}">
-            <a href="{{.ResetURL}}" class="button-passive" onclick="changeBtn('resetBtn{{$index}}', 'Resetting (takes a few seconds) ...')">Reset</a>
+            <a href="{{.ResetURL}}" class="button-passive" onclick="changeBtn('resetBtn{{$index}}', 'Resetting (takes ~20 seconds) ...')">Reset</a>
           </div>
           <div class="btn btn-warning" id="destroyBtn{{$index}}">
-            <a href="{{.DestroyURL}}" class="button-passive" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes a few seconds) ...')">Destroy</a>
+            <a href="{{.DestroyURL}}" class="button-passive" onclick="changeBtn('destroyBtn{{$index}}', 'Destroying (takes ~10 seconds) ...')">Destroy</a>
           </div>
         </div>
       </div>
     {{else}}
       None found.
     {{end}}
-    <div id="createBtn"><a href="{{.CreateURL}}" class="button-passive" onclick="changeBtn('createBtn', 'Creating (takes a few seconds) ...')">Create New</a></div>
+    <div id="createBtn"><a href="{{.CreateURL}}" class="button-passive" onclick="changeBtn('createBtn', 'Creating (takes ~25 seconds) ...')">Create New</a></div>
     {{with .Message -}}
     <div id="message">
       {{.}}
