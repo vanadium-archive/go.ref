@@ -737,9 +737,11 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 	// Local SG create succeeded. Publish the SG at the chosen server, or if
 	// that fails, enqueue it for later publish retries.
 	if spec.PublishSyncbaseName != "" {
-		if err := sd.publishSyncgroup(ctx, call, sgId, spec.PublishSyncbaseName); err != nil {
-			ss.enqueuePublishSyncgroup(sgId, dbId, true)
-		}
+		go func() {
+			if err := sd.publishSyncgroup(ctx, call, sgId, spec.PublishSyncbaseName); err != nil {
+				ss.enqueuePublishSyncgroup(sgId, dbId, true)
+			}
+		}()
 	}
 
 	return nil
