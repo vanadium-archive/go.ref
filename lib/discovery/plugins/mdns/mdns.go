@@ -453,7 +453,7 @@ func newWithLoopback(ctx *context.T, host string, port int, loopback bool) (idis
 		mdns:      m,
 		adStopper: idiscovery.NewTrigger(),
 		// TODO(jhahn): Figure out a good subscription refresh time.
-		subscriptionRefreshTime: 15 * time.Second,
+		subscriptionRefreshTime: 5 * time.Second,
 		subscription:            make(map[string]subscription),
 	}
 	if loopback {

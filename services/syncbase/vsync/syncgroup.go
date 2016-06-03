@@ -1254,17 +1254,18 @@ func (s *syncService) advertiseSyncbase(ctx *context.T, call rpc.ServerCall, sg 
 func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCall, dbId, sgId wire.Id, remoteSyncbaseName string, expectedSyncbaseBlessings []string, localSyncbaseName string, myInfo wire.SyncgroupMemberInfo) (interfaces.Syncgroup, string, interfaces.GenVector, error) {
 	vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: begin, dbId %v, sgId %v, remoteSyncbaseName %v", dbId, sgId, remoteSyncbaseName)
 
-	ctx, cancel := context.WithTimeout(ctxIn, cloudConnectionTimeout)
-	c := interfaces.SyncClient(naming.Join(remoteSyncbaseName, common.SyncbaseSuffix))
-	sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, dbId, sgId, localSyncbaseName, myInfo)
-	cancel()
-
-	if err == nil {
-		vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: end succeeded at %v, returned sg %v vers %v gv %v", sgId, sg, vers, gv)
-		return sg, vers, gv, err
+	if remoteSyncbaseName != "" {
+		ctx, cancel := context.WithTimeout(ctxIn, cloudConnectionTimeout)
+		c := interfaces.SyncClient(naming.Join(remoteSyncbaseName, common.SyncbaseSuffix))
+		sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, dbId, sgId, localSyncbaseName, myInfo)
+		cancel()
+		if err == nil {
+			vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: end succeeded at %v, returned sg %v vers %v gv %v", sgId, sg, vers, gv)
+			return sg, vers, gv, err
+		}
 	}
 
-	vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: try neighborhood %v since the join failed, %v", sgId, err)
+	vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: try neighborhood %v", sgId)
 
 	// TODO(hpucha): Restrict the set of errors when retry happens to
 	// network related errors or other retriable errors.
@@ -1291,7 +1292,7 @@ func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCa
 	}
 
 	vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: failed %v", sgId)
-	return interfaces.Syncgroup{}, "", interfaces.GenVector{}, verror.New(wire.ErrSyncgroupJoinFailed, ctx)
+	return interfaces.Syncgroup{}, "", interfaces.GenVector{}, verror.New(wire.ErrSyncgroupJoinFailed, ctxIn)
 }
 
 func authorize(ctx *context.T, call security.Call, sg *interfaces.Syncgroup) error {
