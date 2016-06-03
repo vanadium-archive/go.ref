@@ -23,6 +23,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
@@ -1276,18 +1277,24 @@ func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCa
 	// Try to join using an Admin on neighborhood in case this node does not
 	// have connectivity.
 	neighbors := ss.filterSyncgroupAdmins(dbId, sgId)
+	c = interfaces.SyncClient("")
 	for _, svc := range neighbors {
+		me := &naming.MountEntry{IsLeaf: true, Name: common.SyncbaseSuffix}
+		// TODO(fredq): check that the service at addr has the expectedSyncbaseBlessings.
 		for _, addr := range svc.Addresses {
-			ctx, cancel := context.WithTimeout(ctxIn, NeighborConnectionTimeout)
-			// TODO(fredq): check that the service at addr has the expectedSyncbaseBlessings.
-			c := interfaces.SyncClient(naming.Join(addr, common.SyncbaseSuffix))
-			sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, dbId, sgId, localSyncbaseName, myInfo)
-			cancel()
-
-			if err == nil {
-				vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: end succeeded at addr %v, returned sg %v vers %v gv %v", addr, sg, vers, gv)
-				return sg, vers, gv, err
-			}
+			me.Servers = append(me.Servers, naming.MountedServer{Server: addr})
+		}
+		ctx, cancel := context.WithTimeout(ctxIn, NeighborConnectionTimeout)
+		// We construct a preresolved opt with all the addresses for the peer. This allows us
+		// to try the endpoints for this peer with all of their resolved addresses, rather
+		// than a single resolved address at a time. This is important because it is possible for
+		// addresses in the list to be unreachable, causing large delays when trying join calls
+		// in serial.
+		sg, vers, gv, err := c.JoinSyncgroupAtAdmin(ctx, dbId, sgId, localSyncbaseName, myInfo, options.Preresolved{me})
+		cancel()
+		if err == nil {
+			vlog.VI(2).Infof("sync: joinSyncgroupAtAdmin: end succeeded at addresses %v, returned sg %v vers %v gv %v", me.Servers, sg, vers, gv)
+			return sg, vers, gv, err
 		}
 	}
 
