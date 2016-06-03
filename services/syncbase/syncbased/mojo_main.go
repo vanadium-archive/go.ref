@@ -40,7 +40,7 @@ func (d *delegate) Initialize(actx application.Context) {
 	opts.InitFlags(flag.CommandLine)
 	roaming.SetArgs(actx)
 	d.ctx, d.shutdown = v23.Init() // calls flag.Parse
-	if err := bridge.SetBlessings(d.ctx, actx); err != nil {
+	if err := bridge.SeekAndSetBlessings(d.ctx, actx); err != nil {
 		panic(err)
 	}
 	d.srv, d.disp, d.cleanup = syncbaselib.Serve(d.ctx, opts)

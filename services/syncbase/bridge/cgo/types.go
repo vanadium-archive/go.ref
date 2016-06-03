@@ -77,7 +77,7 @@ func (x *C.v23_syncbase_Bytes) init(b []byte) {
 	}
 	x.n = C.int(len(b))
 	x.p = (*C.uint8_t)(C.malloc(C.size_t(x.n)))
-	C.memcpy(unsafe.Pointer(x.p), unsafe.Pointer(&b[0]), C.size_t(len(b)))
+	C.memcpy(unsafe.Pointer(x.p), unsafe.Pointer(&b[0]), C.size_t(x.n))
 }
 
 func (x *C.v23_syncbase_Bytes) extract() []byte {

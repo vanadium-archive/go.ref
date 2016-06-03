@@ -95,7 +95,7 @@ func v23_syncbase_Init(cClientUnderstandVom C.v23_syncbase_Bool) {
 
 //export v23_syncbase_Login
 func v23_syncbase_Login(cOAuthProvider C.v23_syncbase_String, cOAuthToken C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	cErr.init(bridge.SetBlessings(b.Ctx, cOAuthProvider.extract(), cOAuthToken.extract()))
+	cErr.init(bridge.SeekAndSetBlessings(b.Ctx, cOAuthProvider.extract(), cOAuthToken.extract()))
 }
 
 ////////////////////////////////////////

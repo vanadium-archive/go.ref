@@ -67,7 +67,7 @@ type selectAccountFailed struct {
 	error
 }
 
-func SetBlessings(v23ctx *context.T, appctx application.Context) error {
+func SeekAndSetBlessings(v23ctx *context.T, appctx application.Context) error {
 	// Get an OAuth2 token from the mojo authentication service.
 	// At the time of this writing, the mojo authentication
 	// service was implemented only for Android, so in absence
@@ -94,7 +94,7 @@ func SetBlessings(v23ctx *context.T, appctx application.Context) error {
 		return err
 	}
 	ctx.Infof("Obtained OAuth2 token, will exchange for blessings")
-	return bridge.SetBlessings(v23ctx, "google", token)
+	return bridge.SeekAndSetBlessings(v23ctx, "google", token)
 }
 
 func oauthToken(ctx application.Context) (string, error) {

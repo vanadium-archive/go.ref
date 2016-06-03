@@ -26,9 +26,9 @@ import (
 	seclib "v.io/x/ref/lib/security"
 )
 
-// SetBlessings exchanges an OAuth token for blessings from the dev.v.io server.
-// Currently, oauthProvider must be set to "google".
-func SetBlessings(ctx *context.T, oauthProvider string, oauthToken string) error {
+// SeekAndSetBlessings exchanges an OAuth token for blessings from the dev.v.io
+// server. Currently, oauthProvider must be set to "google".
+func SeekAndSetBlessings(ctx *context.T, oauthProvider string, oauthToken string) error {
 	if strings.ToLower(oauthProvider) != "google" {
 		return fmt.Errorf("unsupported oauthProvider %q; currently, \"google\" is the only supported provider", oauthProvider)
 	}
