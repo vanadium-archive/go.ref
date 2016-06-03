@@ -68,6 +68,15 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 	return C.JNI_VERSION_1_6
 }
 
+//export Java_io_v_syncbase_internal_Service_Login
+func Java_io_v_syncbase_internal_Service_Login(env *C.JNIEnv, cls C.jclass, provider C.jstring, token C.jstring) {
+	cProvider := newVStringFromJava(env, provider)
+	cToken := newVStringFromJava(env, token)
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_Login(cProvider, cToken, &cErr)
+	maybeThrowException(env, &cErr)
+}
+
 //export Java_io_v_syncbase_internal_Service_GetPermissions
 func Java_io_v_syncbase_internal_Service_GetPermissions(env *C.JNIEnv, cls C.jclass) C.jobject {
 	var cPerms C.v23_syncbase_Permissions
