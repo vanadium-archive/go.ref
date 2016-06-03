@@ -34,6 +34,9 @@ func (x *C.bool) extractToJava() C.jboolean {
 
 func newVBytesFromJava(env *C.JNIEnv, array C.jbyteArray) C.v23_syncbase_Bytes {
 	r := C.v23_syncbase_Bytes{}
+	if array == nil {
+		return r
+	}
 	n := C.GetArrayLength(env, array)
 	r.n = C.int(n)
 	r.p = (*C.uint8_t)(C.malloc(C.size_t(r.n)))
@@ -218,9 +221,31 @@ func newVSyngroupSpecAndVersionFromJava(env *C.JNIEnv, obj C.jobject) (C.v23_syn
 	if C.ExceptionOccurred(env) != nil {
 		panic("newVSyngroupSpecAndVersionFromJava exception while retrieving VersionedSyncgroupSpec.version")
 	}
-	spec := newVSyngroupSpecFromJava(env, C.GetObjectField(env, obj, versionedSyncgroupSpecClass.syncgroupSpec))
+	cSpec := newVSyngroupSpecFromJava(env, C.GetObjectField(env, obj, versionedSyncgroupSpecClass.syncgroupSpec))
 	if C.ExceptionOccurred(env) != nil {
 		panic("newVSyngroupSpecAndVersionFromJava exception while retrieving VersionedSyncgroupSpec.syncgroupSpec")
 	}
-	return spec, newVStringFromJava(env, version)
+	return cSpec, newVStringFromJava(env, version)
+}
+
+// newVPermissionsFromJava creates a v23_syncbase_Permissions from a Permissions
+// object.
+func newVPermissionsFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_Permissions {
+	return C.v23_syncbase_Permissions{
+		json: newVBytesFromJava(env, C.jbyteArray(C.GetObjectField(env, obj, permissionsClass.json))),
+	}
+}
+
+// newVPermissionsAndVersionFromJava creates a v23_syncbase_Permissions and
+// v23_syncbase_String version string from a VersionedPermissions object.
+func newVPermissionsAndVersionFromJava(env *C.JNIEnv, obj C.jobject) (C.v23_syncbase_Permissions, C.v23_syncbase_String) {
+	version := C.jstring(C.GetObjectField(env, obj, versionedPermissionsClass.version))
+	if C.ExceptionOccurred(env) != nil {
+		panic("newVPermissionsAndVersionFromJava exception while retrieving VersionedPermissions.version")
+	}
+	cPerms := newVPermissionsFromJava(env, C.GetObjectField(env, obj, versionedPermissionsClass.permissions))
+	if C.ExceptionOccurred(env) != nil {
+		panic("newVPermissionsAndVersionFromJava exception while retrieving VersionedPermissions.permissions")
+	}
+	return cPerms, newVStringFromJava(env, version)
 }

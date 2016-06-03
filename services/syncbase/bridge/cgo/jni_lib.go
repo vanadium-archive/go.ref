@@ -165,6 +165,38 @@ func newJVersionedSyncgroupSpec(env *C.JNIEnv) jVersionedSyncgroupSpec {
 	}
 }
 
+type jPermissions struct {
+	class C.jclass
+	init  C.jmethodID
+	json  C.jfieldID
+}
+
+func newJPermissions(env *C.JNIEnv) jPermissions {
+	cls, init := initClass(env, "io/v/syncbase/internal/Permissions")
+	return jPermissions{
+		class: cls,
+		init:  init,
+		json:  jGetFieldID(env, cls, "json", "[B"),
+	}
+}
+
+type jVersionedPermissions struct {
+	class       C.jclass
+	init        C.jmethodID
+	version     C.jfieldID
+	permissions C.jfieldID
+}
+
+func newJVersionedPermissions(env *C.JNIEnv) jVersionedPermissions {
+	cls, init := initClass(env, "io/v/syncbase/internal/VersionedPermissions")
+	return jVersionedPermissions{
+		class:       cls,
+		init:        init,
+		version:     jGetFieldID(env, cls, "version", "Ljava/lang/String;"),
+		permissions: jGetFieldID(env, cls, "permissions", "Lio/v/syncbase/internal/Permissions;"),
+	}
+}
+
 // initClass returns the jclass and the jmethodID of the default constructor for
 // a class.
 func initClass(env *C.JNIEnv, name string) (C.jclass, C.jmethodID) {

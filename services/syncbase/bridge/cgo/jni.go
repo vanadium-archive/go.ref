@@ -32,9 +32,11 @@ var (
 	arrayListClass              jArrayListClass
 	hashMapClass                jHashMap
 	idClass                     jIdClass
+	permissionsClass            jPermissions
 	syncgroupMemberInfoClass    jSyncgroupMemberInfo
 	syncgroupSpecClass          jSyncgroupSpec
 	verrorClass                 jVErrorClass
+	versionedPermissionsClass   jVersionedPermissions
 	versionedSyncgroupSpecClass jVersionedSyncgroupSpec
 )
 
@@ -56,18 +58,35 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 	arrayListClass = newJArrayListClass(env)
 	hashMapClass = newJHashMap(env)
 	idClass = newJIdClass(env)
+	permissionsClass = newJPermissions(env)
 	syncgroupMemberInfoClass = newJSyncgroupMemberInfo(env)
 	syncgroupSpecClass = newJSyncgroupSpec(env)
 	verrorClass = newJVErrorClass(env)
+	versionedPermissionsClass = newJVersionedPermissions(env)
 	versionedSyncgroupSpecClass = newJVersionedSyncgroupSpec(env)
 
 	return C.JNI_VERSION_1_6
 }
 
+//export Java_io_v_syncbase_internal_Service_GetPermissions
 func Java_io_v_syncbase_internal_Service_GetPermissions(env *C.JNIEnv, cls C.jclass) C.jobject {
-	return nil
+	var cPerms C.v23_syncbase_Permissions
+	var cVersion C.v23_syncbase_String
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_ServiceGetPermissions(&cPerms, &cVersion, &cErr)
+	if maybeThrowException(env, &cErr) {
+		return nil
+	}
+	return newVersionedPermissions(env, &cPerms, &cVersion)
 }
-func Java_io_v_syncbase_internal_Service_SetPermissions(env *C.JNIEnv, cls C.jclass, obj C.jobject) {}
+
+//export Java_io_v_syncbase_internal_Service_SetPermissions
+func Java_io_v_syncbase_internal_Service_SetPermissions(env *C.JNIEnv, cls C.jclass, obj C.jobject) {
+	cPerms, cVersion := newVPermissionsAndVersionFromJava(env, obj)
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_ServiceSetPermissions(cPerms, cVersion, &cErr)
+	maybeThrowException(env, &cErr)
+}
 
 //export Java_io_v_syncbase_internal_Service_ListDatabases
 func Java_io_v_syncbase_internal_Service_ListDatabases(env *C.JNIEnv, cls C.jclass) C.jobject {
@@ -79,10 +98,26 @@ func Java_io_v_syncbase_internal_Service_ListDatabases(env *C.JNIEnv, cls C.jcla
 	return obj
 }
 
+//export Java_io_v_syncbase_internal_Database_GetPermissions
 func Java_io_v_syncbase_internal_Database_GetPermissions(env *C.JNIEnv, cls C.jclass, name C.jstring) C.jobject {
-	return nil
+	cName := newVStringFromJava(env, name)
+	var cPerms C.v23_syncbase_Permissions
+	var cVersion C.v23_syncbase_String
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_DbGetPermissions(cName, &cPerms, &cVersion, &cErr)
+	if maybeThrowException(env, &cErr) {
+		return nil
+	}
+	return newVersionedPermissions(env, &cPerms, &cVersion)
 }
-func Java_io_v_syncbase_internal_Database_SetPermissions(env *C.JNIEnv, cls C.jclass, name C.jstring, perms C.jobject) {
+
+//export Java_io_v_syncbase_internal_Database_SetPermissions
+func Java_io_v_syncbase_internal_Database_SetPermissions(env *C.JNIEnv, cls C.jclass, name C.jstring, obj C.jobject) {
+	cName := newVStringFromJava(env, name)
+	cPerms, cVersion := newVPermissionsAndVersionFromJava(env, obj)
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_DbSetPermissions(cName, cPerms, cVersion, &cErr)
+	maybeThrowException(env, &cErr)
 }
 
 // maybeThrowException takes ownership of cErr and throws a Java exception if
@@ -289,10 +324,27 @@ func Java_io_v_syncbase_internal_Database_GetSyncgroupMembers(env *C.JNIEnv, cls
 func Java_io_v_syncbase_internal_Database_WatchPatterns(env *C.JNIEnv, cls C.jclass, name C.jstring, resumeMaker C.jbyteArray, patters C.jobject, callbacks C.jobject) {
 }
 
+//export Java_io_v_syncbase_internal_Collection_GetPermissions
 func Java_io_v_syncbase_internal_Collection_GetPermissions(env *C.JNIEnv, cls C.jclass, name C.jstring, handle C.jstring) C.jobject {
-	return nil
+	cName := newVStringFromJava(env, name)
+	cHandle := newVStringFromJava(env, handle)
+	var cPerms C.v23_syncbase_Permissions
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_CollectionGetPermissions(cName, cHandle, &cPerms, &cErr)
+	if maybeThrowException(env, &cErr) {
+		return nil
+	}
+	return cPerms.extractToJava(env)
 }
+
+//export Java_io_v_syncbase_internal_Collection_SetPermissions
 func Java_io_v_syncbase_internal_Collection_SetPermissions(env *C.JNIEnv, cls C.jclass, name C.jstring, handle C.jstring, perms C.jobject) {
+	cName := newVStringFromJava(env, name)
+	cHandle := newVStringFromJava(env, handle)
+	cPerms := newVPermissionsFromJava(env, perms)
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_CollectionSetPermissions(cName, cHandle, cPerms, &cErr)
+	maybeThrowException(env, &cErr)
 }
 
 //export Java_io_v_syncbase_internal_Collection_Create
@@ -488,6 +540,21 @@ func (x *C.v23_syncbase_Ids) extractToJava(env *C.JNIEnv) C.jobject {
 	return obj
 }
 
+func (x *C.v23_syncbase_Permissions) extractToJava(env *C.JNIEnv) C.jobject {
+	obj := C.NewObjectA(env, permissionsClass.class, permissionsClass.init, nil)
+	C.SetObjectField(env, obj, permissionsClass.json, x.json.extractToJava(env))
+	return obj
+}
+
+// newVersionedPermissions extracts a VersionedPermissions object from a
+// v23_syncbase_Permissions and a v23_syncbase_String version.
+func newVersionedPermissions(env *C.JNIEnv, cPerms *C.v23_syncbase_Permissions, cVersion *C.v23_syncbase_String) C.jobject {
+	obj := C.NewObjectA(env, versionedPermissionsClass.class, versionedPermissionsClass.init, nil)
+	C.SetObjectField(env, obj, versionedPermissionsClass.version, cVersion.extractToJava(env))
+	C.SetObjectField(env, obj, versionedPermissionsClass.permissions, cPerms.extractToJava(env))
+	return obj
+}
+
 // newVStringsFromJava creates a v23_syncbase_Strings from a List<String>.
 func newVStringsFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_Strings {
 	if obj == nil {
@@ -520,14 +587,14 @@ func newVStringsFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_Strings {
 	return r
 }
 
-func (x *C.v23_syncbase_SyncgroupSpec) extractToJava(env *C.JNIEnv) C.jobject {
-	obj := C.NewObjectA(env, syncgroupSpecClass.class, syncgroupSpecClass.init, nil)
-	C.SetObjectField(env, obj, syncgroupSpecClass.description, x.description.extractToJava(env))
-	C.SetObjectField(env, obj, syncgroupSpecClass.publishSyncbaseName, x.publishSyncbaseName.extractToJava(env))
-	// TODO(razvanm): Also extract the permissions.
-	C.SetObjectField(env, obj, syncgroupSpecClass.collections, x.collections.extractToJava(env))
-	C.SetObjectField(env, obj, syncgroupSpecClass.mountTables, x.mountTables.extractToJava(env))
-	C.SetBooleanField(env, obj, syncgroupSpecClass.isPrivate, x.isPrivate.extractToJava())
+func (x *C.v23_syncbase_Strings) extractToJava(env *C.JNIEnv) C.jobject {
+	obj := C.NewObjectA(env, arrayListClass.class, arrayListClass.init, nil)
+	for i := 0; i < int(x.n); i++ {
+		s := x.at(i).extractToJava(env)
+		arg := *(*C.jvalue)(unsafe.Pointer(&s))
+		C.CallBooleanMethodA(env, obj, arrayListClass.add, &arg)
+	}
+	x.free()
 	return obj
 }
 
@@ -554,6 +621,17 @@ func (x *C.v23_syncbase_SyncgroupMemberInfoMap) extractToJava(env *C.JNIEnv) C.j
 	return obj
 }
 
+func (x *C.v23_syncbase_SyncgroupSpec) extractToJava(env *C.JNIEnv) C.jobject {
+	obj := C.NewObjectA(env, syncgroupSpecClass.class, syncgroupSpecClass.init, nil)
+	C.SetObjectField(env, obj, syncgroupSpecClass.description, x.description.extractToJava(env))
+	C.SetObjectField(env, obj, syncgroupSpecClass.publishSyncbaseName, x.publishSyncbaseName.extractToJava(env))
+	// TODO(razvanm): Also extract the permissions.
+	C.SetObjectField(env, obj, syncgroupSpecClass.collections, x.collections.extractToJava(env))
+	C.SetObjectField(env, obj, syncgroupSpecClass.mountTables, x.mountTables.extractToJava(env))
+	C.SetBooleanField(env, obj, syncgroupSpecClass.isPrivate, x.isPrivate.extractToJava())
+	return obj
+}
+
 func (x *C.v23_syncbase_VError) extractToJava(env *C.JNIEnv) C.jobject {
 	if x.id.p == nil {
 		return nil
@@ -563,17 +641,6 @@ func (x *C.v23_syncbase_VError) extractToJava(env *C.JNIEnv) C.jobject {
 	C.SetLongField(env, obj, verrorClass.actionCode, C.jlong(x.actionCode))
 	C.SetObjectField(env, obj, verrorClass.message, x.msg.extractToJava(env))
 	C.SetObjectField(env, obj, verrorClass.stack, x.stack.extractToJava(env))
-	x.free()
-	return obj
-}
-
-func (x *C.v23_syncbase_Strings) extractToJava(env *C.JNIEnv) C.jobject {
-	obj := C.NewObjectA(env, arrayListClass.class, arrayListClass.init, nil)
-	for i := 0; i < int(x.n); i++ {
-		s := x.at(i).extractToJava(env)
-		arg := *(*C.jvalue)(unsafe.Pointer(&s))
-		C.CallBooleanMethodA(env, obj, arrayListClass.add, &arg)
-	}
 	x.free()
 	return obj
 }
