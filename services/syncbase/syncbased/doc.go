@@ -21,6 +21,11 @@ The syncbased flags are:
  -engine=
    Storage engine to use: memstore or leveldb. If empty, we use the default
    storage engine, currently leveldb.
+ -initial-db=
+   If specified, a new database with the given id is created when setting up a
+   brand new storage instance. Permissions for the database will be the service
+   permissions. Format must conform to v.io/services/syncbase.Id.String:
+   blessing,name
  -name=
    Name to mount at.
  -root-dir=

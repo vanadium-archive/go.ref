@@ -60,7 +60,7 @@ var (
 
 // ServiceOptions configures a service.
 type ServiceOptions struct {
-	// Service-level permissions. Used only when creating a brand-new storage
+	// Service-level permissions. Used only when creating a brand new storage
 	// instance.
 	Perms access.Permissions
 	// Root dir for data storage. If empty, we write to a fresh directory created
@@ -74,6 +74,9 @@ type ServiceOptions struct {
 	// Whether to run in development mode; required for RPCs such as
 	// Service.DevModeUpdateVClock.
 	DevMode bool
+	// InitialDB, if not blank, specifies an initial database to create when
+	// creating a brand new storage instance.
+	InitialDB wire.Id
 }
 
 // defaultPerms returns a permissions object that grants all permissions to the
@@ -143,6 +146,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 	}
 
 	var sd ServiceData
+	newService := false
 	if err := store.Get(ctx, st, s.stKey(), &sd); verror.ErrorID(err) != verror.ErrNoExist.ID {
 		if err != nil {
 			return nil, err
@@ -166,6 +170,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 			return nil, verror.New(verror.ErrInternal, ctx, err)
 		}
 	} else {
+		newService = true
 		perms := opts.Perms
 		// Service does not exist.
 		if perms == nil {
@@ -185,6 +190,13 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 	// invocations.
 	if s.sync, err = vsync.New(ctx, s, opts.Engine, opts.RootDir, s.vclock, !opts.SkipPublishInNh); err != nil {
 		return nil, err
+	}
+
+	if newService && opts.InitialDB != (wire.Id{}) {
+		ctx.Info("Creating initial database:", opts.InitialDB)
+		if err := s.createDatabase(ctx, nil, opts.InitialDB, nil, nil); err != nil {
+			return nil, err
+		}
 	}
 
 	// With Sync and the pre-existing DBs initialized, the store can start a
@@ -403,8 +415,17 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 	}
 
 	// 1. Check serviceData perms.
-	sData := &ServiceData{}
-	if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), sData); err != nil {
+	getServiceData := func() (sd *ServiceData, err error) {
+		sd = new(ServiceData)
+		if call != nil {
+			err = util.GetWithAuth(ctx, call, s.st, s.stKey(), sd)
+		} else {
+			err = store.Get(ctx, s.st, s.stKey(), sd)
+		}
+		return
+	}
+	sData, err := getServiceData()
+	if err != nil {
 		return err
 	}
 
@@ -458,11 +479,9 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 		// Note: To avoid a race, we must re-check service perms, and make sure the
 		// perms version hasn't changed, inside the transaction that makes the new
 		// database visible.
-		sDataRepeat := &ServiceData{}
-		if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), sDataRepeat); err != nil {
+		if sDataRepeat, err := getServiceData(); err != nil {
 			return err
-		}
-		if sData.Version != sDataRepeat.Version {
+		} else if sData.Version != sDataRepeat.Version {
 			return verror.NewErrBadVersion(ctx)
 		}
 		// Check for "database already exists".

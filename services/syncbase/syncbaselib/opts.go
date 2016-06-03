@@ -15,6 +15,7 @@ type Opts struct {
 	SkipPublishInNh bool
 	DevMode         bool
 	CpuProfile      string
+	InitialDB       string
 }
 
 // Note: Where possible, we have flag default values be zero values, so that
@@ -26,4 +27,5 @@ func (o *Opts) InitFlags(f *flag.FlagSet) {
 	f.BoolVar(&o.SkipPublishInNh, "skip-publish-in-nh", false, "Whether to skip publishing in the neighborhood.")
 	f.BoolVar(&o.DevMode, "dev", false, "Whether to run in development mode; required for RPCs such as Service.DevModeUpdateVClock.")
 	f.StringVar(&o.CpuProfile, "cpuprofile", "", "If specified, write the cpu profile to the given filename.")
+	f.StringVar(&o.InitialDB, "initial-db", "", "If specified, a new database with the given id is created when setting up a brand new storage instance. Permissions for the database will be the service permissions. Format must conform to v.io/services/syncbase.Id.String: blessing,name")
 }

@@ -13,6 +13,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+	wire "v.io/v23/services/syncbase"
+	pubutil "v.io/v23/syncbase/util"
 	"v.io/x/ref/lib/dispatcher"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/services/syncbase/server"
@@ -54,12 +56,22 @@ func Serve(ctx *context.T, opts Opts) (rpc.Server, rpc.Dispatcher, func()) {
 	if perms != nil {
 		ctx.Infof("Read permissions from command line flag: %v", server.PermsString(ctx, perms))
 	}
+	var initialDB wire.Id
+	if opts.InitialDB != "" {
+		if initialDB, err = wire.ParseId(opts.InitialDB); err != nil {
+			ctx.Fatalf("ParseId(%s) failed: %v", opts.InitialDB, err)
+		}
+		if err := pubutil.ValidateId(initialDB); err != nil {
+			ctx.Fatalf("ValidateId(%v) failed: %v", initialDB, err)
+		}
+	}
 	service, err := server.NewService(ctx, server.ServiceOptions{
 		Perms:           perms,
 		RootDir:         opts.RootDir,
 		Engine:          opts.Engine,
 		SkipPublishInNh: opts.SkipPublishInNh,
 		DevMode:         opts.DevMode,
+		InitialDB:       initialDB,
 	})
 	if err != nil {
 		ctx.Fatal("server.NewService() failed: ", err)
