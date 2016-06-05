@@ -463,6 +463,7 @@ func (d *database) ListCollections(ctx *context.T, call rpc.ServerCall, bh wire.
 			parts := common.SplitNKeyParts(string(keyBytes), 3)
 			id, err := pubutil.DecodeId(parts[1])
 			if err != nil {
+				it.Cancel()
 				return verror.New(verror.ErrInternal, ctx, err)
 			}
 			res = append(res, id)
@@ -686,6 +687,7 @@ func (s *kvs) Advance() bool {
 			if err := vom.Decode(valueBytes, &currValue); err != nil {
 				s.validRow = false
 				s.err = err
+				s.Cancel() // to cancel iterators after s.curr
 				return false
 			}
 			s.currValue = currValue
@@ -697,6 +699,7 @@ func (s *kvs) Advance() bool {
 		if err := s.it[s.curr].Err(); err != nil {
 			s.validRow = false
 			s.err = err
+			s.Cancel() // to cancel iterators after s.curr
 			return false
 		}
 		// We've reached the end of the iterator for this keyRange.

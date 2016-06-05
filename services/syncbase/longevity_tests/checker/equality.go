@@ -29,6 +29,7 @@ func (eq *Equality) Run(ctx *context.T, u model.Universe) error {
 			if err != nil {
 				return err
 			}
+			defer stream.Cancel()
 			dumpStreams = append(dumpStreams, stream)
 		}
 	}

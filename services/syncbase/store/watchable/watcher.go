@@ -239,6 +239,7 @@ func getNextLogSeq(st store.StoreReader) (uint64, error) {
 	if !it.Advance() {
 		return 0, nil
 	}
+	defer it.Cancel()
 	if it.Err() != nil {
 		return 0, it.Err()
 	}
