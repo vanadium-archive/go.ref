@@ -50,6 +50,8 @@ type flw struct {
 	// release from the remote end.  This is always false for accepted flows.
 	borrowing bool
 
+	closed bool
+
 	writerList
 }
 
@@ -355,6 +357,12 @@ func (f *flw) SetDeadlineContext(ctx *context.T, deadline time.Time) *context.T 
 	defer f.conn.mu.Unlock()
 	f.conn.mu.Lock()
 
+	if f.closed {
+		// If the flow is already closed, don't allocate a new
+		// context, we might end up leaking it.
+		return ctx
+	}
+
 	if f.cancel != nil {
 		f.cancel()
 	}
@@ -426,8 +434,11 @@ func (f *flw) Closed() <-chan struct{} {
 func (f *flw) close(ctx *context.T, closedRemotely bool, err error) {
 	f.conn.mu.Lock()
 	cancel := f.cancel
+	closed := f.closed
+	f.closed = true
 	f.conn.mu.Unlock()
-	if f.q.close(ctx) {
+	if !closed {
+		f.q.close(ctx)
 		if f.ctx.V(2) {
 			ctx.Infof("closing %d(%p): %v", f.id, f, err)
 		}
