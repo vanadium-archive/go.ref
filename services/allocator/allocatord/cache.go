@@ -38,9 +38,10 @@ func checkOwner(ctx *context.T, email string, predicate func(allocator.Instance)
 	instanceCacheMutex.Lock()
 	if instanceCache == nil {
 		instanceCache = lru.New(maxInstancesFlag)
-		instanceCacheMutex.Unlock()
-	} else if v, ok := instanceCache.Get(email); ok {
-		instanceCacheMutex.Unlock()
+	}
+	v, ok := instanceCache.Get(email)
+	instanceCacheMutex.Unlock()
+	if ok {
 		if instances, ok := v.([]allocator.Instance); !ok {
 			// Our cache code is broken.  Proceed to refresh entry.
 			ctx.Errorf("invalid cache entry type %T for email %v", v, email)
