@@ -373,7 +373,7 @@ func (h *logsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log    = r.FormValue("l")
 		prefix = naming.Join(server, "__debug", "logs")
 		name   = naming.Join(prefix, log)
-		path   = r.URL.Path
+		path   = strings.TrimPrefix(r.URL.Path, "/")
 		list   = func() bool {
 			for _, a := range r.Header[http.CanonicalHeaderKey("Accept")] {
 				if a == "text/event-stream" {
