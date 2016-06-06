@@ -39,22 +39,26 @@ func handleHome(ss *serverState, rs *requestState) error {
 		ServerName,
 		Email,
 		CreateURL,
+		CSRFParam,
+		CSRFToken,
 		Message string
 		Instances []instanceArg
 	}{
 		AssetsPrefix: ss.args.staticAssetsPrefix,
 		ServerName:   ss.args.serverName,
 		Email:        rs.email,
-		CreateURL:    makeURL(ctx, routeCreate, params{paramCSRF: rs.csrfToken}),
+		CreateURL:    routeCreate,
+		CSRFParam:    paramCSRF,
+		CSRFToken:    rs.csrfToken,
 		Message:      rs.r.FormValue(paramMessage),
 	}
 	for _, instance := range instances {
 		tmplArgs.Instances = append(tmplArgs.Instances, instanceArg{
 			Instance:     instance,
-			DestroyURL:   makeURL(ctx, routeDestroy, params{paramInstance: instance.Handle, paramCSRF: rs.csrfToken}),
-			ResetURL:     makeURL(ctx, routeReset, params{paramInstance: instance.Handle, paramCSRF: rs.csrfToken}),
-			SuspendURL:   makeURL(ctx, routeSuspend, params{paramInstance: instance.Handle, paramCSRF: rs.csrfToken}),
-			ResumeURL:    makeURL(ctx, routeResume, params{paramInstance: instance.Handle, paramCSRF: rs.csrfToken}),
+			DestroyURL:   makeURL(ctx, routeDestroy, params{paramInstance: instance.Handle}),
+			ResetURL:     makeURL(ctx, routeReset, params{paramInstance: instance.Handle}),
+			SuspendURL:   makeURL(ctx, routeSuspend, params{paramInstance: instance.Handle}),
+			ResumeURL:    makeURL(ctx, routeResume, params{paramInstance: instance.Handle}),
 			DashboardURL: makeURL(ctx, routeDashboard, params{paramInstance: instance.Handle}),
 			DebugURL:     makeURL(ctx, routeDebug+"/", params{paramMountName: instance.MountName}),
 		})
