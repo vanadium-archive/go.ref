@@ -183,27 +183,24 @@ func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 		// Check permissions for the syncgroup.
 		var sg *interfaces.Syncgroup
 		sg, err = getSyncgroupByGid(ctx, rSt.st, sgid)
-		if err != nil {
-			vlog.Errorf("sync: authorizeAndFilterSyncgroups: accessing syncgroup information failed %v, err %v", sgid, err)
-			continue
+		if err == nil {
+			err = authorize(ctx, rSt.call.Security(), sg)
 		}
-		err = authorize(ctx, rSt.call.Security(), sg)
-		if verror.ErrorID(err) == verror.ErrNoAccess.ID {
+		if err == nil {
+			if !rSt.sg {
+				for _, c := range sg.Spec.Collections {
+					allowedPfxs[toCollectionPrefixStr(c)] = struct{}{}
+				}
+			}
+		} else {
+			delete(rSt.sgIds, sgid)
 			if rSt.sg {
 				delete(rSt.initVecs, string(sgid))
 			}
-			continue
-		} else if err != nil {
-			return err
+			if verror.ErrorID(err) != verror.ErrNoAccess.ID {
+				vlog.Errorf("sync: authorizeAndFilterSyncgroups: accessing/authorizing syncgroup failed %v, err %v", sgid, err)
+			}
 		}
-
-		for _, c := range sg.Spec.Collections {
-			allowedPfxs[toCollectionPrefixStr(c)] = struct{}{}
-		}
-	}
-
-	if err != nil {
-		return err
 	}
 
 	if rSt.sg {

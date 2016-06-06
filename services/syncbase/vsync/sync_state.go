@@ -453,7 +453,11 @@ func (s *syncService) copyDbGenInfo(ctx *context.T, dbId wire.Id, sgs sgSet) (in
 			sgoid := sgOID(id)
 			gv := ds.sggenvecs[sgoid]
 			genvecs[sgoid] = gv.DeepCopy()
-			genvecs[sgoid][s.id] = ds.sgs[sgoid].checkptGen
+			var ckpt uint64 = 0
+			if info, ok := ds.sgs[sgoid]; ok {
+				ckpt = info.checkptGen
+			}
+			genvecs[sgoid][s.id] = ckpt
 		}
 	} else {
 		genvecs = ds.genvecs.DeepCopy()
