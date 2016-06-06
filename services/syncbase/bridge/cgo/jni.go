@@ -143,10 +143,9 @@ func maybeThrowException(env *C.JNIEnv, cErr *C.v23_syncbase_VError) bool {
 //export Java_io_v_syncbase_internal_Database_Create
 func Java_io_v_syncbase_internal_Database_Create(env *C.JNIEnv, cls C.jclass, name C.jstring, perms C.jobject) {
 	cName := newVStringFromJava(env, name)
+	cPerms := newVPermissionsFromJava(env, perms)
 	var cErr C.v23_syncbase_VError
-	// TODO(razvanm): construct a proper C.v23_syncbase_Permissions based on
-	// the perms object.
-	v23_syncbase_DbCreate(cName, C.v23_syncbase_Permissions{}, &cErr)
+	v23_syncbase_DbCreate(cName, cPerms, &cErr)
 	maybeThrowException(env, &cErr)
 }
 
@@ -360,10 +359,9 @@ func Java_io_v_syncbase_internal_Collection_SetPermissions(env *C.JNIEnv, cls C.
 func Java_io_v_syncbase_internal_Collection_Create(env *C.JNIEnv, cls C.jclass, name C.jstring, handle C.jstring, perms C.jobject) {
 	cName := newVStringFromJava(env, name)
 	cHandle := newVStringFromJava(env, handle)
+	cPerms := newVPermissionsFromJava(env, perms)
 	var cErr C.v23_syncbase_VError
-	// TODO(razvanm): construct a proper C.v23_syncbase_Permissions based on
-	// the perms object.
-	v23_syncbase_CollectionCreate(cName, cHandle, C.v23_syncbase_Permissions{}, &cErr)
+	v23_syncbase_CollectionCreate(cName, cHandle, cPerms, &cErr)
 	maybeThrowException(env, &cErr)
 }
 
@@ -634,7 +632,7 @@ func (x *C.v23_syncbase_SyncgroupSpec) extractToJava(env *C.JNIEnv) C.jobject {
 	obj := C.NewObjectA(env, syncgroupSpecClass.class, syncgroupSpecClass.init, nil)
 	C.SetObjectField(env, obj, syncgroupSpecClass.description, x.description.extractToJava(env))
 	C.SetObjectField(env, obj, syncgroupSpecClass.publishSyncbaseName, x.publishSyncbaseName.extractToJava(env))
-	// TODO(razvanm): Also extract the permissions.
+	C.SetObjectField(env, obj, syncgroupSpecClass.permissions, x.perms.extractToJava(env))
 	C.SetObjectField(env, obj, syncgroupSpecClass.collections, x.collections.extractToJava(env))
 	C.SetObjectField(env, obj, syncgroupSpecClass.mountTables, x.mountTables.extractToJava(env))
 	C.SetBooleanField(env, obj, syncgroupSpecClass.isPrivate, x.isPrivate.extractToJava())

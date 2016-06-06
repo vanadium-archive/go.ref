@@ -14,7 +14,10 @@
 
 package main
 
-import "unsafe"
+import (
+	"fmt"
+	"unsafe"
+)
 
 // #include <stdlib.h>
 // #include "jni_wrapper.h"
@@ -48,6 +51,12 @@ func newVBytesFromJava(env *C.JNIEnv, array C.jbyteArray) C.v23_syncbase_Bytes {
 }
 
 func (x *C.v23_syncbase_Bytes) extractToJava(env *C.JNIEnv) C.jbyteArray {
+	if x.n < 0 {
+		panic(fmt.Sprintf("bad size in C.v23_syncbase_Bytes: %d", x.n))
+	}
+	if x.n == 0 {
+		return nil
+	}
 	obj := C.NewByteArray(env, C.jsize(x.n))
 	if C.ExceptionOccurred(env) != nil {
 		panic("NewByteArray OutOfMemoryError exception")
@@ -191,26 +200,27 @@ func newVSyngroupSpecFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_Syncg
 		panic("newVSyngroupSpecFromJava exception while retrieving SyncgroupSpec.publishSyncbaseName")
 	}
 
-	// TODO(razvanm): construct a proper Permissions object based on the
-	// C.v23_syncbase_Permissions.
+	permissions := C.GetObjectField(env, obj, syncgroupSpecClass.permissions)
+	if C.ExceptionOccurred(env) != nil {
+		panic("newVSyngroupSpecFromJava exception while retrieving SyncgroupSpec.permissions")
+	}
 
 	collections := C.GetObjectField(env, obj, syncgroupSpecClass.collections)
 	if C.ExceptionOccurred(env) != nil {
 		panic("newVSyngroupSpecFromJava exception while retrieving SyncgroupSpec.collections")
 	}
-	collectionsIds := newVIdsFromJava(env, collections)
 
 	mountTables := C.GetObjectField(env, obj, syncgroupSpecClass.mountTables)
 	if C.ExceptionOccurred(env) != nil {
 		panic("newVSyngroupSpecFromJava exception while retrieving SyncgroupSpec.mountTables")
 	}
-	mountTablesStrings := newVStringsFromJava(env, mountTables)
 
 	return C.v23_syncbase_SyncgroupSpec{
 		description:         newVStringFromJava(env, description),
 		publishSyncbaseName: newVStringFromJava(env, publishSyncbaseName),
-		collections:         collectionsIds,
-		mountTables:         mountTablesStrings,
+		perms:               newVPermissionsFromJava(env, permissions),
+		collections:         newVIdsFromJava(env, collections),
+		mountTables:         newVStringsFromJava(env, mountTables),
 	}
 }
 
@@ -231,6 +241,9 @@ func newVSyngroupSpecAndVersionFromJava(env *C.JNIEnv, obj C.jobject) (C.v23_syn
 // newVPermissionsFromJava creates a v23_syncbase_Permissions from a Permissions
 // object.
 func newVPermissionsFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_Permissions {
+	if obj == nil {
+		return C.v23_syncbase_Permissions{}
+	}
 	return C.v23_syncbase_Permissions{
 		json: newVBytesFromJava(env, C.jbyteArray(C.GetObjectField(env, obj, permissionsClass.json))),
 	}
