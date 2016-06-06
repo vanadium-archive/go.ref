@@ -90,6 +90,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 	ctx, cancel := context.WithCancel(ctx)
 	_, server, err := rt.WithNewServer(ctx, "", v23.GetAppCycle(ctx).Remote(), nil)
 	if err != nil {
+		cancel()
 		return err
 	}
 	if err = rt.callbackToParent(ctx, parentName, server.Status().Endpoints[0].Name()); err != nil {
@@ -97,6 +98,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 		<-server.Closed()
 		return err
 	}
+	// cancel() is never called if we return without error.
 	return nil
 }
 
@@ -120,6 +122,7 @@ func setListenSpec(ctx *context.T, rt *Runtime, config exec.Config) (*context.T,
 }
 
 func (rt *Runtime) callbackToParent(ctx *context.T, parentName, myName string) error {
-	ctx, _ = context.WithTimeout(ctx, time.Minute)
-	return rt.GetClient(ctx).Call(ctx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName}, nil)
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	return rt.GetClient(timeoutCtx).Call(timeoutCtx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName}, nil)
 }

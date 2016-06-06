@@ -33,12 +33,13 @@ type PingResult struct {
 //   changes during the call. Clients must be resilient to such errors.
 func PingInParallel(ctx *context.T, names []string, timeout, channelTimeout time.Duration) (map[string]PingResult, error) {
 	results := map[string]PingResult{}
-	ctx, _ = context.WithTimeout(ctx, timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	resultChan := make(chan PingResult)
 	// Spawn goroutines.
 	for _, name := range names {
-		// Note, ctx is thread-safe and is not mutated by the spawned goroutines.
-		go ping(ctx, name, channelTimeout, resultChan)
+		// Note, timeoutCtx is thread-safe and is not mutated by the spawned goroutines.
+		go ping(timeoutCtx, name, channelTimeout, resultChan)
 	}
 	for range names {
 		r := <-resultChan

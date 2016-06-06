@@ -79,7 +79,9 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task, t
 	// but it avoids making yet another copy of the MountEntry.
 	on := t.me.Name
 	t.me.Name = ""
-	call, err := client.StartCall(withTimeout(ctx), "", rpc.GlobMethod, []interface{}{pstr}, append(opts, options.Preresolved{t.me})...)
+	timeoutCtx, cancel := withTimeout(ctx)
+	defer cancel()
+	call, err := client.StartCall(timeoutCtx, "", rpc.GlobMethod, []interface{}{pstr}, append(opts, options.Preresolved{t.me})...)
 	t.me.Name = on
 	if err != nil {
 		t.error = err

@@ -124,6 +124,7 @@ func (d *idiscovery) startAdvertising(ctx *context.T, adinfo *AdInfo) (func(), e
 	for _, plugin := range d.plugins {
 		wg.Add(1)
 		if err := plugin.Advertise(ctx, adinfo, wg.Done); err != nil {
+			cancel()
 			return nil, err
 		}
 	}

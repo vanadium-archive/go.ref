@@ -220,9 +220,8 @@ func (h *handler) execute(ctx *context.T, w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (h *handler) withTimeout(ctx *context.T) *context.T {
-	ctx, _ = context.WithTimeout(ctx, h.timeout)
-	return ctx
+func (h *handler) withTimeout(ctx *context.T) (*context.T, func()) {
+	return context.WithTimeout(ctx, h.timeout)
 }
 
 type resolveHandler struct{ *handler }
@@ -231,7 +230,9 @@ func (h *resolveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("n")
 	var suffix string
 	ctx, tracer := newTracer(h.ctx)
-	m, err := v23.GetNamespace(ctx).Resolve(h.withTimeout(ctx), name)
+	timeoutCtx, cancel := h.withTimeout(ctx)
+	defer cancel()
+	m, err := v23.GetNamespace(ctx).Resolve(timeoutCtx, name)
 	if m != nil {
 		suffix = m.Name
 	}
@@ -256,7 +257,8 @@ type blessingsHandler struct{ *handler }
 func (h *blessingsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("n")
 	ctx, tracer := newTracer(h.ctx)
-	call, err := v23.GetClient(ctx).StartCall(h.withTimeout(ctx), name, "DoNotReallyCareAboutTheMethod", nil)
+	timeoutCtx, cancel := h.withTimeout(ctx)
+	call, err := v23.GetClient(ctx).StartCall(timeoutCtx, name, "DoNotReallyCareAboutTheMethod", nil)
 	args := struct {
 		ServerName        string
 		CommandLine       string
@@ -275,7 +277,10 @@ func (h *blessingsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		args.Recognized, args.Blessings = call.RemoteBlessings()
 		args.CertificateChains = security.MarshalBlessings(args.Blessings).CertificateChains
 		// Don't actually care about the RPC, so don't bother waiting on the Finish.
+		cancel()
 		defer func() { go call.Finish() }()
+	} else {
+		cancel()
 	}
 	h.execute(h.ctx, w, r, "blessings.html", args)
 }
@@ -291,7 +296,9 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx, tracer = newTracer(h.ctx)
 		hasValue    = true
 	)
-	v, err := stats.StatsClient(name).Value(h.withTimeout(ctx))
+	timeoutCtx, cancel := h.withTimeout(ctx)
+	defer cancel()
+	v, err := stats.StatsClient(name).Value(timeoutCtx)
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
 		// Stat does not exist as a value, that's okay.
 		err = nil
@@ -299,7 +306,9 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	var children []string
 	var childrenErrors []error
-	if glob, globErr := v23.GetNamespace(ctx).Glob(h.withTimeout(ctx), naming.Join(name, "*")); globErr == nil {
+	timeoutCtx2, cancel2 := h.withTimeout(ctx)
+	defer cancel2()
+	if glob, globErr := v23.GetNamespace(ctx).Glob(timeoutCtx2, naming.Join(name, "*")); globErr == nil {
 		for e := range glob {
 			switch e := e.(type) {
 			case *naming.GlobReplyEntry:
@@ -484,7 +493,9 @@ func (h *globHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx, tracer = newTracer(h.ctx)
 		entries     []entry
 	)
-	ch, err := v23.GetNamespace(ctx).Glob(h.withTimeout(ctx), pattern)
+	timeoutCtx, cancel := h.withTimeout(ctx)
+	defer cancel()
+	ch, err := v23.GetNamespace(ctx).Glob(timeoutCtx, pattern)
 	if err != nil {
 		entries = append(entries, entry{Error: err})
 	}

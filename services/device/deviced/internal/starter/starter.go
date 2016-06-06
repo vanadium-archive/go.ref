@@ -264,6 +264,7 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pa
 	ctx, cancel := context.WithCancel(ctx)
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, args.name(mt), wrapper)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	args.ConfigState.Name = server.Status().Endpoints[0].Name()

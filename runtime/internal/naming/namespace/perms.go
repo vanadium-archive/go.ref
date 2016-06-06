@@ -20,7 +20,9 @@ func (ns *namespace) SetPermissions(ctx *context.T, name string, perms access.Pe
 	me, err := ns.ResolveToMountTable(ctx, name, opts...)
 	if err == nil {
 		copts := append(getCallOpts(opts), options.Preresolved{me})
-		err = v23.GetClient(ctx).Call(withTimeout(ctx), name, "SetPermissions", []interface{}{perms, version}, nil, copts...)
+		timeoutCtx, cancel := withTimeout(ctx)
+		defer cancel()
+		err = v23.GetClient(ctx).Call(timeoutCtx, name, "SetPermissions", []interface{}{perms, version}, nil, copts...)
 		ns.forget(ctx, me)
 	}
 	ctx.VI(1).Infof("SetPermissions(%s, %v, %s) -> %v", name, perms, version, err)
@@ -34,7 +36,9 @@ func (ns *namespace) GetPermissions(ctx *context.T, name string, opts ...naming.
 	me, err := ns.ResolveToMountTable(ctx, name, opts...)
 	if err == nil {
 		copts := append(getCallOpts(opts), options.Preresolved{me})
-		err = v23.GetClient(ctx).Call(withTimeout(ctx), name, "GetPermissions", []interface{}{}, []interface{}{&perms, &version}, copts...)
+		timeoutCtx, cancel := withTimeout(ctx)
+		defer cancel()
+		err = v23.GetClient(ctx).Call(timeoutCtx, name, "GetPermissions", []interface{}{}, []interface{}{&perms, &version}, copts...)
 		ns.forget(ctx, me)
 	}
 	ctx.VI(1).Infof("GetPermissions(%s) -> (%v, %v, %v)", name, perms, version, err)

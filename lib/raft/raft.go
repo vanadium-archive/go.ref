@@ -366,7 +366,8 @@ func (r *raft) StartElection() {
 
 func (r *raft) startElection() {
 	// If we can't get a response in 2 seconds, something is really wrong.
-	ctx, _ := context.WithTimeout(r.ctx, 2*time.Second)
+	ctx, cancel := context.WithTimeout(r.ctx, 2*time.Second)
+	defer cancel()
 	if err := r.p.IncCurrentTerm(); err != nil {
 		// If this fails, there's no way to recover.
 		vlog.Fatalf("incrementing current term: %s", err)
@@ -627,9 +628,10 @@ func (r *raft) updateFollower(m *member) {
 		// Send to the follower. We drop the lock while we do this. That means we may stop being the
 		// leader in the middle of the call but that's OK as long as we check when we get it back.
 		r.Unlock()
-		ctx, _ := context.WithTimeout(r.ctx, time.Duration(2)*time.Second)
+		ctx, cancel := context.WithTimeout(r.ctx, time.Duration(2)*time.Second)
 		client := v23.GetClient(ctx)
 		err := client.Call(ctx, m.id, "AppendToLog", msg, []interface{}{}, options.Preresolved{})
+		cancel()
 		r.Lock()
 		if r.role != RoleLeader {
 			// Not leader any more, doesn't matter how he replied.
@@ -677,7 +679,8 @@ func (r *raft) sendLatestSnapshot(m *member) (Index, error) {
 	if err != nil {
 		return 0, err
 	}
-	ctx, _ := context.WithTimeout(r.ctx, time.Duration(5*60)*time.Second)
+	ctx, cancel := context.WithTimeout(r.ctx, time.Duration(5*60)*time.Second)
+	defer cancel()
 	client := raftProtoClient(m.id)
 	call, err := client.InstallSnapshot(ctx, r.p.CurrentTerm(), r.me.id, term, index, options.Preresolved{})
 	if err != nil {

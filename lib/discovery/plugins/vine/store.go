@@ -152,6 +152,7 @@ func newStore(ctx *context.T, name string, clock timekeeper.TimeKeeper) (*store,
 	// TODO(suharshs): Make the authorizer configurable?
 	_, server, err := v23.WithNewServer(ctx, name, StoreServer(s), security.AllowEveryone())
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	go s.flushExpired(ctx)

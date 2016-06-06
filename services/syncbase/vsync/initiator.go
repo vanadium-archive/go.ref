@@ -1269,6 +1269,7 @@ func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) (interface{}, er
 
 	if err == nil {
 		vlog.VI(4).Infof("sync: runRemoteOp: end op established for %s", absName)
+		// Responsibility for calling cancel() is passed to caller.
 		return resp, nil
 	}
 

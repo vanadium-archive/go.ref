@@ -180,12 +180,17 @@ func notAnMT(err error) bool {
 // All operations against the mount table service use this fixed timeout unless overridden.
 const callTimeout = 30 * time.Second
 
+func emptyFunc() {}
+
 // withTimeout returns a new context if the orinal has no timeout set.
-func withTimeout(ctx *context.T) *context.T {
+func withTimeout(ctx *context.T) (*context.T, func()) {
+	var cancel func()
 	if _, ok := ctx.Deadline(); !ok {
-		ctx, _ = context.WithTimeout(ctx, callTimeout)
+		ctx, cancel = context.WithTimeout(ctx, callTimeout)
+	} else {
+		cancel = emptyFunc
 	}
-	return ctx
+	return ctx, cancel
 }
 
 // CacheCtl implements namespace.T.CacheCtl
