@@ -205,6 +205,8 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		// for a fully initialized service. Fix this with a separate marker.
 		ctx.Infof("Creating initial database: %v", opts.InitialDB)
 		dbPerms := pubutil.FilterTags(sd.GetPerms(), wire.AllDatabaseTags...)
+		allButAdmin := []access.Tag{access.Read, access.Write, access.Resolve}
+		dbPerms.Add(security.BlessingPattern(opts.InitialDB.Blessing), access.TagStrings(allButAdmin...)...)
 		if err := s.createDatabase(ctx, nil, opts.InitialDB, dbPerms, nil); err != nil {
 			return nil, err
 		}

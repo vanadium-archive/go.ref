@@ -27,5 +27,5 @@ func (o *Opts) InitFlags(f *flag.FlagSet) {
 	f.BoolVar(&o.SkipPublishInNh, "skip-publish-in-nh", false, "Whether to skip publishing in the neighborhood.")
 	f.BoolVar(&o.DevMode, "dev", false, "Whether to run in development mode; required for RPCs such as Service.DevModeUpdateVClock.")
 	f.StringVar(&o.CpuProfile, "cpuprofile", "", "If specified, write the cpu profile to the given filename.")
-	f.StringVar(&o.InitialDB, "initial-db", "", "If specified, a new database with the given id is created when setting up a brand new storage instance. Permissions for the database will be the service permissions. Format must conform to v.io/services/syncbase.Id.String: blessing,name")
+	f.StringVar(&o.InitialDB, "initial-db", "", "If specified, a new database with the given id is created when setting up a brand new storage instance. Permissions for the database will be the service permissions; additionally, the blessing specified in the database id will have Read, Write, and Resolve. Format must conform to v.io/services/syncbase.Id.String: blessing,name")
 }

@@ -24,8 +24,9 @@ The syncbased flags are:
  -initial-db=
    If specified, a new database with the given id is created when setting up a
    brand new storage instance. Permissions for the database will be the service
-   permissions. Format must conform to v.io/services/syncbase.Id.String:
-   blessing,name
+   permissions; additionally, the blessing specified in the database id will
+   have Read, Write, and Resolve. Format must conform to
+   v.io/services/syncbase.Id.String: blessing,name
  -name=
    Name to mount at.
  -root-dir=
