@@ -199,6 +199,9 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 	}
 
 	if newService && opts.InitialDB != (wire.Id{}) {
+		if err := pubutil.ValidateId(opts.InitialDB); err != nil {
+			return nil, err
+		}
 		// TODO(ivanpi): If service initialization fails after putting the service
 		// perms but before finishing initial database creation, initial database
 		// will never be created because service perms existence is used as a marker
