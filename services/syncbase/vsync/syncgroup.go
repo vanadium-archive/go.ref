@@ -60,12 +60,12 @@ type memberView struct {
 // It also maintains all the mount table candidates that could be used to reach
 // this peer, learned from the syncgroup metadata.
 type memberInfo struct {
-	db2sg    map[wire.Id]sgMemberInfo
+	db2sg    map[wire.Id]sgMember
 	mtTables map[string]struct{}
 }
 
-// sgMemberInfo maps syncgroups to their member metadata.
-type sgMemberInfo map[interfaces.GroupId]wire.SyncgroupMemberInfo
+// sgMember maps syncgroups to their member metadata.
+type sgMember map[interfaces.GroupId]interfaces.SyncgroupMemberState
 
 // newSyncgroupVersion generates a random syncgroup version ("etag").
 func (s *syncService) newSyncgroupVersion() string {
@@ -168,8 +168,8 @@ func (s *syncService) addSyncgroup(ctx *context.T, tx *watchable.Transaction, ve
 	// low, so the "Distance" metric is non-zero.
 	psg := blob.PerSyncgroup{Priority: interfaces.SgPriority{DevType: wire.BlobDevTypeNormal, Distance: 1}}
 	if myInfo, ok := sg.Joiners[s.name]; ok {
-		psg.Priority.DevType = int32(myInfo.BlobDevType)
-		psg.Priority.Distance = float32(myInfo.BlobDevType)
+		psg.Priority.DevType = int32(myInfo.MemberInfo.BlobDevType)
+		psg.Priority.Distance = float32(myInfo.MemberInfo.BlobDevType)
 	}
 	if err := s.bst.SetPerSyncgroup(ctx, gid, &psg); err != nil {
 		return err
@@ -382,12 +382,12 @@ func refreshSyncgroupMembers(gid interfaces.GroupId, sg *interfaces.Syncgroup, d
 	for member, info := range sg.Joiners {
 		if _, ok := newMembers[member]; !ok {
 			newMembers[member] = &memberInfo{
-				db2sg:    make(map[wire.Id]sgMemberInfo),
+				db2sg:    make(map[wire.Id]sgMember),
 				mtTables: make(map[string]struct{}),
 			}
 		}
 		if _, ok := newMembers[member].db2sg[dbId]; !ok {
-			newMembers[member].db2sg[dbId] = make(sgMemberInfo)
+			newMembers[member].db2sg[dbId] = make(sgMember)
 		}
 		newMembers[member].db2sg[dbId][gid] = info
 
@@ -462,11 +462,11 @@ func (s *syncService) copyMemberInfo(ctx *context.T, member string) *memberInfo 
 
 	// Make a copy.
 	infoCopy := &memberInfo{
-		db2sg:    make(map[wire.Id]sgMemberInfo),
+		db2sg:    make(map[wire.Id]sgMember),
 		mtTables: make(map[string]struct{}),
 	}
 	for dbId, sgInfo := range info.db2sg {
-		infoCopy.db2sg[dbId] = make(sgMemberInfo)
+		infoCopy.db2sg[dbId] = make(sgMember)
 		for gid, mi := range sgInfo {
 			infoCopy.db2sg[dbId][gid] = mi
 		}
@@ -670,6 +670,11 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 	ss := sd.sync.(*syncService)
 	dbId := sd.db.Id()
 
+	now, err := ss.vclock.Now()
+	if err != nil {
+		return err
+	}
+	sm := interfaces.SyncgroupMemberState{WhenUpdated: now.Unix(), HasLeft: false, MemberInfo: myInfo}
 	// Instantiate sg. Add self as joiner.
 	// TODO(ivanpi): Spec is sanity checked later in addSyncgroup. Do it here
 	// instead to fail early?
@@ -681,10 +686,10 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 		Creator:     ss.name,
 		DbId:        dbId,
 		Status:      interfaces.SyncgroupStatusPublishPending,
-		Joiners:     map[string]wire.SyncgroupMemberInfo{ss.name: myInfo},
+		Joiners:     map[string]interfaces.SyncgroupMemberState{ss.name: sm},
 	}
 
-	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
+	err = watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Check permissions on Database.
 		if err := sd.db.CheckPermsInternal(ctx, call, tx); err != nil {
 			return err
@@ -968,7 +973,11 @@ func (sd *syncDatabase) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall,
 	// TODO(hpucha): Check syncgroup ACL.
 
 	vlog.VI(2).Infof("sync: GetSyncgroupMembers: %v members %v, len %v", sgId, sg.Joiners, len(sg.Joiners))
-	return sg.Joiners, nil
+	joiners := make(map[string]wire.SyncgroupMemberInfo)
+	for key, value := range sg.Joiners {
+		joiners[key] = value.MemberInfo
+	}
+	return joiners, nil
 }
 
 func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgId wire.Id, spec wire.SyncgroupSpec, version string) error {
@@ -1159,7 +1168,13 @@ func (sd *syncDatabase) publishSyncgroup(ctx *context.T, call rpc.ServerCall, sg
 		sg.Status = status
 		if status == interfaces.SyncgroupStatusRunning {
 			// TODO(hpucha): Default priority?
-			sg.Joiners[peer] = wire.SyncgroupMemberInfo{}
+			// TODO(fredq): shouldn't the PublishSyncgroup() call return the MemberInfo?
+			memberInfo := wire.SyncgroupMemberInfo{}
+			now, err := ss.vclock.Now()
+			if err != nil {
+				return err
+			}
+			sg.Joiners[peer] = interfaces.SyncgroupMemberState{WhenUpdated: now.Unix(), HasLeft: false, MemberInfo: memberInfo}
 		}
 
 		return ss.updateSyncgroupVersioning(ctx, tx, gid, NoVersion, true, ss.id, gen, pos, sg)
@@ -1470,7 +1485,11 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 		gen, pos = s.reserveGenAndPosInDbLog(ctx, dbId, sgoid, 1)
 
 		// Add to joiner list.
-		sg.Joiners[joinerName] = joinerInfo
+		now, err := s.vclock.Now()
+		if err != nil {
+			return err
+		}
+		sg.Joiners[joinerName] = interfaces.SyncgroupMemberState{WhenUpdated: now.Unix(), HasLeft: false, MemberInfo: joinerInfo}
 		return s.updateSyncgroupVersioning(ctx, tx, gid, version, true, s.id, gen, pos, sg)
 	})
 

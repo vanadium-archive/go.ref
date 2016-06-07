@@ -331,16 +331,20 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		}
 	}()
 
+	now, err := svc.vclock.Now()
+	if err != nil {
+		t.Fatalf("unable to get time: %v\n", err)
+	}
 	s := svc.sync
 	s.id = 10 // initiator
 
 	sgId1 := interfaces.GroupId("1234")
 	nullInfo := wire.SyncgroupMemberInfo{}
-	sgInfo := sgMemberInfo{
-		sgId1: nullInfo,
+	sgInfo := sgMember{
+		sgId1: interfaces.SyncgroupMemberState{WhenUpdated: now.Unix(), MemberInfo: nullInfo},
 	}
 	info := &memberInfo{
-		db2sg: map[wire.Id]sgMemberInfo{
+		db2sg: map[wire.Id]sgMember{
 			mockDbId: sgInfo,
 		},
 		mtTables: map[string]struct{}{
@@ -359,9 +363,9 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 			Perms:       mockSgPerms,
 			MountTables: []string{"1/2/3/4", "5/6/7/8"},
 		},
-		Joiners: map[string]wire.SyncgroupMemberInfo{
-			"a": nullInfo,
-			"b": nullInfo,
+		Joiners: map[string]interfaces.SyncgroupMemberState{
+			"a": interfaces.SyncgroupMemberState{WhenUpdated: now.Unix(), MemberInfo: nullInfo},
+			"b": interfaces.SyncgroupMemberState{WhenUpdated: now.Unix(), MemberInfo: nullInfo},
 		},
 	}
 

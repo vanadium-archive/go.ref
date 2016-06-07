@@ -154,6 +154,5 @@ func TestResolveSlice(t *testing.T) {
 }
 
 func assertPermsEqual(t *testing.T, expected, actual access.Permissions) {
-	assert.Equal(t, expected, actual)
 	assert.True(t, reflect.DeepEqual(expected, actual))
 }

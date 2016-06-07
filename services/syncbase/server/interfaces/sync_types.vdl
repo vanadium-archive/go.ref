@@ -90,13 +90,30 @@ type SyncgroupStatus enum {
 
 // Syncgroup contains the state of a syncgroup.
 type Syncgroup struct {
-	Id          wire.Id                             // the relative syncgroup Id chosen by app
-	SpecVersion string                              // version on syncgroup spec for concurrency control
-	Spec        wire.SyncgroupSpec                  // app-given specification
-	Creator     string                              // Creator's Vanadium name
-	DbId        wire.Id                             // Globally unique database id
-	Status      SyncgroupStatus                     // Status of the syncgroup
-	Joiners     map[string]wire.SyncgroupMemberInfo // map of joiners to their metadata
+	Id          wire.Id                         // the relative syncgroup Id chosen by app
+	SpecVersion string                          // version on syncgroup spec for concurrency control
+	Spec        wire.SyncgroupSpec              // app-given specification
+	Creator     string                          // Creator's Vanadium name
+	DbId        wire.Id                         // Globally unique database id
+	Status      SyncgroupStatus                 // Status of the syncgroup
+	Joiners     map[string]SyncgroupMemberState // map of joiners to their metadata
+}
+
+// SyncgroupMemberState contains information about a joiner and the internal bookkeeping
+// state required for resolving conflicts on this joiner's join/leave activity.
+type SyncgroupMemberState struct {
+    // Timestamp of when the member last joined/left the syncgroup. This timestamp is updated
+    // even when an existing member rejoins a syncgroup. Represented as Unix time.
+    WhenUpdated int64
+
+    // If set then this record indicates that this member has left the group. The SyncgroupMember
+    // entry is retained after a delete so that it can be used during conflict resolution, when
+    // one node indicates that the member has left the group and another says that the member
+    // is still in the group.
+    HasLeft    bool
+
+    // Information supplied when requesting a join.
+    MemberInfo  wire.SyncgroupMemberInfo
 }
 
 // CollectionPerms represent the persistent, synced permissions of a Collection.

@@ -68,10 +68,10 @@ func TestAddSyncgroup(t *testing.T) {
 			Collections: []wire.Id{makeCxId("foo"), makeCxId("bar")},
 			Perms:       mockSgPerms,
 		},
-		Joiners: map[string]wire.SyncgroupMemberInfo{
-			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
-			"tablet": wire.SyncgroupMemberInfo{SyncPriority: 25},
-			"cloud":  wire.SyncgroupMemberInfo{SyncPriority: 1},
+		Joiners: map[string]interfaces.SyncgroupMemberState{
+			"phone":  wrap(wire.SyncgroupMemberInfo{SyncPriority: 10}),
+			"tablet": wrap(wire.SyncgroupMemberInfo{SyncPriority: 25}),
+			"cloud":  wrap(wire.SyncgroupMemberInfo{SyncPriority: 1}),
 		},
 	}
 
@@ -122,7 +122,7 @@ func TestAddSyncgroup(t *testing.T) {
 		if len(mi.db2sg) != 1 {
 			t.Errorf("invalid info for syncgroup member %s: %v", mm, mi)
 		}
-		var sgmi sgMemberInfo
+		var sgmi sgMember
 		for _, v := range mi.db2sg {
 			sgmi = v
 			break
@@ -191,10 +191,10 @@ func TestInvalidAddSyncgroup(t *testing.T) {
 				Collections: []wire.Id{makeCxId("foo"), makeCxId("bar")},
 				Perms:       mockSgPerms,
 			},
-			Joiners: map[string]wire.SyncgroupMemberInfo{
-				"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
-				"tablet": wire.SyncgroupMemberInfo{SyncPriority: 25},
-				"cloud":  wire.SyncgroupMemberInfo{SyncPriority: 1},
+			Joiners: map[string]interfaces.SyncgroupMemberState{
+				"phone":  wrap(wire.SyncgroupMemberInfo{SyncPriority: 10}),
+				"tablet": wrap(wire.SyncgroupMemberInfo{SyncPriority: 25}),
+				"cloud":  wrap(wire.SyncgroupMemberInfo{SyncPriority: 1}),
 			},
 		}
 	}
@@ -284,10 +284,10 @@ func TestDeleteSyncgroup(t *testing.T) {
 			Collections: []wire.Id{makeCxId("foo"), makeCxId("bar")},
 			Perms:       mockSgPerms,
 		},
-		Joiners: map[string]wire.SyncgroupMemberInfo{
-			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
-			"tablet": wire.SyncgroupMemberInfo{SyncPriority: 25},
-			"cloud":  wire.SyncgroupMemberInfo{SyncPriority: 1},
+		Joiners: map[string]interfaces.SyncgroupMemberState{
+			"phone":  wrap(wire.SyncgroupMemberInfo{SyncPriority: 10}),
+			"tablet": wrap(wire.SyncgroupMemberInfo{SyncPriority: 25}),
+			"cloud":  wrap(wire.SyncgroupMemberInfo{SyncPriority: 1}),
 		},
 	}
 
@@ -368,10 +368,10 @@ func TestMultiSyncgroups(t *testing.T) {
 			Collections: []wire.Id{makeCxId("foo")},
 			Perms:       mockSgPerms,
 		},
-		Joiners: map[string]wire.SyncgroupMemberInfo{
-			"phone":  wire.SyncgroupMemberInfo{SyncPriority: 10},
-			"tablet": wire.SyncgroupMemberInfo{SyncPriority: 25},
-			"cloud":  wire.SyncgroupMemberInfo{SyncPriority: 1},
+		Joiners: map[string]interfaces.SyncgroupMemberState{
+			"phone":  wrap(wire.SyncgroupMemberInfo{SyncPriority: 10}),
+			"tablet": wrap(wire.SyncgroupMemberInfo{SyncPriority: 25}),
+			"cloud":  wrap(wire.SyncgroupMemberInfo{SyncPriority: 1}),
 		},
 	}
 	sg2 := &interfaces.Syncgroup{
@@ -384,10 +384,10 @@ func TestMultiSyncgroups(t *testing.T) {
 			Collections: []wire.Id{makeCxId("bar")},
 			Perms:       mockSgPerms,
 		},
-		Joiners: map[string]wire.SyncgroupMemberInfo{
-			"tablet": wire.SyncgroupMemberInfo{SyncPriority: 111},
-			"door":   wire.SyncgroupMemberInfo{SyncPriority: 33},
-			"lamp":   wire.SyncgroupMemberInfo{SyncPriority: 9},
+		Joiners: map[string]interfaces.SyncgroupMemberState{
+			"tablet": wrap(wire.SyncgroupMemberInfo{SyncPriority: 111}),
+			"door":   wrap(wire.SyncgroupMemberInfo{SyncPriority: 33}),
+			"lamp":   wrap(wire.SyncgroupMemberInfo{SyncPriority: 9}),
 		},
 	}
 
@@ -427,16 +427,16 @@ func TestMultiSyncgroups(t *testing.T) {
 
 	expMemberInfo := map[string]*memberInfo{
 		"phone": &memberInfo{
-			db2sg: map[wire.Id]sgMemberInfo{
-				mockDbId: sgMemberInfo{
+			db2sg: map[wire.Id]sgMember{
+				mockDbId: sgMember{
 					sgIdInternal1: sg1.Joiners["phone"],
 				},
 			},
 			mtTables: map[string]struct{}{"mt1": struct{}{}},
 		},
 		"tablet": &memberInfo{
-			db2sg: map[wire.Id]sgMemberInfo{
-				mockDbId: sgMemberInfo{
+			db2sg: map[wire.Id]sgMember{
+				mockDbId: sgMember{
 					sgIdInternal1: sg1.Joiners["tablet"],
 					sgIdInternal2: sg2.Joiners["tablet"],
 				},
@@ -448,24 +448,24 @@ func TestMultiSyncgroups(t *testing.T) {
 			},
 		},
 		"cloud": &memberInfo{
-			db2sg: map[wire.Id]sgMemberInfo{
-				mockDbId: sgMemberInfo{
+			db2sg: map[wire.Id]sgMember{
+				mockDbId: sgMember{
 					sgIdInternal1: sg1.Joiners["cloud"],
 				},
 			},
 			mtTables: map[string]struct{}{"mt1": struct{}{}},
 		},
 		"door": &memberInfo{
-			db2sg: map[wire.Id]sgMemberInfo{
-				mockDbId: sgMemberInfo{
+			db2sg: map[wire.Id]sgMember{
+				mockDbId: sgMember{
 					sgIdInternal2: sg2.Joiners["door"],
 				},
 			},
 			mtTables: mt2and3,
 		},
 		"lamp": &memberInfo{
-			db2sg: map[wire.Id]sgMemberInfo{
-				mockDbId: sgMemberInfo{
+			db2sg: map[wire.Id]sgMember{
+				mockDbId: sgMember{
 					sgIdInternal2: sg2.Joiners["lamp"],
 				},
 			},
@@ -508,24 +508,24 @@ func TestMultiSyncgroups(t *testing.T) {
 
 	expMemberInfo = map[string]*memberInfo{
 		"tablet": &memberInfo{
-			db2sg: map[wire.Id]sgMemberInfo{
-				mockDbId: sgMemberInfo{
+			db2sg: map[wire.Id]sgMember{
+				mockDbId: sgMember{
 					sgIdInternal2: sg2.Joiners["tablet"],
 				},
 			},
 			mtTables: mt2and3,
 		},
 		"door": &memberInfo{
-			db2sg: map[wire.Id]sgMemberInfo{
-				mockDbId: sgMemberInfo{
+			db2sg: map[wire.Id]sgMember{
+				mockDbId: sgMember{
 					sgIdInternal2: sg2.Joiners["door"],
 				},
 			},
 			mtTables: mt2and3,
 		},
 		"lamp": &memberInfo{
-			db2sg: map[wire.Id]sgMemberInfo{
-				mockDbId: sgMemberInfo{
+			db2sg: map[wire.Id]sgMember{
+				mockDbId: sgMember{
 					sgIdInternal2: sg2.Joiners["lamp"],
 				},
 			},
@@ -570,4 +570,8 @@ func TestCollectionCompare(t *testing.T) {
 	check(t, []string{"a", "b", "c"}, []string{"b", "d", "a"}, false, "overlap")
 	check(t, []string{"a", "b", "c"}, []string{"x", "y"}, false, "no overlap")
 	check(t, []string{"a", "b"}, []string{"B", "a"}, false, "upper/lowercases")
+}
+
+func wrap(mi wire.SyncgroupMemberInfo) interfaces.SyncgroupMemberState {
+	return interfaces.SyncgroupMemberState{WhenUpdated: time.Now().Unix(), MemberInfo: mi}
 }

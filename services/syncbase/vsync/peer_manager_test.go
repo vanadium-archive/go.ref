@@ -34,6 +34,10 @@ func TestPeerManager(t *testing.T) {
 	}
 
 	// Add one joiner.
+	now, err := s.vclock.Now()
+	if err != nil {
+		t.Fatalf("unable to get time: %v\n", err)
+	}
 	nullInfo := wire.SyncgroupMemberInfo{}
 	sg := &interfaces.Syncgroup{
 		Id:          wire.Id{Name: "sg", Blessing: "blessing"},
@@ -45,13 +49,13 @@ func TestPeerManager(t *testing.T) {
 			Perms:       mockSgPerms,
 			MountTables: []string{"1/2/3/4", "5/6/7/8"},
 		},
-		Joiners: map[string]wire.SyncgroupMemberInfo{
-			"a": nullInfo,
+		Joiners: map[string]interfaces.SyncgroupMemberState{
+			"a": interfaces.SyncgroupMemberState{WhenUpdated: now.Unix(), MemberInfo: nullInfo},
 		},
 	}
 
 	tx := createDatabase(t, svc).St().NewWatchableTransaction()
-	if err := s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg); err != nil {
+	if err = s.addSyncgroup(nil, tx, NoVersion, true, "", nil, s.id, 1, 1, sg); err != nil {
 		t.Fatalf("cannot add syncgroup %v, err %v", sg.Id, err)
 	}
 	if err := tx.Commit(); err != nil {

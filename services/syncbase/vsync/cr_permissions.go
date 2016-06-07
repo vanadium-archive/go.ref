@@ -33,7 +33,6 @@ func resolvePermissions(local, remote, ancestor access.Permissions) access.Permi
 			local[tag].NotIn,
 			remote[tag].NotIn,
 			ancestor[tag].NotIn)
-
 		// TODO(fredq): remove this when it is added to Normalize
 		if len(in) != 0 || len(notIn) != 0 {
 			result[tag] = access.AccessList{In: in, NotIn: notIn}
@@ -79,7 +78,6 @@ func resolveSlice(local, remote, ancestor []string) []string {
 		}
 	}
 
-	//
 	// Convert the map back to a slice, sort it, and return it.
 	return set.String.ToSlice(ls)
 }

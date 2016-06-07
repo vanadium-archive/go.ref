@@ -101,7 +101,7 @@ func (s *syncService) getDeltasFromPeer(ctx *context.T, peer connInfo) error {
 }
 
 // getDBDeltas performs an initiation round for the specified database.
-func (s *syncService) getDBDeltas(ctx *context.T, dbId wire.Id, info sgMemberInfo, peer connInfo) (connInfo, error) {
+func (s *syncService) getDBDeltas(ctx *context.T, dbId wire.Id, info sgMember, peer connInfo) (connInfo, error) {
 	vlog.VI(2).Infof("sync: getDBDeltas: begin: contacting peer %v for db %v", peer, dbId)
 	defer vlog.VI(2).Infof("sync: getDBDeltas: end: contacting peer %v for db %v", peer, dbId)
 
@@ -348,7 +348,7 @@ type initiationConfig struct {
 
 // newInitiatonConfig creates new initiation config. This will be shared between
 // the two sync rounds in the initiation round of a Database.
-func newInitiationConfig(ctx *context.T, s *syncService, dbId wire.Id, info sgMemberInfo, peer connInfo) (*initiationConfig, error) {
+func newInitiationConfig(ctx *context.T, s *syncService, dbId wire.Id, info sgMember, peer connInfo) (*initiationConfig, error) {
 	c := &initiationConfig{
 		peer: peer,
 		// Note: allSgPfxs and sharedSgPfxs will be inited during syncgroup

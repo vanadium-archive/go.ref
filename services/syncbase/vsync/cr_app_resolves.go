@@ -195,9 +195,8 @@ func processResInfos(ctx *context.T, iSt *initiationState, results map[string]*w
 				// conflict, the local version is supposed to be its ancestor.
 				// To avoid a dag cycle, we treat it as a createNew.
 				res.ty = createNew
-				// TODO(jlodhia):[correctness] Use vclock to create the write
-				// timestamp.
-				timestamp := time.Now()
+				now, _ := iSt.tx.St.Clock.Now()
+				timestamp := now
 				dagNode := getNodeOrFail(ctx, iSt.tx, oid, conflictState.oldHead)
 				if !dagNode.Deleted {
 					res.val = getObjectAtVer(ctx, iSt, oid, conflictState.oldHead)

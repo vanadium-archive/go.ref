@@ -745,8 +745,8 @@ func filterSignpost(ctx *context.T, blessingNames []string, s *syncService, sign
 					if signpost.Locations[peer].IsServer {
 						keepPeer[peer] = true
 					} else {
-						sgMemberInfo, joinerInSg := sg.Joiners[peer]
-						if joinerInSg && (isVisible || sgMemberInfo.BlobDevType == byte(wire.BlobDevTypeServer)) {
+						sgMember, joinerInSg := sg.Joiners[peer]
+						if joinerInSg && (isVisible || sgMember.MemberInfo.BlobDevType == byte(wire.BlobDevTypeServer)) {
 							keepPeer[peer] = true
 						}
 					}
@@ -927,14 +927,14 @@ func (s *syncService) syncgroupsWithServer(ctx *context.T, dbId wire.Id, peer st
 	s.allMembersLock.Lock()
 	member := s.allMembers.members[peer]
 	if member != nil {
-		var sgMemberInfoMaps map[wire.Id]sgMemberInfo = member.db2sg // All dbId entries.
+		var sgMemberInfoMaps map[wire.Id]sgMember = member.db2sg // All dbId entries.
 		if dbId != (wire.Id{}) {
 			// If dbId was specified, pick that one entry.
-			sgMemberInfoMaps = map[wire.Id]sgMemberInfo{dbId: member.db2sg[dbId]}
+			sgMemberInfoMaps = map[wire.Id]sgMember{dbId: member.db2sg[dbId]}
 		}
 		for _, sgMemberInfoMap := range sgMemberInfoMaps {
 			for gid := range sgs {
-				if int32(sgMemberInfoMap[gid].BlobDevType) == wire.BlobDevTypeServer {
+				if int32(sgMemberInfoMap[gid].MemberInfo.BlobDevType) == wire.BlobDevTypeServer {
 					serverSgsForPeer[gid] = struct{}{}
 				}
 			}
