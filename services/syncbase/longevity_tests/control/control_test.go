@@ -492,21 +492,27 @@ func TestRunUniverseTwoUsers(t *testing.T) {
 	userAlice := &model.User{Name: "user-alice"}
 	userBob := &model.User{Name: "user-bob"}
 
-	// Alice has all permissions, and gives Bob read access.
-	permsAliceDb := model.Permissions{
-		"Admin":   model.UserSet{userAlice},
-		"Read":    model.UserSet{userAlice, userBob},
-		"Resolve": model.UserSet{userAlice},
-		"Write":   model.UserSet{userAlice},
+	users := model.UserSet{userAlice, userBob}
+	permsDb := model.Permissions{
+		"Admin":   users,
+		"Read":    users,
+		"Resolve": users,
+		"Write":   users,
 	}
-	permsAliceCx := permsAliceDb.FilterTags(wire.AllCollectionTags...)
-	permsAliceSg := permsAliceDb.FilterTags(wire.AllSyncgroupTags...)
 
-	// Alice is creator of the database and collection.
+	// Alice has all permissions on collection, and gives Bob read access.
+	permsAliceCx := model.Permissions{
+		"Admin": model.UserSet{userAlice},
+		"Read":  model.UserSet{userAlice, userBob},
+		"Write": model.UserSet{userAlice},
+	}
+	permsAliceSg := permsAliceCx.FilterTags(wire.AllSyncgroupTags...)
+
+	// Alice is creator of the collection.
 	dbModel := &model.Database{
 		Name:        "test_db",
 		Blessing:    "root",
-		Permissions: permsAliceDb,
+		Permissions: permsDb,
 		Collections: []model.Collection{
 			model.Collection{
 				Name:        "test_col",
@@ -562,7 +568,7 @@ func TestRunUniverseTwoUsers(t *testing.T) {
 
 	// Check that Bob gets ErrNoAccess when writing to the collection on his
 	// own device because he does not have write permissions.
-	bobCtx, err := c.InternalConfigureContext(c.InternalCtx(), userBob.Name)
+	bobCtx, err := c.InternalConfigureContext(c.InternalCtx(), "u"+security.ChainSeparator+userBob.Name)
 	if err != nil {
 		t.Fatal(err)
 	}

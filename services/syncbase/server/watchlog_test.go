@@ -13,6 +13,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/vdl"
 	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/syncbase/common"
@@ -27,14 +28,17 @@ import (
 
 type mockCall struct {
 	security.Call
+	p security.Principal
 	b security.Blessings
 }
 
 func (c *mockCall) Server() rpc.Server                   { return nil }
 func (c *mockCall) GrantedBlessings() security.Blessings { return c.b }
 func (c *mockCall) Security() security.Call              { return c }
+func (c *mockCall) LocalPrincipal() security.Principal   { return c.p }
 func (c *mockCall) LocalBlessings() security.Blessings   { return c.b }
 func (c *mockCall) RemoteBlessings() security.Blessings  { return c.b }
+func (c *mockCall) MethodTags() []*vdl.Value             { return []*vdl.Value{vdl.ValueOf(access.Admin)} }
 
 func putOp(st store.Store, key string) *watchable.PutOp {
 	version, _ := watchable.GetVersion(nil, st, []byte(key))
@@ -63,7 +67,7 @@ func TestWatchLogPerms(t *testing.T) {
 	storedPerms := interfaces.CollectionPerms(perms)
 	store.Put(ctx, st, c.permsKey(), &storedPerms)
 	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
-	call := &mockCall{b: blessings}
+	call := &mockCall{p: v23.GetPrincipal(ctx), b: blessings}
 	var expected []interface{}
 	resumeMarker, _ := watchable.GetResumeMarker(st)
 	// Generate Put/Delete events.

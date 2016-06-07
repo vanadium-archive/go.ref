@@ -231,10 +231,6 @@ func (n *node) satisfies(mt *mountTable, cc *callContext, tags []mounttable.Tag)
 	if cc.ignorePerms || tags == nil || n.vPerms == nil {
 		return nil
 	}
-	// "Self-RPCs" are always authorized.
-	if cc.self {
-		return nil
-	}
 	// Match client's blessings against the AccessLists.
 	for _, tag := range tags {
 		if al, exists := n.vPerms.AccessListForTag(string(tag)); exists && al.Includes(cc.rbn...) {

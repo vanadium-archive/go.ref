@@ -117,5 +117,5 @@ func allowChecker(perms access.Permissions, allowedTags []access.Tag) {
 // blessings.
 func defaultPerms(ctx *context.T, allowedTags []access.Tag) access.Permissions {
 	blessings := security.DefaultBlessingNames(v23.GetPrincipal(ctx))
-	return testutil.DefaultPerms(allowedTags, blessings[0])
+	return testutil.DefaultPerms(allowedTags, blessings...)
 }
