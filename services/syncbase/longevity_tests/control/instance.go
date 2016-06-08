@@ -79,7 +79,7 @@ func (inst *instance) start(rootCtx *context.T) error {
 		"--v23.namespace.root="+inst.namespaceRoot,
 		"--v23.credentials="+inst.credsDir,
 		"--v23.permissions.literal="+perms,
-		//"--vmodule=*=2",
+		"--vpath=vsync=5",
 	)
 	inst.cmd.Start()
 	vars := inst.cmd.AwaitVars("ENDPOINT")
