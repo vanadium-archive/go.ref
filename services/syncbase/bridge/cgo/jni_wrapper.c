@@ -6,6 +6,14 @@
 
 #include "jni_wrapper.h"
 
+jint AttachCurrentThread(JavaVM *jvm, JNIEnv **env, void *args) {
+  return (*jvm)->AttachCurrentThread(jvm, (void **)env, args);
+}
+
+jint AttachCurrentThreadAsDaemon(JavaVM *jvm, JNIEnv **env, void *args) {
+  return (*jvm)->AttachCurrentThreadAsDaemon(jvm, (void **)env, args);
+}
+
 jboolean CallBooleanMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *args) {
   return (*env)->CallBooleanMethodA(env, obj, methodID, args);
 }
@@ -16,6 +24,18 @@ jobject CallObjectMethod(JNIEnv *env, jobject obj, jmethodID methodID) {
 
 jobject CallObjectMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *args) {
   return (*env)->CallObjectMethodA(env, obj, methodID, args);
+}
+
+void CallVoidMethod(JNIEnv *env, jobject obj, jmethodID methodID) {
+  (*env)->CallVoidMethod(env, obj, methodID);
+}
+
+void CallVoidMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *args) {
+  (*env)->CallVoidMethodA(env, obj, methodID, args);
+}
+
+void DeleteGlobalRef(JNIEnv *env, jobject globalRef) {
+  (*env)->DeleteGlobalRef(env, globalRef);
 }
 
 void ExceptionClear(JNIEnv *env) {
@@ -116,4 +136,16 @@ jint Throw(JNIEnv *env, jthrowable obj) {
 
 jint ThrowNew(JNIEnv *env, jclass cls, const char *message) {
   return (*env)->ThrowNew(env, cls, message);
+}
+
+jint PushLocalFrame(JNIEnv *env, jint capacity) {
+  return (*env)->PushLocalFrame(env, capacity);
+}
+
+jobject PopLocalFrame(JNIEnv *env, jobject result) {
+  return (*env)->PopLocalFrame(env, result);
+}
+
+void ExceptionDescribe(JNIEnv *env) {
+  (*env)->ExceptionDescribe(env);
 }

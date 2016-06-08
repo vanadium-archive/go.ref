@@ -262,3 +262,28 @@ func newVPermissionsAndVersionFromJava(env *C.JNIEnv, obj C.jobject) (C.v23_sync
 	}
 	return cPerms, newVStringFromJava(env, version)
 }
+
+// newVCollectionRowPatternFromJava creates a v23_syncbase_CollectionRowPattern
+// from a CollectionRowPattern object.
+func newVCollectionRowPatternFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_CollectionRowPattern {
+	collectionBlessing := C.jstring(C.GetObjectField(env, obj, collectionRowPatternClass.collectionBlessing))
+	if C.ExceptionOccurred(env) != nil {
+		panic("newVCollectionRowPatternFromJava exception while retrieving CollectionRowPattern.collectionBlessing")
+	}
+
+	collectionName := C.jstring(C.GetObjectField(env, obj, collectionRowPatternClass.collectionName))
+	if C.ExceptionOccurred(env) != nil {
+		panic("newVCollectionRowPatternFromJava exception while retrieving CollectionRowPattern.collectionName")
+	}
+
+	rowKey := C.jstring(C.GetObjectField(env, obj, collectionRowPatternClass.rowKey))
+	if C.ExceptionOccurred(env) != nil {
+		panic("newVCollectionRowPatternFromJava exception while retrieving CollectionRowPattern.rowKey")
+	}
+
+	return C.v23_syncbase_CollectionRowPattern{
+		collectionBlessing: newVStringFromJava(env, collectionBlessing),
+		collectionName:     newVStringFromJava(env, collectionName),
+		rowKey:             newVStringFromJava(env, rowKey),
+	}
+}

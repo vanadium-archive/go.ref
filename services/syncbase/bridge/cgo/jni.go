@@ -8,7 +8,9 @@
 package main
 
 import (
+	"fmt"
 	"unsafe"
+	"v.io/x/ref/services/syncbase/bridge/cgo/refmap"
 )
 
 /*
@@ -24,21 +26,44 @@ static jvalue* allocJValueArray(int elements) {
 static void setJValueArrayElement(jvalue* arr, int index, jvalue val) {
   arr[index] = val;
 }
+
+void v23_syncbase_internal_onChange(v23_syncbase_Handle handle, v23_syncbase_WatchChange);
+void v23_syncbase_internal_onError(v23_syncbase_Handle handle, v23_syncbase_VError);
+
+static v23_syncbase_DbWatchPatternsCallbacks newVWatchPatternsCallbacks() {
+  v23_syncbase_DbWatchPatternsCallbacks cbs = {
+  	0, v23_syncbase_internal_onChange, v23_syncbase_internal_onError};
+  return cbs;
+}
+
+void v23_syncbase_internal_onKeyValue(v23_syncbase_Handle handle, v23_syncbase_KeyValue);
+void v23_syncbase_internal_onDone(v23_syncbase_Handle handle, v23_syncbase_VError);
+
+static v23_syncbase_CollectionScanCallbacks newVScanCallbacks() {
+  v23_syncbase_CollectionScanCallbacks cbs = {
+  	0, v23_syncbase_internal_onKeyValue, v23_syncbase_internal_onDone};
+  return cbs;
+}
 */
 import "C"
 
 var (
 	jVM                         *C.JavaVM
 	arrayListClass              jArrayListClass
+	collectionRowPatternClass   jCollectionRowPattern
 	hashMapClass                jHashMap
 	idClass                     jIdClass
+	keyValueClass               jKeyValue
 	permissionsClass            jPermissions
 	syncgroupMemberInfoClass    jSyncgroupMemberInfo
 	syncgroupSpecClass          jSyncgroupSpec
 	verrorClass                 jVErrorClass
 	versionedPermissionsClass   jVersionedPermissions
 	versionedSyncgroupSpecClass jVersionedSyncgroupSpec
+	watchChangeClass            jWatchChange
 )
+
+var globalRefMap = refmap.NewRefMap()
 
 // JNI_OnLoad is called when System.loadLibrary is called. We need to cache the
 // *JavaVM because that's the only way to get hold of a JNIEnv that is needed
@@ -56,14 +81,17 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 
 	v23_syncbase_Init(C.v23_syncbase_Bool(1))
 	arrayListClass = newJArrayListClass(env)
+	collectionRowPatternClass = newJCollectionRowPattern(env)
 	hashMapClass = newJHashMap(env)
 	idClass = newJIdClass(env)
+	keyValueClass = newJKeyValue(env)
 	permissionsClass = newJPermissions(env)
 	syncgroupMemberInfoClass = newJSyncgroupMemberInfo(env)
 	syncgroupSpecClass = newJSyncgroupSpec(env)
 	verrorClass = newJVErrorClass(env)
 	versionedPermissionsClass = newJVersionedPermissions(env)
 	versionedSyncgroupSpecClass = newJVersionedSyncgroupSpec(env)
+	watchChangeClass = newJWatchChange(env)
 
 	return C.JNI_VERSION_1_6
 }
@@ -329,7 +357,58 @@ func Java_io_v_syncbase_internal_Database_GetSyncgroupMembers(env *C.JNIEnv, cls
 	return cMembers.extractToJava(env)
 }
 
-func Java_io_v_syncbase_internal_Database_WatchPatterns(env *C.JNIEnv, cls C.jclass, name C.jstring, resumeMaker C.jbyteArray, patters C.jobject, callbacks C.jobject) {
+//export v23_syncbase_internal_onChange
+func v23_syncbase_internal_onChange(handle C.v23_syncbase_Handle, change C.v23_syncbase_WatchChange) {
+	// TODO(razvanm): Remove the panic and uncomment the code from below
+	// after the onChange starts working.
+	panic("v23_syncbase_internal_onChange not implemented")
+	//id := uint64(uintptr(handle))
+	//h := globalRrefMap.Get(id).(*watchPatternsCallbacksHandle)
+	//env, free := getEnv()
+	//obj := change.extractToJava(env)
+	//arg := *(*C.jvalue)(unsafe.Pointer(&obj))
+	//C.CallVoidMethodA(env, C.jobject(unsafe.Pointer(h.obj)), h.callbacks.onChange, &arg)
+	//if C.ExceptionOccurred(env) != nil {
+	//	C.ExceptionDescribe(env)
+	//	panic("java exception")
+	//}
+	//free()
+}
+
+//export v23_syncbase_internal_onError
+func v23_syncbase_internal_onError(handle C.v23_syncbase_Handle, error C.v23_syncbase_VError) {
+	id := uint64(uintptr(handle))
+	h := globalRefMap.Remove(id).(*watchPatternsCallbacksHandle)
+	env, free := getEnv()
+	obj := error.extractToJava(env)
+	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
+	C.CallVoidMethodA(env, C.jobject(unsafe.Pointer(h.obj)), h.callbacks.onError, &arg)
+	if C.ExceptionOccurred(env) != nil {
+		C.ExceptionDescribe(env)
+		panic("java exception")
+	}
+	C.DeleteGlobalRef(env, unsafe.Pointer(h.obj))
+	free()
+}
+
+type watchPatternsCallbacksHandle struct {
+	obj       uintptr
+	callbacks jWatchPatternsCallbacks
+}
+
+//export Java_io_v_syncbase_internal_Database_WatchPatterns
+func Java_io_v_syncbase_internal_Database_WatchPatterns(env *C.JNIEnv, cls C.jclass, name C.jstring, resumeMaker C.jbyteArray, patterns C.jobject, callbacks C.jobject) {
+	cName := newVStringFromJava(env, name)
+	cResumeMarker := newVBytesFromJava(env, resumeMaker)
+	cPatterns := newVCollectionRowPatternsFromJava(env, patterns)
+	cbs := C.newVWatchPatternsCallbacks()
+	cbs.handle = C.v23_syncbase_Handle(uintptr(globalRefMap.Add(&watchPatternsCallbacksHandle{
+		obj:       uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks))),
+		callbacks: newJWatchPatternsCallbacks(env, callbacks),
+	})))
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_DbWatchPatterns(cName, cResumeMarker, cPatterns, cbs, &cErr)
+	maybeThrowException(env, &cErr)
 }
 
 //export Java_io_v_syncbase_internal_Collection_GetPermissions
@@ -396,7 +475,57 @@ func Java_io_v_syncbase_internal_Collection_DeleteRange(env *C.JNIEnv, cls C.jcl
 	maybeThrowException(env, &cErr)
 }
 
+//export v23_syncbase_internal_onKeyValue
+func v23_syncbase_internal_onKeyValue(handle C.v23_syncbase_Handle, keyValue C.v23_syncbase_KeyValue) {
+	id := uint64(uintptr(handle))
+	h := globalRefMap.Get(id).(*scanCallbacksHandle)
+	env, free := getEnv()
+	obj := keyValue.extractToJava(env)
+	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
+	C.CallVoidMethodA(env, C.jobject(unsafe.Pointer(h.obj)), h.callbacks.onKeyValue, &arg)
+	if C.ExceptionOccurred(env) != nil {
+		C.ExceptionDescribe(env)
+		panic("java exception")
+	}
+	free()
+}
+
+//export v23_syncbase_internal_onDone
+func v23_syncbase_internal_onDone(handle C.v23_syncbase_Handle, error C.v23_syncbase_VError) {
+	id := uint64(uintptr(handle))
+	h := globalRefMap.Get(id).(*scanCallbacksHandle)
+	env, free := getEnv()
+	obj := error.extractToJava(env)
+	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
+	C.CallVoidMethodA(env, C.jobject(unsafe.Pointer(h.obj)), h.callbacks.onDone, &arg)
+	if C.ExceptionOccurred(env) != nil {
+		C.ExceptionDescribe(env)
+		panic("java exception")
+	}
+	C.DeleteGlobalRef(env, unsafe.Pointer(h.obj))
+	free()
+	globalRefMap.Remove(id)
+}
+
+type scanCallbacksHandle struct {
+	obj       uintptr
+	callbacks jScanCallbacks
+}
+
+//export Java_io_v_syncbase_internal_Collection_Scan
 func Java_io_v_syncbase_internal_Collection_Scan(env *C.JNIEnv, cls C.jclass, name C.jstring, handle C.jstring, start C.jbyteArray, limit C.jbyteArray, callbacks C.jobject) {
+	cName := newVStringFromJava(env, name)
+	cHandle := newVStringFromJava(env, handle)
+	cStart := newVBytesFromJava(env, start)
+	cLimit := newVBytesFromJava(env, limit)
+	cbs := C.newVScanCallbacks()
+	cbs.handle = C.v23_syncbase_Handle(uintptr(globalRefMap.Add(&scanCallbacksHandle{
+		obj:       uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks))),
+		callbacks: newJScanCallbacks(env, callbacks),
+	})))
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_CollectionScan(cName, cHandle, cStart, cLimit, cbs, &cErr)
+	maybeThrowException(env, &cErr)
 }
 
 //export Java_io_v_syncbase_internal_Row_Exists
@@ -547,6 +676,13 @@ func (x *C.v23_syncbase_Ids) extractToJava(env *C.JNIEnv) C.jobject {
 	return obj
 }
 
+func (x *C.v23_syncbase_KeyValue) extractToJava(env *C.JNIEnv) C.jobject {
+	obj := C.NewObjectA(env, keyValueClass.class, keyValueClass.init, nil)
+	C.SetObjectField(env, obj, keyValueClass.key, x.key.extractToJava(env))
+	C.SetObjectField(env, obj, keyValueClass.value, x.value.extractToJava(env))
+	return obj
+}
+
 func (x *C.v23_syncbase_Permissions) extractToJava(env *C.JNIEnv) C.jobject {
 	obj := C.NewObjectA(env, permissionsClass.class, permissionsClass.init, nil)
 	C.SetObjectField(env, obj, permissionsClass.json, x.json.extractToJava(env))
@@ -650,4 +786,53 @@ func (x *C.v23_syncbase_VError) extractToJava(env *C.JNIEnv) C.jobject {
 	C.SetObjectField(env, obj, verrorClass.stack, x.stack.extractToJava(env))
 	x.free()
 	return obj
+}
+
+// newVCollectionRowPatternsFromJava creates a
+// v23_syncbase_CollectionRowPatterns from a List<CollectionRowPattern>.
+func newVCollectionRowPatternsFromJava(env *C.JNIEnv, obj C.jobject) C.v23_syncbase_CollectionRowPatterns {
+	if obj == nil {
+		return C.v23_syncbase_CollectionRowPatterns{}
+	}
+	listInterface := newJListInterface(env, obj)
+	iterObj := C.CallObjectMethod(env, obj, listInterface.iterator)
+	if C.ExceptionOccurred(env) != nil {
+		panic("newVCollectionRowPatternsFromJava exception while trying to call List.iterator()")
+	}
+
+	iteratorInterface := newJIteratorInterface(env, iterObj)
+	tmp := []C.v23_syncbase_CollectionRowPattern{}
+	for C.CallBooleanMethodA(env, iterObj, iteratorInterface.hasNext, nil) == C.JNI_TRUE {
+		idObj := C.CallObjectMethod(env, iterObj, iteratorInterface.next)
+		if C.ExceptionOccurred(env) != nil {
+			panic("newVCollectionRowPatternsFromJava exception while trying to call Iterator.next()")
+		}
+		tmp = append(tmp, newVCollectionRowPatternFromJava(env, idObj))
+	}
+
+	size := C.size_t(len(tmp)) * C.size_t(C.sizeof_v23_syncbase_CollectionRowPattern)
+	r := C.v23_syncbase_CollectionRowPatterns{
+		p: (*C.v23_syncbase_CollectionRowPattern)(unsafe.Pointer(C.malloc(size))),
+		n: C.int(len(tmp)),
+	}
+	for i := range tmp {
+		*r.at(i) = tmp[i]
+	}
+	return r
+}
+
+func jFindClass(env *C.JNIEnv, name string) (C.jclass, error) {
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+
+	class := C.FindClass(env, cName)
+	if C.ExceptionOccurred(env) != nil {
+		return nil, fmt.Errorf("couldn't find class %s", name)
+	}
+
+	globalRef := C.jclass(C.NewGlobalRef(env, class))
+	if globalRef == nil {
+		return nil, fmt.Errorf("couldn't allocate a global reference for class %s", name)
+	}
+	return globalRef, nil
 }

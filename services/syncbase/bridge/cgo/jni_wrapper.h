@@ -10,10 +10,15 @@
 
 #include "jni.h"
 
+jint AttachCurrentThread(JavaVM *jvm, JNIEnv **env, void *args);
+jint AttachCurrentThreadAsDaemon(JavaVM* jvm, JNIEnv** env, void* args);
 jboolean CallBooleanMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *args);
 jobject CallIntMethod(JNIEnv *env, jobject obj, jmethodID methodID);
 jobject CallObjectMethod(JNIEnv *env, jobject obj, jmethodID methodID);
 jobject CallObjectMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *args);
+void CallVoidMethod(JNIEnv *env, jobject obj, jmethodID methodID);
+void CallVoidMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *args);
+void DeleteGlobalRef(JNIEnv *env, jobject globalRef);
 void ExceptionClear(JNIEnv *env);
 jthrowable ExceptionOccurred(JNIEnv* env);
 jclass FindClass(JNIEnv* env, const char* name);
@@ -39,3 +44,7 @@ void SetLongField(JNIEnv *env, jobject obj, jfieldID fieldID, jlong value);
 void SetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID, jobject value);
 jint Throw(JNIEnv *env, jthrowable obj);
 jint ThrowNew(JNIEnv *env, jclass cls, const char *message);
+
+jint PushLocalFrame(JNIEnv *env, jint capacity);
+jobject PopLocalFrame(JNIEnv *env, jobject result);
+void ExceptionDescribe(JNIEnv *env);
