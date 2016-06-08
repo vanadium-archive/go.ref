@@ -131,25 +131,18 @@ typedef struct {
 ////////////////////////////////////////
 // Functions
 
-// Callbacks are represented as struct
-// {v23_syncbase_Handle, f(v23_syncbase_Handle, ...)} to allow for currying
-// RefMap handles to Swift closures.
-// https://forums.developer.apple.com/message/15725#15725
-
-typedef int v23_syncbase_Handle;
+typedef void* v23_syncbase_Handle;
 
 typedef struct {
-  v23_syncbase_Handle hOnChange;
-  v23_syncbase_Handle hOnError;
-  void (*onChange)(v23_syncbase_Handle hOnChange, v23_syncbase_WatchChange);
-  void (*onError)(v23_syncbase_Handle hOnChange, v23_syncbase_Handle hOnError, v23_syncbase_VError);
+  v23_syncbase_Handle handle;
+  void (*onChange)(v23_syncbase_Handle handle, v23_syncbase_WatchChange);
+  void (*onError)(v23_syncbase_Handle handle, v23_syncbase_VError);
 } v23_syncbase_DbWatchPatternsCallbacks;
 
 typedef struct {
-  v23_syncbase_Handle hOnKeyValue;
-  v23_syncbase_Handle hOnDone;
-  void (*onKeyValue)(v23_syncbase_Handle hOnKeyValue, v23_syncbase_KeyValue);
-  void (*onDone)(v23_syncbase_Handle hOnKeyValue, v23_syncbase_Handle hOnDone, v23_syncbase_VError);
+  v23_syncbase_Handle handle;
+  void (*onKeyValue)(v23_syncbase_Handle handle, v23_syncbase_KeyValue);
+  void (*onDone)(v23_syncbase_Handle handle, v23_syncbase_VError);
 } v23_syncbase_CollectionScanCallbacks;
 
 #endif  // V23_SYNCBASE_LIB_H_

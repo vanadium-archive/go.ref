@@ -53,17 +53,17 @@ import (
 #include "lib.h"
 
 static void CallDbWatchPatternsCallbacksOnChange(v23_syncbase_DbWatchPatternsCallbacks cbs, v23_syncbase_WatchChange wc) {
-  cbs.onChange(cbs.hOnChange, wc);
+  cbs.onChange(cbs.handle, wc);
 }
 static void CallDbWatchPatternsCallbacksOnError(v23_syncbase_DbWatchPatternsCallbacks cbs, v23_syncbase_VError err) {
-  cbs.onError(cbs.hOnChange, cbs.hOnError, err);
+  cbs.onError(cbs.handle, err);
 }
 
 static void CallCollectionScanCallbacksOnKeyValue(v23_syncbase_CollectionScanCallbacks cbs, v23_syncbase_KeyValue kv) {
-  cbs.onKeyValue(cbs.hOnKeyValue, kv);
+  cbs.onKeyValue(cbs.handle, kv);
 }
 static void CallCollectionScanCallbacksOnDone(v23_syncbase_CollectionScanCallbacks cbs, v23_syncbase_VError err) {
-  cbs.onDone(cbs.hOnKeyValue, cbs.hOnDone, err);
+  cbs.onDone(cbs.handle, err);
 }
 */
 import "C"
