@@ -338,6 +338,13 @@ func serverInstances(ctx *context.T, email string) ([]allocator.Instance, error)
 			} `json:"metadata"`
 			Spec struct {
 				Replicas int32 `json:"replicas"`
+				Template struct {
+					Metadata struct {
+						Labels struct {
+							Version string `json:"version"`
+						} `json:"labels"`
+					} `json:"metadata"`
+				} `json:"template"`
 			} `json:"spec"`
 		} `json:"items"`
 	}
@@ -360,6 +367,7 @@ func serverInstances(ctx *context.T, email string) ([]allocator.Instance, error)
 			BlessingNames: cInfo.BlessingNames,
 			CreationTime:  l.Metadata.CreationTime,
 			Replicas:      l.Spec.Replicas,
+			Version:       l.Spec.Template.Metadata.Labels.Version,
 		})
 	}
 	return instances, nil

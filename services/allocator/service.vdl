@@ -13,6 +13,7 @@ type Instance struct {
      BlessingNames []string
      CreationTime time.Time
      Replicas int32
+     Version string
 }
 
 type Allocator interface {

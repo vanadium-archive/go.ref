@@ -28,6 +28,7 @@ type Instance struct {
 	BlessingNames []string
 	CreationTime  time.Time
 	Replicas      int32
+	Version       string
 }
 
 func (Instance) __VDLReflect(struct {
@@ -49,6 +50,9 @@ func (x Instance) VDLIsZero() bool {
 		return false
 	}
 	if x.Replicas != 0 {
+		return false
+	}
+	if x.Version != "" {
 		return false
 	}
 	return true
@@ -90,6 +94,11 @@ func (x Instance) VDLWrite(enc vdl.Encoder) error {
 	}
 	if x.Replicas != 0 {
 		if err := enc.NextFieldValueInt("Replicas", vdl.Int32Type, int64(x.Replicas)); err != nil {
+			return err
+		}
+	}
+	if x.Version != "" {
+		if err := enc.NextFieldValueString("Version", vdl.StringType, x.Version); err != nil {
 			return err
 		}
 	}
@@ -162,6 +171,13 @@ func (x *Instance) VDLRead(dec vdl.Decoder) error {
 				return err
 			default:
 				x.Replicas = int32(value)
+			}
+		case "Version":
+			switch value, err := dec.ReadValueString(); {
+			case err != nil:
+				return err
+			default:
+				x.Version = value
 			}
 		default:
 			if err := dec.SkipValue(); err != nil {

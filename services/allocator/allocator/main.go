@@ -38,6 +38,7 @@ var (
 
 const listDetailsEntry = `Handle: {{.Handle}}
 Created: {{.CreationTime}}
+Version: {{.Version}}
 MountName: {{.MountName}}
 BlessingPatterns: {{.BlessingNames}}
 Replicas: {{.Replicas}}
