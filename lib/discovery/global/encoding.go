@@ -12,8 +12,6 @@ import (
 	"v.io/v23/vom"
 )
 
-const suffixDelim = ","
-
 // encodeAdToSuffix encodes the ad.Id and the ad.Attributes into the suffix at
 // which we mount the advertisement.
 //
@@ -26,29 +24,25 @@ func encodeAdToSuffix(ad *discovery.Advertisement) (string, error) {
 	}
 	// Escape suffixDelim to use it as our delimeter between the id and the attrs.
 	id := ad.Id.String()
-	attr := naming.Escape(string(b), suffixDelim)
-	return naming.EncodeAsNameElement(id + suffixDelim + attr), nil
+	attr := naming.EncodeAsNameElement(string(b))
+	return naming.Join(id, attr), nil
 }
 
 // decodeAdFromSuffix decodes s into an advertisement.
 func decodeAdFromSuffix(in string) (*discovery.Advertisement, error) {
-	s, ok := naming.DecodeFromNameElement(in)
-	if !ok {
-		return nil, NewErrAdInvalidEncoding(nil, in)
-	}
-	parts := strings.Split(s, suffixDelim)
+	parts := strings.SplitN(in, "/", 2)
 	if len(parts) != 2 {
 		return nil, NewErrAdInvalidEncoding(nil, in)
 	}
 	id, attrs := parts[0], parts[1]
+	attrs, ok := naming.DecodeFromNameElement(attrs)
+	if !ok {
+		return nil, NewErrAdInvalidEncoding(nil, in)
+	}
 	ad := &discovery.Advertisement{}
 	var err error
 	if ad.Id, err = discovery.ParseAdId(id); err != nil {
 		return nil, err
-	}
-	attrs, ok = naming.Unescape(attrs)
-	if !ok {
-		return nil, NewErrAdInvalidEncoding(nil, in)
 	}
 	if err = vom.Decode([]byte(attrs), &ad.Attributes); err != nil {
 		return nil, err

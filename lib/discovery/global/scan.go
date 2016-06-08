@@ -57,11 +57,15 @@ func (d *gdiscovery) doScan(ctx *context.T, target string, matcher idiscovery.Ma
 		}
 	}
 
-	// Now that the key is either empty or an AdId, we suffix it with "*".
 	// In the case of empty, we need to scan for everything.
 	// In the case where target is a AdId we need to scan for entries prefixed with
 	// the AdId with any encoded attributes afterwards.
-	scanCh, err := d.ns.Glob(ctx, target+"*")
+	if len(target) == 0 {
+		target = naming.Join("*", "*")
+	} else {
+		target = naming.Join(target, "*")
+	}
+	scanCh, err := d.ns.Glob(ctx, target)
 	if err != nil {
 		return nil, err
 	}
