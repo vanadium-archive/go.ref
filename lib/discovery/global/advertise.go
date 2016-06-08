@@ -11,7 +11,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-
 	idiscovery "v.io/x/ref/lib/discovery"
 )
 
@@ -43,7 +42,10 @@ func (d *gdiscovery) Advertise(ctx *context.T, ad *discovery.Advertisement, visi
 	// TODO(jhahn): There is no atomic way to check and reserve the name under mounttable.
 	// For example, the name can be overwritten by other applications of the same owner.
 	// But this would be OK for now.
-	name := ad.Id.String()
+	name, err := encodeAdToSuffix(ad)
+	if err != nil {
+		return nil, err
+	}
 	if err := d.ns.SetPermissions(ctx, name, perms, "", naming.IsLeaf(true)); err != nil {
 		d.removeAd(ad)
 		return nil, err
@@ -58,8 +60,8 @@ func (d *gdiscovery) Advertise(ctx *context.T, ad *discovery.Advertisement, visi
 		defer d.removeAd(ad)
 		// We need a context that is detached from the deadlines and cancellation
 		// of ctx since we have to unmount after ctx is canceled.
-		rctx, _ := context.WithRootCancel(ctx)
-		defer d.unmount(rctx, name)
+		rctx, rcancel := context.WithRootCancel(ctx)
+		defer d.unmount(rctx, rcancel, name)
 
 		for {
 			d.mount(ctx, name, ad.Addresses)
@@ -99,8 +101,9 @@ func (d *gdiscovery) mount(ctx *context.T, name string, addrs []string) {
 	}
 }
 
-func (d *gdiscovery) unmount(ctx *context.T, name string) {
+func (d *gdiscovery) unmount(ctx *context.T, cancel context.CancelFunc, name string) {
 	if err := d.ns.Delete(ctx, name, true); err != nil {
 		ctx.Infof("unmount(%q) failed: %v", name, err)
 	}
+	cancel()
 }

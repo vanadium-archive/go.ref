@@ -21,11 +21,8 @@ func validateAd(ad *discovery.Advertisement) error {
 	if len(ad.Addresses) == 0 {
 		return errors.New("address not provided")
 	}
-	if len(ad.Attributes) > 0 {
-		return errors.New("attributes name not supported")
-	}
 	if len(ad.Attachments) > 0 {
-		return errors.New("attachments name not supported")
+		return errors.New("attachments not supported")
 	}
 	return nil
 }

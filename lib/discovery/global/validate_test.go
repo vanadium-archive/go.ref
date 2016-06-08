@@ -17,8 +17,9 @@ func TestValidateAd(t *testing.T) {
 	}{
 		{
 			discovery.Advertisement{
-				Id:        discovery.AdId{1, 2, 3},
-				Addresses: []string{"/h:123/x"},
+				Id:         discovery.AdId{1, 2, 3},
+				Addresses:  []string{"/h:123/x"},
+				Attributes: discovery.Attributes{"k": "v"},
 			},
 			true,
 		},
@@ -40,16 +41,6 @@ func TestValidateAd(t *testing.T) {
 				Id:            discovery.AdId{1, 2, 3},
 				InterfaceName: "v.io/v23/a", // Has interface name.
 				Addresses:     []string{"/h:123/x"},
-			},
-			false,
-		},
-		{
-			discovery.Advertisement{
-				Id:        discovery.AdId{1, 2, 3},
-				Addresses: []string{"/h:123/x"},
-				Attributes: discovery.Attributes{ // Has attributes.
-					"k": "v",
-				},
 			},
 			false,
 		},

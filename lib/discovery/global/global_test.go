@@ -29,8 +29,9 @@ func TestBasic(t *testing.T) {
 
 	ads := []discovery.Advertisement{
 		{
-			Id:        discovery.AdId{1, 2, 3},
-			Addresses: []string{"/h1:123/x", "/h2:123/y"},
+			Id:         discovery.AdId{1, 2, 3},
+			Addresses:  []string{"/h1:123/x", "/h2:123/y"},
+			Attributes: discovery.Attributes{"k": "v"},
 		},
 		{
 			Addresses: []string{"/h1:123/x", "/h2:123/z"},

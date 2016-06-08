@@ -21,10 +21,6 @@ func (d *gdiscovery) Scan(ctx *context.T, query string) (<-chan discovery.Update
 	if err != nil {
 		return nil, err
 	}
-	target := matcher.TargetKey()
-	if len(target) == 0 {
-		target = "*"
-	}
 
 	updateCh := make(chan discovery.Update, 10)
 	go func() {
@@ -32,7 +28,7 @@ func (d *gdiscovery) Scan(ctx *context.T, query string) (<-chan discovery.Update
 
 		var prevFound map[discovery.AdId]*discovery.Advertisement
 		for {
-			found, err := d.doScan(ctx, target, matcher)
+			found, err := d.doScan(ctx, matcher.TargetKey(), matcher)
 			if found == nil {
 				if err != nil {
 					ctx.Error(err)
@@ -53,7 +49,19 @@ func (d *gdiscovery) Scan(ctx *context.T, query string) (<-chan discovery.Update
 }
 
 func (d *gdiscovery) doScan(ctx *context.T, target string, matcher idiscovery.Matcher) (map[discovery.AdId]*discovery.Advertisement, error) {
-	scanCh, err := d.ns.Glob(ctx, target)
+	// If the target is neither empty nor a valid AdId, we return without an error,
+	// since there will be not entries with the requested target length in the namespace.
+	if len(target) > 0 {
+		if _, err := discovery.ParseAdId(target); err != nil {
+			return nil, nil
+		}
+	}
+
+	// Now that the key is either empty or an AdId, we suffix it with "*".
+	// In the case of empty, we need to scan for everything.
+	// In the case where target is a AdId we need to scan for entries prefixed with
+	// the AdId with any encoded attributes afterwards.
+	scanCh, err := d.ns.Glob(ctx, target+"*")
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +82,7 @@ func (d *gdiscovery) doScan(ctx *context.T, target string, matcher idiscovery.Ma
 				ctx.Error(err)
 				continue
 			}
-			// Since mount operation is not atomic, we may not have addresses yet.
+			// Since mount operations are not atomic, we may not have addresses yet.
 			// Ignore it. It will be re-scanned in the next cycle.
 			if len(ad.Addresses) == 0 {
 				continue
@@ -108,7 +116,7 @@ func (d *gdiscovery) hasAd(ad *discovery.Advertisement) bool {
 func convToAd(glob naming.GlobReply) (*discovery.Advertisement, error) {
 	switch g := glob.(type) {
 	case *naming.GlobReplyEntry:
-		id, err := discovery.ParseAdId(g.Value.Name)
+		ad, err := decodeAdFromSuffix(g.Value.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -116,9 +124,10 @@ func convToAd(glob naming.GlobReply) (*discovery.Advertisement, error) {
 		for _, server := range g.Value.Servers {
 			addrs = append(addrs, server.Server)
 		}
-		// We sort the addresses to avoid false update.
+		// We sort the addresses to avoid false updates.
 		sort.Strings(addrs)
-		return &discovery.Advertisement{Id: id, Addresses: addrs}, nil
+		ad.Addresses = addrs
+		return ad, nil
 	case *naming.GlobReplyError:
 		return nil, fmt.Errorf("glob error on %s: %v", g.Value.Name, g.Value.Error)
 	default:

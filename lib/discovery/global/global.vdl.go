@@ -19,12 +19,18 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 // Error definitions
 
 var (
-	ErrNoNamespace = verror.Register("v.io/x/ref/lib/discovery/global.NoNamespace", verror.NoRetry, "{1:}{2:}  namespace not found")
+	ErrNoNamespace       = verror.Register("v.io/x/ref/lib/discovery/global.NoNamespace", verror.NoRetry, "{1:}{2:} namespace not found")
+	ErrAdInvalidEncoding = verror.Register("v.io/x/ref/lib/discovery/global.AdInvalidEncoding", verror.NoRetry, "{1:}{2:} ad ({3}) has invalid encoding")
 )
 
 // NewErrNoNamespace returns an error with the ErrNoNamespace ID.
 func NewErrNoNamespace(ctx *context.T) error {
 	return verror.New(ErrNoNamespace, ctx)
+}
+
+// NewErrAdInvalidEncoding returns an error with the ErrAdInvalidEncoding ID.
+func NewErrAdInvalidEncoding(ctx *context.T, ad string) error {
+	return verror.New(ErrAdInvalidEncoding, ctx, ad)
 }
 
 var __VDLInitCalled bool
@@ -49,7 +55,8 @@ func __VDLInit() struct{} {
 	__VDLInitCalled = true
 
 	// Set error format strings.
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoNamespace.ID), "{1:}{2:}  namespace not found")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoNamespace.ID), "{1:}{2:} namespace not found")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrAdInvalidEncoding.ID), "{1:}{2:} ad ({3}) has invalid encoding")
 
 	return struct{}{}
 }
