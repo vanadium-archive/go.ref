@@ -26,11 +26,11 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
-	"v.io/v23/syncbase"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	idiscovery "v.io/x/ref/lib/discovery"
 	"v.io/x/ref/services/syncbase/common"
+	syncdis "v.io/x/ref/services/syncbase/discovery"
 	blob "v.io/x/ref/services/syncbase/localblobstore"
 	fsblob "v.io/x/ref/services/syncbase/localblobstore/fs_cablobstore"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -159,7 +159,7 @@ var (
 // that the syncer can pick from. In addition, the sync module responds to
 // incoming RPCs from remote sync modules and local clients.
 func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string, cl *vclock.VClock, publishInNh bool) (*syncService, error) {
-	discovery, err := syncbase.NewDiscovery(v23.WithListenSpec(ctx, rpc.ListenSpec{}))
+	discovery, err := syncdis.NewDiscovery(v23.WithListenSpec(ctx, rpc.ListenSpec{}))
 	if err != nil {
 		return nil, err
 	}
