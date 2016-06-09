@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package syncbase
+package discovery
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 	"strings"
@@ -330,6 +331,15 @@ type inviteQueue struct {
 	nextCursorId int
 }
 
+func (q *inviteQueue) debugLocked() string {
+	buf := &bytes.Buffer{}
+	fmt.Fprintf(buf, "*%p", &q.sentinel)
+	for c := q.sentinel.next; c != &q.sentinel; c = c.next {
+		fmt.Fprintf(buf, " %p", c)
+	}
+	return buf.String()
+}
+
 type ielement struct {
 	invite     Invite
 	prev, next *ielement
@@ -398,6 +408,7 @@ func (q *inviteQueue) next(ctx *context.T, cursor int) (Invite, bool) {
 			delete(q.cursors, cursor)
 			return Invite{}, false
 		}
+		c = q.cursors[cursor]
 	}
 	c = c.next
 	q.cursors[cursor] = c
@@ -439,6 +450,6 @@ func makeInvite(ad discovery.Advertisement) (Invite, wire.Id, bool) {
 
 func (i Invite) copy() Invite {
 	cp := i
-	cp.Addresses = append([]string{}, i.Addresses...)
+	cp.Addresses = append([]string(nil), i.Addresses...)
 	return cp
 }
