@@ -5,6 +5,8 @@
 package global
 
 import (
+	"time"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/discovery"
@@ -42,7 +44,7 @@ func (d *gdiscovery) Advertise(ctx *context.T, ad *discovery.Advertisement, visi
 	// TODO(jhahn): There is no atomic way to check and reserve the name under mounttable.
 	// For example, the name can be overwritten by other applications of the same owner.
 	// But this would be OK for now.
-	name, err := encodeAdToSuffix(ad)
+	name, err := encodeAdToSuffix(ad, d.newAdTimestampNs())
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +76,18 @@ func (d *gdiscovery) Advertise(ctx *context.T, ad *discovery.Advertisement, visi
 		}
 	}()
 	return done, nil
+}
+
+func (d *gdiscovery) newAdTimestampNs() int64 {
+	now := time.Now()
+	timestampNs := now.UnixNano()
+	d.mu.Lock()
+	if d.adTimestampNs >= timestampNs {
+		timestampNs = d.adTimestampNs + 1
+	}
+	d.adTimestampNs = timestampNs
+	d.mu.Unlock()
+	return timestampNs
 }
 
 func (d *gdiscovery) addAd(ad *discovery.Advertisement) bool {

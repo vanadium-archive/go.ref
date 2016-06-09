@@ -6,6 +6,7 @@ package discovery
 
 import (
 	"fmt"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/discovery"
@@ -13,11 +14,12 @@ import (
 
 // update is an implementation of discovery.Update.
 type update struct {
-	ad       discovery.Advertisement
-	hash     AdHash
-	dirAddrs []string
-	status   AdStatus
-	lost     bool
+	ad        discovery.Advertisement
+	hash      AdHash
+	dirAddrs  []string
+	status    AdStatus
+	lost      bool
+	timestamp time.Time
 }
 
 func (u *update) IsLost() bool          { return u.lost }
@@ -78,6 +80,10 @@ func (u *update) Advertisement() discovery.Advertisement {
 	return ad
 }
 
+func (u *update) Timestamp() time.Time {
+	return u.timestamp
+}
+
 func (u *update) String() string {
 	return fmt.Sprintf("{%v %s %s %v %v}", u.lost, u.ad.Id, u.ad.InterfaceName, u.ad.Addresses, u.ad.Attributes)
 }
@@ -85,10 +91,11 @@ func (u *update) String() string {
 // NewUpdate returns a new update with the given advertisement information.
 func NewUpdate(adinfo *AdInfo) discovery.Update {
 	return &update{
-		ad:       adinfo.Ad,
-		hash:     adinfo.Hash,
-		dirAddrs: adinfo.DirAddrs,
-		status:   adinfo.Status,
-		lost:     adinfo.Lost,
+		ad:        adinfo.Ad,
+		hash:      adinfo.Hash,
+		dirAddrs:  adinfo.DirAddrs,
+		status:    adinfo.Status,
+		lost:      adinfo.Lost,
+		timestamp: time.Unix(adinfo.TimestampNs/1e6, adinfo.TimestampNs%1e6),
 	}
 }

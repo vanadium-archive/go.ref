@@ -30,8 +30,9 @@ const (
 type gdiscovery struct {
 	ns namespace.T
 
-	mu  sync.Mutex
-	ads map[discovery.AdId]struct{} // GUARDED_BY(mu)
+	mu            sync.Mutex
+	ads           map[discovery.AdId]struct{} // GUARDED_BY(mu)
+	adTimestampNs int64                       // GUARDED_BY(mu)
 
 	clock timekeeper.TimeKeeper
 
