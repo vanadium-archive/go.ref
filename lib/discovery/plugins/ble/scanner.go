@@ -95,8 +95,8 @@ func (s *scanner) scanLoop() {
 	stopScan := func() {
 		if isScanning {
 			s.driver.StopScan()
+			isScanning = false
 		}
-		isScanning = false
 	}
 	defer stopScan()
 

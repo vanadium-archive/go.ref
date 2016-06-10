@@ -9,6 +9,7 @@ import (
 	"compress/flate"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 
@@ -62,6 +63,9 @@ func (e *EncodingBuffer) ReadBytes() ([]byte, error) {
 	n, err := e.ReadInt()
 	if err != nil {
 		return nil, err
+	}
+	if n < 0 {
+		return nil, fmt.Errorf("invalid length %d", n)
 	}
 	p := e.buf.Next(n)
 	if len(p) < n {

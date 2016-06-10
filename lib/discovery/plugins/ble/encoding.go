@@ -95,7 +95,7 @@ func encodeAdInfo(adinfo *idiscovery.AdInfo) ([]byte, error) {
 	buf.Write(idiscovery.EncodeTimestamp(adinfo.TimestampNs))
 
 	if len(adinfo.Ad.Attachments) == 0 {
-		buf.WriteBytes(idiscovery.PackAddresses(nil)) // No DirAddrs necessary
+		buf.WriteBytes(nil) // No DirAddrs necessary
 		buf.WriteInt(int(idiscovery.AdReady))
 	} else {
 		buf.WriteBytes(idiscovery.PackAddresses(adinfo.DirAddrs))
