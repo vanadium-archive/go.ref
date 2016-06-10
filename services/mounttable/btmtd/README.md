@@ -21,7 +21,8 @@ The table has three column families:
    * Metadata `m`: used to store information about the row:
       * Version `v`: The version changes every time the row is mutated. It is
         used to detect conflicts related to concurrent access.
-      * Timestamp `t`: The cell's timestamp is the node creation time.
+      * Creator `c`: The cell's value is the name of its creator and its
+        timestamp is the node creation time.
       * Sticky `s`: When this column is present, the node is not automatically
         garbage collected.
       * Permissions `p`: The [access.Permissions] of the node.
@@ -33,11 +34,11 @@ The table has three column families:
 
 Example:
 
-| Key              | Version | Timestamp | Sticky | Permissions  | Mounted Server...           | Child...  |
-| ---              | ---     | ---       | ---    | ---          | ---                         | ---       |
-| 540f1a56/        | 54321   | (ts)      | 1      | {"Admin":... |                             | foo (ts1) |
-| 1234abcd/foo     | 123     | (ts1)     |        | {"Admin":... |                             | bar (ts2) |
-| 46d523e3/foo/bar | 5436    | (ts2)     |        | {"Admin":... | /example.com:123 (deadline) |           |
+| Key              | Version | Creator    | Sticky | Permissions  | Mounted Server...           | Child...  |
+| ---              | ---     | ---        | ---    | ---          | ---                         | ---       |
+| 540f1a56/        | 54321   | user (ts)  | 1      | {"Admin":... |                             | foo (ts1) |
+| 1234abcd/foo     | 123     | user (ts1) |        | {"Admin":... |                             | bar (ts2) |
+| 46d523e3/foo/bar | 5436    | user (ts2) |        | {"Admin":... | /example.com:123 (deadline) |           |
 
 ## Mutations
 

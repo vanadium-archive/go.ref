@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/conventions"
 	"v.io/v23/glob"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
@@ -359,7 +360,7 @@ start:
 				}
 			}
 			perms.Normalize()
-			n, err = parent.createChild(ctx, elem, perms)
+			n, err = parent.createChild(ctx, elem, perms, pickCreator(ctx, call))
 			if err != nil {
 				return nil, "", err
 			}
@@ -422,4 +423,8 @@ func templatePermissions(perms access.Permissions, child string) access.Permissi
 		templatePerms[strings.TrimPrefix(tag, "%%/")] = tmpAcl
 	}
 	return templatePerms
+}
+
+func pickCreator(ctx *context.T, call security.Call) string {
+	return conventions.GetClientUserIds(ctx, call)[0]
 }

@@ -34,6 +34,7 @@ type mtNode struct {
 	creationTime bigtable.Timestamp
 	permissions  access.Permissions
 	version      string
+	creator      string
 	mountFlags   mtFlags
 	servers      []naming.MountedServer
 	children     []string
@@ -89,8 +90,9 @@ func nodeFromRow(ctx *context.T, bt *BigTable, row bigtable.Row, clock timekeepe
 				ctx.Errorf("Failed to decode permissions for %s", name)
 				return nil
 			}
-		case timestampColumn:
+		case creatorColumn:
 			n.creationTime = i.Timestamp
+			n.creator = string(i.Value)
 		}
 	}
 	n.servers = make([]naming.MountedServer, 0, len(row[serversFamily]))
@@ -116,7 +118,7 @@ func nodeFromRow(ctx *context.T, bt *BigTable, row bigtable.Row, clock timekeepe
 	return n
 }
 
-func (n *mtNode) createChild(ctx *context.T, child string, perms access.Permissions) (*mtNode, error) {
+func (n *mtNode) createChild(ctx *context.T, child string, perms access.Permissions, creator string) (*mtNode, error) {
 	ts := n.bt.now()
 	mut := bigtable.NewMutation()
 	mut.Set(childrenFamily, child, ts, []byte{1})
@@ -134,7 +136,7 @@ func (n *mtNode) createChild(ctx *context.T, child string, perms access.Permissi
 	childName := naming.Join(n.name, child)
 	longCtx, cancel := longTimeout(ctx)
 	defer cancel()
-	if err := n.bt.createRow(longCtx, childName, perms, ts); err != nil {
+	if err := n.bt.createRow(longCtx, childName, perms, creator, ts); err != nil {
 		return nil, err
 	}
 	n, err := getNode(ctx, n.bt, childName)
@@ -241,7 +243,7 @@ func (n *mtNode) delete(ctx *context.T, deleteSubtree bool) error {
 			// exist. It could be that it is being created or
 			// deleted concurrently. To be sure, we have to create
 			// it before deleting it.
-			if cn, err = n.createChild(ctx, c, n.permissions); err != nil {
+			if cn, err = n.createChild(ctx, c, n.permissions, ""); err != nil {
 				return err
 			}
 		}
@@ -273,7 +275,10 @@ func (n *mtNode) delete(ctx *context.T, deleteSubtree bool) error {
 
 	longCtx, cancel := longTimeout(ctx)
 	defer cancel()
-	return n.bt.apply(longCtx, rowKey(parent), mut)
+	if err := n.bt.apply(longCtx, rowKey(parent), mut); err != nil {
+		return err
+	}
+	return n.bt.incrementCreatorNodeCount(ctx, n.creator, -1)
 }
 
 func (n *mtNode) setPermissions(ctx *context.T, perms access.Permissions) error {
@@ -359,7 +364,7 @@ func createNodesFromFile(ctx *context.T, bt *BigTable, fileName string) error {
 	for _, node := range sortedNodes {
 		perms := nodes[node]
 		if node == "" {
-			if err := bt.createRow(ctx, "", perms, ts); err != nil {
+			if err := bt.createRow(ctx, "", perms, "", ts); err != nil {
 				return err
 			}
 			continue
@@ -375,7 +380,7 @@ func createNodesFromFile(ctx *context.T, bt *BigTable, fileName string) error {
 				if err != nil {
 					return err
 				}
-				if n, err = parent.createChild(ctx, e, parent.permissions); err != nil {
+				if n, err = parent.createChild(ctx, e, parent.permissions, ""); err != nil {
 					return err
 				}
 			}
