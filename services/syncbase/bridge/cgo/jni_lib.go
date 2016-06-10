@@ -36,7 +36,7 @@ type jCollectionRowPattern struct {
 }
 
 func newJCollectionRowPattern(env *C.JNIEnv) jCollectionRowPattern {
-	cls, init := initClass(env, "io/v/syncbase/internal/Database$CollectionRowPattern")
+	cls, init := initClass(env, "io/v/syncbase/core/CollectionRowPattern")
 	return jCollectionRowPattern{
 		class:              cls,
 		init:               init,
@@ -69,7 +69,7 @@ type jIdClass struct {
 }
 
 func newJIdClass(env *C.JNIEnv) jIdClass {
-	cls, init := initClass(env, "io/v/syncbase/internal/Id")
+	cls, init := initClass(env, "io/v/syncbase/core/Id")
 	return jIdClass{
 		class:    cls,
 		init:     init,
@@ -99,7 +99,7 @@ type jKeyValue struct {
 }
 
 func newJKeyValue(env *C.JNIEnv) jKeyValue {
-	cls, init := initClass(env, "io/v/syncbase/internal/Collection$KeyValue")
+	cls, init := initClass(env, "io/v/syncbase/core/KeyValue")
 	return jKeyValue{
 		class: cls,
 		init:  init,
@@ -129,7 +129,7 @@ type jPermissions struct {
 }
 
 func newJPermissions(env *C.JNIEnv) jPermissions {
-	cls, init := initClass(env, "io/v/syncbase/internal/Permissions")
+	cls, init := initClass(env, "io/v/syncbase/core/Permissions")
 	return jPermissions{
 		class: cls,
 		init:  init,
@@ -145,8 +145,8 @@ type jScanCallbacks struct {
 func newJScanCallbacks(env *C.JNIEnv, obj C.jobject) jScanCallbacks {
 	cls := C.GetObjectClass(env, obj)
 	return jScanCallbacks{
-		onKeyValue: jGetMethodID(env, cls, "onKeyValue", "(Lio/v/syncbase/internal/Collection$KeyValue;)V"),
-		onDone:     jGetMethodID(env, cls, "onDone", "(Lio/v/syncbase/internal/VError;)V"),
+		onKeyValue: jGetMethodID(env, cls, "onKeyValue", "(Lio/v/syncbase/core/KeyValue;)V"),
+		onDone:     jGetMethodID(env, cls, "onDone", "(Lio/v/syncbase/core/VError;)V"),
 	}
 }
 
@@ -158,7 +158,7 @@ type jSyncgroupMemberInfo struct {
 }
 
 func newJSyncgroupMemberInfo(env *C.JNIEnv) jSyncgroupMemberInfo {
-	cls, init := initClass(env, "io/v/syncbase/internal/Database$SyncgroupMemberInfo")
+	cls, init := initClass(env, "io/v/syncbase/core/SyncgroupMemberInfo")
 	return jSyncgroupMemberInfo{
 		class:        cls,
 		init:         init,
@@ -179,13 +179,13 @@ type jSyncgroupSpec struct {
 }
 
 func newJSyncgroupSpec(env *C.JNIEnv) jSyncgroupSpec {
-	cls, init := initClass(env, "io/v/syncbase/internal/Database$SyncgroupSpec")
+	cls, init := initClass(env, "io/v/syncbase/core/SyncgroupSpec")
 	return jSyncgroupSpec{
 		class:               cls,
 		init:                init,
 		description:         jGetFieldID(env, cls, "description", "Ljava/lang/String;"),
 		publishSyncbaseName: jGetFieldID(env, cls, "publishSyncbaseName", "Ljava/lang/String;"),
-		permissions:         jGetFieldID(env, cls, "permissions", "Lio/v/syncbase/internal/Permissions;"),
+		permissions:         jGetFieldID(env, cls, "permissions", "Lio/v/syncbase/core/Permissions;"),
 		collections:         jGetFieldID(env, cls, "collections", "Ljava/util/List;"),
 		mountTables:         jGetFieldID(env, cls, "mountTables", "Ljava/util/List;"),
 		isPrivate:           jGetFieldID(env, cls, "isPrivate", "Z"),
@@ -202,7 +202,7 @@ type jVErrorClass struct {
 }
 
 func newJVErrorClass(env *C.JNIEnv) jVErrorClass {
-	cls, init := initClass(env, "io/v/syncbase/internal/VError")
+	cls, init := initClass(env, "io/v/syncbase/core/VError")
 	return jVErrorClass{
 		class:      cls,
 		init:       init,
@@ -221,12 +221,12 @@ type jVersionedPermissions struct {
 }
 
 func newJVersionedPermissions(env *C.JNIEnv) jVersionedPermissions {
-	cls, init := initClass(env, "io/v/syncbase/internal/VersionedPermissions")
+	cls, init := initClass(env, "io/v/syncbase/core/VersionedPermissions")
 	return jVersionedPermissions{
 		class:       cls,
 		init:        init,
 		version:     jGetFieldID(env, cls, "version", "Ljava/lang/String;"),
-		permissions: jGetFieldID(env, cls, "permissions", "Lio/v/syncbase/internal/Permissions;"),
+		permissions: jGetFieldID(env, cls, "permissions", "Lio/v/syncbase/core/Permissions;"),
 	}
 }
 
@@ -238,12 +238,12 @@ type jVersionedSyncgroupSpec struct {
 }
 
 func newJVersionedSyncgroupSpec(env *C.JNIEnv) jVersionedSyncgroupSpec {
-	cls, init := initClass(env, "io/v/syncbase/internal/Database$VersionedSyncgroupSpec")
+	cls, init := initClass(env, "io/v/syncbase/core/VersionedSyncgroupSpec")
 	return jVersionedSyncgroupSpec{
 		class:         cls,
 		init:          init,
 		version:       jGetFieldID(env, cls, "version", "Ljava/lang/String;"),
-		syncgroupSpec: jGetFieldID(env, cls, "syncgroupSpec", "Lio/v/syncbase/internal/Database$SyncgroupSpec;"),
+		syncgroupSpec: jGetFieldID(env, cls, "syncgroupSpec", "Lio/v/syncbase/core/SyncgroupSpec;"),
 	}
 }
 
@@ -260,13 +260,13 @@ type jWatchChange struct {
 }
 
 func newJWatchChange(env *C.JNIEnv) jWatchChange {
-	cls, init := initClass(env, "io/v/syncbase/internal/Database$WatchChange")
+	cls, init := initClass(env, "io/v/syncbase/core/WatchChange")
 	return jWatchChange{
 		class:        cls,
 		init:         init,
-		collection:   jGetFieldID(env, cls, "collection", "Lio/v/syncbase/internal/Id;"),
+		collection:   jGetFieldID(env, cls, "collection", "Lio/v/syncbase/core/Id;"),
 		row:          jGetFieldID(env, cls, "row", "Ljava/lang/String;"),
-		changeType:   jGetFieldID(env, cls, "changeType", "Lio/v/syncbase/internal/Database$ChangeType;"),
+		changeType:   jGetFieldID(env, cls, "changeType", "Lio/v/syncbase/core/WatchChange$ChangeType;"),
 		value:        jGetFieldID(env, cls, "value", "[B"),
 		resumeMarker: jGetFieldID(env, cls, "resumeMarker", "Ljava/lang/String;"),
 		fromSync:     jGetFieldID(env, cls, "fromSync", "Z"),
@@ -282,8 +282,8 @@ type jWatchPatternsCallbacks struct {
 func newJWatchPatternsCallbacks(env *C.JNIEnv, obj C.jobject) jWatchPatternsCallbacks {
 	cls := C.GetObjectClass(env, obj)
 	return jWatchPatternsCallbacks{
-		onChange: jGetMethodID(env, cls, "onChange", "(Lio/v/syncbase/internal/Database$WatchChange;)V"),
-		onError:  jGetMethodID(env, cls, "onError", "(Lio/v/syncbase/internal/VError;)V"),
+		onChange: jGetMethodID(env, cls, "onChange", "(Lio/v/syncbase/core/WatchChange;)V"),
+		onError:  jGetMethodID(env, cls, "onError", "(Lio/v/syncbase/core/VError;)V"),
 	}
 }
 
