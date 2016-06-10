@@ -37,6 +37,16 @@ const (
 	numPriorities
 )
 
+// minChannelTimeout keeps track of minimum values that we allow for channel
+// timeout on a per-protocol basis.  This is to prevent people setting some
+// overall limit that doesn't make sense for very slow protocols.
+// TODO(mattr): We should consider allowing users to set this per-protocol, or
+// perhaps having the protocol implementation expose it via some kind of
+// ChannelOpts interface.
+var minChannelTimeout = map[string]time.Duration{
+	"bt": 10 * time.Second,
+}
+
 const (
 	defaultMtu                  = 1 << 16
 	defaultChannelTimeout       = 30 * time.Minute
@@ -160,6 +170,10 @@ func NewDialed(
 	if channelTimeout == 0 {
 		channelTimeout = defaultChannelTimeout
 	}
+	if min := minChannelTimeout[local.Protocol]; channelTimeout < min {
+		channelTimeout = min
+	}
+
 	// If the conn is being built on an encapsulated flow, we must update the
 	// cancellation of the flow, to ensure that the conn doesn't get killed
 	// when the context passed in is cancelled.
@@ -248,6 +262,9 @@ func NewAccepted(
 	ctx, cancel := context.WithCancel(ctx)
 	if channelTimeout == 0 {
 		channelTimeout = defaultChannelTimeout
+	}
+	if min := minChannelTimeout[local.Protocol]; channelTimeout < min {
+		channelTimeout = min
 	}
 	c := &Conn{
 		mp:                   newMessagePipe(conn),
@@ -409,6 +426,9 @@ func (c *Conn) handleHealthCheckResponse(ctx *context.T) {
 				timeout = f.channelTimeout
 			}
 		}
+		if min := minChannelTimeout[c.local.Protocol]; timeout < min {
+			timeout = min
+		}
 		c.hcstate.closeTimer.Reset(timeout)
 		c.hcstate.closeDeadline = time.Now().Add(timeout)
 		c.hcstate.requestTimer.Reset(timeout / 2)
@@ -420,6 +440,9 @@ func (c *Conn) handleHealthCheckResponse(ctx *context.T) {
 
 func (c *Conn) healthCheckNewFlowLocked(ctx *context.T, timeout time.Duration) {
 	if timeout != 0 {
+		if min := minChannelTimeout[c.local.Protocol]; timeout < min {
+			timeout = min
+		}
 		now := time.Now()
 		if rd := now.Add(timeout / 2); rd.Before(c.hcstate.requestDeadline) {
 			c.hcstate.requestDeadline = rd
@@ -430,6 +453,12 @@ func (c *Conn) healthCheckNewFlowLocked(ctx *context.T, timeout time.Duration) {
 			c.hcstate.closeTimer.Reset(timeout)
 		}
 	}
+}
+
+func (c *Conn) healthCheckCloseDeadline() time.Time {
+	defer c.mu.Unlock()
+	c.mu.Lock()
+	return c.hcstate.closeDeadline
 }
 
 // EnterLameDuck enters lame duck mode, the returned channel will be closed when

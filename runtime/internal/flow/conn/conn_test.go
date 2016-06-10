@@ -7,6 +7,7 @@ package conn
 import (
 	"bytes"
 	"crypto/rand"
+	"fmt"
 	"io"
 	"sync"
 	"testing"
@@ -97,4 +98,88 @@ func TestConnRTT(t *testing.T) {
 	if af.Conn().RTT() == 0 {
 		t.Errorf("accepted conn's RTT should be non-zero")
 	}
+}
+
+func TestMinChannelTimeout(t *testing.T) {
+	defer goroutines.NoLeaks(t, leakWaitTime)()
+
+	orig := minChannelTimeout
+	defer func() {
+		minChannelTimeout = orig
+	}()
+	minChannelTimeout = map[string]time.Duration{
+		"local": time.Minute,
+	}
+
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+	dflows, aflows := make(chan flow.Flow, 1), make(chan flow.Flow, 1)
+	dc, ac, derr, aerr := setupConns(t, "local", "", ctx, ctx, dflows, aflows, nil, nil)
+	if derr != nil || aerr != nil {
+		t.Fatal(derr, aerr)
+	}
+	defer dc.Close(ctx, nil)
+	defer ac.Close(ctx, nil)
+
+	if err := deadlineInAbout(dc, defaultChannelTimeout); err != nil {
+		t.Error(err)
+	}
+	if err := deadlineInAbout(ac, defaultChannelTimeout); err != nil {
+		t.Error(err)
+	}
+
+	df, af := oneFlow(t, ctx, dc, aflows, 0)
+	if err := deadlineInAbout(dc, defaultChannelTimeout); err != nil {
+		t.Error(err)
+	}
+	if err := deadlineInAbout(ac, defaultChannelTimeout); err != nil {
+		t.Error(err)
+	}
+	df.Close()
+	af.Close()
+
+	df, af = oneFlow(t, ctx, dc, aflows, 10*time.Minute)
+	if err := deadlineInAbout(dc, 10*time.Minute); err != nil {
+		t.Error(err)
+	}
+	if err := deadlineInAbout(ac, defaultChannelTimeout); err != nil {
+		t.Error(err)
+	}
+	df.Close()
+	af.Close()
+
+	// Here the min timeout will come into play.
+	df2, af2 := oneFlow(t, ctx, dc, aflows, time.Second)
+	if err := deadlineInAbout(dc, time.Minute); err != nil {
+		t.Error(err)
+	}
+	if err := deadlineInAbout(ac, defaultChannelTimeout); err != nil {
+		t.Error(err)
+	}
+	df2.Close()
+	af2.Close()
+
+	// Setup new conns with a default channel timeout below the min.
+	dc, ac, derr, aerr = setupConnsWithTimeout(t, "local", "", ctx, ctx, dflows, aflows, nil, nil, time.Second)
+	if derr != nil || aerr != nil {
+		t.Fatal(derr, aerr)
+	}
+	defer dc.Close(ctx, nil)
+	defer ac.Close(ctx, nil)
+	// They should both start with the min value.
+	if err := deadlineInAbout(dc, time.Minute); err != nil {
+		t.Error(err)
+	}
+	if err := deadlineInAbout(ac, time.Minute); err != nil {
+		t.Error(err)
+	}
+}
+
+func deadlineInAbout(c *Conn, d time.Duration) error {
+	const slop = 5 * time.Second
+	delta := c.healthCheckCloseDeadline().Sub(time.Now())
+	if delta > d-slop && delta < d+slop {
+		return nil
+	}
+	return fmt.Errorf("got %v want %v (+-5s)", delta, d)
 }

@@ -6,6 +6,7 @@ package conn
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -34,16 +35,19 @@ func setupConns(t *testing.T,
 	dctx, actx *context.T,
 	dflows, aflows chan<- flow.Flow,
 	dAuth, aAuth []security.BlessingPattern) (dialed, accepted *Conn, derr, aerr error) {
+	return setupConnsWithTimeout(t, network, address, dctx, actx, dflows, aflows, dAuth, aAuth, 0)
+}
+
+func setupConnsWithTimeout(t *testing.T,
+	network, address string,
+	dctx, actx *context.T,
+	dflows, aflows chan<- flow.Flow,
+	dAuth, aAuth []security.BlessingPattern,
+	channelTimeout time.Duration) (dialed, accepted *Conn, derr, aerr error) {
 	dmrw, amrw := flowtest.Pipe(t, actx, network, address)
 	versions := version.RPCVersionRange{Min: 3, Max: 5}
-	ridep, err := naming.ParseEndpoint("@6@@batman.com:1234@@000000000000000000000000dabbad00@m@@@")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	ep, err := naming.ParseEndpoint("localhost:80")
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
+	ridep := naming.Endpoint{Protocol: network, Address: address, RoutingID: naming.FixedRoutingID(191341)}
+	ep := naming.Endpoint{Protocol: network, Address: address}
 	dch := make(chan *Conn)
 	ach := make(chan *Conn)
 	derrch := make(chan error)
@@ -56,7 +60,7 @@ func setupConns(t *testing.T,
 			dep = ridep
 		}
 		dBlessings, _ := v23.GetPrincipal(dctx).BlessingStore().Default()
-		d, _, _, err := NewDialed(dctx, dmrw, dep, ep, versions, peerAuthorizer{dBlessings, dAuth}, time.Minute, 0, handler)
+		d, _, _, err := NewDialed(dctx, dmrw, dep, ep, versions, peerAuthorizer{dBlessings, dAuth}, time.Minute, channelTimeout, handler)
 		dch <- d
 		derrch <- err
 	}()
@@ -65,7 +69,7 @@ func setupConns(t *testing.T,
 		if aflows != nil {
 			handler = fh(aflows)
 		}
-		a, err := NewAccepted(actx, aAuth, amrw, ridep, versions, time.Minute, 0, handler)
+		a, err := NewAccepted(actx, aAuth, amrw, ridep, versions, time.Minute, channelTimeout, handler)
 		ach <- a
 		aerrch <- err
 	}()
@@ -96,6 +100,22 @@ func setupFlows(t *testing.T, network, address string, dctx, actx *context.T, di
 		}
 	}
 	return dialed, aflows, d, a
+}
+
+func oneFlow(t *testing.T, ctx *context.T, dc *Conn, aflows <-chan flow.Flow, channelTimeout time.Duration) (df, af flow.Flow) {
+	df, err := dc.Dial(ctx, dc.LocalBlessings(), nil, naming.Endpoint{}, channelTimeout, false)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	b := []byte{0}
+	if _, err := df.WriteMsg(b); err != nil {
+		t.Fatalf("Couldn't write.")
+	}
+	af = <-aflows
+	if got, err := af.ReadMsg(); err != nil || !reflect.DeepEqual(b, got) {
+		t.Fatalf("Couldn't read %v %v", got, err)
+	}
+	return df, af
 }
 
 type peerAuthorizer struct {
