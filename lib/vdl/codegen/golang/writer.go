@@ -6,6 +6,7 @@ package golang
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"v.io/v23/vdl"
@@ -49,9 +50,9 @@ func (x %[1]s) VDLWrite(enc %[2]sEncoder) error {%[3]s
 // concrete union struct.
 func (g *genWrite) genUnionDef(def *compile.TypeDef) string {
 	var s string
-	for ix := 0; ix < def.Type.NumField(); ix++ {
-		field := def.Type.Field(ix)
-		body := g.bodyUnion(field, namedArg{"x", false})
+	for index := 0; index < def.Type.NumField(); index++ {
+		field := def.Type.Field(index)
+		body := g.bodyUnion(index, field, namedArg{"x", false})
 		s += fmt.Sprintf(`
 func (x %[1]s%[2]s) VDLWrite(enc %[3]sEncoder) error {
 	if err := enc.StartValue(%[4]s); err != nil {
@@ -315,7 +316,7 @@ const (
 		return err
 	}`
 	encNextFieldDone = `
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}`
 )
@@ -408,8 +409,8 @@ func (g *genWrite) bodyMap(tt *vdl.Type, arg namedArg) string {
 
 func (g *genWrite) bodyStruct(tt *vdl.Type, arg namedArg) string {
 	var s string
-	for i := 0; i < tt.NumField(); i++ {
-		field := tt.Field(i)
+	for index := 0; index < tt.NumField(); index++ {
+		field := tt.Field(index)
 		fieldArg := arg.Field(field)
 		zero := genIsZero{g.goData}
 		expr := zero.Expr(ifNeZero, field.Type, fieldArg, field.Name)
@@ -417,7 +418,7 @@ func (g *genWrite) bodyStruct(tt *vdl.Type, arg namedArg) string {
 	if %[1]s {`, expr)
 		method, params, init := g.fastpathInfo(field.Type, fieldArg, true)
 		if method != "" {
-			params = append([]string{`"` + field.Name + `"`}, params...)
+			params = append([]string{strconv.Itoa(index)}, params...)
 			s += fmt.Sprintf(`%[1]s
 		if err := enc.NextFieldValue%[2]s(%[3]s); err != nil {
 			return err
@@ -427,9 +428,9 @@ func (g *genWrite) bodyStruct(tt *vdl.Type, arg namedArg) string {
 			// skipped, since we've already ensured the field isn't zero here.
 			fieldBody := g.body(field.Type, fieldArg, true, false)
 			s += fmt.Sprintf(`
-		if err := enc.NextField(%[1]q); err != nil {
+		if err := enc.NextField(%[1]d); err != nil {
 			return err
-		}%[2]s`, field.Name, fieldBody)
+		}%[2]s`, index, fieldBody)
 		}
 		s += `
 	}`
@@ -438,21 +439,21 @@ func (g *genWrite) bodyStruct(tt *vdl.Type, arg namedArg) string {
 	return s
 }
 
-func (g *genWrite) bodyUnion(field vdl.Field, arg namedArg) string {
+func (g *genWrite) bodyUnion(index int, field vdl.Field, arg namedArg) string {
 	var s string
 	fieldArg := typedArg(arg.Name+".Value", field.Type)
 	method, params, init := g.fastpathInfo(field.Type, fieldArg, true)
 	if method != "" {
-		params = append([]string{`"` + field.Name + `"`}, params...)
+		params = append([]string{strconv.Itoa(index)}, params...)
 		s += fmt.Sprintf(`%[1]s
 	if err := enc.NextFieldValue%[2]s(%[3]s); err != nil {
 		return err
 	}`, init, method, strings.Join(params, ", "))
 	} else {
 		s += fmt.Sprintf(`
-	if err := enc.NextField(%[1]q); err != nil {
+	if err := enc.NextField(%[1]d); err != nil {
 			return err
-	}`, field.Name)
+	}`, index)
 		s += g.body(field.Type, fieldArg, false, false)
 	}
 	s += encNextFieldDone

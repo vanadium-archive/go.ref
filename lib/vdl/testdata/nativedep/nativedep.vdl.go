@@ -56,7 +56,7 @@ func (x All) VDLWrite(enc vdl.Encoder) error {
 		if err := nativetest_2.WireStringFromNative(&wire, x.A); err != nil {
 			return err
 		}
-		if err := enc.NextFieldValueInt("A", __VDLType_int32_2, int64(wire)); err != nil {
+		if err := enc.NextFieldValueInt(0, __VDLType_int32_2, int64(wire)); err != nil {
 			return err
 		}
 	}
@@ -65,7 +65,7 @@ func (x All) VDLWrite(enc vdl.Encoder) error {
 		if err := nativetest_2.WireTimeFromNative(&wire, x.B); err != nil {
 			return err
 		}
-		if err := enc.NextFieldValueInt("B", __VDLType_int32_3, int64(wire)); err != nil {
+		if err := enc.NextFieldValueInt(1, __VDLType_int32_3, int64(wire)); err != nil {
 			return err
 		}
 	}
@@ -74,7 +74,7 @@ func (x All) VDLWrite(enc vdl.Encoder) error {
 		if err := nativetest_2.WireSamePkgFromNative(&wire, x.C); err != nil {
 			return err
 		}
-		if err := enc.NextFieldValueInt("C", __VDLType_int32_4, int64(wire)); err != nil {
+		if err := enc.NextFieldValueInt(2, __VDLType_int32_4, int64(wire)); err != nil {
 			return err
 		}
 	}
@@ -83,11 +83,11 @@ func (x All) VDLWrite(enc vdl.Encoder) error {
 		if err := nativetest_2.WireMultiImportFromNative(&wire, x.D); err != nil {
 			return err
 		}
-		if err := enc.NextFieldValueInt("D", __VDLType_int32_5, int64(wire)); err != nil {
+		if err := enc.NextFieldValueInt(3, __VDLType_int32_5, int64(wire)); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -98,15 +98,26 @@ func (x *All) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "A":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			var wire nativetest_2.WireString
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -114,7 +125,7 @@ func (x *All) VDLRead(dec vdl.Decoder) error {
 			if err := nativetest_2.WireStringToNative(wire, &x.A); err != nil {
 				return err
 			}
-		case "B":
+		case 1:
 			var wire nativetest_2.WireTime
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -122,7 +133,7 @@ func (x *All) VDLRead(dec vdl.Decoder) error {
 			if err := nativetest_2.WireTimeToNative(wire, &x.B); err != nil {
 				return err
 			}
-		case "C":
+		case 2:
 			var wire nativetest_2.WireSamePkg
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -130,16 +141,12 @@ func (x *All) VDLRead(dec vdl.Decoder) error {
 			if err := nativetest_2.WireSamePkgToNative(wire, &x.C); err != nil {
 				return err
 			}
-		case "D":
+		case 3:
 			var wire nativetest_2.WireMultiImport
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
 			if err := nativetest_2.WireMultiImportToNative(wire, &x.D); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}

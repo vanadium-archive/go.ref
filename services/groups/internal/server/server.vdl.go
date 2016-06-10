@@ -45,7 +45,7 @@ func (x groupData) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Perms) != 0 {
-		if err := enc.NextField("Perms"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := x.Perms.VDLWrite(enc); err != nil {
@@ -53,14 +53,14 @@ func (x groupData) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.Entries) != 0 {
-		if err := enc.NextField("Entries"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_set_1(enc, x.Entries); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -89,24 +89,31 @@ func (x *groupData) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Perms":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := x.Perms.VDLRead(dec); err != nil {
 				return err
 			}
-		case "Entries":
+		case 1:
 			if err := __VDLReadAnon_set_1(dec, &x.Entries); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}

@@ -36,11 +36,11 @@ func (x SignedHeader) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.ChunkSizeBytes != 0 {
-		if err := enc.NextFieldValueInt("ChunkSizeBytes", vdl.Int64Type, x.ChunkSizeBytes); err != nil {
+		if err := enc.NextFieldValueInt(0, vdl.Int64Type, x.ChunkSizeBytes); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -51,24 +51,31 @@ func (x *SignedHeader) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "ChunkSizeBytes":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueInt(64); {
 			case err != nil:
 				return err
 			default:
 				x.ChunkSizeBytes = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -153,13 +160,13 @@ func (x SignedDataSignature) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_4); err != nil {
 		return err
 	}
-	if err := enc.NextField("Signature"); err != nil {
+	if err := enc.NextField(0); err != nil {
 		return err
 	}
 	if err := x.Value.VDLWrite(enc); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -169,10 +176,10 @@ func (x SignedDataHash) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_4); err != nil {
 		return err
 	}
-	if err := enc.NextFieldValueBytes("Hash", __VDLType_array_2, x.Value[:]); err != nil {
+	if err := enc.NextFieldValueBytes(1, __VDLType_array_2, x.Value[:]); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -182,34 +189,41 @@ func VDLReadSignedData(dec vdl.Decoder, x *SignedData) error {
 	if err := dec.StartValue(__VDLType_union_4); err != nil {
 		return err
 	}
-	f, err := dec.NextField()
-	if err != nil {
+	decType := dec.Type()
+	index, err := dec.NextField()
+	switch {
+	case err != nil:
 		return err
+	case index == -1:
+		return fmt.Errorf("missing field in union %T, from %v", x, decType)
 	}
-	switch f {
-	case "Signature":
+	if decType != __VDLType_union_4 {
+		name := decType.Field(index).Name
+		index = __VDLType_union_4.FieldIndexByName(name)
+		if index == -1 {
+			return fmt.Errorf("field %q not in union %T, from %v", name, x, decType)
+		}
+	}
+	switch index {
+	case 0:
 		var field SignedDataSignature
 		if err := field.Value.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = field
-	case "Hash":
+	case 1:
 		var field SignedDataHash
 		bytes := field.Value[:]
 		if err := dec.ReadValueBytes(32, &bytes); err != nil {
 			return err
 		}
 		*x = field
-	case "":
-		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
-	default:
-		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
 	}
-	switch f, err := dec.NextField(); {
+	switch index, err := dec.NextField(); {
 	case err != nil:
 		return err
-	case f != "":
-		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	case index != -1:
+		return fmt.Errorf("extra field %d in union %T, from %v", index, x, dec.Type())
 	}
 	return dec.FinishValue()
 }

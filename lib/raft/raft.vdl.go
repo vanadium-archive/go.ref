@@ -118,26 +118,26 @@ func (x LogEntry) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Term != 0 {
-		if err := enc.NextFieldValueUint("Term", __VDLType_uint64_1, uint64(x.Term)); err != nil {
+		if err := enc.NextFieldValueUint(0, __VDLType_uint64_1, uint64(x.Term)); err != nil {
 			return err
 		}
 	}
 	if x.Index != 0 {
-		if err := enc.NextFieldValueUint("Index", __VDLType_uint64_2, uint64(x.Index)); err != nil {
+		if err := enc.NextFieldValueUint(1, __VDLType_uint64_2, uint64(x.Index)); err != nil {
 			return err
 		}
 	}
 	if len(x.Cmd) != 0 {
-		if err := enc.NextFieldValueBytes("Cmd", __VDLType_list_4, x.Cmd); err != nil {
+		if err := enc.NextFieldValueBytes(2, __VDLType_list_4, x.Cmd); err != nil {
 			return err
 		}
 	}
 	if x.Type != 0 {
-		if err := enc.NextFieldValueUint("Type", vdl.ByteType, uint64(x.Type)); err != nil {
+		if err := enc.NextFieldValueUint(3, vdl.ByteType, uint64(x.Type)); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -148,42 +148,49 @@ func (x *LogEntry) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Term":
+		}
+		if decType != __VDLType_struct_3 {
+			index = __VDLType_struct_3.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.Term = Term(value)
 			}
-		case "Index":
+		case 1:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.Index = Index(value)
 			}
-		case "Cmd":
+		case 2:
 			if err := dec.ReadValueBytes(-1, &x.Cmd); err != nil {
 				return err
 			}
-		case "Type":
+		case 3:
 			switch value, err := dec.ReadValueUint(8); {
 			case err != nil:
 				return err
 			default:
 				x.Type = byte(value)
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

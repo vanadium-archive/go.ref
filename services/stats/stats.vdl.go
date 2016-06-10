@@ -39,16 +39,16 @@ func (x HistogramBucket) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.LowBound != 0 {
-		if err := enc.NextFieldValueInt("LowBound", vdl.Int64Type, x.LowBound); err != nil {
+		if err := enc.NextFieldValueInt(0, vdl.Int64Type, x.LowBound); err != nil {
 			return err
 		}
 	}
 	if x.Count != 0 {
-		if err := enc.NextFieldValueInt("Count", vdl.Int64Type, x.Count); err != nil {
+		if err := enc.NextFieldValueInt(1, vdl.Int64Type, x.Count); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -59,31 +59,38 @@ func (x *HistogramBucket) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "LowBound":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueInt(64); {
 			case err != nil:
 				return err
 			default:
 				x.LowBound = value
 			}
-		case "Count":
+		case 1:
 			switch value, err := dec.ReadValueInt(64); {
 			case err != nil:
 				return err
 			default:
 				x.Count = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -132,34 +139,34 @@ func (x HistogramValue) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Count != 0 {
-		if err := enc.NextFieldValueInt("Count", vdl.Int64Type, x.Count); err != nil {
+		if err := enc.NextFieldValueInt(0, vdl.Int64Type, x.Count); err != nil {
 			return err
 		}
 	}
 	if x.Sum != 0 {
-		if err := enc.NextFieldValueInt("Sum", vdl.Int64Type, x.Sum); err != nil {
+		if err := enc.NextFieldValueInt(1, vdl.Int64Type, x.Sum); err != nil {
 			return err
 		}
 	}
 	if x.Min != 0 {
-		if err := enc.NextFieldValueInt("Min", vdl.Int64Type, x.Min); err != nil {
+		if err := enc.NextFieldValueInt(2, vdl.Int64Type, x.Min); err != nil {
 			return err
 		}
 	}
 	if x.Max != 0 {
-		if err := enc.NextFieldValueInt("Max", vdl.Int64Type, x.Max); err != nil {
+		if err := enc.NextFieldValueInt(3, vdl.Int64Type, x.Max); err != nil {
 			return err
 		}
 	}
 	if len(x.Buckets) != 0 {
-		if err := enc.NextField("Buckets"); err != nil {
+		if err := enc.NextField(4); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, x.Buckets); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -191,48 +198,55 @@ func (x *HistogramValue) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_2); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Count":
+		}
+		if decType != __VDLType_struct_2 {
+			index = __VDLType_struct_2.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueInt(64); {
 			case err != nil:
 				return err
 			default:
 				x.Count = value
 			}
-		case "Sum":
+		case 1:
 			switch value, err := dec.ReadValueInt(64); {
 			case err != nil:
 				return err
 			default:
 				x.Sum = value
 			}
-		case "Min":
+		case 2:
 			switch value, err := dec.ReadValueInt(64); {
 			case err != nil:
 				return err
 			default:
 				x.Min = value
 			}
-		case "Max":
+		case 3:
 			switch value, err := dec.ReadValueInt(64); {
 			case err != nil:
 				return err
 			default:
 				x.Max = value
 			}
-		case "Buckets":
+		case 4:
 			if err := __VDLReadAnon_list_1(dec, &x.Buckets); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}

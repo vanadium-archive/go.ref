@@ -71,7 +71,7 @@ func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if !x.SystemTimeAtBoot.IsZero() {
-		if err := enc.NextField("SystemTimeAtBoot"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		var wire vdltime.Time
@@ -83,7 +83,7 @@ func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Skew != 0 {
-		if err := enc.NextField("Skew"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		var wire vdltime.Duration
@@ -95,7 +95,7 @@ func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.ElapsedTimeSinceBoot != 0 {
-		if err := enc.NextField("ElapsedTimeSinceBoot"); err != nil {
+		if err := enc.NextField(2); err != nil {
 			return err
 		}
 		var wire vdltime.Duration
@@ -107,7 +107,7 @@ func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if !x.LastNtpTs.IsZero() {
-		if err := enc.NextField("LastNtpTs"); err != nil {
+		if err := enc.NextField(3); err != nil {
 			return err
 		}
 		var wire vdltime.Time
@@ -119,16 +119,16 @@ func (x VClockData) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.NumReboots != 0 {
-		if err := enc.NextFieldValueUint("NumReboots", vdl.Uint16Type, uint64(x.NumReboots)); err != nil {
+		if err := enc.NextFieldValueUint(4, vdl.Uint16Type, uint64(x.NumReboots)); err != nil {
 			return err
 		}
 	}
 	if x.NumHops != 0 {
-		if err := enc.NextFieldValueUint("NumHops", vdl.Uint16Type, uint64(x.NumHops)); err != nil {
+		if err := enc.NextFieldValueUint(5, vdl.Uint16Type, uint64(x.NumHops)); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -139,15 +139,26 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "SystemTimeAtBoot":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -155,7 +166,7 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 			if err := vdltime.TimeToNative(wire, &x.SystemTimeAtBoot); err != nil {
 				return err
 			}
-		case "Skew":
+		case 1:
 			var wire vdltime.Duration
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -163,7 +174,7 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 			if err := vdltime.DurationToNative(wire, &x.Skew); err != nil {
 				return err
 			}
-		case "ElapsedTimeSinceBoot":
+		case 2:
 			var wire vdltime.Duration
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -171,7 +182,7 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 			if err := vdltime.DurationToNative(wire, &x.ElapsedTimeSinceBoot); err != nil {
 				return err
 			}
-		case "LastNtpTs":
+		case 3:
 			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -179,23 +190,19 @@ func (x *VClockData) VDLRead(dec vdl.Decoder) error {
 			if err := vdltime.TimeToNative(wire, &x.LastNtpTs); err != nil {
 				return err
 			}
-		case "NumReboots":
+		case 4:
 			switch value, err := dec.ReadValueUint(16); {
 			case err != nil:
 				return err
 			default:
 				x.NumReboots = uint16(value)
 			}
-		case "NumHops":
+		case 5:
 			switch value, err := dec.ReadValueUint(16); {
 			case err != nil:
 				return err
 			default:
 				x.NumHops = uint16(value)
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

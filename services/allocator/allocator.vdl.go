@@ -63,17 +63,17 @@ func (x Instance) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Handle != "" {
-		if err := enc.NextFieldValueString("Handle", vdl.StringType, x.Handle); err != nil {
+		if err := enc.NextFieldValueString(0, vdl.StringType, x.Handle); err != nil {
 			return err
 		}
 	}
 	if x.MountName != "" {
-		if err := enc.NextFieldValueString("MountName", vdl.StringType, x.MountName); err != nil {
+		if err := enc.NextFieldValueString(1, vdl.StringType, x.MountName); err != nil {
 			return err
 		}
 	}
 	if len(x.BlessingNames) != 0 {
-		if err := enc.NextField("BlessingNames"); err != nil {
+		if err := enc.NextField(2); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, x.BlessingNames); err != nil {
@@ -81,7 +81,7 @@ func (x Instance) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if !x.CreationTime.IsZero() {
-		if err := enc.NextField("CreationTime"); err != nil {
+		if err := enc.NextField(3); err != nil {
 			return err
 		}
 		var wire vdltime.Time
@@ -93,16 +93,16 @@ func (x Instance) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Replicas != 0 {
-		if err := enc.NextFieldValueInt("Replicas", vdl.Int32Type, int64(x.Replicas)); err != nil {
+		if err := enc.NextFieldValueInt(4, vdl.Int32Type, int64(x.Replicas)); err != nil {
 			return err
 		}
 	}
 	if x.Version != "" {
-		if err := enc.NextFieldValueString("Version", vdl.StringType, x.Version); err != nil {
+		if err := enc.NextFieldValueString(5, vdl.StringType, x.Version); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -131,33 +131,44 @@ func (x *Instance) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Handle":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Handle = value
 			}
-		case "MountName":
+		case 1:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.MountName = value
 			}
-		case "BlessingNames":
+		case 2:
 			if err := __VDLReadAnon_list_1(dec, &x.BlessingNames); err != nil {
 				return err
 			}
-		case "CreationTime":
+		case 3:
 			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -165,23 +176,19 @@ func (x *Instance) VDLRead(dec vdl.Decoder) error {
 			if err := vdltime.TimeToNative(wire, &x.CreationTime); err != nil {
 				return err
 			}
-		case "Replicas":
+		case 4:
 			switch value, err := dec.ReadValueInt(32); {
 			case err != nil:
 				return err
 			default:
 				x.Replicas = int32(value)
 			}
-		case "Version":
+		case 5:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Version = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

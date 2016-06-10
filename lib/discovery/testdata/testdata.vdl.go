@@ -45,7 +45,7 @@ func (x PackAddressTest) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.In) != 0 {
-		if err := enc.NextField("In"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, x.In); err != nil {
@@ -53,11 +53,11 @@ func (x PackAddressTest) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.Packed) != 0 {
-		if err := enc.NextFieldValueBytes("Packed", __VDLType_list_3, x.Packed); err != nil {
+		if err := enc.NextFieldValueBytes(1, __VDLType_list_3, x.Packed); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -86,24 +86,31 @@ func (x *PackAddressTest) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "In":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := __VDLReadAnon_list_1(dec, &x.In); err != nil {
 				return err
 			}
-		case "Packed":
+		case 1:
 			if err := dec.ReadValueBytes(-1, &x.Packed); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -166,12 +173,12 @@ func (x PackEncryptionKeysTest) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Algo != 0 {
-		if err := enc.NextFieldValueInt("Algo", __VDLType_int32_5, int64(x.Algo)); err != nil {
+		if err := enc.NextFieldValueInt(0, __VDLType_int32_5, int64(x.Algo)); err != nil {
 			return err
 		}
 	}
 	if len(x.Keys) != 0 {
-		if err := enc.NextField("Keys"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_2(enc, x.Keys); err != nil {
@@ -179,11 +186,11 @@ func (x PackEncryptionKeysTest) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.Packed) != 0 {
-		if err := enc.NextFieldValueBytes("Packed", __VDLType_list_3, x.Packed); err != nil {
+		if err := enc.NextFieldValueBytes(2, __VDLType_list_3, x.Packed); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -212,31 +219,38 @@ func (x *PackEncryptionKeysTest) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_4); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Algo":
+		}
+		if decType != __VDLType_struct_4 {
+			index = __VDLType_struct_4.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueInt(32); {
 			case err != nil:
 				return err
 			default:
 				x.Algo = discovery.EncryptionAlgorithm(value)
 			}
-		case "Keys":
+		case 1:
 			if err := __VDLReadAnon_list_2(dec, &x.Keys); err != nil {
 				return err
 			}
-		case "Packed":
+		case 2:
 			if err := dec.ReadValueBytes(-1, &x.Packed); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -292,16 +306,16 @@ func (x UuidTestData) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.In != "" {
-		if err := enc.NextFieldValueString("In", vdl.StringType, x.In); err != nil {
+		if err := enc.NextFieldValueString(0, vdl.StringType, x.In); err != nil {
 			return err
 		}
 	}
 	if x.Want != "" {
-		if err := enc.NextFieldValueString("Want", vdl.StringType, x.Want); err != nil {
+		if err := enc.NextFieldValueString(1, vdl.StringType, x.Want); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -312,31 +326,38 @@ func (x *UuidTestData) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_8); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "In":
+		}
+		if decType != __VDLType_struct_8 {
+			index = __VDLType_struct_8.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.In = value
 			}
-		case "Want":
+		case 1:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Want = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

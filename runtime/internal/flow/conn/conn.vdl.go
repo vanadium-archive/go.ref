@@ -51,7 +51,7 @@ func (x Blessings) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if !x.Blessings.IsZero() {
-		if err := enc.NextField("Blessings"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		var wire security.WireBlessings
@@ -63,11 +63,11 @@ func (x Blessings) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.BKey != 0 {
-		if err := enc.NextFieldValueUint("BKey", vdl.Uint64Type, x.BKey); err != nil {
+		if err := enc.NextFieldValueUint(1, vdl.Uint64Type, x.BKey); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -78,15 +78,26 @@ func (x *Blessings) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Blessings":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			var wire security.WireBlessings
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -94,16 +105,12 @@ func (x *Blessings) VDLRead(dec vdl.Decoder) error {
 			if err := security.WireBlessingsToNative(wire, &x.Blessings); err != nil {
 				return err
 			}
-		case "BKey":
+		case 1:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.BKey = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -140,7 +147,7 @@ func (x EncryptedBlessings) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Ciphertexts) != 0 {
-		if err := enc.NextField("Ciphertexts"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, x.Ciphertexts); err != nil {
@@ -148,11 +155,11 @@ func (x EncryptedBlessings) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.BKey != 0 {
-		if err := enc.NextFieldValueUint("BKey", vdl.Uint64Type, x.BKey); err != nil {
+		if err := enc.NextFieldValueUint(1, vdl.Uint64Type, x.BKey); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -184,28 +191,35 @@ func (x *EncryptedBlessings) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Ciphertexts":
+		}
+		if decType != __VDLType_struct_3 {
+			index = __VDLType_struct_3.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := __VDLReadAnon_list_1(dec, &x.Ciphertexts); err != nil {
 				return err
 			}
-		case "BKey":
+		case 1:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.BKey = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -271,7 +285,7 @@ func (x Discharges) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Discharges) != 0 {
-		if err := enc.NextField("Discharges"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_2(enc, x.Discharges); err != nil {
@@ -279,16 +293,16 @@ func (x Discharges) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.DKey != 0 {
-		if err := enc.NextFieldValueUint("DKey", vdl.Uint64Type, x.DKey); err != nil {
+		if err := enc.NextFieldValueUint(1, vdl.Uint64Type, x.DKey); err != nil {
 			return err
 		}
 	}
 	if x.BKey != 0 {
-		if err := enc.NextFieldValueUint("BKey", vdl.Uint64Type, x.BKey); err != nil {
+		if err := enc.NextFieldValueUint(2, vdl.Uint64Type, x.BKey); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -332,35 +346,42 @@ func (x *Discharges) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_6); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Discharges":
+		}
+		if decType != __VDLType_struct_6 {
+			index = __VDLType_struct_6.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := __VDLReadAnon_list_2(dec, &x.Discharges); err != nil {
 				return err
 			}
-		case "DKey":
+		case 1:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.DKey = value
 			}
-		case "BKey":
+		case 2:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.BKey = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -432,7 +453,7 @@ func (x EncryptedDischarges) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Ciphertexts) != 0 {
-		if err := enc.NextField("Ciphertexts"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, x.Ciphertexts); err != nil {
@@ -440,16 +461,16 @@ func (x EncryptedDischarges) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.DKey != 0 {
-		if err := enc.NextFieldValueUint("DKey", vdl.Uint64Type, x.DKey); err != nil {
+		if err := enc.NextFieldValueUint(1, vdl.Uint64Type, x.DKey); err != nil {
 			return err
 		}
 	}
 	if x.BKey != 0 {
-		if err := enc.NextFieldValueUint("BKey", vdl.Uint64Type, x.BKey); err != nil {
+		if err := enc.NextFieldValueUint(2, vdl.Uint64Type, x.BKey); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -460,35 +481,42 @@ func (x *EncryptedDischarges) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_9); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Ciphertexts":
+		}
+		if decType != __VDLType_struct_9 {
+			index = __VDLType_struct_9.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := __VDLReadAnon_list_1(dec, &x.Ciphertexts); err != nil {
 				return err
 			}
-		case "DKey":
+		case 1:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.DKey = value
 			}
-		case "BKey":
+		case 2:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.BKey = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -572,13 +600,13 @@ func (x BlessingsFlowMessageBlessings) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_10); err != nil {
 		return err
 	}
-	if err := enc.NextField("Blessings"); err != nil {
+	if err := enc.NextField(0); err != nil {
 		return err
 	}
 	if err := x.Value.VDLWrite(enc); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -588,13 +616,13 @@ func (x BlessingsFlowMessageDischarges) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_10); err != nil {
 		return err
 	}
-	if err := enc.NextField("Discharges"); err != nil {
+	if err := enc.NextField(1); err != nil {
 		return err
 	}
 	if err := x.Value.VDLWrite(enc); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -604,13 +632,13 @@ func (x BlessingsFlowMessageEncryptedBlessings) VDLWrite(enc vdl.Encoder) error 
 	if err := enc.StartValue(__VDLType_union_10); err != nil {
 		return err
 	}
-	if err := enc.NextField("EncryptedBlessings"); err != nil {
+	if err := enc.NextField(2); err != nil {
 		return err
 	}
 	if err := x.Value.VDLWrite(enc); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -620,13 +648,13 @@ func (x BlessingsFlowMessageEncryptedDischarges) VDLWrite(enc vdl.Encoder) error
 	if err := enc.StartValue(__VDLType_union_10); err != nil {
 		return err
 	}
-	if err := enc.NextField("EncryptedDischarges"); err != nil {
+	if err := enc.NextField(3); err != nil {
 		return err
 	}
 	if err := x.Value.VDLWrite(enc); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -636,45 +664,52 @@ func VDLReadBlessingsFlowMessage(dec vdl.Decoder, x *BlessingsFlowMessage) error
 	if err := dec.StartValue(__VDLType_union_10); err != nil {
 		return err
 	}
-	f, err := dec.NextField()
-	if err != nil {
+	decType := dec.Type()
+	index, err := dec.NextField()
+	switch {
+	case err != nil:
 		return err
+	case index == -1:
+		return fmt.Errorf("missing field in union %T, from %v", x, decType)
 	}
-	switch f {
-	case "Blessings":
+	if decType != __VDLType_union_10 {
+		name := decType.Field(index).Name
+		index = __VDLType_union_10.FieldIndexByName(name)
+		if index == -1 {
+			return fmt.Errorf("field %q not in union %T, from %v", name, x, decType)
+		}
+	}
+	switch index {
+	case 0:
 		var field BlessingsFlowMessageBlessings
 		if err := field.Value.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = field
-	case "Discharges":
+	case 1:
 		var field BlessingsFlowMessageDischarges
 		if err := field.Value.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = field
-	case "EncryptedBlessings":
+	case 2:
 		var field BlessingsFlowMessageEncryptedBlessings
 		if err := field.Value.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = field
-	case "EncryptedDischarges":
+	case 3:
 		var field BlessingsFlowMessageEncryptedDischarges
 		if err := field.Value.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = field
-	case "":
-		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
-	default:
-		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
 	}
-	switch f, err := dec.NextField(); {
+	switch index, err := dec.NextField(); {
 	case err != nil:
 		return err
-	case f != "":
-		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	case index != -1:
+		return fmt.Errorf("extra field %d in union %T, from %v", index, x, dec.Type())
 	}
 	return dec.FinishValue()
 }

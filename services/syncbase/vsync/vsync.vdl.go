@@ -36,11 +36,11 @@ func (x SyncData) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Id != 0 {
-		if err := enc.NextFieldValueUint("Id", vdl.Uint64Type, x.Id); err != nil {
+		if err := enc.NextFieldValueUint(0, vdl.Uint64Type, x.Id); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -51,24 +51,31 @@ func (x *SyncData) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Id":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.Id = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -104,7 +111,7 @@ func (x DbSyncState) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.GenVecs) != 0 {
-		if err := enc.NextField("GenVecs"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := x.GenVecs.VDLWrite(enc); err != nil {
@@ -112,7 +119,7 @@ func (x DbSyncState) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.SgGenVecs) != 0 {
-		if err := enc.NextField("SgGenVecs"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		if err := x.SgGenVecs.VDLWrite(enc); err != nil {
@@ -120,11 +127,11 @@ func (x DbSyncState) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.IsPaused {
-		if err := enc.NextFieldValueBool("IsPaused", vdl.BoolType, x.IsPaused); err != nil {
+		if err := enc.NextFieldValueBool(2, vdl.BoolType, x.IsPaused); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -135,32 +142,39 @@ func (x *DbSyncState) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_2); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "GenVecs":
+		}
+		if decType != __VDLType_struct_2 {
+			index = __VDLType_struct_2.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := x.GenVecs.VDLRead(dec); err != nil {
 				return err
 			}
-		case "SgGenVecs":
+		case 1:
 			if err := x.SgGenVecs.VDLRead(dec); err != nil {
 				return err
 			}
-		case "IsPaused":
+		case 2:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.IsPaused = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -193,7 +207,7 @@ func (x LocalLogRec) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if !x.Metadata.VDLIsZero() {
-		if err := enc.NextField("Metadata"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := x.Metadata.VDLWrite(enc); err != nil {
@@ -201,11 +215,11 @@ func (x LocalLogRec) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Pos != 0 {
-		if err := enc.NextFieldValueUint("Pos", vdl.Uint64Type, x.Pos); err != nil {
+		if err := enc.NextFieldValueUint(1, vdl.Uint64Type, x.Pos); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -216,28 +230,35 @@ func (x *LocalLogRec) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_4); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Metadata":
+		}
+		if decType != __VDLType_struct_4 {
+			index = __VDLType_struct_4.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := x.Metadata.VDLRead(dec); err != nil {
 				return err
 			}
-		case "Pos":
+		case 1:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.Pos = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -310,34 +331,34 @@ func (x SgLocalState) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.NumLocalJoiners != 0 {
-		if err := enc.NextFieldValueUint("NumLocalJoiners", vdl.Uint32Type, uint64(x.NumLocalJoiners)); err != nil {
+		if err := enc.NextFieldValueUint(0, vdl.Uint32Type, uint64(x.NumLocalJoiners)); err != nil {
 			return err
 		}
 	}
 	if x.Watched {
-		if err := enc.NextFieldValueBool("Watched", vdl.BoolType, x.Watched); err != nil {
+		if err := enc.NextFieldValueBool(1, vdl.BoolType, x.Watched); err != nil {
 			return err
 		}
 	}
 	if x.RemotePublisher != "" {
-		if err := enc.NextFieldValueString("RemotePublisher", vdl.StringType, x.RemotePublisher); err != nil {
+		if err := enc.NextFieldValueString(2, vdl.StringType, x.RemotePublisher); err != nil {
 			return err
 		}
 	}
 	if x.SyncPending {
-		if err := enc.NextFieldValueBool("SyncPending", vdl.BoolType, x.SyncPending); err != nil {
+		if err := enc.NextFieldValueBool(3, vdl.BoolType, x.SyncPending); err != nil {
 			return err
 		}
 	}
 	if len(x.PendingGenVec) != 0 {
-		if err := enc.NextField("PendingGenVec"); err != nil {
+		if err := enc.NextField(4); err != nil {
 			return err
 		}
 		if err := x.PendingGenVec.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -348,48 +369,55 @@ func (x *SgLocalState) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_6); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "NumLocalJoiners":
+		}
+		if decType != __VDLType_struct_6 {
+			index = __VDLType_struct_6.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueUint(32); {
 			case err != nil:
 				return err
 			default:
 				x.NumLocalJoiners = uint32(value)
 			}
-		case "Watched":
+		case 1:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.Watched = value
 			}
-		case "RemotePublisher":
+		case 2:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.RemotePublisher = value
 			}
-		case "SyncPending":
+		case 3:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.SyncPending = value
 			}
-		case "PendingGenVec":
+		case 4:
 			if err := x.PendingGenVec.VDLRead(dec); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -445,12 +473,12 @@ func (x DagNode) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Level != 0 {
-		if err := enc.NextFieldValueUint("Level", vdl.Uint64Type, x.Level); err != nil {
+		if err := enc.NextFieldValueUint(0, vdl.Uint64Type, x.Level); err != nil {
 			return err
 		}
 	}
 	if len(x.Parents) != 0 {
-		if err := enc.NextField("Parents"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, x.Parents); err != nil {
@@ -458,31 +486,31 @@ func (x DagNode) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Logrec != "" {
-		if err := enc.NextFieldValueString("Logrec", vdl.StringType, x.Logrec); err != nil {
+		if err := enc.NextFieldValueString(2, vdl.StringType, x.Logrec); err != nil {
 			return err
 		}
 	}
 	if x.BatchId != 0 {
-		if err := enc.NextFieldValueUint("BatchId", vdl.Uint64Type, x.BatchId); err != nil {
+		if err := enc.NextFieldValueUint(3, vdl.Uint64Type, x.BatchId); err != nil {
 			return err
 		}
 	}
 	if x.Deleted {
-		if err := enc.NextFieldValueBool("Deleted", vdl.BoolType, x.Deleted); err != nil {
+		if err := enc.NextFieldValueBool(4, vdl.BoolType, x.Deleted); err != nil {
 			return err
 		}
 	}
 	if x.PermId != "" {
-		if err := enc.NextFieldValueString("PermId", vdl.StringType, x.PermId); err != nil {
+		if err := enc.NextFieldValueString(5, vdl.StringType, x.PermId); err != nil {
 			return err
 		}
 	}
 	if x.PermVers != "" {
-		if err := enc.NextFieldValueString("PermVers", vdl.StringType, x.PermVers); err != nil {
+		if err := enc.NextFieldValueString(6, vdl.StringType, x.PermVers); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -511,63 +539,70 @@ func (x *DagNode) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_8); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Level":
+		}
+		if decType != __VDLType_struct_8 {
+			index = __VDLType_struct_8.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.Level = value
 			}
-		case "Parents":
+		case 1:
 			if err := __VDLReadAnon_list_1(dec, &x.Parents); err != nil {
 				return err
 			}
-		case "Logrec":
+		case 2:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Logrec = value
 			}
-		case "BatchId":
+		case 3:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.BatchId = value
 			}
-		case "Deleted":
+		case 4:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.Deleted = value
 			}
-		case "PermId":
+		case 5:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.PermId = value
 			}
-		case "PermVers":
+		case 6:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.PermVers = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -634,7 +669,7 @@ func (x BatchInfo) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Objects) != 0 {
-		if err := enc.NextField("Objects"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_map_2(enc, x.Objects); err != nil {
@@ -642,7 +677,7 @@ func (x BatchInfo) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.LinkedObjects) != 0 {
-		if err := enc.NextField("LinkedObjects"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_map_2(enc, x.LinkedObjects); err != nil {
@@ -650,11 +685,11 @@ func (x BatchInfo) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Count != 0 {
-		if err := enc.NextFieldValueUint("Count", vdl.Uint64Type, x.Count); err != nil {
+		if err := enc.NextFieldValueUint(2, vdl.Uint64Type, x.Count); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -686,32 +721,39 @@ func (x *BatchInfo) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_10); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Objects":
+		}
+		if decType != __VDLType_struct_10 {
+			index = __VDLType_struct_10.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := __VDLReadAnon_map_2(dec, &x.Objects); err != nil {
 				return err
 			}
-		case "LinkedObjects":
+		case 1:
 			if err := __VDLReadAnon_map_2(dec, &x.LinkedObjects); err != nil {
 				return err
 			}
-		case "Count":
+		case 2:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.Count = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

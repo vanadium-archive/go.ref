@@ -78,7 +78,7 @@ func (x Config) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.ImportMembers) != 0 {
-		if err := enc.NextField("ImportMembers"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, x.ImportMembers); err != nil {
@@ -86,7 +86,7 @@ func (x Config) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.Members) != 0 {
-		if err := enc.NextField("Members"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_2(enc, x.Members); err != nil {
@@ -94,29 +94,29 @@ func (x Config) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Extend {
-		if err := enc.NextFieldValueBool("Extend", vdl.BoolType, x.Extend); err != nil {
+		if err := enc.NextFieldValueBool(2, vdl.BoolType, x.Extend); err != nil {
 			return err
 		}
 	}
 	if x.Audit {
-		if err := enc.NextFieldValueBool("Audit", vdl.BoolType, x.Audit); err != nil {
+		if err := enc.NextFieldValueBool(3, vdl.BoolType, x.Audit); err != nil {
 			return err
 		}
 	}
 	if x.Expiry != "" {
-		if err := enc.NextFieldValueString("Expiry", vdl.StringType, x.Expiry); err != nil {
+		if err := enc.NextFieldValueString(4, vdl.StringType, x.Expiry); err != nil {
 			return err
 		}
 	}
 	if len(x.Peers) != 0 {
-		if err := enc.NextField("Peers"); err != nil {
+		if err := enc.NextField(5); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_2(enc, x.Peers); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -163,49 +163,56 @@ func (x *Config) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "ImportMembers":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := __VDLReadAnon_list_1(dec, &x.ImportMembers); err != nil {
 				return err
 			}
-		case "Members":
+		case 1:
 			if err := __VDLReadAnon_list_2(dec, &x.Members); err != nil {
 				return err
 			}
-		case "Extend":
+		case 2:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.Extend = value
 			}
-		case "Audit":
+		case 3:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.Audit = value
 			}
-		case "Expiry":
+		case 4:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Expiry = value
 			}
-		case "Peers":
+		case 5:
 			if err := __VDLReadAnon_list_2(dec, &x.Peers); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}

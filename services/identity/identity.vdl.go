@@ -50,7 +50,7 @@ func (x BlessingRootResponse) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Names) != 0 {
-		if err := enc.NextField("Names"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, x.Names); err != nil {
@@ -58,11 +58,11 @@ func (x BlessingRootResponse) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.PublicKey != "" {
-		if err := enc.NextFieldValueString("PublicKey", vdl.StringType, x.PublicKey); err != nil {
+		if err := enc.NextFieldValueString(1, vdl.StringType, x.PublicKey); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -91,28 +91,35 @@ func (x *BlessingRootResponse) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Names":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := __VDLReadAnon_list_1(dec, &x.Names); err != nil {
 				return err
 			}
-		case "PublicKey":
+		case 1:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.PublicKey = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

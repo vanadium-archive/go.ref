@@ -81,10 +81,10 @@ func (x ItemData) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_2); err != nil {
 		return err
 	}
-	if err := enc.NextFieldValueBytes("Data", __VDLType_list_1, x.Value); err != nil {
+	if err := enc.NextFieldValueBytes(0, __VDLType_list_1, x.Value); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -94,10 +94,10 @@ func (x ItemHash) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_2); err != nil {
 		return err
 	}
-	if err := enc.NextFieldValueBytes("Hash", __VDLType_list_1, x.Value); err != nil {
+	if err := enc.NextFieldValueBytes(1, __VDLType_list_1, x.Value); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -107,33 +107,40 @@ func VDLReadItem(dec vdl.Decoder, x *Item) error {
 	if err := dec.StartValue(__VDLType_union_2); err != nil {
 		return err
 	}
-	f, err := dec.NextField()
-	if err != nil {
+	decType := dec.Type()
+	index, err := dec.NextField()
+	switch {
+	case err != nil:
 		return err
+	case index == -1:
+		return fmt.Errorf("missing field in union %T, from %v", x, decType)
 	}
-	switch f {
-	case "Data":
+	if decType != __VDLType_union_2 {
+		name := decType.Field(index).Name
+		index = __VDLType_union_2.FieldIndexByName(name)
+		if index == -1 {
+			return fmt.Errorf("field %q not in union %T, from %v", name, x, decType)
+		}
+	}
+	switch index {
+	case 0:
 		var field ItemData
 		if err := dec.ReadValueBytes(-1, &field.Value); err != nil {
 			return err
 		}
 		*x = field
-	case "Hash":
+	case 1:
 		var field ItemHash
 		if err := dec.ReadValueBytes(-1, &field.Value); err != nil {
 			return err
 		}
 		*x = field
-	case "":
-		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
-	default:
-		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
 	}
-	switch f, err := dec.NextField(); {
+	switch index, err := dec.NextField(); {
 	case err != nil:
 		return err
-	case f != "":
-		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	case index != -1:
+		return fmt.Errorf("extra field %d in union %T, from %v", index, x, dec.Type())
 	}
 	return dec.FinishValue()
 }
@@ -210,7 +217,7 @@ func (x DataWithSignature) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Data) != 0 {
-		if err := enc.NextField("Data"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, x.Data); err != nil {
@@ -218,12 +225,12 @@ func (x DataWithSignature) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.BlessingsHash) != 0 {
-		if err := enc.NextFieldValueBytes("BlessingsHash", __VDLType_list_1, x.BlessingsHash); err != nil {
+		if err := enc.NextFieldValueBytes(1, __VDLType_list_1, x.BlessingsHash); err != nil {
 			return err
 		}
 	}
 	if !x.AuthorSigned.VDLIsZero() {
-		if err := enc.NextField("AuthorSigned"); err != nil {
+		if err := enc.NextField(2); err != nil {
 			return err
 		}
 		if err := x.AuthorSigned.VDLWrite(enc); err != nil {
@@ -231,24 +238,24 @@ func (x DataWithSignature) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.IsValidated {
-		if err := enc.NextFieldValueBool("IsValidated", vdl.BoolType, x.IsValidated); err != nil {
+		if err := enc.NextFieldValueBool(3, vdl.BoolType, x.IsValidated); err != nil {
 			return err
 		}
 	}
 	if len(x.ValidatorDataHash) != 0 {
-		if err := enc.NextFieldValueBytes("ValidatorDataHash", __VDLType_list_1, x.ValidatorDataHash); err != nil {
+		if err := enc.NextFieldValueBytes(4, __VDLType_list_1, x.ValidatorDataHash); err != nil {
 			return err
 		}
 	}
 	if !x.ValidatorSigned.VDLIsZero() {
-		if err := enc.NextField("ValidatorSigned"); err != nil {
+		if err := enc.NextField(5); err != nil {
 			return err
 		}
 		if err := x.ValidatorSigned.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -288,43 +295,50 @@ func (x *DataWithSignature) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Data":
+		}
+		if decType != __VDLType_struct_3 {
+			index = __VDLType_struct_3.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := __VDLReadAnon_list_1(dec, &x.Data); err != nil {
 				return err
 			}
-		case "BlessingsHash":
+		case 1:
 			if err := dec.ReadValueBytes(-1, &x.BlessingsHash); err != nil {
 				return err
 			}
-		case "AuthorSigned":
+		case 2:
 			if err := x.AuthorSigned.VDLRead(dec); err != nil {
 				return err
 			}
-		case "IsValidated":
+		case 3:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.IsValidated = value
 			}
-		case "ValidatorDataHash":
+		case 4:
 			if err := dec.ReadValueBytes(-1, &x.ValidatorDataHash); err != nil {
 				return err
 			}
-		case "ValidatorSigned":
+		case 5:
 			if err := x.ValidatorSigned.VDLRead(dec); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -383,7 +397,7 @@ func (x WireValidatorData) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.Names) != 0 {
-		if err := enc.NextField("Names"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_2(enc, x.Names); err != nil {
@@ -391,11 +405,11 @@ func (x WireValidatorData) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.MarshalledPublicKey) != 0 {
-		if err := enc.NextFieldValueBytes("MarshalledPublicKey", __VDLType_list_1, x.MarshalledPublicKey); err != nil {
+		if err := enc.NextFieldValueBytes(1, __VDLType_list_1, x.MarshalledPublicKey); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -424,24 +438,31 @@ func (x *WireValidatorData) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_6); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Names":
+		}
+		if decType != __VDLType_struct_6 {
+			index = __VDLType_struct_6.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := __VDLReadAnon_list_2(dec, &x.Names); err != nil {
 				return err
 			}
-		case "MarshalledPublicKey":
+		case 1:
 			if err := dec.ReadValueBytes(-1, &x.MarshalledPublicKey); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}

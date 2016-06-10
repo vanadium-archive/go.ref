@@ -54,7 +54,7 @@ func (x BlobMetadata) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.OwnerShares) != 0 {
-		if err := enc.NextField("OwnerShares"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := x.OwnerShares.VDLWrite(enc); err != nil {
@@ -62,7 +62,7 @@ func (x BlobMetadata) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if !x.Referenced.IsZero() {
-		if err := enc.NextField("Referenced"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		var wire vdltime.Time
@@ -74,7 +74,7 @@ func (x BlobMetadata) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if !x.Accessed.IsZero() {
-		if err := enc.NextField("Accessed"); err != nil {
+		if err := enc.NextField(2); err != nil {
 			return err
 		}
 		var wire vdltime.Time
@@ -85,7 +85,7 @@ func (x BlobMetadata) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -96,19 +96,30 @@ func (x *BlobMetadata) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "OwnerShares":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := x.OwnerShares.VDLRead(dec); err != nil {
 				return err
 			}
-		case "Referenced":
+		case 1:
 			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -116,16 +127,12 @@ func (x *BlobMetadata) VDLRead(dec vdl.Decoder) error {
 			if err := vdltime.TimeToNative(wire, &x.Referenced); err != nil {
 				return err
 			}
-		case "Accessed":
+		case 2:
 			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
 			if err := vdltime.TimeToNative(wire, &x.Accessed); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -156,14 +163,14 @@ func (x PerSyncgroup) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if !x.Priority.VDLIsZero() {
-		if err := enc.NextField("Priority"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := x.Priority.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -174,20 +181,27 @@ func (x *PerSyncgroup) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_4); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Priority":
-			if err := x.Priority.VDLRead(dec); err != nil {
-				return err
+		}
+		if decType != __VDLType_struct_4 {
+			index = __VDLType_struct_4.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
 			}
-		default:
-			if err := dec.SkipValue(); err != nil {
+		}
+		switch index {
+		case 0:
+			if err := x.Priority.VDLRead(dec); err != nil {
 				return err
 			}
 		}

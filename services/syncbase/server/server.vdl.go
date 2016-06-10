@@ -44,19 +44,19 @@ func (x ServiceData) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Version != 0 {
-		if err := enc.NextFieldValueUint("Version", vdl.Uint64Type, x.Version); err != nil {
+		if err := enc.NextFieldValueUint(0, vdl.Uint64Type, x.Version); err != nil {
 			return err
 		}
 	}
 	if len(x.Perms) != 0 {
-		if err := enc.NextField("Perms"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		if err := x.Perms.VDLWrite(enc); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -67,27 +67,34 @@ func (x *ServiceData) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Version":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.Version = value
 			}
-		case "Perms":
+		case 1:
 			if err := x.Perms.VDLRead(dec); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -118,7 +125,7 @@ func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Id != (syncbase.Id{}) {
-		if err := enc.NextField("Id"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := x.Id.VDLWrite(enc); err != nil {
@@ -126,16 +133,16 @@ func (x DbInfo) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.RootDir != "" {
-		if err := enc.NextFieldValueString("RootDir", vdl.StringType, x.RootDir); err != nil {
+		if err := enc.NextFieldValueString(1, vdl.StringType, x.RootDir); err != nil {
 			return err
 		}
 	}
 	if x.Engine != "" {
-		if err := enc.NextFieldValueString("Engine", vdl.StringType, x.Engine); err != nil {
+		if err := enc.NextFieldValueString(2, vdl.StringType, x.Engine); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -146,35 +153,42 @@ func (x *DbInfo) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Id":
+		}
+		if decType != __VDLType_struct_3 {
+			index = __VDLType_struct_3.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := x.Id.VDLRead(dec); err != nil {
 				return err
 			}
-		case "RootDir":
+		case 1:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.RootDir = value
 			}
-		case "Engine":
+		case 2:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Engine = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -215,7 +229,7 @@ func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Id != (syncbase.Id{}) {
-		if err := enc.NextField("Id"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := x.Id.VDLWrite(enc); err != nil {
@@ -223,12 +237,12 @@ func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Version != 0 {
-		if err := enc.NextFieldValueUint("Version", vdl.Uint64Type, x.Version); err != nil {
+		if err := enc.NextFieldValueUint(1, vdl.Uint64Type, x.Version); err != nil {
 			return err
 		}
 	}
 	if len(x.Perms) != 0 {
-		if err := enc.NextField("Perms"); err != nil {
+		if err := enc.NextField(2); err != nil {
 			return err
 		}
 		if err := x.Perms.VDLWrite(enc); err != nil {
@@ -236,7 +250,7 @@ func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.SchemaMetadata != nil {
-		if err := enc.NextField("SchemaMetadata"); err != nil {
+		if err := enc.NextField(3); err != nil {
 			return err
 		}
 		enc.SetNextStartValueIsOptional()
@@ -244,7 +258,7 @@ func (x DatabaseData) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -255,30 +269,41 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_5); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Id":
+		}
+		if decType != __VDLType_struct_5 {
+			index = __VDLType_struct_5.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := x.Id.VDLRead(dec); err != nil {
 				return err
 			}
-		case "Version":
+		case 1:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.Version = value
 			}
-		case "Perms":
+		case 2:
 			if err := x.Perms.VDLRead(dec); err != nil {
 				return err
 			}
-		case "SchemaMetadata":
+		case 3:
 			if err := dec.StartValue(__VDLType_optional_6); err != nil {
 				return err
 			}
@@ -293,10 +318,6 @@ func (x *DatabaseData) VDLRead(dec vdl.Decoder) error {
 				if err := x.SchemaMetadata.VDLRead(dec); err != nil {
 					return err
 				}
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

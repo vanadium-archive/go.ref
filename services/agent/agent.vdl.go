@@ -70,16 +70,16 @@ func (x ConnInfo) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.MinVersion != 0 {
-		if err := enc.NextFieldValueInt("MinVersion", vdl.Int32Type, int64(x.MinVersion)); err != nil {
+		if err := enc.NextFieldValueInt(0, vdl.Int32Type, int64(x.MinVersion)); err != nil {
 			return err
 		}
 	}
 	if x.MaxVersion != 0 {
-		if err := enc.NextFieldValueInt("MaxVersion", vdl.Int32Type, int64(x.MaxVersion)); err != nil {
+		if err := enc.NextFieldValueInt(1, vdl.Int32Type, int64(x.MaxVersion)); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -90,31 +90,38 @@ func (x *ConnInfo) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "MinVersion":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueInt(32); {
 			case err != nil:
 				return err
 			default:
 				x.MinVersion = int32(value)
 			}
-		case "MaxVersion":
+		case 1:
 			switch value, err := dec.ReadValueInt(32); {
 			case err != nil:
 				return err
 			default:
 				x.MaxVersion = int32(value)
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -140,21 +147,21 @@ func (x RpcRequest) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Id != 0 {
-		if err := enc.NextFieldValueUint("Id", vdl.Uint64Type, x.Id); err != nil {
+		if err := enc.NextFieldValueUint(0, vdl.Uint64Type, x.Id); err != nil {
 			return err
 		}
 	}
 	if x.Method != "" {
-		if err := enc.NextFieldValueString("Method", vdl.StringType, x.Method); err != nil {
+		if err := enc.NextFieldValueString(1, vdl.StringType, x.Method); err != nil {
 			return err
 		}
 	}
 	if x.NumArgs != 0 {
-		if err := enc.NextFieldValueUint("NumArgs", vdl.Uint32Type, uint64(x.NumArgs)); err != nil {
+		if err := enc.NextFieldValueUint(2, vdl.Uint32Type, uint64(x.NumArgs)); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -165,38 +172,45 @@ func (x *RpcRequest) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_2); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Id":
+		}
+		if decType != __VDLType_struct_2 {
+			index = __VDLType_struct_2.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.Id = value
 			}
-		case "Method":
+		case 1:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Method = value
 			}
-		case "NumArgs":
+		case 2:
 			switch value, err := dec.ReadValueUint(32); {
 			case err != nil:
 				return err
 			default:
 				x.NumArgs = uint32(value)
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -222,12 +236,12 @@ func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Id != 0 {
-		if err := enc.NextFieldValueUint("Id", vdl.Uint64Type, x.Id); err != nil {
+		if err := enc.NextFieldValueUint(0, vdl.Uint64Type, x.Id); err != nil {
 			return err
 		}
 	}
 	if x.Err != nil {
-		if err := enc.NextField("Err"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		if err := verror.VDLWrite(enc, x.Err); err != nil {
@@ -235,11 +249,11 @@ func (x RpcResponse) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.NumArgs != 0 {
-		if err := enc.NextFieldValueUint("NumArgs", vdl.Uint32Type, uint64(x.NumArgs)); err != nil {
+		if err := enc.NextFieldValueUint(2, vdl.Uint32Type, uint64(x.NumArgs)); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -250,35 +264,42 @@ func (x *RpcResponse) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Id":
+		}
+		if decType != __VDLType_struct_3 {
+			index = __VDLType_struct_3.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.Id = value
 			}
-		case "Err":
+		case 1:
 			if err := verror.VDLRead(dec, &x.Err); err != nil {
 				return err
 			}
-		case "NumArgs":
+		case 2:
 			switch value, err := dec.ReadValueUint(32); {
 			case err != nil:
 				return err
 			default:
 				x.NumArgs = uint32(value)
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -335,13 +356,13 @@ func (x RpcMessageReq) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_4); err != nil {
 		return err
 	}
-	if err := enc.NextField("Req"); err != nil {
+	if err := enc.NextField(0); err != nil {
 		return err
 	}
 	if err := x.Value.VDLWrite(enc); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -351,13 +372,13 @@ func (x RpcMessageResp) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_4); err != nil {
 		return err
 	}
-	if err := enc.NextField("Resp"); err != nil {
+	if err := enc.NextField(1); err != nil {
 		return err
 	}
 	if err := x.Value.VDLWrite(enc); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -367,33 +388,40 @@ func VDLReadRpcMessage(dec vdl.Decoder, x *RpcMessage) error {
 	if err := dec.StartValue(__VDLType_union_4); err != nil {
 		return err
 	}
-	f, err := dec.NextField()
-	if err != nil {
+	decType := dec.Type()
+	index, err := dec.NextField()
+	switch {
+	case err != nil:
 		return err
+	case index == -1:
+		return fmt.Errorf("missing field in union %T, from %v", x, decType)
 	}
-	switch f {
-	case "Req":
+	if decType != __VDLType_union_4 {
+		name := decType.Field(index).Name
+		index = __VDLType_union_4.FieldIndexByName(name)
+		if index == -1 {
+			return fmt.Errorf("field %q not in union %T, from %v", name, x, decType)
+		}
+	}
+	switch index {
+	case 0:
 		var field RpcMessageReq
 		if err := field.Value.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = field
-	case "Resp":
+	case 1:
 		var field RpcMessageResp
 		if err := field.Value.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = field
-	case "":
-		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
-	default:
-		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
 	}
-	switch f, err := dec.NextField(); {
+	switch index, err := dec.NextField(); {
 	case err != nil:
 		return err
-	case f != "":
-		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	case index != -1:
+		return fmt.Errorf("extra field %d in union %T, from %v", index, x, dec.Type())
 	}
 	return dec.FinishValue()
 }

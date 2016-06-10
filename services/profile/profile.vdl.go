@@ -42,21 +42,21 @@ func (x Library) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Name != "" {
-		if err := enc.NextFieldValueString("Name", vdl.StringType, x.Name); err != nil {
+		if err := enc.NextFieldValueString(0, vdl.StringType, x.Name); err != nil {
 			return err
 		}
 	}
 	if x.MajorVersion != "" {
-		if err := enc.NextFieldValueString("MajorVersion", vdl.StringType, x.MajorVersion); err != nil {
+		if err := enc.NextFieldValueString(1, vdl.StringType, x.MajorVersion); err != nil {
 			return err
 		}
 	}
 	if x.MinorVersion != "" {
-		if err := enc.NextFieldValueString("MinorVersion", vdl.StringType, x.MinorVersion); err != nil {
+		if err := enc.NextFieldValueString(2, vdl.StringType, x.MinorVersion); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -67,38 +67,45 @@ func (x *Library) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Name":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Name = value
 			}
-		case "MajorVersion":
+		case 1:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.MajorVersion = value
 			}
-		case "MinorVersion":
+		case 2:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.MinorVersion = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -154,39 +161,39 @@ func (x Specification) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Label != "" {
-		if err := enc.NextFieldValueString("Label", vdl.StringType, x.Label); err != nil {
+		if err := enc.NextFieldValueString(0, vdl.StringType, x.Label); err != nil {
 			return err
 		}
 	}
 	if x.Description != "" {
-		if err := enc.NextFieldValueString("Description", vdl.StringType, x.Description); err != nil {
+		if err := enc.NextFieldValueString(1, vdl.StringType, x.Description); err != nil {
 			return err
 		}
 	}
 	if x.Arch != build.ArchitectureAmd64 {
-		if err := enc.NextFieldValueString("Arch", __VDLType_enum_3, x.Arch.String()); err != nil {
+		if err := enc.NextFieldValueString(2, __VDLType_enum_3, x.Arch.String()); err != nil {
 			return err
 		}
 	}
 	if x.Os != build.OperatingSystemDarwin {
-		if err := enc.NextFieldValueString("Os", __VDLType_enum_4, x.Os.String()); err != nil {
+		if err := enc.NextFieldValueString(3, __VDLType_enum_4, x.Os.String()); err != nil {
 			return err
 		}
 	}
 	if x.Format != build.FormatElf {
-		if err := enc.NextFieldValueString("Format", __VDLType_enum_5, x.Format.String()); err != nil {
+		if err := enc.NextFieldValueString(4, __VDLType_enum_5, x.Format.String()); err != nil {
 			return err
 		}
 	}
 	if len(x.Libraries) != 0 {
-		if err := enc.NextField("Libraries"); err != nil {
+		if err := enc.NextField(5); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_set_1(enc, x.Libraries); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -218,29 +225,40 @@ func (x *Specification) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_2); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Label":
+		}
+		if decType != __VDLType_struct_2 {
+			index = __VDLType_struct_2.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Label = value
 			}
-		case "Description":
+		case 1:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Description = value
 			}
-		case "Arch":
+		case 2:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
@@ -249,7 +267,7 @@ func (x *Specification) VDLRead(dec vdl.Decoder) error {
 					return err
 				}
 			}
-		case "Os":
+		case 3:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
@@ -258,7 +276,7 @@ func (x *Specification) VDLRead(dec vdl.Decoder) error {
 					return err
 				}
 			}
-		case "Format":
+		case 4:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
@@ -267,12 +285,8 @@ func (x *Specification) VDLRead(dec vdl.Decoder) error {
 					return err
 				}
 			}
-		case "Libraries":
+		case 5:
 			if err := __VDLReadAnon_set_1(dec, &x.Libraries); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}

@@ -221,7 +221,7 @@ func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if !x.Ad.VDLIsZero() {
-		if err := enc.NextField("Ad"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := x.Ad.VDLWrite(enc); err != nil {
@@ -229,12 +229,12 @@ func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.EncryptionAlgorithm != 0 {
-		if err := enc.NextFieldValueInt("EncryptionAlgorithm", __VDLType_int32_2, int64(x.EncryptionAlgorithm)); err != nil {
+		if err := enc.NextFieldValueInt(1, __VDLType_int32_2, int64(x.EncryptionAlgorithm)); err != nil {
 			return err
 		}
 	}
 	if len(x.EncryptionKeys) != 0 {
-		if err := enc.NextField("EncryptionKeys"); err != nil {
+		if err := enc.NextField(2); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, x.EncryptionKeys); err != nil {
@@ -242,17 +242,17 @@ func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Hash != (AdHash{}) {
-		if err := enc.NextFieldValueBytes("Hash", __VDLType_array_5, x.Hash[:]); err != nil {
+		if err := enc.NextFieldValueBytes(3, __VDLType_array_5, x.Hash[:]); err != nil {
 			return err
 		}
 	}
 	if x.TimestampNs != 0 {
-		if err := enc.NextFieldValueInt("TimestampNs", vdl.Int64Type, x.TimestampNs); err != nil {
+		if err := enc.NextFieldValueInt(4, vdl.Int64Type, x.TimestampNs); err != nil {
 			return err
 		}
 	}
 	if len(x.DirAddrs) != 0 {
-		if err := enc.NextField("DirAddrs"); err != nil {
+		if err := enc.NextField(5); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_2(enc, x.DirAddrs); err != nil {
@@ -260,16 +260,16 @@ func (x AdInfo) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Status != 0 {
-		if err := enc.NextFieldValueUint("Status", __VDLType_byte_4, uint64(x.Status)); err != nil {
+		if err := enc.NextFieldValueUint(6, __VDLType_byte_4, uint64(x.Status)); err != nil {
 			return err
 		}
 	}
 	if x.Lost {
-		if err := enc.NextFieldValueBool("Lost", vdl.BoolType, x.Lost); err != nil {
+		if err := enc.NextFieldValueBool(7, vdl.BoolType, x.Lost); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -316,62 +316,69 @@ func (x *AdInfo) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_6); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Ad":
+		}
+		if decType != __VDLType_struct_6 {
+			index = __VDLType_struct_6.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := x.Ad.VDLRead(dec); err != nil {
 				return err
 			}
-		case "EncryptionAlgorithm":
+		case 1:
 			switch value, err := dec.ReadValueInt(32); {
 			case err != nil:
 				return err
 			default:
 				x.EncryptionAlgorithm = EncryptionAlgorithm(value)
 			}
-		case "EncryptionKeys":
+		case 2:
 			if err := __VDLReadAnon_list_1(dec, &x.EncryptionKeys); err != nil {
 				return err
 			}
-		case "Hash":
+		case 3:
 			bytes := x.Hash[:]
 			if err := dec.ReadValueBytes(8, &bytes); err != nil {
 				return err
 			}
-		case "TimestampNs":
+		case 4:
 			switch value, err := dec.ReadValueInt(64); {
 			case err != nil:
 				return err
 			default:
 				x.TimestampNs = value
 			}
-		case "DirAddrs":
+		case 5:
 			if err := __VDLReadAnon_list_2(dec, &x.DirAddrs); err != nil {
 				return err
 			}
-		case "Status":
+		case 6:
 			switch value, err := dec.ReadValueUint(8); {
 			case err != nil:
 				return err
 			default:
 				x.Status = AdStatus(value)
 			}
-		case "Lost":
+		case 7:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.Lost = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

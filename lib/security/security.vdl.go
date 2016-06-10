@@ -170,7 +170,7 @@ func (x CachedDischarge) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if !x.Discharge.VDLIsZero() {
-		if err := enc.NextField("Discharge"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		var wire security.WireDischarge
@@ -182,7 +182,7 @@ func (x CachedDischarge) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if !x.CacheTime.IsZero() {
-		if err := enc.NextField("CacheTime"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		var wire vdltime.Time
@@ -193,7 +193,7 @@ func (x CachedDischarge) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -204,15 +204,26 @@ func (x *CachedDischarge) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_5); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Discharge":
+		}
+		if decType != __VDLType_struct_5 {
+			index = __VDLType_struct_5.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			var wire security.WireDischarge
 			if err := security.VDLReadWireDischarge(dec, &wire); err != nil {
 				return err
@@ -220,16 +231,12 @@ func (x *CachedDischarge) VDLRead(dec vdl.Decoder) error {
 			if err := security.WireDischargeToNative(wire, &x.Discharge); err != nil {
 				return err
 			}
-		case "CacheTime":
+		case 1:
 			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
 			if err := vdltime.TimeToNative(wire, &x.CacheTime); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -285,7 +292,7 @@ func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if len(x.PeerBlessings) != 0 {
-		if err := enc.NextField("PeerBlessings"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_map_2(enc, x.PeerBlessings); err != nil {
@@ -293,7 +300,7 @@ func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if !x.DefaultBlessings.IsZero() {
-		if err := enc.NextField("DefaultBlessings"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		var wire security.WireBlessings
@@ -305,7 +312,7 @@ func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.DischargeCache) != 0 {
-		if err := enc.NextField("DischargeCache"); err != nil {
+		if err := enc.NextField(2); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_map_3(enc, x.DischargeCache); err != nil {
@@ -313,7 +320,7 @@ func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.Discharges) != 0 {
-		if err := enc.NextField("Discharges"); err != nil {
+		if err := enc.NextField(3); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_map_4(enc, x.Discharges); err != nil {
@@ -321,11 +328,11 @@ func (x blessingStoreState) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.CacheKeyFormat != 0 {
-		if err := enc.NextFieldValueUint("CacheKeyFormat", vdl.Uint32Type, uint64(x.CacheKeyFormat)); err != nil {
+		if err := enc.NextFieldValueUint(4, vdl.Uint32Type, uint64(x.CacheKeyFormat)); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -415,19 +422,30 @@ func (x *blessingStoreState) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_8); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "PeerBlessings":
+		}
+		if decType != __VDLType_struct_8 {
+			index = __VDLType_struct_8.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := __VDLReadAnon_map_2(dec, &x.PeerBlessings); err != nil {
 				return err
 			}
-		case "DefaultBlessings":
+		case 1:
 			var wire security.WireBlessings
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -435,24 +453,20 @@ func (x *blessingStoreState) VDLRead(dec vdl.Decoder) error {
 			if err := security.WireBlessingsToNative(wire, &x.DefaultBlessings); err != nil {
 				return err
 			}
-		case "DischargeCache":
+		case 2:
 			if err := __VDLReadAnon_map_3(dec, &x.DischargeCache); err != nil {
 				return err
 			}
-		case "Discharges":
+		case 3:
 			if err := __VDLReadAnon_map_4(dec, &x.Discharges); err != nil {
 				return err
 			}
-		case "CacheKeyFormat":
+		case 4:
 			switch value, err := dec.ReadValueUint(32); {
 			case err != nil:
 				return err
 			default:
 				x.CacheKeyFormat = uint32(value)
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

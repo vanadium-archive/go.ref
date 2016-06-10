@@ -50,21 +50,21 @@ func (x SumArg) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.ABool {
-		if err := enc.NextFieldValueBool("ABool", vdl.BoolType, x.ABool); err != nil {
+		if err := enc.NextFieldValueBool(0, vdl.BoolType, x.ABool); err != nil {
 			return err
 		}
 	}
 	if x.AInt64 != 0 {
-		if err := enc.NextFieldValueInt("AInt64", vdl.Int64Type, x.AInt64); err != nil {
+		if err := enc.NextFieldValueInt(1, vdl.Int64Type, x.AInt64); err != nil {
 			return err
 		}
 	}
 	if len(x.AListOfBytes) != 0 {
-		if err := enc.NextFieldValueBytes("AListOfBytes", __VDLType_list_2, x.AListOfBytes); err != nil {
+		if err := enc.NextFieldValueBytes(2, __VDLType_list_2, x.AListOfBytes); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -75,34 +75,41 @@ func (x *SumArg) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "ABool":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.ABool = value
 			}
-		case "AInt64":
+		case 1:
 			switch value, err := dec.ReadValueInt(64); {
 			case err != nil:
 				return err
 			default:
 				x.AInt64 = value
 			}
-		case "AListOfBytes":
+		case 2:
 			if err := dec.ReadValueBytes(-1, &x.AListOfBytes); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -130,26 +137,26 @@ func (x SumStats) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.SumCount != 0 {
-		if err := enc.NextFieldValueUint("SumCount", vdl.Uint64Type, x.SumCount); err != nil {
+		if err := enc.NextFieldValueUint(0, vdl.Uint64Type, x.SumCount); err != nil {
 			return err
 		}
 	}
 	if x.SumStreamCount != 0 {
-		if err := enc.NextFieldValueUint("SumStreamCount", vdl.Uint64Type, x.SumStreamCount); err != nil {
+		if err := enc.NextFieldValueUint(1, vdl.Uint64Type, x.SumStreamCount); err != nil {
 			return err
 		}
 	}
 	if x.BytesRecv != 0 {
-		if err := enc.NextFieldValueUint("BytesRecv", vdl.Uint64Type, x.BytesRecv); err != nil {
+		if err := enc.NextFieldValueUint(2, vdl.Uint64Type, x.BytesRecv); err != nil {
 			return err
 		}
 	}
 	if x.BytesSent != 0 {
-		if err := enc.NextFieldValueUint("BytesSent", vdl.Uint64Type, x.BytesSent); err != nil {
+		if err := enc.NextFieldValueUint(3, vdl.Uint64Type, x.BytesSent); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -160,45 +167,52 @@ func (x *SumStats) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "SumCount":
+		}
+		if decType != __VDLType_struct_3 {
+			index = __VDLType_struct_3.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.SumCount = value
 			}
-		case "SumStreamCount":
+		case 1:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.SumStreamCount = value
 			}
-		case "BytesRecv":
+		case 2:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.BytesRecv = value
 			}
-		case "BytesSent":
+		case 3:
 			switch value, err := dec.ReadValueUint(64); {
 			case err != nil:
 				return err
 			default:
 				x.BytesSent = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

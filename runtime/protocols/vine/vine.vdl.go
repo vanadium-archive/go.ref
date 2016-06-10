@@ -41,16 +41,16 @@ func (x PeerKey) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Dialer != "" {
-		if err := enc.NextFieldValueString("Dialer", vdl.StringType, x.Dialer); err != nil {
+		if err := enc.NextFieldValueString(0, vdl.StringType, x.Dialer); err != nil {
 			return err
 		}
 	}
 	if x.Acceptor != "" {
-		if err := enc.NextFieldValueString("Acceptor", vdl.StringType, x.Acceptor); err != nil {
+		if err := enc.NextFieldValueString(1, vdl.StringType, x.Acceptor); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -61,31 +61,38 @@ func (x *PeerKey) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Dialer":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Dialer = value
 			}
-		case "Acceptor":
+		case 1:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Acceptor = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -118,16 +125,16 @@ func (x PeerBehavior) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Reachable {
-		if err := enc.NextFieldValueBool("Reachable", vdl.BoolType, x.Reachable); err != nil {
+		if err := enc.NextFieldValueBool(0, vdl.BoolType, x.Reachable); err != nil {
 			return err
 		}
 	}
 	if x.Discoverable {
-		if err := enc.NextFieldValueBool("Discoverable", vdl.BoolType, x.Discoverable); err != nil {
+		if err := enc.NextFieldValueBool(1, vdl.BoolType, x.Discoverable); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -138,31 +145,38 @@ func (x *PeerBehavior) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_2); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Reachable":
+		}
+		if decType != __VDLType_struct_2 {
+			index = __VDLType_struct_2.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.Reachable = value
 			}
-		case "Discoverable":
+		case 1:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.Discoverable = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

@@ -59,11 +59,11 @@ func (x GameId) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Id != "" {
-		if err := enc.NextFieldValueString("Id", vdl.StringType, x.Id); err != nil {
+		if err := enc.NextFieldValueString(0, vdl.StringType, x.Id); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -74,24 +74,31 @@ func (x *GameId) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Id":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Id = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -145,16 +152,16 @@ func (x GameOptions) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.NumRounds != 0 {
-		if err := enc.NextFieldValueInt("NumRounds", vdl.Int32Type, int64(x.NumRounds)); err != nil {
+		if err := enc.NextFieldValueInt(0, vdl.Int32Type, int64(x.NumRounds)); err != nil {
 			return err
 		}
 	}
 	if x.GameType != 0 {
-		if err := enc.NextFieldValueUint("GameType", __VDLType_byte_2, uint64(x.GameType)); err != nil {
+		if err := enc.NextFieldValueUint(1, __VDLType_byte_2, uint64(x.GameType)); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -165,31 +172,38 @@ func (x *GameOptions) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_3); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "NumRounds":
+		}
+		if decType != __VDLType_struct_3 {
+			index = __VDLType_struct_3.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueInt(32); {
 			case err != nil:
 				return err
 			default:
 				x.NumRounds = int32(value)
 			}
-		case "GameType":
+		case 1:
 			switch value, err := dec.ReadValueUint(8); {
 			case err != nil:
 				return err
 			default:
 				x.GameType = GameTypeTag(value)
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -212,7 +226,7 @@ func (x Unused) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_struct_4); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -223,18 +237,25 @@ func (x *Unused) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_4); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
+		}
+		if decType != __VDLType_struct_4 {
+			index = __VDLType_struct_4.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
 			}
+		}
+		switch index {
 		}
 	}
 }
@@ -290,10 +311,10 @@ func (x PlayerActionMove) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_5); err != nil {
 		return err
 	}
-	if err := enc.NextFieldValueString("Move", vdl.StringType, x.Value); err != nil {
+	if err := enc.NextFieldValueString(0, vdl.StringType, x.Value); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -303,13 +324,13 @@ func (x PlayerActionQuit) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_5); err != nil {
 		return err
 	}
-	if err := enc.NextField("Quit"); err != nil {
+	if err := enc.NextField(1); err != nil {
 		return err
 	}
 	if err := x.Value.VDLWrite(enc); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -319,12 +340,23 @@ func VDLReadPlayerAction(dec vdl.Decoder, x *PlayerAction) error {
 	if err := dec.StartValue(__VDLType_union_5); err != nil {
 		return err
 	}
-	f, err := dec.NextField()
-	if err != nil {
+	decType := dec.Type()
+	index, err := dec.NextField()
+	switch {
+	case err != nil:
 		return err
+	case index == -1:
+		return fmt.Errorf("missing field in union %T, from %v", x, decType)
 	}
-	switch f {
-	case "Move":
+	if decType != __VDLType_union_5 {
+		name := decType.Field(index).Name
+		index = __VDLType_union_5.FieldIndexByName(name)
+		if index == -1 {
+			return fmt.Errorf("field %q not in union %T, from %v", name, x, decType)
+		}
+	}
+	switch index {
+	case 0:
 		var field PlayerActionMove
 		switch value, err := dec.ReadValueString(); {
 		case err != nil:
@@ -333,22 +365,18 @@ func VDLReadPlayerAction(dec vdl.Decoder, x *PlayerAction) error {
 			field.Value = value
 		}
 		*x = field
-	case "Quit":
+	case 1:
 		var field PlayerActionQuit
 		if err := field.Value.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = field
-	case "":
-		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
-	default:
-		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
 	}
-	switch f, err := dec.NextField(); {
+	switch index, err := dec.NextField(); {
 	case err != nil:
 		return err
-	case f != "":
-		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	case index != -1:
+		return fmt.Errorf("extra field %d in union %T, from %v", index, x, dec.Type())
 	}
 	return dec.FinishValue()
 }
@@ -470,7 +498,7 @@ func (x Round) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Moves != (PlayersMoves{}) {
-		if err := enc.NextField("Moves"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := x.Moves.VDLWrite(enc); err != nil {
@@ -478,17 +506,17 @@ func (x Round) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Comment != "" {
-		if err := enc.NextFieldValueString("Comment", vdl.StringType, x.Comment); err != nil {
+		if err := enc.NextFieldValueString(1, vdl.StringType, x.Comment); err != nil {
 			return err
 		}
 	}
 	if x.Winner != 0 {
-		if err := enc.NextFieldValueUint("Winner", __VDLType_byte_7, uint64(x.Winner)); err != nil {
+		if err := enc.NextFieldValueUint(2, __VDLType_byte_7, uint64(x.Winner)); err != nil {
 			return err
 		}
 	}
 	if !x.StartTime.IsZero() {
-		if err := enc.NextField("StartTime"); err != nil {
+		if err := enc.NextField(3); err != nil {
 			return err
 		}
 		var wire vdltime.Time
@@ -500,7 +528,7 @@ func (x Round) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if !x.EndTime.IsZero() {
-		if err := enc.NextField("EndTime"); err != nil {
+		if err := enc.NextField(4); err != nil {
 			return err
 		}
 		var wire vdltime.Time
@@ -511,7 +539,7 @@ func (x Round) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -522,33 +550,44 @@ func (x *Round) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_8); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Moves":
+		}
+		if decType != __VDLType_struct_8 {
+			index = __VDLType_struct_8.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := x.Moves.VDLRead(dec); err != nil {
 				return err
 			}
-		case "Comment":
+		case 1:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Comment = value
 			}
-		case "Winner":
+		case 2:
 			switch value, err := dec.ReadValueUint(8); {
 			case err != nil:
 				return err
 			default:
 				x.Winner = WinnerTag(value)
 			}
-		case "StartTime":
+		case 3:
 			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -556,16 +595,12 @@ func (x *Round) VDLRead(dec vdl.Decoder) error {
 			if err := vdltime.TimeToNative(wire, &x.StartTime); err != nil {
 				return err
 			}
-		case "EndTime":
+		case 4:
 			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
 			}
 			if err := vdltime.TimeToNative(wire, &x.EndTime); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -617,7 +652,7 @@ func (x ScoreCard) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Opts != (GameOptions{}) {
-		if err := enc.NextField("Opts"); err != nil {
+		if err := enc.NextField(0); err != nil {
 			return err
 		}
 		if err := x.Opts.VDLWrite(enc); err != nil {
@@ -625,12 +660,12 @@ func (x ScoreCard) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Judge != "" {
-		if err := enc.NextFieldValueString("Judge", vdl.StringType, x.Judge); err != nil {
+		if err := enc.NextFieldValueString(1, vdl.StringType, x.Judge); err != nil {
 			return err
 		}
 	}
 	if len(x.Players) != 0 {
-		if err := enc.NextField("Players"); err != nil {
+		if err := enc.NextField(2); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_1(enc, x.Players); err != nil {
@@ -638,7 +673,7 @@ func (x ScoreCard) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if len(x.Rounds) != 0 {
-		if err := enc.NextField("Rounds"); err != nil {
+		if err := enc.NextField(3); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_2(enc, x.Rounds); err != nil {
@@ -646,7 +681,7 @@ func (x ScoreCard) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if !x.StartTime.IsZero() {
-		if err := enc.NextField("StartTime"); err != nil {
+		if err := enc.NextField(4); err != nil {
 			return err
 		}
 		var wire vdltime.Time
@@ -658,7 +693,7 @@ func (x ScoreCard) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if !x.EndTime.IsZero() {
-		if err := enc.NextField("EndTime"); err != nil {
+		if err := enc.NextField(5); err != nil {
 			return err
 		}
 		var wire vdltime.Time
@@ -670,11 +705,11 @@ func (x ScoreCard) VDLWrite(enc vdl.Encoder) error {
 		}
 	}
 	if x.Winner != 0 {
-		if err := enc.NextFieldValueUint("Winner", __VDLType_byte_7, uint64(x.Winner)); err != nil {
+		if err := enc.NextFieldValueUint(6, __VDLType_byte_7, uint64(x.Winner)); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -724,34 +759,45 @@ func (x *ScoreCard) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_10); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Opts":
+		}
+		if decType != __VDLType_struct_10 {
+			index = __VDLType_struct_10.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			if err := x.Opts.VDLRead(dec); err != nil {
 				return err
 			}
-		case "Judge":
+		case 1:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Judge = value
 			}
-		case "Players":
+		case 2:
 			if err := __VDLReadAnon_list_1(dec, &x.Players); err != nil {
 				return err
 			}
-		case "Rounds":
+		case 3:
 			if err := __VDLReadAnon_list_2(dec, &x.Rounds); err != nil {
 				return err
 			}
-		case "StartTime":
+		case 4:
 			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -759,7 +805,7 @@ func (x *ScoreCard) VDLRead(dec vdl.Decoder) error {
 			if err := vdltime.TimeToNative(wire, &x.StartTime); err != nil {
 				return err
 			}
-		case "EndTime":
+		case 5:
 			var wire vdltime.Time
 			if err := wire.VDLRead(dec); err != nil {
 				return err
@@ -767,16 +813,12 @@ func (x *ScoreCard) VDLRead(dec vdl.Decoder) error {
 			if err := vdltime.TimeToNative(wire, &x.EndTime); err != nil {
 				return err
 			}
-		case "Winner":
+		case 6:
 			switch value, err := dec.ReadValueUint(8); {
 			case err != nil:
 				return err
 			default:
 				x.Winner = WinnerTag(value)
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -915,10 +957,10 @@ func (x JudgeActionPlayerNum) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_13); err != nil {
 		return err
 	}
-	if err := enc.NextFieldValueInt("PlayerNum", vdl.Int32Type, int64(x.Value)); err != nil {
+	if err := enc.NextFieldValueInt(0, vdl.Int32Type, int64(x.Value)); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -928,10 +970,10 @@ func (x JudgeActionOpponentName) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_13); err != nil {
 		return err
 	}
-	if err := enc.NextFieldValueString("OpponentName", vdl.StringType, x.Value); err != nil {
+	if err := enc.NextFieldValueString(1, vdl.StringType, x.Value); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -941,13 +983,13 @@ func (x JudgeActionMoveOptions) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_13); err != nil {
 		return err
 	}
-	if err := enc.NextField("MoveOptions"); err != nil {
+	if err := enc.NextField(2); err != nil {
 		return err
 	}
 	if err := __VDLWriteAnon_list_1(enc, x.Value); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -957,13 +999,13 @@ func (x JudgeActionRoundResult) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_13); err != nil {
 		return err
 	}
-	if err := enc.NextField("RoundResult"); err != nil {
+	if err := enc.NextField(3); err != nil {
 		return err
 	}
 	if err := x.Value.VDLWrite(enc); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -973,13 +1015,13 @@ func (x JudgeActionScore) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_13); err != nil {
 		return err
 	}
-	if err := enc.NextField("Score"); err != nil {
+	if err := enc.NextField(4); err != nil {
 		return err
 	}
 	if err := x.Value.VDLWrite(enc); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -989,12 +1031,23 @@ func VDLReadJudgeAction(dec vdl.Decoder, x *JudgeAction) error {
 	if err := dec.StartValue(__VDLType_union_13); err != nil {
 		return err
 	}
-	f, err := dec.NextField()
-	if err != nil {
+	decType := dec.Type()
+	index, err := dec.NextField()
+	switch {
+	case err != nil:
 		return err
+	case index == -1:
+		return fmt.Errorf("missing field in union %T, from %v", x, decType)
 	}
-	switch f {
-	case "PlayerNum":
+	if decType != __VDLType_union_13 {
+		name := decType.Field(index).Name
+		index = __VDLType_union_13.FieldIndexByName(name)
+		if index == -1 {
+			return fmt.Errorf("field %q not in union %T, from %v", name, x, decType)
+		}
+	}
+	switch index {
+	case 0:
 		var field JudgeActionPlayerNum
 		switch value, err := dec.ReadValueInt(32); {
 		case err != nil:
@@ -1003,7 +1056,7 @@ func VDLReadJudgeAction(dec vdl.Decoder, x *JudgeAction) error {
 			field.Value = int32(value)
 		}
 		*x = field
-	case "OpponentName":
+	case 1:
 		var field JudgeActionOpponentName
 		switch value, err := dec.ReadValueString(); {
 		case err != nil:
@@ -1012,34 +1065,30 @@ func VDLReadJudgeAction(dec vdl.Decoder, x *JudgeAction) error {
 			field.Value = value
 		}
 		*x = field
-	case "MoveOptions":
+	case 2:
 		var field JudgeActionMoveOptions
 		if err := __VDLReadAnon_list_1(dec, &field.Value); err != nil {
 			return err
 		}
 		*x = field
-	case "RoundResult":
+	case 3:
 		var field JudgeActionRoundResult
 		if err := field.Value.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = field
-	case "Score":
+	case 4:
 		var field JudgeActionScore
 		if err := field.Value.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = field
-	case "":
-		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
-	default:
-		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
 	}
-	switch f, err := dec.NextField(); {
+	switch index, err := dec.NextField(); {
 	case err != nil:
 		return err
-	case f != "":
-		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	case index != -1:
+		return fmt.Errorf("extra field %d in union %T, from %v", index, x, dec.Type())
 	}
 	return dec.FinishValue()
 }
@@ -1063,11 +1112,11 @@ func (x PlayResult) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.YouWon {
-		if err := enc.NextFieldValueBool("YouWon", vdl.BoolType, x.YouWon); err != nil {
+		if err := enc.NextFieldValueBool(0, vdl.BoolType, x.YouWon); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -1078,24 +1127,31 @@ func (x *PlayResult) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_14); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "YouWon":
+		}
+		if decType != __VDLType_struct_14 {
+			index = __VDLType_struct_14.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueBool(); {
 			case err != nil:
 				return err
 			default:
 				x.YouWon = value
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

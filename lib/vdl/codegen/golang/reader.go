@@ -450,59 +450,73 @@ func (g *genRead) bodySetMap(tt *vdl.Type, arg namedArg) string {
 }
 
 func (g *genRead) bodyStruct(tt *vdl.Type, arg namedArg) string {
-	s := `
+	s := fmt.Sprintf(`
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
+		case index == -1:
+			return dec.FinishValue()
 		}
-		switch f {
-		case "":
-			return dec.FinishValue()`
-	for f := 0; f < tt.NumField(); f++ {
-		field := tt.Field(f)
+		if decType != %[1]s {
+			index = %[1]s.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {`, g.TypeOf(tt))
+	for index := 0; index < tt.NumField(); index++ {
+		field := tt.Field(index)
 		fieldBody := g.body(field.Type, arg.Field(field), false)
 		s += fmt.Sprintf(`
-		case %[1]q:%[2]s`, field.Name, fieldBody)
+		case %[1]d:%[2]s`, index, fieldBody)
 	}
 	return s + `
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
-			}
 		}
 	}`
 }
 
 func (g *genRead) bodyUnion(tt *vdl.Type, arg namedArg) string {
-	s := `
-	f, err := dec.NextField()
-	if err != nil {
+	s := fmt.Sprintf(`
+	decType := dec.Type()
+	index, err := dec.NextField()
+	switch {
+	case err != nil:
 		return err
+	case index == -1:
+		return %[1]sErrorf("missing field in union %%T, from %%v", %[2]s, decType)
 	}
-  switch f {`
-	for f := 0; f < tt.NumField(); f++ {
+	if decType != %[3]s {
+		name := decType.Field(index).Name
+		index = %[3]s.FieldIndexByName(name)
+		if index == -1 {
+			return %[1]sErrorf("field %%q not in union %%T, from %%v", name, %[2]s, decType)
+		}
+	}
+  switch index {`, g.Pkg("fmt"), arg.Ptr(), g.TypeOf(tt))
+	for index := 0; index < tt.NumField(); index++ {
 		// TODO(toddw): Change to using pointers to the union field structs, to
 		// resolve https://v.io/i/455
-		field := tt.Field(f)
+		field := tt.Field(index)
 		fieldArg := typedArg("field.Value", field.Type)
 		fieldBody := g.body(field.Type, fieldArg, false)
 		s += fmt.Sprintf(`
-	case %[1]q:
-		var field %[2]s%[1]s%[3]s
-		%[4]s = field`, field.Name, typeGoWire(g.goData, tt), fieldBody, arg.Ref())
+	case %[1]d:
+		var field %[2]s%[3]s%[4]s
+		%[5]s = field`, index, typeGoWire(g.goData, tt), field.Name, fieldBody, arg.Ref())
 	}
 	return s + fmt.Sprintf(`
-	case "":
-		return %[1]sErrorf("missing field in union %%T, from %%v", %[2]s, dec.Type())
-	default:
-		return %[1]sErrorf("field %%q not in union %%T, from %%v", f, %[2]s, dec.Type())
 	}
-	switch f, err := dec.NextField(); {
+	switch index, err := dec.NextField(); {
 	case err != nil:
 		return err
-	case f != "":
-		return %[1]sErrorf("extra field %%q in union %%T, from %%v", f, %[2]s, dec.Type())
+	case index != -1:
+		return %[1]sErrorf("extra field %%d in union %%T, from %%v", index, %[2]s, dec.Type())
 	}`, g.Pkg("fmt"), arg.Ptr())
 }
 

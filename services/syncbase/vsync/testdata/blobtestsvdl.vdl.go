@@ -38,16 +38,16 @@ func (x BlobInfo) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Info != "" {
-		if err := enc.NextFieldValueString("Info", vdl.StringType, x.Info); err != nil {
+		if err := enc.NextFieldValueString(0, vdl.StringType, x.Info); err != nil {
 			return err
 		}
 	}
 	if x.Br != "" {
-		if err := enc.NextFieldValueString("Br", __VDLType_string_2, string(x.Br)); err != nil {
+		if err := enc.NextFieldValueString(1, __VDLType_string_2, string(x.Br)); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -58,31 +58,38 @@ func (x *BlobInfo) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Info":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Info = value
 			}
-		case "Br":
+		case 1:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Br = syncbase.BlobRef(value)
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
@@ -139,10 +146,10 @@ func (x BlobUnionNum) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_3); err != nil {
 		return err
 	}
-	if err := enc.NextFieldValueInt("Num", vdl.Int32Type, int64(x.Value)); err != nil {
+	if err := enc.NextFieldValueInt(0, vdl.Int32Type, int64(x.Value)); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -152,13 +159,13 @@ func (x BlobUnionBi) VDLWrite(enc vdl.Encoder) error {
 	if err := enc.StartValue(__VDLType_union_3); err != nil {
 		return err
 	}
-	if err := enc.NextField("Bi"); err != nil {
+	if err := enc.NextField(1); err != nil {
 		return err
 	}
 	if err := x.Value.VDLWrite(enc); err != nil {
 		return err
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -168,12 +175,23 @@ func VDLReadBlobUnion(dec vdl.Decoder, x *BlobUnion) error {
 	if err := dec.StartValue(__VDLType_union_3); err != nil {
 		return err
 	}
-	f, err := dec.NextField()
-	if err != nil {
+	decType := dec.Type()
+	index, err := dec.NextField()
+	switch {
+	case err != nil:
 		return err
+	case index == -1:
+		return fmt.Errorf("missing field in union %T, from %v", x, decType)
 	}
-	switch f {
-	case "Num":
+	if decType != __VDLType_union_3 {
+		name := decType.Field(index).Name
+		index = __VDLType_union_3.FieldIndexByName(name)
+		if index == -1 {
+			return fmt.Errorf("field %q not in union %T, from %v", name, x, decType)
+		}
+	}
+	switch index {
+	case 0:
 		var field BlobUnionNum
 		switch value, err := dec.ReadValueInt(32); {
 		case err != nil:
@@ -182,22 +200,18 @@ func VDLReadBlobUnion(dec vdl.Decoder, x *BlobUnion) error {
 			field.Value = int32(value)
 		}
 		*x = field
-	case "Bi":
+	case 1:
 		var field BlobUnionBi
 		if err := field.Value.VDLRead(dec); err != nil {
 			return err
 		}
 		*x = field
-	case "":
-		return fmt.Errorf("missing field in union %T, from %v", x, dec.Type())
-	default:
-		return fmt.Errorf("field %q not in union %T, from %v", f, x, dec.Type())
 	}
-	switch f, err := dec.NextField(); {
+	switch index, err := dec.NextField(); {
 	case err != nil:
 		return err
-	case f != "":
-		return fmt.Errorf("extra field %q in union %T, from %v", f, x, dec.Type())
+	case index != -1:
+		return fmt.Errorf("extra field %d in union %T, from %v", index, x, dec.Type())
 	}
 	return dec.FinishValue()
 }
@@ -227,19 +241,19 @@ func (x BlobSet) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Info != "" {
-		if err := enc.NextFieldValueString("Info", vdl.StringType, x.Info); err != nil {
+		if err := enc.NextFieldValueString(0, vdl.StringType, x.Info); err != nil {
 			return err
 		}
 	}
 	if len(x.Bs) != 0 {
-		if err := enc.NextField("Bs"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_set_1(enc, x.Bs); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -268,27 +282,34 @@ func (x *BlobSet) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_4); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Info":
+		}
+		if decType != __VDLType_struct_4 {
+			index = __VDLType_struct_4.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Info = value
 			}
-		case "Bs":
+		case 1:
 			if err := __VDLReadAnon_set_1(dec, &x.Bs); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -344,19 +365,19 @@ func (x BlobAny) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Info != "" {
-		if err := enc.NextFieldValueString("Info", vdl.StringType, x.Info); err != nil {
+		if err := enc.NextFieldValueString(0, vdl.StringType, x.Info); err != nil {
 			return err
 		}
 	}
 	if len(x.Baa) != 0 {
-		if err := enc.NextField("Baa"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_list_2(enc, x.Baa); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -394,27 +415,34 @@ func (x *BlobAny) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_6); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Info":
+		}
+		if decType != __VDLType_struct_6 {
+			index = __VDLType_struct_6.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Info = value
 			}
-		case "Baa":
+		case 1:
 			if err := __VDLReadAnon_list_2(dec, &x.Baa); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -472,19 +500,19 @@ func (x NonBlobSet) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Info != "" {
-		if err := enc.NextFieldValueString("Info", vdl.StringType, x.Info); err != nil {
+		if err := enc.NextFieldValueString(0, vdl.StringType, x.Info); err != nil {
 			return err
 		}
 	}
 	if len(x.S) != 0 {
-		if err := enc.NextField("S"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		if err := __VDLWriteAnon_set_3(enc, x.S); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -513,27 +541,34 @@ func (x *NonBlobSet) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_8); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Info":
+		}
+		if decType != __VDLType_struct_8 {
+			index = __VDLType_struct_8.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Info = value
 			}
-		case "S":
+		case 1:
 			if err := __VDLReadAnon_set_3(dec, &x.S); err != nil {
-				return err
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
 				return err
 			}
 		}
@@ -583,12 +618,12 @@ func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.Info != "" {
-		if err := enc.NextFieldValueString("Info", vdl.StringType, x.Info); err != nil {
+		if err := enc.NextFieldValueString(0, vdl.StringType, x.Info); err != nil {
 			return err
 		}
 	}
 	if x.Bo != nil {
-		if err := enc.NextField("Bo"); err != nil {
+		if err := enc.NextField(1); err != nil {
 			return err
 		}
 		enc.SetNextStartValueIsOptional()
@@ -596,7 +631,7 @@ func (x BlobOpt) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -607,22 +642,33 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_10); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "Info":
+		}
+		if decType != __VDLType_struct_10 {
+			index = __VDLType_struct_10.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueString(); {
 			case err != nil:
 				return err
 			default:
 				x.Info = value
 			}
-		case "Bo":
+		case 1:
 			if err := dec.StartValue(__VDLType_optional_11); err != nil {
 				return err
 			}
@@ -637,10 +683,6 @@ func (x *BlobOpt) VDLRead(dec vdl.Decoder) error {
 				if err := x.Bo.VDLRead(dec); err != nil {
 					return err
 				}
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}

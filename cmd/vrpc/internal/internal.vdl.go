@@ -40,16 +40,16 @@ func (x Struct) VDLWrite(enc vdl.Encoder) error {
 		return err
 	}
 	if x.X != 0 {
-		if err := enc.NextFieldValueInt("X", vdl.Int32Type, int64(x.X)); err != nil {
+		if err := enc.NextFieldValueInt(0, vdl.Int32Type, int64(x.X)); err != nil {
 			return err
 		}
 	}
 	if x.Y != 0 {
-		if err := enc.NextFieldValueInt("Y", vdl.Int32Type, int64(x.Y)); err != nil {
+		if err := enc.NextFieldValueInt(1, vdl.Int32Type, int64(x.Y)); err != nil {
 			return err
 		}
 	}
-	if err := enc.NextField(""); err != nil {
+	if err := enc.NextField(-1); err != nil {
 		return err
 	}
 	return enc.FinishValue()
@@ -60,31 +60,38 @@ func (x *Struct) VDLRead(dec vdl.Decoder) error {
 	if err := dec.StartValue(__VDLType_struct_1); err != nil {
 		return err
 	}
+	decType := dec.Type()
 	for {
-		f, err := dec.NextField()
-		if err != nil {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
 			return err
-		}
-		switch f {
-		case "":
+		case index == -1:
 			return dec.FinishValue()
-		case "X":
+		}
+		if decType != __VDLType_struct_1 {
+			index = __VDLType_struct_1.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
 			switch value, err := dec.ReadValueInt(32); {
 			case err != nil:
 				return err
 			default:
 				x.X = int32(value)
 			}
-		case "Y":
+		case 1:
 			switch value, err := dec.ReadValueInt(32); {
 			case err != nil:
 				return err
 			default:
 				x.Y = int32(value)
-			}
-		default:
-			if err := dec.SkipValue(); err != nil {
-				return err
 			}
 		}
 	}
