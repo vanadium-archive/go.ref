@@ -89,7 +89,7 @@ var cmdMount = &cmdline.Command{
 	Name:     "mount",
 	Short:    "Mounts a server <name> onto a mount table",
 	Long:     "Mounts a server <name> onto a mount table",
-	ArgsName: "<mount name> <name> <ttl> [M|R]",
+	ArgsName: "<mount name> <name> <ttl> [L|M|R]",
 	ArgsLong: `
 <mount name> is a mount name on a mount table.
 
@@ -98,8 +98,8 @@ var cmdMount = &cmdline.Command{
 <ttl> is the TTL of the new entry. It is a decimal number followed by a unit
 suffix (s, m, h). A value of 0s represents an infinite duration.
 
-[M|R] are mount options. M indicates that <name> is a mounttable. R indicates
-that existing entries should be removed.
+[L|M|R] are mount options. L indicates that <name> is a leaf. M indicates that
+<name> is a mounttable. R indicates that existing entries should be removed.
 `,
 }
 
@@ -123,6 +123,8 @@ func runMount(ctx *context.T, env *cmdline.Env, args []string) error {
 	if got >= 4 {
 		for _, c := range args[3] {
 			switch c {
+			case 'L':
+				flags |= naming.MountFlag(naming.Leaf)
 			case 'M':
 				flags |= naming.MountFlag(naming.MT)
 			case 'R':
