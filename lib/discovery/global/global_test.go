@@ -29,12 +29,14 @@ func TestBasic(t *testing.T) {
 
 	ads := []discovery.Advertisement{
 		{
-			Id:         discovery.AdId{1, 2, 3},
-			Addresses:  []string{"/h1:123/x", "/h2:123/y"},
-			Attributes: discovery.Attributes{"k": "v"},
+			Id:            discovery.AdId{1, 2, 3},
+			InterfaceName: "foo/bar/baz",
+			Addresses:     []string{"/h1:123/x", "/h2:123/y"},
+			Attributes:    discovery.Attributes{"k": "v"},
 		},
 		{
-			Addresses: []string{"/h1:123/x", "/h2:123/z"},
+			InterfaceName: "foo/bar/baz",
+			Addresses:     []string{"/h1:123/x", "/h2:123/z"},
 		},
 	}
 
@@ -113,7 +115,8 @@ func TestVisibility(t *testing.T) {
 	defer shutdown()
 
 	ad := discovery.Advertisement{
-		Addresses: []string{"/h1:123/x"},
+		InterfaceName: "foo/bar/baz",
+		Addresses:     []string{"/h1:123/x"},
 	}
 	visibility := []security.BlessingPattern{
 		security.BlessingPattern("test-blessing:bob"),
@@ -160,7 +163,8 @@ func TestDuplicates(t *testing.T) {
 	defer shutdown()
 
 	ad := discovery.Advertisement{
-		Addresses: []string{"/h1:123/x"},
+		InterfaceName: "foo/bar/baz",
+		Addresses:     []string{"/h1:123/x"},
 	}
 
 	d, _ := New(ctx, testPath)
@@ -190,7 +194,8 @@ func TestRefresh(t *testing.T) {
 	ns.SetRoots(mtserver.Status().Endpoints[0].Name())
 
 	ad := discovery.Advertisement{
-		Addresses: []string{"/h1:123/x"},
+		InterfaceName: "foo/bar/baz",
+		Addresses:     []string{"/h1:123/x"},
 	}
 
 	const mountTTL = 10 * time.Second

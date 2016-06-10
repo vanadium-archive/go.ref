@@ -14,10 +14,28 @@ import (
 
 func TestAdSuffix(t *testing.T) {
 	testCases := []testCase{
-		{ad: &discovery.Advertisement{}, timestampNs: time.Now().UnixNano()},
-		{ad: &discovery.Advertisement{Id: discovery.AdId{1, 2, 3}}, timestampNs: time.Now().UnixNano()},
-		{ad: &discovery.Advertisement{Attributes: discovery.Attributes{"k": "v"}}, timestampNs: time.Now().UnixNano()},
-		{ad: &discovery.Advertisement{Id: discovery.AdId{1, 2, 3}, Attributes: discovery.Attributes{"k": "v"}}, timestampNs: time.Now().UnixNano()},
+		{
+			ad: &discovery.Advertisement{
+				Id:            discovery.AdId{1, 2, 3},
+				InterfaceName: "foo",
+			},
+			timestampNs: time.Now().UnixNano(),
+		},
+		{
+			ad: &discovery.Advertisement{
+				Attributes:    discovery.Attributes{"k": "v"},
+				InterfaceName: "foo",
+			},
+			timestampNs: time.Now().UnixNano(),
+		},
+		{
+			ad: &discovery.Advertisement{
+				Id:            discovery.AdId{1, 2, 3},
+				Attributes:    discovery.Attributes{"k": "v"},
+				InterfaceName: "foo",
+			},
+			timestampNs: time.Now().UnixNano(),
+		},
 	}
 	for i, want := range testCases {
 		encAd, err := encodeAdToSuffix(want.ad, want.timestampNs)

@@ -15,7 +15,7 @@ import (
 
 // encodeAdToSuffix encodes the ad.Id and the ad.Attributes into the suffix at
 // which we mount the advertisement.
-// The format of the generated suffix is id/timestamp/attributes.
+// The format of the generated suffix is id/interfaceName/timestamp/attributes.
 //
 // TODO(suharshs): Currently only the id and the attributes are encoded; we may
 // want to encode the rest of the advertisement someday?
@@ -26,28 +26,34 @@ func encodeAdToSuffix(ad *discovery.Advertisement, timestampNs int64) (string, e
 	}
 	// Escape suffixDelim to use it as our delimeter between the id and the attrs.
 	id := ad.Id.String()
+	// InterfaceName can never be empty as per validate.go.
+	interfaceName := naming.EncodeAsNameElement(ad.InterfaceName)
 	timestamp := strconv.FormatInt(timestampNs, 10)
 	attr := naming.EncodeAsNameElement(string(b))
-	return naming.Join(id, timestamp, attr), nil
+	return naming.Join(id, interfaceName, timestamp, attr), nil
 }
 
 // decodeAdFromSuffix decodes in into an advertisement.
-// The format of the input suffix is id/timestamp/attributes.
+// The format of the input suffix is id/interfaceName/timestamp/attributes.
 func decodeAdFromSuffix(in string) (*discovery.Advertisement, int64, error) {
-	parts := strings.SplitN(in, "/", 3)
-	if len(parts) != 3 {
+	parts := strings.SplitN(in, "/", 4)
+	if len(parts) != 4 {
 		return nil, 0, NewErrAdInvalidEncoding(nil, in)
 	}
 	var err error
+	var ok bool
 	ad := &discovery.Advertisement{}
 	if ad.Id, err = discovery.ParseAdId(parts[0]); err != nil {
 		return nil, 0, err
 	}
-	timestampNs, err := strconv.ParseInt(parts[1], 10, 64)
+	if ad.InterfaceName, ok = naming.DecodeFromNameElement(parts[1]); !ok {
+		return nil, 0, NewErrAdInvalidEncoding(nil, in)
+	}
+	timestampNs, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
 		return nil, 0, err
 	}
-	attrs, ok := naming.DecodeFromNameElement(parts[2])
+	attrs, ok := naming.DecodeFromNameElement(parts[3])
 	if !ok {
 		return nil, 0, NewErrAdInvalidEncoding(nil, in)
 	}

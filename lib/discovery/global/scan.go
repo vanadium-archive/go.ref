@@ -28,7 +28,7 @@ func (d *gdiscovery) Scan(ctx *context.T, query string) (<-chan discovery.Update
 
 		var prevFound map[discovery.AdId]*idiscovery.AdInfo
 		for {
-			found, err := d.doScan(ctx, matcher.TargetKey(), matcher)
+			found, err := d.doScan(ctx, matcher)
 			if found == nil {
 				if err != nil {
 					ctx.Error(err)
@@ -48,24 +48,8 @@ func (d *gdiscovery) Scan(ctx *context.T, query string) (<-chan discovery.Update
 	return updateCh, nil
 }
 
-func (d *gdiscovery) doScan(ctx *context.T, target string, matcher idiscovery.Matcher) (map[discovery.AdId]*idiscovery.AdInfo, error) {
-	// If the target is neither empty nor a valid AdId, we return without an error,
-	// since there will be not entries with the requested target length in the namespace.
-	if len(target) > 0 {
-		if _, err := discovery.ParseAdId(target); err != nil {
-			return nil, nil
-		}
-	}
-
-	// In the case of empty, we need to scan for everything.
-	// In the case where target is a AdId we need to scan for entries prefixed with
-	// the AdId with any encoded attributes afterwards.
-	if len(target) == 0 {
-		target = naming.Join("*", "*", "*")
-	} else {
-		target = naming.Join(target, "*", "*")
-	}
-	scanCh, err := d.ns.Glob(ctx, target)
+func (d *gdiscovery) doScan(ctx *context.T, matcher idiscovery.Matcher) (map[discovery.AdId]*idiscovery.AdInfo, error) {
+	scanCh, err := d.ns.Glob(ctx, generateGlobQuery(matcher))
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +92,20 @@ func (d *gdiscovery) doScan(ctx *context.T, target string, matcher idiscovery.Ma
 			return nil, nil
 		}
 	}
+}
+
+func generateGlobQuery(matcher idiscovery.Matcher) string {
+	// The suffixes are of the form "id/interfaceName/timestamp/attrs" so we need
+	// to replace wildcards in our query with values based on the query matcher.
+	id, interfaceName, timestamp, attrs := "*", "*", "*", "*"
+	// Currently we support query by id or interfaceName.
+	if targetKey := matcher.TargetKey(); targetKey != "" {
+		id = targetKey
+	}
+	if targetInterface := matcher.TargetInterfaceName(); targetInterface != "" {
+		interfaceName = targetInterface
+	}
+	return naming.Join(id, interfaceName, timestamp, attrs)
 }
 
 func (d *gdiscovery) hasAd(ad *discovery.Advertisement) bool {

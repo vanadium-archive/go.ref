@@ -17,37 +17,40 @@ func TestValidateAd(t *testing.T) {
 	}{
 		{
 			discovery.Advertisement{
-				Id:         discovery.AdId{1, 2, 3},
-				Addresses:  []string{"/h:123/x"},
-				Attributes: discovery.Attributes{"k": "v"},
+				Id:            discovery.AdId{1, 2, 3},
+				Addresses:     []string{"/h:123/x"},
+				Attributes:    discovery.Attributes{"k": "v"},
+				InterfaceName: "foo/bar/baz",
 			},
 			true,
 		},
 		{
 			discovery.Advertisement{
-				Id:        discovery.AdId{}, // Invalid id.
-				Addresses: []string{"/h:123/x"},
+				Id:            discovery.AdId{}, // Invalid id.
+				Addresses:     []string{"/h:123/x"},
+				InterfaceName: "foo/bar/baz",
 			},
 			false,
 		},
 		{
 			discovery.Advertisement{ // No addresses.
-				Id: discovery.AdId{1, 2, 3},
+				Id:            discovery.AdId{1, 2, 3},
+				InterfaceName: "foo/bar/baz",
+			},
+			false,
+		},
+		{
+			discovery.Advertisement{ // Has no interface name.
+				Id:        discovery.AdId{1, 2, 3},
+				Addresses: []string{"/h:123/x"},
 			},
 			false,
 		},
 		{
 			discovery.Advertisement{
 				Id:            discovery.AdId{1, 2, 3},
-				InterfaceName: "v.io/v23/a", // Has interface name.
+				InterfaceName: "foo/bar/baz",
 				Addresses:     []string{"/h:123/x"},
-			},
-			false,
-		},
-		{
-			discovery.Advertisement{
-				Id:        discovery.AdId{1, 2, 3},
-				Addresses: []string{"/h:123/x"},
 				Attachments: discovery.Attachments{ // Has attachments.
 					"k": []byte{1},
 				},

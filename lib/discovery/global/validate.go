@@ -15,8 +15,8 @@ func validateAd(ad *discovery.Advertisement) error {
 	if !ad.Id.IsValid() {
 		return errors.New("id not valid")
 	}
-	if len(ad.InterfaceName) > 0 {
-		return errors.New("interface name not supported")
+	if len(ad.InterfaceName) == 0 {
+		return errors.New("interface name not provided")
 	}
 	if len(ad.Addresses) == 0 {
 		return errors.New("address not provided")
