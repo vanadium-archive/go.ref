@@ -108,8 +108,9 @@ func encodeAdInfo(adinfo *idiscovery.AdInfo) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func unpackFromCharacteristics(cs map[string][]byte) [][]byte {
+func unpackFromCharacteristics(cs map[string][]byte) ([][]byte, error) {
 	var unpacked [][]byte
+	used := 0
 	for i := 0; i < maxNumPackedServices; i++ {
 		if _, ok := cs[cUuid(i, 0)]; !ok {
 			break
@@ -117,11 +118,13 @@ func unpackFromCharacteristics(cs map[string][]byte) [][]byte {
 
 		var splitted [][]byte
 		for j := 0; j < maxNumPackedCharacteristicsPerService; j++ {
-			c, ok := cs[cUuid(i, j)]
+			uuid := cUuid(i, j)
+			c, ok := cs[uuid]
 			if !ok {
 				break
 			}
 			splitted = append(splitted, c)
+			used++
 		}
 
 		if len(splitted) == 1 {
@@ -129,7 +132,10 @@ func unpackFromCharacteristics(cs map[string][]byte) [][]byte {
 			unpacked = append(unpacked, splitted[0])
 		} else {
 			n := 0
-			for _, d := range splitted {
+			for j, d := range splitted {
+				if j < len(splitted)-1 && len(d) != maxCharacteristicValueLen {
+					return nil, fmt.Errorf("invalid characteristics: %v", cs)
+				}
 				n += len(d)
 			}
 			merged := make([]byte, n)
@@ -140,7 +146,10 @@ func unpackFromCharacteristics(cs map[string][]byte) [][]byte {
 			unpacked = append(unpacked, merged)
 		}
 	}
-	return unpacked
+	if len(cs) != used {
+		return nil, fmt.Errorf("invalid characteristics: %v", cs)
+	}
+	return unpacked, nil
 }
 
 func decodeAdInfo(encoded []byte) (*idiscovery.AdInfo, error) {

@@ -145,11 +145,16 @@ func (s *scanner) scanLoop() {
 
 func (s *scanner) OnDiscovered(uuid string, characteristics map[string][]byte, rssi int) {
 	// TODO(jhahn): Add rssi to adinfo.
-	unpacked := unpackFromCharacteristics(characteristics)
+	unpacked, err := unpackFromCharacteristics(characteristics)
+	if err != nil {
+		s.ctx.Errorf("failed to unpack characteristics for %v: %v", uuid, err)
+		return
+	}
+
 	for _, encoded := range unpacked {
 		adinfo, err := decodeAdInfo(encoded)
 		if err != nil {
-			s.ctx.Error(err)
+			s.ctx.Errorf("failed to decode characteristics for %v: %v", uuid, err)
 			continue
 		}
 
