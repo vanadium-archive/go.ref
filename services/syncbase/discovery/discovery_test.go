@@ -18,9 +18,14 @@ import (
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
 	"v.io/v23/verror"
+	idiscovery "v.io/x/ref/lib/discovery"
+	fdiscovery "v.io/x/ref/lib/discovery/factory"
+	"v.io/x/ref/lib/discovery/global"
+	"v.io/x/ref/lib/discovery/plugins/mock"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	syncdis "v.io/x/ref/services/syncbase/discovery"
 	tu "v.io/x/ref/services/syncbase/testutil"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -132,7 +137,7 @@ func scanAs(ctx *context.T, rootp security.Principal, as string) (<-chan discove
 	if err != nil {
 		return nil, err
 	}
-	dis, err := syncdis.NewDiscovery(ctx)
+	dis, err := syncdis.NewDiscovery(ctx, "", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +179,100 @@ func expect(ch <-chan discovery.Update, id *discovery.AdId, typ string, want dis
 	case <-time.After(2 * time.Second):
 		return fmt.Errorf("timed out")
 	}
+}
+
+func TestGlobalSyncbaseDiscovery(t *testing.T) {
+	ctx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+	// Create syncbase discovery service with mock neighborhood discovery.
+	p := mock.New()
+	df, _ := idiscovery.NewFactory(ctx, p)
+	defer df.Shutdown()
+	fdiscovery.InjectFactory(df)
+	const globalDiscoveryPath = "syncdis"
+	gdis, err := global.New(ctx, globalDiscoveryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dis, err := syncdis.NewDiscovery(ctx, globalDiscoveryPath, 100*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Start the syncbase discovery scan.
+	scanCh, err := dis.Scan(ctx, ``)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The ids of all the ads match.
+	ad := &discovery.Advertisement{
+		Id:            discovery.AdId{1, 2, 3},
+		InterfaceName: "v.io/a",
+		Addresses:     []string{"/h1:123/x", "/h2:123/y"},
+		Attributes:    discovery.Attributes{"a": "v"},
+	}
+	newad := &discovery.Advertisement{
+		Id:            discovery.AdId{1, 2, 3},
+		InterfaceName: "v.io/a",
+		Addresses:     []string{"/h1:123/x", "/h3:123/z"},
+		Attributes:    discovery.Attributes{"a": "v"},
+	}
+	newadattach := &discovery.Advertisement{
+		Id:            discovery.AdId{1, 2, 3},
+		InterfaceName: "v.io/a",
+		Addresses:     []string{"/h1:123/x", "/h3:123/z"},
+		Attributes:    discovery.Attributes{"a": "v"},
+		Attachments:   discovery.Attachments{"k": []byte("v")},
+	}
+	adinfo := &idiscovery.AdInfo{
+		Ad:          *ad,
+		Hash:        idiscovery.AdHash{1, 2, 3},
+		TimestampNs: time.Now().UnixNano(),
+	}
+	newadattachinfo := &idiscovery.AdInfo{
+		Ad:          *newadattach,
+		Hash:        idiscovery.AdHash{3, 2, 1},
+		TimestampNs: time.Now().UnixNano(),
+	}
+	// Advertise ad via both services, we should get a found update.
+	adCtx, adCancel := context.WithCancel(ctx)
+	p.RegisterAd(adinfo)
+	adStopped, err := gdis.Advertise(adCtx, ad, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if err := expect(scanCh, &ad.Id, find, ad.Attributes); err != nil {
+		t.Error(err)
+	}
+	// Lost via both services, we should get a lost update.
+	p.UnregisterAd(adinfo)
+	adCancel()
+	<-adStopped
+	if err := expect(scanCh, &ad.Id, lose, ad.Attributes); err != nil {
+		t.Error(err)
+	}
+	// Advertise via mock plugin, we should get a found update.
+	p.RegisterAd(adinfo)
+	if err := expect(scanCh, &ad.Id, find, ad.Attributes); err != nil {
+		t.Error(err)
+	}
+	// Advertise via global discovery with a newer changed ad, we should get a lost ad
+	// update and found ad update.
+	adCtx, adCancel = context.WithCancel(ctx)
+	adStopped, err = gdis.Advertise(adCtx, newad, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if err := expect(scanCh, &newad.Id, both, newad.Attributes); err != nil {
+		t.Error(err)
+	}
+	// If we advertise an ad from neighborhood discovery that is identical to the
+	// ad found from global discovery, but has attachments, we should prefer it.
+	p.RegisterAd(newadattachinfo)
+	if err := expect(scanCh, &newad.Id, both, newad.Attributes); err != nil {
+		t.Error(err)
+	}
+	adCancel()
+	<-adStopped
 }
 
 func TestListenForInvites(t *testing.T) {

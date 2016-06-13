@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -16,10 +17,16 @@ import (
 	"v.io/v23/security"
 	wire "v.io/v23/services/syncbase"
 	"v.io/x/lib/nsync"
+	"v.io/x/ref/lib/discovery/global"
 	"v.io/x/ref/services/syncbase/server/interfaces"
 )
 
-const visibilityKey = "vis"
+const (
+	visibilityKey = "vis"
+
+	nhDiscoveryKey = iota
+	globalDiscoveryKey
+)
 
 // Discovery implements v.io/v23/discovery.T for syncbase based
 // applications.
@@ -27,24 +34,45 @@ const visibilityKey = "vis"
 // point we should just replace the result of v23.NewDiscovery
 // with this.
 type Discovery struct {
-	nhDiscovery discovery.T
-	// TODO(mattr): Add global discovery.
+	nhDiscovery     discovery.T
+	globalDiscovery discovery.T
 }
 
 // NewDiscovery creates a new syncbase discovery object.
-func NewDiscovery(ctx *context.T) (discovery.T, error) {
-	nhDiscovery, err := v23.NewDiscovery(ctx)
-	if err != nil {
+// globalDiscoveryPath is the path in the namespace where global disovery
+// advertisements will be mounted.
+// If globalDiscoveryPath is empty, no global discovery service will be created.
+// globalScanInterval is the interval at which global discovery will be refreshed.
+// If globalScanInterval is 0, the defaultScanInterval of global discovery will
+// be used.
+func NewDiscovery(ctx *context.T, globalDiscoveryPath string, globalScanInterval time.Duration) (discovery.T, error) {
+	d := &Discovery{}
+	var err error
+	if d.nhDiscovery, err = v23.NewDiscovery(ctx); err != nil {
 		return nil, err
 	}
-	return &Discovery{nhDiscovery: nhDiscovery}, nil
+	if globalDiscoveryPath != "" {
+		if d.globalDiscovery, err = global.NewWithTTL(ctx, globalDiscoveryPath, 0, globalScanInterval); err != nil {
+			return nil, err
+		}
+	}
+	return d, nil
 }
 
 // Scan implements v.io/v23/discovery/T.Scan.
 func (d *Discovery) Scan(ctx *context.T, query string) (<-chan discovery.Update, error) {
-	nhUpdates, err := d.nhDiscovery.Scan(ctx, query)
+	nhCtx, nhCancel := context.WithCancel(ctx)
+	nhUpdates, err := d.nhDiscovery.Scan(nhCtx, query)
 	if err != nil {
+		nhCancel()
 		return nil, err
+	}
+	var globalUpdates <-chan discovery.Update
+	if d.globalDiscovery != nil {
+		if globalUpdates, err = d.globalDiscovery.Scan(ctx, query); err != nil {
+			nhCancel()
+			return nil, err
+		}
 	}
 
 	// Currently setting visibility on the neighborhood discovery
@@ -57,25 +85,70 @@ func (d *Discovery) Scan(ctx *context.T, query string) (<-chan discovery.Update,
 	updates := make(chan discovery.Update)
 	go func() {
 		defer close(updates)
+		seen := make(map[discovery.AdId]*updateRef)
 		for {
 			var u discovery.Update
+			var src uint // key of the source discovery service where the update came from
 			select {
 			case <-ctx.Done():
 				return
 			case u = <-nhUpdates:
+				src = nhDiscoveryKey
+			case u = <-globalUpdates:
+				src = globalDiscoveryKey
 			}
-			if u == nil {
-				continue
-			}
-			patterns := splitPatterns(u.Attribute(visibilityKey))
-			if len(patterns) > 0 && !matchesPatterns(ctx, patterns) {
-				continue
-			}
-			updates <- update{u}
+			d.handleUpdate(ctx, u, src, seen, updates)
 		}
 	}()
 
 	return updates, nil
+}
+
+func (d *Discovery) handleUpdate(ctx *context.T, u discovery.Update, src uint, seen map[discovery.AdId]*updateRef, updates chan discovery.Update) {
+	if u == nil {
+		return
+	}
+	patterns := splitPatterns(u.Attribute(visibilityKey))
+	if len(patterns) > 0 && !matchesPatterns(ctx, patterns) {
+		return
+	}
+
+	id := u.Id()
+	prev := seen[id]
+	if u.IsLost() {
+		// Only send the lost noitification if a found event was previously seen,
+		// and all discovery services that found it have lost it.
+		if prev == nil || !prev.unset(src) {
+			return
+		}
+		delete(seen, id)
+		updates <- update{Update: u, lost: true}
+		return
+	}
+
+	if prev == nil {
+		// Always send updates for updates that we have never seen before.
+		ref := &updateRef{update: u}
+		ref.set(src)
+		seen[id] = ref
+		updates <- update{Update: u}
+		return
+	}
+
+	if differ := updatesDiffer(prev.update, u); (differ && u.Timestamp().After(prev.update.Timestamp())) ||
+		(!differ && src == nhDiscoveryKey && len(u.Advertisement().Attachments) > 0) {
+		// If the updates differ and the newly found update has a later time than
+		// previously found one, lose prev and find new.
+		// Or, if the update doesn't differ, but is from neighborhood discovery, it
+		// could have more information since we don't yet encode attachements in
+		// global discovery.
+		updates <- update{Update: prev.update, lost: true}
+		ref := &updateRef{update: u}
+		ref.set(src)
+		seen[id] = ref
+		updates <- update{Update: u}
+		return
+	}
 }
 
 // Advertise implements v.io/v23/discovery/T.Advertise.
@@ -96,9 +169,66 @@ func (d *Discovery) Advertise(ctx *context.T, ad *discovery.Advertisement, visib
 		patterns := joinPatterns(visibility)
 		adCopy.Attributes[visibilityKey] = patterns
 	}
-	ch, err := d.nhDiscovery.Advertise(ctx, &adCopy, nil)
+
+	stopped := make(chan struct{})
+	nhCtx, nhCancel := context.WithCancel(ctx)
+	nhStopped, err := d.nhDiscovery.Advertise(nhCtx, &adCopy, nil)
+	if err != nil {
+		nhCancel()
+		return nil, err
+	}
+	var globalStopped <-chan struct{}
+	if d.globalDiscovery != nil {
+		if globalStopped, err = d.globalDiscovery.Advertise(ctx, &adCopy, nil); err != nil {
+			nhCancel()
+			<-nhStopped
+			return nil, err
+		}
+	}
+	go func() {
+		<-nhStopped
+		if d.globalDiscovery != nil {
+			<-globalStopped
+		}
+		close(stopped)
+	}()
 	ad.Id = adCopy.Id
-	return ch, err
+	return stopped, nil
+}
+
+func updatesDiffer(a, b discovery.Update) bool {
+	if !sortedStringsEqual(a.Addresses(), b.Addresses()) {
+		return true
+	}
+	if !mapsEqual(a.Advertisement().Attributes, b.Advertisement().Attributes) {
+		return true
+	}
+	return false
+}
+
+func mapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for ka, va := range a {
+		if vb, ok := b[ka]; !ok || va != vb {
+			return false
+		}
+	}
+	return true
+}
+
+func sortedStringsEqual(a, b []string) bool {
+	// We want to make a nil and an empty slices equal to avoid unnecessary inequality by that.
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func matchesPatterns(ctx *context.T, patterns []security.BlessingPattern) bool {
@@ -115,10 +245,39 @@ func matchesPatterns(ctx *context.T, patterns []security.BlessingPattern) bool {
 	return false
 }
 
-// update wraps the discovery.Update to remove the visibility attribute which we add.
+type updateRef struct {
+	update    discovery.Update
+	nhRef     bool
+	globalRef bool
+}
+
+func (r *updateRef) set(d uint) {
+	switch d {
+	case nhDiscoveryKey:
+		r.nhRef = true
+	case globalDiscoveryKey:
+		r.globalRef = true
+	}
+}
+
+func (r *updateRef) unset(d uint) bool {
+	switch d {
+	case nhDiscoveryKey:
+		r.nhRef = false
+	case globalDiscoveryKey:
+		r.globalRef = false
+	}
+	return !r.nhRef && !r.globalRef
+}
+
+// update wraps the discovery.Update to remove the visibility attribute which we add
+// and allows us to mark the update as lost.
 type update struct {
 	discovery.Update
+	lost bool
 }
+
+func (u update) IsLost() bool { return u.lost }
 
 func (u update) Attribute(name string) string {
 	if name == visibilityKey {
@@ -206,7 +365,8 @@ func newScan(ctx *context.T) (*scanState, error) {
 		dbs:    make(map[wire.Id]*inviteQueue),
 		cancel: cancel,
 	}
-	d, err := NewDiscovery(ctx)
+	// TODO(suharshs): Add globalDiscoveryPath.
+	d, err := NewDiscovery(ctx, "", 0)
 	if err != nil {
 		scan.cancel()
 		return nil, err
