@@ -236,6 +236,7 @@ func Close(ss interfaces.SyncServerMethods) {
 	defer vlog.VI(2).Infof("sync: Close: end")
 
 	s := ss.(*syncService)
+	s.stopAdvertisingSyncbaseInNeighborhood()
 	close(s.closed)
 	s.pending.Wait()
 	s.bst.Close()
@@ -478,21 +479,28 @@ func (s *syncService) advertiseSyncbaseInNeighborhood() error {
 		},
 	}
 
-	ctx, stop := context.WithCancel(s.ctx)
-
 	// Note that duplicate calls to advertise will return an error.
+	ctx, stop := context.WithCancel(s.ctx)
 	ch, err := idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, nil)
-
-	if err == nil {
-		vlog.VI(4).Infof("sync: advertiseSyncbaseInNeighborhood: successful")
-		s.cancelAdvSyncbase = func() {
-			stop()
-			<-ch
-		}
-		return nil
+	if err != nil {
+		stop()
+		return err
 	}
-	stop()
-	return err
+	vlog.VI(4).Infof("sync: advertiseSyncbaseInNeighborhood: successful")
+	s.cancelAdvSyncbase = func() {
+		stop()
+		<-ch
+	}
+	return nil
+}
+
+func (s *syncService) stopAdvertisingSyncbaseInNeighborhood() {
+	s.advLock.Lock()
+	cancelAdvSyncbase := s.cancelAdvSyncbase
+	s.advLock.Unlock()
+	if cancelAdvSyncbase != nil {
+		cancelAdvSyncbase()
+	}
 }
 
 // advertiseSyncgroupInNeighborhood checks if this Syncbase is an admin of the
@@ -550,7 +558,6 @@ func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup)
 	if advertising {
 		sbService.Id = state.adId
 	}
-	ctx, stop := context.WithCancel(s.ctx)
 
 	vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: advertising %v", sbService)
 
@@ -559,18 +566,19 @@ func (s *syncService) advertiseSyncgroupInNeighborhood(sg *interfaces.Syncgroup)
 	// if you match the In list you can see the advertisement, though you
 	// might not be able to join.
 	visibility := sg.Spec.Perms[string(access.Read)].In
+	ctx, stop := context.WithCancel(s.ctx)
 	ch, err := idiscovery.AdvertiseServer(ctx, s.discovery, s.svr, "", &sbService, visibility)
-	if err == nil {
-		vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: successful")
-		cancel := func() {
-			stop()
-			<-ch
-		}
-		s.advSyncgroups[gid] = syncAdvertisementState{cancel: cancel, specVersion: sg.SpecVersion, adId: sbService.Id}
-		return nil
+	if err != nil {
+		stop()
+		return err
 	}
-	stop()
-	return err
+	vlog.VI(4).Infof("sync: advertiseSyncgroupInNeighborhood: successful")
+	cancel := func() {
+		stop()
+		<-ch
+	}
+	s.advSyncgroups[gid] = syncAdvertisementState{cancel: cancel, specVersion: sg.SpecVersion, adId: sbService.Id}
+	return nil
 }
 
 //////////////////////////////
