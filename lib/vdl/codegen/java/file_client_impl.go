@@ -60,10 +60,18 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
     {{/* The optionless overload simply calls the overload with options */}}
     @Override
     public {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext _context{{ $method.DeclarationArgs }}) {
-        return {{ $method.Name }}(_context{{ $method.CallingArgsLeadingComma }}, null);
+        return {{ $method.Name }}(_context{{ $method.CallingArgsLeadingComma }}, (io.v.v23.options.RpcOptions)null);
     }
+
+    {{/* Overload taking deprecated legacy options */}}
+    @Deprecated
     @Override
     public {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext _context{{ $method.DeclarationArgs }}, io.v.v23.Options _opts) {
+        return {{ $method.Name }}(_context{{ $method.CallingArgsLeadingComma }}, io.v.v23.options.RpcOptions.migrateOptions(_opts));
+    }
+
+    @Override
+    public {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext _context{{ $method.DeclarationArgs }}, io.v.v23.options.RpcOptions _opts) {
         {{/* Start the vanadium call */}}
         // Start the call.
         java.lang.Object[] _args = new java.lang.Object[]{ {{ $method.CallingArgs }} };
@@ -183,8 +191,15 @@ final class {{ .ServiceName }}ClientImpl implements {{ .FullServiceName }}Client
         {{/* e.g. return this.implArith.cosine(context, [args]) */}}
         return this.impl{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(_context{{ $eMethod.CallingArgsLeadingComma }});
     }
+    {{/* Overload taking deprecated legacy options */}}
+    @Deprecated
     @Override
     public {{ $eMethod.RetType }} {{ $eMethod.Name }}(io.v.v23.context.VContext _context{{ $eMethod.DeclarationArgs }}, io.v.v23.Options _opts) {
+        {{/* e.g. return this.implArith.cosine(_context, [args], options) */}}
+        return this.impl{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(_context{{ $eMethod.CallingArgsLeadingComma }}, _opts);
+    }
+    @Override
+    public {{ $eMethod.RetType }} {{ $eMethod.Name }}(io.v.v23.context.VContext _context{{ $eMethod.DeclarationArgs }}, io.v.v23.options.RpcOptions _opts) {
         {{/* e.g. return this.implArith.cosine(_context, [args], options) */}}
         return this.impl{{ $eMethod.IfaceName }}.{{ $eMethod.Name }}(_context{{ $eMethod.CallingArgsLeadingComma }}, _opts);
     }

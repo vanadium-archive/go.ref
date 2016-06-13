@@ -45,7 +45,14 @@ public interface {{ .ServiceName }}Client {{ .Extends }} {
     {{ if $method.NonStreaming }}
     @javax.annotation.CheckReturnValue
     {{ end }} {{/* end if $method.NonStreaming */}}
+    @java.lang.Deprecated
     {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}, io.v.v23.Options opts);
+
+    {{ $method.Doc }}
+    {{ if $method.NonStreaming }}
+    @javax.annotation.CheckReturnValue
+    {{ end }} {{/* end if $method.NonStreaming */}}
+    {{ $method.RetType }} {{ $method.Name }}(io.v.v23.context.VContext context{{ $method.Args }}, io.v.v23.options.RpcOptions opts);
 {{ end }}
 }
 `
