@@ -5,6 +5,9 @@
 package rpc
 
 import (
+	"bytes"
+	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -14,6 +17,79 @@ import (
 
 	"v.io/v23/naming"
 )
+
+type outstandingCall struct {
+	remote naming.Endpoint
+	method string
+	when   time.Time
+}
+
+type outstandingCalls []*outstandingCall
+
+func (oc outstandingCalls) Less(i, j int) bool {
+	return oc[i].when.Before(oc[j].when)
+}
+func (oc outstandingCalls) Swap(i, j int) {
+	oc[i], oc[j] = oc[j], oc[i]
+}
+func (oc outstandingCalls) Len() int {
+	return len(oc)
+}
+
+type outstandingStats struct {
+	prefix      string
+	mu          sync.Mutex
+	outstanding map[*outstandingCall]bool
+}
+
+func newOutstandingStats(prefix string) *outstandingStats {
+	o := &outstandingStats{
+		prefix:      prefix,
+		outstanding: make(map[*outstandingCall]bool),
+	}
+	stats.NewStringFunc(prefix, o.String)
+	return o
+}
+
+func (o *outstandingStats) String() string {
+	defer o.mu.Unlock()
+	o.mu.Lock()
+	if len(o.outstanding) == 0 {
+		return "No outstanding calls."
+	}
+	calls := make(outstandingCalls, 0, len(o.outstanding))
+	for o := range o.outstanding {
+		calls = append(calls, o)
+	}
+	sort.Sort(calls)
+	now := time.Now()
+	buf := &bytes.Buffer{}
+	for _, o := range calls {
+		fmt.Fprintf(buf, "%s age:%v from:%v\n", o.method, now.Sub(o.when), o.remote)
+	}
+	return buf.String()
+}
+
+func (o *outstandingStats) close() {
+	stats.Delete(o.prefix)
+}
+
+func (o *outstandingStats) start(method string, remote naming.Endpoint) func() {
+	o.mu.Lock()
+	nw := &outstandingCall{
+		method: method,
+		remote: remote,
+		when:   time.Now(),
+	}
+	o.outstanding[nw] = true
+	o.mu.Unlock()
+
+	return func() {
+		o.mu.Lock()
+		delete(o.outstanding, nw)
+		o.mu.Unlock()
+	}
+}
 
 type rpcStats struct {
 	mu                  sync.RWMutex

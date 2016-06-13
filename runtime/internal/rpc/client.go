@@ -84,6 +84,7 @@ type client struct {
 	flowMgr            flow.Manager
 	preferredProtocols []string
 	ctx                *context.T
+	outstanding        *outstandingStats
 	// stop is kept for backward compatibilty to implement Close().
 	// TODO(mattr): deprecate Close.
 	stop func()
@@ -101,11 +102,13 @@ var _ rpc.Client = (*client)(nil)
 
 func NewClient(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
 	ctx, cancel := context.WithCancel(ctx)
+	statsPrefix := fmt.Sprintf("rpc/client/outstanding/%p", ctx)
 	c := &client{
-		ctx:       ctx,
-		typeCache: newTypeCache(),
-		stop:      cancel,
-		closed:    make(chan struct{}),
+		ctx:         ctx,
+		typeCache:   newTypeCache(),
+		stop:        cancel,
+		closed:      make(chan struct{}),
+		outstanding: newOutstandingStats(statsPrefix),
 	}
 
 	connIdleExpiry := time.Duration(0)
@@ -131,6 +134,7 @@ func NewClient(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
 
 		<-c.flowMgr.Closed()
 		c.wg.Wait()
+		c.outstanding.close()
 		close(c.closed)
 	}()
 
@@ -179,7 +183,8 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 		return nil, err
 	}
 
-	fc, err := newFlowClient(ctx, r.flow, r.typeEnc, r.typeDec)
+	removeStat := c.outstanding.start(method, r.flow.RemoteEndpoint())
+	fc, err := newFlowClient(ctx, removeStat, r.flow, r.typeEnc, r.typeDec)
 	if err != nil {
 		return nil, err
 	}
@@ -583,24 +588,31 @@ type flowClient struct {
 	sendClosedMu sync.Mutex
 	sendClosed   bool // is the send side already closed? GUARDED_BY(sendClosedMu)
 	finished     bool // has Finish() already been called?
+	removeStat   func()
 }
 
 var _ rpc.ClientCall = (*flowClient)(nil)
 var _ rpc.Stream = (*flowClient)(nil)
 
-func newFlowClient(ctx *context.T, flow flow.Flow, typeEnc *vom.TypeEncoder, typeDec *vom.TypeDecoder) (*flowClient, error) {
+func newFlowClient(ctx *context.T, removeStat func(), flow flow.Flow, typeEnc *vom.TypeEncoder, typeDec *vom.TypeDecoder) (*flowClient, error) {
 	bf := conn.NewBufferingFlow(ctx, flow)
 	if _, err := bf.Write([]byte{dataFlow}); err != nil {
 		flow.Close()
+		removeStat()
 		return nil, err
 	}
 	fc := &flowClient{
-		ctx:  ctx,
-		flow: bf,
-		dec:  vom.NewDecoderWithTypeDecoder(bf, typeDec),
-		enc:  vom.NewEncoderWithTypeEncoder(bf, typeEnc),
+		ctx:        ctx,
+		flow:       bf,
+		dec:        vom.NewDecoderWithTypeDecoder(bf, typeDec),
+		enc:        vom.NewEncoderWithTypeEncoder(bf, typeEnc),
+		removeStat: removeStat,
 	}
 	return fc, nil
+}
+
+func (fc *flowClient) Conn() flow.ManagedConn {
+	return fc.flow.Conn()
 }
 
 // close determines the appropriate error to return, in particular,
@@ -610,6 +622,10 @@ func newFlowClient(ctx *context.T, flow flow.Flow, typeEnc *vom.TypeEncoder, typ
 // a timeout can lead to any other number of errors due to the underlying
 // network connection being shutdown abruptly.
 func (fc *flowClient) close(err error) error {
+	fc.removeStat()
+	if err == nil {
+		return nil
+	}
 	subErr := verror.SubErr{Err: err, Options: verror.Print}
 	subErr.Name = "remote=" + fc.flow.RemoteEndpoint().String()
 	if cerr := fc.flow.Close(); cerr != nil && err == nil {
@@ -866,6 +882,7 @@ func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 			return fc.close(berr)
 		}
 	}
+	fc.close(nil)
 	return nil
 }
 

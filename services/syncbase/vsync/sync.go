@@ -29,6 +29,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	idiscovery "v.io/x/ref/lib/discovery"
+	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/services/syncbase/common"
 	syncdis "v.io/x/ref/services/syncbase/discovery"
 	blob "v.io/x/ref/services/syncbase/localblobstore"
@@ -124,6 +125,9 @@ type syncService struct {
 
 	// Peer manager for managing peers to sync with.
 	pm peerManager
+
+	// Naming prefix at which debugging information is exported.
+	statPrefix string
 }
 
 // syncDatabase contains the metadata for syncing a database. This struct is
@@ -173,7 +177,9 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 		discovery:      discovery,
 		publishInNh:    publishInNh,
 		advSyncgroups:  make(map[interfaces.GroupId]syncAdvertisementState),
+		statPrefix:     syncServiceStatName(),
 	}
+	s.exportStats()
 
 	data := &SyncData{}
 	if err := store.RunInTransaction(sv.St(), func(tx store.Transaction) error {
@@ -217,6 +223,7 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 
 	// Start the peer manager thread to maintain peers viable for syncing.
 	go s.pm.managePeers(ctx)
+	s.pm.exportStats(naming.Join("syncbase", s.name))
 
 	// Start initiator thread to periodically get deltas from peers. The
 	// initiator threads consults the peer manager to pick peers to sync
@@ -240,6 +247,7 @@ func Close(ss interfaces.SyncServerMethods) {
 	close(s.closed)
 	s.pending.Wait()
 	s.bst.Close()
+	stats.Delete(s.statPrefix)
 }
 
 func NewSyncDatabase(db interfaces.Database) *syncDatabase {
@@ -294,7 +302,7 @@ func (s *syncService) updateDiscoveryInfo(id string, ad *discovery.Advertisement
 	s.discoveryLock.Lock()
 	defer s.discoveryLock.Unlock()
 
-	vlog.VI(3).Info("sync: updateDiscoveryInfo: %s: %+v, %p, current discoverySyncgroups is %+v", id, ad, ad, s.discoverySyncgroups)
+	vlog.VI(3).Infof("sync: updateDiscoveryInfo: %s: %+v, %p, current discoverySyncgroups is %+v", id, ad, ad, s.discoverySyncgroups)
 
 	// The first time around initialize all discovery maps.
 	if s.discoveryIds == nil {
@@ -615,4 +623,45 @@ func syncbaseIdToName(id uint64) string {
 
 func (s *syncService) stKey() string {
 	return common.SyncPrefix
+}
+
+var (
+	statMu  sync.Mutex
+	statIdx int
+)
+
+func syncServiceStatName() string {
+	statMu.Lock()
+	ret := naming.Join("syncbase", "vsync", fmt.Sprint(statIdx))
+	statIdx++
+	statMu.Unlock()
+	return ret
+}
+
+func (s *syncService) exportStats() {
+	stats.NewStringFunc(s.statPrefix, func() string {
+		s.discoveryLock.Lock()
+		defer s.discoveryLock.Unlock()
+		return fmt.Sprintf(`
+Peers:        %v
+Ads:          %v
+Syncgroups:   %v
+`, adMapKeys(s.discoveryPeers), adMapKeys(s.discoveryIds), groupMapKeys(s.discoverySyncgroups))
+	})
+}
+
+func adMapKeys(m map[string]*discovery.Advertisement) []string {
+	var ret []string
+	for k, v := range m {
+		ret = append(ret, fmt.Sprintf("%v: %v\n", k, *v))
+	}
+	return ret
+}
+
+func groupMapKeys(m map[interfaces.GroupId]map[string]*discovery.Advertisement) []string {
+	var ret []string
+	for k := range m {
+		ret = append(ret, fmt.Sprint(k))
+	}
+	return ret
 }

@@ -78,7 +78,8 @@ type server struct {
 	isLeaf             bool
 	lameDuckTimeout    time.Duration // the time to wait for inflight operations to finish on shutdown
 
-	stats *rpcStats // stats for this server.
+	stats       *rpcStats // stats for this server.
+	outstanding *outstandingStats
 }
 
 func WithNewServer(ctx *context.T,
@@ -123,6 +124,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		endpoints:         make(map[string]naming.Endpoint),
 		lameDuckTimeout:   5 * time.Second,
 		closed:            make(chan struct{}),
+		outstanding:       newOutstandingStats(naming.Join("rpc", "server", "outstanding", rid.String())),
 	}
 	channelTimeout := time.Duration(0)
 	connIdleExpiry := time.Duration(0)
@@ -371,7 +373,7 @@ func (s *server) listen(ctx *context.T, listenSpec rpc.ListenSpec) {
 		if len(addr.Address) > 0 {
 			ch, err := s.flowMgr.Listen(ctx, addr.Protocol, addr.Address)
 			if err != nil {
-				s.ctx.Errorf("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, err)
+				s.ctx.VI(1).Infof("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, err)
 			}
 			s.active.Add(1)
 			go s.relisten(lctx, addr.Protocol, addr.Address, ch, err)
@@ -410,7 +412,7 @@ func (s *server) relisten(ctx *context.T, protocol, address string, ch <-chan st
 			}
 		}
 		if ch, err = s.flowMgr.Listen(ctx, protocol, address); err != nil {
-			s.ctx.Errorf("Listen(%q, %q, ...) failed: %v", protocol, address, err)
+			s.ctx.VI(1).Infof("Listen(%q, %q, ...) failed: %v", protocol, address, err)
 		}
 	}
 }
@@ -607,6 +609,7 @@ type flowServer struct {
 	discharges       map[string]security.Discharge
 	starttime        time.Time
 	endStreamArgs    bool // are the stream args at EOF?
+	removeStat       func()
 }
 
 var (
@@ -659,6 +662,11 @@ func authorize(ctx *context.T, call security.Call, auth security.Authorizer) err
 
 func (fs *flowServer) serve() error {
 	defer fs.flow.Close()
+	defer func() {
+		if fs.removeStat != nil {
+			fs.removeStat()
+		}
+	}()
 
 	ctx, results, err := fs.processRequest()
 	vtrace.GetSpan(ctx).Finish()
@@ -745,6 +753,7 @@ func (fs *flowServer) processRequest() (*context.T, []interface{}, error) {
 		ctx, _ = vtrace.WithNewSpan(ctx, fmt.Sprintf("\"%s\".UNKNOWN", fs.suffix))
 		return ctx, nil, err
 	}
+	fs.removeStat = fs.server.outstanding.start(req.Method, fs.flow.RemoteEndpoint())
 
 	// Start building up a new context for the request now that we know
 	// the header information.

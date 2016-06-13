@@ -10,6 +10,7 @@ import (
 	"v.io/v23/context"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase"
+	"v.io/v23/vdl"
 )
 
 // CollectionTree has all the data for the collection page of the Syncbase debug
@@ -100,12 +101,14 @@ func scanCollection(
 		if state == gathering {
 			// Grab the value, put it and the key into a KeyVal, and
 			// add it to the page.
-			var value interface{}
-			err := stream.Value(&value)
-			if err != nil {
-				value = fmt.Sprintf("ERROR getting value: %v", err)
+			kv := keyVal{Index: rowCount, Key: key}
+			var value *vdl.Value
+			if err := stream.Value(&value); err != nil {
+				kv.Value = fmt.Sprintf("ERROR getting value: %v", err)
+			} else {
+				kv.Value = value
 			}
-			page.KeyVals = append(page.KeyVals, keyVal{rowCount, key, value})
+			page.KeyVals = append(page.KeyVals, kv)
 		}
 		rowCount++
 	}

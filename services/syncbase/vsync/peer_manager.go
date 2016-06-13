@@ -5,6 +5,8 @@
 package vsync
 
 import (
+	"bytes"
+	"fmt"
 	"sync"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/set"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/ping"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -48,6 +51,8 @@ type peerManager interface {
 	// updatePeerFromResponder updates information for a peer that the
 	// responder responds to.
 	updatePeerFromResponder(ctx *context.T, peer string, connTs time.Time, gvs interfaces.Knowledge) error
+
+	exportStats(prefix string)
 }
 
 ////////////////////////////////////////
@@ -121,6 +126,9 @@ type connInfo struct {
 	// Once pinned.Unpin() is called, the connection will no longer be pinned in
 	// rpc cache, and healthCheck will return to the rpc default health check interval.
 	pinned flow.PinnedConn
+
+	// addedTime is the time at which the connection was put into the peer cache.
+	addedTime time.Time
 }
 
 type peerManagerImpl struct {
@@ -150,6 +158,30 @@ func newPeerManager(ctx *context.T, s *syncService, peerSelectionPolicy int) pee
 		peerTbl:          make(map[string]*peerSyncInfo),
 		healthyPeerCache: make(map[string]*connInfo),
 	}
+}
+
+func (pm *peerManagerImpl) exportStats(prefix string) {
+	stats.NewStringFunc(naming.Join(prefix, "peers"), pm.debugStringForPeers)
+}
+
+func (pm *peerManagerImpl) debugStringForPeers() string {
+	pm.Lock()
+	defer pm.Unlock()
+	buf := &bytes.Buffer{}
+	for _, c := range pm.healthyPeerCache {
+		fmt.Fprintf(buf, "%v\n", c.debugString())
+		fmt.Fprintln(buf)
+	}
+	return buf.String()
+}
+
+func (c *connInfo) debugString() string {
+	buf := &bytes.Buffer{}
+	fmt.Fprintf(buf, "RELNAME: %v\n", c.relName)
+	fmt.Fprintf(buf, "MTTBLS: %v\n", c.mtTbls)
+	fmt.Fprintf(buf, "ADDRS: %v\n", c.addrs)
+	fmt.Fprintf(buf, "ADDEDTIME: %v\n", c.addedTime)
+	return buf.String()
 }
 
 func (pm *peerManagerImpl) managePeers(ctx *context.T) {
@@ -218,7 +250,9 @@ func (pm *peerManagerImpl) managePeersInternal(ctx *context.T) {
 		// neighborhood peers until the cache entries expire.
 	}
 
+	now := time.Now()
 	for _, p := range peers {
+		p.addedTime = now
 		pm.healthyPeerCache[p.relName] = p
 	}
 }

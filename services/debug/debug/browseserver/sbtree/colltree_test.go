@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"v.io/v23/syncbase"
+	"v.io/v23/vdl"
 	_ "v.io/x/ref/runtime/factories/generic"
 	"v.io/x/ref/services/debug/debug/browseserver/sbtree"
 	tu "v.io/x/ref/services/syncbase/testutil"
@@ -112,9 +113,9 @@ func TestSingleKeysPage(t *testing.T) {
 		}
 	}
 	for i, want := range []interface{}{complex(11, 22), int64(9999), 'x', "something"} {
-		if got.KeysPage.KeyVals[i].Value != want {
+		if val := vdl.ValueOf(want); !reflect.DeepEqual(got.KeysPage.KeyVals[i].Value, val) {
 			t.Errorf("got %v of type %T, want %v of type %T",
-				got.KeysPage.KeyVals[i].Value, got.KeysPage.KeyVals[i].Value, want, want)
+				got.KeysPage.KeyVals[i].Value, got.KeysPage.KeyVals[i].Value, val, val)
 		}
 	}
 
@@ -339,12 +340,12 @@ func TestNonBuiltInType(t *testing.T) {
 		t.Errorf("Wanted 1 keys, got %v (length %d)",
 			got.KeysPage.KeyVals, len(got.KeysPage.KeyVals))
 	}
-	value, ok := got.KeysPage.KeyVals[0].Value.(someCustomType)
-	if !ok {
+	value := got.KeysPage.KeyVals[0].Value.(*vdl.Value)
+	if value.Type() != vdl.TypeOf(someCustomType{}) {
 		t.Fatalf("Got %v of type %T, want of type someCustomType",
-			got.KeysPage.KeyVals[0].Value, got.KeysPage.KeyVals[0].Value)
+			value, value.Type)
 	}
-	want := someCustomType{"something", 'x', childType{9999, complex(11, 22)}}
+	want := vdl.ValueOf(someCustomType{"something", 'x', childType{9999, complex(11, 22)}})
 	if !reflect.DeepEqual(value, want) {
 		t.Errorf("Got %v, want %v", value, want)
 	}
