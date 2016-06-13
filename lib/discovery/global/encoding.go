@@ -17,8 +17,7 @@ import (
 // which we mount the advertisement.
 // The format of the generated suffix is id/interfaceName/timestamp/attributes.
 //
-// TODO(suharshs): Currently only the id and the attributes are encoded; we may
-// want to encode the rest of the advertisement someday?
+// TODO(suharshs): Currently Attachments are not encoded in global discovery.
 func encodeAdToSuffix(ad *discovery.Advertisement, timestampNs int64) (string, error) {
 	b, err := vom.Encode(ad.Attributes)
 	if err != nil {
