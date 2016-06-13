@@ -6,6 +6,7 @@ package internal_test
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"runtime/debug"
@@ -711,6 +712,124 @@ func TestExpiry(t *testing.T) {
 	resolve(rootCtx, naming.JoinAddressName(estr, "a2/b1"))
 	checkMatch(t, []string{"a1", "a1/b1"}, doGlob(t, rootCtx, estr, "", "*/..."))
 	checkMatch(t, []string{"a1/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
+}
+
+func TestNodeCounters(t *testing.T) {
+	rootCtx, shutdown := test.V23InitWithMounttable()
+	defer shutdown()
+
+	stop, estr, bt, clock := newMT(t, "", rootCtx)
+	defer stop()
+
+	nodeCount := func() int64 {
+		counters, err := bt.Counters(rootCtx)
+		if err != nil {
+			t.Fatalf("bt.Counters failed: %v", err)
+		}
+		return counters["num-nodes-per-user:test-blessing"]
+	}
+	serverCount := func() int64 {
+		counters, err := bt.Counters(rootCtx)
+		if err != nil {
+			t.Fatalf("bt.Counters failed: %v", err)
+		}
+		return counters["num-servers-per-user:test-blessing"]
+	}
+
+	// Test flat tree
+	for i := 1; i <= 10; i++ {
+		name := fmt.Sprintf("node%d", i)
+		addr := naming.JoinAddressName(estr, name)
+		doMount(t, rootCtx, estr, name, addr, true)
+		if expected, got := int64(i), nodeCount(); got != expected {
+			t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+		}
+		if expected, got := int64(i), serverCount(); got != expected {
+			t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
+		}
+	}
+	for i := 1; i <= 10; i++ {
+		name := fmt.Sprintf("node%d", i)
+		if i%2 == 0 {
+			doUnmount(t, rootCtx, estr, name, "", true)
+		} else {
+			doDeleteSubtree(t, rootCtx, estr, name, true)
+		}
+		if expected, got := int64(10-i), nodeCount(); got != expected {
+			t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+		}
+		if expected, got := int64(10-i), serverCount(); got != expected {
+			t.Errorf("Unexpected number of server. Got %d, expected %d", got, expected)
+		}
+	}
+
+	// Test deep tree
+	doMount(t, rootCtx, estr, "1/2/3/4/5/6/7/8/9a/10", naming.JoinAddressName(estr, ""), true)
+	doMount(t, rootCtx, estr, "1/2/3/4/5/6/7/8/9b/11", naming.JoinAddressName(estr, ""), true)
+	if expected, got := int64(12), nodeCount(); got != expected {
+		t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+	}
+	if expected, got := int64(2), serverCount(); got != expected {
+		t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
+	}
+	doDeleteSubtree(t, rootCtx, estr, "1/2/3/4/5", true)
+	if expected, got := int64(0), nodeCount(); got != expected {
+		t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+	}
+	if expected, got := int64(0), serverCount(); got != expected {
+		t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
+	}
+
+	// Test multiple servers per node
+	for i := 1; i <= 5; i++ {
+		server := naming.JoinAddressName(estr, fmt.Sprintf("addr%d", i))
+		doMount(t, rootCtx, estr, "node1", server, true)
+		doMount(t, rootCtx, estr, "node2", server, true)
+		if expected, got := int64(2), nodeCount(); got != expected {
+			t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+		}
+		if expected, got := int64(2*i), serverCount(); got != expected {
+			t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
+		}
+	}
+	doUnmount(t, rootCtx, estr, "node1", "", true)
+	if expected, got := int64(1), nodeCount(); got != expected {
+		t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+	}
+	if expected, got := int64(5), serverCount(); got != expected {
+		t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
+	}
+	for i := 1; i <= 5; i++ {
+		server := naming.JoinAddressName(estr, fmt.Sprintf("addr%d", i))
+		doUnmount(t, rootCtx, estr, "node2", server, true)
+		expectedNodes := int64(1)
+		if i == 5 {
+			expectedNodes = 0
+		}
+		if expected, got := expectedNodes, nodeCount(); got != expected {
+			t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+		}
+		if expected, got := int64(5-i), serverCount(); got != expected {
+			t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
+		}
+	}
+
+	// Test expired mounts
+	doMount(t, rootCtx, estr, "1/2/3/4/5", naming.JoinAddressName(estr, ""), true)
+	if expected, got := int64(5), nodeCount(); got != expected {
+		t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+	}
+	if expected, got := int64(1), serverCount(); got != expected {
+		t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
+	}
+
+	clock.AdvanceTime(time.Duration(ttlSecs+4) * time.Second)
+	if _, err := resolve(rootCtx, naming.JoinAddressName(estr, "1/2/3/4/5")); err == nil {
+		t.Errorf("Expected failure. Got success")
+	}
+	if expected, got := int64(0), serverCount(); got != expected {
+		t.Errorf("Unexpected number of servers. Got %d, expected %d", got, expected)
+	}
 }
 
 func TestIntermediateNodesCreatedFromConfig(t *testing.T) {

@@ -28,16 +28,17 @@ import (
 )
 
 type mtNode struct {
-	bt           *BigTable
-	name         string
-	sticky       bool
-	creationTime bigtable.Timestamp
-	permissions  access.Permissions
-	version      string
-	creator      string
-	mountFlags   mtFlags
-	servers      []naming.MountedServer
-	children     []string
+	bt             *BigTable
+	name           string
+	sticky         bool
+	creationTime   bigtable.Timestamp
+	permissions    access.Permissions
+	version        string
+	creator        string
+	mountFlags     mtFlags
+	servers        []naming.MountedServer
+	expiredServers []string
+	children       []string
 }
 
 type mtFlags struct {
@@ -98,7 +99,9 @@ func nodeFromRow(ctx *context.T, bt *BigTable, row bigtable.Row, clock timekeepe
 	n.servers = make([]naming.MountedServer, 0, len(row[serversFamily]))
 	for _, i := range row[serversFamily] {
 		deadline := i.Timestamp.Time()
+		server := i.Column[2:]
 		if deadline.Before(clock.Now()) {
+			n.expiredServers = append(n.expiredServers, server)
 			continue
 		}
 		if err := json.Unmarshal(i.Value, &n.mountFlags); err != nil {
@@ -106,7 +109,7 @@ func nodeFromRow(ctx *context.T, bt *BigTable, row bigtable.Row, clock timekeepe
 			return nil
 		}
 		n.servers = append(n.servers, naming.MountedServer{
-			Server:   i.Column[2:],
+			Server:   server,
 			Deadline: vdltime.Deadline{deadline},
 		})
 	}
@@ -150,9 +153,16 @@ func (n *mtNode) createChild(ctx *context.T, child string, perms access.Permissi
 }
 
 func (n *mtNode) mount(ctx *context.T, server string, deadline time.Time, flags naming.MountFlag) error {
+	delta := int64(1)
 	mut := bigtable.NewMutation()
-	if flags&naming.Replace != 0 {
-		mut.DeleteCellsInFamily(serversFamily)
+	for _, s := range n.servers {
+		// Mount replaces an already mounted server with the same name,
+		// or all servers if the Replace flag is set.
+		if s.Server != server && flags&naming.Replace == 0 {
+			continue
+		}
+		delta--
+		mut.DeleteCellsInColumn(serversFamily, s.Server)
 	}
 	f := mtFlags{
 		MT:   flags&naming.MT != 0,
@@ -166,26 +176,23 @@ func (n *mtNode) mount(ctx *context.T, server string, deadline time.Time, flags 
 	if err := n.mutate(ctx, mut, false); err != nil {
 		return err
 	}
-	if flags&naming.Replace != 0 {
-		n.servers = nil
-	}
-	return nil
+	return incrementCreatorServerCount(ctx, n.bt, n.creator, delta)
 }
 
 func (n *mtNode) unmount(ctx *context.T, server string) error {
+	delta := int64(0)
 	mut := bigtable.NewMutation()
-	if server == "" {
-		// HACK ALERT
-		// The bttest server doesn't support DeleteCellsInFamily
-		if !n.bt.testMode {
-			mut.DeleteCellsInFamily(serversFamily)
-		} else {
-			for _, s := range n.servers {
-				mut.DeleteCellsInColumn(serversFamily, s.Server)
-			}
+	for _, s := range n.servers {
+		// Unmount removes the specified server, or all servers if
+		// server == "".
+		if server != "" && s.Server != server {
+			continue
 		}
-	} else {
-		mut.DeleteCellsInColumn(serversFamily, server)
+		delta--
+		mut.DeleteCellsInColumn(serversFamily, s.Server)
+	}
+	if delta == 0 {
+		return nil
 	}
 	if err := n.mutate(ctx, mut, false); err != nil {
 		return err
@@ -193,16 +200,42 @@ func (n *mtNode) unmount(ctx *context.T, server string) error {
 	if n, err := getNode(ctx, n.bt, n.name); err == nil {
 		n.gc(ctx)
 	}
-	return nil
+	return incrementCreatorServerCount(ctx, n.bt, n.creator, delta)
 }
 
-func (n *mtNode) gc(ctx *context.T) (deletedAtLeastOne bool, err error) {
-	for n != nil && n.name != "" && !n.sticky && len(n.children) == 0 && len(n.servers) == 0 {
+func (n *mtNode) gc(ctx *context.T) (deletedSomething bool, err error) {
+	for n != nil && n.name != "" {
+		if len(n.expiredServers) > 0 {
+			mut := bigtable.NewMutation()
+			for _, s := range n.expiredServers {
+				mut.DeleteCellsInColumn(serversFamily, s)
+			}
+			if err = n.mutate(ctx, mut, false); err != nil {
+				break
+			}
+			delta := -int64(len(n.expiredServers))
+			if err = incrementCreatorServerCount(ctx, n.bt, n.creator, delta); err != nil {
+				// TODO(rthellend): Since counters are stored in different rows,
+				// there is no way to update them atomically, e.g. if the server
+				// dies here, or if incrementCreatorServerCount returns an error,
+				// the server counter will be off.
+				// The same thing could happen everywhere the counters are updated.
+				// If/when we start using these counters for quota enforcement, we
+				// should also come up with a way to make sure the counters aren't
+				// too far off.
+				break
+			}
+			deletedSomething = true
+			break
+		}
+		if n.sticky || len(n.children) > 0 || len(n.servers) > 0 {
+			break
+		}
 		if err = n.delete(ctx, false); err != nil {
 			break
 		}
 		ctx.Infof("Deleted empty node %q", n.name)
-		deletedAtLeastOne = true
+		deletedSomething = true
 		parent := path.Dir(n.name)
 		if parent == "." {
 			break
@@ -278,7 +311,10 @@ func (n *mtNode) delete(ctx *context.T, deleteSubtree bool) error {
 	if err := n.bt.apply(longCtx, rowKey(parent), mut); err != nil {
 		return err
 	}
-	return n.bt.incrementCreatorNodeCount(ctx, n.creator, -1)
+	if err := incrementCreatorServerCount(ctx, n.bt, n.creator, -int64(len(n.servers))); err != nil {
+		return err
+	}
+	return incrementCreatorNodeCount(ctx, n.bt, n.creator, -1)
 }
 
 func (n *mtNode) setPermissions(ctx *context.T, perms access.Permissions) error {

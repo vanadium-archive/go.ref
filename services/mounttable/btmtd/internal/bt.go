@@ -5,8 +5,6 @@
 package internal
 
 import (
-	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -146,7 +144,7 @@ func (b *BigTable) SetupTable(ctx *context.T, permissionsFile string) error {
 	}{
 		{b.counterTableName(), metadataFamily, bigtable.MaxVersionsPolicy(1)},
 		{b.nodeTableName(), metadataFamily, bigtable.MaxVersionsPolicy(1)},
-		{b.nodeTableName(), serversFamily, bigtable.UnionPolicy(bigtable.MaxVersionsPolicy(1), bigtable.MaxAgePolicy(time.Second))},
+		{b.nodeTableName(), serversFamily, bigtable.MaxVersionsPolicy(1)},
 		{b.nodeTableName(), childrenFamily, bigtable.MaxVersionsPolicy(1)},
 	}
 	for _, f := range families {
@@ -255,6 +253,28 @@ func (b *BigTable) CountRows(ctx *context.T) (int, error) {
 	return count, nil
 }
 
+func (b *BigTable) Counters(ctx *context.T) (map[string]int64, error) {
+	bctx, cancel := btctx(ctx)
+	defer cancel()
+
+	counters := make(map[string]int64)
+	if err := b.counterTbl.ReadRows(bctx, bigtable.InfiniteRange(""),
+		func(row bigtable.Row) bool {
+			c, err := decodeCounterValue(ctx, row)
+			if err != nil {
+				ctx.Errorf("decodeCounterValue: %v", err)
+				return false
+			}
+			counters[row.Key()] = c
+			return true
+		},
+		bigtable.RowFilter(bigtable.LatestNFilter(1)),
+	); err != nil {
+		return nil, err
+	}
+	return counters, nil
+}
+
 func getTokenSource(ctx netcontext.Context, scope, keyFile string) (oauth2.TokenSource, error) {
 	if len(keyFile) == 0 {
 		return google.DefaultTokenSource(ctx, scope)
@@ -324,27 +344,5 @@ func (b *BigTable) createRow(ctx *context.T, name string, perms access.Permissio
 	if err := b.apply(ctx, rowKey(name), mut); err != nil {
 		return err
 	}
-	return b.incrementCreatorNodeCount(ctx, creator, 1)
-}
-
-func (b *BigTable) incrementCreatorNodeCount(ctx *context.T, creator string, delta int64) error {
-	bctx, cancel := btctx(ctx)
-	defer cancel()
-
-	key := "num-nodes-per-user:" + creator
-	m := bigtable.NewReadModifyWrite()
-	m.Increment(metadataFamily, "c", delta)
-	row, err := b.counterTbl.ApplyReadModifyWrite(bctx, key, m)
-	if err != nil {
-		return err
-	}
-	if len(row[metadataFamily]) == 1 {
-		var c int64
-		b := row[metadataFamily][0].Value
-		if err := binary.Read(bytes.NewReader(b), binary.BigEndian, &c); err != nil {
-			return err
-		}
-		ctx.Infof("Counter %s = %d", key, c)
-	}
-	return nil
+	return incrementCreatorNodeCount(ctx, b, creator, 1)
 }
