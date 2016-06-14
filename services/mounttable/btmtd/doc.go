@@ -25,6 +25,8 @@ The btmtd flags are:
    If true, use an in-memory bigtable server (for testing only)
  -key-file=
    The file that contains the Google Cloud JSON credentials to use
+ -name=
+   If provided, causes the mount table to mount itself under this name.
  -permissions-file=
    The file that contains the initial node permissions.
  -project=

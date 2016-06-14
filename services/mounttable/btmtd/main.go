@@ -60,6 +60,7 @@ var (
 	inMemoryTestFlag bool
 
 	permissionsFileFlag string
+	mountNameFlag       string
 )
 
 func main() {
@@ -71,6 +72,7 @@ func main() {
 	cmdRoot.Flags.StringVar(&tableFlag, "table", "mounttable", "The name of the table to use")
 	cmdRoot.Flags.BoolVar(&inMemoryTestFlag, "in-memory-test", false, "If true, use an in-memory bigtable server (for testing only)")
 	cmdRoot.Flags.StringVar(&permissionsFileFlag, "permissions-file", "", "The file that contains the initial node permissions.")
+	cmdRoot.Flags.StringVar(&mountNameFlag, "name", "", "If provided, causes the mount table to mount itself under this name.")
 
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
@@ -126,7 +128,7 @@ func runMT(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 	acl := globalPerms["Admin"]
 	disp := internal.NewDispatcher(bt, &acl)
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, "", disp, options.ServesMountTable(true))
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, mountNameFlag, disp, options.ServesMountTable(true))
 	if err != nil {
 		return err
 	}
