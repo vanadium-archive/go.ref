@@ -19,6 +19,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/services/watch"
 	"v.io/v23/syncbase"
 	"v.io/v23/syncbase/util"
 	"v.io/v23/vdl"
@@ -202,6 +203,31 @@ type WatchChangeTest struct {
 	ValueBytes *vom.RawBytes
 }
 
+func WatchChangeTestRowPut(cxId wire.Id, rowKey string, value interface{}, resumeMarker watch.ResumeMarker) WatchChangeTest {
+	return WatchChangeTest{
+		WatchChange: syncbase.WatchChange{
+			Collection:   cxId,
+			Row:          rowKey,
+			ChangeType:   syncbase.PutChange,
+			ResumeMarker: resumeMarker,
+			Continued:    (resumeMarker == nil),
+		},
+		ValueBytes: vom.RawBytesOf(value),
+	}
+}
+
+func WatchChangeTestRowDelete(cxId wire.Id, rowKey string, resumeMarker watch.ResumeMarker) WatchChangeTest {
+	return WatchChangeTest{
+		WatchChange: syncbase.WatchChange{
+			Collection:   cxId,
+			Row:          rowKey,
+			ChangeType:   syncbase.DeleteChange,
+			ResumeMarker: resumeMarker,
+			Continued:    (resumeMarker == nil),
+		},
+	}
+}
+
 // WatchChangeEq returns whether *want and *got represent the same value.
 func WatchChangeEq(got *syncbase.WatchChange, want *WatchChangeTest) (eq bool) {
 	if want.Collection == got.Collection &&
@@ -233,7 +259,7 @@ func CheckWatch(t testing.TB, wstream syncbase.WatchStream, changes []WatchChang
 			Fatalf(t, "wstream.Advance() reached the end: %v", wstream.Err())
 		}
 		if got := wstream.Change(); !WatchChangeEq(&got, &want) {
-			Fatalf(t, "unexpected watch change: got %v, want %v", got, want)
+			Fatalf(t, "unexpected watch change: got %+v, want %+v", got, want)
 		}
 	}
 }

@@ -129,12 +129,12 @@ func (d *database) scanInitialState(ctx *context.T, call rpc.ServerCall, sender 
 		// Check permissions.
 		// TODO(ivanpi): Collection scan already gets perms, optimize?
 		if _, err := c.checkAccess(ctx, call, sntx); err != nil {
-			if verror.ErrorID(err) != verror.ErrNoAccess.ID {
-				return err
+			if verror.ErrorID(err) == verror.ErrNoAccess.ID {
+				// TODO(ivanpi): Inaccessible rows are skipped. Figure out how to signal
+				// this to caller.
+				continue
 			}
-			// TODO(ivanpi): Inaccessible collections are skipped. Figure out how to
-			// signal this to caller.
-			continue
+			return err
 		}
 		// TODO(ivanpi): Send collection info.
 		// Send matching rows.
@@ -174,11 +174,11 @@ func (c *collectionReq) scanInitialState(ctx *context.T, call rpc.ServerCall, se
 		if err := sender.addChange(
 			naming.Join(pubutil.EncodeId(c.id), externalKey),
 			watch.Exists,
-			vom.RawBytesOf(wire.StoreChange{
+			&wire.StoreChange{
 				Value: valueAsRawBytes,
 				// Note: FromSync cannot be reconstructed from scan.
 				FromSync: false,
-			})); err != nil {
+			}); err != nil {
 			return err
 		}
 	}
@@ -272,12 +272,15 @@ func (d *database) processLogBatch(ctx *context.T, call rpc.ServerCall, sender *
 		// Filter out rows that we can't access.
 		// TODO(ivanpi): Check only once per collection per batch.
 		if _, err := c.checkAccess(ctx, call, sn); err != nil {
-			if verror.ErrorID(err) != verror.ErrNoAccess.ID {
-				return err
+			if verror.ErrorID(err) == verror.ErrNoAccess.ID || verror.ErrorID(err) == verror.ErrNoExist.ID {
+				// Note, the collection may not exist anymore, in which case permissions
+				// cannot be retrieved. This case is treated the same as ErrNoAccess, by
+				// skipping the row.
+				// TODO(ivanpi): Inaccessible rows are skipped. Figure out how to signal
+				// this to caller.
+				continue
 			}
-			// TODO(ivanpi): Inaccessible rows are skipped. Figure out how to signal
-			// this to caller.
-			continue
+			return err
 		}
 		switch op := op.(type) {
 		case *watchable.PutOp:
@@ -291,18 +294,18 @@ func (d *database) processLogBatch(ctx *context.T, call rpc.ServerCall, sender *
 			}
 			if err := sender.addChange(naming.Join(pubutil.EncodeId(cxId), row),
 				watch.Exists,
-				vom.RawBytesOf(wire.StoreChange{
+				&wire.StoreChange{
 					Value:    rowValueAsRawBytes,
 					FromSync: logEntry.FromSync,
-				})); err != nil {
+				}); err != nil {
 				return err
 			}
 		case *watchable.DeleteOp:
 			if err := sender.addChange(naming.Join(pubutil.EncodeId(cxId), row),
 				watch.DoesNotExist,
-				vom.RawBytesOf(wire.StoreChange{
+				&wire.StoreChange{
 					FromSync: logEntry.FromSync,
-				})); err != nil {
+				}); err != nil {
 				return err
 			}
 		}
@@ -322,7 +325,12 @@ type watchBatchSender struct {
 
 // addChange sends the previously added change (if any) with Continued set to
 // true and stages the new one to be sent by the next addChange or finishBatch.
-func (w *watchBatchSender) addChange(name string, state int32, value *vom.RawBytes) error {
+func (w *watchBatchSender) addChange(name string, state int32, storeChange *wire.StoreChange) error {
+	// Encode the StoreChange for sending.
+	storeChangeAsRawBytes, err := vom.RawBytesFromValue(*storeChange)
+	if err != nil {
+		return verror.New(verror.ErrInternal, nil, err)
+	}
 	// Send previously staged change now that we know the batch is continuing.
 	if w.staged != nil {
 		w.staged.Continued = true
@@ -334,7 +342,7 @@ func (w *watchBatchSender) addChange(name string, state int32, value *vom.RawByt
 	w.staged = &watch.Change{
 		Name:  name,
 		State: state,
-		Value: value,
+		Value: storeChangeAsRawBytes,
 	}
 	return nil
 }
