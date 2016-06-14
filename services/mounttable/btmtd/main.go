@@ -128,7 +128,7 @@ func runMT(ctx *context.T, env *cmdline.Env, args []string) error {
 	}
 	acl := globalPerms["Admin"]
 	disp := internal.NewDispatcher(bt, &acl)
-	ctx, server, err := v23.WithNewDispatchingServer(ctx, mountNameFlag, disp, options.ServesMountTable(true))
+	ctx, server, err := v23.WithNewDispatchingServer(ctx, mountNameFlag, disp, options.ServesMountTable(true), options.LameDuckTimeout(30*time.Second))
 	if err != nil {
 		return err
 	}

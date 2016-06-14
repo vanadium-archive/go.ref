@@ -46,7 +46,7 @@ func op(ctx *context.T, f func() error) (err error) {
 			return
 		}
 		if err = f(); verror.ErrorID(err) == errConcurrentAccess.ID {
-			ctx.Infof("Concurrent access conflict detected: %v", err)
+			ctx.VI(2).Infof("Concurrent access conflict detected: %v", err)
 			time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond)
 			continue
 		}
@@ -62,7 +62,7 @@ type mounttable struct {
 
 // Mount a server onto the name in the receiver.
 func (mt *mounttable) Mount(ctx *context.T, call rpc.ServerCall, server string, ttl uint32, flags naming.MountFlag) error {
-	ctx.Infof("%q.Mount(%q, %d, %v)", mt.suffix, server, ttl, flags)
+	ctx.VI(2).Infof("%q.Mount(%q, %d, %v)", mt.suffix, server, ttl, flags)
 	if ttl == 0 {
 		ttl = math.MaxUint32
 	}
@@ -90,7 +90,7 @@ func (mt *mounttable) Mount(ctx *context.T, call rpc.ServerCall, server string, 
 // Unmount removes servers from the name in the receiver. If server is specified, only that
 // server is removed.
 func (mt *mounttable) Unmount(ctx *context.T, call rpc.ServerCall, server string) error {
-	ctx.Infof("%q.Unmount(%q)", mt.suffix, server)
+	ctx.VI(2).Infof("%q.Unmount(%q)", mt.suffix, server)
 
 	return op(ctx, func() error {
 		n, err := mt.accessNodeRead(ctx, mt.suffix, call.Security())
@@ -108,7 +108,7 @@ func (mt *mounttable) Unmount(ctx *context.T, call rpc.ServerCall, server string
 // be removed unless deleteSubtree is true in which case the whole subtree is
 // removed.
 func (mt *mounttable) Delete(ctx *context.T, call rpc.ServerCall, deleteSubtree bool) error {
-	ctx.Infof("%q.Delete(%v)", mt.suffix, deleteSubtree)
+	ctx.VI(2).Infof("%q.Delete(%v)", mt.suffix, deleteSubtree)
 
 	if mt.suffix == "" {
 		return verror.New(verror.ErrNoAccess, ctx, "")
@@ -139,7 +139,7 @@ func (mt *mounttable) Delete(ctx *context.T, call rpc.ServerCall, deleteSubtree 
 // ResolveStep takes the next step in resolving a name.  Returns the next
 // servers to query and the suffix at those servers.
 func (mt *mounttable) ResolveStep(ctx *context.T, call rpc.ServerCall) (entry naming.MountEntry, err error) {
-	ctx.Infof("%q.ResolveStep()", mt.suffix)
+	ctx.VI(2).Infof("%q.ResolveStep()", mt.suffix)
 
 	n, remainder, err := mt.accessNodeWithServers(ctx, mt.suffix, call.Security())
 	if err != nil {
@@ -163,7 +163,7 @@ func (mt *mounttable) ResolveStep(ctx *context.T, call rpc.ServerCall) (entry na
 // Glob__ finds matches in the namespace.  If we reach a mount point before
 // matching the whole pattern, return that mount point.
 func (mt *mounttable) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Glob) error {
-	ctx.Infof("%q.Glob__(%q)", mt.suffix, g)
+	ctx.VI(2).Infof("%q.Glob__(%q)", mt.suffix, g)
 
 	n, remainder, err := mt.accessNodeWithServers(ctx, mt.suffix, call.Security())
 	if err != nil {
@@ -242,7 +242,7 @@ func (mt *mounttable) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Gl
 // stale and SetPermissions will fail.  If empty, SetPermissions performs an
 // unconditional update.
 func (mt *mounttable) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
-	ctx.Infof("%q.SetPermissions(%#v, %q)", mt.suffix, perms, version)
+	ctx.VI(2).Infof("%q.SetPermissions(%#v, %q)", mt.suffix, perms, version)
 
 	// If the user is trying to set permissions on a node such that the
 	// user will no longer have admin access, add the user as Admin.
@@ -275,7 +275,7 @@ func (mt *mounttable) SetPermissions(ctx *context.T, call rpc.ServerCall, perms 
 // invalidate version, and the client must call GetPermissions again to get
 // the current version.
 func (mt *mounttable) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
-	ctx.Infof("%q.GetPermissions()", mt.suffix)
+	ctx.VI(2).Infof("%q.GetPermissions()", mt.suffix)
 
 	var n *mtNode
 	if n, err = mt.accessNodeRead(ctx, mt.suffix, call.Security()); err != nil {

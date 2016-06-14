@@ -234,7 +234,7 @@ func (n *mtNode) gc(ctx *context.T) (deletedSomething bool, err error) {
 		if err = n.delete(ctx, false); err != nil {
 			break
 		}
-		ctx.Infof("Deleted empty node %q", n.name)
+		ctx.VI(2).Infof("Deleted empty node %q", n.name)
 		deletedSomething = true
 		parent := path.Dir(n.name)
 		if parent == "." {
