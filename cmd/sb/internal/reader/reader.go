@@ -40,6 +40,10 @@ func (t *T) initScanner(input string) {
 // GetQuery returns an entire query where queries are delimited by semicolons.
 // GetQuery returns the error io.EOF when there is no more input.
 func (t *T) GetQuery() (string, error) {
+	return t.GetQueryWithTerminator(';')
+}
+
+func (t *T) GetQueryWithTerminator(terminator rune) (string, error) {
 	if t.s.Peek() == scanner.EOF {
 		input, err := t.prompt.InitialPrompt()
 		if err != nil {
@@ -51,10 +55,13 @@ func (t *T) GetQuery() (string, error) {
 WholeQuery:
 	for true {
 		for tok := t.s.Scan(); tok != scanner.EOF; tok = t.s.Scan() {
-			if tok == ';' {
+			if tok == terminator {
 				break WholeQuery
 			}
 			query += t.s.TokenText()
+		}
+		if terminator == '\n' {
+			break
 		}
 		input, err := t.prompt.ContinuePrompt()
 		if err != nil {
@@ -63,7 +70,7 @@ WholeQuery:
 		t.initScanner(input)
 		query += "\n" // User started a new line.
 	}
-	t.prompt.AppendHistory(query + ";")
+	t.prompt.AppendHistory(query + string(terminator))
 	return query, nil
 }
 
