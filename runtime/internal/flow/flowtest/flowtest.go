@@ -79,12 +79,10 @@ func (p peersAuthorizer) AuthorizePeer(
 		RemoteEndpoint:   remoteEndpoint,
 	})
 	peerNames, rejectedPeerNames := security.RemoteBlessingNames(ctx, call)
-	ctx.Infof("validating against %v", peerNames)
 	for _, pattern := range p {
 		if security.BlessingPattern(pattern).MatchedBy(peerNames...) {
 			return peerNames, rejectedPeerNames, nil
 		}
-		ctx.Infof("no match %v", pattern)
 	}
 	return peerNames, rejectedPeerNames, fmt.Errorf("not authorized")
 }

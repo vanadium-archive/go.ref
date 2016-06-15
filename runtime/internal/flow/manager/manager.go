@@ -742,25 +742,12 @@ func (m *manager) DialSideChannel(ctx *context.T, remote naming.Endpoint, auth f
 // closed.
 func (m *manager) DialCached(ctx *context.T, remote naming.Endpoint, auth flow.PeerAuthorizer, channelTimeout time.Duration) (flow.Flow, error) {
 	var (
-		err                        error
-		cached                     cachedConn
-		names                      []string
-		rejected                   []security.RejectedBlessing
-		addr                       = remote.Addr()
-		unresNetwork, unresAddress = addr.Network(), addr.String()
-		protocol, _                = flow.RegisteredProtocol(unresNetwork)
+		err      error
+		cached   CachedConn
+		names    []string
+		rejected []security.RejectedBlessing
 	)
-	if rid := remote.RoutingID; rid != naming.NullRoutingID {
-		// In the case the endpoint has a RoutingID we only want to check the cache
-		// for the RoutingID because we want to guarantee that the connection we
-		// return is to the end server and not a connection to an intermediate proxy.
-		cached, names, rejected, err = m.cache.FindWithRoutingID(ctx, remote, auth)
-	} else {
-		cached, names, rejected, err = m.cache.Find(ctx, remote, unresNetwork, unresAddress, auth, protocol)
-		if err == nil {
-			m.cache.Unreserve(unresNetwork, unresAddress)
-		}
-	}
+	cached, names, rejected, err = m.cache.FindCached(ctx, remote, auth)
 	if err != nil {
 		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 	}
@@ -777,106 +764,158 @@ func (m *manager) internalDial(
 	auth flow.PeerAuthorizer,
 	channelTimeout time.Duration,
 	proxy, sideChannel bool) (flow.Flow, error) {
-	// Fast path, look for the conn based on unresolved network, address, and routingId first.
-	var (
-		c                          *conn.Conn
-		addr                       = remote.Addr()
-		unresNetwork, unresAddress = addr.Network(), addr.String()
-		protocol, _                = flow.RegisteredProtocol(unresNetwork)
-	)
 	if m.ls != nil && len(m.ls.serverAuthorizedPeers) > 0 {
 		auth = &peerAuthorizer{auth, m.ls.serverAuthorizedPeers}
 	}
-	cached, names, rejected, err := m.cache.Find(ctx, remote, unresNetwork, unresAddress, auth, protocol)
+
+	if res := m.cache.Reserve(ctx, remote); res != nil {
+		go m.dialReserved(res, remote, auth, channelTimeout, proxy)
+	}
+
+	cached, names, rejected, err := m.cache.Find(ctx, remote, auth)
 	if err != nil {
 		return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
 	}
-	if cached != nil {
-		c = cached.(*conn.Conn)
-		m.cache.Unreserve(unresNetwork, unresAddress)
-	} else {
-		// We didn't find the connection we want in the cache.  Dial it.
-		defer m.cache.Unreserve(unresNetwork, unresAddress)
-		flowConn, err := dial(ctx, protocol, unresNetwork, unresAddress)
-		if err != nil {
-			switch err := err.(type) {
-			case *net.OpError:
-				if err, ok := err.Err.(net.Error); ok && err.Timeout() {
-					return nil, iflow.MaybeWrapError(verror.ErrTimeout, ctx, err)
-				}
-			}
-			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
-		}
-		var fh conn.FlowHandler
-		if m.ls != nil {
-			m.ls.mu.Lock()
-			if stoppedListening := m.ls.listeners == nil; !stoppedListening {
-				fh = newHybridHandler(m)
-			}
-			m.ls.mu.Unlock()
-		}
-		c, names, rejected, err = conn.NewDialed(
-			ctx,
-			flowConn,
-			localEndpoint(flowConn, m.rid),
-			remote,
-			version.Supported,
-			auth,
-			handshakeTimeout,
-			0,
-			fh,
-		)
-		if err != nil {
-			flowConn.Close()
-			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
-		}
-		isProxy := proxy || !c.MatchesRID(remote)
-		if err := m.cache.Insert(c, isProxy); err != nil {
-			c.Close(ctx, err)
-			return nil, flow.NewErrBadState(ctx, err)
-		}
-		// Now that c is in the cache we can explicitly unreserve.
-		m.cache.Unreserve(unresNetwork, unresAddress)
-		m.handlerReady(fh, proxy)
-	}
-
-	// If the connection we found or dialed turns out to not be the person we expected, assume it is a Proxy.
+	c, _ := cached.(*conn.Conn)
+	// If the connection we found or dialed doesn't have the correct RID, assume it is a Proxy.
 	// We now need to make a flow to a proxy and upgrade it to a conn to the final server.
 	if !c.MatchesRID(remote) {
-		proxyConn := c
-		f, err := proxyConn.Dial(ctx, security.Blessings{}, nil, remote, channelTimeout, false)
-		if err != nil {
-			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
-		}
-		var fh conn.FlowHandler
-		if m.ls != nil {
-			m.ls.mu.Lock()
-			if stoppedListening := m.ls.listeners == nil; !stoppedListening {
-				fh = &flowHandler{m: m}
-			}
-			m.ls.mu.Unlock()
-		}
-		c, names, rejected, err = conn.NewDialed(
-			ctx,
-			f,
-			proxyConn.LocalEndpoint(),
-			remote,
-			version.Supported,
-			auth,
-			handshakeTimeout,
-			0,
-			fh,
-		)
-		if err != nil {
-			return nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
-		}
-		if err := m.cache.InsertWithRoutingID(c, false); err != nil {
-			c.Close(ctx, err)
-			return nil, iflow.MaybeWrapError(flow.ErrBadState, ctx, err)
+		if c, names, rejected, err = m.dialProxyConn(ctx, remote, c, auth, channelTimeout); err != nil {
+			return nil, err
 		}
 	}
-
 	return dialFlow(ctx, c, remote, names, rejected, channelTimeout, auth, sideChannel)
+}
+
+func (m *manager) dialReserved(
+	res *Reservation,
+	remote naming.Endpoint,
+	auth flow.PeerAuthorizer,
+	channelTimeout time.Duration,
+	proxy bool) {
+	var fh conn.FlowHandler
+	var c, pc *conn.Conn
+	var err error
+	defer func() {
+		// Note we have to do this annoying shuffle because the conncache wants
+		// CachedConn and if we just pass c, pc directly then we have trouble because
+		// (*conn.Conn)(nil) and (CachedConn)(nil) are not the same.
+		var cc, cpc CachedConn
+		if c != nil {
+			cc = c
+		}
+		if pc != nil {
+			cpc = pc
+		}
+		res.Unreserve(cc, cpc, err)
+		// Note: 'proxy' is true when we are server "listening on" the
+		// proxy. 'pc != nil' is true when we are connecting through a
+		// proxy as a client. Thus, we only want to enable the
+		// proxyFlowHandler when 'proxy' is true, not when 'pc != nil'
+		// is true.
+		m.handlerReady(fh, proxy)
+	}()
+
+	if proxyConn := res.ProxyConn(); proxyConn != nil {
+		c = proxyConn.(*conn.Conn)
+	}
+	if c == nil {
+		// We didn't find the connection we want in the cache.  Dial it.
+		// TODO(mattr): In this model we're running the auth twice in
+		// the case that we use the conn we dialed.  One idea is to have
+		// peerAuthorizer remember it's result since we only use it for
+		// this one invocation of internalDial.
+		if c, fh, err = m.dialConn(res.Context(), remote, auth, proxy); err != nil {
+			return
+		}
+	}
+	// If the connection we found or dialed doesn't have the correct RID, assume it is a Proxy.
+	// We now need to make a flow to a proxy and upgrade it to a conn to the final server.
+	if !c.MatchesRID(remote) {
+		pc = c
+		if c, _, _, err = m.dialProxyConn(res.Context(), remote, pc, auth, channelTimeout); err != nil {
+			return
+		}
+	} else if proxy {
+		pc, c = c, nil
+	}
+}
+
+func (m *manager) dialConn(
+	ctx *context.T,
+	remote naming.Endpoint,
+	auth flow.PeerAuthorizer,
+	proxy bool) (*conn.Conn, conn.FlowHandler, error) {
+	protocol, _ := flow.RegisteredProtocol(remote.Protocol)
+	flowConn, err := dial(ctx, protocol, remote.Protocol, remote.Address)
+	if err != nil {
+		switch err := err.(type) {
+		case *net.OpError:
+			if err, ok := err.Err.(net.Error); ok && err.Timeout() {
+				return nil, nil, iflow.MaybeWrapError(verror.ErrTimeout, ctx, err)
+			}
+		}
+		return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
+	}
+	var fh conn.FlowHandler
+	if m.ls != nil {
+		m.ls.mu.Lock()
+		if stoppedListening := m.ls.listeners == nil; !stoppedListening {
+			fh = newHybridHandler(m)
+		}
+		m.ls.mu.Unlock()
+	}
+	c, _, _, err := conn.NewDialed(
+		ctx,
+		flowConn,
+		localEndpoint(flowConn, m.rid),
+		remote,
+		version.Supported,
+		auth,
+		handshakeTimeout,
+		0,
+		fh,
+	)
+	if err != nil {
+		flowConn.Close()
+		return nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
+	}
+	return c, fh, nil
+}
+
+func (m *manager) dialProxyConn(
+	ctx *context.T,
+	remote naming.Endpoint,
+	proxyConn *conn.Conn,
+	auth flow.PeerAuthorizer,
+	channelTimeout time.Duration) (*conn.Conn, []string, []security.RejectedBlessing, error) {
+	f, err := proxyConn.Dial(ctx, security.Blessings{}, nil, remote, channelTimeout, false)
+	if err != nil {
+		return nil, nil, nil, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
+	}
+	var fh conn.FlowHandler
+	if m.ls != nil {
+		m.ls.mu.Lock()
+		if stoppedListening := m.ls.listeners == nil; !stoppedListening {
+			fh = &flowHandler{m: m}
+		}
+		m.ls.mu.Unlock()
+	}
+	c, names, rejected, err := conn.NewDialed(
+		ctx,
+		f,
+		proxyConn.LocalEndpoint(),
+		remote,
+		version.Supported,
+		auth,
+		handshakeTimeout,
+		0,
+		fh,
+	)
+	if err != nil {
+		return nil, names, rejected, iflow.MaybeWrapError(flow.ErrDialFailed, ctx, err)
+	}
+	return c, names, rejected, nil
 }
 
 func dialFlow(ctx *context.T, c *conn.Conn, remote naming.Endpoint, names []string, rejected []security.RejectedBlessing,

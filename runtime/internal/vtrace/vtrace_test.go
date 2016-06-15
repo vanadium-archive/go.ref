@@ -7,6 +7,7 @@ package vtrace_test
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +26,8 @@ import (
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
+
+var logre = regexp.MustCompile(`^[a-zA-Z0-9]+\.go:[0-9]*\]`)
 
 // initForTest initializes the vtrace runtime and starts a mounttable.
 func initForTest(t *testing.T) (*context.T, v23.Shutdown, *testutil.IDProvider) {
@@ -154,11 +157,15 @@ func makeTestServer(ctx *context.T, principal security.Principal, name string) (
 
 func summary(span *vtrace.SpanRecord) string {
 	summary := span.Name
-	if len(span.Annotations) > 0 {
-		msgs := []string{}
-		for _, annotation := range span.Annotations {
-			msgs = append(msgs, annotation.Message)
+	msgs := []string{}
+	for _, annotation := range span.Annotations {
+		if logre.Match([]byte(annotation.Message)) {
+			// Skip log annotations since they're so likely to change.
+			continue
 		}
+		msgs = append(msgs, annotation.Message)
+	}
+	if len(msgs) > 0 {
 		summary += ": " + strings.Join(msgs, ", ")
 	}
 	return summary

@@ -14,6 +14,12 @@ import (
 var noWrapPackages = []string{
 	"v.io/v23/verror",
 	"v.io/v23/flow",
+	// TODO(mattr): We want to pass on the peerAuthorizedFailed error
+	// from the peerAuthorizer passed to us from the client.  The
+	// client detects that specific error to determine which error
+	// to return to users.  We should probably have another way
+	// to prevent this excessive wrapping, but this works for now.
+	"v.io/x/ref/runtime/internal/rpc",
 }
 
 func MaybeWrapError(idAction verror.IDAction, ctx *context.T, err error) error {

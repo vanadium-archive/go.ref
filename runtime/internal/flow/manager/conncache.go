@@ -8,40 +8,126 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
-	"strings"
-	"sync"
 	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/flow"
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	"v.io/v23/verror"
+	"v.io/x/lib/nsync"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/runtime/internal/flow/conn"
 )
 
+const maxErrorAge = time.Minute * 5
+
 // ConnCache is a cache from (protocol, address) and (routingID) to a set of Conns.
 // Multiple goroutines may invoke methods on the ConnCache simultaneously.
 type ConnCache struct {
-	mu        *sync.Mutex
-	cond      *sync.Cond
-	addrCache map[string][]*connEntry           // keyed by "protocol,address"
-	ridCache  map[naming.RoutingID][]*connEntry // keyed by remote.RoutingID
-	started   map[string]bool                   // keyed by "protocol,address"
+	mu   nsync.Mu
+	cond nsync.CV
+
+	conns    map[CachedConn]*connEntry
+	cache    map[interface{}][]*connEntry
+	errors   map[interface{}]dialError
+	reserved map[interface{}]*Reservation
 
 	idleExpiry time.Duration
 }
 
 type connEntry struct {
-	conn    cachedConn
-	rid     naming.RoutingID
-	addrKey string
-	proxy   bool
+	conn  CachedConn
+	rid   naming.RoutingID
+	proxy bool
+	// cancel is a context.CancelFunc that corresponds to the context
+	// used to dial the connection.  Since connections live longer than the
+	// RPC calls which precipiated their being dialed, we have to use
+	// context.WithRootCancel to make a context to dial.  This means we need
+	// to cancel that context at some point when the connection is no longer
+	// needed.  In our case that's when we eject the context from the cache.
+	cancel context.CancelFunc
+	keys   []interface{}
 }
 
-// cachedConn is the interface implemented by *conn.Conn that is used by ConnCache.
+type dialError struct {
+	err  error
+	when time.Time
+}
+
+// Reservation represents the right to dial a connection.  We only
+// hand out one reservation for a given connection at a time.
+type Reservation struct {
+	cache        *ConnCache
+	ctx          *context.T
+	cancel       context.CancelFunc
+	keys         []interface{}
+	remote       naming.Endpoint
+	waitForProxy bool
+}
+
+// Context returns the context that should be used to dial the new connection.
+func (r *Reservation) Context() *context.T {
+	return r.ctx
+}
+
+// ProxyConn returns a connection to a relevant proxy if it exists.  Otherwise
+// it returns nil and the reservation holder should dial the proxy if necessary.
+func (r *Reservation) ProxyConn() CachedConn {
+	if !r.waitForProxy {
+		return nil
+	}
+	keys := []interface{}{key(r.remote.Protocol, r.remote.Address)}
+	// We ignore the error here.  The worst thing that can happen is we try
+	// to dial the proxy again.
+	conn, _, _, _ := r.cache.internalFind(r.ctx, r.remote, keys, nil, true)
+	return conn
+}
+
+// Unreserve removes this reservation, and broadcasts waiting threads to
+// continue with their halted Find call.
+func (r *Reservation) Unreserve(conn, proxyConn CachedConn, err error) error {
+	c := r.cache
+
+	defer c.mu.Unlock()
+	c.mu.Lock()
+
+	if c.conns == nil {
+		return NewErrCacheClosed(r.ctx)
+	}
+
+	for _, k := range r.keys {
+		delete(c.reserved, k)
+	}
+
+	if proxyConn != nil {
+		c.insertConnLocked(r.remote, proxyConn, true, true, r.cancel)
+		r.cancel = nil
+	}
+
+	if conn != nil {
+		c.insertConnLocked(r.remote, conn, proxyConn != nil, proxyConn == nil, r.cancel)
+		r.cancel = nil
+	} else if err != nil {
+		e := dialError{
+			err:  err,
+			when: time.Now(),
+		}
+		c.errors[key(r.remote.Protocol, r.remote.Address)] = e
+		c.errors[r.remote.RoutingID] = e
+	}
+
+	if r.cancel != nil {
+		r.cancel()
+	}
+
+	c.cond.Broadcast()
+	return nil
+}
+
+// CachedConn is the interface implemented by *conn.Conn that is used by ConnCache.
 // We make the ConnCache API take this interface to make testing easier.
-type cachedConn interface {
+type CachedConn interface {
 	Status() conn.Status
 	IsEncapsulated() bool
 	IsIdle(*context.T, time.Duration) bool
@@ -61,74 +147,207 @@ type cachedConn interface {
 // NewConnCache creates a ConnCache with an idleExpiry for connections.
 // If idleExpiry is zero, connections will never expire.
 func NewConnCache(idleExpiry time.Duration) *ConnCache {
-	mu := &sync.Mutex{}
-	cond := sync.NewCond(mu)
 	return &ConnCache{
-		mu:         mu,
-		cond:       cond,
-		addrCache:  make(map[string][]*connEntry),
-		ridCache:   make(map[naming.RoutingID][]*connEntry),
-		started:    make(map[string]bool),
+		conns:      make(map[CachedConn]*connEntry),
+		cache:      make(map[interface{}][]*connEntry),
+		errors:     make(map[interface{}]dialError),
+		reserved:   make(map[interface{}]*Reservation),
 		idleExpiry: idleExpiry,
 	}
 }
 
 // Insert adds conn to the cache, keyed by both (protocol, address) and (routingID).
 // An error will be returned iff the cache has been closed.
-func (c *ConnCache) Insert(conn cachedConn, proxy bool) error {
+func (c *ConnCache) Insert(conn CachedConn, proxy bool) error {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	if c.addrCache == nil {
+	if c.conns == nil {
 		return NewErrCacheClosed(nil)
 	}
-	c.insertConnLocked(conn, proxy, true)
+	c.insertConnLocked(conn.RemoteEndpoint(), conn, proxy, true, nil)
 	return nil
 }
 
 // InsertWithRoutingID adds conn to the cache keyed only by conn's RoutingID.
-func (c *ConnCache) InsertWithRoutingID(conn cachedConn, proxy bool) error {
+func (c *ConnCache) InsertWithRoutingID(conn CachedConn, proxy bool) error {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	if c.addrCache == nil {
+	if c.conns == nil {
 		return NewErrCacheClosed(nil)
 	}
-	c.insertConnLocked(conn, proxy, false)
+	c.insertConnLocked(conn.RemoteEndpoint(), conn, proxy, false, nil)
 	return nil
 }
 
 // Find returns a Conn based on the input remoteEndpoint.
 // nil is returned if there is no such Conn.
 //
-// If no error is returned, the caller is required to call Unreserve, to avoid
-// deadlock. The (network, address) provided to Unreserve must be the same as
-// the arguments provided to Find.
-// All new Find calls for the (network, address) will Block
-// until the corresponding Unreserve call is made.
-// p is used to check the cache for resolved protocols.
-func (c *ConnCache) Find(ctx *context.T, remote naming.Endpoint, network, address string, auth flow.PeerAuthorizer,
-	p flow.Protocol) (conn cachedConn, names []string, rejected []security.RejectedBlessing, err error) {
-	if conn, names, rejected, err = c.findWithRoutingID(ctx, remote, auth); err != nil || conn != nil {
-		return conn, names, rejected, err
+// Find calls for the will block if the desired connections are
+// currently being dialed.  Find will return immediately if the given
+// context is canceled.
+func (c *ConnCache) Find(
+	ctx *context.T,
+	remote naming.Endpoint,
+	auth flow.PeerAuthorizer,
+) (conn CachedConn, names []string, rejected []security.RejectedBlessing, err error) {
+	var keys []interface{}
+	if keys, conn, names, rejected, err = c.internalFindCached(ctx, remote, auth); conn != nil {
+		return conn, names, rejected, nil
 	}
-	if conn, names, rejected, err = c.findWithAddress(ctx, remote, network, address, auth); err != nil || conn != nil {
-		return conn, names, rejected, err
-	}
-	return c.findWithResolvedAddress(ctx, remote, network, address, auth, p)
+	// Finally try waiting for any outstanding dials to complete.
+	return c.internalFind(ctx, remote, keys, auth, true)
 }
 
-// Find returns a Conn based only on the RoutingID of remote.
-func (c *ConnCache) FindWithRoutingID(ctx *context.T, remote naming.Endpoint,
-	auth flow.PeerAuthorizer) (cachedConn, []string, []security.RejectedBlessing, error) {
-	return c.findWithRoutingID(ctx, remote, auth)
+// FindCached returns a Conn only if it's already in the cache.
+func (c *ConnCache) FindCached(
+	ctx *context.T,
+	remote naming.Endpoint,
+	auth flow.PeerAuthorizer) (conn CachedConn, names []string, rejected []security.RejectedBlessing, err error) {
+	_, conn, names, rejected, err = c.internalFindCached(ctx, remote, auth)
+	return
 }
 
-// Unreserve marks the status of the (network, address) as no longer started, and
-// broadcasts waiting threads to continue with their halted Find call.
-func (c *ConnCache) Unreserve(network, address string) {
+func (c *ConnCache) internalFind(
+	ctx *context.T,
+	remote naming.Endpoint,
+	keys []interface{},
+	auth flow.PeerAuthorizer,
+	wait bool,
+) (CachedConn, []string, []security.RejectedBlessing, error) {
+	c.mu.Lock()
+	var err error
+	var entries rttEntries
+	for {
+		if c.conns == nil {
+			c.mu.Unlock()
+			return nil, nil, nil, NewErrCacheClosed(ctx)
+		}
+		entries, err = c.rttEntriesLocked(ctx, keys)
+		if len(entries) > 0 || !wait || !c.hasReservationsLocked(keys) {
+			break
+		}
+		if c.cond.WaitWithDeadline(&c.mu, nsync.NoDeadline, ctx.Done()) != nsync.OK {
+			c.mu.Unlock()
+			switch ctx.Err() {
+			case context.Canceled:
+				return nil, nil, nil, verror.NewErrCanceled(ctx)
+			default:
+				return nil, nil, nil, verror.NewErrTimeout(ctx)
+			}
+		}
+	}
+	c.mu.Unlock()
+
+	if len(entries) == 0 {
+		if err == nil {
+			err = NewErrConnNotInCache(ctx, remote.String())
+		}
+		return nil, nil, nil, err
+	}
+	return c.pickFirstAuthorizedConn(ctx, remote, entries, auth)
+}
+
+func (c *ConnCache) internalFindCached(
+	ctx *context.T,
+	remote naming.Endpoint,
+	auth flow.PeerAuthorizer) (keys []interface{}, conn CachedConn, names []string, rejected []security.RejectedBlessing, err error) {
+	// If we have an RID, there's no point in looking under anything else.
+	if rid := remote.RoutingID; rid != naming.NullRoutingID {
+		keys = []interface{}{rid, pathkey(remote.Protocol, remote.Address, rid)}
+		conn, names, rejected, err = c.internalFind(ctx, remote, keys, auth, false)
+		return keys, conn, names, rejected, err
+	}
+
+	// Try looking under the address if there wasn't a routing ID.
+	addrKey := key(remote.Protocol, remote.Address)
+	keys = []interface{}{addrKey}
+	if conn, names, rejected, err = c.internalFind(ctx, remote, keys, auth, false); conn != nil {
+		return keys, conn, names, rejected, nil
+	}
+
+	// If that didn't work, try resolving the address and looking again.
+	p, _ := flow.RegisteredProtocol(remote.Protocol)
+	network, addresses, rerr := resolve(ctx, p, remote.Protocol, remote.Address)
+	if rerr != nil {
+		// TODO(suharshs): Add a unittest for failed resolution.
+		ctx.Errorf("Failed to resolve (%v, %v): %v", remote.Protocol, remote.Address, err)
+	}
+	for _, a := range addresses {
+		if k := key(network, a); k != addrKey {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) > 1 {
+		conn, names, rejected, err = c.internalFind(ctx, remote, keys, auth, false)
+	}
+	return keys, conn, names, rejected, err
+}
+
+// Reserve reserves the right to dial a remote endpoint.
+func (c *ConnCache) Reserve(ctx *context.T, remote naming.Endpoint) *Reservation {
+	if remote.Protocol == "bidi" {
+		return nil
+	}
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	delete(c.started, key(network, address))
-	c.cond.Broadcast()
+	if c.conns == nil {
+		// Cache is closed.
+		return nil
+	}
+
+	k := key(remote.Protocol, remote.Address)
+
+	if remote.RoutingID == naming.NullRoutingID {
+		if len(c.cache[k]) > 0 || c.reserved[k] != nil {
+			// There are either connections or a reservation for this
+			// address, and the routing id is not given, so no reservations
+			// are needed.
+			return nil
+		}
+		res := &Reservation{
+			cache:  c,
+			remote: remote,
+			keys:   []interface{}{k},
+		}
+		res.ctx, res.cancel = context.WithCancel(ctx)
+		c.reserved[k] = res
+		return res
+	}
+
+	// OK, now we're in the more complicated case when there is an address and
+	// routing ID, so a proxy might be involved.
+	// TODO(mattr): We should include the routes in the case of multi-proxying.
+	pk := pathkey(remote.Protocol, remote.Address, remote.RoutingID)
+
+	if len(c.cache[k]) == 0 && c.reserved[k] == nil {
+		// Nobody is dialing the address.  We'll reserve both the address and the path.
+		res := &Reservation{
+			cache:  c,
+			remote: remote,
+			keys:   []interface{}{k, pk},
+		}
+		res.ctx, res.cancel = context.WithCancel(ctx)
+		c.reserved[k] = res
+		c.reserved[pk] = res
+		return res
+	}
+
+	if len(c.cache[pk]) == 0 && c.reserved[pk] == nil {
+		// The address connection exists (or is being dialed), but the path doesn't.
+		// We'll only reserve the path.
+		res := &Reservation{
+			cache:        c,
+			remote:       remote,
+			keys:         []interface{}{pk},
+			waitForProxy: true,
+		}
+		res.ctx, res.cancel = context.WithCancel(ctx)
+		c.reserved[pk] = res
+		return res
+	}
+
+	// No need to reserve anything.
+	return nil
 }
 
 // KillConnections will closes at least num Conns in the cache.
@@ -150,15 +369,23 @@ func (c *ConnCache) Unreserve(network, address string) {
 func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	if c.addrCache == nil {
+	if c.conns == nil {
 		return NewErrCacheClosed(ctx)
 	}
-	// entries will be at least c.ridCache size.
-	entries := make(lruEntries, 0, len(c.ridCache))
-	for _, es := range c.ridCache {
-		for _, e := range es {
-			entries = append(entries, e)
+
+	// kill old error records.  We keep them for a while to allow new finds
+	// to return errors for recent dial attempts, but we need to eliminate
+	// them eventually.
+	now := time.Now()
+	for k, v := range c.errors {
+		if v.when.Add(maxErrorAge).Before(now) {
+			delete(c.errors, k)
 		}
+	}
+
+	entries := make(lruEntries, 0, len(c.conns))
+	for _, e := range c.conns {
+		entries = append(entries, e)
 	}
 	k := 0
 	for _, e := range entries {
@@ -222,12 +449,9 @@ func (c *ConnCache) KillConnections(ctx *context.T, num int) error {
 // end to acknowledge the lameduck.
 func (c *ConnCache) EnterLameDuckMode(ctx *context.T) {
 	c.mu.Lock()
-	// waitfor will be at least c.ridCache size.
-	waitfor := make([]chan struct{}, 0, len(c.ridCache))
-	for _, entries := range c.ridCache {
-		for _, e := range entries {
-			waitfor = append(waitfor, e.conn.EnterLameDuck(ctx))
-		}
+	waitfor := make([]chan struct{}, 0, len(c.conns))
+	for _, e := range c.conns {
+		waitfor = append(waitfor, e.conn.EnterLameDuck(ctx))
 	}
 	c.mu.Unlock()
 	for _, w := range waitfor {
@@ -240,14 +464,13 @@ func (c *ConnCache) Close(ctx *context.T) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	err := NewErrCacheClosed(ctx)
-	for _, entries := range c.ridCache {
-		for _, e := range entries {
-			e.conn.Close(ctx, err)
-		}
+	for _, e := range c.conns {
+		e.conn.Close(ctx, err)
 	}
-	c.addrCache = nil
-	c.ridCache = nil
-	c.started = nil
+	c.conns = nil
+	c.cache = nil
+	c.reserved = nil
+	c.errors = nil
 }
 
 // String returns a user friendly representation of the connections in the cache.
@@ -255,174 +478,124 @@ func (c *ConnCache) String() string {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 	buf := &bytes.Buffer{}
-	if c.addrCache == nil {
+	if c.conns == nil {
 		return "conncache closed"
 	}
-	fmt.Fprintln(buf, "AddressCache:")
-	for k, entries := range c.addrCache {
-		for _, e := range entries {
-			fmt.Fprintf(buf, "%v: %p\n", k, e.conn)
-		}
+	fmt.Fprintln(buf, "Cached:")
+	for _, e := range c.conns {
+		fmt.Fprintf(buf, "%v: %v\n", e.keys, e.conn)
 	}
-	fmt.Fprintln(buf, "RIDCache:")
-	for k, entries := range c.ridCache {
-		for _, e := range entries {
-			fmt.Fprintf(buf, "%v: %p\n", k, e.conn)
-		}
+	fmt.Fprintln(buf, "Reserved:")
+	for _, r := range c.reserved {
+		fmt.Fprintf(buf, "%v: %p\n", r.keys, r)
 	}
 	return buf.String()
 }
 
 // ExportStats exports cache information to the global stats.
 func (c *ConnCache) ExportStats(prefix string) {
-	stats.NewStringFunc(naming.Join(prefix, "addr"), func() string { return c.debugStringForAddrCache() })
-	stats.NewStringFunc(naming.Join(prefix, "rid"), func() string { return c.debugStringForRIDCache() })
-	stats.NewStringFunc(naming.Join(prefix, "dialing"), func() string { return c.debugStringForDialing() })
+	stats.NewStringFunc(naming.Join(prefix, "cache"), func() string { return c.debugStringForCache() })
+	stats.NewStringFunc(naming.Join(prefix, "reserved"), func() string { return c.debugStringForDialing() })
 }
 
-func (c *ConnCache) insertConnLocked(conn cachedConn, proxy bool, keyByAddr bool) {
+func (c *ConnCache) insertConnLocked(remote naming.Endpoint, conn CachedConn, proxy bool, keyByAddr bool, cancel context.CancelFunc) {
+	if _, ok := c.conns[conn]; ok {
+		// If the conn is already in the cache, don't re-add it.
+		return
+	}
 	ep := conn.RemoteEndpoint()
 	entry := &connEntry{
-		conn:  conn,
-		rid:   ep.RoutingID,
-		proxy: proxy,
+		conn:   conn,
+		rid:    ep.RoutingID,
+		proxy:  proxy,
+		cancel: cancel,
+		keys:   make([]interface{}, 0, 3),
 	}
+	if entry.rid != naming.NullRoutingID {
+		entry.keys = append(entry.keys, entry.rid)
+	}
+	kdialed := key(remote.Protocol, remote.Address)
 	if keyByAddr {
-		addr := ep.Addr()
-		k := key(addr.Network(), addr.String())
-		entry.addrKey = k
-		c.addrCache[k] = append(c.addrCache[k], entry)
+		entry.keys = append(entry.keys, kdialed)
 	}
-	c.ridCache[entry.rid] = append(c.ridCache[entry.rid], entry)
+	entry.keys = append(entry.keys, pathkey(remote.Protocol, remote.Address, ep.RoutingID))
+	if kresolved := key(ep.Protocol, ep.Address); kresolved != kdialed {
+		if keyByAddr {
+			entry.keys = append(entry.keys, kresolved)
+		}
+		entry.keys = append(entry.keys, pathkey(ep.Protocol, ep.Address, ep.RoutingID))
+	}
+	for _, k := range entry.keys {
+		c.cache[k] = append(c.cache[k], entry)
+	}
+	c.conns[entry.conn] = entry
 }
 
-func (c *ConnCache) findWithRoutingID(ctx *context.T, remote naming.Endpoint,
-	auth flow.PeerAuthorizer) (cachedConn, []string, []security.RejectedBlessing, error) {
-	c.mu.Lock()
-	if c.addrCache == nil {
-		c.mu.Unlock()
-		return nil, nil, nil, NewErrCacheClosed(ctx)
-	}
-	rid := remote.RoutingID
-	if rid == naming.NullRoutingID {
-		c.mu.Unlock()
-		return nil, nil, nil, nil
-	}
-	entries := c.makeRTTEntriesLocked(c.ridCache[rid])
-	c.mu.Unlock()
-
-	conn, names, rejected := c.pickFirstAuthorizedConn(ctx, remote, entries, auth)
-	return conn, names, rejected, nil
-}
-
-func (c *ConnCache) findWithAddress(ctx *context.T, remote naming.Endpoint, network, address string,
-	auth flow.PeerAuthorizer) (cachedConn, []string, []security.RejectedBlessing, error) {
-	k := key(network, address)
-
-	c.mu.Lock()
-	if c.addrCache == nil {
-		c.mu.Unlock()
-		return nil, nil, nil, NewErrCacheClosed(ctx)
-	}
-	for c.started[k] {
-		c.cond.Wait()
-		if c.addrCache == nil {
-			c.mu.Unlock()
-			return nil, nil, nil, NewErrCacheClosed(ctx)
+func (c *ConnCache) rttEntriesLocked(ctx *context.T, keys []interface{}) (rttEntries, error) {
+	var entries rttEntries
+	var firstError error
+	for _, k := range keys {
+		if found := c.cache[k]; len(found) > 0 {
+			for _, e := range found {
+				if status := e.conn.Status(); status >= conn.Closing {
+					c.removeEntryLocked(e)
+				} else if !e.conn.RemoteLameDuck() {
+					entries = append(entries, e)
+				}
+			}
+		} else if err := c.errors[k].err; firstError == nil && err != nil {
+			firstError = err
 		}
 	}
-	c.started[k] = true
-	entries := c.makeRTTEntriesLocked(c.addrCache[k])
-	c.mu.Unlock()
-
-	conn, names, rejected := c.pickFirstAuthorizedConn(ctx, remote, entries, auth)
-	return conn, names, rejected, nil
-}
-
-func (c *ConnCache) findWithResolvedAddress(ctx *context.T, remote naming.Endpoint, network, address string,
-	auth flow.PeerAuthorizer, p flow.Protocol) (cachedConn, []string, []security.RejectedBlessing, error) {
-	network, addresses, err := resolve(ctx, p, network, address)
-	if err != nil {
-		// TODO(suharshs): Add a unittest for failed resolution.
-		ctx.VI(2).Infof("Failed to resolve (%v, %v): %v", network, address, err)
-		return nil, nil, nil, nil
-	}
-
-	for _, address := range addresses {
-		c.mu.Lock()
-		if c.addrCache == nil {
-			c.mu.Unlock()
-			return nil, nil, nil, NewErrCacheClosed(ctx)
-		}
-		k := key(network, address)
-		entries := c.makeRTTEntriesLocked(c.addrCache[k])
-		c.mu.Unlock()
-
-		if conn, names, rejected := c.pickFirstAuthorizedConn(ctx, remote, entries, auth); conn != nil {
-			return conn, names, rejected, nil
-		}
-	}
-
-	return nil, nil, nil, nil
-}
-
-func (c *ConnCache) makeRTTEntriesLocked(es []*connEntry) rttEntries {
-	if len(es) == 0 {
-		return nil
-	}
-	// Sort connections by RTT.
-	entries := make(rttEntries, len(es))
-	copy(entries, es)
 	sort.Sort(entries)
-	// Remove undialable connections.
-	k := 0
-	for _, e := range entries {
-		if status := e.conn.Status(); status >= conn.Closing {
-			c.removeEntryLocked(e)
-		} else if !e.conn.RemoteLameDuck() {
-			entries[k] = e
-			k++
-		}
-	}
-	return entries[:k]
+	return entries, firstError
 }
 
-func (c *ConnCache) pickFirstAuthorizedConn(ctx *context.T, remote naming.Endpoint,
-	entries rttEntries, auth flow.PeerAuthorizer) (cachedConn, []string, []security.RejectedBlessing) {
+func (c *ConnCache) hasReservationsLocked(keys []interface{}) bool {
+	for _, k := range keys {
+		if c.reserved[k] != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *ConnCache) pickFirstAuthorizedConn(
+	ctx *context.T,
+	remote naming.Endpoint,
+	entries rttEntries,
+	auth flow.PeerAuthorizer) (conn CachedConn, names []string, rejected []security.RejectedBlessing, err error) {
 	for _, e := range entries {
 		if e.proxy || auth == nil {
-			return e.conn, nil, nil
+			return e.conn, nil, nil, nil
 		}
-		names, rejected, err := auth.AuthorizePeer(ctx,
+		names, rejected, err = auth.AuthorizePeer(ctx,
 			e.conn.LocalEndpoint(),
 			remote,
 			e.conn.RemoteBlessings(),
 			e.conn.RemoteDischarges())
 		if err == nil {
-			return e.conn, names, rejected
+			return e.conn, names, rejected, nil
 		}
 	}
-	return nil, nil, nil
+	return nil, nil, nil, err
 }
 
 func (c *ConnCache) removeEntryLocked(entry *connEntry) {
-	addrConns, ok := c.addrCache[entry.addrKey]
-	if ok {
-		addrConns = removeEntryFromSlice(addrConns, entry)
-		if len(addrConns) == 0 {
-			delete(c.addrCache, entry.addrKey)
-		} else {
-			c.addrCache[entry.addrKey] = addrConns
+	for _, k := range entry.keys {
+		entries, ok := c.cache[k]
+		if ok {
+			entries = removeEntryFromSlice(entries, entry)
+			if len(entries) == 0 {
+				delete(c.cache, k)
+			} else {
+				c.cache[k] = entries
+			}
 		}
 	}
-	ridConns, ok := c.ridCache[entry.rid]
-	if ok {
-		ridConns = removeEntryFromSlice(ridConns, entry)
-		if len(ridConns) == 0 {
-			delete(c.ridCache, entry.rid)
-		} else {
-			c.ridCache[entry.rid] = ridConns
-		}
+	delete(c.conns, entry.conn)
+	if entry.cancel != nil {
+		entry.cancel()
 	}
 }
 
@@ -437,41 +610,22 @@ func removeEntryFromSlice(entries []*connEntry, entry *connEntry) []*connEntry {
 	return entries
 }
 
-func (c *ConnCache) debugStringForAddrCache() string {
+func (c *ConnCache) debugStringForCache() string {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	if c.addrCache == nil {
+	if c.cache == nil {
 		return "<closed>"
 	}
-	buf := &bytes.Buffer{}
 	// map iteration is unstable, so sort the keys first
-	keys := make([]string, len(c.addrCache))
-	i := 0
-	for k := range c.addrCache {
-		keys[i] = k
-		i++
+	keys := make(sortedKeys, 0, len(c.cache))
+	for k := range c.cache {
+		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	sort.Sort(keys)
+	buf := &bytes.Buffer{}
 	for _, k := range keys {
 		fmt.Fprintf(buf, "KEY: %v\n", k)
-		for _, e := range c.addrCache[k] {
-			fmt.Fprintf(buf, "%v\n", e.conn.DebugString())
-		}
-		fmt.Fprintf(buf, "\n")
-	}
-	return buf.String()
-}
-
-func (c *ConnCache) debugStringForRIDCache() string {
-	defer c.mu.Unlock()
-	c.mu.Lock()
-	if c.ridCache == nil {
-		return "<closed>"
-	}
-	buf := &bytes.Buffer{}
-	for k, entries := range c.ridCache {
-		fmt.Fprintf(buf, "KEY: %v\n", k)
-		for _, e := range entries {
+		for _, e := range c.cache[k] {
 			fmt.Fprintf(buf, "%v\n", e.conn.DebugString())
 		}
 		fmt.Fprintf(buf, "\n")
@@ -482,21 +636,45 @@ func (c *ConnCache) debugStringForRIDCache() string {
 func (c *ConnCache) debugStringForDialing() string {
 	defer c.mu.Unlock()
 	c.mu.Lock()
-	if c.started == nil {
+	if c.reserved == nil {
 		return "<closed>"
 	}
-	keys := make([]string, len(c.started))
-	i := 0
-	for k := range c.started {
-		keys[i] = k
-		i++
+	keys := make(sortedKeys, 0, len(c.cache))
+	for k := range c.cache {
+		keys = append(keys, k)
 	}
-	sort.Strings(keys)
-	return strings.Join(keys, "\n")
+	sort.Sort(keys)
+	buf := &bytes.Buffer{}
+	for _, k := range keys {
+		fmt.Fprintf(buf, "KEY: %v\n", k)
+		fmt.Fprintf(buf, "%#v\n", c.reserved[k])
+		fmt.Fprintf(buf, "\n")
+	}
+	return buf.String()
+}
+
+type sortedKeys []interface{}
+
+func (e sortedKeys) Len() int {
+	return len(e)
+}
+
+func (e sortedKeys) Less(i, j int) bool {
+	return fmt.Sprint(e[i]) < fmt.Sprint(e[j])
+}
+
+func (e sortedKeys) Swap(i, j int) {
+	e[i], e[j] = e[j], e[i]
 }
 
 func key(protocol, address string) string {
+	// TODO(mattr): Unalias the default protocol?
 	return protocol + "," + address
+}
+
+func pathkey(protocol, address string, rid naming.RoutingID) string {
+	// TODO(mattr): Unalias the default protocol?
+	return protocol + "," + address + "," + rid.String()
 }
 
 type rttEntries []*connEntry

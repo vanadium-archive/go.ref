@@ -714,7 +714,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 	if e, err := clientNs.Resolve(serverCtx, "mt/server", options.NameResolutionAuthorizer{security.AllowEveryone()}); err != nil {
 		t.Errorf("Resolve should succeed when skipping server authorization. Got (%v, %v) %s", e, err, verror.DebugString(err))
 	} else if e, err := clientNs.Resolve(serverCtx, "mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
-		t.Errorf("Resolve should have failed with %q because an attacker has taken over the intermediate mounttable. Got (%+v, errorid=%q:%v)", verror.ErrNotTrusted.ID, e, verror.ErrorID(err), err)
+		t.Errorf("Resolve should have failed with %q because an attacker has taken over the intermediate mounttable. Got\n%+v\nerrorid=%q\nerror=%s", verror.ErrNotTrusted.ID, e, verror.ErrorID(err), verror.DebugString(err))
 	}
 }
 
