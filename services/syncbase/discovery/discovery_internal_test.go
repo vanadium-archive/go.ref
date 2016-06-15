@@ -55,7 +55,7 @@ func TestInviteQueue(t *testing.T) {
 
 	ctx = context.WithLogger(ctx, logger{})
 
-	q := newInviteQueue()
+	q := newCopyableQueue()
 	if q.size() != 0 {
 		t.Errorf("got %d, want 0", q.size())
 	}
@@ -65,7 +65,7 @@ func TestInviteQueue(t *testing.T) {
 	// Test inserts during a long scan.
 	ch := make(chan struct{})
 	go func() {
-		scan(ctx, q, want)
+		scanForFoundOnly(ctx, q, want)
 		close(ch)
 	}()
 
@@ -75,7 +75,7 @@ func TestInviteQueue(t *testing.T) {
 		if q.size() != i+1 {
 			t.Errorf("got %d, want %d", q.size(), i+1)
 		}
-		if err := scan(ctx, q, want[:i+1]); err != nil {
+		if err := scanForFoundOnly(ctx, q, want[:i+1]); err != nil {
 			t.Error(err)
 		}
 	}
@@ -84,30 +84,60 @@ func TestInviteQueue(t *testing.T) {
 	<-ch
 
 	// Start another long scan that will proceed across deletes
+	// Start a similar scan that will see 0, 1, 3, 4 and deletes for 0, 1, 3, 4.
+	// Start a final scan that will see 0, 3 and deletes for 0, 3.
 	steps := make(chan struct{})
 	go func() {
-		ctx, cancel := context.WithCancel(ctx)
+		ctx1, cancel := context.WithCancel(ctx)
 		c := q.scan()
+		ctx2, cancel2 := context.WithCancel(ctx)
+		c2 := q.scan()
+		ctx3, cancel3 := context.WithCancel(ctx)
+		c3 := q.scan()
 
-		if inv, ok := q.next(ctx, c); !ok || inv.Syncgroup.Name != want[0] {
-			t.Error("next should have suceeded.")
-		}
-		if inv, ok := q.next(ctx, c); !ok || inv.Syncgroup.Name != want[1] {
-			t.Error("next should have suceeded.")
-		}
+		advance(t, ctx1, c, q, want[0], false)
+		advance(t, ctx1, c, q, want[1], false)
+		advance(t, ctx2, c2, q, want[0], false)
+		advance(t, ctx2, c2, q, want[1], false)
+		advance(t, ctx3, c3, q, want[0], false)
 
 		steps <- struct{}{}
 		<-steps
 
-		if inv, ok := q.next(ctx, c); !ok || inv.Syncgroup.Name != want[3] {
-			t.Error("next should have suceeded.")
+		// Scanner c should just see 3 and 4.
+		advance(t, ctx1, c, q, want[3], false)
+		advance(t, ctx1, c, q, want[4], false)
+		if err := trueCancel(ctx1, cancel, q, c); err != nil {
+			t.Error(err)
 		}
-		if inv, ok := q.next(ctx, c); !ok || inv.Syncgroup.Name != want[4] {
-			t.Error("next should have suceeded.")
-		}
-		cancel()
+
+		// Scanner c2 should see 3, 4, lost 0, lost 1.
+		advance(t, ctx2, c2, q, want[3], false)
+		advance(t, ctx2, c2, q, want[4], false)
+		advance(t, ctx2, c2, q, want[0], true)
+		advance(t, ctx2, c2, q, want[1], true)
+
+		// Scanner c3 will just take a look at 3.
+		advance(t, ctx3, c3, q, want[3], false)
 
 		steps <- struct{}{}
+		<-steps
+
+		// After this point, 3 and 4 were removed, so c2 should see those too.
+		advance(t, ctx2, c2, q, want[3], true)
+		advance(t, ctx2, c2, q, want[4], true)
+		if err := trueCancel(ctx2, cancel2, q, c2); err != nil {
+			t.Error(err)
+		}
+
+		// Since c3 only looked at 0 and 3, it'll only see losses for those two.
+		advance(t, ctx3, c3, q, want[0], true)
+		advance(t, ctx3, c3, q, want[3], true)
+		if err := trueCancel(ctx3, cancel3, q, c3); err != nil {
+			t.Error(err)
+		}
+
+		steps <- struct{}{} // Done. Every cursor should be canceled now.
 	}()
 
 	// Wait for the scan to read the first two values.
@@ -122,16 +152,44 @@ func TestInviteQueue(t *testing.T) {
 			// Wait for it to finish.
 			<-steps
 		}
-		if q.size() != len(want)-i-1 {
-			t.Errorf("got %d, want %d", q.size(), len(want)-i-1)
+		// A lost element replaces the removed found element.
+		if i < 2 && q.size() != 5 {
+			t.Errorf("got %d, want %d", q.size(), 5)
 		}
-		if err := scan(ctx, q, want[i+1:]); err != nil {
-			t.Error(err)
+		// #1 was garbage collected (c1, c2 canceled. c3 only saw #0, but not #1).
+		// #2 was garbage collected (nobody saw it)
+		// Thus, we need to see 3 items (3, 4, and lost 0)
+		if i >= 2 && q.size() != 3 {
+			t.Errorf("got %d, want %d", q.size(), 3)
 		}
+		if err := scanForFoundOnly(ctx, q, want[i+1:]); err != nil {
+			t.Errorf("on iteration %d, scan for found only failed: %v", i, err)
+		}
+	}
+
+	steps <- struct{}{} // return control to verify the scan for c2 and c3.
+	<-steps
+
+	// Verify that the queue is now empty.
+	// Garbage collection of all lost elements should have occurred.
+	if q.size() != 0 {
+		t.Errorf("got %d, want 0", q.size())
 	}
 }
 
-func logList(ctx *context.T, q *inviteQueue) {
+func advance(t *testing.T, ctx *context.T, c int, q *copyableQueue, want string, isLost bool) {
+	if inv, ok := q.next(ctx, c); !ok {
+		t.Error("next should have suceeded.")
+	} else if inv.(Invite).Syncgroup.Name != want {
+		t.Errorf("next should be %s, but got: %s", want, inv.(Invite).Syncgroup.Name)
+	} else if inv.(Invite).Lost && !isLost {
+		t.Error("next should have been found")
+	} else if !inv.(Invite).Lost && isLost {
+		t.Error("next should have been lost")
+	}
+}
+
+func logList(ctx *context.T, q *copyableQueue) {
 	buf := &bytes.Buffer{}
 	for e := q.sentinel.next; e != &q.sentinel; e = e.next {
 		fmt.Fprintf(buf, "%p ", e)
@@ -139,21 +197,39 @@ func logList(ctx *context.T, q *inviteQueue) {
 	ctx.Info("list", buf.String())
 }
 
-func scan(ctx *context.T, q *inviteQueue, want []string) error {
+func scanForFoundOnly(ctx *context.T, q *copyableQueue, want []string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	c := q.scan()
 	for i, w := range want {
 		inv, ok := q.next(ctx, c)
+
+		// Skip the lost for this test.
+		for inv.isLost() {
+			inv, ok = q.next(ctx, c)
+		}
+
 		if !ok {
 			return fmt.Errorf("scan ended after %d entries, wanted %d", i, len(want))
 		}
-		if got := inv.Syncgroup.Name; got != w {
+		if got := inv.(Invite).Syncgroup.Name; got != w {
 			return fmt.Errorf("got %s, want %s", got, w)
 		}
-		if i == len(want)-1 {
-			// Calling cancel should allow next to fail, exiting the loop.
-			cancel()
+		if inv.(Invite).Lost {
+			return fmt.Errorf("invite %v was lost", inv)
 		}
+	}
+	if err := trueCancel(ctx, cancel, q, c); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func trueCancel(ctx *context.T, cancel context.CancelFunc, q *copyableQueue, c int) error {
+	cancel()
+	q.stopScan(c)
+	if unwanted, ok := q.next(ctx, c); ok {
+		return fmt.Errorf("next returned %v after scan canceled", unwanted)
 	}
 	return nil
 }

@@ -22,8 +22,10 @@ import (
 	fdiscovery "v.io/x/ref/lib/discovery/factory"
 	"v.io/x/ref/lib/discovery/global"
 	"v.io/x/ref/lib/discovery/plugins/mock"
+	udiscovery "v.io/x/ref/lib/discovery/testutil"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	syncdis "v.io/x/ref/services/syncbase/discovery"
+	"v.io/x/ref/services/syncbase/server/interfaces"
 	tu "v.io/x/ref/services/syncbase/testutil"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -293,11 +295,11 @@ func TestListenForInvites(t *testing.T) {
 		}
 	}
 
-	d1invites, err := listenAs(ctx, rootp, "o:app1:client1", d1.Id())
+	d1invites, err := listenForInvitesAs(ctx, rootp, "o:app1:client1", d1.Id())
 	if err != nil {
 		panic(err)
 	}
-	d2invites, err := listenAs(ctx, rootp, "o:app1:client1", d2.Id())
+	d2invites, err := listenForInvitesAs(ctx, rootp, "o:app1:client1", d2.Id())
 	if err != nil {
 		panic(err)
 	}
@@ -316,7 +318,7 @@ func TestListenForInvites(t *testing.T) {
 	}
 }
 
-func listenAs(ctx *context.T, rootp security.Principal, as string, db wire.Id) (<-chan syncdis.Invite, error) {
+func listenForInvitesAs(ctx *context.T, rootp security.Principal, as string, db wire.Id) (<-chan syncdis.Invite, error) {
 	ch := make(chan syncdis.Invite)
 	return ch, syncdis.ListenForInvites(tu.NewCtx(ctx, rootp, as), db, ch)
 }
@@ -351,4 +353,194 @@ func createSyncgroup(t *testing.T, ctx *context.T, d syncbase.Database, sgId wir
 		tu.Fatalf(t, "Create SG %+v failed: %v", sgId, err)
 	}
 	return sg
+}
+
+func raisePeer(t *testing.T, label string, ctx *context.T) <-chan struct{} {
+	ad := discovery.Advertisement{
+		InterfaceName: interfaces.SyncDesc.PkgPath + "/" + interfaces.SyncDesc.Name,
+		Attributes:    map[string]string{wire.DiscoveryAttrPeer: label},
+	}
+	suffix := ""
+	eps := udiscovery.ToEndpoints("addr1:123")
+	mockServer := udiscovery.NewMockServer(eps)
+	done, err := idiscovery.AdvertiseServer(ctx, nil, mockServer, suffix, &ad, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return done
+}
+
+// Do basic tests to check that listen for peers functions as expected.
+// 3 peers are raised in this test and multiple scanners are used.
+// Note: All scanners will see the next found peer even if they haven't
+// consumed the channel for it yet. The effective buffer size is chan size + 1.
+func TestListenForPeers(t *testing.T) {
+	// Setup a base context that is given a rooted principal.
+	baseCtx, shutdown := test.V23Init()
+	defer shutdown()
+
+	rootp := testutil.NewPrincipal("root")
+	ctx := tu.NewCtx(baseCtx, rootp, "o:app")
+
+	// Discovery is also mocked out for future "fake" ads.
+	df, _ := idiscovery.NewFactory(ctx, mock.New())
+	fdiscovery.InjectFactory(df)
+
+	// Raise Peer 1.
+	ctx1, cancel1 := context.WithCancel(ctx)
+	defer cancel1()
+	done1 := raisePeer(t, "peer1", ctx1)
+
+	// 1a: Peer 1 can only see themselves.
+	ctx1a, cancel1a := context.WithCancel(ctx1)
+	peerChan1a, err := listenForPeersAs(ctx1a, rootp, "client1")
+	if err != nil {
+		panic(err)
+	}
+	checkExpectedPeers(t, peerChan1a, 1, 0)
+	cancel1a()
+	confirmCleanupPeer(t, peerChan1a)
+
+	// Raise Peer 2.
+	ctx2, cancel2 := context.WithCancel(ctx)
+	defer cancel2()
+	raisePeer(t, "peer2", ctx2)
+
+	// 2a is special and will run until the end of the test. It reads 0 peers now.
+	ctx2a, cancel2a := context.WithCancel(ctx2)
+	peerChan2a, err := listenForPeersAs(ctx2a, rootp, "client2")
+	if err != nil {
+		panic(err)
+	}
+
+	// 2e is special and will run until the end of the test. It reads 2 peers now.
+	ctx2e, cancel2e := context.WithCancel(ctx2)
+	peerChan2e, err := listenForPeersAs(ctx2e, rootp, "client2")
+	if err != nil {
+		panic(err)
+	}
+	checkExpectedPeers(t, peerChan2e, 2, 0)
+
+	// 1b and 2b: Peer 1 and Peer 2 can see each other.
+	ctx1b, cancel1b := context.WithCancel(ctx1)
+	peerChan1b, err := listenForPeersAs(ctx1b, rootp, "client1")
+	if err != nil {
+		panic(err)
+	}
+	checkExpectedPeers(t, peerChan1b, 2, 0)
+	cancel1b()
+	confirmCleanupPeer(t, peerChan1b)
+
+	ctx2b, cancel2b := context.WithCancel(ctx2)
+	peerChan2b, err := listenForPeersAs(ctx2b, rootp, "client2")
+	if err != nil {
+		panic(err)
+	}
+	checkExpectedPeers(t, peerChan2b, 2, 0)
+	cancel2b()
+	confirmCleanupPeer(t, peerChan2b)
+
+	// Raise Peer 3.
+	ctx3, cancel3 := context.WithCancel(ctx)
+	defer cancel3()
+	done3 := raisePeer(t, "peer3", ctx3)
+
+	// 2c is special and will run until the end of the test. It reads 3 peers now.
+	ctx2c, cancel2c := context.WithCancel(ctx2)
+	peerChan2c, err := listenForPeersAs(ctx2c, rootp, "client2")
+	if err != nil {
+		panic(err)
+	}
+	checkExpectedPeers(t, peerChan2c, 3, 0)
+
+	// Stop Peer 1 by canceling its context and waiting for the ad to disappear.
+	cancel1()
+	<-done1
+
+	// The "remove" notification goroutines might race, so wait a little bit.
+	// It is okay to wait since this is purely for test simplification purposes.
+	<-time.After(time.Millisecond * 10)
+
+	// 2c also sees lost 1.
+	checkExpectedPeers(t, peerChan2c, 0, 1)
+
+	// 2d and 3d: Peer 2 and Peer 3 see each other and nobody else.
+	ctx2d, cancel2d := context.WithCancel(ctx2)
+	peerChan2d, err := listenForPeersAs(ctx2d, rootp, "client2")
+	if err != nil {
+		panic(err)
+	}
+	checkExpectedPeers(t, peerChan2d, 2, 0)
+	cancel2d()
+	confirmCleanupPeer(t, peerChan2d)
+
+	ctx3d, cancel3d := context.WithCancel(ctx3)
+	peerChan3d, err := listenForPeersAs(ctx3d, rootp, "client3")
+	if err != nil {
+		panic(err)
+	}
+	checkExpectedPeers(t, peerChan3d, 2, 0)
+	cancel3d()
+	confirmCleanupPeer(t, peerChan3d)
+
+	// Stop Peer 3 by canceling its context and waiting for the ad to disappear.
+	cancel3()
+	<-done3
+
+	// The "remove" notification goroutines might race, so wait a little bit.
+	// It is okay to wait since this is purely for test simplification purposes.
+	<-time.After(time.Millisecond * 10)
+
+	// 2c also sees lost 3.
+	checkExpectedPeers(t, peerChan2c, 0, 1)
+
+	// We're done with 2c, who saw 3 updates (1, 2, 3) and 2 losses (1 and 3)
+	cancel2c()
+	confirmCleanupPeer(t, peerChan2c)
+
+	// 2a should see 1, 2, and lose 1. It won't notice #3 since the channel won't buffer it.
+	checkExpectedPeers(t, peerChan2a, 2, 1)
+	cancel2a()
+	confirmCleanupPeer(t, peerChan2a)
+
+	// 2e has seen 2 found updates earlier, so peer 3 is buffered in the channel.
+	// We should see peer 3 and two loss events.
+	checkExpectedPeers(t, peerChan2e, 1, 2)
+	cancel2e()
+	confirmCleanupPeer(t, peerChan2e)
+}
+
+func listenForPeersAs(ctx *context.T, rootp security.Principal, as string) (<-chan syncdis.Peer, error) {
+	ch := make(chan syncdis.Peer)
+	return ch, syncdis.ListenForPeers(tu.NewCtx(ctx, rootp, as), ch)
+}
+
+func checkExpectedPeers(t *testing.T, ch <-chan syncdis.Peer, found int, lost int) {
+	counter := 0
+	for i := 0; i < found+lost; i++ {
+		select {
+		case peer, ok := <-ch:
+			if !ok {
+				t.Error("peer channel shouldn't be closed yet")
+			} else {
+				if !peer.Lost {
+					counter++
+				}
+			}
+		case <-time.After(time.Second * 1):
+			t.Errorf("timed out without seeing enough peers. Found %d in %d updates, but needed %d in %d", counter, i, found, found+lost)
+			return
+		}
+	}
+
+	if counter != found {
+		t.Errorf("Found %d peers, expected %d", counter, found)
+	}
+}
+
+func confirmCleanupPeer(t *testing.T, ch <-chan syncdis.Peer) {
+	unwanted, ok := <-ch
+	if ok {
+		t.Errorf("found unwanted peer update %v", unwanted)
+	}
 }

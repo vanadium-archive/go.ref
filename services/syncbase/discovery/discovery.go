@@ -354,7 +354,8 @@ var state struct {
 }
 
 type scanState struct {
-	dbs       map[wire.Id]*inviteQueue
+	peers     *copyableQueue
+	dbs       map[wire.Id]*copyableQueue
 	listeners int
 	cancel    context.CancelFunc
 }
@@ -362,7 +363,8 @@ type scanState struct {
 func newScan(ctx *context.T) (*scanState, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
 	scan := &scanState{
-		dbs:    make(map[wire.Id]*inviteQueue),
+		peers:  nil,
+		dbs:    make(map[wire.Id]*copyableQueue),
 		cancel: cancel,
 	}
 	// TODO(suharshs): Add globalDiscoveryPath.
@@ -386,7 +388,7 @@ func newScan(ctx *context.T) (*scanState, error) {
 				if u.IsLost() {
 					// TODO(mattr): Removing like this can result in resurfacing already
 					// retrieved invites.  For example if the ACL of a syncgroup is
-					// changed to add a new memeber, then we might see a remove and then
+					// changed to add a new member, then we might see a remove and then
 					// later an add.  In this case we would end up moving the invite
 					// to the end of the queue.  One way to fix this would be to
 					// keep removed invites for some time.
@@ -398,10 +400,29 @@ func newScan(ctx *context.T) (*scanState, error) {
 					}
 				} else {
 					if q == nil {
-						q = newInviteQueue()
+						q = newCopyableQueue()
 						scan.dbs[db] = q
 					}
 					q.add(invite)
+					q.cond.Broadcast()
+				}
+				state.mu.Unlock()
+			} else if peer, ok := makePeer(u.Advertisement()); ok {
+				state.mu.Lock()
+				q := scan.peers
+				if u.IsLost() {
+					if q != nil {
+						q.remove(peer)
+						if q.empty() {
+							scan.peers = nil
+						}
+					}
+				} else {
+					if q == nil {
+						q = newCopyableQueue()
+						scan.peers = q
+					}
+					q.add(peer)
 					q.cond.Broadcast()
 				}
 				state.mu.Unlock()
@@ -411,13 +432,6 @@ func newScan(ctx *context.T) (*scanState, error) {
 	return scan, nil
 }
 
-// Invite represents an invitation to join a syncgroup as found via Discovery.
-type Invite struct {
-	Syncgroup wire.Id  //Syncgroup is the Id of the syncgroup you've been invited to.
-	Addresses []string //Addresses are the list of addresses of the inviting server.
-	key       string
-}
-
 // ListenForInvites listens via Discovery for syncgroup invitations for the given
 // database and sends the invites to the provided channel.  We stop listening when
 // the given context is canceled.  When that happens we close the given channel.
@@ -425,12 +439,87 @@ func ListenForInvites(ctx *context.T, db wire.Id, ch chan<- Invite) error {
 	defer state.mu.Unlock()
 	state.mu.Lock()
 
+	scan, err := prepareScannerByPrincipal(ctx)
+	if err != nil {
+		return err
+	}
+
+	q := scan.dbs[db]
+	if q == nil {
+		q = newCopyableQueue()
+		scan.dbs[db] = q
+	}
+
+	// Send the copyables into a temporary channel.
+	cp_ch := make(chan copyable)
+	go consumeCopyableQueue(ctx, q, scan, cp_ch, func() {
+		delete(scan.dbs, db)
+	})
+
+	// Convert these copyables into Invites.
+	go func() {
+		for {
+			v, ok := <-cp_ch
+			if !ok {
+				close(ch)
+				break
+			}
+			invite := v.(Invite)
+			if !invite.isLost() {
+				ch <- invite
+			}
+		}
+	}()
+
+	return nil
+}
+
+// ListenForPeers listens via Discovery for syncgroup peers and sends them to
+// the provided channel.  We stop listening when the context is canceled.  When
+// that happens we close the given channel.
+func ListenForPeers(ctx *context.T, ch chan<- Peer) error {
+	defer state.mu.Unlock()
+	state.mu.Lock()
+
+	scan, err := prepareScannerByPrincipal(ctx)
+	if err != nil {
+		return err
+	}
+
+	q := scan.peers
+	if q == nil {
+		q = newCopyableQueue()
+		scan.peers = q
+	}
+
+	// Send the copyables into a temporary channel.
+	cp_ch := make(chan copyable)
+	go consumeCopyableQueue(ctx, q, scan, cp_ch, func() {
+		scan.peers = nil
+	})
+
+	// Convert these copyables into Peers.
+	go func() {
+		for {
+			v, ok := <-cp_ch
+			if !ok {
+				close(ch)
+				break
+			}
+			ch <- v.(Peer)
+		}
+	}()
+
+	return nil
+}
+
+func prepareScannerByPrincipal(ctx *context.T) (*scanState, error) {
 	p := v23.GetPrincipal(ctx)
 	scan := state.scans[p]
 	if scan == nil {
 		var err error
 		if scan, err = newScan(ctx); err != nil {
-			return err
+			return nil, err
 		}
 		if state.scans == nil {
 			state.scans = make(map[security.Principal]*scanState)
@@ -438,50 +527,50 @@ func ListenForInvites(ctx *context.T, db wire.Id, ch chan<- Invite) error {
 		state.scans[p] = scan
 	}
 	scan.listeners++
-
-	q := scan.dbs[db]
-	if q == nil {
-		q = newInviteQueue()
-		scan.dbs[db] = q
-	}
-
-	go func() {
-		c := q.scan()
-		for {
-			next, ok := q.next(ctx, c)
-			if !ok {
-				break
-			}
-			select {
-			case ch <- next.copy():
-			case <-ctx.Done():
-				break
-			}
-		}
-		close(ch)
-
-		defer state.mu.Unlock()
-		state.mu.Lock()
-
-		if q.empty() {
-			delete(scan.dbs, db)
-		}
-		scan.listeners--
-		if scan.listeners == 0 {
-			scan.cancel()
-			delete(state.scans, v23.GetPrincipal(ctx))
-		}
-	}()
-
-	return nil
+	return scan, nil
 }
 
-// inviteQueue is a linked list based queue.  As we get new invitations we
-// add them to the queue, and when advertisements are lost we remove elements.
+type isQueueEmptyCallback func()
+
+// Should be called in a goroutine. Pairs with prepareScannerByPrincipal.
+func consumeCopyableQueue(ctx *context.T, q *copyableQueue, scan *scanState, ch chan<- copyable, cb isQueueEmptyCallback) {
+	c := q.scan()
+	for {
+		next, ok := q.next(ctx, c)
+		if !ok {
+			break
+		}
+		select {
+		case ch <- next.copy():
+		case <-ctx.Done():
+			q.stopScan(c)
+			break
+		}
+	}
+	close(ch)
+
+	defer state.mu.Unlock()
+	state.mu.Lock()
+
+	if q.empty() {
+		cb()
+	}
+	scan.listeners--
+	if scan.listeners == 0 {
+		scan.cancel()
+		delete(state.scans, v23.GetPrincipal(ctx))
+	}
+}
+
+// copyableQueue is a linked list based queue. As we get new invitations/peers,
+// we add them to the queue, and when advertisements are lost we remove instead.
 // Each call to scan creates a cursor on the queue that will iterate until
 // the Listen is canceled.  We wait when we hit the end of the queue via the
 // condition variable cond.
-type inviteQueue struct {
+// Note: The queue contains both "found" and "lost" elements. A removed "found"
+// element is replaced with a "lost" element, which all cursors will see.
+// See ielement for the garbage collection strategy for the "lost" elements.
+type copyableQueue struct {
 	mu   nsync.Mu
 	cond nsync.CV
 
@@ -491,7 +580,7 @@ type inviteQueue struct {
 	nextCursorId int
 }
 
-func (q *inviteQueue) debugLocked() string {
+func (q *copyableQueue) debugLocked() string {
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "*%p", &q.sentinel)
 	for c := q.sentinel.next; c != &q.sentinel; c = c.next {
@@ -500,13 +589,55 @@ func (q *inviteQueue) debugLocked() string {
 	return buf.String()
 }
 
-type ielement struct {
-	invite     Invite
-	prev, next *ielement
+// An interface used to represent Invite and Peer that reduces code duplication.
+// Typecasting is cheap, so this seems better than maintaining duplicate
+// implementations of copyableQueue.
+type copyable interface {
+	copy() copyable
+	id() string
+	isLost() bool
+	copyAsLost() copyable
 }
 
-func newInviteQueue() *inviteQueue {
-	iq := &inviteQueue{
+// Keeps track of a copyable element and the next/prev ielements in a queue.
+// ielements can represent both "found" and "lost" elements. Those of the "lost"
+// type also set "numCanSee" and "whoCanSee" to indicate that only certain
+// cursors can see the element contained in this ielement. Once all the cursors
+// have seen a "lost" ielement it can be garbage collected safely.
+// See "canBeSeenByCursor" and "consume".
+type ielement struct {
+	elem       copyable
+	prev, next *ielement
+	numCanSee  int   // If >0, this decrements. The element is removed upon hitting 0.
+	whoCanSee  []int // The cursors that can see this ielement. Set only once.
+}
+
+// A cursor can see the element in this ielement if it is a "found" element or
+// a "lost" element with the correct visibility.
+func (i *ielement) canBeSeenByCursor(cursor int) bool {
+	if i.numCanSee == 0 { // Special: 0 is visible by everyone.
+		return true
+	}
+	for _, who := range i.whoCanSee {
+		if cursor == who {
+			return true
+		}
+	}
+	return false
+}
+
+// Reduce "numCanSee" and indicate whether or not this element needs to be removed
+// from the queue.
+func (i *ielement) consume() bool {
+	if i.numCanSee > 0 {
+		i.numCanSee--
+		return i.numCanSee == 0
+	}
+	return false
+}
+
+func newCopyableQueue() *copyableQueue {
+	iq := &copyableQueue{
 		elems:   make(map[string]*ielement),
 		cursors: make(map[int]*ielement),
 	}
@@ -514,74 +645,169 @@ func newInviteQueue() *inviteQueue {
 	return iq
 }
 
-func (q *inviteQueue) empty() bool {
+func (q *copyableQueue) empty() bool {
 	defer q.mu.Unlock()
 	q.mu.Lock()
 	return len(q.elems) == 0 && len(q.cursors) == 0
 }
 
-func (q *inviteQueue) size() int {
+func (q *copyableQueue) size() int {
 	defer q.mu.Unlock()
 	q.mu.Lock()
 	return len(q.elems)
 }
 
-func (q *inviteQueue) remove(i Invite) {
+// Removes the given copyable from the queue. No-op if not present or "lost".
+// Note: As described in copyableQueue, if the copyable is a "found" element,
+// then a corresponding "lost" element will be appended to the queue. Only the
+// cursors who have seen the "found" element can see the "lost" one.
+func (q *copyableQueue) remove(i copyable) {
 	defer q.mu.Unlock()
 	q.mu.Lock()
 
-	el, ok := q.elems[i.key]
-	if !ok {
+	el, ok := q.elems[i.id()]
+	if !ok || el.elem.isLost() {
 		return
 	}
-	delete(q.elems, i.key)
+
+	// Make a list of all the users who have seen this element.
+	whoCanSee := []int{}
+	for cursor, cel := range q.cursors {
+		// Adjust the cursor if it is pointing to the removed element.
+		if cel == el {
+			q.cursors[cursor] = cel.prev
+			whoCanSee = append(whoCanSee, cursor)
+			continue
+		}
+
+		// Check if this cursor has gone past the removed element.
+		// Note: This implementation assumes a small queue and a small number of
+		// cursors. Otherwise, using a table is recommended over list traversal.
+		for ; cel != &q.sentinel; cel = cel.prev {
+			if cel == el {
+				whoCanSee = append(whoCanSee, cursor)
+				break
+			}
+		}
+	}
+
+	// "Remove" el from the queue.
 	el.next.prev, el.prev.next = el.prev, el.next
+
+	// el is a visible lost item that needs to be added to the queue.
+	if len(whoCanSee) > 0 {
+		// Adjust the lost ielement el to include the lost data and who can see it.
+		el.elem = el.elem.copyAsLost()
+		el.numCanSee = len(whoCanSee)
+		el.whoCanSee = whoCanSee
+
+		// Insert the lost element before/after the sentinel and broadcast.
+		el.prev, el.next = q.sentinel.prev, &q.sentinel
+		q.sentinel.prev, q.sentinel.prev.next = el, el
+		q.cond.Broadcast()
+	} else {
+		delete(q.elems, i.id())
+	}
+}
+
+func (q *copyableQueue) add(i copyable) {
+	defer q.mu.Unlock()
+	q.mu.Lock()
+
+	if _, ok := q.elems[i.id()]; ok {
+		return
+	}
+	el := &ielement{i, q.sentinel.prev, &q.sentinel, 0, []int{}}
+	q.sentinel.prev, q.sentinel.prev.next = el, el
+	q.elems[i.id()] = el
+	q.cond.Broadcast()
+}
+
+func (q *copyableQueue) next(ctx *context.T, cursor int) (copyable, bool) {
+	defer q.mu.Unlock()
+	q.mu.Lock()
+	c, exists := q.cursors[cursor]
+	if !exists {
+		return nil, false
+	}
+
+	// Find the next available element that this cursor can see. Will block until
+	// somebody writes to the queue or the given context is canceled.
+	// Note: Some "lost" elements in the queue will not be visible to this cursor;
+	// these are skipped.
+	for {
+		for c.next == &q.sentinel {
+			if q.cond.WaitWithDeadline(&q.mu, nsync.NoDeadline, ctx.Done()) != nsync.OK {
+				q.removeCursorLocked(cursor)
+				return nil, false
+			}
+			c = q.cursors[cursor]
+		}
+		c = c.next
+		q.cursors[cursor] = c
+		if c.canBeSeenByCursor(cursor) {
+			if c.consume() {
+				q.removeLostIElemLocked(c)
+
+			}
+			return c.elem, true
+		}
+	}
+}
+
+func (q *copyableQueue) removeCursorLocked(cursor int) {
+	c := q.cursors[cursor]
+	delete(q.cursors, cursor)
+
+	// Garbage collection: Step through each remaining element and remove
+	// unneeded lost ielements.
+	for c.next != &q.sentinel {
+		c = c.next // step
+		if c.canBeSeenByCursor(cursor) {
+			if c.consume() {
+				q.removeLostIElemLocked(c)
+			}
+		}
+	}
+}
+
+func (q *copyableQueue) removeLostIElemLocked(ielem *ielement) {
+	// Remove the lost ielem since everyone has seen it.
+	delete(q.elems, ielem.elem.id())
+	ielem.next.prev, ielem.prev.next = ielem.prev, ielem.next
+
+	// Adjust the cursors if their elements were on the removed element.
 	for id, c := range q.cursors {
-		if c == el {
+		if c == ielem {
 			q.cursors[id] = c.prev
 		}
 	}
 }
 
-func (q *inviteQueue) add(i Invite) {
-	defer q.mu.Unlock()
-	q.mu.Lock()
-
-	if _, ok := q.elems[i.key]; ok {
-		return
-	}
-	el := &ielement{i, q.sentinel.prev, &q.sentinel}
-	q.sentinel.prev, q.sentinel.prev.next = el, el
-	q.elems[i.key] = el
-	q.cond.Broadcast()
-}
-
-func (q *inviteQueue) next(ctx *context.T, cursor int) (Invite, bool) {
-	defer q.mu.Unlock()
-	q.mu.Lock()
-	c, exists := q.cursors[cursor]
-	if !exists {
-		return Invite{}, false
-	}
-	for c.next == &q.sentinel {
-		if q.cond.WaitWithDeadline(&q.mu, nsync.NoDeadline, ctx.Done()) != nsync.OK {
-			delete(q.cursors, cursor)
-			return Invite{}, false
-		}
-		c = q.cursors[cursor]
-	}
-	c = c.next
-	q.cursors[cursor] = c
-	return c.invite, true
-}
-
-func (q *inviteQueue) scan() int {
+func (q *copyableQueue) scan() int {
 	defer q.mu.Unlock()
 	q.mu.Lock()
 	id := q.nextCursorId
 	q.nextCursorId++
 	q.cursors[id] = &q.sentinel
 	return id
+}
+
+func (q *copyableQueue) stopScan(cursor int) {
+	defer q.mu.Unlock()
+	q.mu.Lock()
+
+	if _, exists := q.cursors[cursor]; exists {
+		q.removeCursorLocked(cursor)
+	}
+}
+
+// Invite represents an invitation to join a syncgroup as found via Discovery.
+type Invite struct {
+	Syncgroup wire.Id  // Syncgroup is the Id of the syncgroup you've been invited to.
+	Addresses []string // Addresses are the list of addresses of the inviting server.
+	Lost      bool     // If this invite is a lost invite or not.
+	key       string   // Unexported. The implementation uses this key to de-dupe ads.
 }
 
 func makeInvite(ad discovery.Advertisement) (Invite, wire.Id, bool) {
@@ -608,8 +834,68 @@ func makeInvite(ad discovery.Advertisement) (Invite, wire.Id, bool) {
 	return i, dbId, true
 }
 
-func (i Invite) copy() Invite {
+func (i Invite) copy() copyable {
 	cp := i
 	cp.Addresses = append([]string(nil), i.Addresses...)
+	return cp
+}
+
+func (i Invite) id() string {
+	return i.key
+}
+
+func (i Invite) isLost() bool {
+	return i.Lost
+}
+
+func (i Invite) copyAsLost() copyable {
+	cp := i
+	cp.Addresses = append([]string(nil), i.Addresses...)
+	cp.Lost = true
+	return cp
+}
+
+// Peer represents a Syncbase peer found via Discovery.
+type Peer struct {
+	Name      string   // Name is the name of the Syncbase peer's sync service.
+	Addresses []string // Addresses are the list of addresses of the peer's server.
+	Lost      bool     // If this peer is a lost peer or not.
+	key       string   // Unexported. The implementation uses this key to de-dupe ads.
+}
+
+// Attempts to make a Peer using its discovery attributes.
+// Will return an empty Peer struct if it fails.
+func makePeer(ad discovery.Advertisement) (Peer, bool) {
+	peerName, ok := ad.Attributes[wire.DiscoveryAttrPeer]
+	if !ok {
+		return Peer{}, false
+	}
+	p := Peer{
+		Name:      peerName,
+		Addresses: append([]string{}, ad.Addresses...),
+	}
+	sort.Strings(p.Addresses)
+	p.key = fmt.Sprintf("%v", p)
+	return p, true
+}
+
+func (p Peer) copy() copyable {
+	cp := p
+	cp.Addresses = append([]string(nil), p.Addresses...)
+	return cp
+}
+
+func (p Peer) id() string {
+	return p.key
+}
+
+func (p Peer) isLost() bool {
+	return p.Lost
+}
+
+func (p Peer) copyAsLost() copyable {
+	cp := p
+	cp.Addresses = append([]string(nil), p.Addresses...)
+	cp.Lost = true
 	return cp
 }
