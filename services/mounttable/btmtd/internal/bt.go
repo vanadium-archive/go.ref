@@ -27,6 +27,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	v23mt "v.io/v23/services/mounttable"
+	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/timekeeper"
 )
@@ -207,7 +208,7 @@ func (b *BigTable) DumpTable(ctx *context.T) error {
 	defer cancel()
 
 	clock := timekeeper.RealTime()
-	return b.nodeTbl.ReadRows(bctx, bigtable.InfiniteRange(""),
+	if err := b.nodeTbl.ReadRows(bctx, bigtable.InfiniteRange(""),
 		func(row bigtable.Row) bool {
 			n := nodeFromRow(ctx, b, row, clock)
 			if n.name == "" {
@@ -233,7 +234,19 @@ func (b *BigTable) DumpTable(ctx *context.T) error {
 			return true
 		},
 		bigtable.RowFilter(bigtable.LatestNFilter(1)),
-	)
+	); err != nil {
+		return err
+	}
+
+	c, err := b.Counters(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Counters:\n")
+	for k, v := range c {
+		fmt.Printf("%s=%d\n", k, v)
+	}
+	return nil
 }
 
 func (b *BigTable) CountRows(ctx *context.T) (int, error) {
@@ -341,8 +354,15 @@ func (b *BigTable) createRow(ctx *context.T, name string, perms access.Permissio
 	mut.Set(metadataFamily, creatorColumn, ts, []byte(creator))
 	mut.Set(metadataFamily, permissionsColumn, bigtable.ServerTime, jsonPerms)
 	mut.Set(metadataFamily, versionColumn, bigtable.ServerTime, []byte(strconv.FormatUint(uint64(rand.Uint32()), 10)))
-	if err := b.apply(ctx, rowKey(name), mut); err != nil {
+
+	filter := bigtable.ChainFilters(bigtable.FamilyFilter(metadataFamily), bigtable.ColumnFilter(creatorColumn))
+	condMut := bigtable.NewCondMutation(filter, nil, mut)
+	var exists bool
+	if err := b.apply(ctx, rowKey(name), condMut, bigtable.GetCondMutationResult(&exists)); err != nil {
 		return err
+	}
+	if exists {
+		return verror.New(errConcurrentAccess, ctx, name)
 	}
 	return incrementCreatorNodeCount(ctx, b, creator, 1)
 }

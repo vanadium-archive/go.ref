@@ -27,6 +27,15 @@ import (
 	"v.io/x/ref/lib/timekeeper"
 )
 
+var gcGracePeriod = time.Minute
+
+// SetGcGracePeriod sets the grace period for garbage collecting newly created
+// nodes. Nodes are not eligible for garbage collection until after this time
+// has passed. This function exists only for testing purposes.
+func SetGcGracePeriod(p time.Duration) {
+	gcGracePeriod = p
+}
+
 type mtNode struct {
 	bt             *BigTable
 	name           string
@@ -229,6 +238,9 @@ func (n *mtNode) gc(ctx *context.T) (deletedSomething bool, err error) {
 			break
 		}
 		if n.sticky || len(n.children) > 0 || len(n.servers) > 0 {
+			break
+		}
+		if time.Since(n.creationTime.Time()) < gcGracePeriod {
 			break
 		}
 		if err = n.delete(ctx, false); err != nil {

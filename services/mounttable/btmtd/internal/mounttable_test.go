@@ -196,6 +196,7 @@ func newMT(t *testing.T, permsFile string, rootCtx *context.T) (func(), string, 
 	}
 	// Add mount table service.
 	internal.SetClock(clock)
+	internal.SetGcGracePeriod(0)
 	mt := internal.NewDispatcher(bt, nil)
 
 	// Start serving on a loopback address.
