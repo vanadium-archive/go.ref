@@ -326,10 +326,9 @@ func (n *mtNode) delete(ctx *context.T, deleteSubtree bool) error {
 	// Adjust the server count for the node creator. Since delete() can be
 	// called directly without gc(), we need to include the expired servers
 	// in the counter adjustment.
-	if delta := -int64(len(n.servers) + len(n.expiredServers)); delta != 0 {
-		if err := incrementCreatorServerCount(ctx, n.bt, n.creator, delta); err != nil {
-			return err
-		}
+	delta := -int64(len(n.servers) + len(n.expiredServers))
+	if err := incrementCreatorServerCount(ctx, n.bt, n.creator, delta); err != nil {
+		return err
 	}
 	return incrementCreatorNodeCount(ctx, n.bt, n.creator, -1)
 }

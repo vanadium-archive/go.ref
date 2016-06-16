@@ -37,11 +37,17 @@ func decodeCounterValue(ctx *context.T, row bigtable.Row) (c int64, err error) {
 }
 
 func incrementCreatorNodeCount(ctx *context.T, bt *BigTable, creator string, delta int64) error {
+	if delta == 0 {
+		return nil
+	}
 	_, err := incrementCounter(ctx, bt, "num-nodes-per-user:"+creator, delta)
 	return err
 }
 
 func incrementCreatorServerCount(ctx *context.T, bt *BigTable, creator string, delta int64) error {
+	if delta == 0 {
+		return nil
+	}
 	_, err := incrementCounter(ctx, bt, "num-servers-per-user:"+creator, delta)
 	return err
 }
