@@ -36,5 +36,9 @@ func (d *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, securit
 	if suffix != "" {
 		suffix = path.Clean(suffix)
 	}
-	return v23mt.MountTableServer(&mounttable{suffix, d.globalAcl, d.bt}), security.AllowEveryone(), nil
+	return v23mt.MountTableServer(&mounttable{
+		suffix:    suffix,
+		globalAcl: d.globalAcl,
+		bt:        d.bt,
+	}), security.AllowEveryone(), nil
 }

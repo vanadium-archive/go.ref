@@ -58,6 +58,18 @@ type mounttable struct {
 	suffix    string
 	globalAcl *access.AccessList
 	bt        *BigTable
+
+	rbn    []string
+	rbnInv []security.RejectedBlessing
+}
+
+func (mt *mounttable) remoteBlessingNames(ctx *context.T, call security.Call) ([]string, []security.RejectedBlessing) {
+	// This cache logic really should be in security.RemoteBlessingNames.
+	// https://github.com/vanadium/issues/issues/579
+	if mt.rbn == nil {
+		mt.rbn, mt.rbnInv = security.RemoteBlessingNames(ctx, call)
+	}
+	return mt.rbn, mt.rbnInv
 }
 
 // Mount a server onto the name in the receiver.
@@ -247,7 +259,7 @@ func (mt *mounttable) SetPermissions(ctx *context.T, call rpc.ServerCall, perms 
 	// If the user is trying to set permissions on a node such that the
 	// user will no longer have admin access, add the user as Admin.
 	if err := mt.authorize(ctx, call.Security(), perms, v23mt.Admin); err != nil {
-		blessings, _ := security.RemoteBlessingNames(ctx, call.Security())
+		blessings, _ := mt.remoteBlessingNames(ctx, call.Security())
 		for _, b := range blessings {
 			perms.Add(security.BlessingPattern(b), string(v23mt.Admin))
 		}
@@ -288,7 +300,7 @@ func (mt *mounttable) authorize(ctx *context.T, call security.Call, perms access
 	if l, r := call.LocalBlessings().PublicKey(), call.RemoteBlessings().PublicKey(); l != nil && r != nil && reflect.DeepEqual(l, r) {
 		return nil
 	}
-	blessings, invalid := security.RemoteBlessingNames(ctx, call)
+	blessings, invalid := mt.remoteBlessingNames(ctx, call)
 	for _, tag := range tags {
 		if acl, exists := perms[string(tag)]; exists && acl.Includes(blessings...) {
 			return nil
@@ -353,7 +365,7 @@ start:
 			if perms = templatePermissions(parent.permissions, elem); perms == nil {
 				perms = parent.permissions.Copy()
 				if current == name {
-					names, _ := security.RemoteBlessingNames(ctx, call)
+					names, _ := mt.remoteBlessingNames(ctx, call)
 					for _, n := range names {
 						perms.Add(security.BlessingPattern(n), string(v23mt.Admin))
 					}
