@@ -13,9 +13,11 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/conventions"
 	"v.io/v23/discovery"
 	"v.io/v23/security"
 	wire "v.io/v23/services/syncbase"
+	"v.io/v23/syncbase/util"
 	"v.io/x/lib/nsync"
 	"v.io/x/ref/lib/discovery/global"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -23,6 +25,8 @@ import (
 
 const (
 	visibilityKey = "vis"
+	appNameKey    = "appName"
+	blessingsKey  = "blessings"
 
 	nhDiscoveryKey = iota
 	globalDiscoveryKey
@@ -357,6 +361,7 @@ var state struct {
 
 type scanState struct {
 	peers     *copyableQueue
+	appPeers  map[string]*copyableQueue
 	dbs       map[wire.Id]*copyableQueue
 	listeners int
 	cancel    context.CancelFunc
@@ -365,9 +370,10 @@ type scanState struct {
 func newScan(ctx *context.T) (*scanState, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
 	scan := &scanState{
-		peers:  nil,
-		dbs:    make(map[wire.Id]*copyableQueue),
-		cancel: cancel,
+		peers:    nil,
+		appPeers: make(map[string]*copyableQueue),
+		dbs:      make(map[wire.Id]*copyableQueue),
+		cancel:   cancel,
 	}
 	// TODO(suharshs): Add globalDiscoveryPath.
 	d, err := NewDiscovery(ctx, "", 0)
@@ -423,6 +429,27 @@ func newScan(ctx *context.T) (*scanState, error) {
 					if q == nil {
 						q = newCopyableQueue()
 						scan.peers = q
+					}
+					q.add(peer)
+					q.cond.Broadcast()
+				}
+				state.mu.Unlock()
+			} else if peer, ok := makeAppPeer(u.Advertisement()); ok {
+				state.mu.Lock()
+				app := peer.AppName
+				q := scan.appPeers[app]
+				if u.IsLost() {
+					if q != nil {
+						q.remove(peer)
+						if q.empty() {
+							delete(scan.appPeers, app)
+							scan.peers = nil
+						}
+					}
+				} else {
+					if q == nil {
+						q = newCopyableQueue()
+						scan.appPeers[app] = q
 					}
 					q.add(peer)
 					q.cond.Broadcast()
@@ -509,6 +536,93 @@ func ListenForPeers(ctx *context.T, ch chan<- Peer) error {
 				break
 			}
 			ch <- v.(Peer)
+		}
+	}()
+
+	return nil
+}
+
+// AdvertiseApp advertises that this peer is running their app with syncbase.
+func AdvertiseApp(ctx *context.T, visibility []security.BlessingPattern) (done <-chan struct{}, err error) {
+	d, err := NewDiscovery(ctx, "", 0)
+	if err != nil {
+		return nil, err
+	}
+
+	user, app, err := extractUserAndAppFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create an advertisement.
+	// Note: The interface name doesn't have to be syncbase's. If we change it, we
+	// should update the Scan query above as well.
+	interfaceName := fmt.Sprintf("%s/%s", interfaces.SyncDesc.PkgPath, interfaces.SyncDesc.Name)
+	ad := &discovery.Advertisement{
+		InterfaceName: interfaceName,
+		Addresses:     []string{""}, // Addresses are required, but we don't have any.
+		Attributes:    discovery.Attributes{appNameKey: app, blessingsKey: user},
+	}
+
+	done, err = d.Advertise(ctx, ad, visibility)
+	return
+}
+
+func extractUserAndAppFromContext(ctx *context.T) (string, string, error) {
+	// Use a utility method to cut up the context's blessings and extract just
+	// the app-user blessing.
+	_, userPattern, err := util.AppAndUserPatternFromBlessings(security.DefaultBlessingNames(v23.GetPrincipal(ctx))...)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Obtain the app component only.
+	app := conventions.ParseBlessingNames(string(userPattern))[0].Application
+	if app == "" {
+		return "", "", fmt.Errorf("context's user blessing did not specify an application")
+	}
+	return string(userPattern), app, nil
+}
+
+// ListenForAppPeers listens via Discovery for peers that are running the
+// same application as their context's blessing. Updates are sent through the
+// provided channel. We stop listening and close the channel when the context
+// is canceled.
+func ListenForAppPeers(ctx *context.T, ch chan<- AppPeer) error {
+	defer state.mu.Unlock()
+	state.mu.Lock()
+
+	_, app, err := extractUserAndAppFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	scan, err := prepareScannerByPrincipal(ctx)
+	if err != nil {
+		return err
+	}
+
+	q := scan.appPeers[app]
+	if q == nil {
+		q = newCopyableQueue()
+		scan.appPeers[app] = q
+	}
+
+	// Send the copyables into a temporary channel.
+	cp_ch := make(chan copyable)
+	go consumeCopyableQueue(ctx, q, scan, cp_ch, func() {
+		scan.appPeers[app] = nil
+	})
+
+	// Convert these copyables into AppPeers.
+	go func() {
+		for {
+			v, ok := <-cp_ch
+			if !ok {
+				close(ch)
+				break
+			}
+			ch <- v.(AppPeer)
 		}
 	}()
 
@@ -898,6 +1012,53 @@ func (p Peer) isLost() bool {
 func (p Peer) copyAsLost() copyable {
 	cp := p
 	cp.Addresses = append([]string(nil), p.Addresses...)
+	cp.Lost = true
+	return cp
+}
+
+// App Peer represents a Syncbase app peer found via Discovery.
+// TODO(alexfandrianto): Can we include more than this? Peer Name? Addresses?
+type AppPeer struct {
+	AppName   string // The name of the app.
+	Blessings string // The blessings pattern for this app peer.
+	Lost      bool   // If this peer is a lost peer or not.
+	key       string // Unexported. The implementation uses this key to de-dupe ads.
+}
+
+// Attempts to make an AppPeer using its discovery attributes.
+// Will return an empty AppPeer struct if it fails.
+func makeAppPeer(ad discovery.Advertisement) (AppPeer, bool) {
+	appName, ok := ad.Attributes[appNameKey]
+	if !ok {
+		return AppPeer{}, false
+	}
+	blessings, ok := ad.Attributes[blessingsKey]
+	if !ok {
+		return AppPeer{}, false
+	}
+	p := AppPeer{
+		AppName:   appName,
+		Blessings: blessings,
+	}
+	p.key = fmt.Sprintf("%v", p)
+	return p, true
+}
+
+func (p AppPeer) copy() copyable {
+	cp := p
+	return cp
+}
+
+func (p AppPeer) id() string {
+	return p.key
+}
+
+func (p AppPeer) isLost() bool {
+	return p.Lost
+}
+
+func (p AppPeer) copyAsLost() copyable {
+	cp := p
 	cp.Lost = true
 	return cp
 }

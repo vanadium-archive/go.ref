@@ -544,3 +544,186 @@ func confirmCleanupPeer(t *testing.T, ch <-chan syncdis.Peer) {
 		t.Errorf("found unwanted peer update %v", unwanted)
 	}
 }
+
+// Since the basic found/loss is tested by listenForPeers, this test will focus
+// on whether the AdvertiseApp and ListenForPeers functions together.
+func TestAdvertiseAndListenForAppPeers(t *testing.T) {
+	// Setup a base context that is given a rooted principal.
+	baseCtx, shutdown := test.V23Init()
+	defer shutdown()
+
+	rootp := testutil.NewPrincipal("dev.v.io")
+	ctx := tu.NewCtx(baseCtx, rootp, "o:app")
+
+	// Discovery is also mocked out to mock ads and scans.
+	df, _ := idiscovery.NewFactory(ctx, mock.New())
+	fdiscovery.InjectFactory(df)
+
+	// First, start Eve, who listens on "todos", "croupier", and syncslides.
+	ctxMain, cancelMain := context.WithCancel(baseCtx)
+	todosChan, err := listenForAppPeersAs(ctxMain, rootp, "o:todos:eve")
+	if err != nil {
+		panic(err)
+	}
+	croupierChan, err := listenForAppPeersAs(ctxMain, rootp, "o:croupier:eve")
+	if err != nil {
+		panic(err)
+	}
+	syncslidesChan, err := listenForAppPeersAs(ctxMain, rootp, "o:syncslides:eve")
+	if err != nil {
+		panic(err)
+	}
+
+	// Create other application peers.
+	ctxTodosA := tu.NewCtx(baseCtx, rootp, "o:todos:alice")
+	ctxTodosB := tu.NewCtx(baseCtx, rootp, "o:todos:bob")
+	ctxTodosC := tu.NewCtx(baseCtx, rootp, "o:todos:carol")
+	ctxCroupierA := tu.NewCtx(baseCtx, rootp, "o:croupier:alice")
+
+	// Advertise "todos" Peer Alice.
+	ctxTodosAAd, cancelTodosAAd := context.WithCancel(ctxTodosA)
+	todosDoneAAd, err := syncdis.AdvertiseApp(ctxTodosAAd, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Advertise "todos" Peer Bob.
+	ctxTodosBAd, cancelTodosBAd := context.WithCancel(ctxTodosB)
+	todosDoneBAd, err := syncdis.AdvertiseApp(ctxTodosBAd, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Start short-term listeners. The one on "todos" sees 2 peers. The one for
+	// "croupier" sees 0.
+	ctxT1, cancelT1 := context.WithCancel(ctx)
+	todosChan1, err := listenForAppPeersAs(ctxT1, rootp, "o:todos:eve")
+	if err != nil {
+		panic(err)
+	}
+	checkExpectedAppPeers(t, todosChan1, []string{"dev.v.io:o:todos:alice", "dev.v.io:o:todos:bob"}, nil)
+	cancelT1()
+	confirmCleanupAppPeer(t, todosChan1)
+
+	ctxT2, cancelT2 := context.WithCancel(ctx)
+	croupierChan1, err := listenForAppPeersAs(ctxT2, rootp, "o:croupier:eve")
+	if err != nil {
+		panic(err)
+	}
+	checkExpectedAppPeers(t, croupierChan1, nil, nil)
+	cancelT2()
+	confirmCleanupAppPeer(t, croupierChan1)
+
+	// Let's also consume 2 with Eve's todos scanner.
+	checkExpectedAppPeers(t, todosChan, []string{"dev.v.io:o:todos:alice", "dev.v.io:o:todos:bob"}, nil)
+
+	// Stop advertising todos Peer A.
+	cancelTodosAAd()
+	<-todosDoneAAd
+
+	// The "remove" notification goroutines might race, so wait a little bit.
+	// It is okay to wait since this is purely for test simplification purposes.
+	<-time.After(time.Millisecond * 10)
+
+	// So Eve's todos scanner will now see a loss.
+	checkExpectedAppPeers(t, todosChan, nil, []string{"dev.v.io:o:todos:alice"})
+
+	// Start advertising todos Carol and croupier Alice.
+	ctxTodosCAd, cancelTodosCAd := context.WithCancel(ctxTodosC)
+	todosDoneCAd, err := syncdis.AdvertiseApp(ctxTodosCAd, nil)
+	if err != nil {
+		panic(err)
+	}
+	ctxCroupierAAd, cancelCroupierAAd := context.WithCancel(ctxCroupierA)
+	croupierDoneAAd, err := syncdis.AdvertiseApp(ctxCroupierAAd, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	// Expect Eve's todos and croupier to both see 1 new peer each.
+	checkExpectedAppPeers(t, todosChan, []string{"dev.v.io:o:todos:carol"}, nil)
+	checkExpectedAppPeers(t, croupierChan, []string{"dev.v.io:o:croupier:alice"}, nil)
+
+	// Stop advertising todos Peer B and Peer C and croupier Peer A.
+	cancelTodosBAd()
+	cancelTodosCAd()
+	cancelCroupierAAd()
+	<-todosDoneBAd
+	<-todosDoneCAd
+	<-croupierDoneAAd
+
+	// The "remove" notification goroutines might race, so wait a little bit.
+	// It is okay to wait since this is purely for test simplification purposes.
+	<-time.After(time.Millisecond * 10)
+
+	// Expect that Eve's todos channel will see 2 losses. Croupier's loses 1.
+	checkExpectedAppPeers(t, todosChan, nil, []string{"dev.v.io:o:todos:bob", "dev.v.io:o:todos:carol"})
+	checkExpectedAppPeers(t, croupierChan, nil, []string{"dev.v.io:o:croupier:alice"})
+
+	// Close the scanners. No additional found/lost events should be detected by Eve.
+	cancelMain()
+	confirmCleanupAppPeer(t, todosChan)
+	confirmCleanupAppPeer(t, croupierChan)
+	confirmCleanupAppPeer(t, syncslidesChan)
+}
+
+func listenForAppPeersAs(ctx *context.T, rootp security.Principal, as string) (<-chan syncdis.AppPeer, error) {
+	ch := make(chan syncdis.AppPeer)
+	return ch, syncdis.ListenForAppPeers(tu.NewCtx(ctx, rootp, as), ch)
+}
+
+func checkExpectedAppPeers(t *testing.T, ch <-chan syncdis.AppPeer, foundList []string, lostList []string) {
+	lost := len(lostList)
+	found := len(foundList)
+	counter := 0
+	for i := 0; i < found+lost; i++ {
+		select {
+		case peer, ok := <-ch:
+			if !ok {
+				t.Error("app peer channel shouldn't be closed yet")
+			} else {
+				// Verify that found peers are in the foundList and that lost peers are in the lostList.
+				if !peer.Lost {
+					counter++
+					inFound := false
+					for _, blessings := range foundList {
+						if peer.Blessings == blessings {
+							inFound = true
+							break
+						}
+					}
+					if !inFound {
+						t.Errorf("Expected found blessings in %v, but got the app peer: %v", lostList, peer)
+					}
+				} else {
+					inLost := false
+					for _, blessings := range lostList {
+						if peer.Blessings == blessings {
+							inLost = true
+							break
+						}
+					}
+					if !inLost {
+						t.Errorf("Expected lost blessings in %v, but got the app peer: %v", lostList, peer)
+					}
+
+				}
+			}
+		case <-time.After(time.Second * 1):
+			t.Errorf("timed out without seeing enough app peers. Found %d in %d updates, but needed %d in %d", counter, i, found, found+lost)
+			return
+		}
+	}
+
+	// Having gone through found + lost peers, "counter" must match the number we expected to find.
+	if counter != found {
+		t.Errorf("Found %d app peers, expected %d", counter, found)
+	}
+}
+
+func confirmCleanupAppPeer(t *testing.T, ch <-chan syncdis.AppPeer) {
+	unwanted, ok := <-ch
+	if ok {
+		t.Errorf("found unwanted app peer update %v", unwanted)
+	}
+}
