@@ -257,6 +257,7 @@ func (r *raft) Stop() {
 	r.Lock()
 	if r.role == RoleStopped {
 		r.Unlock()
+		r.cancel() // in case *r never got out of RoleStopped
 		return
 	}
 	r.role = RoleStopped
