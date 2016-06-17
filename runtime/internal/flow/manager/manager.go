@@ -507,12 +507,14 @@ func (m *manager) lnAcceptLoop(ctx *context.T, ln flow.Listener, local naming.En
 	defer m.ls.listenLoops.Done()
 	defer func() {
 		close(acceptFailed)
+		ln.Close()
+		m.ls.mu.Lock()
 		delete(m.ls.listeners, ln)
 		if m.ls.dirty != nil {
 			close(m.ls.dirty)
 			m.ls.dirty = make(chan struct{})
 		}
-		ln.Close()
+		m.ls.mu.Unlock()
 	}()
 	const killConnectionsRetryDelay = 5 * time.Millisecond
 	for {
