@@ -84,6 +84,7 @@ func (d *Discovery) Scan(ctx *context.T, query string) (<-chan discovery.Update,
 	// IBE is set up.  See v.io/i/1345.
 	updates := make(chan discovery.Update)
 	go func() {
+		defer nhCancel()
 		defer close(updates)
 		seen := make(map[discovery.AdId]*updateRef)
 		for {
@@ -190,6 +191,7 @@ func (d *Discovery) Advertise(ctx *context.T, ad *discovery.Advertisement, visib
 		if d.globalDiscovery != nil {
 			<-globalStopped
 		}
+		nhCancel()
 		close(stopped)
 	}()
 	ad.Id = adCopy.Id

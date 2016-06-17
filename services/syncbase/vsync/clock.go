@@ -80,12 +80,15 @@ func (s *syncService) syncVClock(ctxIn *context.T, peer connInfo) error {
 	// leverage what we learned here about available mount tables and endpoints
 	// when we continue on to the next initiation phase.
 	var timeRespInt interface{}
-	if _, timeRespInt, err = runAtPeer(ctx, peer, func(ctx *context.T, peer string) (interface{}, error) {
+	var runAtPeerCancel context.CancelFunc
+	if _, timeRespInt, runAtPeerCancel, err = runAtPeer(ctx, peer, func(ctx *context.T, peer string) (interface{}, error) {
 		return interfaces.SyncClient(peer).GetTime(ctx, interfaces.TimeReq{SendTs: origNow}, s.name, options.ConnectionTimeout(syncConnectionTimeout))
 	}); err != nil {
 		vlog.Errorf("sync: syncVClock: GetTime failed: %v", err)
+		runAtPeerCancel()
 		return err
 	}
+	defer runAtPeerCancel()
 
 	// Check for sysclock changes.
 	recvNow, _, err := s.vclock.SysClockValsIfNotChanged(origNow, origElapsedTime)

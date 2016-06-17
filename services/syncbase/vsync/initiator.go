@@ -287,7 +287,9 @@ func (s *syncService) getDeltas(ctxIn *context.T, c *initiationConfig, sg bool) 
 
 	// Make contact with the peer to start getting the deltas.
 	var err error
-	c.peer, _, err = runAtPeer(ctx, c.peer, op)
+	var runAtPeerCancel context.CancelFunc
+	c.peer, _, runAtPeerCancel, err = runAtPeer(ctx, c.peer, op)
+	defer runAtPeerCancel()
 	if err != nil {
 		return err
 	}
@@ -1226,41 +1228,56 @@ func (iSt *initiationState) advertiseSyncgroups(ctx *context.T) error {
 // be nil (e.g. for GetDeltas stream connections).
 type remoteOp func(ctx *context.T, peer string) (interface{}, error)
 
+// runAllCancelFuncs runs the context.CancelFunc routines in cancelFuncs.
+func runAllCancelFuncs(cancelFuncs []context.CancelFunc) {
+	for _, f := range cancelFuncs {
+		f()
+	}
+}
+
 // runAtPeer attempts to connect to the remote peer using the neighborhood
 // address when specified or the mount tables obtained from all the common
 // syncgroups, and runs the specified op.
-func runAtPeer(ctx *context.T, peer connInfo, op remoteOp) (connInfo, interface{}, error) {
+func runAtPeer(ctx *context.T, peer connInfo, op remoteOp) (connInfo, interface{}, context.CancelFunc, error) {
 	if len(peer.mtTbls) < 1 && len(peer.addrs) < 1 {
-		return peer, nil, verror.New(verror.ErrInternal, ctx, "no mount tables or endpoints found", peer)
+		return peer, nil, func() {}, verror.New(verror.ErrInternal, ctx, "no mount tables or endpoints found", peer)
 	}
 
 	updPeer := peer
+	var cancelFuncs []context.CancelFunc
 	if peer.addrs != nil {
 		for i, addr := range peer.addrs {
 			absName := naming.Join(addr, common.SyncbaseSuffix)
-			if resp, err := runRemoteOp(ctx, absName, op); verror.ErrorID(err) != interfaces.ErrConnFail.ID {
+			resp, cancel, err := runRemoteOp(ctx, absName, op)
+			cancelFuncs = append(cancelFuncs, cancel)
+			if verror.ErrorID(err) != interfaces.ErrConnFail.ID {
 				updPeer.addrs = updPeer.addrs[i:]
-				return updPeer, resp, err
+				return updPeer, resp, func() { runAllCancelFuncs(cancelFuncs) }, err
 			}
 		}
 		updPeer.addrs = nil
 	} else {
 		for i, mt := range peer.mtTbls {
 			absName := naming.Join(mt, peer.relName, common.SyncbaseSuffix)
-			if resp, err := runRemoteOp(ctx, absName, op); verror.ErrorID(err) != interfaces.ErrConnFail.ID {
+			resp, cancel, err := runRemoteOp(ctx, absName, op)
+			if verror.ErrorID(err) != interfaces.ErrConnFail.ID {
+				cancelFuncs = append(cancelFuncs, cancel)
 				updPeer.mtTbls = updPeer.mtTbls[i:]
-				return updPeer, resp, err
+				return updPeer, resp, func() { runAllCancelFuncs(cancelFuncs) }, err
 			}
+			cancelFuncs = append(cancelFuncs, cancel)
 		}
 		updPeer.mtTbls = nil
 	}
 
-	return updPeer, nil, verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", updPeer.relName, updPeer.addrs)
+	return updPeer, nil, func() { runAllCancelFuncs(cancelFuncs) },
+		verror.New(interfaces.ErrConnFail, ctx, "couldn't connect to peer", updPeer.relName, updPeer.addrs)
 }
 
 // runRemoteOp runs the remoteOp on the server specified by absName.
-// It is the caller's responsibility to cancel the ctx argument.
-func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) (interface{}, error) {
+// It is the caller's responsibility to call the returned context.CancelFunc
+// if this call returns a nil error value.
+func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) (interface{}, context.CancelFunc, error) {
 	vlog.VI(4).Infof("sync: runRemoteOp: begin for %v", absName)
 
 	ctx, cancel := context.WithCancel(ctxIn)
@@ -1270,7 +1287,7 @@ func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) (interface{}, er
 	if err == nil {
 		vlog.VI(4).Infof("sync: runRemoteOp: end op established for %s", absName)
 		// Responsibility for calling cancel() is passed to caller.
-		return resp, nil
+		return resp, cancel, nil
 	}
 
 	vlog.VI(4).Infof("sync: runRemoteOp: end for %s, err %v", absName, err)
@@ -1284,5 +1301,5 @@ func runRemoteOp(ctxIn *context.T, absName string, op remoteOp) (interface{}, er
 	}
 
 	cancel()
-	return nil, err
+	return nil, func() {}, err
 }
