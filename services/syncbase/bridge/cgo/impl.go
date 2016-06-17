@@ -79,15 +79,25 @@ var (
 )
 
 //export v23_syncbase_Init
-func v23_syncbase_Init(cClientUnderstandVom C.v23_syncbase_Bool) {
+func v23_syncbase_Init(cClientUnderstandVom C.v23_syncbase_Bool, cRootDir C.v23_syncbase_String) {
+	if b != nil {
+		panic("v23_syncbase_Init called again before a v23_syncbase_Shutdown")
+	}
 	// Strip all flags beyond the binary name; otherwise, v23.Init will fail when it encounters
 	// unknown flags passed by Xcode, e.g. NSTreatUnknownArgumentsAsOpen.
 	os.Args = os.Args[:1]
-	// TODO(sadovsky): Support shutdown?
-	ctx, _ := v23.Init()
-	srv, disp, _ := syncbaselib.Serve(ctx, syncbaselib.Opts{})
-	b = bridge.NewBridge(ctx, srv, disp)
+	ctx, shutdown := v23.Init()
+	srv, disp, cleanup := syncbaselib.Serve(ctx, syncbaselib.Opts{RootDir: cRootDir.extract()})
+	b = bridge.NewBridge(ctx, context.CancelFunc(shutdown), srv, disp, cleanup)
 	clientUnderstandsVOM = cClientUnderstandVom.extract()
+}
+
+//export v23_syncbase_Shutdown
+func v23_syncbase_Shutdown() {
+	if b != nil {
+		b.Destroy()
+		b = nil
+	}
 }
 
 ////////////////////////////////////////

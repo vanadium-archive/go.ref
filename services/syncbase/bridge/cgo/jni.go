@@ -79,7 +79,6 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 	}
 	jVM = vm
 
-	v23_syncbase_Init(C.v23_syncbase_Bool(1))
 	arrayListClass = newJArrayListClass(env)
 	collectionRowPatternClass = newJCollectionRowPattern(env)
 	hashMapClass = newJHashMap(env)
@@ -94,6 +93,17 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 	watchChangeClass = newJWatchChange(env)
 
 	return C.JNI_VERSION_1_6
+}
+
+//export Java_io_v_syncbase_internal_Service_Init
+func Java_io_v_syncbase_internal_Service_Init(env *C.JNIEnv, cls C.jclass, initRoot C.jstring) {
+	cInitRoot := newVStringFromJava(env, initRoot)
+	v23_syncbase_Init(C.v23_syncbase_Bool(1), cInitRoot)
+}
+
+//export Java_io_v_syncbase_internal_Service_Shutdown
+func Java_io_v_syncbase_internal_Service_Shutdown(env *C.JNIEnv, cls C.jclass) {
+	v23_syncbase_Shutdown()
 }
 
 //export Java_io_v_syncbase_internal_Service_Login

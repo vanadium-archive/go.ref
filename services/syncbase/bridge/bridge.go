@@ -17,18 +17,25 @@ import (
 
 // Bridge object, representing an in-process Syncbase singleton.
 type Bridge struct {
-	Ctx  *context.T
-	srv  rpc.Server
-	disp rpc.Dispatcher
+	Ctx      *context.T
+	Shutdown context.CancelFunc
+	srv      rpc.Server
+	disp     rpc.Dispatcher
+	Cleanup  func()
 }
 
-func NewBridge(ctx *context.T, srv rpc.Server, disp rpc.Dispatcher) *Bridge {
-	return &Bridge{Ctx: ctx, srv: srv, disp: disp}
+func NewBridge(ctx *context.T, shutdown context.CancelFunc, srv rpc.Server, disp rpc.Dispatcher, cleanup func()) *Bridge {
+	return &Bridge{Ctx: ctx, Shutdown: shutdown, srv: srv, disp: disp, Cleanup: cleanup}
 }
 
 func (b *Bridge) NewCtxCall(suffix string, method rpc.MethodDesc) (*context.T, rpc.ServerCall) {
 	ctx, _ := vtrace.WithNewTrace(b.Ctx)
 	return ctx, newFakeServerCall(ctx, b.srv, suffix, method)
+}
+
+func (b *Bridge) Destroy() {
+	b.Cleanup()
+	b.Shutdown()
 }
 
 ////////////////////////////////////////
