@@ -16,6 +16,12 @@ import (
 	"v.io/x/ref/lib/timekeeper"
 )
 
+type Config struct {
+	GlobalAcl         access.AccessList
+	MaxNodesPerUser   int64
+	MaxServersPerUser int64
+}
+
 var clock = timekeeper.RealTime()
 
 // For testing only.
@@ -23,13 +29,13 @@ func SetClock(c timekeeper.TimeKeeper) {
 	clock = c
 }
 
-func NewDispatcher(bt *BigTable, globalAcl *access.AccessList) rpc.Dispatcher {
-	return &dispatcher{bt, globalAcl}
+func NewDispatcher(bt *BigTable, config *Config) rpc.Dispatcher {
+	return &dispatcher{bt, config}
 }
 
 type dispatcher struct {
-	bt        *BigTable
-	globalAcl *access.AccessList
+	bt     *BigTable
+	config *Config
 }
 
 func (d *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, security.Authorizer, error) {
@@ -37,8 +43,8 @@ func (d *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, securit
 		suffix = path.Clean(suffix)
 	}
 	return v23mt.MountTableServer(&mounttable{
-		suffix:    suffix,
-		globalAcl: d.globalAcl,
-		bt:        d.bt,
+		suffix: suffix,
+		config: d.config,
+		bt:     d.bt,
 	}), security.AllowEveryone(), nil
 }

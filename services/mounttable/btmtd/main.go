@@ -61,6 +61,9 @@ var (
 
 	permissionsFileFlag string
 	mountNameFlag       string
+
+	maxNodesPerUserFlag   int
+	maxServersPerUserFlag int
 )
 
 func main() {
@@ -73,6 +76,9 @@ func main() {
 	cmdRoot.Flags.BoolVar(&inMemoryTestFlag, "in-memory-test", false, "If true, use an in-memory bigtable server (for testing only)")
 	cmdRoot.Flags.StringVar(&permissionsFileFlag, "permissions-file", "", "The file that contains the initial node permissions.")
 	cmdRoot.Flags.StringVar(&mountNameFlag, "name", "", "If provided, causes the mount table to mount itself under this name.")
+
+	cmdRoot.Flags.IntVar(&maxNodesPerUserFlag, "max-nodes-per-user", 10000, "The maximum number of nodes that a single user can create.")
+	cmdRoot.Flags.IntVar(&maxServersPerUserFlag, "max-servers-per-user", 10000, "The maximum number of servers that a single user can mount.")
 
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
@@ -126,8 +132,12 @@ func runMT(ctx *context.T, env *cmdline.Env, args []string) error {
 	if err != nil {
 		return err
 	}
-	acl := globalPerms["Admin"]
-	disp := internal.NewDispatcher(bt, &acl)
+	cfg := &internal.Config{
+		GlobalAcl:         globalPerms["Admin"],
+		MaxNodesPerUser:   int64(maxNodesPerUserFlag),
+		MaxServersPerUser: int64(maxServersPerUserFlag),
+	}
+	disp := internal.NewDispatcher(bt, cfg)
 	ctx, server, err := v23.WithNewDispatchingServer(ctx, mountNameFlag, disp, options.ServesMountTable(true), options.LameDuckTimeout(30*time.Second))
 	if err != nil {
 		return err

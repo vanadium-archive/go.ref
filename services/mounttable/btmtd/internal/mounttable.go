@@ -55,9 +55,9 @@ func op(ctx *context.T, f func() error) (err error) {
 }
 
 type mounttable struct {
-	suffix    string
-	globalAcl *access.AccessList
-	bt        *BigTable
+	suffix string
+	config *Config
+	bt     *BigTable
 
 	rbn    []string
 	rbnInv []security.RejectedBlessing
@@ -95,7 +95,7 @@ func (mt *mounttable) Mount(ctx *context.T, call rpc.ServerCall, server string, 
 		if err := mt.authorize(ctx, call.Security(), n.permissions, v23mt.Mount, v23mt.Admin); err != nil {
 			return err
 		}
-		return n.mount(ctx, server, clock.Now().Add(time.Duration(ttl)*time.Second), flags)
+		return n.mount(ctx, server, clock.Now().Add(time.Duration(ttl)*time.Second), flags, mt.config.MaxServersPerUser)
 	})
 }
 
@@ -306,10 +306,8 @@ func (mt *mounttable) authorize(ctx *context.T, call security.Call, perms access
 			return nil
 		}
 	}
-	if mt.globalAcl != nil {
-		if mt.globalAcl.Includes(blessings...) {
-			return nil
-		}
+	if mt.config.GlobalAcl.Includes(blessings...) {
+		return nil
 	}
 	return access.NewErrNoPermissions(ctx, blessings, invalid, string(tags[0]))
 }
@@ -372,7 +370,7 @@ start:
 				}
 			}
 			perms.Normalize()
-			n, err = parent.createChild(ctx, elem, perms, pickCreator(ctx, call))
+			n, err = parent.createChild(ctx, elem, perms, pickCreator(ctx, call), mt.config.MaxNodesPerUser)
 			if err != nil {
 				return nil, "", err
 			}

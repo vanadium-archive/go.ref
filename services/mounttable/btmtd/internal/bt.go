@@ -162,7 +162,7 @@ func (b *BigTable) SetupTable(ctx *context.T, permissionsFile string) error {
 	}
 	perms := make(access.Permissions)
 	perms.Add(security.AllPrincipals, string(v23mt.Admin))
-	return b.createRow(ctx, "", perms, "", b.now())
+	return b.createRow(ctx, "", perms, "", b.now(), 0)
 }
 
 func (b *BigTable) timeFloor(t bigtable.Timestamp) bigtable.Timestamp {
@@ -342,7 +342,7 @@ func (b *BigTable) readRow(ctx *context.T, key string, opts ...bigtable.ReadOpti
 	return row, err
 }
 
-func (b *BigTable) createRow(ctx *context.T, name string, perms access.Permissions, creator string, ts bigtable.Timestamp) error {
+func (b *BigTable) createRow(ctx *context.T, name string, perms access.Permissions, creator string, ts bigtable.Timestamp, limit int64) error {
 	jsonPerms, err := json.Marshal(perms)
 	if err != nil {
 		return err
@@ -350,6 +350,15 @@ func (b *BigTable) createRow(ctx *context.T, name string, perms access.Permissio
 	if creator == "" {
 		creator = conventions.ServerUser
 	}
+	delta := int64(1)
+	if err := incrementCreatorNodeCount(ctx, b, creator, delta, limit); err != nil {
+		return err
+	}
+	defer func() {
+		if err := incrementCreatorNodeCount(ctx, b, creator, -delta, 0); err != nil {
+			ctx.Errorf("incrementCreatorNodeCount failed: %v", err)
+		}
+	}()
 	mut := bigtable.NewMutation()
 	mut.Set(metadataFamily, creatorColumn, ts, []byte(creator))
 	mut.Set(metadataFamily, permissionsColumn, bigtable.ServerTime, jsonPerms)
@@ -364,5 +373,6 @@ func (b *BigTable) createRow(ctx *context.T, name string, perms access.Permissio
 	if exists {
 		return verror.New(errConcurrentAccess, ctx, name)
 	}
-	return incrementCreatorNodeCount(ctx, b, creator, 1)
+	delta = 0
+	return nil
 }

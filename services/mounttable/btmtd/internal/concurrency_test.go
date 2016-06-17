@@ -19,7 +19,7 @@ func TestConcurrentMountUnmount(t *testing.T) {
 	rootCtx, _, _, shutdown := initTest()
 	defer shutdown()
 
-	stop, mtAddr, bt, _ := newMT(t, "", rootCtx)
+	stop, mtAddr, bt, _ := newMT(t, "", rootCtx, nil)
 	defer stop()
 
 	var wg sync.WaitGroup
@@ -59,7 +59,7 @@ func TestConcurrentMountDelete(t *testing.T) {
 	rootCtx, _, _, shutdown := initTest()
 	defer shutdown()
 
-	stop, mtAddr, bt, _ := newMT(t, "", rootCtx)
+	stop, mtAddr, bt, _ := newMT(t, "", rootCtx, nil)
 	defer stop()
 
 	var wg sync.WaitGroup
@@ -102,7 +102,7 @@ func TestConcurrentExpiry(t *testing.T) {
 	rootCtx, _, _, shutdown := initTest()
 	defer shutdown()
 
-	stop, mtAddr, bt, clock := newMT(t, "", rootCtx)
+	stop, mtAddr, bt, clock := newMT(t, "", rootCtx, nil)
 	defer stop()
 
 	const N = 100

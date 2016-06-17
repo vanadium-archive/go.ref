@@ -14,6 +14,11 @@ import (
 	"v.io/v23/verror"
 )
 
+var (
+	errNodeLimitExceeded   = verror.Register(pkgPath+".errNodeLimitExceeded", verror.NoRetry, "{1:}{2:} node limit per user ({3}) exceeded{:_}")
+	errServerLimitExceeded = verror.Register(pkgPath+".errServerLimitExceeded", verror.NoRetry, "{1:}{2:} mounted server limit per user ({3}) exceeded{:_}")
+)
+
 func incrementCounter(ctx *context.T, bt *BigTable, name string, delta int64) (int64, error) {
 	bctx, cancel := btctx(ctx)
 	defer cancel()
@@ -36,18 +41,27 @@ func decodeCounterValue(ctx *context.T, row bigtable.Row) (c int64, err error) {
 	return
 }
 
-func incrementCreatorNodeCount(ctx *context.T, bt *BigTable, creator string, delta int64) error {
+func incrementWithLimit(ctx *context.T, bt *BigTable, name string, delta, limit int64, overLimitError verror.IDAction) error {
 	if delta == 0 {
 		return nil
 	}
-	_, err := incrementCounter(ctx, bt, "num-nodes-per-user:"+creator, delta)
-	return err
+	c, err := incrementCounter(ctx, bt, name, delta)
+	if err != nil {
+		return err
+	}
+	if delta > 0 && limit > 0 && c > limit {
+		if _, err := incrementCounter(ctx, bt, name, -delta); err != nil {
+			ctx.Errorf("incrementCounter(%q, %v) failed: %v", name, -delta, err)
+		}
+		return verror.New(overLimitError, ctx, limit)
+	}
+	return nil
 }
 
-func incrementCreatorServerCount(ctx *context.T, bt *BigTable, creator string, delta int64) error {
-	if delta == 0 {
-		return nil
-	}
-	_, err := incrementCounter(ctx, bt, "num-servers-per-user:"+creator, delta)
-	return err
+func incrementCreatorNodeCount(ctx *context.T, bt *BigTable, creator string, delta, limit int64) error {
+	return incrementWithLimit(ctx, bt, "num-nodes-per-user:"+creator, delta, limit, errNodeLimitExceeded)
+}
+
+func incrementCreatorServerCount(ctx *context.T, bt *BigTable, creator string, delta, limit int64) error {
+	return incrementWithLimit(ctx, bt, "num-servers-per-user:"+creator, delta, limit, errServerLimitExceeded)
 }

@@ -51,7 +51,7 @@ func TestMutations(t *testing.T) {
 			return true
 		},
 		func(i int, n *mtNode) bool {
-			if child, err := n.createChild(ctx, "Y", n.permissions, ""); err != nil {
+			if child, err := n.createChild(ctx, "Y", n.permissions, "", 0); err != nil {
 				t.Logf("[%d] createChild: (%v, %v)", i, child, err)
 				return false
 			}
@@ -73,7 +73,7 @@ func TestMutations(t *testing.T) {
 		},
 		func(i int, n *mtNode) bool {
 			const serverAddr = "/example.com:1234"
-			if err := n.mount(ctx, serverAddr, clock.Now().Add(time.Minute), 0); err != nil {
+			if err := n.mount(ctx, serverAddr, clock.Now().Add(time.Minute), 0, 0); err != nil {
 				t.Logf("[%d] mount: %v", i, err)
 				return false
 			}
@@ -118,7 +118,7 @@ func TestMutations(t *testing.T) {
 	for i := 1; i <= 100; i++ {
 		// Create X.
 		root, _ = getNode(ctx, bt, "")
-		n, err := root.createChild(ctx, "X", root.permissions, "")
+		n, err := root.createChild(ctx, "X", root.permissions, "", 0)
 		if err != nil || n == nil {
 			t.Fatalf("createChild(X): (%v, %v)", n, err)
 		}

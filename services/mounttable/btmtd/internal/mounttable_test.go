@@ -172,7 +172,7 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 	}
 }
 
-func newMT(t *testing.T, permsFile string, rootCtx *context.T) (func(), string, *internal.BigTable, timekeeper.ManualTime) {
+func newMT(t *testing.T, permsFile string, rootCtx *context.T, config *internal.Config) (func(), string, *internal.BigTable, timekeeper.ManualTime) {
 	reservedDisp := debuglib.NewDispatcher(nil)
 	ctx := v23.WithReservedNameDispatcher(rootCtx, reservedDisp)
 
@@ -197,7 +197,10 @@ func newMT(t *testing.T, permsFile string, rootCtx *context.T) (func(), string, 
 	// Add mount table service.
 	internal.SetClock(clock)
 	internal.SetGcGracePeriod(0)
-	mt := internal.NewDispatcher(bt, nil)
+	if config == nil {
+		config = &internal.Config{}
+	}
+	mt := internal.NewDispatcher(bt, config)
 
 	// Start serving on a loopback address.
 	ctx, cancel := context.WithCancel(ctx)
@@ -235,7 +238,7 @@ func TestMountTable(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	stop, mtAddr, _, clock := newMT(t, "testdata/test.perms", rootCtx)
+	stop, mtAddr, _, clock := newMT(t, "testdata/test.perms", rootCtx, nil)
 	defer stop()
 	stop, collectionAddr := newCollection(t, rootCtx)
 	defer stop()
@@ -407,7 +410,7 @@ func TestGlob(t *testing.T) {
 	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	stop, estr, _, _ := newMT(t, "", rootCtx)
+	stop, estr, _, _ := newMT(t, "", rootCtx, nil)
 	defer stop()
 
 	// set up a mount space
@@ -524,7 +527,7 @@ func TestAccessListTemplate(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	stop, estr, _, _ := newMT(t, "testdata/test.perms", rootCtx)
+	stop, estr, _, _ := newMT(t, "testdata/test.perms", rootCtx, nil)
 	defer stop()
 	fakeServer := naming.JoinAddressName(estr, "quux")
 
@@ -581,7 +584,7 @@ func TestGlobAccessLists(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	stop, estr, _, _ := newMT(t, "testdata/test.perms", rootCtx)
+	stop, estr, _, _ := newMT(t, "testdata/test.perms", rootCtx, nil)
 	defer stop()
 
 	// set up a mount space
@@ -614,7 +617,7 @@ func TestCleanup(t *testing.T) {
 	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	stop, estr, _, _ := newMT(t, "", rootCtx)
+	stop, estr, _, _ := newMT(t, "", rootCtx, nil)
 	defer stop()
 
 	// Set up one mount.
@@ -642,7 +645,7 @@ func TestDelete(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
-	stop, estr, _, _ := newMT(t, "testdata/test.perms", rootCtx)
+	stop, estr, _, _ := newMT(t, "testdata/test.perms", rootCtx, nil)
 	defer stop()
 
 	// set up a mount space
@@ -675,7 +678,7 @@ func TestServerFormat(t *testing.T) {
 	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	stop, estr, _, _ := newMT(t, "", rootCtx)
+	stop, estr, _, _ := newMT(t, "", rootCtx, nil)
 	defer stop()
 
 	doMount(t, rootCtx, estr, "endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), true)
@@ -689,7 +692,7 @@ func TestExpiry(t *testing.T) {
 	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	stop, estr, _, clock := newMT(t, "", rootCtx)
+	stop, estr, _, clock := newMT(t, "", rootCtx, nil)
 	defer stop()
 	stop, collectionAddr := newCollection(t, rootCtx)
 	defer stop()
@@ -719,7 +722,7 @@ func TestNodeCounters(t *testing.T) {
 	rootCtx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	stop, estr, bt, clock := newMT(t, "", rootCtx)
+	stop, estr, bt, clock := newMT(t, "", rootCtx, nil)
 	defer stop()
 
 	nodeCount := func() int64 {
@@ -837,7 +840,7 @@ func TestIntermediateNodesCreatedFromConfig(t *testing.T) {
 	rootCtx, _, _, shutdown := initTest()
 	defer shutdown()
 
-	stop, estr, _, _ := newMT(t, "testdata/intermediate.perms", rootCtx)
+	stop, estr, _, _ := newMT(t, "testdata/intermediate.perms", rootCtx, nil)
 	defer stop()
 
 	// x and x/y should have the same permissions at the root.
@@ -850,6 +853,64 @@ func TestIntermediateNodesCreatedFromConfig(t *testing.T) {
 	}
 	if perms, _ := doGetPermissions(t, rootCtx, estr, "x/y/z", true); reflect.DeepEqual(rootPerms, perms) {
 		boom(t, "for x/y/z got %v, don't want %v", perms, rootPerms)
+	}
+}
+
+func TestLimits(t *testing.T) {
+	ctx, _, _, shutdown := initTest()
+	defer shutdown()
+
+	stop, estr, bt, _ := newMT(t, "", ctx, &internal.Config{MaxNodesPerUser: 10, MaxServersPerUser: 15})
+	defer stop()
+
+	fakeServer := naming.JoinAddressName(estr, "quux")
+
+	checkCounters := func(n, s int) {
+		counters, err := bt.Counters(ctx)
+		if err != nil {
+			t.Fatalf("bt.Counters failed: %v", err)
+		}
+		numNodes, numServers := counters["num-nodes-per-user:root"], counters["num-servers-per-user:root"]
+		if numNodes != int64(n) {
+			t.Errorf("Unexpected number of nodes. Got %d, expected %d", numNodes, n)
+		}
+		if numServers != int64(s) {
+			t.Errorf("Unexpected number of servers. Got %d, expected %d", numServers, s)
+		}
+	}
+
+	// User is allowed to created 10 nodes.
+	for i := 1; i <= 10; i++ {
+		doMount(t, ctx, estr, fmt.Sprintf("%d", i), fakeServer, true)
+		checkCounters(i, i)
+	}
+	// But not 11.
+	doMount(t, ctx, estr, "foo", fakeServer, false)
+	checkCounters(10, 10)
+
+	// User is allowed to mount 15 servers.
+	for i := 1; i <= 5; i++ {
+		doMount(t, ctx, estr, fmt.Sprintf("%d", i), naming.Join(fakeServer, "foo"), true)
+		checkCounters(10, 10+i)
+	}
+	// But not 16.
+	doMount(t, ctx, estr, "6", naming.Join(fakeServer, "foo"), false)
+	checkCounters(10, 15)
+
+	// Freeing one node allows to create one.
+	doUnmount(t, ctx, estr, "10", "", true)
+	checkCounters(9, 14)
+	doMount(t, ctx, estr, "10", fakeServer, true)
+	checkCounters(10, 15)
+
+	// Unmount everything.
+	for i := 1; i <= 10; i++ {
+		doUnmount(t, ctx, estr, fmt.Sprintf("%d", i), "", true)
+		if i <= 5 {
+			checkCounters(10-i, 15-2*i)
+		} else {
+			checkCounters(10-i, 10-i)
+		}
 	}
 }
 

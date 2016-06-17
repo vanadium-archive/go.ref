@@ -130,7 +130,7 @@ func nodeFromRow(ctx *context.T, bt *BigTable, row bigtable.Row, clock timekeepe
 	return n
 }
 
-func (n *mtNode) createChild(ctx *context.T, child string, perms access.Permissions, creator string) (*mtNode, error) {
+func (n *mtNode) createChild(ctx *context.T, child string, perms access.Permissions, creator string, limit int64) (*mtNode, error) {
 	ts := n.bt.now()
 	mut := bigtable.NewMutation()
 	mut.Set(childrenFamily, child, ts, []byte{1})
@@ -148,7 +148,7 @@ func (n *mtNode) createChild(ctx *context.T, child string, perms access.Permissi
 	childName := naming.Join(n.name, child)
 	longCtx, cancel := longTimeout(ctx)
 	defer cancel()
-	if err := n.bt.createRow(longCtx, childName, perms, creator, ts); err != nil {
+	if err := n.bt.createRow(longCtx, childName, perms, creator, ts, limit); err != nil {
 		return nil, err
 	}
 	n, err := getNode(ctx, n.bt, childName)
@@ -161,7 +161,7 @@ func (n *mtNode) createChild(ctx *context.T, child string, perms access.Permissi
 	return n, nil
 }
 
-func (n *mtNode) mount(ctx *context.T, server string, deadline time.Time, flags naming.MountFlag) error {
+func (n *mtNode) mount(ctx *context.T, server string, deadline time.Time, flags naming.MountFlag, limit int64) error {
 	delta := int64(1)
 	mut := bigtable.NewMutation()
 	for _, s := range n.servers {
@@ -173,6 +173,14 @@ func (n *mtNode) mount(ctx *context.T, server string, deadline time.Time, flags 
 		delta--
 		mut.DeleteCellsInColumn(serversFamily, s.Server)
 	}
+	if err := incrementCreatorServerCount(ctx, n.bt, n.creator, delta, limit); err != nil {
+		return err
+	}
+	defer func() {
+		if err := incrementCreatorServerCount(ctx, n.bt, n.creator, -delta, 0); err != nil {
+			ctx.Errorf("incrementCreatorServerCount failed: %v", err)
+		}
+	}()
 	f := mtFlags{
 		MT:   flags&naming.MT != 0,
 		Leaf: flags&naming.Leaf != 0,
@@ -185,7 +193,8 @@ func (n *mtNode) mount(ctx *context.T, server string, deadline time.Time, flags 
 	if err := n.mutate(ctx, mut, false); err != nil {
 		return err
 	}
-	return incrementCreatorServerCount(ctx, n.bt, n.creator, delta)
+	delta = 0
+	return nil
 }
 
 func (n *mtNode) unmount(ctx *context.T, server string) error {
@@ -209,7 +218,7 @@ func (n *mtNode) unmount(ctx *context.T, server string) error {
 	if n, err := getNode(ctx, n.bt, n.name); err == nil {
 		n.gc(ctx)
 	}
-	return incrementCreatorServerCount(ctx, n.bt, n.creator, delta)
+	return incrementCreatorServerCount(ctx, n.bt, n.creator, delta, 0)
 }
 
 func (n *mtNode) gc(ctx *context.T) (deletedSomething bool, err error) {
@@ -223,7 +232,7 @@ func (n *mtNode) gc(ctx *context.T) (deletedSomething bool, err error) {
 				break
 			}
 			delta := -int64(len(n.expiredServers))
-			if err = incrementCreatorServerCount(ctx, n.bt, n.creator, delta); err != nil {
+			if err = incrementCreatorServerCount(ctx, n.bt, n.creator, delta, 0); err != nil {
 				// TODO(rthellend): Since counters are stored in different rows,
 				// there is no way to update them atomically, e.g. if the server
 				// dies here, or if incrementCreatorServerCount returns an error,
@@ -288,7 +297,7 @@ func (n *mtNode) delete(ctx *context.T, deleteSubtree bool) error {
 			// exist. It could be that it is being created or
 			// deleted concurrently. To be sure, we have to create
 			// it before deleting it.
-			if cn, err = n.createChild(ctx, c, n.permissions, ""); err != nil {
+			if cn, err = n.createChild(ctx, c, n.permissions, "", 0); err != nil {
 				return err
 			}
 		}
@@ -327,10 +336,10 @@ func (n *mtNode) delete(ctx *context.T, deleteSubtree bool) error {
 	// called directly without gc(), we need to include the expired servers
 	// in the counter adjustment.
 	delta := -int64(len(n.servers) + len(n.expiredServers))
-	if err := incrementCreatorServerCount(ctx, n.bt, n.creator, delta); err != nil {
+	if err := incrementCreatorServerCount(ctx, n.bt, n.creator, delta, 0); err != nil {
 		return err
 	}
-	return incrementCreatorNodeCount(ctx, n.bt, n.creator, -1)
+	return incrementCreatorNodeCount(ctx, n.bt, n.creator, -1, 0)
 }
 
 func (n *mtNode) setPermissions(ctx *context.T, perms access.Permissions) error {
@@ -416,7 +425,7 @@ func createNodesFromFile(ctx *context.T, bt *BigTable, fileName string) error {
 	for _, node := range sortedNodes {
 		perms := nodes[node]
 		if node == "" {
-			if err := bt.createRow(ctx, "", perms, "", ts); err != nil {
+			if err := bt.createRow(ctx, "", perms, "", ts, 0); err != nil {
 				return err
 			}
 			continue
@@ -432,7 +441,7 @@ func createNodesFromFile(ctx *context.T, bt *BigTable, fileName string) error {
 				if err != nil {
 					return err
 				}
-				if n, err = parent.createChild(ctx, e, parent.permissions, ""); err != nil {
+				if n, err = parent.createChild(ctx, e, parent.permissions, "", 0); err != nil {
 					return err
 				}
 			}

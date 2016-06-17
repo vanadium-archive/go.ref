@@ -25,6 +25,10 @@ The btmtd flags are:
    If true, use an in-memory bigtable server (for testing only)
  -key-file=
    The file that contains the Google Cloud JSON credentials to use
+ -max-nodes-per-user=10000
+   The maximum number of nodes that a single user can create.
+ -max-servers-per-user=10000
+   The maximum number of servers that a single user can mount.
  -name=
    If provided, causes the mount table to mount itself under this name.
  -permissions-file=
