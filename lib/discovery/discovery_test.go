@@ -196,10 +196,18 @@ func TestDuplicates(t *testing.T) {
 	}
 
 	d, _ := df.New(ctx)
-	if _, err := testutil.Advertise(ctx, d, nil, &ad); err != nil {
+	stop, err := testutil.Advertise(ctx, d, nil, &ad)
+	if stop != nil {
+		defer stop()
+	}
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := testutil.Advertise(ctx, d, nil, &ad); err == nil {
+	stop, err = testutil.Advertise(ctx, d, nil, &ad)
+	if stop != nil {
+		defer stop()
+	}
+	if err == nil {
 		t.Error("expect an error; but got none")
 	}
 }
@@ -527,7 +535,11 @@ func TestShutdown(t *testing.T) {
 	}
 
 	d1, _ := df.New(ctx)
-	if _, err := testutil.Advertise(ctx, d1, nil, &ad); err != nil {
+	stop, err := testutil.Advertise(ctx, d1, nil, &ad)
+	if stop != nil {
+		defer stop()
+	}
+	if err != nil {
 		t.Error(err)
 	}
 	d2, _ := df.New(ctx)
@@ -541,7 +553,11 @@ func TestShutdown(t *testing.T) {
 
 	// Make sure advertise and scan do not work after closed.
 	ad.Id = discovery.AdId{} // To avoid dup error.
-	if _, err := testutil.Advertise(ctx, d1, nil, &ad); err == nil {
+	stop, err = testutil.Advertise(ctx, d1, nil, &ad)
+	if stop != nil {
+		defer stop()
+	}
+	if err == nil {
 		t.Error("expect an error; but got none")
 	}
 	if err := testutil.ScanAndMatch(ctx, d2, ``, ad); err == nil {

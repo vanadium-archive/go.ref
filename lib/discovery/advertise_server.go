@@ -37,6 +37,7 @@ func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix st
 	curAddrs := sortedNames(status.Endpoints)
 	stop, err := advertiseServer(ctx, d, ad, curAddrs, suffix, visibility)
 	if err != nil {
+		stop()
 		return nil, err
 	}
 
@@ -49,6 +50,7 @@ func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix st
 			case <-status.Dirty:
 				status = server.Status()
 				if status.State != rpc.ServerActive {
+					stop()
 					return
 				}
 				newAddrs := sortedNames(status.Endpoints)
@@ -59,6 +61,7 @@ func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix st
 				stop() // Stop the previous advertisement.
 				stop, err = advertiseServer(ctx, d, ad, newAddrs, suffix, visibility)
 				if err != nil {
+					stop()
 					ctx.Error(err)
 					return
 				}

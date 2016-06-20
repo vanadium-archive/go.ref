@@ -22,6 +22,7 @@ func Advertise(ctx *context.T, p idiscovery.Plugin, adinfos ...*idiscovery.AdInf
 	for _, adinfo := range adinfos {
 		wg.Add(1)
 		if err := p.Advertise(ctx, adinfo, wg.Done); err != nil {
+			cancel()
 			return nil, fmt.Errorf("Advertise failed: %v", err)
 		}
 	}

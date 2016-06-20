@@ -515,6 +515,7 @@ func TestTimestamp(t *testing.T) {
 	adinfo.Hash = idiscovery.AdHash{7, 8, 9}
 	adinfo.TimestampNs = 1002
 	stop, err = testutil.Advertise(ctx, p1, &adinfo)
+	defer stop()
 	if err != nil {
 		t.Fatal(err)
 	}

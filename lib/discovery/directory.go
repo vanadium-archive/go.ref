@@ -102,6 +102,7 @@ func newDirServer(ctx *context.T, d *idiscovery, opts ...rpc.ServerOpt) (*dirSer
 	s := &dirServer{d: d, adMap: make(map[discovery.AdId]*AdInfo), cancel: cancel}
 	ctx, server, err := v23.WithNewServer(ctx, "", DirectoryServer(s), security.AllowEveryone(), opts...)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 

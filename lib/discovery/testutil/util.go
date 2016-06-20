@@ -79,6 +79,7 @@ func Scan(ctx *context.T, d discovery.T, query string) (<-chan discovery.Update,
 	ctx, cancel := context.WithCancel(ctx)
 	scanCh, err := d.Scan(ctx, query)
 	if err != nil {
+		cancel()
 		return nil, nil, fmt.Errorf("Scan failed: %v", err)
 	}
 	stop := func() {

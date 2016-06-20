@@ -60,7 +60,8 @@ func (p *plugin) Advertise(ctx *context.T, adinfo *idiscovery.AdInfo, done func(
 
 		// We need a context that is detached from the deadlines and cancellation of ctx
 		// since we have to unpublish the advertisement from peers after ctx is canceled.
-		rctx, _ := context.WithRootCancel(ctx)
+		rctx, cancel := context.WithRootCancel(ctx)
+		defer cancel()
 		defer p.unpublish(rctx, adinfo.Ad.Id)
 
 		for {
