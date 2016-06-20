@@ -258,7 +258,9 @@ func TestTimeout(t *testing.T) {
 	defer cleanup()
 
 	client := v23.GetClient(ctx)
-	ctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, 100*time.Millisecond)
+	defer cancel()
 	name := naming.JoinAddressName(naming.FormatEndpoint("tcp", "203.0.113.10:443"), "")
 	_, err := client.StartCall(ctx, name, "echo", []interface{}{"args don't matter"})
 	t.Log(err)
@@ -337,7 +339,8 @@ func TestStartCallErrors(t *testing.T) {
 
 	// The following two tests will fail due to a timeout.
 	ns.SetRoots("/203.0.113.10:8101")
-	nctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
+	var cancel context.CancelFunc
+	nctx, cancel = context.WithTimeout(ctx, 100*time.Millisecond)
 	// This call will timeout talking to the mount table.
 	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{})
 	if verror.ErrorID(err) != verror.ErrTimeout.ID {
@@ -346,11 +349,12 @@ func TestStartCallErrors(t *testing.T) {
 	if call != nil {
 		t.Errorf("expected call to be nil")
 	}
+	cancel()
 
 	// This, second test, will fail due a timeout contacting the server itself.
 	addr = naming.FormatEndpoint("tcp", "203.0.113.10:8101")
 
-	nctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
+	nctx, cancel = context.WithTimeout(ctx, 100*time.Millisecond)
 	new_name := naming.JoinAddressName(addr, "")
 	call, err = client.StartCall(nctx, new_name, "noname", nil, options.NoRetry{})
 	if verror.ErrorID(err) != verror.ErrTimeout.ID {
@@ -359,6 +363,7 @@ func TestStartCallErrors(t *testing.T) {
 	if call != nil {
 		t.Errorf("expected call to be nil")
 	}
+	cancel()
 }
 
 type closeConn struct {
@@ -581,7 +586,9 @@ func TestStreamTimeout(t *testing.T) {
 	defer cleanup()
 
 	want := 10
-	ctx, _ = context.WithTimeout(ctx, 300*time.Millisecond)
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, 300*time.Millisecond)
+	defer cancel()
 	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Source", []interface{}{want})
 	if err != nil {
 		if verror.ErrorID(err) != verror.ErrTimeout.ID {
@@ -670,7 +677,9 @@ func TestNoMountTable(t *testing.T) {
 	name := "a_mount_table_entry"
 
 	// If there is no mount table, then we'll get a NoServers error message.
-	ctx, _ = context.WithTimeout(ctx, 300*time.Millisecond)
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, 300*time.Millisecond)
+	defer cancel()
 	_, err := v23.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
 	if got, want := verror.ErrorID(err), verror.ErrNoServers.ID; got != want {
 		t.Fatalf("got %v, want %v", got, want)
@@ -693,7 +702,9 @@ func TestReconnect(t *testing.T) {
 	serverName = ep.Name()
 
 	makeCall := func(ctx *context.T, opts ...rpc.CallOpt) (string, error) {
-		ctx, _ = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
+		defer cancel()
 		call, err := v23.GetClient(ctx).StartCall(ctx, serverName, "Echo", []interface{}{"bratman"}, opts...)
 		if err != nil {
 			return "", fmt.Errorf("START: %s", err)

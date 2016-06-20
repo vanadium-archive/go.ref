@@ -61,7 +61,9 @@ func TestBadObject(t *testing.T) {
 	}
 	// TODO(mattr): It doesn't necessarily make sense to me that a bad object from
 	// the dispatcher results in a retry.
-	cctx, _ = context.WithTimeout(ctx, time.Second)
+	var cancel context.CancelFunc
+	cctx, cancel = context.WithTimeout(ctx, time.Second)
+	defer cancel()
 	var result string
 	if err := v23.GetClient(cctx).Call(cctx, "servername", "SomeMethod", nil, []interface{}{&result}); err == nil {
 		// TODO(caprita): Check the error type rather than
