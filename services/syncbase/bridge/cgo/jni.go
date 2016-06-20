@@ -101,6 +101,13 @@ func Java_io_v_syncbase_internal_Service_Init(env *C.JNIEnv, cls C.jclass, initR
 	v23_syncbase_Init(C.v23_syncbase_Bool(1), cInitRoot)
 }
 
+//export Java_io_v_syncbase_internal_Service_Serve
+func Java_io_v_syncbase_internal_Service_Serve(env *C.JNIEnv, cls C.jclass) {
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_Serve(&cErr)
+	maybeThrowException(env, &cErr)
+}
+
 //export Java_io_v_syncbase_internal_Service_Shutdown
 func Java_io_v_syncbase_internal_Service_Shutdown(env *C.JNIEnv, cls C.jclass) {
 	v23_syncbase_Shutdown()
@@ -113,6 +120,13 @@ func Java_io_v_syncbase_internal_Service_Login(env *C.JNIEnv, cls C.jclass, prov
 	var cErr C.v23_syncbase_VError
 	v23_syncbase_Login(cProvider, cToken, &cErr)
 	maybeThrowException(env, &cErr)
+}
+
+//export Java_io_v_syncbase_internal_Service_IsLoggedIn
+func Java_io_v_syncbase_internal_Service_IsLoggedIn(env *C.JNIEnv, cls C.jclass) C.jboolean {
+	var r C.v23_syncbase_Bool
+	v23_syncbase_IsLoggedIn(&r)
+	return C.jboolean(r)
 }
 
 //export Java_io_v_syncbase_internal_Service_GetPermissions

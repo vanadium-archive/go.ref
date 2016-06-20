@@ -71,6 +71,8 @@ import "C"
 // Global state, initialized by v23_syncbase_Init.
 var (
 	b *bridge.Bridge
+	// rootDir is the root directory for credentials and syncbase storage.
+	rootDir string
 	// clientUnderstandsVOM specifies whether the Cgo layer should assume
 	// the client does VOM encoding and decoding. If false, the Cgo layer
 	// itself does VOM encoding and decoding, and the client deals in byte
@@ -87,25 +89,65 @@ func v23_syncbase_Init(cClientUnderstandVom C.v23_syncbase_Bool, cRootDir C.v23_
 	// unknown flags passed by Xcode, e.g. NSTreatUnknownArgumentsAsOpen.
 	os.Args = os.Args[:1]
 	ctx, shutdown := v23.Init()
-	srv, disp, cleanup := syncbaselib.Serve(ctx, syncbaselib.Opts{RootDir: cRootDir.extract()})
-	b = bridge.NewBridge(ctx, context.CancelFunc(shutdown), srv, disp, cleanup)
+	b = &bridge.Bridge{Ctx: ctx, Shutdown: shutdown}
+	rootDir = cRootDir.extract()
 	clientUnderstandsVOM = cClientUnderstandVom.extract()
+}
+
+//export v23_syncbase_Serve
+func v23_syncbase_Serve(cErr *C.v23_syncbase_VError) {
+	// TODO(razvanm): Uncomment the check from below after logging is
+	// plumbed through and we have a solution for tests.
+	//
+	//if !isLoggedIn() {
+	//	cErr.init(verror.New(verror.ErrInternal, nil, "not logged in"))
+	//}
+	srv, disp, cleanup := syncbaselib.Serve(b.Ctx, syncbaselib.Opts{
+		// TODO(sadovsky): Make and pass a subdir of rootDir here, so
+		// that rootDir can also be used for credentials persistence.
+		RootDir: rootDir,
+	})
+	b.Srv = srv
+	b.Disp = disp
+	b.Cleanup = cleanup
 }
 
 //export v23_syncbase_Shutdown
 func v23_syncbase_Shutdown() {
-	if b != nil {
-		b.Destroy()
-		b = nil
+	if b == nil {
+		return
 	}
+
+	if b.Cleanup != nil {
+		b.Cleanup()
+		b.Cleanup = nil
+	}
+
+	b.Shutdown()
+	b = nil
 }
 
 ////////////////////////////////////////
 // OAuth
 
+func isLoggedIn() bool {
+	_, _, err := util.AppAndUserPatternFromBlessings(security.DefaultBlessingNames(v23.GetPrincipal(b.Ctx))...)
+	return err == nil
+}
+
+//export v23_syncbase_IsLoggedIn
+func v23_syncbase_IsLoggedIn(cIsLoggedIn *C.v23_syncbase_Bool) {
+	cIsLoggedIn.init(isLoggedIn())
+}
+
 //export v23_syncbase_Login
 func v23_syncbase_Login(cOAuthProvider C.v23_syncbase_String, cOAuthToken C.v23_syncbase_String, cErr *C.v23_syncbase_VError) {
-	cErr.init(bridge.SeekAndSetBlessings(b.Ctx, cOAuthProvider.extract(), cOAuthToken.extract()))
+	err := bridge.SeekAndSetBlessings(b.Ctx, cOAuthProvider.extract(), cOAuthToken.extract())
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+	v23_syncbase_Serve(cErr)
 }
 
 ////////////////////////////////////////

@@ -18,31 +18,26 @@ import (
 // Bridge object, representing an in-process Syncbase singleton.
 type Bridge struct {
 	Ctx      *context.T
-	Shutdown context.CancelFunc
-	srv      rpc.Server
-	disp     rpc.Dispatcher
+	Shutdown v23.Shutdown
+	Srv      rpc.Server
+	Disp     rpc.Dispatcher
 	Cleanup  func()
 }
 
-func NewBridge(ctx *context.T, shutdown context.CancelFunc, srv rpc.Server, disp rpc.Dispatcher, cleanup func()) *Bridge {
-	return &Bridge{Ctx: ctx, Shutdown: shutdown, srv: srv, disp: disp, Cleanup: cleanup}
+func NewBridge(ctx *context.T, disp rpc.Dispatcher) *Bridge {
+	return &Bridge{Ctx: ctx, Disp: disp}
 }
 
 func (b *Bridge) NewCtxCall(suffix string, method rpc.MethodDesc) (*context.T, rpc.ServerCall) {
 	ctx, _ := vtrace.WithNewTrace(b.Ctx)
-	return ctx, newFakeServerCall(ctx, b.srv, suffix, method)
-}
-
-func (b *Bridge) Destroy() {
-	b.Cleanup()
-	b.Shutdown()
+	return ctx, newFakeServerCall(ctx, b.Srv, suffix, method)
 }
 
 ////////////////////////////////////////
 // Dispatch-related methods
 
 func (b *Bridge) lookupAndAuthorize(ctx *context.T, call rpc.ServerCall, suffix string) (interface{}, error) {
-	resInt, auth, err := b.disp.Lookup(ctx, suffix)
+	resInt, auth, err := b.Disp.Lookup(ctx, suffix)
 	if err != nil {
 		return nil, err
 	}
