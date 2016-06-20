@@ -5,6 +5,8 @@
 // Packages stats defines the non-native types exported by the stats service.
 package stats
 
+import "time"
+
 // HistogramValue is the value of Histogram objects.
 type HistogramValue struct {
 	// Count is the total number of values added to the histogram.
@@ -25,4 +27,14 @@ type HistogramBucket struct {
 	LowBound int64
 	// Count is the number of values in the bucket.
 	Count int64
+}
+
+// TimeSeries records data of a single time series.
+type TimeSeries struct {
+	// Values holds the time series values (from oldest to newest).
+	Values []int64
+	// Resolution is the time resolution of the time series.
+	Resolution time.Duration
+	// StartTime is the time of the first value of the time series.
+	StartTime time.Time
 }

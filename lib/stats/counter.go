@@ -27,6 +27,9 @@ func NewCounter(name string) *counter.Counter {
 	addCounterChild(node, name+"/rate1h", cw, time.Hour, cw.Rate1h)
 	addCounterChild(node, name+"/rate10m", cw, 10*time.Minute, cw.Rate10m)
 	addCounterChild(node, name+"/rate1m", cw, time.Minute, cw.Rate1m)
+	addCounterChild(node, name+"/timeseries1h", cw, time.Hour, cw.TimeSeries1h)
+	addCounterChild(node, name+"/timeseries10m", cw, 10*time.Minute, cw.TimeSeries10m)
+	addCounterChild(node, name+"/timeseries1m", cw, time.Minute, cw.TimeSeries1m)
 	return c
 }
 
@@ -59,6 +62,15 @@ func (cw counterWrapper) Rate10m() interface{} {
 }
 func (cw counterWrapper) Rate1m() interface{} {
 	return cw.c.Rate1m()
+}
+func (cw counterWrapper) TimeSeries1h() interface{} {
+	return cw.c.TimeSeries1h()
+}
+func (cw counterWrapper) TimeSeries10m() interface{} {
+	return cw.c.TimeSeries10m()
+}
+func (cw counterWrapper) TimeSeries1m() interface{} {
+	return cw.c.TimeSeries1m()
 }
 
 type counterChild struct {

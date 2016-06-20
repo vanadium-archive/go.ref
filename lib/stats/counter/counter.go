@@ -20,6 +20,8 @@ package counter
 import (
 	"sync"
 	"time"
+
+	"v.io/x/ref/services/stats"
 )
 
 var (
@@ -139,6 +141,31 @@ func (c *Counter) Rate1m() float64 {
 	defer c.mu.RUnlock()
 	c.advance()
 	return c.ts[minute].rate()
+}
+
+// TimeSeries1h returns the time series data in the last hour.
+func (c *Counter) TimeSeries1h() stats.TimeSeries {
+	return c.timeseries(c.ts[hour])
+}
+
+// TimeSeries10m returns the time series data in the last 10 minutes.
+func (c *Counter) TimeSeries10m() stats.TimeSeries {
+	return c.timeseries(c.ts[tenminutes])
+}
+
+// TimeSeries1m returns the time series data in the last minute.
+func (c *Counter) TimeSeries1m() stats.TimeSeries {
+	return c.timeseries(c.ts[minute])
+}
+
+func (c *Counter) timeseries(ts *timeseries) stats.TimeSeries {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return stats.TimeSeries{
+		Values:     ts.values(),
+		Resolution: ts.resolution,
+		StartTime:  ts.time,
+	}
 }
 
 // Reset resets the counter to an empty state.

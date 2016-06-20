@@ -5,6 +5,7 @@
 package counter
 
 import (
+	"reflect"
 	"testing"
 	"time"
 )
@@ -120,4 +121,40 @@ func TestTimeSeriesRate(t *testing.T) {
 		t.Errorf("Unexpected value. Got %v, want %v", got, expected)
 	}
 
+}
+
+func TestTimeSeriesValues(t *testing.T) {
+	now := time.Unix(1, 0)
+	// 6 time slots.
+	ts := newTimeSeries(now, 5*time.Second, time.Second)
+	// Add 3 values.
+	// slots: [0, 1, 2, 3, x, x]
+	// values: [0, 1, 2, 3]
+	now = addValue(1, 3, ts, now)
+	if expected, got := []int64{0, 1, 2, 3}, ts.values(); !reflect.DeepEqual(got, expected) {
+		t.Errorf("unexpected values. Got %v, want %v", got, expected)
+	}
+	// Add 2 more values.
+	// slots: [0, 1, 2, 3, 4, 5]
+	// values: [0, 1, 2, 3, 4, 5]
+	now = addValue(1, 2, ts, now)
+	if expected, got := []int64{0, 1, 2, 3, 4, 5}, ts.values(); !reflect.DeepEqual(got, expected) {
+		t.Errorf("unexpected values. Got %v, want %v", got, expected)
+	}
+	// Add 3 more values.
+	// slots: [6, 7, 8, 3, 4, 5]
+	// values: [3, 4, 5, 6, 7, 8]
+	now = addValue(1, 3, ts, now)
+	if expected, got := []int64{3, 4, 5, 6, 7, 8}, ts.values(); !reflect.DeepEqual(got, expected) {
+		t.Errorf("unexpected values. Got %v, want %v", got, expected)
+	}
+}
+
+func addValue(increment int64, count int, ts *timeseries, now time.Time) time.Time {
+	for i := 0; i < count; i++ {
+		now = now.Add(time.Second)
+		ts.advanceTime(now)
+		ts.incr(increment)
+	}
+	return now
 }

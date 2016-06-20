@@ -9,7 +9,9 @@
 package stats
 
 import (
+	"time"
 	"v.io/v23/vdl"
+	vdltime "v.io/v23/vdlroot/time"
 )
 
 var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
@@ -278,11 +280,172 @@ func __VDLReadAnon_list_1(dec vdl.Decoder, x *[]HistogramBucket) error {
 	}
 }
 
+// TimeSeries records data of a single time series.
+type TimeSeries struct {
+	// Values holds the time series values (from oldest to newest).
+	Values []int64
+	// Resolution is the time resolution of the time series.
+	Resolution time.Duration
+	// StartTime is the time of the first value of the time series.
+	StartTime time.Time
+}
+
+func (TimeSeries) __VDLReflect(struct {
+	Name string `vdl:"v.io/x/ref/services/stats.TimeSeries"`
+}) {
+}
+
+func (x TimeSeries) VDLIsZero() bool {
+	if len(x.Values) != 0 {
+		return false
+	}
+	if x.Resolution != 0 {
+		return false
+	}
+	if !x.StartTime.IsZero() {
+		return false
+	}
+	return true
+}
+
+func (x TimeSeries) VDLWrite(enc vdl.Encoder) error {
+	if err := enc.StartValue(__VDLType_struct_4); err != nil {
+		return err
+	}
+	if len(x.Values) != 0 {
+		if err := enc.NextField(0); err != nil {
+			return err
+		}
+		if err := __VDLWriteAnon_list_2(enc, x.Values); err != nil {
+			return err
+		}
+	}
+	if x.Resolution != 0 {
+		if err := enc.NextField(1); err != nil {
+			return err
+		}
+		var wire vdltime.Duration
+		if err := vdltime.DurationFromNative(&wire, x.Resolution); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if !x.StartTime.IsZero() {
+		if err := enc.NextField(2); err != nil {
+			return err
+		}
+		var wire vdltime.Time
+		if err := vdltime.TimeFromNative(&wire, x.StartTime); err != nil {
+			return err
+		}
+		if err := wire.VDLWrite(enc); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextField(-1); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func __VDLWriteAnon_list_2(enc vdl.Encoder, x []int64) error {
+	if err := enc.StartValue(__VDLType_list_5); err != nil {
+		return err
+	}
+	if err := enc.SetLenHint(len(x)); err != nil {
+		return err
+	}
+	for _, elem := range x {
+		if err := enc.NextEntryValueInt(vdl.Int64Type, elem); err != nil {
+			return err
+		}
+	}
+	if err := enc.NextEntry(true); err != nil {
+		return err
+	}
+	return enc.FinishValue()
+}
+
+func (x *TimeSeries) VDLRead(dec vdl.Decoder) error {
+	*x = TimeSeries{}
+	if err := dec.StartValue(__VDLType_struct_4); err != nil {
+		return err
+	}
+	decType := dec.Type()
+	for {
+		index, err := dec.NextField()
+		switch {
+		case err != nil:
+			return err
+		case index == -1:
+			return dec.FinishValue()
+		}
+		if decType != __VDLType_struct_4 {
+			index = __VDLType_struct_4.FieldIndexByName(decType.Field(index).Name)
+			if index == -1 {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+		}
+		switch index {
+		case 0:
+			if err := __VDLReadAnon_list_2(dec, &x.Values); err != nil {
+				return err
+			}
+		case 1:
+			var wire vdltime.Duration
+			if err := wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err := vdltime.DurationToNative(wire, &x.Resolution); err != nil {
+				return err
+			}
+		case 2:
+			var wire vdltime.Time
+			if err := wire.VDLRead(dec); err != nil {
+				return err
+			}
+			if err := vdltime.TimeToNative(wire, &x.StartTime); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func __VDLReadAnon_list_2(dec vdl.Decoder, x *[]int64) error {
+	if err := dec.StartValue(__VDLType_list_5); err != nil {
+		return err
+	}
+	if len := dec.LenHint(); len > 0 {
+		*x = make([]int64, 0, len)
+	} else {
+		*x = nil
+	}
+	for {
+		switch done, elem, err := dec.NextEntryValueInt(64); {
+		case err != nil:
+			return err
+		case done:
+			return dec.FinishValue()
+		default:
+			*x = append(*x, elem)
+		}
+	}
+}
+
 // Hold type definitions in package-level variables, for better performance.
 var (
 	__VDLType_struct_1 *vdl.Type
 	__VDLType_struct_2 *vdl.Type
 	__VDLType_list_3   *vdl.Type
+	__VDLType_struct_4 *vdl.Type
+	__VDLType_list_5   *vdl.Type
+	__VDLType_struct_6 *vdl.Type
+	__VDLType_struct_7 *vdl.Type
 )
 
 var __VDLInitCalled bool
@@ -309,11 +472,16 @@ func __VDLInit() struct{} {
 	// Register types.
 	vdl.Register((*HistogramBucket)(nil))
 	vdl.Register((*HistogramValue)(nil))
+	vdl.Register((*TimeSeries)(nil))
 
 	// Initialize type definitions.
 	__VDLType_struct_1 = vdl.TypeOf((*HistogramBucket)(nil)).Elem()
 	__VDLType_struct_2 = vdl.TypeOf((*HistogramValue)(nil)).Elem()
 	__VDLType_list_3 = vdl.TypeOf((*[]HistogramBucket)(nil))
+	__VDLType_struct_4 = vdl.TypeOf((*TimeSeries)(nil)).Elem()
+	__VDLType_list_5 = vdl.TypeOf((*[]int64)(nil))
+	__VDLType_struct_6 = vdl.TypeOf((*vdltime.Duration)(nil)).Elem()
+	__VDLType_struct_7 = vdl.TypeOf((*vdltime.Time)(nil)).Elem()
 
 	return struct{}{}
 }

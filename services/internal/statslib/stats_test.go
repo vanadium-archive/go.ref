@@ -76,6 +76,9 @@ func TestStatsImpl(t *testing.T) {
 			"testing/foo/bar/rate10m",
 			"testing/foo/bar/rate1h",
 			"testing/foo/bar/rate1m",
+			"testing/foo/bar/timeseries10m",
+			"testing/foo/bar/timeseries1h",
+			"testing/foo/bar/timeseries1m",
 		}
 		sort.Strings(results)
 		sort.Strings(expected)

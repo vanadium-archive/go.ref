@@ -156,3 +156,19 @@ func (ts *timeseries) reset(t time.Time) {
 	ts.stepCount = 1
 	ts.slots = make([]int64, ts.size)
 }
+
+// values returns timeseries values from oldest (tail) to newest (head).
+func (ts *timeseries) values() []int64 {
+	tail := 0
+	steps := ts.head + 1
+	if ts.stepCount > int64(ts.size) {
+		tail = (ts.head + 1) % ts.size
+		steps = ts.size
+	}
+	values := make([]int64, 0, steps)
+	for c := 0; c < steps; c++ {
+		i := (tail + c) % ts.size
+		values = append(values, ts.slots[i])
+	}
+	return values
+}

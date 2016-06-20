@@ -109,6 +109,21 @@ func TestStats(t *testing.T) {
 		libstats.KeyValue{Key: "rpc/test/ddd/rate10m", Value: float64(0)},
 		libstats.KeyValue{Key: "rpc/test/ddd/rate1h", Value: float64(0)},
 		libstats.KeyValue{Key: "rpc/test/ddd/rate1m", Value: float64(0)},
+		libstats.KeyValue{Key: "rpc/test/ddd/timeseries10m", Value: s_stats.TimeSeries{
+			Values:     []int64{4},
+			Resolution: 10 * time.Second,
+			StartTime:  now.Truncate(10 * time.Second),
+		}},
+		libstats.KeyValue{Key: "rpc/test/ddd/timeseries1h", Value: s_stats.TimeSeries{
+			Values:     []int64{4},
+			Resolution: time.Minute,
+			StartTime:  now.Truncate(time.Minute),
+		}},
+		libstats.KeyValue{Key: "rpc/test/ddd/timeseries1m", Value: s_stats.TimeSeries{
+			Values:     []int64{4},
+			Resolution: time.Second,
+			StartTime:  now,
+		}},
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
@@ -146,6 +161,9 @@ func TestStats(t *testing.T) {
 		libstats.KeyValue{Key: "rpc/test/ddd/rate10m"},
 		libstats.KeyValue{Key: "rpc/test/ddd/rate1h"},
 		libstats.KeyValue{Key: "rpc/test/ddd/rate1m"},
+		libstats.KeyValue{Key: "rpc/test/ddd/timeseries10m"},
+		libstats.KeyValue{Key: "rpc/test/ddd/timeseries1h"},
+		libstats.KeyValue{Key: "rpc/test/ddd/timeseries1m"},
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
@@ -165,6 +183,21 @@ func TestStats(t *testing.T) {
 		libstats.KeyValue{Key: "rpc/test/ddd/rate10m", Value: float64(10.4)},
 		libstats.KeyValue{Key: "rpc/test/ddd/rate1h", Value: float64(0)},
 		libstats.KeyValue{Key: "rpc/test/ddd/rate1m", Value: float64(10.4)},
+		libstats.KeyValue{Key: "rpc/test/ddd/timeseries10m", Value: s_stats.TimeSeries{
+			Values:     []int64{4, 104},
+			Resolution: 10 * time.Second,
+			StartTime:  now.Truncate(10 * time.Second),
+		}},
+		libstats.KeyValue{Key: "rpc/test/ddd/timeseries1h", Value: s_stats.TimeSeries{
+			Values:     []int64{104},
+			Resolution: time.Minute,
+			StartTime:  now.Truncate(time.Minute),
+		}},
+		libstats.KeyValue{Key: "rpc/test/ddd/timeseries1m", Value: s_stats.TimeSeries{
+			Values:     []int64{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 104},
+			Resolution: time.Second,
+			StartTime:  now,
+		}},
 	}
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("unexpected result. Got %#v, want %#v", result, expected)
