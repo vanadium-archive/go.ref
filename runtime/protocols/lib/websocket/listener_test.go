@@ -18,7 +18,8 @@ import (
 )
 
 func TestAcceptsAreNotSerialized(t *testing.T) {
-	ctx, _ := context.RootContext()
+	ctx, cancel := context.RootContext()
+	defer cancel()
 	ln, err := WSH{}.Listen(ctx, "wsh", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +61,8 @@ func TestAcceptsAreNotSerialized(t *testing.T) {
 }
 
 func TestNonWebsocketRequest(t *testing.T) {
-	ctx, _ := context.RootContext()
+	ctx, cancel := context.RootContext()
+	defer cancel()
 	ln, err := WSH{}.Listen(ctx, "wsh", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)

@@ -48,7 +48,8 @@ func init() {
 }
 
 func runTest(t *testing.T, dialObj, listenObj flow.Protocol, dialP, listenP string) {
-	ctx, _ := context.RootContext()
+	ctx, cancel := context.RootContext()
+	defer cancel()
 	address := "127.0.0.1:0"
 	timeout := time.Second
 	acceptCh := make(chan flow.Conn)

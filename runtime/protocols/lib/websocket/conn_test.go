@@ -69,7 +69,8 @@ func TestMultipleGoRoutines(t *testing.T) {
 	}
 	// Dial out in another go routine
 	go func() {
-		ctx, _ := context.RootContext()
+		ctx, cancel := context.RootContext()
+		defer cancel()
 		conn, err := WS{}.Dial(ctx, "tcp", addr.String(), time.Second)
 		numTries := 0
 		for err != nil && numTries < 5 {
