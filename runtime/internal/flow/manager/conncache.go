@@ -466,6 +466,14 @@ func (c *ConnCache) Close(ctx *context.T) {
 	err := NewErrCacheClosed(ctx)
 	for _, e := range c.conns {
 		e.conn.Close(ctx, err)
+		if e.cancel != nil {
+			e.cancel()
+		}
+	}
+	for _, r := range c.reserved {
+		if r.cancel != nil {
+			r.cancel()
+		}
 	}
 	c.conns = nil
 	c.cache = nil
