@@ -6,14 +6,6 @@
 
 #include "jni_wrapper.h"
 
-jint AttachCurrentThread(JavaVM *jvm, JNIEnv **env, void *args) {
-  return (*jvm)->AttachCurrentThread(jvm, (void **)env, args);
-}
-
-jint AttachCurrentThreadAsDaemon(JavaVM *jvm, JNIEnv **env, void *args) {
-  return (*jvm)->AttachCurrentThreadAsDaemon(jvm, (void **)env, args);
-}
-
 jboolean CallBooleanMethodA(JNIEnv *env, jobject obj, jmethodID methodID, jvalue *args) {
   return (*env)->CallBooleanMethodA(env, obj, methodID, args);
 }
