@@ -200,6 +200,7 @@ func (c *client) PinConnection(ctx *context.T, name string, opts ...rpc.CallOpt)
 	connOpts := getConnectionOptions(ctx, opts)
 	r, err := c.connectToName(ctx, name, "", nil, connOpts, opts)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	pinned := &pinnedConn{

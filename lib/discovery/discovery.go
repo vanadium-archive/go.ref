@@ -80,7 +80,8 @@ func (d *idiscovery) addTask(ctx *context.T) (*context.T, func(), error) {
 
 func (d *idiscovery) removeTask(ctx *context.T) {
 	d.mu.Lock()
-	if _, exist := d.tasks[ctx]; exist {
+	if cancel, exist := d.tasks[ctx]; exist {
+		cancel()
 		delete(d.tasks, ctx)
 		d.wg.Done()
 	}

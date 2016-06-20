@@ -52,6 +52,8 @@ func (tc *typeCache) writer(c flow.ManagedConn) (write func(flow.Flow, context.C
 				tce.enc = vom.NewTypeEncoder(f)
 				tce.dec = vom.NewTypeDecoder(f)
 				tce.dec.Start() // Stopped in collect()
+			} else {
+				c()
 			}
 			close(tce.ready)
 		}
