@@ -110,6 +110,7 @@ func WithNewDispatchingServer(ctx *context.T,
 	if err != nil {
 		return ctx, nil, err
 	}
+	origCtx := ctx // the original context may be returned on error paths
 	ctx, cancel := context.WithCancel(ctx)
 	statsPrefix := naming.Join("rpc", "server", "routing-id", rid.String())
 	s := &server{
@@ -146,7 +147,8 @@ func WithNewDispatchingServer(ctx *context.T,
 		case options.ServerPeers:
 			authorizedPeers = []security.BlessingPattern(opt)
 			if len(authorizedPeers) == 0 {
-				return ctx, nil, verror.New(verror.ErrBadArg, ctx, newErrServerPeersEmpty(ctx))
+				s.cancel()
+				return origCtx, nil, verror.New(verror.ErrBadArg, ctx, newErrServerPeersEmpty(ctx))
 			}
 			if len(name) != 0 {
 				// TODO(ataly, ashankar): Since the server's blessing names are revealed to the
@@ -155,7 +157,8 @@ func WithNewDispatchingServer(ctx *context.T,
 				// and instead check: (1) the mounttable is in the set of peers authorized by the
 				// server, and (2) the mounttable reveals the server's endpoint to only the set
 				// of authorized peers. (2) can be enforced using Resolve ACLs.
-				return ctx, nil, verror.New(verror.ErrBadArg, ctx, newErrServerPeersWithPublishing(ctx))
+				s.cancel()
+				return origCtx, nil, verror.New(verror.ErrBadArg, ctx, newErrServerPeersWithPublishing(ctx))
 			}
 		case IdleConnectionExpiry:
 			connIdleExpiry = time.Duration(opt)
@@ -168,7 +171,13 @@ func WithNewDispatchingServer(ctx *context.T,
 		// or the runtime shuts down.  The procedure for shutdown is to notice that the context passed in
 		// by the user has been canceled, enter lame duck, and only after the lame duck period cancel this
 		// context (from which all server call contexts are derived).
-		s.ctx, s.cancel = context.WithRootCancel(ctx)
+		var oldCancel context.CancelFunc = s.cancel
+		var newCancel context.CancelFunc
+		s.ctx, newCancel = context.WithRootCancel(ctx)
+		s.cancel = func() {
+			oldCancel()
+			newCancel()
+		}
 	}
 
 	s.flowMgr = manager.New(s.ctx, rid, settingsPublisher, channelTimeout, connIdleExpiry, authorizedPeers)
@@ -177,7 +186,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		PreferredProtocols(s.preferredProtocols))
 	if err != nil {
 		s.cancel()
-		return ctx, nil, err
+		return origCtx, nil, err
 	}
 	pubctx, pubcancel := context.WithCancel(s.ctx)
 	s.publisher = publisher.New(pubctx, v23.GetNamespace(s.ctx), publishPeriod)
