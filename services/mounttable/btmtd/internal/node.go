@@ -149,6 +149,11 @@ func (n *mtNode) createChild(ctx *context.T, child string, perms access.Permissi
 	longCtx, cancel := longTimeout(ctx)
 	defer cancel()
 	if err := n.bt.createRow(longCtx, childName, perms, creator, ts, limit); err != nil {
+		mut = bigtable.NewMutation()
+		mut.DeleteTimestampRange(childrenFamily, child, ts, n.bt.timeNext(ts))
+		if err := n.bt.apply(ctx, rowKey(n.name), mut); err != nil {
+			ctx.Errorf("Failed to delete child reference. Parent=%q Child=%q Err=%v", n.name, child, err)
+		}
 		return nil, err
 	}
 	n, err := getNode(ctx, n.bt, childName)
