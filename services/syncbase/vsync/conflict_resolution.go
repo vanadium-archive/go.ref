@@ -33,21 +33,22 @@ type conflictResolution struct {
 // resolved by adding new versions or picking either the local or the remote
 // version.
 func (iSt *initiationState) resolveConflicts(ctx *context.T) error {
-	vlog.VI(2).Infof("cr: resolveConflicts: start")
-	defer vlog.VI(2).Infof("cr: resolveConflicts: end")
+	vlog.VI(2).Infof("sync: resolveConflicts: start")
+	defer vlog.VI(2).Infof("sync: resolveConflicts: end")
 	// Lookup schema for the database to figure out the CR policy set by the
 	// application.
 	schema, err := iSt.getDbSchema(ctx)
 	if err != nil {
 		if verror.ErrorID(err) == verror.ErrNoExist.ID {
-			vlog.VI(2).Infof("cr: resolveConflicts: no schema found, resolving based on timestamp")
+			vlog.VI(2).Infof("sync: resolveConflicts: no schema found, resolving based on timestamp")
 			return iSt.resolveViaTimestamp(ctx, iSt.updObjects)
 		}
 		vlog.Errorf("sync: resolveConflicts: error while fetching schema: %v", err)
 		return err
 	}
 
-	vlog.VI(2).Infof("cr: resolveConflicts: schema found.")
+	vlog.VI(2).Infof("cr: resolveConflicts: schema found: %v", schema)
+
 	// Categorize conflicts based on CR policy in schema.
 	conflictsByType := iSt.groupConflictsByType(schema)
 

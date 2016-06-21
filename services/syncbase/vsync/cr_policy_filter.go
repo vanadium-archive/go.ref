@@ -33,6 +33,7 @@ func (iSt *initiationState) groupConflictsByType(schema *wire.SchemaMetadata) ma
 			groupedConflicts[crType] = crGroup
 		}
 		crGroup[oid] = conflictState
+		vlog.VI(5).Infof("sync: groupConflictsByType: found conflict of type %v for oid %v", crType, oid)
 	}
 	return groupedConflicts
 }

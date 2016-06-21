@@ -59,9 +59,9 @@ func (iSt *initiationState) resolveViaApp(ctx *context.T, groupedConflicts *grou
 	sendStream := appConn.SendStream()
 	recvStream := appConn.RecvStream()
 
-	vlog.VI(2).Infof("cr: resolveViaApp: starting app based resolution on %d groups", len(groupedConflicts.groups))
+	vlog.VI(2).Infof("sync: resolveViaApp: starting app based resolution on %d groups", len(groupedConflicts.groups))
 	for i, group := range groupedConflicts.groups {
-		vlog.VI(2).Infof("cr: resolveViaApp: sending conflict group %d to app", i)
+		vlog.VI(2).Infof("sync: resolveViaApp: sending conflict group %d to app", i)
 		// Send all batches first
 		if err := sendBatches(ctx, iSt, sendStream, db, group); err != nil {
 			return err
@@ -88,7 +88,7 @@ func (iSt *initiationState) resolveViaApp(ctx *context.T, groupedConflicts *grou
 				return verror.New(verror.ErrInternal, ctx, errStr)
 			}
 		}
-		vlog.VI(2).Infof("cr: resolveViaApp: all resolutions received")
+		vlog.VI(2).Infof("sync: resolveViaApp: all resolutions received")
 
 		// Process resolutions.
 		conf := iSt.config
