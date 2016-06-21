@@ -215,6 +215,7 @@ func run(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint string, m
 	ctx, cancel := context.WithCancel(ctx)
 	_, s, err := v23.WithNewDispatchingServer(ctx, mountPoint, disp, options.ServesMountTable(mt))
 	if err != nil {
+		cancel()
 		boom(t, "r.NewServer: %s", err)
 	}
 	eps := s.Status().Endpoints
@@ -655,6 +656,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 
 	// Setup the namespace root for all the "processes".
 	rootmt := runMT(t, rootMtCtx, "")
+	defer rootmt.stop()
 	for _, ctx := range []*context.T{mtCtx, serverCtx, clientCtx} {
 		v23.GetNamespace(ctx).SetRoots(rootmt.name)
 	}

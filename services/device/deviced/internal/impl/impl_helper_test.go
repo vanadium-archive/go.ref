@@ -20,7 +20,8 @@ import (
 )
 
 func TestBaseCleanupDir(t *testing.T) {
-	ctx, _ := context.RootContext()
+	ctx, cancel := context.RootContext()
+	defer cancel()
 	ctx = context.WithLogger(ctx, logger.Global())
 	dir, err := ioutil.TempDir("", "impl_helper_test")
 	if err != nil {
