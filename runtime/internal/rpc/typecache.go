@@ -119,3 +119,18 @@ func (tc *typeCache) collect() {
 		tc.mu.Unlock()
 	}
 }
+
+func (tc *typeCache) close() {
+	tc.mu.Lock()
+	for _, tce := range tc.flows {
+		if tce != nil {
+			if tce.cancel != nil {
+				tce.cancel()
+			}
+			if tce.dec != nil {
+				tce.dec.Stop()
+			}
+		}
+	}
+	tc.mu.Unlock()
+}

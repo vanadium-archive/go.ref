@@ -136,6 +136,7 @@ func NewClient(ctx *context.T, opts ...rpc.ClientOpt) rpc.Client {
 		c.wg.Wait()
 		c.outstanding.close()
 		close(c.closed)
+		c.typeCache.close()
 	}()
 
 	return c

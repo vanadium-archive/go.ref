@@ -268,6 +268,7 @@ func WithNewDispatchingServer(ctx *context.T,
 		s.state = rpc.ServerStopped
 		s.Unlock()
 		close(s.closed)
+		s.typeCache.close()
 	}()
 	return s.ctx, s, nil
 }
