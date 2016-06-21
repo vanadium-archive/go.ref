@@ -49,7 +49,7 @@ func InternalResetClientRegistry() {
 	clientRegistry = make(map[string]ClientGenerator)
 }
 
-// InternalConfigureContext exposes controller.configureContext to tests.
-func (c *Controller) InternalConfigureContext(ctx *context.T, blessingName string) (*context.T, error) {
-	return c.configureContext(ctx, blessingName)
+// InternalSetContextBlessings exposes controller.configureContext to tests.
+func (c *Controller) InternalSetContextBlessings(ctx *context.T, blessingName string) (*context.T, error) {
+	return c.setContextBlessings(ctx, blessingName)
 }

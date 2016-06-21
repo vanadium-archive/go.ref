@@ -568,7 +568,7 @@ func TestRunUniverseTwoUsers(t *testing.T) {
 
 	// Check that Bob gets ErrNoAccess when writing to the collection on his
 	// own device because he does not have write permissions.
-	bobCtx, err := c.InternalConfigureContext(c.InternalCtx(), "u"+security.ChainSeparator+userBob.Name)
+	bobCtx, err := c.InternalSetContextBlessings(c.InternalCtx(), "u"+security.ChainSeparator+userBob.Name)
 	if err != nil {
 		t.Fatal(err)
 	}

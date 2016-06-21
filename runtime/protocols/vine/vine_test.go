@@ -24,10 +24,11 @@ func TestOutgoingReachable(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	ctx, err := vine.Init(ctx, "vineserver", security.AllowEveryone(), "client", 0)
+	ctx, shutdown, err := vine.Init(ctx, "vineserver", security.AllowEveryone(), "client", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer shutdown()
 	// Create reachable and unreachable server, ensure they have corresponding tags set.
 	ctx, cancel := context.WithCancel(ctx)
 	rctx := vine.WithLocalTag(ctx, "reachable")
@@ -97,10 +98,11 @@ func TestIncomingReachable(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	ctx, err := vine.Init(ctx, "vineserver", security.AllowEveryone(), "client", 0)
+	ctx, shutdown, err := vine.Init(ctx, "vineserver", security.AllowEveryone(), "client", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer shutdown()
 	denyCtx := vine.WithLocalTag(ctx, "denyClient")
 	if denyCtx, _, err = v23.WithNewClient(denyCtx); err != nil {
 		t.Fatal(err)
@@ -168,14 +170,16 @@ func TestDiscovery(t *testing.T) {
 	ctx, shutdown := test.V23InitWithMounttable()
 	defer shutdown()
 
-	actx, err := vine.Init(ctx, "advertiser", security.AllowEveryone(), "advertiser", 20*time.Millisecond)
+	actx, shutdown, err := vine.Init(ctx, "advertiser", security.AllowEveryone(), "advertiser", 20*time.Millisecond)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dctx, err := vine.Init(ctx, "scanner", security.AllowEveryone(), "scanner", 20*time.Millisecond)
+	defer shutdown()
+	dctx, shutdown, err := vine.Init(ctx, "scanner", security.AllowEveryone(), "scanner", 20*time.Millisecond)
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer shutdown()
 	a, err := v23.NewDiscovery(actx)
 	if err != nil {
 		t.Fatal(err)

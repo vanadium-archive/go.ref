@@ -48,10 +48,11 @@ func Main(vineServerName string, vineTag string, opts syncbaselib.Opts) {
 	ctx = v23.WithListenSpec(ctx, rpc.ListenSpec{
 		Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}},
 	})
-	ctx, err := vine.Init(ctx, vineServerName, security.AllowEveryone(), vineTag, 0)
+	ctx, shutdown, err := vine.Init(ctx, vineServerName, security.AllowEveryone(), vineTag, 0)
 	if err != nil {
 		panic(err)
 	}
+	defer shutdown()
 
 	// Syncbase now uses a modified rpc.ListenSpec which has been set to use
 	// the VINE protocol.

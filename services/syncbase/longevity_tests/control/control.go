@@ -95,6 +95,9 @@ type Controller struct {
 
 	// Universe model that the controller is currently simulating.
 	universe *model.Universe
+
+	// vineShutdown shutdown the vine server and vine plugin.
+	vineShutdown func()
 }
 
 // Opts is used to configure the Controller.
@@ -150,18 +153,30 @@ func (c *Controller) init(ctx *context.T) error {
 		return err
 	}
 
+	// Configure context for controller.
+	ctx, err := c.setContextBlessings(ctx, "controller")
+	if err != nil {
+		return err
+	}
+
+	// Set proper namespace root.
+	ctx, _, err = v23.WithNewNamespace(ctx, c.namespaceRoot)
+	if err != nil {
+		return err
+	}
+
+	// Modify ctx to use vine protocol.
+	ctx, c.vineShutdown, err = vine.Init(ctx, c.vineName, security.AllowEveryone(), c.vineName, 0)
+	if err != nil {
+		return err
+	}
+	c.ctx = ctx
+
 	// Configure context for checker.
-	if checkerCtx, err := c.configureContext(ctx, "checker"); err != nil {
+	if checkerCtx, err := c.setContextBlessings(ctx, "checker"); err != nil {
 		return err
 	} else {
 		c.checkerCtx = checkerCtx
-	}
-
-	// Configure context for controller.
-	if ctx, err := c.configureContext(ctx, "controller"); err != nil {
-		return err
-	} else {
-		c.ctx = ctx
 	}
 
 	return nil
@@ -193,6 +208,7 @@ func (c *Controller) TearDown() error {
 	}
 	c.instancesMu.Unlock()
 
+	c.vineShutdown()
 	c.sh.Cleanup()
 	return retErr
 }
@@ -437,10 +453,9 @@ func (c *Controller) startMounttabled() error {
 	return nil
 }
 
-// configureContext returns a new context based off the given one, which is
-// blessed by the controller's identity provider, configured with the
-// controller's namespace root, and associated with a vine server.
-func (c *Controller) configureContext(ctx *context.T, blessingName string) (*context.T, error) {
+// setContextBlessings returns a new context based off the given one, with a new
+// principal that is blessed by the controller's identity provider.
+func (c *Controller) setContextBlessings(ctx *context.T, blessingName string) (*context.T, error) {
 	// Create a principal blessed by the identity provider.
 	p := testutil.NewPrincipal()
 	if err := c.identityProvider.Bless(p, blessingName); err != nil {
@@ -449,16 +464,6 @@ func (c *Controller) configureContext(ctx *context.T, blessingName string) (*con
 	newCtx, err := v23.WithPrincipal(ctx, p)
 	if err != nil {
 		return nil, err
-	}
-	// Set proper namespace root.
-	newCtx, _, err = v23.WithNewNamespace(newCtx, c.namespaceRoot)
-	if err != nil {
-		return nil, err
-	}
-	// Modify ctx to use vine protocol.
-	newCtx, err = vine.Init(newCtx, c.vineName, security.AllowEveryone(), c.vineName, 0)
-	if err != nil {
-		return nil, nil
 	}
 
 	return newCtx, nil

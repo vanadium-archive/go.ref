@@ -40,18 +40,25 @@ func init() {
 // The ctx returned from Init:
 // (1) has localTag as the default localTag for dialers and acceptors.
 // (2) has all addresses in the listenspec altered to listen on the vine protocol.
-func Init(ctx *context.T, name string, auth security.Authorizer, localTag string, discoveryTTL time.Duration) (*context.T, error) {
+func Init(ctx *context.T, name string, auth security.Authorizer, localTag string, discoveryTTL time.Duration) (*context.T, func(), error) {
 	protocol, _ := flow.RegisteredProtocol("vine")
 	v := protocol.(*vine)
-	_, _, err := v23.WithNewServer(ctx, name, VineServer(v), auth)
+	ctx, cancel := context.WithCancel(ctx)
+	_, server, err := v23.WithNewServer(ctx, name, VineServer(v), auth)
+	serverShutdown := func() {
+		cancel()
+		<-server.Closed()
+	}
 	// Nodes are not discoverable until the test controller sets nodes as discoverable.
 	plugin, err := vineplugin.NewWithTTL(ctx, discoveryServerName(localTag), v.discPeers, discoveryTTL)
 	if err != nil {
-		return nil, err
+		serverShutdown()
+		return nil, func() {}, err
 	}
 	df, err := discovery.NewFactory(ctx, plugin)
 	if err != nil {
-		return nil, err
+		serverShutdown()
+		return nil, func() {}, err
 	}
 	factory.InjectFactory(df)
 	lspec := v23.GetListenSpec(ctx).Copy()
@@ -61,7 +68,11 @@ func Init(ctx *context.T, name string, auth security.Authorizer, localTag string
 	}
 	ctx = v23.WithListenSpec(ctx, lspec)
 	ctx = WithLocalTag(ctx, localTag)
-	return ctx, err
+	shutdown := func() {
+		df.Shutdown()
+		serverShutdown()
+	}
+	return ctx, shutdown, nil
 }
 
 // WithLocalTag returns a ctx that will have localTag as the default localTag for
