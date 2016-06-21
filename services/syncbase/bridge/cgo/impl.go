@@ -46,6 +46,8 @@ import (
 	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/bridge"
+	"v.io/x/ref/services/syncbase/bridge/cgo/refmap"
+	"v.io/x/ref/services/syncbase/discovery"
 	"v.io/x/ref/services/syncbase/syncbaselib"
 	"v.io/x/ref/test/testutil"
 )
@@ -66,6 +68,20 @@ static void CallCollectionScanCallbacksOnKeyValue(v23_syncbase_CollectionScanCal
 static void CallCollectionScanCallbacksOnDone(v23_syncbase_CollectionScanCallbacks cbs, v23_syncbase_VError err) {
   cbs.onDone(cbs.handle, err);
 }
+
+static void CallDbSyncgroupInvitesOnInvite(v23_syncbase_DbSyncgroupInvitesCallbacks cbs, v23_syncbase_Invite i) {
+  cbs.onInvite(cbs.handle, i);
+}
+static void CallDbSyncgroupInvitesOnDone(v23_syncbase_DbSyncgroupInvitesCallbacks cbs) {
+  cbs.onDone(cbs.handle);
+}
+
+static void CallNeighborhoodScanCallbacksOnPeer(v23_syncbase_NeighborhoodScanCallbacks cbs, v23_syncbase_AppPeer p) {
+  cbs.onPeer(cbs.handle, p);
+}
+static void CallNeighborhoodScanCallbacksOnDone(v23_syncbase_NeighborhoodScanCallbacks cbs) {
+  cbs.onDone(cbs.handle);
+}
 */
 import "C"
 
@@ -82,7 +98,12 @@ var (
 	// testLogin indicates if the test login mode is used. This is triggered
 	// by using an empty identity provider.
 	testLogin bool
+
+	// neighborhoodAdStatus tracks the status of the neighborhood advertisement.
+	neighborhoodAdStatus *adStatus
 )
+
+var globalRefMap = refmap.NewRefMap()
 
 // TODO(razvanm): Replace the function arguments with an options struct.
 //export v23_syncbase_Init
@@ -101,6 +122,32 @@ func v23_syncbase_Init(cClientUnderstandVom C.v23_syncbase_Bool, cRootDir C.v23_
 	var cErr C.v23_syncbase_VError
 	if isLoggedIn() {
 		v23_syncbase_Serve(&cErr)
+	}
+}
+
+type adStatus struct {
+	isAdvertising bool
+	cancel        context.CancelFunc
+	done          <-chan struct{}
+}
+
+func newAdStatus() *adStatus {
+	return &adStatus{}
+}
+
+func (a *adStatus) store(cancel context.CancelFunc, done <-chan struct{}) {
+	a.isAdvertising = true
+	a.cancel = cancel
+	a.done = done
+}
+
+func (a *adStatus) stop() {
+	if a.isAdvertising {
+		a.cancel()
+		<-a.done
+		a.isAdvertising = false
+		a.cancel = nil
+		a.done = nil
 	}
 }
 
@@ -263,6 +310,77 @@ func v23_syncbase_ServiceSetPermissions(cPerms C.v23_syncbase_Permissions, cVers
 func v23_syncbase_ServiceListDatabases(cIds *C.v23_syncbase_Ids, cErr *C.v23_syncbase_VError) {
 	// TODO(sadovsky): This is broken; it always returns an empty list.
 	listChildIds("", cIds, cErr)
+}
+
+////////////////////////////////////////
+// Service
+
+//export v23_syncbase_NeighborhoodStartAdvertising
+func v23_syncbase_NeighborhoodStartAdvertising(cVisibility C.v23_syncbase_Strings, cErr *C.v23_syncbase_VError) {
+	// Cancel an old ad, if necessary.
+	v23_syncbase_NeighborhoodStopAdvertising()
+
+	// Initialize app advertisement.
+	advCtx, cancel := context.WithCancel(b.Ctx)
+	visibility := cVisibility.extract()
+	visBlessingPatterns := make([]security.BlessingPattern, len(visibility))
+	for i, vis := range visibility {
+		visBlessingPatterns[i] = security.BlessingPattern(vis)
+	}
+	doneAd, err := discovery.AdvertiseApp(advCtx, visBlessingPatterns)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+
+	// Remember the ad's cancellation information.
+	neighborhoodAdStatus.store(cancel, doneAd)
+}
+
+//export v23_syncbase_NeighborhoodStopAdvertising
+func v23_syncbase_NeighborhoodStopAdvertising() {
+	neighborhoodAdStatus.stop()
+}
+
+//export v23_syncbase_NeighborhoodIsAdvertising
+func v23_syncbase_NeighborhoodIsAdvertising(cBool *C.v23_syncbase_Bool) {
+	cBool.init(neighborhoodAdStatus.isAdvertising)
+}
+
+//export v23_syncbase_NeighborhoodNewScan
+func v23_syncbase_NeighborhoodNewScan(cbs C.v23_syncbase_NeighborhoodScanCallbacks, cUint64 *C.uint64_t, cErr *C.v23_syncbase_VError) {
+	scanCtx, cancel := context.WithCancel(b.Ctx)
+	scanChan := make(chan discovery.AppPeer)
+	err := discovery.ListenForAppPeers(scanCtx, scanChan)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+
+	// Forward the scan results to the callback.
+	go func() {
+		for {
+			peer, ok := <-scanChan
+			if !ok {
+				C.CallNeighborhoodScanCallbacksOnDone(cbs)
+				break
+			}
+			cPeer := C.v23_syncbase_AppPeer{}
+			cPeer.init(peer)
+			C.CallNeighborhoodScanCallbacksOnPeer(cbs, cPeer)
+		}
+	}()
+
+	// Remember the scan's cancellation information and return the scan's id.
+	x := C.uint64_t(globalRefMap.Add(cancel))
+	cUint64 = &x
+}
+
+//export v23_syncbase_NeighborhoodStopScan
+func v23_syncbase_NeighborhoodStopScan(cUint64 C.uint64_t) {
+	if cancel, ok := globalRefMap.Remove(uint64(cUint64)).(context.CancelFunc); ok && cancel != nil {
+		cancel()
+	}
 }
 
 ////////////////////////////////////////
@@ -623,6 +741,52 @@ func v23_syncbase_DbGetSyncgroupMembers(cName C.v23_syncbase_String, cSgId C.v23
 		return
 	}
 	cMembers.init(members)
+}
+
+////////////////////////////////////////
+// Syncgroup Invites
+
+//export v23_syncbase_DbSyncgroupInvitesNewScan
+func v23_syncbase_DbSyncgroupInvitesNewScan(cName C.v23_syncbase_String, cbs C.v23_syncbase_DbSyncgroupInvitesCallbacks, cUint64 *C.uint64_t, cErr *C.v23_syncbase_VError) {
+	encodedId := cName.extract()
+	dbId, err := util.DecodeId(encodedId)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+
+	scanCtx, cancel := context.WithCancel(b.Ctx)
+	scanChan := make(chan discovery.Invite)
+	err = discovery.ListenForInvites(scanCtx, dbId, scanChan)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+
+	// Forward the scan results to the callback.
+	go func() {
+		for {
+			invite, ok := <-scanChan
+			if !ok {
+				C.CallDbSyncgroupInvitesOnDone(cbs)
+				break
+			}
+			cInvite := C.v23_syncbase_Invite{}
+			cInvite.init(invite)
+			C.CallDbSyncgroupInvitesOnInvite(cbs, cInvite)
+		}
+	}()
+
+	// Remember the scan's cancellation information and return the scan's id.
+	x := C.uint64_t(globalRefMap.Add(cancel))
+	cUint64 = &x
+}
+
+//export v23_syncbase_DbSyncgroupInvitesStopScan
+func v23_syncbase_DbSyncgroupInvitesStopScan(cUint64 C.uint64_t) {
+	if cancel, ok := globalRefMap.Remove(uint64(cUint64)).(context.CancelFunc); ok && cancel != nil {
+		cancel()
+	}
 }
 
 ////////////////////////////////////////

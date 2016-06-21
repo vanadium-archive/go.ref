@@ -13,6 +13,7 @@ import (
 	"v.io/v23/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/ref/services/syncbase/discovery"
 )
 
 // All "x.extract" methods return a native Go type and leave x in the same state
@@ -435,4 +436,21 @@ func (x *C.v23_syncbase_WatchChange) init(wc syncbase.WatchChange) error {
 	x.fromSync = C.bool(wc.FromSync)
 	x.continued = C.bool(wc.Continued)
 	return nil
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_Invite
+
+func (x *C.v23_syncbase_Invite) init(invite discovery.Invite) {
+	x.syncgroup.init(invite.Syncgroup)
+	x.addresses.init(invite.Addresses)
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_AppPeer
+
+func (x *C.v23_syncbase_AppPeer) init(peer discovery.AppPeer) {
+	x.appName.init(peer.AppName)
+	x.blessings.init(peer.Blessings)
+	x.isLost = C.bool(peer.Lost)
 }

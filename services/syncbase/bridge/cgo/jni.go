@@ -10,7 +10,6 @@ package main
 import (
 	"fmt"
 	"unsafe"
-	"v.io/x/ref/services/syncbase/bridge/cgo/refmap"
 )
 
 /*
@@ -62,8 +61,6 @@ var (
 	versionedSyncgroupSpecClass jVersionedSyncgroupSpec
 	watchChangeClass            jWatchChange
 )
-
-var globalRefMap = refmap.NewRefMap()
 
 // JNI_OnLoad is called when System.loadLibrary is called. We need to cache the
 // *JavaVM because that's the only way to get hold of a JNIEnv that is needed
