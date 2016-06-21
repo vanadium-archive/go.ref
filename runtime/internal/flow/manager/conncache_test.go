@@ -80,6 +80,7 @@ func TestCacheReserve(t *testing.T) {
 	defer shutdown()
 
 	c := NewConnCache(0)
+	defer c.Close(ctx)
 	nullep := makeEP(ctx, "local", "a1", 0, "b1")
 	oneep := makeEP(ctx, "local", "a1", 1, "b1")
 	twoep := makeEP(ctx, "local", "a1", 2, "b1")
@@ -259,6 +260,7 @@ func TestLRU(t *testing.T) {
 
 	// Ensure that the least recently created conns are killed by KillConnections.
 	c := NewConnCache(0)
+	defer c.Close(ctx)
 	conns, stop := nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
@@ -289,6 +291,7 @@ func TestLRU(t *testing.T) {
 
 	// Ensure that writing to conns marks conns as more recently used.
 	c = NewConnCache(0)
+	defer c.Close(ctx)
 	conns, stop = nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
@@ -321,6 +324,7 @@ func TestLRU(t *testing.T) {
 
 	// Ensure that reading from conns marks conns as more recently used.
 	c = NewConnCache(0)
+	defer c.Close(ctx)
 	conns, stop = nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
@@ -361,6 +365,7 @@ func TestIdleConns(t *testing.T) {
 	// Ensure that idle conns are killed by the cache.
 	// Set the idle timeout very low to ensure all the connections are closed.
 	c := NewConnCache(1)
+	defer c.Close(ctx)
 	conns, stop := nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
@@ -398,6 +403,7 @@ func TestIdleConns(t *testing.T) {
 
 	// Set the idle timeout very high to ensure none of the connections are closed.
 	c = NewConnCache(time.Hour)
+	defer c.Close(ctx)
 	conns, stop = nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
@@ -422,6 +428,7 @@ func TestIdleConns(t *testing.T) {
 
 	// Ensure that a low idle timeout, but live flows on the conns keep the connection alive.
 	c = NewConnCache(1)
+	defer c.Close(ctx)
 	conns, stop = nConnAndFlows(t, ctx, 10)
 	defer stop()
 	for _, conn := range conns {
@@ -450,6 +457,7 @@ func TestMultiRTTConns(t *testing.T) {
 	defer shutdown()
 
 	c := NewConnCache(0)
+	defer c.Close(ctx)
 	remote, _, _, _, _, _ := makeEPs(ctx, "normal")
 	auth := flowtest.NewPeerAuthorizer(remote.BlessingNames())
 	slow, med, fast := 3*time.Millisecond, 2*time.Millisecond, 1*time.Millisecond

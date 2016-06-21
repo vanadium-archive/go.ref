@@ -93,6 +93,7 @@ func (r *Reservation) Unreserve(conn, proxyConn CachedConn, err error) error {
 	c.mu.Lock()
 
 	if c.conns == nil {
+		r.cancel()
 		return NewErrCacheClosed(r.ctx)
 	}
 
@@ -101,8 +102,9 @@ func (r *Reservation) Unreserve(conn, proxyConn CachedConn, err error) error {
 	}
 
 	if proxyConn != nil {
-		c.insertConnLocked(r.remote, proxyConn, true, true, r.cancel)
-		r.cancel = nil
+		if c.insertConnLocked(r.remote, proxyConn, true, true, r.cancel) {
+			r.cancel = nil
+		}
 	}
 
 	if conn != nil {
@@ -506,10 +508,10 @@ func (c *ConnCache) ExportStats(prefix string) {
 	stats.NewStringFunc(naming.Join(prefix, "reserved"), func() string { return c.debugStringForDialing() })
 }
 
-func (c *ConnCache) insertConnLocked(remote naming.Endpoint, conn CachedConn, proxy bool, keyByAddr bool, cancel context.CancelFunc) {
+func (c *ConnCache) insertConnLocked(remote naming.Endpoint, conn CachedConn, proxy bool, keyByAddr bool, cancel context.CancelFunc) bool {
 	if _, ok := c.conns[conn]; ok {
 		// If the conn is already in the cache, don't re-add it.
-		return
+		return false
 	}
 	ep := conn.RemoteEndpoint()
 	entry := &connEntry{
@@ -537,6 +539,7 @@ func (c *ConnCache) insertConnLocked(remote naming.Endpoint, conn CachedConn, pr
 		c.cache[k] = append(c.cache[k], entry)
 	}
 	c.conns[entry.conn] = entry
+	return true
 }
 
 func (c *ConnCache) rttEntriesLocked(ctx *context.T, keys []interface{}) (rttEntries, error) {
