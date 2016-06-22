@@ -49,6 +49,7 @@ import "C"
 var (
 	jVM                         *C.JavaVM
 	arrayListClass              jArrayListClass
+	changeTypeClass             jChangeType
 	collectionRowPatternClass   jCollectionRowPattern
 	hashMapClass                jHashMap
 	idClass                     jIdClass
@@ -77,6 +78,7 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 	jVM = vm
 
 	arrayListClass = newJArrayListClass(env)
+	changeTypeClass = newJChangeType(env)
 	collectionRowPatternClass = newJCollectionRowPattern(env)
 	hashMapClass = newJHashMap(env)
 	idClass = newJIdClass(env)
@@ -380,20 +382,17 @@ func Java_io_v_syncbase_internal_Database_GetSyncgroupMembers(env *C.JNIEnv, cls
 
 //export v23_syncbase_internal_onChange
 func v23_syncbase_internal_onChange(handle C.v23_syncbase_Handle, change C.v23_syncbase_WatchChange) {
-	// TODO(razvanm): Remove the panic and uncomment the code from below
-	// after the onChange starts working.
-	panic("v23_syncbase_internal_onChange not implemented")
-	//id := uint64(uintptr(handle))
-	//h := globalRrefMap.Get(id).(*watchPatternsCallbacksHandle)
-	//env, free := getEnv()
-	//obj := change.extractToJava(env)
-	//arg := *(*C.jvalue)(unsafe.Pointer(&obj))
-	//C.CallVoidMethodA(env, C.jobject(unsafe.Pointer(h.obj)), h.callbacks.onChange, &arg)
-	//if C.ExceptionOccurred(env) != nil {
-	//	C.ExceptionDescribe(env)
-	//	panic("java exception")
-	//}
-	//free()
+	id := uint64(uintptr(handle))
+	h := globalRefMap.Get(id).(*watchPatternsCallbacksHandle)
+	env, free := getEnv()
+	obj := change.extractToJava(env)
+	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
+	C.CallVoidMethodA(env, C.jobject(unsafe.Pointer(h.obj)), h.callbacks.onChange, &arg)
+	if C.ExceptionOccurred(env) != nil {
+		C.ExceptionDescribe(env)
+		panic("java exception")
+	}
+	free()
 }
 
 //export v23_syncbase_internal_onError
@@ -646,6 +645,17 @@ func Java_io_v_syncbase_internal_Util_NamingJoin(env *C.JNIEnv, cls C.jclass, ob
 // All the extractToJava methods return Java types and deallocate all the
 // pointers inside v23_syncbase_* variable.
 
+func (x *C.v23_syncbase_ChangeType) extractToJava(env *C.JNIEnv) C.jobject {
+	var obj C.jobject
+	switch *x {
+	case C.v23_syncbase_ChangeTypePut:
+		obj = C.GetStaticObjectField(env, changeTypeClass.class, changeTypeClass.put)
+	case C.v23_syncbase_ChangeTypeDelete:
+		obj = C.GetStaticObjectField(env, changeTypeClass.class, changeTypeClass.delete)
+	}
+	return obj
+}
+
 func (x *C.v23_syncbase_Id) extractToJava(env *C.JNIEnv) C.jobject {
 	obj := C.NewObjectA(env, idClass.class, idClass.init, nil)
 	C.SetObjectField(env, obj, idClass.blessing, x.blessing.extractToJava(env))
@@ -806,6 +816,18 @@ func (x *C.v23_syncbase_VError) extractToJava(env *C.JNIEnv) C.jobject {
 	C.SetObjectField(env, obj, verrorClass.message, x.msg.extractToJava(env))
 	C.SetObjectField(env, obj, verrorClass.stack, x.stack.extractToJava(env))
 	x.free()
+	return obj
+}
+
+func (x *C.v23_syncbase_WatchChange) extractToJava(env *C.JNIEnv) C.jobject {
+	obj := C.NewObjectA(env, watchChangeClass.class, watchChangeClass.init, nil)
+	C.SetObjectField(env, obj, watchChangeClass.collection, x.collection.extractToJava(env))
+	C.SetObjectField(env, obj, watchChangeClass.row, x.row.extractToJava(env))
+	C.SetObjectField(env, obj, watchChangeClass.changeType, x.changeType.extractToJava(env))
+	C.SetObjectField(env, obj, watchChangeClass.value, x.value.extractToJava(env))
+	C.SetObjectField(env, obj, watchChangeClass.resumeMarker, x.resumeMarker.extractToJava(env))
+	C.SetBooleanField(env, obj, watchChangeClass.fromSync, x.fromSync.extractToJava())
+	C.SetBooleanField(env, obj, watchChangeClass.continued, x.continued.extractToJava())
 	return obj
 }
 

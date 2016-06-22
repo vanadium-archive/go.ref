@@ -30,6 +30,8 @@ jfieldID GetFieldID(JNIEnv *env, jclass cls, const char *name, const char *sig);
 jmethodID GetMethodID(JNIEnv* env, jclass cls, const char* name, const char* sig);
 jclass GetObjectClass(JNIEnv *env, jobject obj);
 jobject GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID);
+jfieldID GetStaticFieldID(JNIEnv *env, jclass cls, const char *name, const char *sig);
+jobject GetStaticObjectField(JNIEnv *env, jclass cls, jfieldID fieldID);
 jsize GetStringLength(JNIEnv *env, jstring string);
 jsize GetStringUTFLength(JNIEnv *env, jstring string);
 void GetStringUTFRegion(JNIEnv *env, jstring str, jsize start, jsize len, char *buf);

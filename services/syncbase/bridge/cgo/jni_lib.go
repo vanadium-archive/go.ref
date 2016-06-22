@@ -287,15 +287,34 @@ func newJWatchPatternsCallbacks(env *C.JNIEnv, obj C.jobject) jWatchPatternsCall
 	}
 }
 
+type jChangeType struct {
+	class  C.jclass
+	put    C.jfieldID
+	delete C.jfieldID
+}
+
+func newJChangeType(env *C.JNIEnv) jChangeType {
+	cls := findClass(env, "io/v/syncbase/core/WatchChange$ChangeType")
+	return jChangeType{
+		class:  cls,
+		put:    jGetStaticFieldID(env, cls, "PUT", "Lio/v/syncbase/core/WatchChange$ChangeType;"),
+		delete: jGetStaticFieldID(env, cls, "DELETE", "Lio/v/syncbase/core/WatchChange$ChangeType;"),
+	}
+}
+
 // initClass returns the jclass and the jmethodID of the default constructor for
 // a class.
 func initClass(env *C.JNIEnv, name string) (C.jclass, C.jmethodID) {
+	cls := findClass(env, name)
+	return cls, jGetMethodID(env, cls, "<init>", "()V")
+}
+
+func findClass(env *C.JNIEnv, name string) C.jclass {
 	cls, err := jFindClass(env, name)
 	if err != nil {
 		// The invariant is that we only deal with classes that must be
 		// known to the JVM. A panic indicates a bug in our code.
 		panic(err)
 	}
-	init := jGetMethodID(env, cls, "<init>", "()V")
-	return cls, init
+	return cls
 }

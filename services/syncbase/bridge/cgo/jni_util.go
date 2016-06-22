@@ -52,6 +52,23 @@ func jGetFieldID(env *C.JNIEnv, cls C.jclass, name, sig string) C.jfieldID {
 	return field
 }
 
+func jGetStaticFieldID(env *C.JNIEnv, cls C.jclass, name, sig string) C.jfieldID {
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+
+	cSig := C.CString(sig)
+	defer C.free(unsafe.Pointer(cSig))
+
+	field := C.GetStaticFieldID(env, cls, cName, cSig)
+	if field == nil {
+		panic(fmt.Sprintf("couldn't get field %q with signature %s", name, sig))
+	}
+
+	// Note: the validity of the field is bounded by the lifetime of the
+	// ClassLoader that did the loading of the class.
+	return field
+}
+
 // The function from below was hoisted from jni/util/util.go and adapted to not
 // use custom types.
 

@@ -74,6 +74,15 @@ jobject GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID) {
   return (*env)->GetObjectField(env, obj, fieldID);
 }
 
+jfieldID GetStaticFieldID(JNIEnv *env, jclass cls, const char *name, const char *sig) {
+  return (*env)->GetStaticFieldID(env, cls, name, sig);
+}
+
+jobject GetStaticObjectField(JNIEnv *env, jclass cls, jfieldID fieldID)
+{
+  return (*env)->GetStaticObjectField(env, cls, fieldID);
+}
+
 jsize GetStringLength(JNIEnv *env, jstring string) {
   return (*env)->GetStringLength(env, string);
 }
