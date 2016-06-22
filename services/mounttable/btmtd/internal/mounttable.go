@@ -237,10 +237,10 @@ func (mt *mounttable) Glob__(ctx *context.T, call rpc.GlobServerCall, g *glob.Gl
 		}
 		matcher, left := state.g.Head(), state.g.Tail()
 		for _, child := range n.children {
-			if matcher.Match(child) {
+			if matcher.Match(child.name()) {
 				// TODO(rthellend): We should protect against large query results
 				// that could blow up memory usage.
-				queue = append(queue, gState{naming.Join(state.name, child), left})
+				queue = append(queue, gState{naming.Join(state.name, child.name()), left})
 			}
 		}
 	}

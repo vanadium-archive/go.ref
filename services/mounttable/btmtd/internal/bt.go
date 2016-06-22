@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"strconv"
 	"strings"
 	"time"
 
@@ -37,6 +36,7 @@ const (
 	serversFamily  = "s"
 	childrenFamily = "c"
 
+	idColumn          = "i"
 	creatorColumn     = "c"
 	permissionsColumn = "p"
 	stickyColumn      = "s"
@@ -162,7 +162,11 @@ func (b *BigTable) SetupTable(ctx *context.T, permissionsFile string) error {
 	}
 	perms := make(access.Permissions)
 	perms.Add(security.AllPrincipals, string(v23mt.Admin))
-	return b.createRow(ctx, "", perms, "", b.now(), 0)
+	child, err := newChild("ROOTNODE", "")
+	if err != nil {
+		return err
+	}
+	return b.createRow(ctx, "", perms, "", child, 0)
 }
 
 func (b *BigTable) timeFloor(t bigtable.Timestamp) bigtable.Timestamp {
@@ -172,14 +176,6 @@ func (b *BigTable) timeFloor(t bigtable.Timestamp) bigtable.Timestamp {
 	// https://github.com/GoogleCloudPlatform/gcloud-golang/blob/master/bigtable/bttest/inmem.go#L734
 	// https://github.com/GoogleCloudPlatform/gcloud-golang/blob/master/bigtable/bigtable.go#L531
 	return (t / 1000) * 1000
-}
-
-func (b *BigTable) timeNext(t bigtable.Timestamp) bigtable.Timestamp {
-	return (t/1000 + 1) * 1000
-}
-
-func (b *BigTable) now() bigtable.Timestamp {
-	return b.timeFloor(bigtable.Now())
 }
 
 func (b *BigTable) time(t time.Time) bigtable.Timestamp {
@@ -227,8 +223,12 @@ func (b *BigTable) DumpTable(ctx *context.T) error {
 				}
 				fmt.Printf(" flags: %+v", n.mountFlags)
 			}
-			if len(n.children) > 0 {
-				fmt.Printf(" children: [%s]", strings.Join(n.children, " "))
+			children := make([]string, len(n.children))
+			for i, c := range n.children {
+				children[i] = c.name()
+			}
+			if len(children) > 0 {
+				fmt.Printf(" children: [%s]", strings.Join(children, " "))
 			}
 			fmt.Println()
 			return true
@@ -342,7 +342,7 @@ func (b *BigTable) readRow(ctx *context.T, key string, opts ...bigtable.ReadOpti
 	return row, err
 }
 
-func (b *BigTable) createRow(ctx *context.T, name string, perms access.Permissions, creator string, ts bigtable.Timestamp, limit int64) error {
+func (b *BigTable) createRow(ctx *context.T, name string, perms access.Permissions, creator string, ch child, limit int64) error {
 	jsonPerms, err := json.Marshal(perms)
 	if err != nil {
 		return err
@@ -360,9 +360,10 @@ func (b *BigTable) createRow(ctx *context.T, name string, perms access.Permissio
 		}
 	}()
 	mut := bigtable.NewMutation()
-	mut.Set(metadataFamily, creatorColumn, ts, []byte(creator))
+	mut.Set(metadataFamily, idColumn, bigtable.ServerTime, []byte(ch.id()))
+	mut.Set(metadataFamily, creatorColumn, bigtable.ServerTime, []byte(creator))
 	mut.Set(metadataFamily, permissionsColumn, bigtable.ServerTime, jsonPerms)
-	mut.Set(metadataFamily, versionColumn, bigtable.ServerTime, []byte(strconv.FormatUint(uint64(rand.Uint32()), 10)))
+	mut.Set(metadataFamily, versionColumn, bigtable.ServerTime, []byte(fmt.Sprintf("%08x", rand.Uint32())))
 
 	filter := bigtable.ChainFilters(bigtable.FamilyFilter(metadataFamily), bigtable.ColumnFilter(creatorColumn))
 	condMut := bigtable.NewCondMutation(filter, nil, mut)

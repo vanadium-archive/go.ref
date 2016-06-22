@@ -19,6 +19,7 @@ risk of name collision.
 The table has three column families:
 
    * Metadata `m`: used to store information about the row:
+      * ID `i`: A 4-byte ID for the node. Doesn't have to be globally unique.
       * Version `v`: The version changes every time the row is mutated. It is
         used to detect conflicts related to concurrent access.
       * Creator `c`: The cell's value is the name of its creator and its
@@ -34,11 +35,13 @@ The table has three column families:
 
 Example:
 
-| Key              | Version | Creator    | Sticky | Permissions  | Mounted Server...           | Child...  |
-| ---              | ---     | ---        | ---    | ---          | ---                         | ---       |
-| 540f1a56/        | 54321   | user (ts)  | 1      | {"Admin":... |                             | foo (ts1) |
-| 1234abcd/foo     | 123     | user (ts1) |        | {"Admin":... |                             | bar (ts2) |
-| 46d523e3/foo/bar | 5436    | user (ts2) |        | {"Admin":... | /example.com:123 (deadline) |           |
+| Key              | ID  | Version | Creator | Sticky | Permissions  | Mounted Server...           | Child... |
+| ---              | --- | ---     | ---     | ---    | ---          | ---                         | ---      |
+| 540f1a56/        | id1 | 54321   | user    | 1      | {"Admin":... |                             | (id2)foo |
+| 1234abcd/foo     | id2 | 123     | user    |        | {"Admin":... |                             | (id3)bar |
+| 46d523e3/foo/bar | id3 | 5436    | user    |        | {"Admin":... | /example.com:123 (deadline) |          |
+
+Counters are stored in another table, one row with one column per counter.
 
 ## Mutations
 

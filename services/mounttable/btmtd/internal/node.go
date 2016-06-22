@@ -7,6 +7,7 @@ package internal
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"hash/fnv"
 	"io/ioutil"
 	"path"
@@ -38,6 +39,7 @@ func SetGcGracePeriod(p time.Duration) {
 
 type mtNode struct {
 	bt             *BigTable
+	id             string
 	name           string
 	sticky         bool
 	creationTime   bigtable.Timestamp
@@ -47,12 +49,36 @@ type mtNode struct {
 	mountFlags     mtFlags
 	servers        []naming.MountedServer
 	expiredServers []string
-	children       []string
+	children       []child
 }
 
 type mtFlags struct {
 	MT   bool `json:"mt,omitempty"`
 	Leaf bool `json:"leaf,omitempty"`
+}
+
+type child string
+
+func newChild(id, name string) (child, error) {
+	if len(id) != 8 {
+		return child(""), fmt.Errorf("expected id to be 8 characters: %q", id)
+	}
+	return child(id + name), nil
+}
+
+func childFromCol(col string) (child, error) {
+	if len(col) <= 8 {
+		return child(""), fmt.Errorf("expected col to be more than 8 characters: %q", col)
+	}
+	return child(col), nil
+}
+
+func (c child) id() string {
+	return string(c)[:8]
+}
+
+func (c child) name() string {
+	return string(c)[8:]
 }
 
 func longTimeout(ctx *context.T) (*context.T, func()) {
@@ -91,6 +117,8 @@ func nodeFromRow(ctx *context.T, bt *BigTable, row bigtable.Row, clock timekeepe
 	for _, i := range row[metadataFamily] {
 		col := strings.TrimPrefix(i.Column, metadataFamily+":")
 		switch col {
+		case idColumn:
+			n.id = string(i.Value)
 		case stickyColumn:
 			n.sticky = true
 		case versionColumn:
@@ -122,18 +150,25 @@ func nodeFromRow(ctx *context.T, bt *BigTable, row bigtable.Row, clock timekeepe
 			Deadline: vdltime.Deadline{deadline},
 		})
 	}
-	n.children = make([]string, 0, len(row[childrenFamily]))
+	n.children = make([]child, 0, len(row[childrenFamily]))
 	for _, i := range row[childrenFamily] {
-		child := strings.TrimPrefix(i.Column, childrenFamily+":")
-		n.children = append(n.children, child)
+		childCol := strings.TrimPrefix(i.Column, childrenFamily+":")
+		if child, err := childFromCol(childCol); err != nil {
+			ctx.Errorf("childFromCol(%q) failed: %v", childCol, err)
+		} else {
+			n.children = append(n.children, child)
+		}
 	}
 	return n
 }
 
-func (n *mtNode) createChild(ctx *context.T, child string, perms access.Permissions, creator string, limit int64) (*mtNode, error) {
-	ts := n.bt.now()
+func (n *mtNode) createChild(ctx *context.T, childName string, perms access.Permissions, creator string, limit int64) (*mtNode, error) {
+	child, err := newChild(n.version, childName)
+	if err != nil {
+		return nil, err
+	}
 	mut := bigtable.NewMutation()
-	mut.Set(childrenFamily, child, ts, []byte{1})
+	mut.Set(childrenFamily, string(child), bigtable.ServerTime, []byte{1})
 	if err := n.mutate(ctx, mut, false); err != nil {
 		return nil, err
 	}
@@ -145,25 +180,44 @@ func (n *mtNode) createChild(ctx *context.T, child string, perms access.Permissi
 	//  - the child is created again, or
 	//  - the parent is forcibly deleted with Delete().
 
-	childName := naming.Join(n.name, child)
+	childFullName := naming.Join(n.name, childName)
 	longCtx, cancel := longTimeout(ctx)
 	defer cancel()
-	if err := n.bt.createRow(longCtx, childName, perms, creator, ts, limit); err != nil {
+	if err := n.bt.createRow(longCtx, childFullName, perms, creator, child, limit); err != nil {
 		mut = bigtable.NewMutation()
-		mut.DeleteTimestampRange(childrenFamily, child, ts, n.bt.timeNext(ts))
+		mut.DeleteCellsInColumn(childrenFamily, string(child))
 		if err := n.bt.apply(ctx, rowKey(n.name), mut); err != nil {
-			ctx.Errorf("Failed to delete child reference. Parent=%q Child=%q Err=%v", n.name, child, err)
+			ctx.Errorf("Failed to delete child reference. Parent=%q Col=%q Err=%v", n.name, string(child), err)
 		}
 		return nil, err
 	}
-	n, err := getNode(ctx, n.bt, childName)
+	// Delete any stale references to the child that we just successfully
+	// created.
+	mut = nil
+	for _, c := range n.children {
+		if c.name() != childName {
+			continue
+		}
+		if mut == nil {
+			mut = bigtable.NewMutation()
+		}
+		mut.DeleteCellsInColumn(childrenFamily, string(c))
+	}
+	if mut != nil {
+		if err := n.bt.apply(ctx, rowKey(n.name), mut); err != nil {
+			ctx.Errorf("Failed to delete child reference. Parent=%q Err=%v", n.name, err)
+		}
+	}
+
+	// Return the new child node.
+	cn, err := getNode(ctx, n.bt, childFullName)
 	if err != nil {
 		return nil, err
 	}
-	if n == nil {
-		return nil, verror.New(errConcurrentAccess, ctx, childName)
+	if cn == nil {
+		return nil, verror.New(errConcurrentAccess, ctx, childFullName)
 	}
-	return n, nil
+	return cn, nil
 }
 
 func (n *mtNode) mount(ctx *context.T, server string, deadline time.Time, flags naming.MountFlag, limit int64) error {
@@ -293,7 +347,7 @@ func (n *mtNode) delete(ctx *context.T, deleteSubtree bool) error {
 	// terms of memory. A smarter, but slower, approach would be to walk
 	// the tree without holding on to all the node data.
 	for _, c := range n.children {
-		cn, err := getNode(ctx, n.bt, naming.Join(n.name, c))
+		cn, err := getNode(ctx, n.bt, naming.Join(n.name, c.name()))
 		if err != nil {
 			return err
 		}
@@ -302,7 +356,7 @@ func (n *mtNode) delete(ctx *context.T, deleteSubtree bool) error {
 			// exist. It could be that it is being created or
 			// deleted concurrently. To be sure, we have to create
 			// it before deleting it.
-			if cn, err = n.createChild(ctx, c, n.permissions, "", 0); err != nil {
+			if cn, err = n.createChild(ctx, c.name(), n.permissions, "", 0); err != nil {
 				return err
 			}
 		}
@@ -327,10 +381,7 @@ func (n *mtNode) delete(ctx *context.T, deleteSubtree bool) error {
 	// Delete from parent node.
 	parent, child := path.Split(n.name)
 	mut = bigtable.NewMutation()
-	// DeleteTimestampRange deletes the cells whose timestamp is in the
-	// half open range [start,end). We need to delete the cell with
-	// timestamp n.creationTime (and any older ones).
-	mut.DeleteTimestampRange(childrenFamily, child, 0, n.bt.timeNext(n.creationTime))
+	mut.DeleteCellsInColumn(childrenFamily, n.id+child)
 
 	longCtx, cancel := longTimeout(ctx)
 	defer cancel()
@@ -363,11 +414,11 @@ func (n *mtNode) setPermissions(ctx *context.T, perms access.Permissions) error 
 
 func (n *mtNode) mutate(ctx *context.T, mut *bigtable.Mutation, delete bool) error {
 	if !delete {
-		v, err := strconv.ParseUint(n.version, 10, 64)
+		v, err := strconv.ParseUint(n.version, 16, 32)
 		if err != nil {
 			return err
 		}
-		newVersion := strconv.FormatUint(v+1, 10)
+		newVersion := fmt.Sprintf("%08x", uint32(v)+1)
 		mut.Set(metadataFamily, versionColumn, bigtable.ServerTime, []byte(newVersion))
 	}
 
@@ -426,11 +477,14 @@ func createNodesFromFile(ctx *context.T, bt *BigTable, fileName string) error {
 	}
 	sort.Strings(sortedNodes)
 
-	ts := bt.now()
 	for _, node := range sortedNodes {
 		perms := nodes[node]
 		if node == "" {
-			if err := bt.createRow(ctx, "", perms, "", ts, 0); err != nil {
+			child, err := newChild("ROOTNODE", "")
+			if err != nil {
+				return err
+			}
+			if err := bt.createRow(ctx, "", perms, "", child, 0); err != nil {
 				return err
 			}
 			continue

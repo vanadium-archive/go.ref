@@ -65,7 +65,7 @@ func TestMutations(t *testing.T) {
 				t.Errorf("[%d] node doesn't exist after createChild", i)
 				return false
 			}
-			if len(m.children) != 1 || m.children[0] != "Y" {
+			if len(m.children) != 1 || m.children[0].name() != "Y" {
 				t.Errorf("[%d] unexpected children after createChild: %v", i, m.children)
 				return false
 			}
