@@ -13,6 +13,7 @@ import (
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
+	slib "v.io/x/ref/lib/security"
 )
 
 // Bridge object, representing an in-process Syncbase singleton.
@@ -125,14 +126,17 @@ func newFakeServerCall(ctx *context.T, srv rpc.Server, suffix string, method rpc
 	// the same as the "local" (server, i.e. Syncbase module) blessing.
 	// TODO(sadovsky): Eliminate this hack.
 	blessings, _ := p.BlessingStore().Default()
+	discharges, _ := slib.PrepareDischarges(ctx, blessings, security.BlessingNames(p, blessings), method.Name, nil)
 	return &fakeServerCall{
 		sec: security.NewCall(&security.CallParams{
-			Method:          method.Name,
-			MethodTags:      method.Tags,
-			Suffix:          suffix,
-			LocalPrincipal:  p,
-			LocalBlessings:  blessings,
-			RemoteBlessings: blessings,
+			Method:           method.Name,
+			MethodTags:       method.Tags,
+			Suffix:           suffix,
+			LocalPrincipal:   p,
+			LocalBlessings:   blessings,
+			RemoteBlessings:  blessings,
+			RemoteDischarges: discharges,
+			LocalDischarges:  discharges,
 		}),
 		srv:    srv,
 		suffix: suffix,
