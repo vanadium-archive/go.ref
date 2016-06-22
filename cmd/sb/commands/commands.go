@@ -19,6 +19,7 @@ var Commands = []*cmdline.Command{
 	cmdDump,
 	cmdMakeDemo,
 	cmdSelect,
+	cmdAcl,
 }
 
 var (
@@ -37,21 +38,31 @@ func SetDB(db syncbase.Database) {
 type sbHandler func(ctx *context.T, db syncbase.Database, env *cmdline.Env, args []string) error
 
 func SbRunner(handler sbHandler) cmdline.Runner {
-	return v23cmd.RunnerFuncWithInit(func(ctx *context.T, env *cmdline.Env, args []string) error {
-		db := commandDb // Set in shell handler.
-		if db == nil {
-			var err error
-			if db, err = dbutil.OpenDB(ctx); err != nil {
-				return err
+	return v23cmd.RunnerFuncWithInit(
+		func(ctx *context.T, env *cmdline.Env, args []string) error {
+			db := commandDb // Set in shell handler.
+			if db == nil {
+				var err error
+				if db, err = dbutil.OpenDB(ctx); err != nil {
+					return err
+				}
 			}
-		}
-		return handler(ctx, db, env, args)
-	}, func() (*context.T, v23.Shutdown, error) {
-		if commandCtx != nil {
-			return commandCtx, func() {}, nil
-		}
-		return v23.TryInit()
-	})
+			return handler(ctx, db, env, args)
+		},
+		sbInit)
+}
+
+func sbInit() (*context.T, v23.Shutdown, error) {
+	if commandCtx != nil {
+		return commandCtx, func() {}, nil
+	}
+	return v23.TryInit()
+}
+
+type sbHandlerPlain func(ctx *context.T, env *cmdline.Env, args []string) error
+
+func sbRunnerPlain(handler sbHandlerPlain) cmdline.Runner {
+	return v23cmd.RunnerFuncWithInit(handler, sbInit)
 }
 
 func GetCommand(name string) (*cmdline.Command, error) {

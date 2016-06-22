@@ -16,7 +16,6 @@ import (
 var (
 	flagCreateIfAbsent bool
 	flagService        string
-	flagBlessing       string
 	flagDbId           string
 )
 
@@ -24,6 +23,10 @@ func init() {
 	flag.BoolVar(&flagCreateIfAbsent, "create-if-absent", false, "Create the target database if it doesn't exist.")
 	flag.StringVar(&flagService, "service", "", "Syncbase service to connect to.")
 	flag.StringVar(&flagDbId, "db", "", "Id of database to connect to.")
+}
+
+func GetService() syncbase.Service {
+	return syncbase.NewService(flagService)
 }
 
 // OpenDB is a user-friendly wrapper for openDB.
