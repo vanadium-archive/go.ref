@@ -236,6 +236,9 @@ func (pm *peerManagerImpl) managePeersInternal(ctx *context.T) {
 			if pm.numFailuresMountTable == 0 {
 				// Drop the peer cache when we switch to using
 				// neighborhood.
+				for _, p := range pm.healthyPeerCache {
+					p.pinned.Unpin()
+				}
 				pm.healthyPeerCache = make(map[string]*connInfo)
 			}
 			pm.numFailuresMountTable++
@@ -252,6 +255,9 @@ func (pm *peerManagerImpl) managePeersInternal(ctx *context.T) {
 
 	now := time.Now()
 	for _, p := range peers {
+		if old, ok := pm.healthyPeerCache[p.relName]; ok {
+			old.pinned.Unpin()
+		}
 		p.addedTime = now
 		pm.healthyPeerCache[p.relName] = p
 	}
@@ -407,6 +413,9 @@ func (pm *peerManagerImpl) updatePeerFromSyncer(ctx *context.T, peer connInfo, a
 	if failed { // Handle failed sync attempt.
 		// Evict the peer from healthyPeerCache.
 		delete(pm.healthyPeerCache, peer.relName)
+		if peer.pinned != nil {
+			peer.pinned.Unpin()
+		}
 
 		if peer.addrs != nil {
 			info.numFailuresNeighborhood++
@@ -513,6 +522,8 @@ func (pm *peerManagerImpl) pingPeers(ctx *context.T, peers []*connInfo) []*connI
 			ci = &connInfo{relName: info.ci.relName, pinned: r.Conn}
 			speers[info.ci.relName] = ci
 			speersArr = append(speersArr, ci)
+		} else {
+			r.Conn.Unpin()
 		}
 
 		if info.mtTbl {
