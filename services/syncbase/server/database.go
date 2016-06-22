@@ -460,8 +460,7 @@ func (d *database) ListCollections(ctx *context.T, call rpc.ServerCall, bh wire.
 		keyBytes := []byte{}
 		for it.Advance() {
 			keyBytes = it.Key(keyBytes)
-			parts := common.SplitNKeyParts(string(keyBytes), 3)
-			id, err := pubutil.DecodeId(parts[1])
+			id, err := common.ParseCollectionPermsKey(string(keyBytes))
 			if err != nil {
 				it.Cancel()
 				return verror.New(verror.ErrInternal, ctx, err)

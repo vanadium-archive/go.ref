@@ -10,6 +10,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/services/watch"
 	pubutil "v.io/v23/syncbase/util"
@@ -17,6 +18,7 @@ import (
 	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/filter"
+	"v.io/x/ref/services/syncbase/server/interfaces"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/watchable"
 )
@@ -110,6 +112,8 @@ func (d *database) watchWithFilter(ctx *context.T, call rpc.ServerCall, sender *
 // scanInitialState sends the initial state of all matching and accessible
 // collections and rows in the database. Checks access on collections, but
 // not on database.
+// TODO(ivanpi): Assumes Read perms on database. Careful if supporting RPCs
+// requiring only Resolve (e.g. WatchGlob).
 // TODO(ivanpi): Abstract out multi-scan for scan and possibly query support.
 // TODO(ivanpi): Use watch pattern prefixes to optimize scan ranges.
 func (d *database) scanInitialState(ctx *context.T, call rpc.ServerCall, sender *watchBatchSender, sntx store.SnapshotOrTransaction, watchFilter filter.CollectionRowFilter) error {
@@ -117,13 +121,12 @@ func (d *database) scanInitialState(ctx *context.T, call rpc.ServerCall, sender 
 	// TODO(ivanpi): Collection scan order not alphabetical.
 	cxIt := sntx.Scan(common.ScanPrefixArgs(common.CollectionPermsPrefix, ""))
 	defer cxIt.Cancel()
-	cxKey := []byte{}
+	cxKey, cxPermsValue := []byte{}, []byte{}
 	for cxIt.Advance() {
-		cxKey = cxIt.Key(cxKey)
-		// See comment in util/constants.go for why we use SplitNKeyParts.
-		// TODO(rdaoud,ivanpi): See hack in collection.go.
-		cxParts := common.SplitNKeyParts(string(cxKey), 3)
-		cxId, err := pubutil.DecodeId(cxParts[1])
+		cxKey, cxPermsValue = cxIt.Key(cxKey), cxIt.Value(cxPermsValue)
+		// Database permissions for Watch ensure that the user is always allowed
+		// to know that a collection exists.
+		cxId, err := common.ParseCollectionPermsKey(string(cxKey))
 		if err != nil {
 			return verror.New(verror.ErrInternal, ctx, err)
 		}
@@ -131,21 +134,43 @@ func (d *database) scanInitialState(ctx *context.T, call rpc.ServerCall, sender 
 		if !watchFilter.CollectionMatches(cxId) {
 			continue
 		}
+		// Send collection info.
+		var cxPerms interfaces.CollectionPerms
+		if err := vom.Decode(cxPermsValue, &cxPerms); err != nil {
+			return verror.NewErrInternal(ctx) // no detailed error for cxPerms before filtering cxInfo
+		}
+		cxInfo := collectionInfoFromPerms(ctx, call, cxPerms.GetPerms())
+		cxInfoAsRawBytes, err := vom.RawBytesFromValue(cxInfo)
+		if err != nil {
+			return verror.New(verror.ErrInternal, ctx, err)
+		}
+		if err := sender.addChange(
+			pubutil.EncodeId(cxId),
+			watch.Exists,
+			&wire.StoreChange{
+				Value: cxInfoAsRawBytes,
+				// Note: FromSync cannot be reconstructed from scan.
+				FromSync: false,
+			}); err != nil {
+			return err
+		}
+		// Check permissions for row access.
+		// TODO(ivanpi): Collection scan already gets perms, optimize?
 		c := &collectionReq{
 			id: cxId,
 			d:  d,
 		}
-		// Check permissions for row access.
-		// TODO(ivanpi): Collection scan already gets perms, optimize?
 		if _, err := c.checkAccess(ctx, call, sntx); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoAccess.ID {
-				// TODO(ivanpi): Inaccessible rows are skipped. Figure out how to signal
-				// this to caller.
+				// Skip sending rows if the collection is inaccessible. Caller can see
+				// from collection info that they have no read access and may therefore
+				// have missing rows.
+				// TODO(ivanpi): If read access is regained, should skipped rows be sent
+				// retroactively?
 				continue
 			}
 			return err
 		}
-		// TODO(ivanpi): Send collection info.
 		// Send matching rows.
 		if err := c.scanInitialState(ctx, call, sender, sntx, watchFilter); err != nil {
 			return err
@@ -246,6 +271,8 @@ func (d *database) watchUpdates(ctx *context.T, call rpc.ServerCall, sender *wat
 // Note: Since the governing ACL for each change is no longer tracked, the
 // permissions check uses the ACLs in effect at the time processLogBatch is
 // called.
+// TODO(ivanpi): Assumes Read perms on database. Careful if supporting RPCs
+// requiring only Resolve (e.g. WatchGlob).
 func (d *database) processLogBatch(ctx *context.T, call rpc.ServerCall, sender *watchBatchSender, watchFilter filter.CollectionRowFilter, logs []*watchable.LogEntry) error {
 	sn := d.st.NewSnapshot()
 	defer sn.Abort()
@@ -266,71 +293,143 @@ func (d *database) processLogBatch(ctx *context.T, call rpc.ServerCall, sender *
 		default:
 			continue
 		}
-		// TODO(rogulenko): Currently we only process rows, i.e. keys of the form
-		// <RowPrefix>:xxx:yyy. Consider processing other keys.
-		if !common.IsRowKey(opKey) {
-			continue
-		}
-		cxId, row, err := common.ParseRowKey(opKey)
-		if err != nil {
-			return verror.NewErrInternal(ctx) // no detailed error before access check
-		}
-		// Filter out unnecessary rows.
-		if !watchFilter.RowMatches(cxId, row) {
-			continue
-		}
-		c := &collectionReq{
-			id: cxId,
-			d:  d,
-		}
-		// Filter out rows that we can't access.
-		// TODO(ivanpi): Check only once per collection per batch.
-		if _, err := c.checkAccess(ctx, call, sn); err != nil {
-			if verror.ErrorID(err) == verror.ErrNoAccess.ID || verror.ErrorID(err) == verror.ErrNoExist.ID {
-				// Note, the collection may not exist anymore, in which case permissions
-				// cannot be retrieved. This case is treated the same as ErrNoAccess, by
-				// skipping the row.
-				// TODO(ivanpi): Consider using the implicit ACL instead for nonexistent
-				// collections.
-				// TODO(ivanpi): Inaccessible rows are skipped. Figure out how to signal
-				// this to caller.
+		// TODO(rogulenko,ivanpi): Currently we only process rows and collection
+		// perms. Consider making watchable and processing other keys.
+		switch common.FirstKeyPart(opKey) {
+		case common.RowPrefix:
+			cxId, row, err := common.ParseRowKey(opKey)
+			if err != nil {
+				return verror.NewErrInternal(ctx) // no detailed error before access check
+			}
+			// Filter out unnecessary rows.
+			if !watchFilter.RowMatches(cxId, row) {
 				continue
 			}
-			return err
-		}
-		switch op := op.(type) {
-		case *watchable.PutOp:
-			// Note, valueBytes is reused on each iteration, so the reference must not
-			// be used beyond this case block. The code below is safe since only the
-			// VOM-decoded copy is used after the call to vom.Decode.
-			if valueBytes, err = watchable.GetAtVersion(ctx, sn, op.Key, valueBytes, op.Version); err != nil {
-				return verror.New(verror.ErrInternal, ctx, err)
+			// Filter out rows that we can't access.
+			// TODO(ivanpi): Check only once per collection per batch.
+			c := &collectionReq{
+				id: cxId,
+				d:  d,
 			}
-			var rowValueAsRawBytes *vom.RawBytes
-			if err := vom.Decode(valueBytes, &rowValueAsRawBytes); err != nil {
-				return verror.New(verror.ErrInternal, ctx, err)
-			}
-			if err := sender.addChange(
-				naming.Join(pubutil.EncodeId(cxId), row),
-				watch.Exists,
-				&wire.StoreChange{
-					Value:    rowValueAsRawBytes,
-					FromSync: logEntry.FromSync,
-				}); err != nil {
+			if _, err := c.checkAccess(ctx, call, sn); err != nil {
+				if verror.ErrorID(err) == verror.ErrNoAccess.ID || verror.ErrorID(err) == verror.ErrNoExist.ID {
+					// Skip sending rows if the collection is inaccessible. Caller can see
+					// from collection info that they have no read access and may therefore
+					// have missing rows.
+					// Note, the collection may not exist anymore, in which case permissions
+					// cannot be retrieved. This case is treated the same as ErrNoAccess, by
+					// skipping the row.
+					// TODO(ivanpi): Consider using the implicit ACL instead for nonexistent
+					// collections.
+					// TODO(ivanpi): If read access is regained, should skipped rows be sent
+					// retroactively?
+					continue
+				}
 				return err
 			}
-		case *watchable.DeleteOp:
-			if err := sender.addChange(
-				naming.Join(pubutil.EncodeId(cxId), row),
-				watch.DoesNotExist,
-				&wire.StoreChange{
-					FromSync: logEntry.FromSync,
-				}); err != nil {
-				return err
+			switch op := op.(type) {
+			case *watchable.PutOp:
+				// Note, valueBytes is reused on each iteration, so the reference must not
+				// be used beyond this case block. The code below is safe since only the
+				// VOM-decoded copy is used after the call to vom.Decode.
+				if valueBytes, err = watchable.GetAtVersion(ctx, sn, op.Key, valueBytes, op.Version); err != nil {
+					return verror.New(verror.ErrInternal, ctx, err)
+				}
+				var rowValueAsRawBytes *vom.RawBytes
+				if err := vom.Decode(valueBytes, &rowValueAsRawBytes); err != nil {
+					return verror.New(verror.ErrInternal, ctx, err)
+				}
+				if err := sender.addChange(
+					naming.Join(pubutil.EncodeId(cxId), row),
+					watch.Exists,
+					&wire.StoreChange{
+						Value:    rowValueAsRawBytes,
+						FromSync: logEntry.FromSync,
+					}); err != nil {
+					return err
+				}
+			case *watchable.DeleteOp:
+				if err := sender.addChange(
+					naming.Join(pubutil.EncodeId(cxId), row),
+					watch.DoesNotExist,
+					&wire.StoreChange{
+						FromSync: logEntry.FromSync,
+					}); err != nil {
+					return err
+				}
 			}
+
+		case common.CollectionPermsPrefix:
+			// Database permissions for Watch ensure that the user is always allowed
+			// to know that a collection exists.
+			cxId, err := common.ParseCollectionPermsKey(opKey)
+			if err != nil {
+				return verror.New(verror.ErrInternal, ctx, err)
+			}
+			// Filter out unnecessary collections.
+			if !watchFilter.CollectionMatches(cxId) {
+				continue
+			}
+			switch op := op.(type) {
+			case *watchable.PutOp:
+				if valueBytes, err = watchable.GetAtVersion(ctx, sn, op.Key, valueBytes, op.Version); err != nil {
+					return verror.NewErrInternal(ctx) // no detailed error for cxPerms before filtering cxInfo
+				}
+				var cxPerms interfaces.CollectionPerms
+				if err := vom.Decode(valueBytes, &cxPerms); err != nil {
+					return verror.NewErrInternal(ctx) // no detailed error for cxPerms before filtering cxInfo
+				}
+				cxInfo := collectionInfoFromPerms(ctx, call, cxPerms.GetPerms())
+				cxInfoAsRawBytes, err := vom.RawBytesFromValue(cxInfo)
+				if err != nil {
+					return verror.New(verror.ErrInternal, ctx, err)
+				}
+				if err := sender.addChange(
+					pubutil.EncodeId(cxId),
+					watch.Exists,
+					&wire.StoreChange{
+						Value:    cxInfoAsRawBytes,
+						FromSync: logEntry.FromSync,
+					}); err != nil {
+					return err
+				}
+			case *watchable.DeleteOp:
+				if err := sender.addChange(
+					pubutil.EncodeId(cxId),
+					watch.DoesNotExist,
+					&wire.StoreChange{
+						FromSync: logEntry.FromSync,
+					}); err != nil {
+					return err
+				}
+			}
+
+		default:
+			continue
 		}
 	}
 	return nil
+}
+
+// collectionInfoFromPerms converts a collection permissions object into a
+// StoreChangeCollectionInfo tailored to the caller. The returned collection
+// info is safe to send to the caller, assuming the caller is allowed to know
+// the collection exists. It includes a set listing all access tags that the
+// caller has on the collection. The collection permissions object itself is
+// included only if the caller is allowed to see it (has Admin permissions).
+func collectionInfoFromPerms(ctx *context.T, call rpc.ServerCall, cxPerms access.Permissions) *wire.StoreChangeCollectionInfo {
+	ci := &wire.StoreChangeCollectionInfo{
+		Allowed: make(map[access.Tag]struct{}),
+	}
+	for tag, acl := range cxPerms {
+		if acl.Authorize(ctx, call.Security()) == nil {
+			ci.Allowed[access.Tag(tag)] = struct{}{}
+		}
+	}
+	if _, isAdmin := ci.Allowed[access.Admin]; isAdmin {
+		ci.Perms = cxPerms
+	}
+	return ci
 }
 
 // watchBatchSender sends a sequence of watch changes forming a batch, delaying

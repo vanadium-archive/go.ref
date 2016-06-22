@@ -162,6 +162,36 @@ func TestParseRowKey(t *testing.T) {
 	}
 }
 
+func TestParseCollectionPermsKey(t *testing.T) {
+	tests := []struct {
+		key        string
+		collection wire.Id
+		err        bool
+	}{
+		{common.CollectionPermsPrefix + "\xfeu,c\xfe", wire.Id{"u", "c"}, false},
+		{common.CollectionPermsPrefix + "\xfeu,\xfe", wire.Id{"u", ""}, false},
+		{common.CollectionPermsPrefix + "\xfe,c\xfe", wire.Id{"", "c"}, false},
+		{common.CollectionPermsPrefix + "\xfe,\xfe", wire.Id{"", ""}, false},
+		{"\xfeu,c\xfe", wire.Id{}, true},
+		{"pfx\xfeu,c\xfe", wire.Id{}, true},
+		{common.RowPrefix + "\xfeu,c\xfe", wire.Id{}, true},
+		{common.CollectionPermsPrefix + "\xfe", wire.Id{}, true},
+		{common.CollectionPermsPrefix + "\xfe\xfe", wire.Id{}, true},
+		{common.CollectionPermsPrefix + "\xfeu,c\xferow", wire.Id{}, true},
+		{common.CollectionPermsPrefix + "\xfeu,c", wire.Id{}, true},
+		{common.CollectionPermsPrefix + "\xfe", wire.Id{}, true},
+	}
+	for _, test := range tests {
+		collection, err := common.ParseCollectionPermsKey(test.key)
+		if !reflect.DeepEqual(collection, test.collection) {
+			t.Errorf("%q: got %v, want %v", test.key, collection, test.collection)
+		}
+		if !reflect.DeepEqual(err != nil, test.err) {
+			t.Errorf("%q: got %v, want %v", test.key, err != nil, test.err)
+		}
+	}
+}
+
 func TestScanPrefixArgs(t *testing.T) {
 	tests := []struct {
 		stKeyPrefix, prefix, wantStart, wantLimit string

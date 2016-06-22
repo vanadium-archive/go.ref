@@ -73,9 +73,27 @@ func ParseRowKey(key string) (collection wire.Id, row string, err error) {
 func ParseRowKeyOrDie(key string) (collection wire.Id, row string) {
 	collection, row, err := ParseRowKey(key)
 	if err != nil {
+		// TODO(ivanpi): Get rid of *OrDie() functions. Always log internal errors.
 		vlog.Fatal(err)
 	}
 	return collection, row
+}
+
+// ParseCollectionPermsKey extracts the collection id from the given storage
+// engine key for a collection perms entry. Returns an error if the given key
+// is not a storage engine key for a collection perms entry.
+func ParseCollectionPermsKey(key string) (collection wire.Id, err error) {
+	// TODO(rdaoud,ivanpi): See hack in collection.go.
+	parts := SplitNKeyParts(key, 3)
+	pfx := parts[0]
+	if len(parts) < 3 || pfx != CollectionPermsPrefix || parts[2] != "" {
+		return wire.Id{}, fmt.Errorf("ParseCollectionPermsKey: invalid key %q", key)
+	}
+	cxId, err := util.DecodeId(parts[1])
+	if err != nil {
+		return wire.Id{}, fmt.Errorf("ParseCollectionPermsKey: invalid collection %q: %v", parts[1], err)
+	}
+	return cxId, nil
 }
 
 // ScanPrefixArgs returns args for sn.Scan() for the specified prefix.

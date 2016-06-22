@@ -197,10 +197,11 @@ func CheckExecError(t testing.TB, ctx *context.T, db syncbase.DatabaseHandle, q 
 }
 
 // A WatchChangeTest is a syncbase.WatchChange that has a public ValueBytes
-// field, to allow tests to set it.
+// and CollectionInfo field, to allow tests to set them.
 type WatchChangeTest struct {
 	syncbase.WatchChange
-	ValueBytes *vom.RawBytes
+	ValueBytes     *vom.RawBytes
+	CollectionInfo *wire.StoreChangeCollectionInfo
 }
 
 func WatchChangeTestRootPut(resumeMarker watch.ResumeMarker) WatchChangeTest {
@@ -208,6 +209,42 @@ func WatchChangeTestRootPut(resumeMarker watch.ResumeMarker) WatchChangeTest {
 		WatchChange: syncbase.WatchChange{
 			EntityType:   syncbase.EntityRoot,
 			ChangeType:   syncbase.PutChange,
+			ResumeMarker: resumeMarker,
+			Continued:    (resumeMarker == nil),
+		},
+	}
+}
+
+func WatchChangeTestCollectionPut(cxId wire.Id, allowedTags []access.Tag, perms access.Permissions, resumeMarker watch.ResumeMarker) WatchChangeTest {
+	allowedTagsSet := make(map[access.Tag]struct{})
+	if len(allowedTags) == 0 {
+		allowedTagsSet = nil
+	} else {
+		for _, tag := range allowedTags {
+			allowedTagsSet[tag] = struct{}{}
+		}
+	}
+	return WatchChangeTest{
+		WatchChange: syncbase.WatchChange{
+			EntityType:   syncbase.EntityCollection,
+			Collection:   cxId,
+			ChangeType:   syncbase.PutChange,
+			ResumeMarker: resumeMarker,
+			Continued:    (resumeMarker == nil),
+		},
+		CollectionInfo: &wire.StoreChangeCollectionInfo{
+			Allowed: allowedTagsSet,
+			Perms:   perms,
+		},
+	}
+}
+
+func WatchChangeTestCollectionDelete(cxId wire.Id, resumeMarker watch.ResumeMarker) WatchChangeTest {
+	return WatchChangeTest{
+		WatchChange: syncbase.WatchChange{
+			EntityType:   syncbase.EntityCollection,
+			Collection:   cxId,
+			ChangeType:   syncbase.DeleteChange,
 			ResumeMarker: resumeMarker,
 			Continued:    (resumeMarker == nil),
 		},
@@ -262,6 +299,8 @@ func WatchChangeEq(got *syncbase.WatchChange, want *WatchChangeTest) (eq bool) {
 				wantErr := want.ValueBytes.ToValue(&wantValue)
 				eq = ((gotErr == nil) == (wantErr == nil)) &&
 					reflect.DeepEqual(gotValue, wantValue)
+			case syncbase.EntityCollection:
+				eq = reflect.DeepEqual(got.CollectionInfo(), want.CollectionInfo)
 			default:
 				eq = true
 			}
@@ -278,7 +317,11 @@ func CheckWatch(t testing.TB, wstream syncbase.WatchStream, changes []WatchChang
 			Fatalf(t, "wstream.Advance() reached the end: %v", wstream.Err())
 		}
 		if got := wstream.Change(); !WatchChangeEq(&got, &want) {
-			Fatalf(t, "unexpected watch change: got %+v, want %+v", got, want)
+			if got.ChangeType == syncbase.PutChange && got.EntityType == syncbase.EntityCollection {
+				Fatalf(t, "unexpected watch change: got %+v, want %+v (cx info: got %+v, want %+v)", got, want, got.CollectionInfo(), want.CollectionInfo)
+			} else {
+				Fatalf(t, "unexpected watch change: got %+v, want %+v", got, want)
+			}
 		}
 	}
 }
