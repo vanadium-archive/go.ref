@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shirou/gopsutil/cpu"
@@ -23,6 +24,12 @@ import (
 	"v.io/x/lib/metadata"
 	"v.io/x/ref"
 	"v.io/x/ref/lib/stats"
+	"v.io/x/ref/lib/stats/counter"
+)
+
+var (
+	counters     = map[string]*counter.Counter{}
+	countersLock sync.Mutex
 )
 
 func init() {
@@ -60,15 +67,13 @@ func exportEnv() {
 }
 
 func exportMemStats() {
-	mstats := stats.NewMap("system/memstats")
-
 	// Get field names to export.
 	var memstats runtime.MemStats
 	fieldNames := getFieldNames(memstats)
 	updateStats := func() {
 		var memstats runtime.MemStats
 		runtime.ReadMemStats(&memstats)
-		updateStatsMap(mstats, memstats, fieldNames)
+		updateStats("system/memstats", memstats, fieldNames)
 	}
 	// Update stats now and every 10 seconds afterwards.
 	updateStats()
@@ -92,8 +97,6 @@ func exportMetaData() {
 }
 
 func exportSysMem() {
-	sysMemStats := stats.NewMap("system/sysmem")
-
 	// Get field names to export.
 	var s mem.VirtualMemoryStat
 	fieldNames := getFieldNames(s)
@@ -101,7 +104,7 @@ func exportSysMem() {
 	// Update stats now and every 10 seconds afterwards.
 	updateStats := func() {
 		if s, err := mem.VirtualMemory(); err == nil {
-			updateStatsMap(sysMemStats, *s, fieldNames)
+			updateStats("system/sysmem", *s, fieldNames)
 		}
 	}
 	go func() {
@@ -113,8 +116,6 @@ func exportSysMem() {
 }
 
 func exportSysCpu() {
-	sysCpuStats := stats.NewMap("system/syscpu")
-
 	// Get field names to export.
 	type cpuStat struct {
 		Percent   float64
@@ -158,7 +159,7 @@ func exportSysCpu() {
 			GuestNice: t.GuestNice,
 			Stolen:    t.Stolen,
 		}
-		updateStatsMap(sysCpuStats, s, fieldNames)
+		updateStats("system/syscpu", s, fieldNames)
 	}
 	go func() {
 		for {
@@ -174,8 +175,6 @@ func exportSysDisk() {
 		return
 	}
 	for _, path := range strings.Split(strPaths, ",") {
-		sysDiskStats := stats.NewMap(fmt.Sprintf("system/sysdisk/%s", naming.EncodeAsNameElement(path)))
-
 		// Get field names to export.
 		var s disk.UsageStat
 		fieldNames := getFieldNames(s)
@@ -184,7 +183,7 @@ func exportSysDisk() {
 		curPath := path
 		updateStats := func() {
 			if s, err := disk.Usage(curPath); err == nil {
-				updateStatsMap(sysDiskStats, *s, fieldNames)
+				updateStats(fmt.Sprintf("system/sysdisk/%s/%s", naming.EncodeAsNameElement(path)), *s, fieldNames)
 			}
 		}
 		go func() {
@@ -209,14 +208,55 @@ func getFieldNames(i interface{}) []string {
 	return fieldNames
 }
 
-func updateStatsMap(m *stats.Map, s interface{}, fieldNames []string) {
+func updateStats(rootName string, s interface{}, fieldNames []string) {
 	v := reflect.ValueOf(s)
-	kv := make([]stats.KeyValue, len(fieldNames))
-	for i, name := range fieldNames {
-		kv[i] = stats.KeyValue{
-			Key:   name,
-			Value: v.FieldByName(name).Interface(),
+	for _, name := range fieldNames {
+		counterName := fmt.Sprintf("%s/%s", rootName, name)
+		c := getCounter(counterName)
+		i := v.FieldByName(name).Interface()
+		v := int64(0)
+		switch t := i.(type) {
+		case bool:
+			if t {
+				v = 1
+			}
+		case int:
+			v = int64(t)
+		case int8:
+			v = int64(t)
+		case int16:
+			v = int64(t)
+		case int32:
+			v = int64(t)
+		case int64:
+			v = int64(t)
+		case uint:
+			v = int64(t)
+		case uint8:
+			v = int64(t)
+		case uint16:
+			v = int64(t)
+		case uint32:
+			v = int64(t)
+		case uint64:
+			v = int64(t)
+		case float32:
+			v = int64(t)
+		case float64:
+			v = int64(t)
+		default:
+			fmt.Fprintf(os.Stderr, "not exporting %q (type %T not supported)", name, t)
+			continue
 		}
+		c.Set(v)
 	}
-	m.Set(kv)
+}
+
+func getCounter(counterName string) *counter.Counter {
+	countersLock.Lock()
+	defer countersLock.Unlock()
+	if _, ok := counters[counterName]; !ok {
+		counters[counterName] = stats.NewCounter(counterName)
+	}
+	return counters[counterName]
 }

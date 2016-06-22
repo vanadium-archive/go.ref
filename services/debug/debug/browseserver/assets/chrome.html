@@ -21,7 +21,145 @@
         body header {
             background-color: #00838F !important;
         }
+
+        .mdl-data-table__cell--non-numeric pre {
+            margin: 0px;
+            white-space: pre-wrap;
+        }
+
+        .chart-container {
+          position: relative;
+          width: 800px;
+          height: 400px;
+        }
+
+        .area-chart {
+          position: absolute;
+          display: none;
+        }
+
+        .area-chart.selected {
+          display: block;
+        }
+
+        .duration-selector-container {
+          bottom: 8px;
+          right: 20px;
+          position: absolute;
+          display: flex;
+          line-height: 20px;
+          height: 20px;
+        }
+
+        .duration-selector {
+          cursor: pointer;
+          padding: 0px 4px 0px 4px;
+        }
+
+        .duration-selector:not(.selected):hover {
+          background-color: #CCC;
+        }
+
+        .duration-selector.selected {
+          background-color: #00838f;
+          color: white;
+        }
     </style>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      function drawHistoryGraphs(d) {
+        // Convert data.
+        var data = JSON.parse(d);
+        var keys = ['1m', '10m', '1h'];
+        keys.forEach(function(k) {
+          data[k] = data[k].map(function(ele) {
+            return [new Date(parseInt(ele[0] * 1000)), parseInt(ele[1])];
+          });
+        });
+        var defaultDuration = '1h';
+
+        // Create and setup graphs and duration selectors.
+        var container = document.currentScript.parentNode;
+        google.charts.load("current", {packages:["corechart"]});
+        google.charts.setOnLoadCallback(function() {
+          // Create container for charts.
+          var chartContainer = document.createElement('div');
+          chartContainer.className = 'chart-container';
+          container.appendChild(chartContainer);
+
+          // Create container for duration selectors.
+          var durationSelectorContainer = document.createElement('div');
+          durationSelectorContainer.className = 'duration-selector-container';
+          container.appendChild(durationSelectorContainer);
+
+          // Create graphs and duration selectors.
+          var graphs = {};
+          var selectors = {};
+          keys.forEach(function(k) {
+            // Create graph.
+            var graph = document.createElement('div');
+            graphs[k] = graph;
+            graph.className = 'area-chart';
+            if (k === defaultDuration) {
+              graph.className += ' selected';
+            }
+            chartContainer.appendChild(graph);
+            var dt = new google.visualization.DataTable();
+            dt.addColumn('datetime', '');
+            dt.addColumn('number', '');
+            dt.addRows(data[k]);
+            var options = {
+              width: 800,
+              height: 400,
+              legend: {
+                position: 'none'
+              },
+              series: {
+                0: {
+                  color: '#00838F'
+                }
+              },
+              vAxis: {
+                format: 'short'
+              },
+              'chartArea': {
+                left: 80
+              },
+              backgroundColor: {fill: 'transparent'},
+            };
+            var chart = new google.visualization.AreaChart(graph);
+            chart.draw(dt, options);
+
+            // Create duration selector for this graph.
+            var selector= document.createElement('div');
+            selectors[k] = selector;
+            selector.className = 'duration-selector';
+            if (k === defaultDuration) {
+              selector.className += ' selected';
+            }
+            var selectorText = document.createTextNode(k);
+            selector.appendChild(selectorText);
+            durationSelectorContainer.appendChild(selector);
+          });
+
+          // Add click handler for each selector.
+          keys.forEach(function(k) {
+            var curKey = k;
+            selectors[k].addEventListener('click', function() {
+              keys.forEach(function(k) {
+                if (k == curKey) {
+                  graphs[k].className = 'area-chart selected';
+                  selectors[k].className = 'duration-selector selected';
+                } else {
+                  graphs[k].className = 'area-chart'
+                  selectors[k].className = 'duration-selector';
+                }
+              });
+            });
+          });
+        });
+      }
+    </script>
 </head>
 
 <body>

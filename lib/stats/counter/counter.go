@@ -164,7 +164,7 @@ func (c *Counter) timeseries(ts *timeseries) stats.TimeSeries {
 	return stats.TimeSeries{
 		Values:     ts.values(),
 		Resolution: ts.resolution,
-		StartTime:  ts.time,
+		StartTime:  ts.tailTime(),
 	}
 }
 

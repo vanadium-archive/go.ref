@@ -32,7 +32,7 @@ func doGlob(root, pattern string, since time.Time, includeValues bool) ([]libsta
 }
 
 func TestStats(t *testing.T) {
-	now := time.Unix(1, 0)
+	now, start := time.Unix(1, 0), time.Unix(1, 0)
 	counter.TimeNow = func() time.Time { return now }
 
 	a := libstats.NewInteger("rpc/test/aaa")
@@ -112,17 +112,17 @@ func TestStats(t *testing.T) {
 		libstats.KeyValue{Key: "rpc/test/ddd/timeseries10m", Value: s_stats.TimeSeries{
 			Values:     []int64{4},
 			Resolution: 10 * time.Second,
-			StartTime:  now.Truncate(10 * time.Second),
+			StartTime:  start.Truncate(10 * time.Second),
 		}},
 		libstats.KeyValue{Key: "rpc/test/ddd/timeseries1h", Value: s_stats.TimeSeries{
 			Values:     []int64{4},
 			Resolution: time.Minute,
-			StartTime:  now.Truncate(time.Minute),
+			StartTime:  start.Truncate(time.Minute),
 		}},
 		libstats.KeyValue{Key: "rpc/test/ddd/timeseries1m", Value: s_stats.TimeSeries{
 			Values:     []int64{4},
 			Resolution: time.Second,
-			StartTime:  now,
+			StartTime:  start,
 		}},
 	}
 	if !reflect.DeepEqual(result, expected) {
@@ -186,17 +186,17 @@ func TestStats(t *testing.T) {
 		libstats.KeyValue{Key: "rpc/test/ddd/timeseries10m", Value: s_stats.TimeSeries{
 			Values:     []int64{4, 104},
 			Resolution: 10 * time.Second,
-			StartTime:  now.Truncate(10 * time.Second),
+			StartTime:  start.Truncate(10 * time.Second),
 		}},
 		libstats.KeyValue{Key: "rpc/test/ddd/timeseries1h", Value: s_stats.TimeSeries{
 			Values:     []int64{104},
 			Resolution: time.Minute,
-			StartTime:  now.Truncate(time.Minute),
+			StartTime:  start.Truncate(time.Minute),
 		}},
 		libstats.KeyValue{Key: "rpc/test/ddd/timeseries1m", Value: s_stats.TimeSeries{
 			Values:     []int64{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 104},
 			Resolution: time.Second,
-			StartTime:  now,
+			StartTime:  start,
 		}},
 	}
 	if !reflect.DeepEqual(result, expected) {

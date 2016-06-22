@@ -8,6 +8,7 @@ package browseserver
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -38,6 +39,7 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/ref/services/debug/debug/browseserver/sbtree"
 	"v.io/x/ref/services/internal/pproflib"
+	s_stats "v.io/x/ref/services/stats"
 	"v.io/x/ref/services/syncbase/fake"
 )
 
@@ -337,6 +339,11 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else if err == nil {
 		err = globErr
 	}
+	timeSeriesData, tsErr := h.GetTimeSeriesData(server, children, timeoutCtx)
+	if tsErr != nil {
+		err = tsErr
+	}
+
 	args := struct {
 		ServerName     string
 		CommandLine    string
@@ -346,15 +353,17 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Children       []string
 		ChildrenErrors []error
 		Globbed        bool
+		TimeSeriesData string
 		Error          error
 	}{
 		ServerName:     server,
 		Vtrace:         tracer,
-		StatName:       stat,
+		StatName:       strings.TrimPrefix(stat, "/"),
 		Value:          v,
 		Error:          err,
 		Children:       children,
 		ChildrenErrors: childrenErrors,
+		TimeSeriesData: timeSeriesData,
 		Globbed:        len(children)+len(childrenErrors) > 0,
 	}
 	if hasValue {
@@ -363,6 +372,47 @@ func (h *statsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		args.CommandLine = fmt.Sprintf("debug glob %q", naming.Join(name, "*"))
 	}
 	h.execute(h.ctx, w, r, "stats.html", args)
+}
+
+func (h *statsHandler) GetTimeSeriesData(server string, children []string, ctx *context.T) (string, error) {
+	// duration -> [[t0, v0], [t1, v1], ... , [tn, vn]]
+	timeSeriesData := map[string][][]string{}
+	for _, child := range children {
+		// Read data from time series related children.
+		if strings.Contains(child, "/timeseries") {
+			n := fmt.Sprintf("%s%s", naming.Join(server, "__debug", "stats"), child)
+			v, err := stats.StatsClient(n).Value(ctx)
+			if err != nil && verror.ErrorID(err) != verror.ErrNoExist.ID {
+				return "", err
+			}
+			var value interface{}
+			if err := v.ToValue(&value); err != nil {
+				return "", err
+			}
+			ts, ok := value.(s_stats.TimeSeries)
+			if !ok {
+				return "", fmt.Errorf("%q doesn't contain time series data", child)
+			}
+			d := [][]string{}
+			startTime := ts.StartTime.Unix()
+			resolutionInSeconds := int64(ts.Resolution / time.Second)
+			for i, v := range ts.Values {
+				curTime := startTime + int64(i)*resolutionInSeconds
+				d = append(d, []string{fmt.Sprintf("%d", curTime), fmt.Sprintf("%d", v)})
+			}
+			parts := strings.Split(child, "/")
+			duration := strings.TrimPrefix(parts[len(parts)-1], "timeseries")
+			timeSeriesData[duration] = d
+		}
+	}
+	if len(timeSeriesData) == 0 {
+		return "", nil
+	}
+	b, err := json.Marshal(timeSeriesData)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 type logsHandler struct{ *handler }

@@ -53,3 +53,15 @@ func (v HistogramValue) String() string {
 	v.Print(&b)
 	return b.String()
 }
+
+// Print writes textual output of the TimeSeries values.
+func (ts TimeSeries) Print(w io.Writer) {
+	fmt.Fprintf(w, "Start time: %v\nResolution: %v\nValues: %v", ts.StartTime, ts.Resolution, ts.Values)
+}
+
+// String returns the textual output of the TimeSeries values as string.
+func (ts TimeSeries) String() string {
+	var b bytes.Buffer
+	ts.Print(&b)
+	return b.String()
+}

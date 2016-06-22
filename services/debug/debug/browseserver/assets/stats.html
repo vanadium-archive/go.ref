@@ -9,6 +9,10 @@
     <div class="mdl-cell mdl-cell--12-col">
         <table class="mdl-data-table mdl-js-data-table mdl-data-table--selectable mdl-shadow--2dp">
             <tbody>
+                <tr>
+                    <td class="mdl-data-table__cell--non-numeric">Stat Name</td>
+                    <td class="mdl-data-table__cell--non-numeric"><pre>{{.StatName}}</pre></td>
+                </tr>
                 {{with $goVal := goValueFromVOM .Value}}
                 <tr>
                     <td class="mdl-data-table__cell--non-numeric">Value (Go)</td>
@@ -28,6 +32,12 @@
                     <td class="mdl-data-table__cell--non-numeric">Type (VDL)</td>
                     <td class="mdl-data-table__cell--non-numeric fixed-width">{{.Value.Type}}</td>
                 </tr>
+                {{with .TimeSeriesData}}
+                <tr>
+                    <td class="mdl-data-table__cell--non-numeric">History</td>
+                    <td class="mdl-data-table__cell--non-numeric"><script>drawHistoryGraphs('{{.}}')</script></td>
+                </tr>
+                {{end}}
             </tbody>
         </table>
     </div>
