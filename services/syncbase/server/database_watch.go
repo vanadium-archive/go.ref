@@ -70,24 +70,35 @@ func (d *database) watchWithFilter(ctx *context.T, call rpc.ServerCall, sender *
 	}
 	initImpl := func(sntx store.SnapshotOrTransaction) error {
 		// TODO(ivanpi): Check permissions here.
-		// Get the resume marker and fetch the initial state if necessary.
-		if len(resumeMarker) == 0 {
+		needInitialState := len(resumeMarker) == 0
+		needResumeMarker := needInitialState || bytes.Equal(resumeMarker, []byte("now"))
+		// Get the resume marker if necessary.
+		if needResumeMarker {
 			var err error
-			if resumeMarker, err = watchable.GetResumeMarker(sntx); err != nil {
-				return err
-			}
-			// Send initial state.
-			if err = d.scanInitialState(ctx, call, sender, sntx, watchFilter); err != nil {
-				return err
-			}
-		} else if bytes.Equal(resumeMarker, []byte("now")) {
-			var err error
-			// TODO(ivanpi): Add initial_state_skipped change.
 			if resumeMarker, err = watchable.GetResumeMarker(sntx); err != nil {
 				return err
 			}
 		}
-		// Finalize initial state batch if necessary.
+		// Send the root update to notify the client that watch has started.
+		rootChangeState := watch.InitialStateSkipped
+		if needInitialState {
+			rootChangeState = watch.Exists
+		}
+		if err := sender.addChange(
+			"",
+			rootChangeState,
+			&wire.StoreChange{
+				FromSync: false,
+			}); err != nil {
+			return err
+		}
+		// Send initial state if necessary.
+		if needInitialState {
+			if err := d.scanInitialState(ctx, call, sender, sntx, watchFilter); err != nil {
+				return err
+			}
+		}
+		// Finalize initial state or root update batch.
 		return sender.finishBatch(resumeMarker)
 	}
 	if err := store.RunWithSnapshot(d.st, initImpl); err != nil {
@@ -99,8 +110,6 @@ func (d *database) watchWithFilter(ctx *context.T, call rpc.ServerCall, sender *
 // scanInitialState sends the initial state of all matching and accessible
 // collections and rows in the database. Checks access on collections, but
 // not on database.
-// TODO(ivanpi): Send dummy update for empty prefix to be compatible with
-// v.io/v23/services/watch.
 // TODO(ivanpi): Abstract out multi-scan for scan and possibly query support.
 // TODO(ivanpi): Use watch pattern prefixes to optimize scan ranges.
 func (d *database) scanInitialState(ctx *context.T, call rpc.ServerCall, sender *watchBatchSender, sntx store.SnapshotOrTransaction, watchFilter filter.CollectionRowFilter) error {
@@ -126,7 +135,7 @@ func (d *database) scanInitialState(ctx *context.T, call rpc.ServerCall, sender 
 			id: cxId,
 			d:  d,
 		}
-		// Check permissions.
+		// Check permissions for row access.
 		// TODO(ivanpi): Collection scan already gets perms, optimize?
 		if _, err := c.checkAccess(ctx, call, sntx); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoAccess.ID {
@@ -169,7 +178,7 @@ func (c *collectionReq) scanInitialState(ctx *context.T, call rpc.ServerCall, se
 		// Send row.
 		var valueAsRawBytes *vom.RawBytes
 		if err := vom.Decode(value, &valueAsRawBytes); err != nil {
-			return err
+			return verror.New(verror.ErrInternal, ctx, err)
 		}
 		if err := sender.addChange(
 			naming.Join(pubutil.EncodeId(c.id), externalKey),
@@ -205,7 +214,8 @@ func (d *database) watchUpdates(ctx *context.T, call rpc.ServerCall, sender *wat
 			// a time, and would need to be updated as well.
 			logs, nextResumeMarker, err := watchable.ReadBatchFromLog(d.st, resumeMarker)
 			if err != nil {
-				return err
+				// TODO(ivanpi): Log all internal errors, especially ones not returned.
+				return verror.NewErrInternal(ctx) // no detailed error before access check
 			}
 			if logs == nil {
 				// No new log records available at this time.
@@ -241,11 +251,12 @@ func (d *database) processLogBatch(ctx *context.T, call rpc.ServerCall, sender *
 	defer sn.Abort()
 	// TODO(ivanpi): Recheck database perms here and fail, or cache for collection
 	// access checks.
+	valueBytes := []byte{}
 	for _, logEntry := range logs {
 		var opKey string
 		var op interface{}
 		if err := logEntry.Op.ToValue(&op); err != nil {
-			return err
+			return verror.NewErrInternal(ctx) // no detailed error before access check
 		}
 		switch op := op.(type) {
 		case *watchable.PutOp:
@@ -260,7 +271,10 @@ func (d *database) processLogBatch(ctx *context.T, call rpc.ServerCall, sender *
 		if !common.IsRowKey(opKey) {
 			continue
 		}
-		cxId, row := common.ParseRowKeyOrDie(opKey)
+		cxId, row, err := common.ParseRowKey(opKey)
+		if err != nil {
+			return verror.NewErrInternal(ctx) // no detailed error before access check
+		}
 		// Filter out unnecessary rows.
 		if !watchFilter.RowMatches(cxId, row) {
 			continue
@@ -276,6 +290,8 @@ func (d *database) processLogBatch(ctx *context.T, call rpc.ServerCall, sender *
 				// Note, the collection may not exist anymore, in which case permissions
 				// cannot be retrieved. This case is treated the same as ErrNoAccess, by
 				// skipping the row.
+				// TODO(ivanpi): Consider using the implicit ACL instead for nonexistent
+				// collections.
 				// TODO(ivanpi): Inaccessible rows are skipped. Figure out how to signal
 				// this to caller.
 				continue
@@ -284,15 +300,18 @@ func (d *database) processLogBatch(ctx *context.T, call rpc.ServerCall, sender *
 		}
 		switch op := op.(type) {
 		case *watchable.PutOp:
-			rowValue, err := watchable.GetAtVersion(ctx, sn, op.Key, nil, op.Version)
-			if err != nil {
-				return err
+			// Note, valueBytes is reused on each iteration, so the reference must not
+			// be used beyond this case block. The code below is safe since only the
+			// VOM-decoded copy is used after the call to vom.Decode.
+			if valueBytes, err = watchable.GetAtVersion(ctx, sn, op.Key, valueBytes, op.Version); err != nil {
+				return verror.New(verror.ErrInternal, ctx, err)
 			}
 			var rowValueAsRawBytes *vom.RawBytes
-			if err := vom.Decode(rowValue, &rowValueAsRawBytes); err != nil {
-				return err
+			if err := vom.Decode(valueBytes, &rowValueAsRawBytes); err != nil {
+				return verror.New(verror.ErrInternal, ctx, err)
 			}
-			if err := sender.addChange(naming.Join(pubutil.EncodeId(cxId), row),
+			if err := sender.addChange(
+				naming.Join(pubutil.EncodeId(cxId), row),
 				watch.Exists,
 				&wire.StoreChange{
 					Value:    rowValueAsRawBytes,
@@ -301,7 +320,8 @@ func (d *database) processLogBatch(ctx *context.T, call rpc.ServerCall, sender *
 				return err
 			}
 		case *watchable.DeleteOp:
-			if err := sender.addChange(naming.Join(pubutil.EncodeId(cxId), row),
+			if err := sender.addChange(
+				naming.Join(pubutil.EncodeId(cxId), row),
 				watch.DoesNotExist,
 				&wire.StoreChange{
 					FromSync: logEntry.FromSync,

@@ -33,8 +33,10 @@ func TestWatcher(t *testing.T) {
 		OnChange: func(watchChange syncbase.WatchChange) {
 			mu.Lock()
 			defer mu.Unlock()
-			gotRows = append(gotRows, watchChange.Row)
-			wg.Done()
+			if watchChange.EntityType == syncbase.EntityRow {
+				gotRows = append(gotRows, watchChange.Row)
+				wg.Done()
+			}
 		},
 	}
 

@@ -203,9 +203,21 @@ type WatchChangeTest struct {
 	ValueBytes *vom.RawBytes
 }
 
+func WatchChangeTestRootPut(resumeMarker watch.ResumeMarker) WatchChangeTest {
+	return WatchChangeTest{
+		WatchChange: syncbase.WatchChange{
+			EntityType:   syncbase.EntityRoot,
+			ChangeType:   syncbase.PutChange,
+			ResumeMarker: resumeMarker,
+			Continued:    (resumeMarker == nil),
+		},
+	}
+}
+
 func WatchChangeTestRowPut(cxId wire.Id, rowKey string, value interface{}, resumeMarker watch.ResumeMarker) WatchChangeTest {
 	return WatchChangeTest{
 		WatchChange: syncbase.WatchChange{
+			EntityType:   syncbase.EntityRow,
 			Collection:   cxId,
 			Row:          rowKey,
 			ChangeType:   syncbase.PutChange,
@@ -219,6 +231,7 @@ func WatchChangeTestRowPut(cxId wire.Id, rowKey string, value interface{}, resum
 func WatchChangeTestRowDelete(cxId wire.Id, rowKey string, resumeMarker watch.ResumeMarker) WatchChangeTest {
 	return WatchChangeTest{
 		WatchChange: syncbase.WatchChange{
+			EntityType:   syncbase.EntityRow,
 			Collection:   cxId,
 			Row:          rowKey,
 			ChangeType:   syncbase.DeleteChange,
@@ -230,7 +243,8 @@ func WatchChangeTestRowDelete(cxId wire.Id, rowKey string, resumeMarker watch.Re
 
 // WatchChangeEq returns whether *want and *got represent the same value.
 func WatchChangeEq(got *syncbase.WatchChange, want *WatchChangeTest) (eq bool) {
-	if want.Collection == got.Collection &&
+	if want.EntityType == got.EntityType &&
+		want.Collection == got.Collection &&
 		want.Row == got.Row &&
 		want.ChangeType == got.ChangeType &&
 		bytes.Equal(want.ResumeMarker, got.ResumeMarker) &&
@@ -240,12 +254,17 @@ func WatchChangeEq(got *syncbase.WatchChange, want *WatchChangeTest) (eq bool) {
 		if want.ChangeType == syncbase.DeleteChange {
 			eq = true
 		} else {
-			var wantValue interface{}
-			var gotValue interface{}
-			gotErr := got.Value(&gotValue)
-			wantErr := want.ValueBytes.ToValue(&wantValue)
-			eq = ((gotErr == nil) == (wantErr == nil)) &&
-				reflect.DeepEqual(gotValue, wantValue)
+			switch want.EntityType {
+			case syncbase.EntityRow:
+				var wantValue interface{}
+				var gotValue interface{}
+				gotErr := got.Value(&gotValue)
+				wantErr := want.ValueBytes.ToValue(&wantValue)
+				eq = ((gotErr == nil) == (wantErr == nil)) &&
+					reflect.DeepEqual(gotValue, wantValue)
+			default:
+				eq = true
+			}
 		}
 	}
 	return eq

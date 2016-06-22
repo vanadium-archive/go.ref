@@ -328,9 +328,11 @@ func TestRunUniverseSingleDeviceWithTwoClients(t *testing.T) {
 	control.RegisterClient("test-watcher", func() client.Client {
 		return &client.Watcher{
 			OnChange: func(wc syncbase.WatchChange) {
-				changesReceived++
-				if changesReceived == 5 {
-					mu.Unlock()
+				if wc.EntityType == syncbase.EntityRow {
+					changesReceived++
+					if changesReceived == 5 {
+						mu.Unlock()
+					}
 				}
 			},
 		}
@@ -381,9 +383,11 @@ func TestRunUniverseTwoDevicesWithClients(t *testing.T) {
 	control.RegisterClient("test-watcher", func() client.Client {
 		return &client.Watcher{
 			OnChange: func(wc syncbase.WatchChange) {
-				changesReceived++
-				if changesReceived == 5 {
-					mu.Unlock()
+				if wc.EntityType == syncbase.EntityRow {
+					changesReceived++
+					if changesReceived == 5 {
+						mu.Unlock()
+					}
 				}
 			},
 		}
