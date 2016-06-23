@@ -72,15 +72,9 @@ static void CallCollectionScanCallbacksOnDone(v23_syncbase_CollectionScanCallbac
 static void CallDbSyncgroupInvitesOnInvite(v23_syncbase_DbSyncgroupInvitesCallbacks cbs, v23_syncbase_Invite i) {
   cbs.onInvite(cbs.handle, i);
 }
-static void CallDbSyncgroupInvitesOnDone(v23_syncbase_DbSyncgroupInvitesCallbacks cbs) {
-  cbs.onDone(cbs.handle);
-}
 
 static void CallNeighborhoodScanCallbacksOnPeer(v23_syncbase_NeighborhoodScanCallbacks cbs, v23_syncbase_AppPeer p) {
   cbs.onPeer(cbs.handle, p);
-}
-static void CallNeighborhoodScanCallbacksOnDone(v23_syncbase_NeighborhoodScanCallbacks cbs) {
-  cbs.onDone(cbs.handle);
 }
 */
 import "C"
@@ -98,7 +92,6 @@ var (
 	// testLogin indicates if the test login mode is used. This is triggered
 	// by using an empty identity provider.
 	testLogin bool
-
 	// neighborhoodAdStatus tracks the status of the neighborhood advertisement.
 	neighborhoodAdStatus *adStatus
 )
@@ -123,6 +116,7 @@ func v23_syncbase_Init(cClientUnderstandVom C.v23_syncbase_Bool, cRootDir C.v23_
 	if isLoggedIn() {
 		v23_syncbase_Serve(&cErr)
 	}
+	neighborhoodAdStatus = newAdStatus()
 }
 
 type adStatus struct {
@@ -362,7 +356,6 @@ func v23_syncbase_NeighborhoodNewScan(cbs C.v23_syncbase_NeighborhoodScanCallbac
 		for {
 			peer, ok := <-scanChan
 			if !ok {
-				C.CallNeighborhoodScanCallbacksOnDone(cbs)
 				break
 			}
 			cPeer := C.v23_syncbase_AppPeer{}
@@ -771,7 +764,6 @@ func v23_syncbase_DbSyncgroupInvitesNewScan(cName C.v23_syncbase_String, cbs C.v
 		for {
 			invite, ok := <-scanChan
 			if !ok {
-				C.CallDbSyncgroupInvitesOnDone(cbs)
 				break
 			}
 			cInvite := C.v23_syncbase_Invite{}

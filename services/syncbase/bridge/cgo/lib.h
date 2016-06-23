@@ -140,6 +140,7 @@ typedef struct {
 typedef struct {
   v23_syncbase_Id syncgroup;
   v23_syncbase_Strings addresses;
+  v23_syncbase_Strings blessingNames;
 } v23_syncbase_Invite;
 
 // syncbase.discovery.AppPeer
@@ -169,13 +170,11 @@ typedef struct {
 typedef struct {
   v23_syncbase_Handle handle;
   void (*onInvite)(v23_syncbase_Handle handle, v23_syncbase_Invite);
-  void (*onDone)(v23_syncbase_Handle handle);
 } v23_syncbase_DbSyncgroupInvitesCallbacks;
 
 typedef struct {
   v23_syncbase_Handle handle;
   void (*onPeer)(v23_syncbase_Handle handle, v23_syncbase_AppPeer);
-  void (*onDone)(v23_syncbase_Handle handle);
 } v23_syncbase_NeighborhoodScanCallbacks;
 
 #endif  // V23_SYNCBASE_LIB_H_

@@ -321,6 +321,66 @@ func newJChangeType(env *C.JNIEnv) jChangeType {
 	}
 }
 
+type jSyncgroupInvite struct {
+	class         C.jclass
+	init          C.jmethodID
+	syncgroup     C.jfieldID
+	addresses     C.jfieldID
+	blessingNames C.jfieldID
+}
+
+func newJSyncgroupInvite(env *C.JNIEnv) jSyncgroupInvite {
+	cls, init := initClass(env, "io/v/syncbase/core/SyncgroupInvite")
+	return jSyncgroupInvite{
+		class:         cls,
+		init:          init,
+		syncgroup:     jGetFieldID(env, cls, "syncgroup", "Lio/v/syncbase/core/Id;"),
+		addresses:     jGetFieldID(env, cls, "addresses", "Ljava/util/List;"),
+		blessingNames: jGetFieldID(env, cls, "blessingNames", "Ljava/util/List;"),
+	}
+}
+
+type jSyncgroupInvitesCallbacks struct {
+	onInvite C.jmethodID
+}
+
+func newJSyncgroupInvitesCallbacks(env *C.JNIEnv, obj C.jobject) jSyncgroupInvitesCallbacks {
+	cls := C.GetObjectClass(env, obj)
+	return jSyncgroupInvitesCallbacks{
+		onInvite: jGetMethodID(env, cls, "onInvite", "(Lio/v/syncbase/core/SyncgroupInvite;)V"),
+	}
+}
+
+type jNeighborhoodPeer struct {
+	class     C.jclass
+	init      C.jmethodID
+	appName   C.jfieldID
+	blessings C.jfieldID
+	isLost    C.jfieldID
+}
+
+func newJNeighborhoodPeer(env *C.JNIEnv) jNeighborhoodPeer {
+	cls, init := initClass(env, "io/v/syncbase/core/NeighborhoodPeer")
+	return jNeighborhoodPeer{
+		class:     cls,
+		init:      init,
+		appName:   jGetFieldID(env, cls, "appName", "Ljava/lang/String;"),
+		blessings: jGetFieldID(env, cls, "blessings", "Ljava/lang/String;"),
+		isLost:    jGetFieldID(env, cls, "isLost", "Z"),
+	}
+}
+
+type jNeighborhoodScanCallbacks struct {
+	onPeer C.jmethodID
+}
+
+func newJNeigbhorhoodScanCallbacks(env *C.JNIEnv, obj C.jobject) jNeighborhoodScanCallbacks {
+	cls := C.GetObjectClass(env, obj)
+	return jNeighborhoodScanCallbacks{
+		onPeer: jGetMethodID(env, cls, "onPeer", "(Lio/v/syncbase/core/NeighborhoodPeer;)V"),
+	}
+}
+
 // initClass returns the jclass and the jmethodID of the default constructor for
 // a class.
 func initClass(env *C.JNIEnv, name string) (C.jclass, C.jmethodID) {

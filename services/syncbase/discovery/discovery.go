@@ -15,6 +15,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/conventions"
 	"v.io/v23/discovery"
+	"v.io/v23/naming"
 	"v.io/v23/security"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/syncbase/util"
@@ -920,10 +921,11 @@ func (q *copyableQueue) stopScan(cursor int) {
 
 // Invite represents an invitation to join a syncgroup as found via Discovery.
 type Invite struct {
-	Syncgroup wire.Id  // Syncgroup is the Id of the syncgroup you've been invited to.
-	Addresses []string // Addresses are the list of addresses of the inviting server.
-	Lost      bool     // If this invite is a lost invite or not.
-	key       string   // Unexported. The implementation uses this key to de-dupe ads.
+	Syncgroup     wire.Id  // Syncgroup is the Id of the syncgroup you've been invited to.
+	Addresses     []string // Addresses are the list of addresses of the inviting server.
+	BlessingNames []string // BlessingNames are the list of blessings of the inviting server.
+	Lost          bool     // If this invite is a lost invite or not.
+	key           string   // Unexported. The implementation uses this key to de-dupe ads.
 }
 
 func makeInvite(ad discovery.Advertisement) (Invite, wire.Id, bool) {
@@ -942,17 +944,38 @@ func makeInvite(ad discovery.Advertisement) (Invite, wire.Id, bool) {
 		return Invite{}, dbId, false
 	}
 	i := Invite{
-		Addresses: append([]string{}, ad.Addresses...),
-		Syncgroup: sgId,
+		Addresses:     append([]string{}, ad.Addresses...),
+		BlessingNames: computeBlessingNamesFromEndpoints(ad.Addresses),
+		Syncgroup:     sgId,
 	}
 	sort.Strings(i.Addresses)
 	i.key = fmt.Sprintf("%v", i)
 	return i, dbId, true
 }
 
+// computeBlessingNamesFromEndpoints parses endpoints and concatenates found blessings together.
+func computeBlessingNamesFromEndpoints(addresses []string) []string {
+	blessingsMap := make(map[string]struct{})
+
+	for _, address := range addresses {
+		if e, err := naming.ParseEndpoint(address); err != nil {
+			for _, name := range e.BlessingNames() {
+				blessingsMap[name] = struct{}{}
+			}
+		}
+	}
+
+	blessingNames := make([]string, len(blessingsMap))
+	for blessings, _ := range blessingsMap {
+		blessingNames = append(blessingNames, blessings)
+	}
+	return blessingNames
+}
+
 func (i Invite) copy() copyable {
 	cp := i
 	cp.Addresses = append([]string(nil), i.Addresses...)
+	cp.BlessingNames = append([]string(nil), i.BlessingNames...)
 	return cp
 }
 
@@ -967,6 +990,7 @@ func (i Invite) isLost() bool {
 func (i Invite) copyAsLost() copyable {
 	cp := i
 	cp.Addresses = append([]string(nil), i.Addresses...)
+	cp.BlessingNames = append([]string(nil), i.BlessingNames...)
 	cp.Lost = true
 	return cp
 }

@@ -43,6 +43,22 @@ static v23_syncbase_CollectionScanCallbacks newVScanCallbacks() {
   	0, v23_syncbase_internal_onKeyValue, v23_syncbase_internal_onDone};
   return cbs;
 }
+
+void v23_syncbase_internal_onInvite(v23_syncbase_Handle handle, v23_syncbase_Invite);
+
+static v23_syncbase_DbSyncgroupInvitesCallbacks newVSyncgroupInvitesCallbacks() {
+  v23_syncbase_DbSyncgroupInvitesCallbacks cbs = {
+  	0, v23_syncbase_internal_onInvite};
+  return cbs;
+}
+
+void v23_syncbase_internal_onPeer(v23_syncbase_Handle handle, v23_syncbase_AppPeer);
+
+static v23_syncbase_NeighborhoodScanCallbacks newVNeighborhoodScanCallbacks() {
+  v23_syncbase_NeighborhoodScanCallbacks cbs = {
+  	0, v23_syncbase_internal_onPeer};
+  return cbs;
+}
 */
 import "C"
 
@@ -55,7 +71,9 @@ var (
 	hashMapClass                jHashMap
 	idClass                     jIdClass
 	keyValueClass               jKeyValue
+	neighborhoodPeerClass       jNeighborhoodPeer
 	permissionsClass            jPermissions
+	syncgroupInviteClass        jSyncgroupInvite
 	syncgroupMemberInfoClass    jSyncgroupMemberInfo
 	syncgroupSpecClass          jSyncgroupSpec
 	verrorClass                 jVErrorClass
@@ -85,7 +103,9 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 	hashMapClass = newJHashMap(env)
 	idClass = newJIdClass(env)
 	keyValueClass = newJKeyValue(env)
+	neighborhoodPeerClass = newJNeighborhoodPeer(env)
 	permissionsClass = newJPermissions(env)
+	syncgroupInviteClass = newJSyncgroupInvite(env)
 	syncgroupMemberInfoClass = newJSyncgroupMemberInfo(env)
 	syncgroupSpecClass = newJSyncgroupSpec(env)
 	verrorClass = newJVErrorClass(env)
@@ -433,6 +453,46 @@ func Java_io_v_syncbase_internal_Database_WatchPatterns(env *C.JNIEnv, cls C.jcl
 	maybeThrowException(env, &cErr)
 }
 
+//export v23_syncbase_internal_onInvite
+func v23_syncbase_internal_onInvite(handle C.v23_syncbase_Handle, invite C.v23_syncbase_Invite) {
+	id := uint64(uintptr(handle))
+	h := globalRefMap.Get(id).(*inviteCallbacksHandle)
+	env, free := getEnv()
+	obj := invite.extractToJava(env)
+	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
+	C.CallVoidMethodA(env, C.jobject(unsafe.Pointer(h.obj)), h.callbacks.onInvite, &arg)
+	if C.ExceptionOccurred(env) != nil {
+		C.ExceptionDescribe(env)
+		panic("java exception")
+	}
+	free()
+}
+
+type inviteCallbacksHandle struct {
+	obj       uintptr
+	callbacks jSyncgroupInvitesCallbacks
+}
+
+//export Java_io_v_syncbase_internal_Database_SyncgroupInvitesNewScan
+func Java_io_v_syncbase_internal_Database_SyncgroupInvitesNewScan(env *C.JNIEnv, cls C.jclass, name C.jstring, callbacks C.jobject) C.jlong {
+	cName := newVStringFromJava(env, name)
+	cbs := C.newVSyncgroupInvitesCallbacks()
+	cbs.handle = C.v23_syncbase_Handle(uintptr(globalRefMap.Add(&inviteCallbacksHandle{
+		obj:       uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks))),
+		callbacks: newJSyncgroupInvitesCallbacks(env, callbacks),
+	})))
+	var cErr C.v23_syncbase_VError
+	var scanId C.uint64_t
+	v23_syncbase_DbSyncgroupInvitesNewScan(cName, cbs, &scanId, &cErr)
+	maybeThrowException(env, &cErr)
+	return C.jlong(scanId)
+}
+
+//export Java_io_v_syncbase_internal_Database_SyncgroupInvitesStopScan
+func Java_io_v_syncbase_internal_Database_SyncgroupInvitesStopScan(env *C.JNIEnv, cls C.jclass, scanId C.jlong) {
+	v23_syncbase_DbSyncgroupInvitesStopScan(C.uint64_t(scanId))
+}
+
 //export Java_io_v_syncbase_internal_Collection_GetPermissions
 func Java_io_v_syncbase_internal_Collection_GetPermissions(env *C.JNIEnv, cls C.jclass, name C.jstring, handle C.jstring) C.jobject {
 	cName := newVStringFromJava(env, name)
@@ -550,6 +610,65 @@ func Java_io_v_syncbase_internal_Collection_Scan(env *C.JNIEnv, cls C.jclass, na
 	maybeThrowException(env, &cErr)
 }
 
+//export Java_io_v_syncbase_internal_Neighborhood_StartAdvertising
+func Java_io_v_syncbase_internal_Neighborhood_StartAdvertising(env *C.JNIEnv, cls C.jclass, visibility C.jobject) {
+	cVisibility := newVStringsFromJava(env, visibility)
+	var cErr C.v23_syncbase_VError
+	v23_syncbase_NeighborhoodStartAdvertising(cVisibility, &cErr)
+	maybeThrowException(env, &cErr)
+}
+
+//export Java_io_v_syncbase_internal_Neighborhood_StopAdvertising
+func Java_io_v_syncbase_internal_Neighborhood_StopAdvertising(env *C.JNIEnv, cls C.jclass) {
+	v23_syncbase_NeighborhoodStopAdvertising()
+}
+
+//export Java_io_v_syncbase_internal_Neighborhood_IsAdvertising
+func Java_io_v_syncbase_internal_Neighborhood_IsAdvertising(env *C.JNIEnv, cls C.jclass) C.jboolean {
+	var x C.v23_syncbase_Bool
+	v23_syncbase_NeighborhoodIsAdvertising(&x)
+	return C.jboolean(x)
+}
+
+//export v23_syncbase_internal_onPeer
+func v23_syncbase_internal_onPeer(handle C.v23_syncbase_Handle, peer C.v23_syncbase_AppPeer) {
+	id := uint64(uintptr(handle))
+	h := globalRefMap.Get(id).(*peerCallbacksHandle)
+	env, free := getEnv()
+	obj := peer.extractToJava(env)
+	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
+	C.CallVoidMethodA(env, C.jobject(unsafe.Pointer(h.obj)), h.callbacks.onPeer, &arg)
+	if C.ExceptionOccurred(env) != nil {
+		C.ExceptionDescribe(env)
+		panic("java exception")
+	}
+	free()
+}
+
+type peerCallbacksHandle struct {
+	obj       uintptr
+	callbacks jNeighborhoodScanCallbacks
+}
+
+//export Java_io_v_syncbase_internal_Neighborhood_NewScan
+func Java_io_v_syncbase_internal_Neighborhood_NewScan(env *C.JNIEnv, cls C.jclass, callbacks C.jobject) C.jlong {
+	cbs := C.newVNeighborhoodScanCallbacks()
+	cbs.handle = C.v23_syncbase_Handle(uintptr(globalRefMap.Add(&peerCallbacksHandle{
+		obj:       uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks))),
+		callbacks: newJNeigbhorhoodScanCallbacks(env, callbacks),
+	})))
+	var cErr C.v23_syncbase_VError
+	var scanId C.uint64_t
+	v23_syncbase_NeighborhoodNewScan(cbs, &scanId, &cErr)
+	maybeThrowException(env, &cErr)
+	return C.jlong(scanId)
+}
+
+//export Java_io_v_syncbase_internal_Neighborhood_StopScan
+func Java_io_v_syncbase_internal_Neighborhood_StopScan(env *C.JNIEnv, cls C.jclass, scanId C.jlong) {
+	v23_syncbase_NeighborhoodStopScan(C.uint64_t(scanId))
+}
+
 //export Java_io_v_syncbase_internal_Row_Exists
 func Java_io_v_syncbase_internal_Row_Exists(env *C.JNIEnv, cls C.jclass, name C.jstring, handle C.jstring) C.jboolean {
 	cName := newVStringFromJava(env, name)
@@ -647,6 +766,14 @@ func Java_io_v_syncbase_internal_Util_NamingJoin(env *C.JNIEnv, cls C.jclass, ob
 // All the extractToJava methods return Java types and deallocate all the
 // pointers inside v23_syncbase_* variable.
 
+func (x *C.v23_syncbase_AppPeer) extractToJava(env *C.JNIEnv) C.jobject {
+	obj := C.NewObjectA(env, neighborhoodPeerClass.class, neighborhoodPeerClass.init, nil)
+	C.SetObjectField(env, obj, neighborhoodPeerClass.appName, x.appName.extractToJava(env))
+	C.SetObjectField(env, obj, neighborhoodPeerClass.blessings, x.blessings.extractToJava(env))
+	C.SetBooleanField(env, obj, neighborhoodPeerClass.isLost, x.isLost.extractToJava())
+	return obj
+}
+
 func (x *C.v23_syncbase_ChangeType) extractToJava(env *C.JNIEnv) C.jobject {
 	var obj C.jobject
 	switch *x {
@@ -719,6 +846,14 @@ func (x *C.v23_syncbase_Ids) extractToJava(env *C.JNIEnv) C.jobject {
 		C.CallBooleanMethodA(env, obj, arrayListClass.add, &arg)
 	}
 	x.free()
+	return obj
+}
+
+func (x *C.v23_syncbase_Invite) extractToJava(env *C.JNIEnv) C.jobject {
+	obj := C.NewObjectA(env, syncgroupInviteClass.class, syncgroupInviteClass.init, nil)
+	C.SetObjectField(env, obj, syncgroupInviteClass.syncgroup, x.syncgroup.extractToJava(env))
+	C.SetObjectField(env, obj, syncgroupInviteClass.addresses, x.addresses.extractToJava(env))
+	C.SetObjectField(env, obj, syncgroupInviteClass.blessingNames, x.blessingNames.extractToJava(env))
 	return obj
 }
 

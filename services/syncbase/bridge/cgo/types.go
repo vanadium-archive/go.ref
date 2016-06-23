@@ -452,6 +452,7 @@ func (x *C.v23_syncbase_WatchChange) init(wc syncbase.WatchChange) error {
 func (x *C.v23_syncbase_Invite) init(invite discovery.Invite) {
 	x.syncgroup.init(invite.Syncgroup)
 	x.addresses.init(invite.Addresses)
+	x.blessingNames.init(invite.BlessingNames)
 }
 
 ////////////////////////////////////////////////////////////
