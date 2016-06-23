@@ -1022,17 +1022,12 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 			return verror.NewErrBadState(ctx)
 		}
 
-		// TODO(hpucha): The code below to be enabled once client blesses syncbase.
-		//
 		// Check if this peer is allowed to change the spec.
-		// blessingNames, _ := security.RemoteBlessingNames(ctx, call.Security())
-		// vlog.VI(4).Infof("sync: SetSyncgroupSpec: authorizing blessings %v against permissions %v", blessingNames, sg.Spec.Perms)
-		// if !isAuthorizedForTag(sg.Spec.Perms, access.Admin, blessingNames) {
-		//   return verror.New(verror.ErrNoAccess, ctx)
-		// }
-
-		// TODO(hpucha): Check if the acl change causes neighborhood
-		// advertising to change.
+		blessingNames, _ := security.RemoteBlessingNames(ctx, call.Security())
+		vlog.VI(4).Infof("sync: SetSyncgroupSpec: authorizing blessings %v against permissions %v", blessingNames, sg.Spec.Perms)
+		if !isAuthorizedForTag(sg.Spec.Perms, access.Admin, blessingNames) {
+			return verror.New(verror.ErrNoAccess, ctx)
+		}
 
 		// Reserve a log generation and position counts for the new syncgroup.
 		gen, pos := ss.reserveGenAndPosInDbLog(ctx, dbId, sgOID(gid), 1)

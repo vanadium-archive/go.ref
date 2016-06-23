@@ -22,6 +22,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/x/lib/envvar"
 	"v.io/x/lib/gosh"
 	"v.io/x/ref"
@@ -148,13 +149,20 @@ type errAlreadyHandled struct {
 // blesses it with the given extensions and no caveats, using this principal's
 // default blessings. Additionally, it calls SetDefaultBlessings.
 func (sh *Shell) ForkCredentials(extensions ...string) *Credentials {
+	return sh.ForkCredentialsFromPrincipal(v23.GetPrincipal(sh.Ctx), extensions...)
+}
+
+// ForkCredentialsFromPrincipal creates a new Credentials (with a fresh principal) and
+// blesses it with the given extensions and no caveats, using the given principal's
+// default blessings. Additionally, it calls SetDefaultBlessings.
+func (sh *Shell) ForkCredentialsFromPrincipal(principal security.Principal, extensions ...string) *Credentials {
 	sh.Ok()
 	creds, err := newCredentials(sh.pm)
 	if err != nil {
 		sh.handleError(err)
 		return nil
 	}
-	if err := addDefaultBlessings(v23.GetPrincipal(sh.Ctx), creds.Principal, extensions...); err != nil {
+	if err := addDefaultBlessings(principal, creds.Principal, extensions...); err != nil {
 		sh.handleError(err)
 		return nil
 	}
