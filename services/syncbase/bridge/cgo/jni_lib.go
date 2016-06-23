@@ -46,6 +46,23 @@ func newJCollectionRowPattern(env *C.JNIEnv) jCollectionRowPattern {
 	}
 }
 
+type jEntityType struct {
+	class      C.jclass
+	root       C.jfieldID
+	collection C.jfieldID
+	row        C.jfieldID
+}
+
+func newJEntityType(env *C.JNIEnv) jEntityType {
+	cls := findClass(env, "io/v/syncbase/core/WatchChange$EntityType")
+	return jEntityType{
+		class:      cls,
+		root:       jGetStaticFieldID(env, cls, "ROOT", "Lio/v/syncbase/core/WatchChange$EntityType;"),
+		collection: jGetStaticFieldID(env, cls, "COLLECTION", "Lio/v/syncbase/core/WatchChange$EntityType;"),
+		row:        jGetStaticFieldID(env, cls, "ROW", "Lio/v/syncbase/core/WatchChange$EntityType;"),
+	}
+}
+
 type jHashMap struct {
 	class C.jclass
 	init  C.jmethodID
@@ -250,6 +267,7 @@ func newJVersionedSyncgroupSpec(env *C.JNIEnv) jVersionedSyncgroupSpec {
 type jWatchChange struct {
 	class        C.jclass
 	init         C.jmethodID
+	entityType   C.jfieldID
 	collection   C.jfieldID
 	row          C.jfieldID
 	changeType   C.jfieldID
@@ -264,6 +282,7 @@ func newJWatchChange(env *C.JNIEnv) jWatchChange {
 	return jWatchChange{
 		class:        cls,
 		init:         init,
+		entityType:   jGetFieldID(env, cls, "entityType", "Lio/v/syncbase/core/WatchChange$EntityType;"),
 		collection:   jGetFieldID(env, cls, "collection", "Lio/v/syncbase/core/Id;"),
 		row:          jGetFieldID(env, cls, "row", "Ljava/lang/String;"),
 		changeType:   jGetFieldID(env, cls, "changeType", "Lio/v/syncbase/core/WatchChange$ChangeType;"),

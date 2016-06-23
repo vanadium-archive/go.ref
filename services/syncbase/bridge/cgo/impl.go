@@ -553,15 +553,10 @@ func (s *watchStreamImpl) Send(item interface{}) error {
 	if wireWC.State == watch.InitialStateSkipped {
 		return nil
 	}
-	wc := syncbase.ToWatchChange(wireWC)
-	if wc.EntityType != syncbase.EntityRow {
-		// TODO(ivanpi): Pipe collection and initial changes through.
-		return nil
-	}
 	// C.CallDbWatchPatternsCallbacksOnChange() blocks until the client acks the
 	// previous invocation, thus providing flow control.
 	cWatchChange := C.v23_syncbase_WatchChange{}
-	cWatchChange.init(*wc)
+	cWatchChange.init(*syncbase.ToWatchChange(wireWC))
 	C.CallDbWatchPatternsCallbacksOnChange(s.cbs, cWatchChange)
 	return nil
 }

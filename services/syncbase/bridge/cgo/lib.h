@@ -88,8 +88,16 @@ typedef enum v23_syncbase_ChangeType {
   v23_syncbase_ChangeTypeDelete = 1
 } v23_syncbase_ChangeType;
 
+// syncbase.EntityType
+typedef enum v23_syncbase_EntityType {
+  v23_syncbase_EntityTypeRoot = 0,
+  v23_syncbase_EntityTypeCollection = 1,
+  v23_syncbase_EntityTypeRow = 2
+} v23_syncbase_EntityType;
+
 // syncbase.WatchChange
 typedef struct {
+  v23_syncbase_EntityType entityType;
   v23_syncbase_Id collection;
   v23_syncbase_String row;
   v23_syncbase_ChangeType changeType;

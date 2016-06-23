@@ -412,23 +412,31 @@ func (x *C.v23_syncbase_VError) free() {
 // C.v23_syncbase_WatchChange
 
 func (x *C.v23_syncbase_WatchChange) init(wc syncbase.WatchChange) error {
+	x.entityType = C.v23_syncbase_EntityType(wc.EntityType)
 	x.collection.init(wc.Collection)
 	x.row.init(wc.Row)
 	x.changeType = C.v23_syncbase_ChangeType(wc.ChangeType)
 	var value []byte
-	if wc.ChangeType != syncbase.DeleteChange {
-		var valueAsRawBytes vom.RawBytes
-		var err error
-		if err = wc.Value(&valueAsRawBytes); err != nil {
-			return err
-		}
-		if clientUnderstandsVOM {
-			value, err = vom.Encode(valueAsRawBytes)
-		} else {
-			err = valueAsRawBytes.ToValue(&value)
-		}
-		if err != nil {
-			return err
+	switch wc.EntityType {
+	case syncbase.EntityRoot:
+		// Nothing to do.
+	case syncbase.EntityCollection:
+		// TODO(razvanm): Pass the CollectionInfo from wc.value.
+	case syncbase.EntityRow:
+		if wc.ChangeType != syncbase.DeleteChange {
+			var valueAsRawBytes vom.RawBytes
+			var err error
+			if err = wc.Value(&valueAsRawBytes); err != nil {
+				return err
+			}
+			if clientUnderstandsVOM {
+				value, err = vom.Encode(valueAsRawBytes)
+			} else {
+				err = valueAsRawBytes.ToValue(&value)
+			}
+			if err != nil {
+				return err
+			}
 		}
 	}
 	x.value.init(value)

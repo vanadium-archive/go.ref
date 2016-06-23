@@ -51,6 +51,7 @@ var (
 	arrayListClass              jArrayListClass
 	changeTypeClass             jChangeType
 	collectionRowPatternClass   jCollectionRowPattern
+	entityTypeClass             jEntityType
 	hashMapClass                jHashMap
 	idClass                     jIdClass
 	keyValueClass               jKeyValue
@@ -80,6 +81,7 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 	arrayListClass = newJArrayListClass(env)
 	changeTypeClass = newJChangeType(env)
 	collectionRowPatternClass = newJCollectionRowPattern(env)
+	entityTypeClass = newJEntityType(env)
 	hashMapClass = newJHashMap(env)
 	idClass = newJIdClass(env)
 	keyValueClass = newJKeyValue(env)
@@ -656,6 +658,19 @@ func (x *C.v23_syncbase_ChangeType) extractToJava(env *C.JNIEnv) C.jobject {
 	return obj
 }
 
+func (x *C.v23_syncbase_EntityType) extractToJava(env *C.JNIEnv) C.jobject {
+	var obj C.jobject
+	switch *x {
+	case C.v23_syncbase_EntityTypeRoot:
+		obj = C.GetStaticObjectField(env, entityTypeClass.class, entityTypeClass.root)
+	case C.v23_syncbase_EntityTypeCollection:
+		obj = C.GetStaticObjectField(env, entityTypeClass.class, entityTypeClass.collection)
+	case C.v23_syncbase_EntityTypeRow:
+		obj = C.GetStaticObjectField(env, entityTypeClass.class, entityTypeClass.row)
+	}
+	return obj
+}
+
 func (x *C.v23_syncbase_Id) extractToJava(env *C.JNIEnv) C.jobject {
 	obj := C.NewObjectA(env, idClass.class, idClass.init, nil)
 	C.SetObjectField(env, obj, idClass.blessing, x.blessing.extractToJava(env))
@@ -821,6 +836,7 @@ func (x *C.v23_syncbase_VError) extractToJava(env *C.JNIEnv) C.jobject {
 
 func (x *C.v23_syncbase_WatchChange) extractToJava(env *C.JNIEnv) C.jobject {
 	obj := C.NewObjectA(env, watchChangeClass.class, watchChangeClass.init, nil)
+	C.SetObjectField(env, obj, watchChangeClass.entityType, x.entityType.extractToJava(env))
 	C.SetObjectField(env, obj, watchChangeClass.collection, x.collection.extractToJava(env))
 	C.SetObjectField(env, obj, watchChangeClass.row, x.row.extractToJava(env))
 	C.SetObjectField(env, obj, watchChangeClass.changeType, x.changeType.extractToJava(env))
