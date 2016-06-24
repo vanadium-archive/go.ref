@@ -8,7 +8,9 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"v.io/v23"
@@ -30,7 +32,7 @@ var (
 		Short:  "Runs the mounttable service",
 		Long:   "Runs the mounttable service.",
 		Children: []*cmdline.Command{
-			cmdSetup, cmdDestroy, cmdDump,
+			cmdSetup, cmdDestroy, cmdDump, cmdFsck,
 		},
 	}
 	cmdSetup = &cmdline.Command{
@@ -51,6 +53,12 @@ var (
 		Short:  "Dump the table",
 		Long:   "Dump the table.",
 	}
+	cmdFsck = &cmdline.Command{
+		Runner: v23cmd.RunnerFunc(runFsck),
+		Name:   "fsck",
+		Short:  "Check the table consistency",
+		Long:   "Check the table consistency.",
+	}
 
 	keyFileFlag      string
 	projectFlag      string
@@ -64,6 +72,8 @@ var (
 
 	maxNodesPerUserFlag   int
 	maxServersPerUserFlag int
+
+	fixFlag bool
 )
 
 func main() {
@@ -79,6 +89,8 @@ func main() {
 
 	cmdRoot.Flags.IntVar(&maxNodesPerUserFlag, "max-nodes-per-user", 10000, "The maximum number of nodes that a single user can create.")
 	cmdRoot.Flags.IntVar(&maxServersPerUserFlag, "max-servers-per-user", 10000, "The maximum number of servers that a single user can mount.")
+
+	cmdFsck.Flags.BoolVar(&fixFlag, "fix", false, "Whether to fix consistency errors and recreate all the counters.")
 
 	cmdline.HideGlobalFlagsExcept()
 	cmdline.Main(cmdRoot)
@@ -106,6 +118,23 @@ func runDump(ctx *context.T, env *cmdline.Env, args []string) error {
 		return err
 	}
 	return bt.DumpTable(ctx)
+}
+
+func runFsck(ctx *context.T, env *cmdline.Env, args []string) error {
+	bt, err := internal.NewBigTable(keyFileFlag, projectFlag, zoneFlag, clusterFlag, tableFlag)
+	if err != nil {
+		return err
+	}
+	if fixFlag {
+		fmt.Fprintln(env.Stdout, "WARNING: Make sure nothing else is modifying the table while fsck is running")
+		fmt.Fprint(env.Stdout, "Continue [y/N]? ")
+		var answer string
+		if _, err := fmt.Scanf("%s", &answer); err != nil || strings.ToUpper(answer) != "Y" {
+			fmt.Fprintln(env.Stdout, "Aborted")
+			return nil
+		}
+	}
+	return bt.Fsck(ctx, fixFlag)
 }
 
 func runMT(ctx *context.T, env *cmdline.Env, args []string) error {

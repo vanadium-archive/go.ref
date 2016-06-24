@@ -515,3 +515,58 @@ func createNodesFromFile(ctx *context.T, bt *BigTable, fileName string) error {
 	}
 	return nil
 }
+
+func (n *mtNode) checkInvariants(ctx *context.T, fix bool) error {
+	// Is this an orphan node, i.e. either the parent doesn't exist, or the
+	// parent doesn't have a reference to it?
+	if n.name != "" {
+		parentName, childName := path.Split(n.name)
+		pn, err := getNode(ctx, n.bt, parentName)
+		if err != nil {
+			return err
+		}
+		orphan := true
+		if pn != nil {
+			for _, c := range pn.children {
+				if c.name() == childName && c.id() == n.id {
+					orphan = false
+					break
+				}
+			}
+		}
+		if orphan {
+			if fix {
+				if err := n.delete(ctx, true); err != nil {
+					return err
+				}
+				return fmt.Errorf("deleted orphan node %q", n.name)
+			}
+			return fmt.Errorf("found orphan node %q", n.name)
+		}
+	}
+	// Does this node have references to nodes that don't exis?
+	var mut *bigtable.Mutation
+	for _, c := range n.children {
+		cn, err := getNode(ctx, n.bt, naming.Join(n.name, c.name()))
+		if err != nil {
+			return err
+		}
+		if cn != nil && cn.id == c.id() {
+			continue
+		}
+		if mut == nil {
+			mut = bigtable.NewMutation()
+		}
+		mut.DeleteCellsInColumn(childrenFamily, string(c))
+	}
+	if mut != nil {
+		if fix {
+			if err := n.mutate(ctx, mut, false); err != nil {
+				return err
+			}
+			return fmt.Errorf("deleted dangling reference on %q", n.name)
+		}
+		return fmt.Errorf("found dangling reference on %q", n.name)
+	}
+	return nil
+}

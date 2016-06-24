@@ -65,3 +65,40 @@ func incrementCreatorNodeCount(ctx *context.T, bt *BigTable, creator string, del
 func incrementCreatorServerCount(ctx *context.T, bt *BigTable, creator string, delta, limit int64) error {
 	return incrementWithLimit(ctx, bt, "num-servers-per-user:"+creator, delta, limit, errServerLimitExceeded)
 }
+
+func recalculateCounters(ctx *context.T, bt *BigTable) error {
+	bctx, cancel := btctx(ctx)
+	defer cancel()
+
+	// Delete all the counters.
+	if err := bt.counterTbl.ReadRows(bctx, bigtable.InfiniteRange(""),
+		func(row bigtable.Row) bool {
+			mut := bigtable.NewMutation()
+			mut.DeleteRow()
+			if err := bt.counterTbl.Apply(ctx, row.Key(), mut); err != nil {
+				ctx.Errorf("apply delete row (%q) failed: %v", row.Key(), err)
+				return false
+			}
+			return true
+		},
+	); err != nil {
+		return err
+	}
+
+	// Re-create all the counters.
+	return bt.nodeTbl.ReadRows(bctx, bigtable.InfiniteRange(""),
+		func(row bigtable.Row) bool {
+			n := nodeFromRow(ctx, bt, row, clock)
+			if err := incrementCreatorNodeCount(ctx, bt, n.creator, 1, 0); err != nil {
+				ctx.Errorf("incrementCreatorNodeCount(%q) failed: %v", n.name, err)
+				return false
+			}
+			if err := incrementCreatorServerCount(ctx, bt, n.creator, int64(len(n.servers)+len(n.expiredServers)), 0); err != nil {
+				ctx.Errorf("incrementCreatorServerCount(%q) failed: %v", n.name, err)
+				return false
+			}
+			return true
+		},
+		bigtable.RowFilter(bigtable.LatestNFilter(1)),
+	)
+}

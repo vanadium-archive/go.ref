@@ -249,6 +249,61 @@ func (b *BigTable) DumpTable(ctx *context.T) error {
 	return nil
 }
 
+func (b *BigTable) Fsck(ctx *context.T, fix bool) error {
+	bctx, cancel := btctx(ctx)
+	defer cancel()
+
+	ctx.Infof("Checking table consistency...")
+
+	inconsistentTotal := 0
+	for pass := 1; ; pass++ {
+		ctx.Infof("Starting pass #%d", pass)
+		inconsistentCount := 0
+		if err := b.nodeTbl.ReadRows(
+			bctx,
+			bigtable.InfiniteRange(""),
+			func(row bigtable.Row) bool {
+				n := nodeFromRow(ctx, b, row, clock)
+				if err := n.checkInvariants(ctx, fix); err != nil {
+					inconsistentCount++
+					ctx.Infof("checkInvariants: %v", err)
+				}
+				return true
+			},
+			bigtable.RowFilter(bigtable.LatestNFilter(1)),
+		); err != nil {
+			return err
+		}
+		ctx.Infof("Completed pass #%d - inconsistent nodes: %d", pass, inconsistentCount)
+		inconsistentTotal += inconsistentCount
+		if !fix || inconsistentCount == 0 {
+			break
+		}
+	}
+
+	if !fix {
+		if inconsistentTotal > 0 {
+			return fmt.Errorf("found inconsistent nodes: %d", inconsistentTotal)
+		}
+		ctx.Infof("All nodes are consistent.")
+		return nil
+	}
+
+	if inconsistentTotal > 0 {
+		ctx.Infof("Found and fixed inconsistent nodes: %d\n", inconsistentTotal)
+	} else {
+		ctx.Infof("All nodes are consistent.")
+	}
+
+	ctx.Infof("Recalculating counters...")
+	if err := recalculateCounters(ctx, b); err != nil {
+		return err
+	}
+	ctx.Infof("Done.")
+
+	return nil
+}
+
 func (b *BigTable) CountRows(ctx *context.T) (int, error) {
 	bctx, cancel := btctx(ctx)
 	defer cancel()

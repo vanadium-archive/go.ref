@@ -16,6 +16,7 @@ The btmtd commands are:
    setup       Creates and sets up the table
    destroy     Destroy the table
    dump        Dump the table
+   fsck        Check the table consistency
    help        Display help for commands or topics
 
 The btmtd flags are:

@@ -5,10 +5,14 @@
 package internal
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
 
+	"google.golang.org/cloud/bigtable"
+
+	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/x/ref/test"
@@ -150,4 +154,93 @@ func TestMutations(t *testing.T) {
 		t.Errorf("Unexpected number of rows: got %d, expected %d", count, expected)
 		bt.DumpTable(ctx)
 	}
+}
+
+func TestFsck(t *testing.T) {
+	ctx, shutdown := test.V23Init()
+	defer shutdown()
+
+	bt, shutdownBT, err := NewTestBigTable("test")
+	if err != nil {
+		t.Fatalf("NewTestBigTable: %s", err)
+	}
+	defer shutdownBT()
+	if err := bt.SetupTable(ctx, ""); err != nil {
+		t.Fatalf("bt.SetupTable: %s", err)
+	}
+
+	checkRowCount := func(expected int) {
+		count, err := bt.CountRows(ctx)
+		if err != nil {
+			t.Errorf("CountRows failed: %v", err)
+		}
+		if count != expected {
+			t.Errorf("Unexpected number of rows: got %d, expected %d", count, expected)
+		}
+	}
+
+	root, err := getNode(ctx, bt, "")
+	if err != nil {
+		t.Fatalf("getNode: %v", err)
+	}
+
+	// Create a few children.
+	for i := 1; i <= 5; i++ {
+		if _, err := root.createChild(ctx, fmt.Sprintf("child%d", i), root.permissions, "", 0); err != nil {
+			t.Fatalf("createChild failed: %v", err)
+		}
+		if root, err = getNode(ctx, bt, ""); err != nil {
+			t.Fatalf("getNode: %v", err)
+		}
+	}
+	checkRowCount(6)
+
+	// Create a few orphan rows.
+	for i := 1; i <= 5; i++ {
+		name := fmt.Sprintf("orphan%d", i)
+		childRef, err := newChild("XXXXXXXX", name)
+		if err != nil {
+			t.Fatalf("newChild failed: %v", err)
+		}
+		if err := bt.createRow(ctx, name, root.permissions, "", childRef, 0); err != nil {
+			t.Fatalf("createRow failed: %v", err)
+		}
+		if childRef, err = newChild("XXXXXXXX", "otherorphan"); err != nil {
+			t.Fatalf("newChild failed: %v", err)
+		}
+		if err := bt.createRow(ctx, naming.Join(name, childRef.name()), root.permissions, "", childRef, 0); err != nil {
+			t.Fatalf("createRow failed: %v", err)
+		}
+		for j := 1; j <= 5; j++ {
+			n, err := getNode(ctx, bt, name)
+			if err != nil {
+				t.Fatalf("getNode: %v", err)
+			}
+			if _, err := n.createChild(ctx, fmt.Sprintf("child%d", j), n.permissions, "", 0); err != nil {
+				t.Fatalf("createChild failed: %v", err)
+			}
+		}
+	}
+	checkRowCount(41)
+
+	// Add reference to a row that doesn't exist.
+	mut := bigtable.NewMutation()
+	mut.Set(childrenFamily, "XXXXXXXXwhodat", bigtable.ServerTime, []byte{1})
+	if err := bt.apply(ctx, rowKey("child1"), mut); err != nil {
+		t.Fatalf("unexpected failure: %v", err)
+	}
+	checkRowCount(41)
+
+	if err := bt.Fsck(ctx, false); err == nil {
+		t.Errorf("Fsck did not find any inconsistencies")
+	}
+	if err := bt.Fsck(ctx, true); err != nil {
+		t.Errorf("Fsck failed: %v", err)
+	}
+	if err := bt.Fsck(ctx, false); err != nil {
+		t.Errorf("Fsck failed: %v", err)
+	}
+
+	// root + 5 children
+	checkRowCount(6)
 }
