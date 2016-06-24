@@ -102,7 +102,7 @@ typedef struct {
   v23_syncbase_String row;
   v23_syncbase_ChangeType changeType;
   v23_syncbase_Bytes value;
-  v23_syncbase_String resumeMarker;
+  v23_syncbase_Bytes resumeMarker;
   bool fromSync;
   bool continued;
 } v23_syncbase_WatchChange;

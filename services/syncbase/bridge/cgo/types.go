@@ -440,7 +440,7 @@ func (x *C.v23_syncbase_WatchChange) init(wc syncbase.WatchChange) error {
 		}
 	}
 	x.value.init(value)
-	x.resumeMarker.init(string(wc.ResumeMarker))
+	x.resumeMarker.init(wc.ResumeMarker)
 	x.fromSync = C.bool(wc.FromSync)
 	x.continued = C.bool(wc.Continued)
 	return nil

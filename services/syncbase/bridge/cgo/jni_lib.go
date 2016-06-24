@@ -287,7 +287,7 @@ func newJWatchChange(env *C.JNIEnv) jWatchChange {
 		row:          jGetFieldID(env, cls, "row", "Ljava/lang/String;"),
 		changeType:   jGetFieldID(env, cls, "changeType", "Lio/v/syncbase/core/WatchChange$ChangeType;"),
 		value:        jGetFieldID(env, cls, "value", "[B"),
-		resumeMarker: jGetFieldID(env, cls, "resumeMarker", "Ljava/lang/String;"),
+		resumeMarker: jGetFieldID(env, cls, "resumeMarker", "[B"),
 		fromSync:     jGetFieldID(env, cls, "fromSync", "Z"),
 		continued:    jGetFieldID(env, cls, "continued", "Z"),
 	}
