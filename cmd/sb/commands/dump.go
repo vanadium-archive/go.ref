@@ -11,10 +11,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/syncbase"
 	"v.io/x/lib/cmdline"
-
-	// TODO(zsterling): This is a temporary hack-around to avoid a permissions issue.
-	// Investigate why this is needed and how to get rid of it.
-	_ "v.io/x/ref/cmd/sb/internal/demodb"
 )
 
 var cmdDump = &cmdline.Command{

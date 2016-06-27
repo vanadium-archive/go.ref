@@ -51,7 +51,7 @@ func (t *tableWriter) Write(columnNames []string, rs syncbase.ResultStream) erro
 		row := make([]string, len(columnNames))
 		columnCount := rs.ResultCount()
 		for i := 0; i != columnCount; i++ {
-			var column interface{}
+			var column *vdl.Value
 			if err := rs.Result(i, &column); err != nil {
 				return err
 			}
@@ -61,7 +61,7 @@ func (t *tableWriter) Write(columnNames []string, rs syncbase.ResultStream) erro
 			if justification[i] == Unknown {
 				justification[i] = getJustification(column)
 			}
-			columnStr := toStringRaw(column, false)
+			columnStr := toString(column, false)
 			row[i] = columnStr
 			columnLen := utf8.RuneCountInString(columnStr)
 			if columnLen > columnWidths[i] {
@@ -107,11 +107,11 @@ func writeBorder(out io.Writer, columnWidths []int) {
 	io.WriteString(out, "-+\n")
 }
 
-func getJustification(val interface{}) Justification {
-	switch val.(type) {
+func getJustification(val *vdl.Value) Justification {
+	switch val.Kind() {
 	// TODO(kash): Floating point numbers should have the decimal point line up.
-	case bool, uint8, uint16, uint32, uint64, int8, int16, int32, int64,
-		float32, float64, complex64, complex128, int, uint, uintptr:
+	case vdl.Bool, vdl.Byte, vdl.Uint16, vdl.Uint32, vdl.Uint64, vdl.Int8,
+		vdl.Int16, vdl.Int32, vdl.Int64, vdl.Float32, vdl.Float64:
 		return Right
 	// TODO(kash): Leave nil values as unknown.
 	default:
@@ -140,11 +140,11 @@ func (c *csvWriter) Write(columnNames []string, rs syncbase.ResultStream) error 
 	for rs.Advance() {
 		delim := ""
 		for i, n := 0, rs.ResultCount(); i != n; i++ {
-			var column interface{}
+			var column *vdl.Value
 			if err := rs.Result(i, &column); err != nil {
 				return err
 			}
-			str := doubleQuoteForCSV(toStringRaw(column, false), c.delimiter)
+			str := doubleQuoteForCSV(toString(column, false), c.delimiter)
 			io.WriteString(c.w, fmt.Sprintf("%s%s", delim, str))
 			delim = c.delimiter
 		}
@@ -193,7 +193,7 @@ func (j *jsonWriter) Write(columnNames []string, rs syncbase.ResultStream) error
 		io.WriteString(j.w, bOpen)
 		linestart := "\n  "
 		for i, n := 0, rs.ResultCount(); i != n; i++ {
-			var column interface{}
+			var column *vdl.Value
 			if err := rs.Result(i, &column); err != nil {
 				return err
 			}
@@ -206,10 +206,6 @@ func (j *jsonWriter) Write(columnNames []string, rs syncbase.ResultStream) error
 	}
 	io.WriteString(j.w, "]\n")
 	return rs.Err()
-}
-
-func toStringRaw(rb interface{}, nested bool) string {
-	return toString(vdl.ValueOf(rb), nested)
 }
 
 // Converts VDL value to readable yet parseable string representation.
@@ -319,8 +315,8 @@ func listToString(begin, sep, end string, n int, elemToString func(i int) string
 }
 
 // Converts VDL value to JSON representation.
-func toJson(val interface{}) string {
-	jf := toJsonFriendly(vdl.ValueOf(val))
+func toJson(val *vdl.Value) string {
+	jf := toJsonFriendly(val)
 	jOut, err := json.Marshal(jf)
 	if err != nil {
 		panic(fmt.Sprintf("JSON marshalling failed: %v", err))

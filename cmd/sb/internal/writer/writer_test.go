@@ -19,7 +19,7 @@ import (
 )
 
 type fakeResultStream struct {
-	rows [][]interface{}
+	rows [][]vdl.Value
 	curr int
 }
 
@@ -58,11 +58,11 @@ func array2String(s1, s2 string) db.Array2String {
 }
 
 func newResultStream(iRows [][]interface{}) syncbase.ResultStream {
-	vRows := make([][]interface{}, len(iRows))
+	vRows := make([][]vdl.Value, len(iRows))
 	for i, iRow := range iRows {
-		vRow := make([]interface{}, len(iRow))
+		vRow := make([]vdl.Value, len(iRow))
 		for j, iCol := range iRow {
-			vRow[j] = iCol
+			vRow[j] = *vdl.ValueOf(iCol)
 		}
 		vRows[i] = vRow
 	}
@@ -89,8 +89,8 @@ func (f *fakeResultStream) Result(i int, value interface{}) (err error) {
 		panic("call advance first")
 	}
 	switch intf := value.(type) {
-	case *interface{}:
-		*intf = f.rows[f.curr][i]
+	case **vdl.Value:
+		*intf = &f.rows[f.curr][i]
 	default:
 		err = fmt.Errorf("unsupported value type: %t", value)
 	}
