@@ -103,7 +103,7 @@ func generateGlobQuery(matcher idiscovery.Matcher) string {
 		id = targetKey
 	}
 	if targetInterface := matcher.TargetInterfaceName(); targetInterface != "" {
-		interfaceName = targetInterface
+		interfaceName = naming.EncodeAsNameElement(targetInterface)
 	}
 	return naming.Join(id, interfaceName, timestamp, attrs)
 }
