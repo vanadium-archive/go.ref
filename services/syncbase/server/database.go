@@ -6,7 +6,7 @@ package server
 
 import (
 	"math/rand"
-	"path"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -70,7 +70,7 @@ var (
 type DatabaseOptions struct {
 	// Database-level permissions.
 	Perms access.Permissions
-	// Root dir for data storage.
+	// Root dir for data storage. This path is relative from the service's RootDir.
 	RootDir string
 	// Storage engine to use.
 	Engine string
@@ -174,7 +174,10 @@ func hasPermission(ctx *context.T, securityCall security.Call, perms access.Perm
 // openDatabase opens a database and returns a *database for it. Designed for
 // use from within newDatabase and newService.
 func openDatabase(ctx *context.T, s *service, id wire.Id, opts DatabaseOptions, openOpts storeutil.OpenOptions) (*database, error) {
-	st, err := storeutil.OpenStore(opts.Engine, path.Join(opts.RootDir, opts.Engine), openOpts)
+	// DatabaseOption's RootDir is relative to the service's RootDir (but for backwards compatibility
+	// s.absRootDir will return any absolute paths as-is).
+	p := s.absRootDir(filepath.Join(opts.RootDir, opts.Engine))
+	st, err := storeutil.OpenStore(opts.Engine, p, openOpts)
 	if err != nil {
 		return nil, err
 	}

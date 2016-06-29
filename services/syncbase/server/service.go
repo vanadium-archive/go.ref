@@ -165,7 +165,7 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		// Run garbage collection of inactive databases.
 		// TODO(ivanpi): This is currently unsafe to call concurrently with
 		// database creation/deletion. Add mutex and run asynchronously.
-		if err := runGCInactiveDatabases(ctx, st); err != nil {
+		if err := runGCInactiveDatabases(ctx, s); err != nil {
 			return nil, err
 		}
 		// Initialize in-memory data structures, namely the dbs map.
@@ -480,7 +480,7 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 			// on syncbased restart. (It is safe to pass nil stRef if step 3 fails.)
 			// TODO(ivanpi): Consider running asynchronously. However, see TODO in
 			// finalizeDatabaseDestroy.
-			if err := finalizeDatabaseDestroy(ctx, s.st, dbInfo, stRef); err != nil {
+			if err := finalizeDatabaseDestroy(ctx, s, dbInfo, stRef); err != nil {
 				ctx.Error(err)
 			}
 		}
@@ -574,7 +574,7 @@ func (s *service) destroyDatabase(ctx *context.T, call rpc.ServerCall, dbId wire
 	// might still be using the store.
 	// TODO(ivanpi): Consider running asynchronously. However, see TODO in
 	// finalizeDatabaseDestroy.
-	if err := finalizeDatabaseDestroy(ctx, s.st, dbInfo, d.St()); err != nil {
+	if err := finalizeDatabaseDestroy(ctx, s, dbInfo, d.St()); err != nil {
 		ctx.Error(err)
 	}
 
@@ -641,5 +641,16 @@ func (s *service) rootDirForDb(ctx *context.T, dbId wire.Id) (string, error) {
 	if len(appDir) > 255 || len(dbDir) > 255 {
 		ctx.Fatalf("appDir %s or dbDir %s is too long", appDir, dbDir)
 	}
-	return filepath.Join(s.opts.RootDir, common.AppDir, appDir, common.DbDir, dbDir), nil
+	return filepath.Join(common.AppDir, appDir, common.DbDir, dbDir), nil
+}
+
+// absRootDir returns rootDir if it is absolute, or the joined path with this service's
+// RootDir if it is relative. This allows DbInfo to store relative database paths but
+// pre-existing absolute paths (before CL 23453) will still open as is (achieving
+// backwards compatibility).
+func (s *service) absRootDir(rootDir string) string {
+	if !filepath.IsAbs(rootDir) {
+		rootDir = filepath.Join(s.opts.RootDir, rootDir)
+	}
+	return rootDir
 }

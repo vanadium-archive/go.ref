@@ -59,8 +59,9 @@ func deleteDatabaseEntry(ctx *context.T, tx store.Transaction, dbId wire.Id) (*D
 // finalizeDatabaseDestroy attempts to close (if stRef is not nil) and destroy
 // the database store. If successful, it removes the dbInfo record from the
 // garbage collection log.
-func finalizeDatabaseDestroy(ctx *context.T, stw store.StoreWriter, dbInfo *DbInfo, stRef store.Store) error {
-	vlog.VI(2).Infof("server: destroying store at %q for database %v (closing: %v)", dbInfo.RootDir, dbInfo.Id, stRef != nil)
+func finalizeDatabaseDestroy(ctx *context.T, s *service, dbInfo *DbInfo, stRef store.Store) error {
+	rootDir := s.absRootDir(dbInfo.RootDir)
+	vlog.VI(2).Infof("server: destroying store at %q for database %v (closing: %v)", rootDir, dbInfo.Id, stRef != nil)
 	if stRef != nil {
 		// TODO(ivanpi): Safer to crash syncbased on Close() failure? Otherwise,
 		// already running calls might continue using the database. Alternatively,
@@ -69,10 +70,10 @@ func finalizeDatabaseDestroy(ctx *context.T, stw store.StoreWriter, dbInfo *DbIn
 			return wrapGCError(dbInfo, err)
 		}
 	}
-	if err := storeutil.DestroyStore(dbInfo.Engine, dbInfo.RootDir); err != nil {
+	if err := storeutil.DestroyStore(dbInfo.Engine, rootDir); err != nil {
 		return wrapGCError(dbInfo, err)
 	}
-	if err := delDbGCEntry(ctx, stw, dbInfo); err != nil {
+	if err := delDbGCEntry(ctx, s.st, dbInfo); err != nil {
 		return wrapGCError(dbInfo, err)
 	}
 	return nil
@@ -85,11 +86,11 @@ func finalizeDatabaseDestroy(ctx *context.T, stw store.StoreWriter, dbInfo *DbIn
 // creation or deletion since it can cause spurious failures (e.g. garbage
 // collecting a database that is being created).
 // TODO(ivanpi): Consider adding mutex to allow running GC concurrently.
-func runGCInactiveDatabases(ctx *context.T, st store.Store) error {
+func runGCInactiveDatabases(ctx *context.T, s *service) error {
 	vlog.VI(2).Infof("server: starting garbage collection of inactive databases")
 	total := 0
 	deleted := 0
-	gcIt := st.Scan(common.ScanPrefixArgs(common.DbGCPrefix, ""))
+	gcIt := s.st.Scan(common.ScanPrefixArgs(common.DbGCPrefix, ""))
 	var diBytes []byte
 	for gcIt.Advance() {
 		diBytes = gcIt.Value(diBytes)
@@ -98,7 +99,7 @@ func runGCInactiveDatabases(ctx *context.T, st store.Store) error {
 			verror.New(verror.ErrInternal, ctx, err)
 		}
 		total++
-		if err := finalizeDatabaseDestroy(ctx, st, &dbInfo, nil); err != nil {
+		if err := finalizeDatabaseDestroy(ctx, s, &dbInfo, nil); err != nil {
 			vlog.Error(err)
 		} else {
 			deleted++
