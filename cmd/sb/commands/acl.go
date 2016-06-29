@@ -21,18 +21,20 @@ import (
 var cmdAcl = &cmdline.Command{
 	Name:     "acl",
 	Short:    "Read or mutate the ACLs",
-	Long:     `Read or mutate the ACLs`,
+	Long:     `Read or mutate the ACLs.`,
 	Children: []*cmdline.Command{cmdAclGet, cmdAclAdd, cmdAclRm, cmdAclDump},
 }
 
 var (
 	flagTarget     string
 	flagCollection string
+	flagSyncgroup  string
 )
 
 func init() {
-	cmdAcl.Flags.StringVar(&flagTarget, "target", "db", "The access controller type to act on (service, db, collection).")
-	cmdAcl.Flags.StringVar(&flagCollection, "collection", "", "The collection to act on. (note: requires -target=collection)")
+	cmdAcl.Flags.StringVar(&flagTarget, "target", "db", "The access controller type to act on (service, db, database, cx, collection, sg, syncgroup).")
+	cmdAcl.Flags.StringVar(&flagCollection, "cx", "", "The collection to act on. (note: requires -target=collection or cx)")
+	cmdAcl.Flags.StringVar(&flagSyncgroup, "sg", "", "The syncgroup to act on. (note: requires -target=syncgroup or sg)")
 }
 
 func updatePerms(ctx *context.T, db syncbase.Database, env *cmdline.Env, callback func(access.Permissions) (access.Permissions, error)) error {
@@ -52,15 +54,14 @@ func updatePerms(ctx *context.T, db syncbase.Database, env *cmdline.Env, callbac
 
 		if perms, err = callback(perms); err != nil {
 			return err
+		} else if perms == nil {
+			return nil
 		}
 
-		if perms != nil {
-			if err := ac.SetPermissions(ctx, perms, version); err != nil {
-				return fmt.Errorf("error setting permissions: %q", err)
-			}
+		if err := ac.SetPermissions(ctx, perms, version); err != nil {
+			return fmt.Errorf("error setting permissions: %q", err)
 		}
-		return nil
-	case "collection":
+	case "cx", "collection":
 		bdb, err := db.BeginBatch(ctx, wire.BatchOptions{})
 		if err != nil {
 			return err
@@ -75,15 +76,29 @@ func updatePerms(ctx *context.T, db syncbase.Database, env *cmdline.Env, callbac
 
 		if perms, err = callback(perms); err != nil {
 			return err
+		} else if perms == nil {
+			return nil
 		}
 
-		if perms != nil {
-			if err = collection.SetPermissions(ctx, perms); err != nil {
-				return err
-			}
-
-			return bdb.Commit(ctx)
+		if err = collection.SetPermissions(ctx, perms); err != nil {
+			return err
 		}
+
+		return bdb.Commit(ctx)
+	case "sg", "syncgroup":
+		sg := db.Syncgroup(ctx, flagSyncgroup)
+		spec, version, err := sg.GetSpec(ctx)
+		if err != nil {
+			return err
+		}
+
+		if spec.Perms, err = callback(spec.Perms); err != nil {
+			return err
+		} else if spec.Perms == nil {
+			return nil
+		}
+
+		sg.SetSpec(ctx, spec, version)
 		return nil
 	default:
 		return env.UsageErrorf("target %s not recognized", flagTarget)
@@ -95,7 +110,7 @@ func updatePerms(ctx *context.T, db syncbase.Database, env *cmdline.Env, callbac
 var cmdAclGet = &cmdline.Command{
 	Name:     "get",
 	Short:    "Read a blessing's permissions",
-	Long:     "Read a blessing's permissions",
+	Long:     "Read a blessing's permissions.",
 	ArgsName: "<blessing>",
 	ArgsLong: `
 <blessing> is the blessing to check permissions for.
@@ -143,7 +158,7 @@ func runAclGet(ctx *context.T, db syncbase.Database, env *cmdline.Env, args []st
 var cmdAclAdd = &cmdline.Command{
 	Name:     "add",
 	Short:    "Add blessing to groups",
-	Long:     "Add blessing to groups",
+	Long:     "Add blessing to groups.",
 	ArgsName: "(<blessing> [!]<tag>(,[!]<tag>)* )+",
 	ArgsLong: `
 The args are sequential pairs of the form "<blessing> <taglist>"
@@ -180,7 +195,7 @@ func runAclAdd(ctx *context.T, db syncbase.Database, env *cmdline.Env, args []st
 
 var cmdAclRm = &cmdline.Command{
 	Name:     "rm",
-	Short:    "Remove specific permissions from the acl.",
+	Short:    "Remove specific permissions from the acl",
 	Long:     "Remove specific permissions from the acl.",
 	ArgsName: "(<blessing> <tag>(,<tag>)* )+",
 	ArgsLong: `
@@ -214,7 +229,7 @@ func runAclRm(ctx *context.T, db syncbase.Database, env *cmdline.Env, args []str
 var cmdAclDump = &cmdline.Command{
 	Name:   "dump",
 	Short:  "Pretty-print the whole acl",
-	Long:   "Pretty-print the whole acl",
+	Long:   "Pretty-print the whole acl.",
 	Runner: SbRunner(runAclDump),
 }
 

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -80,6 +81,7 @@ func runCommand(ctx *context.T, env *cmdline.Env, db syncbase.Database,
 	fields []string, isTerminal bool) error {
 	commands.SetCtx(ctx)
 	commands.SetDB(db)
+	resetFlags(cmdSb, false)
 	if err := cmdline.ParseAndRun(cmdSb, env, fields); err != nil {
 		if isTerminal {
 			fmt.Fprintln(env.Stderr, "Error:", err)
@@ -89,6 +91,19 @@ func runCommand(ctx *context.T, env *cmdline.Env, db syncbase.Database,
 		}
 	}
 	return nil
+}
+
+func resetFlags(cmd *cmdline.Command, resetThisLevel bool) {
+	if resetThisLevel {
+		if cmd.ParsedFlags != nil {
+			cmd.ParsedFlags.Visit(func(f *flag.Flag) {
+				cmd.ParsedFlags.Set(f.Name, f.DefValue)
+			})
+		}
+	}
+	for _, nextCmd := range cmd.Children {
+		resetFlags(nextCmd, true)
+	}
 }
 
 func help(args []string) error {

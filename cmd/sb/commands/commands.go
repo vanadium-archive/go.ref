@@ -15,10 +15,17 @@ import (
 	"v.io/x/ref/lib/v23cmd"
 )
 
+// Commands holds all the commands runnable at the top level (as $ sb foo)
+// and in the shell, as:
+// $ sb sh
+// ? foo
+// with the exception of shell builtins like help and quit. Adding a command
+// to Commands will make it accessible by either mechanism.
 var Commands = []*cmdline.Command{
 	cmdDump,
 	cmdMakeDemo,
 	cmdSelect,
+	cmdSg,
 	cmdAcl,
 }
 

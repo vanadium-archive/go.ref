@@ -17,6 +17,7 @@ The sb commands are:
    dump        Print a dump of the database
    make-demo   Populate the db with dummy data
    select      Display particular rows, or parts of rows
+   sg          Manipulate syncgroups
    acl         Read or mutate the ACLs
    help        Display help for commands or topics
 
