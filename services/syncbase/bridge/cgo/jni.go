@@ -330,7 +330,9 @@ func Java_io_v_syncbase_internal_Database_JoinSyncgroup(env *C.JNIEnv, cls C.jcl
 	var cSpec C.v23_syncbase_SyncgroupSpec
 	var cErr C.v23_syncbase_VError
 	v23_syncbase_DbJoinSyncgroup(cName, cRemoteSyncbaseName, cExpectedSyncbaseBlessings, cSgId, cMyInfo, &cSpec, &cErr)
-	maybeThrowException(env, &cErr)
+	if maybeThrowException(env, &cErr) {
+		return nil
+	}
 	return cSpec.extractToJava(env)
 }
 
@@ -687,7 +689,9 @@ func Java_io_v_syncbase_internal_Row_Get(env *C.JNIEnv, cls C.jclass, name C.jst
 	var r C.v23_syncbase_Bytes
 	var cErr C.v23_syncbase_VError
 	v23_syncbase_RowGet(cName, cHandle, &r, &cErr)
-	maybeThrowException(env, &cErr)
+	if maybeThrowException(env, &cErr) {
+		return nil
+	}
 	return r.extractToJava(env)
 }
 
@@ -722,7 +726,9 @@ func Java_io_v_syncbase_internal_Blessings_AppBlessingFromContext(env *C.JNIEnv,
 	var cBlessing C.v23_syncbase_String
 	var cErr C.v23_syncbase_VError
 	v23_syncbase_AppBlessingFromContext(&cBlessing, &cErr)
-	maybeThrowException(env, &cErr)
+	if maybeThrowException(env, &cErr) {
+		return nil
+	}
 	return cBlessing.extractToJava(env)
 }
 
@@ -731,7 +737,9 @@ func Java_io_v_syncbase_internal_Blessings_UserBlessingFromContext(env *C.JNIEnv
 	var cBlessing C.v23_syncbase_String
 	var cErr C.v23_syncbase_VError
 	v23_syncbase_UserBlessingFromContext(&cBlessing, &cErr)
-	maybeThrowException(env, &cErr)
+	if maybeThrowException(env, &cErr) {
+		return nil
+	}
 	return cBlessing.extractToJava(env)
 }
 
