@@ -13,6 +13,8 @@ import (
 	"text/scanner"
 
 	"github.com/peterh/liner"
+	"v.io/x/lib/cmdline"
+	"v.io/x/ref/cmd/sb/commands"
 )
 
 type T struct {
@@ -121,6 +123,8 @@ func NewInteractive() *T {
 		line: liner.NewLiner(),
 	}
 	i.line.SetCtrlCAborts(true)
+	i.line.SetCompleter(complete)
+	i.line.SetTabCompletionStyle(liner.TabPrints)
 	return newT(i)
 }
 
@@ -138,4 +142,44 @@ func (i *interactive) ContinuePrompt() (string, error) {
 
 func (i *interactive) AppendHistory(query string) {
 	i.line.AppendHistory(query)
+}
+
+func complete(line string) []string {
+	// get command list to tab-complete on
+	tokens := strings.Split(line, " ")
+	cmds := commands.Commands
+	for _, token := range tokens[:len(tokens)-1] {
+		nextCommand := find(token, cmds)
+		if nextCommand == nil {
+			return nil
+		} else {
+			cmds = nextCommand.Children
+		}
+	}
+
+	lineMinusLastToken := strings.Join(tokens[:len(tokens)-1], " ")
+	if len(lineMinusLastToken) > 0 {
+		lineMinusLastToken += " "
+	}
+
+	// tab complete on command list
+	lastToken := tokens[len(tokens)-1]
+	var ret []string
+	for _, cmd := range cmds {
+		name := cmd.Name
+		if strings.HasPrefix(name, lastToken) {
+			ret = append(ret, lineMinusLastToken+name)
+		}
+	}
+
+	return ret
+}
+
+func find(name string, cmds []*cmdline.Command) *cmdline.Command {
+	for _, cmd := range cmds {
+		if cmd.Name == name {
+			return cmd
+		}
+	}
+	return nil
 }
