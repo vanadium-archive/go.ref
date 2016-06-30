@@ -70,7 +70,11 @@ WholeQuery:
 		t.initScanner(input)
 		query += "\n" // User started a new line.
 	}
-	t.prompt.AppendHistory(query + string(terminator))
+	if terminator == '\n' {
+		t.prompt.AppendHistory(query)
+	} else {
+		t.prompt.AppendHistory(query + string(terminator))
+	}
 	return query, nil
 }
 
