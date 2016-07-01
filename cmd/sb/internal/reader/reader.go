@@ -145,7 +145,7 @@ func (i *interactive) AppendHistory(query string) {
 }
 
 func complete(line string) []string {
-	// get command list to tab-complete on
+	// Get command list to tab-complete on.
 	tokens := strings.Split(line, " ")
 	cmds := commands.Commands
 	for _, token := range tokens[:len(tokens)-1] {
@@ -157,13 +157,9 @@ func complete(line string) []string {
 		}
 	}
 
-	lineMinusLastToken := strings.Join(tokens[:len(tokens)-1], " ")
-	if len(lineMinusLastToken) > 0 {
-		lineMinusLastToken += " "
-	}
-
-	// tab complete on command list
+	// Tab complete on command list.
 	lastToken := tokens[len(tokens)-1]
+	lineMinusLastToken := line[:len(line)-len(lastToken)]
 	var ret []string
 	for _, cmd := range cmds {
 		name := cmd.Name
