@@ -19,6 +19,8 @@ The sb commands are:
    select      Display particular rows, or parts of rows
    sg          Manipulate syncgroups
    acl         Read or mutate the ACLs
+   watch       Watch for updates to the database
+   destroy     Destroy a specified collection
    help        Display help for commands or topics
 
 The global flags are:

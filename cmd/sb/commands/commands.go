@@ -27,6 +27,8 @@ var Commands = []*cmdline.Command{
 	cmdSelect,
 	cmdSg,
 	cmdAcl,
+	cmdWatch,
+	cmdDestroy,
 }
 
 var (

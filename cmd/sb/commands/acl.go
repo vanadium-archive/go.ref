@@ -33,8 +33,8 @@ var (
 
 func init() {
 	cmdAcl.Flags.StringVar(&flagTarget, "target", "db", "The access controller type to act on (service, db, database, cx, collection, sg, syncgroup).")
-	cmdAcl.Flags.StringVar(&flagCollection, "cx", "", "The collection to act on. (note: requires -target=collection or cx)")
-	cmdAcl.Flags.StringVar(&flagSyncgroup, "sg", "", "The syncgroup to act on. (note: requires -target=syncgroup or sg)")
+	cmdAcl.Flags.StringVar(&flagCollection, "cx", "", "The collection to act on, in format <blessing>,<collection>. (note: requires -target=collection or cx)")
+	cmdAcl.Flags.StringVar(&flagSyncgroup, "sg", "", "The syncgroup to act on, in format <blessing>,<syncgroup>. (note: requires -target=syncgroup or sg)")
 }
 
 func updatePerms(ctx *context.T, db syncbase.Database, env *cmdline.Env, callback func(access.Permissions) (access.Permissions, error)) error {
@@ -61,6 +61,7 @@ func updatePerms(ctx *context.T, db syncbase.Database, env *cmdline.Env, callbac
 		if err := ac.SetPermissions(ctx, perms, version); err != nil {
 			return fmt.Errorf("error setting permissions: %q", err)
 		}
+		return nil
 	case "cx", "collection":
 		bdb, err := db.BeginBatch(ctx, wire.BatchOptions{})
 		if err != nil {
@@ -68,7 +69,11 @@ func updatePerms(ctx *context.T, db syncbase.Database, env *cmdline.Env, callbac
 		}
 		defer bdb.Abort(ctx)
 
-		collection := bdb.Collection(ctx, flagCollection)
+		id, err := wire.ParseId(flagCollection)
+		if err != nil {
+			return err
+		}
+		collection := bdb.CollectionForId(id)
 		perms, err := collection.GetPermissions(ctx)
 		if err != nil {
 			return err
@@ -86,7 +91,11 @@ func updatePerms(ctx *context.T, db syncbase.Database, env *cmdline.Env, callbac
 
 		return bdb.Commit(ctx)
 	case "sg", "syncgroup":
-		sg := db.Syncgroup(ctx, flagSyncgroup)
+		id, err := wire.ParseId(flagSyncgroup)
+		if err != nil {
+			return err
+		}
+		sg := db.SyncgroupForId(id)
 		spec, version, err := sg.GetSpec(ctx)
 		if err != nil {
 			return err
@@ -126,7 +135,7 @@ func runAclGet(ctx *context.T, db syncbase.Database, env *cmdline.Env, args []st
 	blessing := args[0]
 	return updatePerms(ctx, db, env,
 		func(perms access.Permissions) (access.Permissions, error) {
-			// Pretty-print the groups that blessing is in
+			// Pretty-print the groups that blessing is in.
 			var groupsIn []string
 			for groupName, acl := range perms {
 				for _, b := range acl.In {
@@ -138,7 +147,7 @@ func runAclGet(ctx *context.T, db syncbase.Database, env *cmdline.Env, args []st
 			}
 			fmt.Printf("[%s]\n", strings.Join(groupsIn, ", "))
 
-			// Pretty-print the groups that blessing is blacklisted from
+			// Pretty-print the groups that blessing is blacklisted from.
 			var groupsNotIn []string
 			for groupName, acl := range perms {
 				for _, b := range acl.NotIn {
@@ -252,7 +261,7 @@ type userTags struct {
 }
 
 // parseAccessList returns a map from blessing patterns to structs containing lists
-// of tags which the pattern is white/blacklisted on
+// of tags which the pattern is white/blacklisted on.
 func parseAccessList(args []string) (map[string]userTags, error) {
 	if got := len(args); got%2 != 0 {
 		return nil, fmt.Errorf("incorrect number of arguments %d, must be even", got)

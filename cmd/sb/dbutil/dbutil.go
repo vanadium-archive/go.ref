@@ -31,7 +31,7 @@ func GetService() syncbase.Service {
 
 // OpenDB is a user-friendly wrapper for openDB.
 func OpenDB(ctx *context.T) (syncbase.Database, error) {
-	// Open a connection to syncbase
+	// Open a connection to syncbase.
 	sbService := syncbase.NewService(flagService)
 	dbId, err := wire.ParseId(flagDbId)
 	if err != nil {
