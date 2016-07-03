@@ -153,7 +153,7 @@ typedef struct {
 ////////////////////////////////////////
 // Functions
 
-typedef void* v23_syncbase_Handle;
+typedef uintptr_t v23_syncbase_Handle;
 
 typedef struct {
   v23_syncbase_Handle handle;
