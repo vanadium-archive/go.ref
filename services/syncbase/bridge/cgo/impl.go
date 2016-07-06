@@ -46,7 +46,7 @@ import (
 	"v.io/v23/vom"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/bridge"
-	"v.io/x/ref/services/syncbase/bridge/cgo/refmap"
+	"v.io/x/ref/services/syncbase/bridge/cgo/ptrmap"
 	"v.io/x/ref/services/syncbase/discovery"
 	"v.io/x/ref/services/syncbase/syncbaselib"
 	"v.io/x/ref/test/testutil"
@@ -96,7 +96,7 @@ var (
 	neighborhoodAdStatus *adStatus
 )
 
-var globalRefMap = refmap.NewRefMap()
+var globalPtrMap = ptrmap.New()
 
 // TODO(razvanm): Replace the function arguments with an options struct.
 //export v23_syncbase_Init
@@ -342,7 +342,7 @@ func v23_syncbase_NeighborhoodIsAdvertising(cBool *C.v23_syncbase_Bool) {
 }
 
 //export v23_syncbase_NeighborhoodNewScan
-func v23_syncbase_NeighborhoodNewScan(cbs C.v23_syncbase_NeighborhoodScanCallbacks, cUint64 *C.uint64_t, cErr *C.v23_syncbase_VError) {
+func v23_syncbase_NeighborhoodNewScan(cbs C.v23_syncbase_NeighborhoodScanCallbacks, cErr *C.v23_syncbase_VError) {
 	scanCtx, cancel := context.WithCancel(b.Ctx)
 	scanChan := make(chan discovery.AppPeer)
 	err := discovery.ListenForAppPeers(scanCtx, scanChan)
@@ -365,13 +365,15 @@ func v23_syncbase_NeighborhoodNewScan(cbs C.v23_syncbase_NeighborhoodScanCallbac
 	}()
 
 	// Remember the scan's cancellation information and return the scan's id.
-	x := C.uint64_t(globalRefMap.Add(cancel))
-	cUint64 = &x
+	if err := globalPtrMap.Set(uintptr(cbs.handle), cancel); err != nil {
+		cancel()
+		cErr.init(err)
+	}
 }
 
 //export v23_syncbase_NeighborhoodStopScan
-func v23_syncbase_NeighborhoodStopScan(cUint64 C.uint64_t) {
-	if cancel, ok := globalRefMap.Remove(uint64(cUint64)).(context.CancelFunc); ok && cancel != nil {
+func v23_syncbase_NeighborhoodStopScan(cHandle C.v23_syncbase_Handle) {
+	if cancel, ok := globalPtrMap.Remove(uintptr(cHandle)).(context.CancelFunc); ok && cancel != nil {
 		cancel()
 	}
 }
@@ -743,7 +745,7 @@ func v23_syncbase_DbGetSyncgroupMembers(cName C.v23_syncbase_String, cSgId C.v23
 // Syncgroup Invites
 
 //export v23_syncbase_DbSyncgroupInvitesNewScan
-func v23_syncbase_DbSyncgroupInvitesNewScan(cName C.v23_syncbase_String, cbs C.v23_syncbase_DbSyncgroupInvitesCallbacks, cUint64 *C.uint64_t, cErr *C.v23_syncbase_VError) {
+func v23_syncbase_DbSyncgroupInvitesNewScan(cName C.v23_syncbase_String, cbs C.v23_syncbase_DbSyncgroupInvitesCallbacks, cErr *C.v23_syncbase_VError) {
 	encodedId := cName.extract()
 	dbId, err := util.DecodeId(encodedId)
 	if err != nil {
@@ -772,14 +774,16 @@ func v23_syncbase_DbSyncgroupInvitesNewScan(cName C.v23_syncbase_String, cbs C.v
 		}
 	}()
 
-	// Remember the scan's cancellation information and return the scan's id.
-	x := C.uint64_t(globalRefMap.Add(cancel))
-	cUint64 = &x
+	// Remember the scan's cancellation information.
+	if err := globalPtrMap.Set(uintptr(cbs.handle), cancel); err != nil {
+		cancel()
+		cErr.init(err)
+	}
 }
 
 //export v23_syncbase_DbSyncgroupInvitesStopScan
-func v23_syncbase_DbSyncgroupInvitesStopScan(cUint64 C.uint64_t) {
-	if cancel, ok := globalRefMap.Remove(uint64(cUint64)).(context.CancelFunc); ok && cancel != nil {
+func v23_syncbase_DbSyncgroupInvitesStopScan(cHandle C.v23_syncbase_Handle) {
+	if cancel, ok := globalPtrMap.Remove(uintptr(cHandle)).(context.CancelFunc); ok && cancel != nil {
 		cancel()
 	}
 }

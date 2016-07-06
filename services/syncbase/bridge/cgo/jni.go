@@ -407,7 +407,7 @@ func Java_io_v_syncbase_internal_Database_GetSyncgroupMembers(env *C.JNIEnv, cls
 //export v23_syncbase_internal_onChange
 func v23_syncbase_internal_onChange(handle C.v23_syncbase_Handle, change C.v23_syncbase_WatchChange) {
 	id := uint64(uintptr(handle))
-	h := globalRefMap.Get(id).(*watchPatternsCallbacksHandle)
+	h := globalPtrMap.Get(uintptr(id)).(*watchPatternsCallbacksHandle)
 	env, free := getEnv()
 	obj := change.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -422,7 +422,7 @@ func v23_syncbase_internal_onChange(handle C.v23_syncbase_Handle, change C.v23_s
 //export v23_syncbase_internal_onError
 func v23_syncbase_internal_onError(handle C.v23_syncbase_Handle, error C.v23_syncbase_VError) {
 	id := uint64(uintptr(handle))
-	h := globalRefMap.Remove(id).(*watchPatternsCallbacksHandle)
+	h := globalPtrMap.Remove(uintptr(id)).(*watchPatternsCallbacksHandle)
 	env, free := getEnv()
 	obj := error.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -445,11 +445,16 @@ func Java_io_v_syncbase_internal_Database_WatchPatterns(env *C.JNIEnv, cls C.jcl
 	cName := newVStringFromJava(env, name)
 	cResumeMarker := newVBytesFromJava(env, resumeMaker)
 	cPatterns := newVCollectionRowPatternsFromJava(env, patterns)
+	ptr := uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks)))
 	cbs := C.newVWatchPatternsCallbacks()
-	cbs.handle = C.v23_syncbase_Handle(uintptr(globalRefMap.Add(&watchPatternsCallbacksHandle{
-		obj:       uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks))),
+	callbacksHandle := &watchPatternsCallbacksHandle{
+		obj:       ptr,
 		callbacks: newJWatchPatternsCallbacks(env, callbacks),
-	})))
+	}
+	if err := globalPtrMap.Set(ptr, callbacksHandle); err != nil {
+		panic(err)
+	}
+	cbs.handle = C.v23_syncbase_Handle(ptr)
 	var cErr C.v23_syncbase_VError
 	v23_syncbase_DbWatchPatterns(cName, cResumeMarker, cPatterns, cbs, &cErr)
 	maybeThrowException(env, &cErr)
@@ -458,7 +463,7 @@ func Java_io_v_syncbase_internal_Database_WatchPatterns(env *C.JNIEnv, cls C.jcl
 //export v23_syncbase_internal_onInvite
 func v23_syncbase_internal_onInvite(handle C.v23_syncbase_Handle, invite C.v23_syncbase_Invite) {
 	id := uint64(uintptr(handle))
-	h := globalRefMap.Get(id).(*inviteCallbacksHandle)
+	h := globalPtrMap.Get(uintptr(id)).(*inviteCallbacksHandle)
 	env, free := getEnv()
 	obj := invite.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -479,20 +484,25 @@ type inviteCallbacksHandle struct {
 func Java_io_v_syncbase_internal_Database_SyncgroupInvitesNewScan(env *C.JNIEnv, cls C.jclass, name C.jstring, callbacks C.jobject) C.jlong {
 	cName := newVStringFromJava(env, name)
 	cbs := C.newVSyncgroupInvitesCallbacks()
-	cbs.handle = C.v23_syncbase_Handle(uintptr(globalRefMap.Add(&inviteCallbacksHandle{
-		obj:       uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks))),
+	scanId := uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks)))
+	callbacksHandle := &inviteCallbacksHandle{
+		obj:       scanId,
 		callbacks: newJSyncgroupInvitesCallbacks(env, callbacks),
-	})))
+	}
+	if err := globalPtrMap.Set(scanId, callbacksHandle); err != nil {
+		panic(err)
+	}
+	cbs.handle = C.v23_syncbase_Handle(uintptr(scanId))
 	var cErr C.v23_syncbase_VError
-	var scanId C.uint64_t
-	v23_syncbase_DbSyncgroupInvitesNewScan(cName, cbs, &scanId, &cErr)
+	v23_syncbase_DbSyncgroupInvitesNewScan(cName, cbs, &cErr)
 	maybeThrowException(env, &cErr)
 	return C.jlong(scanId)
 }
 
 //export Java_io_v_syncbase_internal_Database_SyncgroupInvitesStopScan
 func Java_io_v_syncbase_internal_Database_SyncgroupInvitesStopScan(env *C.JNIEnv, cls C.jclass, scanId C.jlong) {
-	v23_syncbase_DbSyncgroupInvitesStopScan(C.uint64_t(scanId))
+	v23_syncbase_DbSyncgroupInvitesStopScan(C.v23_syncbase_Handle(scanId))
+	globalPtrMap.Remove(uintptr(scanId))
 }
 
 //export Java_io_v_syncbase_internal_Collection_GetPermissions
@@ -562,7 +572,7 @@ func Java_io_v_syncbase_internal_Collection_DeleteRange(env *C.JNIEnv, cls C.jcl
 //export v23_syncbase_internal_onKeyValue
 func v23_syncbase_internal_onKeyValue(handle C.v23_syncbase_Handle, keyValue C.v23_syncbase_KeyValue) {
 	id := uint64(uintptr(handle))
-	h := globalRefMap.Get(id).(*scanCallbacksHandle)
+	h := globalPtrMap.Get(uintptr(id)).(*scanCallbacksHandle)
 	env, free := getEnv()
 	obj := keyValue.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -577,7 +587,7 @@ func v23_syncbase_internal_onKeyValue(handle C.v23_syncbase_Handle, keyValue C.v
 //export v23_syncbase_internal_onDone
 func v23_syncbase_internal_onDone(handle C.v23_syncbase_Handle, error C.v23_syncbase_VError) {
 	id := uint64(uintptr(handle))
-	h := globalRefMap.Get(id).(*scanCallbacksHandle)
+	h := globalPtrMap.Get(uintptr(id)).(*scanCallbacksHandle)
 	env, free := getEnv()
 	obj := error.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -588,7 +598,7 @@ func v23_syncbase_internal_onDone(handle C.v23_syncbase_Handle, error C.v23_sync
 	}
 	C.DeleteGlobalRef(env, unsafe.Pointer(h.obj))
 	free()
-	globalRefMap.Remove(id)
+	globalPtrMap.Remove(uintptr(id))
 }
 
 type scanCallbacksHandle struct {
@@ -602,11 +612,16 @@ func Java_io_v_syncbase_internal_Collection_Scan(env *C.JNIEnv, cls C.jclass, na
 	cHandle := newVStringFromJava(env, handle)
 	cStart := newVBytesFromJava(env, start)
 	cLimit := newVBytesFromJava(env, limit)
-	cbs := C.newVScanCallbacks()
-	cbs.handle = C.v23_syncbase_Handle(uintptr(globalRefMap.Add(&scanCallbacksHandle{
-		obj:       uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks))),
+	ptr := uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks)))
+	callbacksHandle := &scanCallbacksHandle{
+		obj:       ptr,
 		callbacks: newJScanCallbacks(env, callbacks),
-	})))
+	}
+	if err := globalPtrMap.Set(ptr, callbacksHandle); err != nil {
+		panic(err)
+	}
+	cbs := C.newVScanCallbacks()
+	cbs.handle = C.v23_syncbase_Handle(ptr)
 	var cErr C.v23_syncbase_VError
 	v23_syncbase_CollectionScan(cName, cHandle, cStart, cLimit, cbs, &cErr)
 	maybeThrowException(env, &cErr)
@@ -635,7 +650,7 @@ func Java_io_v_syncbase_internal_Neighborhood_IsAdvertising(env *C.JNIEnv, cls C
 //export v23_syncbase_internal_onPeer
 func v23_syncbase_internal_onPeer(handle C.v23_syncbase_Handle, peer C.v23_syncbase_AppPeer) {
 	id := uint64(uintptr(handle))
-	h := globalRefMap.Get(id).(*peerCallbacksHandle)
+	h := globalPtrMap.Get(uintptr(id)).(*peerCallbacksHandle)
 	env, free := getEnv()
 	obj := peer.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -655,20 +670,25 @@ type peerCallbacksHandle struct {
 //export Java_io_v_syncbase_internal_Neighborhood_NewScan
 func Java_io_v_syncbase_internal_Neighborhood_NewScan(env *C.JNIEnv, cls C.jclass, callbacks C.jobject) C.jlong {
 	cbs := C.newVNeighborhoodScanCallbacks()
-	cbs.handle = C.v23_syncbase_Handle(uintptr(globalRefMap.Add(&peerCallbacksHandle{
-		obj:       uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks))),
+	scanId := uintptr(unsafe.Pointer(C.NewGlobalRef(env, callbacks)))
+	callbacksHandle := &peerCallbacksHandle{
+		obj:       scanId,
 		callbacks: newJNeigbhorhoodScanCallbacks(env, callbacks),
-	})))
+	}
+	if err := globalPtrMap.Set(scanId, callbacksHandle); err != nil {
+		panic(err)
+	}
+	cbs.handle = C.v23_syncbase_Handle(uintptr(scanId))
 	var cErr C.v23_syncbase_VError
-	var scanId C.uint64_t
-	v23_syncbase_NeighborhoodNewScan(cbs, &scanId, &cErr)
+	v23_syncbase_NeighborhoodNewScan(cbs, &cErr)
 	maybeThrowException(env, &cErr)
 	return C.jlong(scanId)
 }
 
 //export Java_io_v_syncbase_internal_Neighborhood_StopScan
 func Java_io_v_syncbase_internal_Neighborhood_StopScan(env *C.JNIEnv, cls C.jclass, scanId C.jlong) {
-	v23_syncbase_NeighborhoodStopScan(C.uint64_t(scanId))
+	v23_syncbase_NeighborhoodStopScan(C.v23_syncbase_Handle(scanId))
+	globalPtrMap.Remove(uintptr(scanId))
 }
 
 //export Java_io_v_syncbase_internal_Row_Exists
