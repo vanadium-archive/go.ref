@@ -43,11 +43,13 @@ import (
 
 // service is a singleton (i.e. not per-request) that handles Service RPCs.
 type service struct {
-	st      store.Store // keeps track of which databases exist, etc.
-	sync    interfaces.SyncServerMethods
-	vclock  *vclock.VClock
-	vclockD *vclock.VClockD
-	opts    ServiceOptions
+	st                      store.Store // keeps track of which databases exist, etc.
+	sync                    interfaces.SyncServerMethods
+	vclock                  *vclock.VClock
+	vclockD                 *vclock.VClockD
+	opts                    ServiceOptions
+	cancelServerBlobFetcher context.CancelFunc
+	serverBlobFetcherDone   sync.WaitGroup
 	// Guards the fields below. Held during database Create, Delete, and
 	// SetPermissions.
 	mu  sync.Mutex
@@ -221,6 +223,12 @@ func NewService(ctx *context.T, opts ServiceOptions) (*service, error) {
 		vsync.NewSyncDatabase(d).StartStoreWatcher(ctx)
 	}
 
+	// Start a blob fetcher, setting up for stopping it in Close().
+	var serverBlobFetcherCtx *context.T
+	serverBlobFetcherCtx, s.cancelServerBlobFetcher = context.WithCancel(ctx)
+	s.serverBlobFetcherDone.Add(1)
+	go vsync.ServerBlobFetcher(serverBlobFetcherCtx, s.sync, &s.serverBlobFetcherDone)
+
 	// Start the vclock daemon. For now, we disable NTP when running in dev mode.
 	// If we decide to change this behavior, we'll need to update the tests in
 	// v.io/v23/syncbase/featuretests/vclock_v23_test.go to disable NTP some other
@@ -300,9 +308,11 @@ func (s *service) AddNames(ctx *context.T, svr rpc.Server) error {
 //
 // TODO(hpucha): Close or cleanup Syncbase database data structures.
 func (s *service) Close() {
+	s.cancelServerBlobFetcher()
 	s.vclockD.Close()
 	vsync.Close(s.sync)
 	s.st.Close()
+	s.serverBlobFetcherDone.Wait()
 }
 
 ////////////////////////////////////////

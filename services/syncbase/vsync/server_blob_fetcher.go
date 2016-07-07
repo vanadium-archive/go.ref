@@ -6,6 +6,7 @@ package vsync
 
 import "container/heap"
 import "math/rand"
+import "sync"
 import "time"
 
 import "v.io/v23/context"
@@ -319,7 +320,8 @@ func defaultBlobFetcherFunc(ctx *context.T, blobRef wire.BlobRef, clientData int
 // with gaps specified by parameters in parameters.go before scanning them all again.  It
 // stops only if the context *ctx is cancelled.  The function fetchFunc() will
 // be used to fetch blobs, and passed the argument clientData on each call.
-func ServerBlobFetcher(ctx *context.T, ssm interfaces.SyncServerMethods) {
+// If done!=nil, done.Done() is called just before the routine returns.
+func ServerBlobFetcher(ctx *context.T, ssm interfaces.SyncServerMethods, done *sync.WaitGroup) {
 	bf := NewBlobFetcher(ctx, serverBlobFetchConcurrency)
 	ss := ssm.(*syncService)
 	var delay time.Duration = serverBlobFetchInitialScanDelay
@@ -339,5 +341,9 @@ func ServerBlobFetcher(ctx *context.T, ssm interfaces.SyncServerMethods) {
 			}
 		}
 		delay = serverBlobFetchExtraScanDelay + serverBlobFetchScanDelayMultiplier*time.Since(startTime)
+	}
+	bf.WaitForExit()
+	if done != nil {
+		done.Done()
 	}
 }
