@@ -281,7 +281,7 @@ func (sd *syncDatabase) GetBlob(ctx *context.T, call wire.BlobManagerGetBlobServ
 		return err
 	}
 
-	return sd.fetchBlobRemote(ctx, br, nil, call, offset)
+	return ss.fetchBlobRemote(ctx, br, nil, call, offset)
 }
 
 func (sd *syncDatabase) FetchBlob(ctx *context.T, call wire.BlobManagerFetchBlobServerCall, br wire.BlobRef, priority uint64) error {
@@ -310,7 +310,7 @@ func (sd *syncDatabase) FetchBlob(ctx *context.T, call wire.BlobManagerFetchBlob
 	// TODO(hpucha): Implement a blob queue.
 	clientStream.Send(wire.BlobFetchStatus{State: wire.BlobFetchStatePending})
 
-	return sd.fetchBlobRemote(ctx, br, call, nil, 0)
+	return ss.fetchBlobRemote(ctx, br, call, nil, 0)
 }
 
 func (sd *syncDatabase) PinBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
@@ -362,6 +362,9 @@ func (s *syncService) FetchBlob(ctx *context.T, call interfaces.SyncFetchBlobSer
 					localShares := blobMetadata.OwnerShares[sgId]
 					localSgPriority, gotLocalSgPriority := localSgPriorities[sgId]
 					if gotLocalSgPriority && localShares > 0 && sgPriorityLowerThan(&localSgPriority, &remoteSgPriority) {
+						if sharesToTransfer == nil {
+							sharesToTransfer = make(interfaces.BlobSharesBySyncgroup)
+						}
 						if remoteSgPriority.DevType == wire.BlobDevTypeServer {
 							// Caller is a server in this syncgroup----give it all the shares.
 							sharesToTransfer[sgId] = localShares
@@ -528,7 +531,7 @@ func getLocalBlob(ctx *context.T, stream byteStream, bst blob.BlobStore, br wire
 	return nil
 }
 
-func (sd *syncDatabase) fetchBlobRemote(ctx *context.T, br wire.BlobRef, statusCall wire.BlobManagerFetchBlobServerCall, dataCall wire.BlobManagerGetBlobServerCall, offset int64) error {
+func (s *syncService) fetchBlobRemote(ctx *context.T, br wire.BlobRef, statusCall wire.BlobManagerFetchBlobServerCall, dataCall wire.BlobManagerGetBlobServerCall, offset int64) error {
 	vlog.VI(4).Infof("sync: fetchBlobRemote: begin br %v, offset %v", br, offset)
 	defer vlog.VI(4).Infof("sync: fetchBlobRemote: end br %v, offset %v", br, offset)
 
@@ -558,7 +561,7 @@ func (sd *syncDatabase) fetchBlobRemote(ctx *context.T, br wire.BlobRef, statusC
 	}
 
 	// Locate blob.
-	peer, size, err := sd.locateBlob(ctx, br)
+	peer, size, err := s.locateBlob(ctx, br)
 	if err != nil {
 		return err
 	}
@@ -569,8 +572,7 @@ func (sd *syncDatabase) fetchBlobRemote(ctx *context.T, br wire.BlobRef, statusC
 		statusStream.Send(status)
 	}
 
-	ss := sd.sync.(*syncService)
-	bst := ss.bst
+	bst := s.bst
 
 	bWriter, err := bst.NewBlobWriter(ctx, string(br))
 	if err != nil {
@@ -582,11 +584,11 @@ func (sd *syncDatabase) fetchBlobRemote(ctx *context.T, br wire.BlobRef, statusC
 	sgPriorities := make(interfaces.SgPriorities)
 	var signpost interfaces.Signpost
 	var blessingNames []string
-	if ss.bst.GetSignpost(ctx, br, &signpost) == nil {
+	if s.bst.GetSignpost(ctx, br, &signpost) == nil {
 		blessingNames, err = getPeerBlessingsForFetchBlob(ctx, peer)
 		if err == nil {
-			filterSignpost(ctx, blessingNames, ss, &signpost)
-			addSyncgroupPriorities(ctx, ss.bst, signpost.SgIds, sgPriorities)
+			filterSignpost(ctx, blessingNames, s, &signpost)
+			addSyncgroupPriorities(ctx, s.bst, signpost.SgIds, sgPriorities)
 		}
 	}
 
@@ -632,7 +634,6 @@ func (sd *syncDatabase) fetchBlobRemote(ctx *context.T, br wire.BlobRef, statusC
 			if err == nil {
 				// We successfully fetched the blob.  Maybe
 				// take ownership in one or more syncgroups.
-				ss := sd.sync.(*syncService)
 				takingOwnership := make(interfaces.BlobSharesBySyncgroup)
 				for sgId, shares := range remoteSharesBySgId {
 					myPriority, havePriority := sgPriorities[sgId]
@@ -665,22 +666,22 @@ func (sd *syncDatabase) fetchBlobRemote(ctx *context.T, br wire.BlobRef, statusC
 					//    blobs we already have, triggered perhaps via the RequestTakeBlob() call.
 					var peerName string
 					var peerKeepingBlob bool
-					peerName, peerKeepingBlob, _ = c.AcceptedBlobOwnership(ctx, br, ss.name, takingOwnership)
+					peerName, peerKeepingBlob, _ = c.AcceptedBlobOwnership(ctx, br, s.name, takingOwnership)
 
 					var blobMetadata blob.BlobMetadata
-					ss.bst.GetBlobMetadata(ctx, br, &blobMetadata)
+					s.bst.GetBlobMetadata(ctx, br, &blobMetadata)
 
 					for sgId, shares := range takingOwnership {
 						blobMetadata.OwnerShares[sgId] += shares
 					}
-					ss.bst.SetBlobMetadata(ctx, br, &blobMetadata)
+					s.bst.SetBlobMetadata(ctx, br, &blobMetadata)
 
 					// Remove peer from local signpost if it's not keeping blob.
 					if !peerKeepingBlob {
 						var sp interfaces.Signpost
-						if ss.bst.GetSignpost(ctx, br, &sp) == nil {
+						if s.bst.GetSignpost(ctx, br, &sp) == nil {
 							delete(sp.Locations, peerName)
-							ss.bst.SetSignpost(ctx, br, &sp)
+							s.bst.SetSignpost(ctx, br, &sp)
 						}
 					}
 				}
@@ -837,13 +838,12 @@ func mergeSignposts(targetSp *interfaces.Signpost, sourceSp *interfaces.Signpost
 }
 
 // TODO(hpucha): Add syncgroup driven blob discovery.
-func (sd *syncDatabase) locateBlob(ctx *context.T, br wire.BlobRef) (string, int64, error) {
+func (s *syncService) locateBlob(ctx *context.T, br wire.BlobRef) (string, int64, error) {
 	vlog.VI(4).Infof("sync: locateBlob: begin br %v", br)
 	defer vlog.VI(4).Infof("sync: locateBlob: end br %v", br)
 
-	ss := sd.sync.(*syncService)
 	var sp interfaces.Signpost
-	err := ss.bst.GetSignpost(ctx, br, &sp)
+	err := s.bst.GetSignpost(ctx, br, &sp)
 	if err != nil {
 		return "", 0, err
 	}
@@ -863,7 +863,7 @@ func (sd *syncDatabase) locateBlob(ctx *context.T, br wire.BlobRef) (string, int
 		var p string = locationList[i].peer
 		vlog.VI(4).Infof("sync: locateBlob: attempting %s", p)
 		// Get the mount tables for this peer.
-		mtTables, err := sd.getMountTables(ctx, p)
+		mtTables, err := s.getMountTables(ctx, p)
 		if err != nil {
 			continue
 		}
@@ -874,7 +874,7 @@ func (sd *syncDatabase) locateBlob(ctx *context.T, br wire.BlobRef) (string, int
 			size, remoteSp, err := c.HaveBlob(ctx, br)
 			if size >= 0 {
 				if updatedSp {
-					ss.bst.SetSignpost(ctx, br, &sp)
+					s.bst.SetSignpost(ctx, br, &sp)
 				}
 				vlog.VI(4).Infof("sync: locateBlob: found blob on %s", absName)
 				return absName, size, nil
@@ -894,15 +894,14 @@ func (sd *syncDatabase) locateBlob(ctx *context.T, br wire.BlobRef) (string, int
 		}
 	}
 	if updatedSp {
-		ss.bst.SetSignpost(ctx, br, &sp)
+		s.bst.SetSignpost(ctx, br, &sp)
 	}
 
 	return "", 0, verror.New(verror.ErrInternal, ctx, "blob not found")
 }
 
-func (sd *syncDatabase) getMountTables(ctx *context.T, peer string) (map[string]struct{}, error) {
-	ss := sd.sync.(*syncService)
-	mInfo := ss.copyMemberInfo(ctx, peer)
+func (s *syncService) getMountTables(ctx *context.T, peer string) (map[string]struct{}, error) {
+	mInfo := s.copyMemberInfo(ctx, peer)
 	return mInfo.mtTables, nil
 }
 

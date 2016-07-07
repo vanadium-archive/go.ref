@@ -234,6 +234,9 @@ func New(ctx *context.T, sv interfaces.Service, blobStEngine, blobRootDir string
 	// Start the discovery service thread to listen to neighborhood updates.
 	go s.discoverNeighborhood(ctx)
 
+	// Start a blob fetcher.
+	go ServerBlobFetcher(ctx, s)
+
 	return s, nil
 }
 

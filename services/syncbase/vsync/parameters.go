@@ -75,4 +75,26 @@ var (
 	// initialBlobOwnerShares is the initial number of ownership shares that
 	// a device gives itself when it introduces a BlobRef to a syncgroup.
 	initialBlobOwnerShares = int32(2)
+
+	// serverBlobFetchConcurrency is the maximum number of concurrent blob fetches
+	// that a server will initiate as background activity to pull blobs to it.
+	serverBlobFetchConcurrency = 4
+
+	// serverBlobFetchInitialScanDelay is the time before the first scan to
+	// find blobs for servers to fetch.  This parameter exists primarily
+	// for testing.  An alternative would be to find some means for a test
+	// to adjust the serverBlobFetchExtraScanDelay parameter.
+	serverBlobFetchInitialScanDelay = 10 * time.Second
+
+	// serverBlobFetchExtraScanDelay is the additional time between scans
+	// of the database to find blobs for servers to fetch, so the total time
+	// between scans is
+	//  serverBlobFetchScanDelayMultiplier*time_for_last_scan+serverBlobFetchExtraScanDelay
+	serverBlobFetchExtraScanDelay = 300 * time.Second
+
+	// serverBlobFetchScanDelayMultiplier is a multiplier applied to the
+	// scan time to ensure that a server doesn't spent too much of its time scanning
+	// for blobs.  The total time between scans is
+	//  serverBlobFetchScanDelayMultiplier*time_for_last_scan+serverBlobFetchExtraScanDelay
+	serverBlobFetchScanDelayMultiplier time.Duration = 4
 )

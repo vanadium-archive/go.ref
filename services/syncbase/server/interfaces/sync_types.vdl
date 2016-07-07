@@ -228,6 +228,7 @@ type PeerToLocationDataMap map[string]LocationData
 // It represents the data known about a blob even when the blob itself is not
 // present on the device.
 type Signpost struct {
-	Locations    PeerToLocationDataMap   // Maps name of syncbase that probably has the blob to a LocationData
-        SgIds        set[GroupId]            // SyncGroups through which the BlobRef was learned.
+	Locations     PeerToLocationDataMap   // Maps name of syncbase that probably has the blob to a LocationData
+	SgIds         set[GroupId]            // SyncGroups through which the BlobRef was learned.
+	FetchAttempts uint32                  // Number of attempts made to fetch the blob.
 }

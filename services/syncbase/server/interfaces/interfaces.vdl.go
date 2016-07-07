@@ -2337,8 +2337,9 @@ func (x *PeerToLocationDataMap) VDLRead(dec vdl.Decoder) error {
 // It represents the data known about a blob even when the blob itself is not
 // present on the device.
 type Signpost struct {
-	Locations PeerToLocationDataMap // Maps name of syncbase that probably has the blob to a LocationData
-	SgIds     map[GroupId]struct{}  // SyncGroups through which the BlobRef was learned.
+	Locations     PeerToLocationDataMap // Maps name of syncbase that probably has the blob to a LocationData
+	SgIds         map[GroupId]struct{}  // SyncGroups through which the BlobRef was learned.
+	FetchAttempts uint32                // Number of attempts made to fetch the blob.
 }
 
 func (Signpost) __VDLReflect(struct {
@@ -2351,6 +2352,9 @@ func (x Signpost) VDLIsZero() bool {
 		return false
 	}
 	if len(x.SgIds) != 0 {
+		return false
+	}
+	if x.FetchAttempts != 0 {
 		return false
 	}
 	return true
@@ -2373,6 +2377,11 @@ func (x Signpost) VDLWrite(enc vdl.Encoder) error {
 			return err
 		}
 		if err := __VDLWriteAnon_set_3(enc, x.SgIds); err != nil {
+			return err
+		}
+	}
+	if x.FetchAttempts != 0 {
+		if err := enc.NextFieldValueUint(2, vdl.Uint32Type, uint64(x.FetchAttempts)); err != nil {
 			return err
 		}
 	}
@@ -2413,6 +2422,13 @@ func (x *Signpost) VDLRead(dec vdl.Decoder) error {
 		case 1:
 			if err := __VDLReadAnon_set_3(dec, &x.SgIds); err != nil {
 				return err
+			}
+		case 2:
+			switch value, err := dec.ReadValueUint(32); {
+			case err != nil:
+				return err
+			default:
+				x.FetchAttempts = uint32(value)
 			}
 		}
 	}
