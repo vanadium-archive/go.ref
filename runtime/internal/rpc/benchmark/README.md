@@ -49,19 +49,6 @@ Benchmark___10B     1000           8587341 ns/op           0.00 MB/s
 
 `RESULTS.txt` has the full benchmark results.
 
-## `simple/main.go`
-
-`simple/main.go` is a simple command-line tool to run the main benchmarks to measure
-RPC setup time, latency, and throughput.
-
-```
-$ jiri go run simple/main.go
-RPC Connection  33.48 ms/rpc
-RPC (echo 1000B)  1.31 ms/rpc (763.05 qps)
-RPC Streaming (echo 1000B)  0.11 ms/rpc
-RPC Streaming Throughput (echo 1MB) 313.91 MB/s
-```
-
 # Client/Server
 ## `{benchmark,benchmarkd}/main.go`
 
