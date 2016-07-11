@@ -113,7 +113,7 @@ The vkube start flags are:
    Do not pass blessings to the application.
  -wait=false
    Wait for all the replicas to be ready.
- -wait-timeout=5m0s
+ -wait-timeout=20m0s
    How long to wait for the start to make progress.
 
  -config=vkube.cfg
@@ -147,7 +147,7 @@ The vkube update flags are:
    Filename to use to update the kubernetes resource.
  -wait=false
    Wait for the update to finish.
- -wait-timeout=5m0s
+ -wait-timeout=20m0s
    How long to wait for the update to make progress.
 
  -config=vkube.cfg
@@ -197,7 +197,7 @@ Usage:
 The vkube start-cluster-agent flags are:
  -wait=false
    Wait for the cluster agent to be ready.
- -wait-timeout=5m0s
+ -wait-timeout=20m0s
    How long to wait for the cluster agent to be ready.
 
  -config=vkube.cfg
@@ -244,7 +244,7 @@ Usage:
 The vkube update-cluster-agent flags are:
  -wait=false
    Wait for the cluster agent to be ready.
- -wait-timeout=5m0s
+ -wait-timeout=20m0s
    How long to wait for the cluster agent to be ready.
 
  -config=vkube.cfg

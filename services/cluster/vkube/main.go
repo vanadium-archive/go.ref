@@ -81,20 +81,20 @@ func main() {
 	cmdStart.Flags.StringVar(&flagBaseBlessings, "base-blessings", "", "Base blessings to extend, base64url-vom-encoded. If empty, the default blessings are used.")
 	cmdStart.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to create the kubernetes resource.")
 	cmdStart.Flags.BoolVar(&flagWait, "wait", false, "Wait for all the replicas to be ready.")
-	cmdStart.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 5*time.Minute, "How long to wait for the start to make progress.")
+	cmdStart.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 20*time.Minute, "How long to wait for the start to make progress.")
 
 	cmdUpdate.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to update the kubernetes resource.")
 	cmdUpdate.Flags.StringVar(&flagBaseBlessings, "base-blessings", "", "Base blessings to extend, base64url-vom-encoded. If empty, the default blessings are used.")
 	cmdUpdate.Flags.BoolVar(&flagWait, "wait", false, "Wait for the update to finish.")
-	cmdUpdate.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 5*time.Minute, "How long to wait for the update to make progress.")
+	cmdUpdate.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 20*time.Minute, "How long to wait for the update to make progress.")
 
 	cmdStop.Flags.StringVar(&flagResourceFile, "f", "", "Filename to use to stop the kubernetes resource.")
 
 	cmdStartClusterAgent.Flags.BoolVar(&flagWait, "wait", false, "Wait for the cluster agent to be ready.")
-	cmdStartClusterAgent.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 5*time.Minute, "How long to wait for the cluster agent to be ready.")
+	cmdStartClusterAgent.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 20*time.Minute, "How long to wait for the cluster agent to be ready.")
 
 	cmdUpdateClusterAgent.Flags.BoolVar(&flagWait, "wait", false, "Wait for the cluster agent to be ready.")
-	cmdUpdateClusterAgent.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 5*time.Minute, "How long to wait for the cluster agent to be ready.")
+	cmdUpdateClusterAgent.Flags.DurationVar(&flagWaitTimeout, "wait-timeout", 20*time.Minute, "How long to wait for the cluster agent to be ready.")
 
 	cmdUpdateConfig.Flags.StringVar(&flagClusterAgentImage, "cluster-agent-image", "", "The new cluster agent image. If the name starts with ':', only the image tag is updated.")
 	cmdUpdateConfig.Flags.StringVar(&flagPodAgentImage, "pod-agent-image", "", "The new pod agent image. If the name starts with ':', only the image tag is updated.")
