@@ -602,6 +602,29 @@ func (s *service) setDatabasePerms(ctx *context.T, call rpc.ServerCall, dbId wir
 }
 
 ////////////////////////////////////////
+// Authorization hooks
+
+var _ common.Permser = (*service)(nil)
+
+func (s *service) GetDataWithExistAuth(ctx *context.T, _ rpc.ServerCall, st store.StoreReader, v common.PermserData) (parentPerms, perms access.Permissions, _ error) {
+	sd := v.(*ServiceData)
+	getErr := store.Get(ctx, st, s.stKey(), sd)
+	if verror.ErrorID(getErr) == verror.ErrNoExist.ID {
+		// ServiceData entry should always exist.
+		getErr = verror.New(verror.ErrBadState, ctx, "ServiceData entry missing")
+	}
+	return openAcl(), sd.GetPerms(), getErr
+}
+
+func openAcl() access.Permissions {
+	return access.Permissions{}.Add(security.AllPrincipals, access.TagStrings(access.AllTypicalTags()...)...)
+}
+
+func (s *service) PermserData() common.PermserData {
+	return &ServiceData{}
+}
+
+////////////////////////////////////////
 // Other internal helpers
 
 func (s *service) stKey() string {

@@ -6,12 +6,12 @@ package server
 
 import (
 	"v.io/v23/security/access"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 )
 
 var (
-	_ util.Permser = (*ServiceData)(nil)
-	_ util.Permser = (*DatabaseData)(nil)
+	_ common.PermserData = (*ServiceData)(nil)
+	_ common.PermserData = (*DatabaseData)(nil)
 )
 
 func (data *ServiceData) GetPerms() access.Permissions {

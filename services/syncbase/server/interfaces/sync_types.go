@@ -6,7 +6,7 @@ package interfaces
 
 import (
 	"v.io/v23/security/access"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 )
 
 func (in Knowledge) DeepCopy() Knowledge {
@@ -70,7 +70,7 @@ func (a GenVector) Compare(b GenVector) int {
 }
 
 var (
-	_ util.Permser = (*CollectionPerms)(nil)
+	_ common.PermserData = (*CollectionPerms)(nil)
 )
 
 func (perms *CollectionPerms) GetPerms() access.Permissions {

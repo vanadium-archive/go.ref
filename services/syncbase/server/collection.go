@@ -107,9 +107,10 @@ func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, bh wire.Bat
 
 func (c *collectionReq) Exists(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (bool, error) {
 	impl := func(sntx store.SnapshotOrTransaction) error {
-		return util.GetWithAuth(ctx, call, c.d.st, c.permsKey(), &interfaces.CollectionPerms{})
+		_, _, err := c.GetDataWithExistAuth(ctx, call, sntx, &interfaces.CollectionPerms{})
+		return err
 	}
-	return util.ErrorToExists(c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl))
+	return common.ErrorToExists(c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl))
 }
 
 func (c *collectionReq) GetPermissions(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (perms access.Permissions, err error) {
@@ -207,7 +208,26 @@ func (c *collectionReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServ
 		}
 		return util.GlobChildren(ctx, call, matcher, sntx, common.JoinKeyParts(common.RowPrefix, c.stKeyPart()))
 	}
-	return store.RunWithSnapshot(c.d.st, impl)
+	return c.d.runWithNewSnapshot(ctx, impl)
+}
+
+////////////////////////////////////////
+// Authorization hooks
+
+var _ common.Permser = (*collectionReq)(nil)
+
+func (c *collectionReq) GetDataWithExistAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, v common.PermserData) (parentPerms, perms access.Permissions, _ error) {
+	cp := v.(*interfaces.CollectionPerms)
+	parentPerms, err := common.GetPermsWithExistAndParentResolveAuth(ctx, call, c.d, st)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = common.GetDataWithExistAuthStep(ctx, call, c.id.String(), parentPerms, st, c.permsKey(), cp)
+	return parentPerms, cp.GetPerms(), err
+}
+
+func (c *collectionReq) PermserData() common.PermserData {
+	return &interfaces.CollectionPerms{}
 }
 
 ////////////////////////////////////////
@@ -231,6 +251,7 @@ func (c *collectionReq) stKeyPart() string {
 // TODO(rogulenko): Revisit this behavior. Eventually we'll want the
 // collection-level access check to be a check for "Resolve", i.e. also check
 // access to service and database.
+// TODO(ivanpi): Remove once all callers are ported to explicit auth.
 func (c *collectionReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) (access.Permissions, error) {
 	collectionPerms := &interfaces.CollectionPerms{}
 	if err := util.GetWithAuth(ctx, call, sntx, c.permsKey(), collectionPerms); err != nil {

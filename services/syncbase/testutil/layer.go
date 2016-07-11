@@ -39,9 +39,7 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	}
 
 	assertExists(t, ctx, self, "self", false)
-	// TODO(ivanpi): Exists on child when parent does not exist currently fails
-	// with an error instead of returning false.
-	// assertExists(t, ctx, child, "child", false)
+	assertExists(t, ctx, child, "child", false)
 
 	// Create self.
 	if err := self.Create(ctx, nil); err != nil {
@@ -79,9 +77,7 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 		t.Errorf("Perms do not match: got %v, want %v", gotPerms, wantPerms)
 	}
 
-	// Even though self2 exists, Exists returns false because Read access is
-	// needed.
-	assertExists(t, ctx, self2, "self2", false)
+	assertExists(t, ctx, self2, "self2", true)
 
 	// Test that create fails if the parent perms disallow access.
 	perms = DefaultPerms(parent.AllowedTags(), "root:o:app:client")
@@ -153,9 +149,7 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	}
 
 	assertExists(t, ctx, self, "self", false)
-	// TODO(ivanpi): Exists on child when parent does not exist currently fails
-	// with an error instead of returning false.
-	// assertExists(t, ctx, child, "child", false)
+	assertExists(t, ctx, child, "child", false)
 
 	// self.Create should succeed, since self was destroyed.
 	if err := self.Create(ctx, nil); err != nil {
@@ -207,9 +201,7 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	}
 
 	assertExists(t, ctx, self, "self", false)
-	// TODO(ivanpi): Reenable when Exists() is fixed to treat nonexistent parent
-	// same as nonexistent self.
-	//assertExists(t, ctx, child, "child", false)
+	assertExists(t, ctx, child, "child", false)
 
 	// Test that destroy is idempotent.
 	if err := self.Destroy(ctx); err != nil {

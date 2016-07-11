@@ -79,13 +79,12 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 		}
 	}
 
-	dbExists := false
 	var d *database
 	if dInt, err := disp.s.Database(ctx, nil, dbId); err == nil {
 		d = dInt.(*database) // panics on failure, as desired
-		dbExists = true
 	} else {
 		if verror.ErrorID(err) != verror.ErrNoExist.ID {
+			// TODO(ivanpi): Panic here? Database() seems to never return other errors.
 			return nil, nil, err
 		} else {
 			// Database does not exist. Create a short-lived database object to
@@ -100,15 +99,12 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 	// TODO(sadovsky): Is it possible to determine the RPC method from the
 	// context? If so, we can check here that the database exists (unless the
 	// client is calling Database.Create), and avoid the "d.exists" checks in all
-	// the RPC method implementations.
+	// the RPC method implementations. Note, this would also require being able
+	// to authorize the user to return the appropriate error type (ErrNoExist vs
+	// ErrNoExistOrNoAccess), possibly by returning a specialized authorizer.
+
 	if len(parts) == 1 {
 		return wire.DatabaseServer(d), auth, nil
-	}
-
-	// All collection and row methods require the database to exist. If it
-	// doesn't, abort early.
-	if !dbExists {
-		return nil, nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 
 	// Note, it's possible for the database to be deleted concurrently with
@@ -131,5 +127,6 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 		return wire.RowServer(rReq), auth, nil
 	}
 
-	return nil, nil, verror.NewErrNoExist(ctx)
+	// TODO(ivanpi): Panic here? This should never happen since we do SplitN.
+	return nil, nil, verror.New(wire.ErrInvalidName, ctx, suffix, "too many name components")
 }

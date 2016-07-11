@@ -55,14 +55,19 @@ func TestWatchLogPerms(t *testing.T) {
 	ctx, shutdown := test.V23Init()
 	defer shutdown()
 	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("root"))
-	// Mock the service, store, db, collection.
+	// Mock create the service, db, collection.
 	clk := vclock.NewVClockForTests(nil)
 	st, _ := watchable.Wrap(memstore.New(), clk, &watchable.Options{
 		ManagedPrefixes: []string{common.RowPrefix, common.CollectionPermsPrefix},
 	})
-	db := &database{id: wire.Id{Blessing: "a", Name: "d"}, st: st}
+	store.Put(ctx, st, common.ServicePrefix, &ServiceData{
+		Perms: access.Permissions{}.Add("root", access.TagStrings(access.AllTypicalTags()...)...),
+	})
+	db := &database{id: wire.Id{Blessing: "a", Name: "d"}, exists: true, st: st}
+	store.Put(ctx, st, db.stKey(), &DatabaseData{
+		Perms: access.Permissions{}.Add("root", access.TagStrings(wire.AllDatabaseTags...)...),
+	})
 	c := &collectionReq{id: wire.Id{Blessing: "u", Name: "c"}, d: db}
-	// Mock create the collection.
 	perms := access.Permissions{}.Add("root", access.TagStrings(wire.AllCollectionTags...)...)
 	storedPerms := interfaces.CollectionPerms(perms)
 	store.Put(ctx, st, c.permsKey(), &storedPerms)

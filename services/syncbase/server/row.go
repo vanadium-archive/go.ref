@@ -7,11 +7,10 @@ package server
 import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
-	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/common"
-	"v.io/x/ref/services/syncbase/server/util"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -29,8 +28,14 @@ var (
 // RPC methods
 
 func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (bool, error) {
-	_, err := r.Get(ctx, call, bh)
-	return util.ErrorToExists(err)
+	allowExists := []access.Tag{access.Read, access.Write}
+	impl := func(sntx store.SnapshotOrTransaction) (err error) {
+		if _, err := common.GetPermsWithAuth(ctx, call, r.c, allowExists, sntx); err != nil {
+			return err
+		}
+		return store.Get(ctx, sntx, r.stKey(), &vom.RawBytes{})
+	}
+	return common.ErrorToExists(r.c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl))
 }
 
 func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (*vom.RawBytes, error) {
@@ -76,16 +81,9 @@ func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrT
 	if _, err := r.c.checkAccess(ctx, call, sntx); err != nil {
 		return nil, err
 	}
-	value, err := sntx.Get([]byte(r.stKey()), nil)
 	var valueAsRawBytes vom.RawBytes
-	if err == nil {
-		err = vom.Decode(value, &valueAsRawBytes)
-	}
-	if err != nil {
-		if verror.ErrorID(err) == store.ErrUnknownKey.ID {
-			return nil, verror.New(verror.ErrNoExist, ctx, r.stKey())
-		}
-		return nil, verror.New(verror.ErrInternal, ctx, err)
+	if err := store.Get(ctx, sntx, r.stKey(), &valueAsRawBytes); err != nil {
+		return nil, err
 	}
 	return &valueAsRawBytes, nil
 }
@@ -93,20 +91,12 @@ func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrT
 // put writes data to the storage engine.
 // Performs authorization check.
 func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, ts *transactionState, value *vom.RawBytes) error {
-	tx := ts.tx
-	currentPerms, err := r.c.checkAccess(ctx, call, tx)
+	currentPerms, err := r.c.checkAccess(ctx, call, ts.tx)
 	if err != nil {
 		return err
 	}
 	ts.MarkDataChanged(r.c.id, currentPerms)
-	valueAsBytes, err := vom.Encode(value)
-	if err != nil {
-		return err
-	}
-	if err = tx.Put([]byte(r.stKey()), valueAsBytes); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return store.Put(ctx, ts.tx, r.stKey(), value)
 }
 
 // delete deletes data from the storage engine.
@@ -117,8 +107,5 @@ func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, ts *transactionStat
 		return err
 	}
 	ts.MarkDataChanged(r.c.id, currentPerms)
-	if err := ts.tx.Delete([]byte(r.stKey())); err != nil {
-		return verror.New(verror.ErrInternal, ctx, err)
-	}
-	return nil
+	return store.Delete(ctx, ts.tx, r.stKey())
 }

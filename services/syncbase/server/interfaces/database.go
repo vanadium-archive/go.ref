@@ -25,7 +25,7 @@ type Database interface {
 
 	// CheckPermsInternal checks whether the given RPC (ctx, call) is allowed per
 	// the database perms.
-	// Designed for use from within Service.DestroyDatabase.
+	// TODO(ivanpi): Remove once all callers are ported to explicit auth.
 	CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error
 
 	// GetSchemaMetadataInternal returns SchemaMetadata stored for this db

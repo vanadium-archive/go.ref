@@ -242,10 +242,11 @@ func (d *database) Destroy(ctx *context.T, call rpc.ServerCall) error {
 }
 
 func (d *database) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
-	if !d.exists {
-		return false, nil
+	impl := func(sntx store.SnapshotOrTransaction) error {
+		_, _, err := d.GetDataWithExistAuth(ctx, call, sntx, &DatabaseData{})
+		return err
 	}
-	return util.ErrorToExists(util.GetWithAuth(ctx, call, d.st, d.stKey(), &DatabaseData{}))
+	return common.ErrorToExists(d.runWithNewSnapshot(ctx, impl))
 }
 
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
@@ -737,16 +738,44 @@ func (s *kvs) Cancel() {
 }
 
 ////////////////////////////////////////
+// Authorization hooks
+
+var _ common.Permser = (*service)(nil)
+
+func (d *database) GetDataWithExistAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, v common.PermserData) (parentPerms, perms access.Permissions, _ error) {
+	dd := v.(*DatabaseData)
+	parentPerms, err := common.GetPermsWithExistAndParentResolveAuth(ctx, call, d.s, d.s.st)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = common.GetDataWithExistAuthStep(ctx, call, d.id.String(), parentPerms, st, d.stKey(), dd)
+	return parentPerms, dd.GetPerms(), err
+}
+
+func (d *database) PermserData() common.PermserData {
+	return &DatabaseData{}
+}
+
+////////////////////////////////////////
 // Internal helpers
 
 func (d *database) stKey() string {
 	return common.DatabasePrefix
 }
 
+func (d *database) runWithNewSnapshot(ctx *context.T, fn func(sntx store.SnapshotOrTransaction) error) error {
+	return d.runWithExistingBatchOrNewSnapshot(ctx, "", fn)
+}
+
 func (d *database) runWithExistingBatchOrNewSnapshot(ctx *context.T, bh wire.BatchHandle, fn func(sntx store.SnapshotOrTransaction) error) error {
+	if !d.exists {
+		// TODO(ivanpi): Return fuzzy error if appropriate.
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if bh != "" {
 		if sntx, err := d.batchReader(ctx, bh); err != nil {
 			// Batch does not exist.
+			// TODO(ivanpi): Return fuzzy error if appropriate.
 			return err
 		} else {
 			return fn(sntx)
@@ -757,9 +786,14 @@ func (d *database) runWithExistingBatchOrNewSnapshot(ctx *context.T, bh wire.Bat
 }
 
 func (d *database) runInExistingBatchOrNewTransaction(ctx *context.T, bh wire.BatchHandle, fn func(ts *transactionState) error) error {
+	if !d.exists {
+		// TODO(ivanpi): Return fuzzy error if appropriate.
+		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	if bh != "" {
 		if batch, err := d.batchTransaction(ctx, bh); err != nil {
 			// Batch does not exist or is readonly (snapshot).
+			// TODO(ivanpi): Return fuzzy error if appropriate.
 			return err
 		} else {
 			return fn(batch)
