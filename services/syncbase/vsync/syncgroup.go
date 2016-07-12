@@ -760,7 +760,7 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 	// that fails, enqueue it for later publish retries.
 	if spec.PublishSyncbaseName != "" {
 		go func() {
-			if err := sd.publishSyncgroup(ctx, call, sgId, spec.PublishSyncbaseName); err != nil {
+			if err := sd.publishSyncgroup(sgId, spec.PublishSyncbaseName); err != nil {
 				ss.enqueuePublishSyncgroup(sgId, dbId, true)
 			}
 		}()
@@ -1070,10 +1070,17 @@ func (s *syncService) checkptSgLocalGen(ctx *context.T, dbId wire.Id, sgid inter
 // further attempts.  Otherwise an error (typically RPC error, but could also
 // be a store error) is returned to the caller.
 // TODO(rdaoud): make all SG admins try to publish after they join.
-func (sd *syncDatabase) publishSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id, publishSyncbaseName string) error {
+func (sd *syncDatabase) publishSyncgroup(sgId wire.Id, publishSyncbaseName string) error {
+	vlog.VI(2).Infof("sync: publishSyncgroup: begin %v %v", sgId, publishSyncbaseName)
+	defer vlog.VI(2).Infof("sync: publishSyncgroup: end: %v", sgId)
+
 	st := sd.db.St()
 	ss := sd.sync.(*syncService)
 	dbId := sd.db.Id()
+
+	ctx, cancel := context.WithTimeout(ss.ctx, cloudConnectionTimeout)
+	// cancel() is idempotent.
+	defer cancel()
 
 	// If this admin is offline, it shouldn't attempt to publish the syncgroup
 	// since it would be unable to send out the new syncgroup updates. However, it
