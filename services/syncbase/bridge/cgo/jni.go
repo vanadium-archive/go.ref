@@ -10,6 +10,8 @@ package main
 import (
 	"fmt"
 	"unsafe"
+
+	"v.io/x/ref/services/syncbase/bridge/cgo/ptrmap"
 )
 
 /*
@@ -81,6 +83,8 @@ var (
 	versionedSyncgroupSpecClass jVersionedSyncgroupSpec
 	watchChangeClass            jWatchChange
 )
+
+var jniPtrMap = ptrmap.New()
 
 // JNI_OnLoad is called when System.loadLibrary is called. We need to cache the
 // *JavaVM because that's the only way to get hold of a JNIEnv that is needed
@@ -407,7 +411,7 @@ func Java_io_v_syncbase_internal_Database_GetSyncgroupMembers(env *C.JNIEnv, cls
 //export v23_syncbase_internal_onChange
 func v23_syncbase_internal_onChange(handle C.v23_syncbase_Handle, change C.v23_syncbase_WatchChange) {
 	id := uint64(uintptr(handle))
-	h := globalPtrMap.Get(uintptr(id)).(*watchPatternsCallbacksHandle)
+	h := jniPtrMap.Get(uintptr(id)).(*watchPatternsCallbacksHandle)
 	env, free := getEnv()
 	obj := change.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -422,7 +426,7 @@ func v23_syncbase_internal_onChange(handle C.v23_syncbase_Handle, change C.v23_s
 //export v23_syncbase_internal_onError
 func v23_syncbase_internal_onError(handle C.v23_syncbase_Handle, error C.v23_syncbase_VError) {
 	id := uint64(uintptr(handle))
-	h := globalPtrMap.Remove(uintptr(id)).(*watchPatternsCallbacksHandle)
+	h := jniPtrMap.Remove(uintptr(id)).(*watchPatternsCallbacksHandle)
 	env, free := getEnv()
 	obj := error.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -451,7 +455,7 @@ func Java_io_v_syncbase_internal_Database_WatchPatterns(env *C.JNIEnv, cls C.jcl
 		obj:       ptr,
 		callbacks: newJWatchPatternsCallbacks(env, callbacks),
 	}
-	if err := globalPtrMap.Set(ptr, callbacksHandle); err != nil {
+	if err := jniPtrMap.Set(ptr, callbacksHandle); err != nil {
 		panic(err)
 	}
 	cbs.handle = C.v23_syncbase_Handle(ptr)
@@ -463,7 +467,7 @@ func Java_io_v_syncbase_internal_Database_WatchPatterns(env *C.JNIEnv, cls C.jcl
 //export v23_syncbase_internal_onInvite
 func v23_syncbase_internal_onInvite(handle C.v23_syncbase_Handle, invite C.v23_syncbase_Invite) {
 	id := uint64(uintptr(handle))
-	h := globalPtrMap.Get(uintptr(id)).(*inviteCallbacksHandle)
+	h := jniPtrMap.Get(uintptr(id)).(*inviteCallbacksHandle)
 	env, free := getEnv()
 	obj := invite.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -489,7 +493,7 @@ func Java_io_v_syncbase_internal_Database_SyncgroupInvitesNewScan(env *C.JNIEnv,
 		obj:       scanId,
 		callbacks: newJSyncgroupInvitesCallbacks(env, callbacks),
 	}
-	if err := globalPtrMap.Set(scanId, callbacksHandle); err != nil {
+	if err := jniPtrMap.Set(scanId, callbacksHandle); err != nil {
 		panic(err)
 	}
 	cbs.handle = C.v23_syncbase_Handle(uintptr(scanId))
@@ -502,7 +506,7 @@ func Java_io_v_syncbase_internal_Database_SyncgroupInvitesNewScan(env *C.JNIEnv,
 //export Java_io_v_syncbase_internal_Database_SyncgroupInvitesStopScan
 func Java_io_v_syncbase_internal_Database_SyncgroupInvitesStopScan(env *C.JNIEnv, cls C.jclass, scanId C.jlong) {
 	v23_syncbase_DbSyncgroupInvitesStopScan(C.v23_syncbase_Handle(scanId))
-	globalPtrMap.Remove(uintptr(scanId))
+	jniPtrMap.Remove(uintptr(scanId))
 }
 
 //export Java_io_v_syncbase_internal_Collection_GetPermissions
@@ -572,7 +576,7 @@ func Java_io_v_syncbase_internal_Collection_DeleteRange(env *C.JNIEnv, cls C.jcl
 //export v23_syncbase_internal_onKeyValue
 func v23_syncbase_internal_onKeyValue(handle C.v23_syncbase_Handle, keyValue C.v23_syncbase_KeyValue) {
 	id := uint64(uintptr(handle))
-	h := globalPtrMap.Get(uintptr(id)).(*scanCallbacksHandle)
+	h := jniPtrMap.Get(uintptr(id)).(*scanCallbacksHandle)
 	env, free := getEnv()
 	obj := keyValue.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -587,7 +591,7 @@ func v23_syncbase_internal_onKeyValue(handle C.v23_syncbase_Handle, keyValue C.v
 //export v23_syncbase_internal_onDone
 func v23_syncbase_internal_onDone(handle C.v23_syncbase_Handle, error C.v23_syncbase_VError) {
 	id := uint64(uintptr(handle))
-	h := globalPtrMap.Get(uintptr(id)).(*scanCallbacksHandle)
+	h := jniPtrMap.Get(uintptr(id)).(*scanCallbacksHandle)
 	env, free := getEnv()
 	obj := error.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -598,7 +602,7 @@ func v23_syncbase_internal_onDone(handle C.v23_syncbase_Handle, error C.v23_sync
 	}
 	C.DeleteGlobalRef(env, unsafe.Pointer(h.obj))
 	free()
-	globalPtrMap.Remove(uintptr(id))
+	jniPtrMap.Remove(uintptr(id))
 }
 
 type scanCallbacksHandle struct {
@@ -617,7 +621,7 @@ func Java_io_v_syncbase_internal_Collection_Scan(env *C.JNIEnv, cls C.jclass, na
 		obj:       ptr,
 		callbacks: newJScanCallbacks(env, callbacks),
 	}
-	if err := globalPtrMap.Set(ptr, callbacksHandle); err != nil {
+	if err := jniPtrMap.Set(ptr, callbacksHandle); err != nil {
 		panic(err)
 	}
 	cbs := C.newVScanCallbacks()
@@ -650,7 +654,7 @@ func Java_io_v_syncbase_internal_Neighborhood_IsAdvertising(env *C.JNIEnv, cls C
 //export v23_syncbase_internal_onPeer
 func v23_syncbase_internal_onPeer(handle C.v23_syncbase_Handle, peer C.v23_syncbase_AppPeer) {
 	id := uint64(uintptr(handle))
-	h := globalPtrMap.Get(uintptr(id)).(*peerCallbacksHandle)
+	h := jniPtrMap.Get(uintptr(id)).(*peerCallbacksHandle)
 	env, free := getEnv()
 	obj := peer.extractToJava(env)
 	arg := *(*C.jvalue)(unsafe.Pointer(&obj))
@@ -675,7 +679,7 @@ func Java_io_v_syncbase_internal_Neighborhood_NewScan(env *C.JNIEnv, cls C.jclas
 		obj:       scanId,
 		callbacks: newJNeigbhorhoodScanCallbacks(env, callbacks),
 	}
-	if err := globalPtrMap.Set(scanId, callbacksHandle); err != nil {
+	if err := jniPtrMap.Set(scanId, callbacksHandle); err != nil {
 		panic(err)
 	}
 	cbs.handle = C.v23_syncbase_Handle(uintptr(scanId))
@@ -688,7 +692,7 @@ func Java_io_v_syncbase_internal_Neighborhood_NewScan(env *C.JNIEnv, cls C.jclas
 //export Java_io_v_syncbase_internal_Neighborhood_StopScan
 func Java_io_v_syncbase_internal_Neighborhood_StopScan(env *C.JNIEnv, cls C.jclass, scanId C.jlong) {
 	v23_syncbase_NeighborhoodStopScan(C.v23_syncbase_Handle(scanId))
-	globalPtrMap.Remove(uintptr(scanId))
+	jniPtrMap.Remove(uintptr(scanId))
 }
 
 //export Java_io_v_syncbase_internal_Row_Exists
