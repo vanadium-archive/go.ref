@@ -6,17 +6,25 @@ package server
 
 import (
 	"v.io/v23/context"
+	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/syncbase/common"
 )
 
 ////////////////////////////////////////
 // ConflictManager RPC methods
 
 func (d *database) StartConflictResolver(ctx *context.T, call wire.ConflictManagerStartConflictResolverServerCall) error {
+	allowStartConflictResolver := []access.Tag{access.Admin}
+
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
+	}
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, d, allowStartConflictResolver, d.st); err != nil {
+		return err
 	}
 
 	// Store the conflict resolver connection in the per-database singleton

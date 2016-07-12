@@ -15,6 +15,8 @@ import (
 ////////////////////////////////////////
 // Syncgroup RPC methods
 
+// Note, access authorization is checked in SyncDatabase methods.
+
 func (d *database) ListSyncgroups(ctx *context.T, call rpc.ServerCall) ([]wire.Id, error) {
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.id)

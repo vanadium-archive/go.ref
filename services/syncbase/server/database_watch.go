@@ -25,11 +25,17 @@ import (
 
 // GetResumeMarker implements the wire.DatabaseWatcher interface.
 func (d *database) GetResumeMarker(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (watch.ResumeMarker, error) {
+	allowGetResumeMarker := wire.AllDatabaseTags
+
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	var res watch.ResumeMarker
 	impl := func(sntx store.SnapshotOrTransaction) (err error) {
+		// Check permissions on Database.
+		if _, err := common.GetPermsWithAuth(ctx, call, d, allowGetResumeMarker, sntx); err != nil {
+			return err
+		}
 		res, err = watchable.GetResumeMarker(sntx)
 		return err
 	}
@@ -41,6 +47,7 @@ func (d *database) GetResumeMarker(ctx *context.T, call rpc.ServerCall, bh wire.
 
 // WatchGlob implements the wire.DatabaseWatcher interface.
 func (d *database) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, req watch.GlobRequest) error {
+	// Database permissions checked in d.watchWithFilter and d.processLogBatch.
 	sender := &watchBatchSender{
 		send: call.SendStream().Send,
 	}
@@ -53,6 +60,7 @@ func (d *database) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobServ
 
 // WatchPatterns implements the wire.DatabaseWatcher interface.
 func (d *database) WatchPatterns(ctx *context.T, call wire.DatabaseWatcherWatchPatternsServerCall, resumeMarker watch.ResumeMarker, patterns []wire.CollectionRowPattern) error {
+	// Database permissions checked in d.watchWithFilter and d.processLogBatch.
 	sender := &watchBatchSender{
 		send: call.SendStream().Send,
 	}
@@ -66,12 +74,16 @@ func (d *database) WatchPatterns(ctx *context.T, call wire.DatabaseWatcherWatchP
 // watchWithFilter sends the initial state (if necessary) and watch events,
 // filtered using watchFilter, to the caller using sender.
 func (d *database) watchWithFilter(ctx *context.T, call rpc.ServerCall, sender *watchBatchSender, resumeMarker watch.ResumeMarker, watchFilter filter.CollectionRowFilter) error {
-	// TODO(ivanpi): Check permissions here and in other methods.
+	allowWatchDbStart := []access.Tag{access.Read}
+
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	initImpl := func(sntx store.SnapshotOrTransaction) error {
-		// TODO(ivanpi): Check permissions here.
+		// Check permissions on Database.
+		if _, err := common.GetPermsWithAuth(ctx, call, d, allowWatchDbStart, sntx); err != nil {
+			return err
+		}
 		needInitialState := len(resumeMarker) == 0
 		needResumeMarker := needInitialState || bytes.Equal(resumeMarker, []byte("now"))
 		// Get the resume marker if necessary.
@@ -112,8 +124,8 @@ func (d *database) watchWithFilter(ctx *context.T, call rpc.ServerCall, sender *
 // scanInitialState sends the initial state of all matching and accessible
 // collections and rows in the database. Checks access on collections, but
 // not on database.
-// TODO(ivanpi): Assumes Read perms on database. Careful if supporting RPCs
-// requiring only Resolve (e.g. WatchGlob).
+// Note: Assumes Read perms on database. Careful if supporting RPCs requiring
+// only Resolve.
 // TODO(ivanpi): Abstract out multi-scan for scan and possibly query support.
 // TODO(ivanpi): Use watch pattern prefixes to optimize scan ranges.
 func (d *database) scanInitialState(ctx *context.T, call rpc.ServerCall, sender *watchBatchSender, sntx store.SnapshotOrTransaction, watchFilter filter.CollectionRowFilter) error {
@@ -154,13 +166,14 @@ func (d *database) scanInitialState(ctx *context.T, call rpc.ServerCall, sender 
 			}); err != nil {
 			return err
 		}
-		// Check permissions for row access.
+		// Filter out rows with no read access.
 		// TODO(ivanpi): Collection scan already gets perms, optimize?
+		// TODO(ivanpi): Check service and database resolve only once.
 		c := &collectionReq{
 			id: cxId,
 			d:  d,
 		}
-		if _, err := c.checkAccess(ctx, call, sntx); err != nil {
+		if _, err := common.GetPermsWithAuth(ctx, call, c, []access.Tag{access.Read}, sntx); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoAccess.ID {
 				// Skip sending rows if the collection is inaccessible. Caller can see
 				// from collection info that they have no read access and may therefore
@@ -271,13 +284,17 @@ func (d *database) watchUpdates(ctx *context.T, call rpc.ServerCall, sender *wat
 // Note: Since the governing ACL for each change is no longer tracked, the
 // permissions check uses the ACLs in effect at the time processLogBatch is
 // called.
-// TODO(ivanpi): Assumes Read perms on database. Careful if supporting RPCs
-// requiring only Resolve (e.g. WatchGlob).
+// Note: Assumes Read perms on database. Careful if supporting RPCs requiring
+// only Resolve.
 func (d *database) processLogBatch(ctx *context.T, call rpc.ServerCall, sender *watchBatchSender, watchFilter filter.CollectionRowFilter, logs []*watchable.LogEntry) error {
+	allowWatchDbContinue := []access.Tag{access.Read}
+
 	sn := d.st.NewSnapshot()
 	defer sn.Abort()
-	// TODO(ivanpi): Recheck database perms here and fail, or cache for collection
-	// access checks.
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, d, allowWatchDbContinue, sn); err != nil {
+		return err
+	}
 	valueBytes := []byte{}
 	for _, logEntry := range logs {
 		var opKey string
@@ -305,13 +322,14 @@ func (d *database) processLogBatch(ctx *context.T, call rpc.ServerCall, sender *
 			if !watchFilter.RowMatches(cxId, row) {
 				continue
 			}
-			// Filter out rows that we can't access.
+			// Filter out rows with no read access.
 			// TODO(ivanpi): Check only once per collection per batch.
+			// TODO(ivanpi): Check service and database resolve only once per batch.
 			c := &collectionReq{
 				id: cxId,
 				d:  d,
 			}
-			if _, err := c.checkAccess(ctx, call, sn); err != nil {
+			if _, err := common.GetPermsWithAuth(ctx, call, c, []access.Tag{access.Read}, sn); err != nil {
 				if verror.ErrorID(err) == verror.ErrNoAccess.ID || verror.ErrorID(err) == verror.ErrNoExist.ID {
 					// Skip sending rows if the collection is inaccessible. Caller can see
 					// from collection info that they have no read access and may therefore

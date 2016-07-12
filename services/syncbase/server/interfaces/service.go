@@ -8,6 +8,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	wire "v.io/v23/services/syncbase"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -24,4 +25,6 @@ type Service interface {
 
 	// DatabaseIds returns ids for all databases.
 	DatabaseIds(ctx *context.T, call rpc.ServerCall) ([]wire.Id, error)
+
+	common.Permser
 }

@@ -192,8 +192,15 @@ const (
 // RPCs for managing blobs between Syncbase and its clients.
 
 func (sd *syncDatabase) CreateBlob(ctx *context.T, call rpc.ServerCall) (wire.BlobRef, error) {
+	allowCreateBlob := []access.Tag{access.Write}
+
 	vlog.VI(2).Infof("sync: CreateBlob: begin")
 	defer vlog.VI(2).Infof("sync: CreateBlob: end")
+
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowCreateBlob, sd.db.St()); err != nil {
+		return wire.NullBlobRef, err
+	}
 
 	// Get this Syncbase's blob store handle.
 	ss := sd.sync.(*syncService)
@@ -211,8 +218,15 @@ func (sd *syncDatabase) CreateBlob(ctx *context.T, call rpc.ServerCall) (wire.Bl
 }
 
 func (sd *syncDatabase) PutBlob(ctx *context.T, call wire.BlobManagerPutBlobServerCall, br wire.BlobRef) error {
+	allowPutBlob := []access.Tag{access.Write}
+
 	vlog.VI(2).Infof("sync: PutBlob: begin br %v", br)
 	defer vlog.VI(2).Infof("sync: PutBlob: end br %v", br)
+
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowPutBlob, sd.db.St()); err != nil {
+		return err
+	}
 
 	// Get this Syncbase's blob store handle.
 	ss := sd.sync.(*syncService)
@@ -235,8 +249,15 @@ func (sd *syncDatabase) PutBlob(ctx *context.T, call wire.BlobManagerPutBlobServ
 }
 
 func (sd *syncDatabase) CommitBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
+	allowCommitBlob := []access.Tag{access.Write}
+
 	vlog.VI(2).Infof("sync: CommitBlob: begin br %v", br)
 	defer vlog.VI(2).Infof("sync: CommitBlob: end br %v", br)
+
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowCommitBlob, sd.db.St()); err != nil {
+		return err
+	}
 
 	// Get this Syncbase's blob store handle.
 	ss := sd.sync.(*syncService)
@@ -250,8 +271,15 @@ func (sd *syncDatabase) CommitBlob(ctx *context.T, call rpc.ServerCall, br wire.
 }
 
 func (sd *syncDatabase) GetBlobSize(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) (int64, error) {
+	allowGetBlobSize := wire.AllDatabaseTags
+
 	vlog.VI(2).Infof("sync: GetBlobSize: begin br %v", br)
 	defer vlog.VI(2).Infof("sync: GetBlobSize: end br %v", br)
+
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowGetBlobSize, sd.db.St()); err != nil {
+		return 0, err
+	}
 
 	// Get this Syncbase's blob store handle.
 	ss := sd.sync.(*syncService)
@@ -267,12 +295,26 @@ func (sd *syncDatabase) GetBlobSize(ctx *context.T, call rpc.ServerCall, br wire
 }
 
 func (sd *syncDatabase) DeleteBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
+	allowDeleteBlob := wire.AllDatabaseTags
+
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowDeleteBlob, sd.db.St()); err != nil {
+		return err
+	}
+
 	return verror.NewErrNotImplemented(ctx)
 }
 
 func (sd *syncDatabase) GetBlob(ctx *context.T, call wire.BlobManagerGetBlobServerCall, br wire.BlobRef, offset int64) error {
+	allowGetBlob := wire.AllDatabaseTags
+
 	vlog.VI(2).Infof("sync: GetBlob: begin br %v", br)
 	defer vlog.VI(2).Infof("sync: GetBlob: end br %v", br)
+
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowGetBlob, sd.db.St()); err != nil {
+		return err
+	}
 
 	// First get the blob locally if available.
 	ss := sd.sync.(*syncService)
@@ -285,8 +327,15 @@ func (sd *syncDatabase) GetBlob(ctx *context.T, call wire.BlobManagerGetBlobServ
 }
 
 func (sd *syncDatabase) FetchBlob(ctx *context.T, call wire.BlobManagerFetchBlobServerCall, br wire.BlobRef, priority uint64) error {
+	allowFetchBlob := wire.AllDatabaseTags
+
 	vlog.VI(2).Infof("sync: FetchBlob: begin br %v", br)
 	defer vlog.VI(2).Infof("sync: FetchBlob: end br %v", br)
+
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowFetchBlob, sd.db.St()); err != nil {
+		return err
+	}
 
 	clientStream := call.SendStream()
 
@@ -314,14 +363,35 @@ func (sd *syncDatabase) FetchBlob(ctx *context.T, call wire.BlobManagerFetchBlob
 }
 
 func (sd *syncDatabase) PinBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
+	allowPinBlob := []access.Tag{access.Write}
+
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowPinBlob, sd.db.St()); err != nil {
+		return err
+	}
+
 	return verror.NewErrNotImplemented(ctx)
 }
 
 func (sd *syncDatabase) UnpinBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
+	allowUnpinBlob := wire.AllDatabaseTags
+
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowUnpinBlob, sd.db.St()); err != nil {
+		return err
+	}
+
 	return verror.NewErrNotImplemented(ctx)
 }
 
 func (sd *syncDatabase) KeepBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef, rank uint64) error {
+	allowKeepBlob := wire.AllDatabaseTags
+
+	// Check permissions on Database.
+	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowKeepBlob, sd.db.St()); err != nil {
+		return err
+	}
+
 	return verror.NewErrNotImplemented(ctx)
 }
 

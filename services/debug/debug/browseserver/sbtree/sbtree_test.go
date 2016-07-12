@@ -43,7 +43,7 @@ func TestWithMultipleEmptyDbs(t *testing.T) {
 		dbNames = []string{"db_a", "db_b", "db_c"}
 	)
 	for _, dbName := range dbNames {
-		tu.CreateDatabase(t, ctx, service, dbName)
+		tu.CreateDatabase(t, ctx, service, dbName, nil)
 	}
 	dbIds, err := service.ListDatabases(ctx)
 	if err != nil {
@@ -80,7 +80,7 @@ func TestWithMultipleCollections(t *testing.T) {
 	var (
 		service   = syncbase.NewService(serverName)
 		collNames = []string{"coll_a", "coll_b", "coll_c"}
-		database  = tu.CreateDatabase(t, ctx, service, "the_db")
+		database  = tu.CreateDatabase(t, ctx, service, "the_db", nil)
 	)
 	for _, collName := range collNames {
 		tu.CreateCollection(t, ctx, database, collName)
@@ -119,7 +119,7 @@ func TestWithMultipleSyncgroups(t *testing.T) {
 		service        = syncbase.NewService(serverName)
 		sgNames        = []string{"syncgroup_a", "syncgroup_b", "syncgroup_c"}
 		sgDescriptions = []string{"AAA", "BBB", "CCC"}
-		database       = tu.CreateDatabase(t, ctx, service, "the_db")
+		database       = tu.CreateDatabase(t, ctx, service, "the_db", nil)
 		coll           = tu.CreateCollection(t, ctx, database, "the_collection")
 	)
 	for i, sgName := range sgNames {

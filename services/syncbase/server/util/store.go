@@ -30,6 +30,7 @@ func CheckVersion(ctx *context.T, presented string, actual uint64) error {
 // "c:" from the error messages they return.
 
 // GetWithAuth does Get followed by an auth check.
+// TODO(ivanpi): Remove when all callers are gone.
 func GetWithAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, k string, v common.PermserData) error {
 	if err := store.Get(ctx, st, k, v); err != nil {
 		return err
@@ -39,17 +40,4 @@ func GetWithAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, k st
 		return verror.New(verror.ErrNoAccess, ctx, err)
 	}
 	return nil
-}
-
-// UpdateWithAuth performs a read-modify-write.
-// Input v is populated by the "read" step. fn should "modify" v.
-// Performs an auth check as part of the "read" step.
-func UpdateWithAuth(ctx *context.T, call rpc.ServerCall, tx store.Transaction, k string, v common.PermserData, fn func() error) error {
-	if err := GetWithAuth(ctx, call, tx, k, v); err != nil {
-		return err
-	}
-	if err := fn(); err != nil {
-		return err
-	}
-	return store.Put(ctx, tx, k, v)
 }

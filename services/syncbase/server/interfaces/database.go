@@ -8,6 +8,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	wire "v.io/v23/services/syncbase"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 	"v.io/x/ref/services/syncbase/store/watchable"
 )
@@ -42,4 +43,6 @@ type Database interface {
 	// Note: Resetting a stream does not reconnect the stream. Its upto the
 	// client to reconnect.
 	ResetCrConnectionStream()
+
+	common.Permser
 }

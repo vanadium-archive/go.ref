@@ -321,11 +321,13 @@ func (s *service) Close() {
 // TODO(sadovsky): Add test to demonstrate that these don't work unless Syncbase
 // was started in dev mode.
 func (s *service) DevModeUpdateVClock(ctx *context.T, call rpc.ServerCall, opts wire.DevModeUpdateVClockOpts) error {
+	allowUpdateVClock := []access.Tag{access.Admin}
+
 	if !s.opts.DevMode {
 		return wire.NewErrNotInDevMode(ctx)
 	}
 	// Check perms.
-	if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), &ServiceData{}); err != nil {
+	if _, err := common.GetPermsWithAuth(ctx, call, s, allowUpdateVClock, s.st); err != nil {
 		return err
 	}
 	if opts.NtpHost != "" {
@@ -348,47 +350,56 @@ func (s *service) DevModeUpdateVClock(ctx *context.T, call rpc.ServerCall, opts 
 }
 
 func (s *service) DevModeGetTime(ctx *context.T, call rpc.ServerCall) (time.Time, error) {
+	allowGetTime := []access.Tag{access.Admin}
+
 	if !s.opts.DevMode {
 		return time.Time{}, wire.NewErrNotInDevMode(ctx)
 	}
 	// Check perms.
-	if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), &ServiceData{}); err != nil {
+	if _, err := common.GetPermsWithAuth(ctx, call, s, allowGetTime, s.st); err != nil {
 		return time.Time{}, err
 	}
 	return s.vclock.Now()
 }
 
 func (s *service) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
+	allowSetPermissions := []access.Tag{access.Admin}
+
 	if err := common.ValidatePerms(ctx, perms, access.AllTypicalTags()); err != nil {
 		return err
 	}
 
 	return store.RunInTransaction(s.st, func(tx store.Transaction) error {
 		data := &ServiceData{}
-		return util.UpdateWithAuth(ctx, call, tx, s.stKey(), data, func() error {
-			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
-				return err
-			}
-			data.Perms = perms
-			data.Version++
-			return nil
-		})
+		if _, err := common.GetDataWithAuth(ctx, call, s, allowSetPermissions, tx, data); err != nil {
+			return err
+		}
+		if err := util.CheckVersion(ctx, version, data.Version); err != nil {
+			return err
+		}
+		data.Perms = perms
+		data.Version++
+		return store.Put(ctx, tx, s.stKey(), data)
 	})
 }
 
 func (s *service) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
+	allowGetPermissions := []access.Tag{access.Admin}
+
 	data := &ServiceData{}
-	if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), data); err != nil {
+	if _, err := common.GetDataWithAuth(ctx, call, s, allowGetPermissions, s.st, data); err != nil {
 		return nil, "", err
 	}
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
 func (s *service) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
+	allowGlob := []access.Tag{access.Read}
+
 	// Check perms.
 	sn := s.st.NewSnapshot()
 	defer sn.Abort()
-	if err := util.GetWithAuth(ctx, call, sn, s.stKey(), &ServiceData{}); err != nil {
+	if _, err := common.GetPermsWithAuth(ctx, call, s, allowGlob, sn); err != nil {
 		return err
 	}
 	return util.GlobChildren(ctx, call, matcher, sn, common.DbInfoPrefix)
@@ -431,6 +442,8 @@ func (s *service) DatabaseIds(ctx *context.T, call rpc.ServerCall) ([]wire.Id, e
 // Database management methods
 
 func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.Id, perms access.Permissions, metadata *wire.SchemaMetadata) (reterr error) {
+	allowCreateDatabase := []access.Tag{access.Write}
+
 	if err := common.ValidatePerms(ctx, perms, wire.AllDatabaseTags); err != nil {
 		return err
 	}
@@ -457,7 +470,7 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 		}
 	} else {
 		// Check serviceData perms.
-		if err := util.GetWithAuth(ctx, call, s.st, s.stKey(), sData); err != nil {
+		if _, err := common.GetDataWithAuth(ctx, call, s, allowCreateDatabase, s.st, sData); err != nil {
 			return err
 		}
 		if adminAcl, ok := sData.Perms[string(access.Admin)]; !ok || adminAcl.Authorize(ctx, call.Security()) != nil {
@@ -547,8 +560,10 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 }
 
 func (s *service) destroyDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.Id) error {
+	allowDestroyDatabase := []access.Tag{access.Admin}
+
 	// Steps:
-	// 1. Check databaseData perms.
+	// 1. Check serviceData and databaseData perms.
 	// 2. Move dbInfo from active dbs into GC log. <===== CHANGE BECOMES VISIBLE
 	// 3. Best effort database destroy. If it fails, it will be retried on
 	//    syncbased restart.
@@ -559,12 +574,13 @@ func (s *service) destroyDatabase(ctx *context.T, call rpc.ServerCall, dbId wire
 		return nil // destroy is idempotent
 	}
 
-	// 1. Check databaseData perms.
-	if err := d.CheckPermsInternal(ctx, call, d.St()); err != nil {
-		if verror.ErrorID(err) == verror.ErrNoExist.ID {
-			return nil // destroy is idempotent
+	// 1. Check serviceData and databaseData perms.
+	// Check permissions on Service.
+	if _, authErr := common.GetPermsWithAuth(ctx, call, d.s, allowDestroyDatabase, d.s.st); authErr != nil {
+		// Caller has no Admin access on Service. Check databaseData perms.
+		if _, authErr = common.GetPermsWithAuth(ctx, call, d, allowDestroyDatabase, d.st); authErr != nil {
+			return authErr
 		}
-		return err
 	}
 
 	// 2. Move dbInfo from active dbs into GC log.
@@ -592,6 +608,7 @@ func (s *service) destroyDatabase(ctx *context.T, call rpc.ServerCall, dbId wire
 }
 
 func (s *service) setDatabasePerms(ctx *context.T, call rpc.ServerCall, dbId wire.Id, perms access.Permissions, version string) error {
+	// Permissions checked in d.setPermsInternal.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	d, ok := s.dbs[dbId]

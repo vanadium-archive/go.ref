@@ -69,9 +69,9 @@ func TestWithMultipleDbs(t *testing.T) {
 
 	since := time.Now()
 	service := syncbase.NewService(serverName)
-	tu.CreateDatabase(t, ctx, service, "empty_db_0")
-	tu.CreateDatabase(t, ctx, service, "empty_db_1")
-	tu.CreateDatabase(t, ctx, service, "empty_db_2")
+	tu.CreateDatabase(t, ctx, service, "empty_db_0", nil)
+	tu.CreateDatabase(t, ctx, service, "empty_db_1", nil)
+	tu.CreateDatabase(t, ctx, service, "empty_db_2", nil)
 
 	count := 0
 	for got := range statsValues("service/*/*", since) {
@@ -122,7 +122,7 @@ func TestWithLotsOfData(t *testing.T) {
 
 	since := time.Now()
 	service := syncbase.NewService(serverName)
-	db := tu.CreateDatabase(t, ctx, service, "big_db")
+	db := tu.CreateDatabase(t, ctx, service, "big_db", nil)
 
 	write100MB(ctx, db)
 

@@ -48,9 +48,9 @@ func Fatalf(t testing.TB, format string, args ...interface{}) {
 // TODO(sadovsky): Standardize on a small set of constants and helper functions
 // to share across all Syncbase tests. Currently, our 'featuretests' tests use a
 // different set of helpers from our other unit tests.
-func CreateDatabase(t testing.TB, ctx *context.T, s syncbase.Service, name string) syncbase.Database {
+func CreateDatabase(t testing.TB, ctx *context.T, s syncbase.Service, name string, perms access.Permissions) syncbase.Database {
 	d := s.Database(ctx, name, nil)
-	if err := d.Create(ctx, nil); err != nil {
+	if err := d.Create(ctx, perms); err != nil {
 		Fatalf(t, "d.Create() failed: %v", err)
 	}
 	return d

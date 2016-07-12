@@ -29,6 +29,7 @@ var (
 
 func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (bool, error) {
 	allowExists := []access.Tag{access.Read, access.Write}
+
 	impl := func(sntx store.SnapshotOrTransaction) (err error) {
 		if _, err := common.GetPermsWithAuth(ctx, call, r.c, allowExists, sntx); err != nil {
 			return err
@@ -39,6 +40,7 @@ func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle
 }
 
 func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (*vom.RawBytes, error) {
+	// Permissions checked in r.get.
 	var res *vom.RawBytes
 	impl := func(sntx store.SnapshotOrTransaction) (err error) {
 		res, err = r.get(ctx, call, sntx)
@@ -51,6 +53,7 @@ func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (
 }
 
 func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, value *vom.RawBytes) error {
+	// Permissions checked in r.put.
 	impl := func(ts *transactionState) error {
 		return r.put(ctx, call, ts, value)
 	}
@@ -58,6 +61,7 @@ func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, v
 }
 
 func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
+	// Permissions checked in r.delete.
 	impl := func(ts *transactionState) error {
 		return r.delete(ctx, call, ts)
 	}
@@ -78,7 +82,9 @@ func (r *rowReq) stKeyPart() string {
 // get reads data from the storage engine.
 // Performs authorization check.
 func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) (*vom.RawBytes, error) {
-	if _, err := r.c.checkAccess(ctx, call, sntx); err != nil {
+	allowGet := []access.Tag{access.Read}
+
+	if _, err := common.GetPermsWithAuth(ctx, call, r.c, allowGet, sntx); err != nil {
 		return nil, err
 	}
 	var valueAsRawBytes vom.RawBytes
@@ -91,7 +97,9 @@ func (r *rowReq) get(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrT
 // put writes data to the storage engine.
 // Performs authorization check.
 func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, ts *transactionState, value *vom.RawBytes) error {
-	currentPerms, err := r.c.checkAccess(ctx, call, ts.tx)
+	allowPut := []access.Tag{access.Write}
+
+	currentPerms, err := common.GetPermsWithAuth(ctx, call, r.c, allowPut, ts.tx)
 	if err != nil {
 		return err
 	}
@@ -102,7 +110,9 @@ func (r *rowReq) put(ctx *context.T, call rpc.ServerCall, ts *transactionState, 
 // delete deletes data from the storage engine.
 // Performs authorization check.
 func (r *rowReq) delete(ctx *context.T, call rpc.ServerCall, ts *transactionState) error {
-	currentPerms, err := r.c.checkAccess(ctx, call, ts.tx)
+	allowDelete := []access.Tag{access.Write}
+
+	currentPerms, err := common.GetPermsWithAuth(ctx, call, r.c, allowDelete, ts.tx)
 	if err != nil {
 		return err
 	}

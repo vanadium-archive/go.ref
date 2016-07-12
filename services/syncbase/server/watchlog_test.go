@@ -60,10 +60,11 @@ func TestWatchLogPerms(t *testing.T) {
 	st, _ := watchable.Wrap(memstore.New(), clk, &watchable.Options{
 		ManagedPrefixes: []string{common.RowPrefix, common.CollectionPermsPrefix},
 	})
+	s := &service{st: st}
 	store.Put(ctx, st, common.ServicePrefix, &ServiceData{
 		Perms: access.Permissions{}.Add("root", access.TagStrings(access.AllTypicalTags()...)...),
 	})
-	db := &database{id: wire.Id{Blessing: "a", Name: "d"}, exists: true, st: st}
+	db := &database{id: wire.Id{Blessing: "a", Name: "d"}, exists: true, st: st, s: s}
 	store.Put(ctx, st, db.stKey(), &DatabaseData{
 		Perms: access.Permissions{}.Add("root", access.TagStrings(wire.AllDatabaseTags...)...),
 	})

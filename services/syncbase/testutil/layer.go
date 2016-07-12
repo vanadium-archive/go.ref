@@ -159,7 +159,7 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self, "self", true)
 	assertExists(t, ctx, child, "child", false)
 
-	// Test that destroy fails if the perms disallow access.
+	// Test that parent perms are sufficient for destroy.
 	self2 := parent.Child("self2")
 	if err := self2.Create(ctx, nil); err != nil {
 		t.Fatalf("self2.Create() failed: %v", err)
@@ -170,8 +170,15 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	if err := self2.SetPermissions(ctx, perms, ""); err != nil {
 		t.Fatalf("self2.SetPermissions() failed: %v", err)
 	}
-	if err := self2.Destroy(ctx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
-		t.Fatalf("self2.Destroy() should have failed: %v", err)
+	if err := self2.Destroy(ctx); err != nil {
+		t.Fatalf("self2.Destroy() failed: %v", err)
+	}
+
+	assertExists(t, ctx, self2, "self2", false)
+
+	// Recreate self2 for later.
+	if err := self2.Create(ctx, nil); err != nil {
+		t.Fatalf("self2.Create() failed: %v", err)
 	}
 
 	assertExists(t, ctx, self2, "self2", true)
@@ -209,6 +216,19 @@ func TestDestroy(t *testing.T, ctx *context.T, i interface{}) {
 	}
 
 	assertExists(t, ctx, self, "self", false)
+
+	// Test that destroy fails if both parent and own perms disallow access.
+	perms = DefaultPerms(self2.AllowedTags(), "root:o:app:client")
+	perms.Clear("root:o:app:client", string(access.Write), string(access.Admin))
+	perms.Add("nobody", string(access.Admin))
+	if err := self2.SetPermissions(ctx, perms, ""); err != nil {
+		t.Fatalf("self2.SetPermissions() failed: %v", err)
+	}
+	if err := self2.Destroy(ctx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
+		t.Fatalf("self2.Destroy() should have failed: %v", err)
+	}
+
+	assertExists(t, ctx, self2, "self2", true)
 }
 
 func copyAndSortStrings(strs []string) []string {

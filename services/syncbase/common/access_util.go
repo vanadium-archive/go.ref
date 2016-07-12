@@ -99,7 +99,10 @@ type PermserData interface {
 }
 
 // Permser is an object in the hierarchy that supports retrieving perms and
-// authorizing access to existence checks.
+// authorizing access to existence checks. Access checks on Permser objects
+// using Get{Data,Perms}With*Auth functions below should be done in the same
+// transaction as any store modification to ensure that concurrent ACL changes
+// invalidate the modification.
 type Permser interface {
 	// GetDataWithExistAuth must return a nil error only if the object exists and
 	// the caller is authorized to know it (Resolve access up to the parent and

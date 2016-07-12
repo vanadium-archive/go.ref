@@ -33,14 +33,15 @@ var (
 // RPC methods
 
 func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, perms access.Permissions) error {
+	allowCreate := []access.Tag{access.Write}
+
 	if err := common.ValidatePerms(ctx, perms, wire.AllCollectionTags); err != nil {
 		return err
 	}
 	impl := func(ts *transactionState) error {
 		tx := ts.tx
-		// Check DatabaseData perms.
-		dData := &DatabaseData{}
-		if err := util.GetWithAuth(ctx, call, tx, c.d.stKey(), dData); err != nil {
+		// Check Database perms.
+		if _, err := common.GetPermsWithAuth(ctx, call, c.d, allowCreate, tx); err != nil {
 			return err
 		}
 		// Check implicit perms derived from blessing pattern in id.
@@ -70,14 +71,24 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 // collection data deletion to be deferred, making deletion faster (reference
 // removal).
 func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
+	allowDestroy := []access.Tag{access.Admin}
+
 	impl := func(ts *transactionState) error {
 		tx := ts.tx
-		// Read CollectionPerms.
-		if err := util.GetWithAuth(ctx, call, tx, c.permsKey(), &interfaces.CollectionPerms{}); err != nil {
-			if verror.ErrorID(err) == verror.ErrNoExist.ID {
+		var authErr error
+		// Check permissions on Database.
+		if _, authErr = common.GetPermsWithAuth(ctx, call, c.d, allowDestroy, tx); authErr != nil {
+			// Caller has no Admin access on Database. Check CollectionPerms.
+			_, authErr = common.GetPermsWithAuth(ctx, call, c, allowDestroy, tx)
+		} else {
+			// Caller has Admin access on Database. Check if Collection exists.
+			authErr = store.Get(ctx, tx, c.permsKey(), &interfaces.CollectionPerms{})
+		}
+		if authErr != nil {
+			if verror.ErrorID(authErr) == verror.ErrNoExist.ID {
 				return nil // delete is idempotent
 			}
-			return err
+			return authErr
 		}
 
 		// TODO(ivanpi): Check that no syncgroup includes the collection being
@@ -113,24 +124,29 @@ func (c *collectionReq) Exists(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 	return common.ErrorToExists(c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl))
 }
 
-func (c *collectionReq) GetPermissions(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (perms access.Permissions, err error) {
-	var res interfaces.CollectionPerms
-	impl := func(sntx store.SnapshotOrTransaction) error {
-		return util.GetWithAuth(ctx, call, sntx, c.permsKey(), &res)
+func (c *collectionReq) GetPermissions(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (access.Permissions, error) {
+	allowGetPermissions := []access.Tag{access.Admin}
+
+	var perms access.Permissions
+	impl := func(sntx store.SnapshotOrTransaction) (err error) {
+		perms, err = common.GetPermsWithAuth(ctx, call, c, allowGetPermissions, sntx)
+		return err
 	}
 	if err := c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl); err != nil {
 		return nil, err
 	}
-	return access.Permissions(res), nil
+	return perms, nil
 }
 
 func (c *collectionReq) SetPermissions(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, newPerms access.Permissions) error {
+	allowSetPermissions := []access.Tag{access.Admin}
+
 	if err := common.ValidatePerms(ctx, newPerms, wire.AllCollectionTags); err != nil {
 		return err
 	}
 	impl := func(ts *transactionState) error {
 		tx := ts.tx
-		currentPerms, err := c.checkAccess(ctx, call, tx)
+		currentPerms, err := common.GetPermsWithAuth(ctx, call, c, allowSetPermissions, tx)
 		if err != nil {
 			return err
 		}
@@ -142,10 +158,12 @@ func (c *collectionReq) SetPermissions(ctx *context.T, call rpc.ServerCall, bh w
 }
 
 func (c *collectionReq) DeleteRange(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, start, limit []byte) error {
+	allowDeleteRange := []access.Tag{access.Write}
+
 	impl := func(ts *transactionState) error {
 		tx := ts.tx
 		// Check for collection-level access before doing a scan.
-		currentPerms, err := c.checkAccess(ctx, call, tx)
+		currentPerms, err := common.GetPermsWithAuth(ctx, call, c, allowDeleteRange, tx)
 		if err != nil {
 			return err
 		}
@@ -168,9 +186,11 @@ func (c *collectionReq) DeleteRange(ctx *context.T, call rpc.ServerCall, bh wire
 }
 
 func (c *collectionReq) Scan(ctx *context.T, call wire.CollectionScanServerCall, bh wire.BatchHandle, start, limit []byte) error {
+	allowScan := []access.Tag{access.Read}
+
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check for collection-level access before doing a scan.
-		if _, err := c.checkAccess(ctx, call, sntx); err != nil {
+		if _, err := common.GetPermsWithAuth(ctx, call, c, allowScan, sntx); err != nil {
 			return err
 		}
 		it := sntx.Scan(common.ScanRangeArgs(common.JoinKeyParts(common.RowPrefix, c.stKeyPart()), string(start), string(limit)))
@@ -201,9 +221,11 @@ func (c *collectionReq) Scan(ctx *context.T, call wire.CollectionScanServerCall,
 }
 
 func (c *collectionReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
+	allowGlob := []access.Tag{access.Read}
+
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check perms.
-		if _, err := c.checkAccess(ctx, call, sntx); err != nil {
+		if _, err := common.GetPermsWithAuth(ctx, call, c, allowGlob, sntx); err != nil {
 			return err
 		}
 		return util.GlobChildren(ctx, call, matcher, sntx, common.JoinKeyParts(common.RowPrefix, c.stKeyPart()))
@@ -242,20 +264,4 @@ func (c *collectionReq) permsKey() string {
 
 func (c *collectionReq) stKeyPart() string {
 	return pubutil.EncodeId(c.id)
-}
-
-// checkAccess checks that this collection exists in the database, and performs
-// an authorization check on the collection ACL. It should be called in the same
-// transaction as any store modification to ensure that concurrent ACL changes
-// invalidate the modification.
-// TODO(rogulenko): Revisit this behavior. Eventually we'll want the
-// collection-level access check to be a check for "Resolve", i.e. also check
-// access to service and database.
-// TODO(ivanpi): Remove once all callers are ported to explicit auth.
-func (c *collectionReq) checkAccess(ctx *context.T, call rpc.ServerCall, sntx store.SnapshotOrTransaction) (access.Permissions, error) {
-	collectionPerms := &interfaces.CollectionPerms{}
-	if err := util.GetWithAuth(ctx, call, sntx, c.permsKey(), collectionPerms); err != nil {
-		return nil, err
-	}
-	return collectionPerms.GetPerms(), nil
 }

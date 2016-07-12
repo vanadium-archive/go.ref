@@ -35,7 +35,7 @@ func TestSyncgroupDiscovery(t *testing.T) {
 	_, ctx, sName, rootp, cleanup := tu.SetupOrDieCustom("o:app1:client1", "server",
 		tu.DefaultPerms(access.AllTypicalTags(), "root:o:app1:client1"))
 	defer cleanup()
-	d := tu.CreateDatabase(t, ctx, syncbase.NewService(sName), "d")
+	d := tu.CreateDatabase(t, ctx, syncbase.NewService(sName), "d", nil)
 	collection1 := tu.CreateCollection(t, ctx, d, "c1")
 	collection2 := tu.CreateCollection(t, ctx, d, "c2")
 
@@ -284,8 +284,8 @@ func TestListenForInvites(t *testing.T) {
 		tu.DefaultPerms(access.AllTypicalTags(), "root:o:app1:client1"))
 	defer cleanup()
 	service := syncbase.NewService(sName)
-	d1 := tu.CreateDatabase(t, ctx, service, "d1")
-	d2 := tu.CreateDatabase(t, ctx, service, "d2")
+	d1 := tu.CreateDatabase(t, ctx, service, "d1", nil)
+	d2 := tu.CreateDatabase(t, ctx, service, "d2", nil)
 
 	collections := []wire.Id{}
 	for _, d := range []syncbase.Database{d1, d2} {

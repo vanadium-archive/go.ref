@@ -7,9 +7,10 @@ package server
 import (
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
-	"v.io/x/ref/services/syncbase/server/util"
+	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
@@ -21,12 +22,14 @@ import (
 // SchemaManager RPC methods
 
 func (d *database) GetSchemaMetadata(ctx *context.T, call rpc.ServerCall) (wire.SchemaMetadata, error) {
+	allowGetSchemaMetadata := []access.Tag{access.Read}
+
 	if !d.exists {
 		return wire.SchemaMetadata{}, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	// Check permissions on Database and retrieve schema metadata.
-	dbData := DatabaseData{}
-	if err := util.GetWithAuth(ctx, call, d.st, d.stKey(), &dbData); err != nil {
+	var dbData DatabaseData
+	if _, err := common.GetDataWithAuth(ctx, call, d, allowGetSchemaMetadata, d.st, &dbData); err != nil {
 		return wire.SchemaMetadata{}, err
 	}
 	if dbData.SchemaMetadata == nil {
@@ -36,26 +39,32 @@ func (d *database) GetSchemaMetadata(ctx *context.T, call rpc.ServerCall) (wire.
 }
 
 func (d *database) SetSchemaMetadata(ctx *context.T, call rpc.ServerCall, metadata wire.SchemaMetadata) error {
+	allowSetSchemaMetadata := []access.Tag{access.Admin}
+
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	// Check permissions on Database and store schema metadata.
 	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
-		dbData := DatabaseData{}
-		return util.UpdateWithAuth(ctx, call, tx, d.stKey(), &dbData, func() error {
-			// NOTE: For now we expect the client to not issue multiple
-			// concurrent SetSchemaMetadata calls.
-			dbData.SchemaMetadata = &metadata
-			return nil
-		})
+		var dbData DatabaseData
+		if _, err := common.GetDataWithAuth(ctx, call, d, allowSetSchemaMetadata, tx, &dbData); err != nil {
+			return err
+		}
+		// NOTE: For now we expect the client to not issue multiple
+		// concurrent SetSchemaMetadata calls.
+		dbData.SchemaMetadata = &metadata
+		return store.Put(ctx, tx, d.stKey(), &dbData)
 	})
 }
+
+////////////////////////////////////////
+// interfaces.Database methods
 
 func (d *database) GetSchemaMetadataInternal(ctx *context.T) (*wire.SchemaMetadata, error) {
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	dbData := DatabaseData{}
+	var dbData DatabaseData
 	if err := store.Get(ctx, d.st, d.stKey(), &dbData); err != nil {
 		return nil, err
 	}

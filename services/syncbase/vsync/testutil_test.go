@@ -67,6 +67,14 @@ func (s *mockService) DatabaseIds(ctx *context.T, call rpc.ServerCall) ([]wire.I
 	return []wire.Id{mockDbId}, nil
 }
 
+func (s *mockService) GetDataWithExistAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, v common.PermserData) (parentPerms, perms access.Permissions, existErr error) {
+	return nil, nil, nil
+}
+
+func (s *mockService) PermserData() common.PermserData {
+	return nil
+}
+
 // mockDatabase emulates a Syncbase Database. It is used to test sync
 // functionality.
 type mockDatabase struct {
@@ -99,6 +107,14 @@ func (d *mockDatabase) CrConnectionStream() wire.ConflictManagerStartConflictRes
 
 func (d *mockDatabase) ResetCrConnectionStream() {
 	mockCRStream = nil
+}
+
+func (d *mockDatabase) GetDataWithExistAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, v common.PermserData) (parentPerms, perms access.Permissions, existErr error) {
+	return nil, nil, nil
+}
+
+func (d *mockDatabase) PermserData() common.PermserData {
+	return nil
 }
 
 // createService creates a mock Syncbase service used for testing sync

@@ -20,7 +20,7 @@ func TestEmptyCollection(t *testing.T) {
 	defer cleanup()
 	var (
 		service = syncbase.NewService(serverName)
-		db      = tu.CreateDatabase(t, ctx, service, "the_db")
+		db      = tu.CreateDatabase(t, ctx, service, "the_db", nil)
 		coll    = tu.CreateCollection(t, ctx, db, "the_collection")
 	)
 
@@ -67,7 +67,7 @@ func TestSingleKeysPage(t *testing.T) {
 	defer cleanup()
 	var (
 		service        = syncbase.NewService(serverName)
-		db             = tu.CreateDatabase(t, ctx, service, "the_db")
+		db             = tu.CreateDatabase(t, ctx, service, "the_db", nil)
 		coll           = tu.CreateCollection(t, ctx, db, "the_collection")
 		wantTotKeySize = len("Bravo") + len("Alfa") + len("Delta") + len("Charlie")
 	)
@@ -129,7 +129,7 @@ func TestFirstOfMultiplePages(t *testing.T) {
 	defer cleanup()
 	var (
 		service = syncbase.NewService(serverName)
-		db      = tu.CreateDatabase(t, ctx, service, "the_db")
+		db      = tu.CreateDatabase(t, ctx, service, "the_db", nil)
 		coll    = tu.CreateCollection(t, ctx, db, "the_collection")
 	)
 	// Ten keys, in pages of four, starting with the first key
@@ -187,7 +187,7 @@ func TestMiddleOfMultiplePages(t *testing.T) {
 	defer cleanup()
 	var (
 		service = syncbase.NewService(serverName)
-		db      = tu.CreateDatabase(t, ctx, service, "the_db")
+		db      = tu.CreateDatabase(t, ctx, service, "the_db", nil)
 		coll    = tu.CreateCollection(t, ctx, db, "the_collection")
 	)
 	// Ten keys, in pages of four, starting with fifth key
@@ -245,7 +245,7 @@ func TestLastOfMultiplePages(t *testing.T) {
 	defer cleanup()
 	var (
 		service = syncbase.NewService(serverName)
-		db      = tu.CreateDatabase(t, ctx, service, "the_db")
+		db      = tu.CreateDatabase(t, ctx, service, "the_db", nil)
 		coll    = tu.CreateCollection(t, ctx, db, "the_collection")
 	)
 	// Ten keys, in pages of four, starting with ninth key.
@@ -304,7 +304,7 @@ func TestNonBuiltInType(t *testing.T) {
 	defer cleanup()
 	var (
 		service = syncbase.NewService(serverName)
-		db      = tu.CreateDatabase(t, ctx, service, "the_db")
+		db      = tu.CreateDatabase(t, ctx, service, "the_db", nil)
 		coll    = tu.CreateCollection(t, ctx, db, "the_collection")
 	)
 	type childType struct {

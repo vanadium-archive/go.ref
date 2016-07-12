@@ -126,6 +126,7 @@ func (ts *transactionState) ResetCollectionChanges(collectionId wire.Id) {
 // permission change and returns false if any of the auth checks fail.
 // TODO(ivanpi): This check should be done against signing blessings at signing time, in
 // both batch and non-batch cases.
+// Note, service and database ACLs are not synced, so they don't need to be rechecked.
 func (ts *transactionState) validatePermissionChanges(ctx *context.T, securityCall security.Call) bool {
 	for _, collectionState := range ts.permsChanges {
 		// This collection was modified, make sure that the write acl is either present at
@@ -166,9 +167,8 @@ func (ts *transactionState) permsState(collectionId wire.Id) *permissionState {
 // hasPermission returns true if the caller is authorized for the specific tag based on the
 // passed in perms.
 func hasPermission(ctx *context.T, securityCall security.Call, perms access.Permissions, tag access.Tag) bool {
-	permForTag, ok := perms[string(tag)]
 	// Authorize returns either an error or nil, so nil means the caller is authorized.
-	return ok && permForTag.Authorize(ctx, securityCall) == nil
+	return common.AnyOfTagsAuthorizer([]access.Tag{tag}, perms).Authorize(ctx, securityCall) == nil
 }
 
 // openDatabase opens a database and returns a *database for it. Designed for
@@ -228,6 +228,7 @@ func newDatabase(ctx *context.T, s *service, id wire.Id, metadata *wire.SchemaMe
 // RPC methods
 
 func (d *database) Create(ctx *context.T, call rpc.ServerCall, metadata *wire.SchemaMetadata, perms access.Permissions) error {
+	// Permissions checked in d.s.createDatabase.
 	if d.exists {
 		return verror.New(verror.ErrExist, ctx, d.id)
 	}
@@ -238,6 +239,7 @@ func (d *database) Create(ctx *context.T, call rpc.ServerCall, metadata *wire.Sc
 }
 
 func (d *database) Destroy(ctx *context.T, call rpc.ServerCall) error {
+	// Permissions checked in d.s.destroyDatabase.
 	return d.s.destroyDatabase(ctx, call, d.id)
 }
 
@@ -252,8 +254,13 @@ func (d *database) Exists(ctx *context.T, call rpc.ServerCall) (bool, error) {
 var rng *rand.Rand = rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
 
 func (d *database) BeginBatch(ctx *context.T, call rpc.ServerCall, opts wire.BatchOptions) (wire.BatchHandle, error) {
+	allowBeginBatch := wire.AllDatabaseTags
+
 	if !d.exists {
 		return "", verror.New(verror.ErrNoExist, ctx, d.id)
+	}
+	if _, err := common.GetPermsWithAuth(ctx, call, d, allowBeginBatch, d.st); err != nil {
+		return "", err
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -279,11 +286,16 @@ func (d *database) BeginBatch(ctx *context.T, call rpc.ServerCall, opts wire.Bat
 }
 
 func (d *database) Commit(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
+	allowCommit := wire.AllDatabaseTags
+
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	if bh == "" {
 		return wire.NewErrNotBoundToBatch(ctx)
+	}
+	if _, err := common.GetPermsWithAuth(ctx, call, d, allowCommit, d.st); err != nil {
+		return err
 	}
 	_, ts, batchId, err := d.batchLookupInternal(ctx, bh)
 	if err != nil {
@@ -309,11 +321,16 @@ func (d *database) Commit(ctx *context.T, call rpc.ServerCall, bh wire.BatchHand
 }
 
 func (d *database) Abort(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
+	allowAbort := wire.AllDatabaseTags
+
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	if bh == "" {
 		return wire.NewErrNotBoundToBatch(ctx)
+	}
+	if _, err := common.GetPermsWithAuth(ctx, call, d, allowAbort, d.st); err != nil {
+		return err
 	}
 	sn, ts, batchId, err := d.batchLookupInternal(ctx, bh)
 	if err != nil {
@@ -335,6 +352,7 @@ func (d *database) Abort(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandl
 }
 
 func (d *database) Exec(ctx *context.T, call wire.DatabaseExecServerCall, bh wire.BatchHandle, q string, params []*vom.RawBytes) error {
+	// Permissions checked in qdb.GetTable.
 	// RunInTransaction() cannot be used here because we may or may not be
 	// creating a transaction. qe.Exec must be called and the statement must be
 	// parsed before we know if a snapshot or a transaction should be created. To
@@ -417,6 +435,7 @@ func execCommitOrAbort(qdb *queryDb, err error) error {
 }
 
 func (d *database) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
+	// Permissions checked in d.setPermsInternal.
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
@@ -424,23 +443,27 @@ func (d *database) SetPermissions(ctx *context.T, call rpc.ServerCall, perms acc
 }
 
 func (d *database) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
+	allowGetPermissions := []access.Tag{access.Admin}
+
 	if !d.exists {
 		return nil, "", verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	data := &DatabaseData{}
-	if err := util.GetWithAuth(ctx, call, d.st, d.stKey(), data); err != nil {
+	var data DatabaseData
+	if _, err := common.GetDataWithAuth(ctx, call, d, allowGetPermissions, d.st, &data); err != nil {
 		return nil, "", err
 	}
 	return data.Perms, util.FormatVersion(data.Version), nil
 }
 
 func (d *database) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
+	allowGlob := []access.Tag{access.Read}
+
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check perms.
-		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
+		if _, err := common.GetPermsWithAuth(ctx, call, d, allowGlob, sntx); err != nil {
 			return err
 		}
 		return util.GlobChildren(ctx, call, matcher, sntx, common.CollectionPermsPrefix)
@@ -451,13 +474,15 @@ func (d *database) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCal
 // See comment in v.io/v23/services/syncbase/service.vdl for why we can't
 // implement ListCollections using Glob.
 func (d *database) ListCollections(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) ([]wire.Id, error) {
+	allowListCollections := []access.Tag{access.Read}
+
 	if !d.exists {
 		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	var res []wire.Id
 	impl := func(sntx store.SnapshotOrTransaction) error {
 		// Check perms.
-		if err := util.GetWithAuth(ctx, call, sntx, d.stKey(), &DatabaseData{}); err != nil {
+		if _, err := common.GetPermsWithAuth(ctx, call, d, allowListCollections, sntx); err != nil {
 			return err
 		}
 		it := sntx.Scan(common.ScanPrefixArgs(common.CollectionPermsPrefix, ""))
@@ -483,19 +508,31 @@ func (d *database) ListCollections(ctx *context.T, call rpc.ServerCall, bh wire.
 }
 
 func (d *database) PauseSync(ctx *context.T, call rpc.ServerCall) error {
+	allowPauseSync := []access.Tag{access.Admin}
+
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	return d.runInTransaction(func(ts *transactionState) error {
+		// Check perms.
+		if _, err := common.GetPermsWithAuth(ctx, call, d, allowPauseSync, ts.tx); err != nil {
+			return err
+		}
 		return sbwatchable.AddDbStateChangeRequestOp(ctx, ts.tx, sbwatchable.StateChangePauseSync)
 	})
 }
 
 func (d *database) ResumeSync(ctx *context.T, call rpc.ServerCall) error {
+	allowResumeSync := []access.Tag{access.Admin}
+
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
 	return d.runInTransaction(func(ts *transactionState) error {
+		// Check perms.
+		if _, err := common.GetPermsWithAuth(ctx, call, d, allowResumeSync, ts.tx); err != nil {
+			return err
+		}
 		return sbwatchable.AddDbStateChangeRequestOp(ctx, ts.tx, sbwatchable.StateChangeResumeSync)
 	})
 }
@@ -608,11 +645,16 @@ func (qdb *queryDb) GetTable(name string, writeAccessReq bool) (ds.Table, error)
 		}
 	}
 	// Now that we have a collection, we need to check permissions.
-	collectionPerms, err := qt.cReq.checkAccess(qdb.ctx, qdb.call, qdb.sntx)
+	// Always check for Read access.
+	collectionPerms, err := common.GetPermsWithAuth(qdb.ctx, qdb.call, qt.cReq, []access.Tag{access.Read}, qdb.sntx)
 	if err != nil {
 		return nil, err
 	}
 	if writeAccessReq {
+		// Also check for Write access if requested.
+		if _, err := common.GetPermsWithAuth(qdb.ctx, qdb.call, qt.cReq, []access.Tag{access.Write}, qdb.sntx); err != nil {
+			return nil, err
+		}
 		qt.qdb.ts.MarkDataChanged(qt.cReq.id, collectionPerms)
 	}
 	return qt, nil
@@ -768,37 +810,35 @@ func (d *database) runWithNewSnapshot(ctx *context.T, fn func(sntx store.Snapsho
 }
 
 func (d *database) runWithExistingBatchOrNewSnapshot(ctx *context.T, bh wire.BatchHandle, fn func(sntx store.SnapshotOrTransaction) error) error {
-	if !d.exists {
-		// TODO(ivanpi): Return fuzzy error if appropriate.
-		return verror.New(verror.ErrNoExist, ctx, d.id)
-	}
 	if bh != "" {
 		if sntx, err := d.batchReader(ctx, bh); err != nil {
 			// Batch does not exist.
-			// TODO(ivanpi): Return fuzzy error if appropriate.
 			return err
 		} else {
 			return fn(sntx)
 		}
 	} else {
+		if !d.exists {
+			// TODO(ivanpi): Return fuzzy error if appropriate.
+			return verror.New(verror.ErrNoExist, ctx, d.id)
+		}
 		return store.RunWithSnapshot(d.st, fn)
 	}
 }
 
 func (d *database) runInExistingBatchOrNewTransaction(ctx *context.T, bh wire.BatchHandle, fn func(ts *transactionState) error) error {
-	if !d.exists {
-		// TODO(ivanpi): Return fuzzy error if appropriate.
-		return verror.New(verror.ErrNoExist, ctx, d.id)
-	}
 	if bh != "" {
 		if batch, err := d.batchTransaction(ctx, bh); err != nil {
 			// Batch does not exist or is readonly (snapshot).
-			// TODO(ivanpi): Return fuzzy error if appropriate.
 			return err
 		} else {
 			return fn(batch)
 		}
 	} else {
+		if !d.exists {
+			// TODO(ivanpi): Return fuzzy error if appropriate.
+			return verror.New(verror.ErrNoExist, ctx, d.id)
+		}
 		return d.runInTransaction(fn)
 	}
 }
@@ -836,6 +876,10 @@ func (d *database) batchLookupInternal(ctx *context.T, bh wire.BatchHandle) (sn 
 	if err != nil {
 		return nil, nil, 0, err
 	}
+	if !d.exists {
+		// TODO(ivanpi): Return fuzzy error if appropriate.
+		return nil, nil, 0, verror.New(verror.ErrNoExist, ctx, d.id)
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	var found bool
@@ -852,6 +896,8 @@ func (d *database) batchLookupInternal(ctx *context.T, bh wire.BatchHandle) (sn 
 }
 
 func (d *database) setPermsInternal(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
+	allowSetPermissions := []access.Tag{access.Admin}
+
 	if !d.exists {
 		vlog.Fatalf("database %v does not exist", d.id)
 	}
@@ -859,15 +905,16 @@ func (d *database) setPermsInternal(ctx *context.T, call rpc.ServerCall, perms a
 		return err
 	}
 	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
-		data := &DatabaseData{}
-		return util.UpdateWithAuth(ctx, call, tx, d.stKey(), data, func() error {
-			if err := util.CheckVersion(ctx, version, data.Version); err != nil {
-				return err
-			}
-			data.Perms = perms
-			data.Version++
-			return nil
-		})
+		var data DatabaseData
+		if _, err := common.GetDataWithAuth(ctx, call, d, allowSetPermissions, tx, &data); err != nil {
+			return err
+		}
+		if err := util.CheckVersion(ctx, version, data.Version); err != nil {
+			return err
+		}
+		data.Perms = perms
+		data.Version++
+		return store.Put(ctx, tx, d.stKey(), &data)
 	})
 }
 
