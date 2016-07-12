@@ -26,18 +26,25 @@ type watcher struct {
 	// closed, updater is closed.
 	updater chan struct{}
 
-	// Protects the clients map.
+	// Protects the fields below.
 	mu sync.RWMutex
 	// Currently registered clients, notified by watcherLoop via their channels.
 	// When watcher is closed, all clients are stopped (and their channels closed)
 	// with ErrAborted and clients is set to nil.
 	clients map[*Client]struct{}
+	// Sequence number pointing to the log start. Kept in sync with the value
+	// persisted in the store under logStartSeqKey(). The log is a contiguous,
+	// possibly empty, sequence of log entries beginning from logStart; log
+	// entries before logStart may be partially garbage collected. logStart
+	// will never move past an active watcher's seq.
+	logStart uint64
 }
 
-func newWatcher() *watcher {
+func newWatcher(logStart uint64) *watcher {
 	ret := &watcher{
-		updater: make(chan struct{}, 1),
-		clients: make(map[*Client]struct{}),
+		updater:  make(chan struct{}, 1),
+		clients:  make(map[*Client]struct{}),
+		logStart: logStart,
 	}
 	go ret.watcherLoop()
 	return ret
@@ -105,6 +112,34 @@ func closeAndDrain(c chan struct{}) {
 	}
 }
 
+// updateLogStartSeq - see UpdateLogStart.
+func (w *watcher) updateLogStartSeq(st *Store, syncSeq uint64) (uint64, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.clients == nil {
+		return 0, verror.New(verror.ErrAborted, nil, "watcher closed")
+	}
+	// New log start is the minimum of all watch client seqs - the persistent sync
+	// watcher and all ephemeral client watchers.
+	lsSeq := syncSeq
+	for c := range w.clients {
+		if seq := c.getPrevSeq(); lsSeq > seq {
+			lsSeq = seq
+		}
+	}
+	if lsSeq < w.logStart {
+		// New log start is earlier than the previous log start. This should never
+		// happen since it means at least one watch client is incorrectly reading
+		// log entries released to garbage collection.
+		return 0, verror.New(verror.ErrInternal, nil, "watcher or sync seq less than log start")
+	}
+	if err := putLogStartSeq(st, lsSeq); err != nil {
+		return 0, err
+	}
+	w.logStart = lsSeq
+	return lsSeq, nil
+}
+
 // watchUpdates - see WatchUpdates.
 func (w *watcher) watchUpdates(seq uint64) (_ *Client, cancel func()) {
 	w.mu.Lock()
@@ -112,6 +147,11 @@ func (w *watcher) watchUpdates(seq uint64) (_ *Client, cancel func()) {
 	if w.clients == nil {
 		// watcher is closed. Return stopped Client.
 		return newStoppedClient(verror.NewErrAborted(nil)), func() {}
+	}
+	if seq < w.logStart {
+		// Log start has moved past seq, so entries between seq and log start have
+		// potentially been garbage collected. Return stopped Client.
+		return newStoppedClient(verror.New(watch.ErrUnknownResumeMarker, nil, MakeResumeMarker(seq))), func() {}
 	}
 	// Register and return client.
 	c := newClient(seq)
@@ -127,14 +167,39 @@ func (w *watcher) watchUpdates(seq uint64) (_ *Client, cancel func()) {
 	return c, cancel
 }
 
+// UpdateLogStart takes as input the resume marker of the sync watcher and
+// returns the new log start, computed as the earliest resume marker of all
+// active watchers including the sync watcher. The new log start is persisted
+// before being returned, making it safe to garbage collect earlier log entries.
+// syncMarker is assumed to monotonically increase, always remaining between the
+// log start and end (inclusive).
+func (st *Store) UpdateLogStart(syncMarker watch.ResumeMarker) (watch.ResumeMarker, error) {
+	syncSeq, err := parseResumeMarker(string(syncMarker))
+	if err != nil {
+		return nil, err
+	}
+	if logEnd := st.getSeq(); syncSeq > logEnd {
+		// Sync has moved past log end. This should never happen.
+		return nil, verror.New(verror.ErrInternal, nil, "sync seq greater than log end")
+	}
+	lsSeq, err := st.watcher.updateLogStartSeq(st, syncSeq)
+	return MakeResumeMarker(lsSeq), err
+}
+
 // WatchUpdates returns a Client which supports waiting for changes and
 // iterating over the watch log starting from resumeMarker, as well as a
-// cancel function which MUST be called to release watch resources.
+// cancel function which MUST be called to release watch resources. Returns
+// a stopped Client if the resume marker is invalid or pointing to an
+// already garbage collected segment of the log.
 func (st *Store) WatchUpdates(resumeMarker watch.ResumeMarker) (_ *Client, cancel func()) {
 	seq, err := parseResumeMarker(string(resumeMarker))
 	if err != nil {
 		// resumeMarker is invalid. Return stopped Client.
 		return newStoppedClient(err), func() {}
+	}
+	if logEnd := st.getSeq(); seq > logEnd {
+		// resumeMarker points past log end. Return stopped Client.
+		return newStoppedClient(verror.New(watch.ErrUnknownResumeMarker, nil, resumeMarker)), func() {}
 	}
 	return st.watcher.watchUpdates(seq)
 }
@@ -209,7 +274,7 @@ func (c *Client) NextBatchFromLog(st store.Store) ([]*LogEntry, watch.ResumeMark
 // is nil, the client is active. Otherwise:
 // * ErrCanceled - watch was canceled by the client.
 // * ErrAborted - watcher was closed (store was closed, possibly destroyed).
-// * ErrUnknownResumeMarker - watch was started with an invalid resume marker.
+// * ErrUnknownResumeMarker - watch was started with an invalid or too old resume marker.
 // * other errors - NextBatchFromLog encountered an error.
 func (c *Client) Err() error {
 	c.mu.Lock()
@@ -228,10 +293,16 @@ func (c *Client) stop(err error) {
 	c.mu.Unlock()
 }
 
+func (c *Client) getPrevSeq() uint64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.prevSeq
+}
+
 // GetResumeMarker returns the ResumeMarker that points to the current end
 // of the event log.
-func GetResumeMarker(st store.StoreReader) (watch.ResumeMarker, error) {
-	seq, err := getNextLogSeq(st)
+func GetResumeMarker(sntx store.SnapshotOrTransaction) (watch.ResumeMarker, error) {
+	seq, err := getNextLogSeq(sntx)
 	return watch.ResumeMarker(logEntryKey(seq)), err
 }
 
@@ -243,26 +314,28 @@ func MakeResumeMarker(seq uint64) watch.ResumeMarker {
 func logEntryKey(seq uint64) string {
 	// Note: MaxUint64 is 0xffffffffffffffff.
 	// TODO(sadovsky): Use a more space-efficient lexicographic number encoding.
-	return join(common.LogPrefix, fmt.Sprintf("%016x", seq))
+	return common.JoinKeyParts(common.LogPrefix, fmt.Sprintf("%016x", seq))
 }
 
 // readBatchFromLog returns a batch of watch log records (a transaction) from
 // the given database and the next sequence number at the end of the batch.
+// Assumes that the log start is less than seq during its execution.
 func readBatchFromLog(st store.Store, seq uint64) ([]*LogEntry, uint64, error) {
 	_, scanLimit := common.ScanPrefixArgs(common.LogPrefix, "")
 	scanStart := MakeResumeMarker(seq)
 	endOfBatch := false
 
-	// Use the store directly to scan these read-only log entries, no need
-	// to create a snapshot since they are never overwritten.  Read and
-	// buffer a batch before processing it.
+	// Use the store directly to scan these read-only log entries, no need to
+	// create a snapshot since log entries are never overwritten and are not
+	// deleted before the log start moves past them. Read and buffer a batch
+	// before processing it.
 	var logs []*LogEntry
 	stream := st.Scan(scanStart, scanLimit)
+	defer stream.Cancel()
 	for stream.Advance() {
 		seq++
 		var logEnt LogEntry
 		if err := vom.Decode(stream.Value(nil), &logEnt); err != nil {
-			stream.Cancel()
 			return nil, seq, err
 		}
 
@@ -271,7 +344,6 @@ func readBatchFromLog(st store.Store, seq uint64) ([]*LogEntry, uint64, error) {
 		// Stop if this is the end of the batch.
 		if logEnt.Continued == false {
 			endOfBatch = true
-			stream.Cancel()
 			break
 		}
 	}
@@ -281,7 +353,7 @@ func readBatchFromLog(st store.Store, seq uint64) ([]*LogEntry, uint64, error) {
 			return nil, seq, err
 		}
 		if len(logs) > 0 {
-			vlog.Fatalf("end of batch not found after %d entries", len(logs))
+			return nil, seq, verror.New(verror.ErrInternal, nil, fmt.Sprintf("end of batch not found after %d entries", len(logs)))
 		}
 		return nil, seq, nil
 	}
@@ -301,6 +373,32 @@ func parseResumeMarker(resumeMarker string) (uint64, error) {
 	return seq, nil
 }
 
+func logStartSeqKey() string {
+	return common.JoinKeyParts(common.LogMarkerPrefix, "st")
+}
+
+func getLogStartSeq(st store.StoreReader) (uint64, error) {
+	var seq uint64
+	if err := store.Get(nil, st, logStartSeqKey(), &seq); err != nil {
+		if verror.ErrorID(err) != verror.ErrNoExist.ID {
+			return 0, err
+		}
+		return 0, nil
+	}
+	return seq, nil
+}
+
+func putLogStartSeq(st *Store, seq uint64) error {
+	// The log start key must not be managed because getLogStartSeq is called both
+	// on the wrapped store and on the watchable store.
+	if st.managesKey([]byte(logStartSeqKey())) {
+		panic("log start key must not be managed")
+	}
+	// We put directly into the wrapped store to avoid using a watchable store
+	// transaction, which may cause a deadlock by calling broadcastUpdates().
+	return store.Put(nil, st.ist, logStartSeqKey(), seq)
+}
+
 // logEntryExists returns true iff the log contains an entry with the given
 // sequence number.
 func logEntryExists(st store.StoreReader, seq uint64) (bool, error) {
@@ -312,24 +410,26 @@ func logEntryExists(st store.StoreReader, seq uint64) (bool, error) {
 }
 
 // getNextLogSeq returns the next sequence number to be used for a new commit.
-// NOTE: this function assumes that all sequence numbers in the log represent
-// some range [start, limit] without gaps.
+// NOTE: This function assumes that all sequence numbers in the log represent
+// some range [start, limit] without gaps. It also assumes that the log is not
+// changing (by appending entries or moving the log start) during its execution.
+// Therefore, it should only be called on a snapshot or a store with no active
+// potential writers (e.g. when opening the store). Furthermore, it assumes that
+// common.LogMarkerPrefix and common.LogPrefix are not managed prefixes.
+// TODO(ivanpi): Consider replacing this function with persisted log end,
+// similar to how log start is handled.
 func getNextLogSeq(st store.StoreReader) (uint64, error) {
-	// Determine initial value for seq.
+	// Read initial value for seq.
 	// TODO(sadovsky): Consider using a bigger seq.
-
-	// Find the beginning of the log.
-	it := st.Scan(common.ScanPrefixArgs(common.LogPrefix, ""))
-	if !it.Advance() {
-		return 0, nil
-	}
-	defer it.Cancel()
-	if it.Err() != nil {
-		return 0, it.Err()
-	}
-	seq, err := parseResumeMarker(string(it.Key(nil)))
+	seq, err := getLogStartSeq(st)
 	if err != nil {
 		return 0, err
+	}
+	// Handle empty log case.
+	if ok, err := logEntryExists(st, seq); err != nil {
+		return 0, err
+	} else if !ok {
+		return 0, nil
 	}
 	var step uint64 = 1
 	// Suppose the actual value we are looking for is S. First, we estimate the

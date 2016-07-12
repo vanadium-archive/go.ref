@@ -74,7 +74,7 @@ func TestLogEntryTimestamps(t *testing.T) {
 	// Note: NewVClockForTests calls cl.SysClock.Now() once to write the initial
 	// VClockData to the store.
 	cl := vclock.NewVClockForTests(&mockSystemClock{Time: t1, Inc: inc})
-	wst1, err := Wrap(ist, cl, &Options{ManagedPrefixes: nil})
+	wst1, err := Wrap(ist, cl, &Options{ManagedPrefixes: []string{""}})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestLogEntryTimestamps(t *testing.T) {
 	verifyCommitLog(t, ist, seqForCreate, 2, t1.Add(inc))
 
 	// Update data already present in store with a new watchable store
-	wst2, err := Wrap(ist, cl, &Options{ManagedPrefixes: nil})
+	wst2, err := Wrap(ist, cl, &Options{ManagedPrefixes: []string{""}})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestOpLogConsistency(t *testing.T) {
 	// Note: NewVClockForTests calls cl.SysClock.Now() once to write the initial
 	// VClockData to the store.
 	cl := vclock.NewVClockForTests(&mockSystemClock{Time: t1, Inc: inc})
-	wst, err := Wrap(ist, cl, &Options{ManagedPrefixes: nil})
+	wst, err := Wrap(ist, cl, &Options{ManagedPrefixes: []string{""}})
 	if err != nil {
 		t.Fatalf("Wrap failed: %v", err)
 	}

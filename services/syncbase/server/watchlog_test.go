@@ -74,7 +74,9 @@ func TestWatchLogPerms(t *testing.T) {
 	blessings, _ := v23.GetPrincipal(ctx).BlessingStore().Default()
 	call := &mockCall{p: v23.GetPrincipal(ctx), b: blessings}
 	var expected []interface{}
-	resumeMarker, _ := watchable.GetResumeMarker(st)
+	sn := st.NewSnapshot()
+	resumeMarker, _ := watchable.GetResumeMarker(sn)
+	sn.Abort()
 	watcher, cancel := st.WatchUpdates(resumeMarker)
 	defer cancel()
 	// Generate Put/Delete events.

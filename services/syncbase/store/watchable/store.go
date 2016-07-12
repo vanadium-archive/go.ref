@@ -28,7 +28,7 @@ import (
 
 // Options configures a Store.
 type Options struct {
-	// Key prefixes to version and log. If nil, all keys are managed.
+	// Key prefixes to version and log.
 	ManagedPrefixes []string
 }
 
@@ -40,13 +40,17 @@ type Clock interface {
 
 // Wrap returns a *Store that wraps the given store.Store.
 func Wrap(st store.Store, clock Clock, opts *Options) (*Store, error) {
+	logStart, err := getLogStartSeq(st)
+	if err != nil {
+		return nil, err
+	}
 	seq, err := getNextLogSeq(st)
 	if err != nil {
 		return nil, err
 	}
 	return &Store{
 		ist:     st,
-		watcher: newWatcher(),
+		watcher: newWatcher(logStart),
 		opts:    opts,
 		seq:     seq,
 		Clock:   clock,
@@ -134,9 +138,6 @@ func GetOptions(st store.Store) (*Options, error) {
 // Internal helpers
 
 func (st *Store) managesKey(key []byte) bool {
-	if st.opts.ManagedPrefixes == nil {
-		return true
-	}
 	ikey := string(key)
 	// TODO(sadovsky): Optimize, e.g. use binary search (here and below).
 	for _, p := range st.opts.ManagedPrefixes {
@@ -148,12 +149,9 @@ func (st *Store) managesKey(key []byte) bool {
 }
 
 func (st *Store) managesRange(start, limit []byte) bool {
-	if st.opts.ManagedPrefixes == nil {
-		return true
-	}
-	istart, ilimit := string(start), string(limit)
+	istart, ilimit := string(start), limitForCompare(string(limit))
 	for _, p := range st.opts.ManagedPrefixes {
-		pstart, plimit := pubutil.PrefixRangeStart(p), pubutil.PrefixRangeLimit(p)
+		pstart, plimit := pubutil.PrefixRangeStart(p), limitForCompare(pubutil.PrefixRangeLimit(p))
 		if pstart <= istart && ilimit <= plimit {
 			return true
 		}
@@ -163,4 +161,18 @@ func (st *Store) managesRange(start, limit []byte) bool {
 		}
 	}
 	return false
+}
+
+func limitForCompare(limit string) string {
+	if limit == "" {
+		// Empty limit means no limit. Return a value always greater than a valid start.
+		return "\xff"
+	}
+	return limit
+}
+
+func (st *Store) getSeq() uint64 {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.seq
 }

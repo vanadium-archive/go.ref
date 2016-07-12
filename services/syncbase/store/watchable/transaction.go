@@ -152,7 +152,9 @@ func (tx *Transaction) Commit() error {
 		return err
 	}
 	tx.St.seq = seq
-	tx.St.watcher.broadcastUpdates()
+	if len(tx.ops) > 0 {
+		tx.St.watcher.broadcastUpdates()
+	}
 	return nil
 }
 

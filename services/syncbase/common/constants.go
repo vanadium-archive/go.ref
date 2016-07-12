@@ -13,6 +13,7 @@ const (
 	DbGCPrefix            = "g"
 	DbInfoPrefix          = "i"
 	LogPrefix             = "l"
+	LogMarkerPrefix       = "m"
 	VClockPrefix          = "q"
 	RowPrefix             = "r"
 	ServicePrefix         = "s"

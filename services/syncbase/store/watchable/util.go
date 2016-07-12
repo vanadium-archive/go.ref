@@ -42,11 +42,11 @@ func NewVersion() []byte {
 }
 
 func makeVersionKey(key []byte) []byte {
-	return []byte(join(common.VersionPrefix, string(key)))
+	return []byte(common.JoinKeyParts(common.VersionPrefix, string(key)))
 }
 
 func makeAtVersionKey(key, version []byte) []byte {
-	return []byte(join(string(key), string(version)))
+	return []byte(common.JoinKeyParts(string(key), string(version)))
 }
 
 func getVersion(st store.StoreReader, key []byte) ([]byte, error) {
@@ -78,10 +78,6 @@ func putVersioned(tx store.Transaction, key, value []byte) ([]byte, error) {
 
 func deleteVersioned(tx store.Transaction, key []byte) error {
 	return tx.Delete(makeVersionKey(key))
-}
-
-func join(parts ...string) string {
-	return common.JoinKeyParts(parts...)
 }
 
 func convertError(err error) error {
