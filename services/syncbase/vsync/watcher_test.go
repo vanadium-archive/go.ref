@@ -207,8 +207,10 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	barKey := makeRowKey("bar")
 	fooxyzKey := makeRowKey("fooxyz")
 
+	noError := func() error { return nil }
+
 	// Empty logs does not fail.
-	s.processWatchLogBatch(nil, mockDbId, st, nil, nil)
+	s.processWatchLogBatch(nil, mockDbId, st, noError, nil, nil)
 
 	// Non-syncable logs.
 	batch := []*watchable.LogEntry{
@@ -217,7 +219,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 
 	resmark := watchable.MakeResumeMarker(1234)
-	s.processWatchLogBatch(nil, mockDbId, st, batch, resmark)
+	s.processWatchLogBatch(nil, mockDbId, st, noError, batch, resmark)
 
 	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
@@ -250,7 +252,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 
 	resmark = watchable.MakeResumeMarker(3456)
-	s.processWatchLogBatch(nil, mockDbId, st, batch, resmark)
+	s.processWatchLogBatch(nil, mockDbId, st, noError, batch, resmark)
 
 	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
@@ -290,7 +292,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 
 	resmark = watchable.MakeResumeMarker(7890)
-	s.processWatchLogBatch(nil, mockDbId, st, batch, resmark)
+	s.processWatchLogBatch(nil, mockDbId, st, noError, batch, resmark)
 
 	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)
@@ -333,7 +335,7 @@ func TestProcessWatchLogBatch(t *testing.T) {
 	}
 
 	resmark = watchable.MakeResumeMarker(20212223)
-	s.processWatchLogBatch(nil, mockDbId, st, batch, resmark)
+	s.processWatchLogBatch(nil, mockDbId, st, noError, batch, resmark)
 
 	if res, err := getResMark(nil, st); err != nil && !bytes.Equal(res, resmark) {
 		t.Errorf("invalid resmark batch processing: got %s instead of %s", res, resmark)

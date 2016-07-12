@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
@@ -42,11 +43,11 @@ func runWatchLogBatchTest(t *testing.T, st store.Store) {
 	}
 
 	// Fetch the batches and a few more empty fetches and verify them.
-	resmark := MakeResumeMarker(0)
-	var seq uint64
+	var seq uint64 = 0
+	var wantSeq uint64 = 0
 
 	for i := 0; i < (numTx + 3); i++ {
-		logs, newResmark, err := ReadBatchFromLog(st, resmark)
+		logs, newSeq, err := readBatchFromLog(st, seq)
 		if err != nil {
 			t.Fatalf("can't get watch log batch: %v", err)
 		}
@@ -56,11 +57,10 @@ func runWatchLogBatchTest(t *testing.T, st store.Store) {
 					i, len(logs), numPut)
 			}
 
-			seq += uint64(len(logs))
-			expResmark := MakeResumeMarker(seq)
-			if !bytes.Equal(newResmark, expResmark) {
-				t.Errorf("log fetch (i=%d) wrong resmark: %s instead of %s",
-					i, newResmark, expResmark)
+			wantSeq += uint64(len(logs))
+			if newSeq != wantSeq {
+				t.Errorf("log fetch (i=%d) wrong seq: %d instead of %d",
+					i, newSeq, wantSeq)
 			}
 
 			for j, log := range logs {
@@ -87,12 +87,12 @@ func runWatchLogBatchTest(t *testing.T, st store.Store) {
 				tx.Abort()
 			}
 		} else {
-			if logs != nil || !bytes.Equal(newResmark, resmark) {
-				t.Errorf("NOP log fetch (i=%d) had changes: %d logs, resmask %s",
-					i, len(logs), newResmark)
+			if logs != nil || newSeq != seq {
+				t.Errorf("NOP log fetch (i=%d) had changes: %d logs, seq %d",
+					i, len(logs), newSeq)
 			}
 		}
-		resmark = newResmark
+		seq = newSeq
 	}
 }
 
@@ -106,23 +106,26 @@ func TestWatcher(t *testing.T) {
 	w.broadcastUpdates()
 
 	// Never-receiving client should not block watcher.
-	_, cancel1 := w.watchUpdates()
+	_, cancel1 := w.watchUpdates(0)
 	defer cancel1()
 
 	// Cancelled client should not affect watcher.
-	chan2, cancel2 := w.watchUpdates()
+	c2, cancel2 := w.watchUpdates(0)
 	cancel2()
 	// Cancel should be idempotent.
 	cancel2()
 
 	// Channel should be closed when client is cancelled.
 	select {
-	case _, ok := <-chan2:
+	case _, ok := <-c2.Wait():
 		if ok {
-			t.Fatalf("cancel2 was called, chan2 should be drained and closed")
+			t.Fatalf("cancel2 was called, c2 channel should be drained and closed")
 		}
 	default:
-		t.Fatalf("cancel2 was called, chan2 should be closed")
+		t.Fatalf("cancel2 was called, c2 channel should be closed")
+	}
+	if verror.ErrorID(c2.Err()) != verror.ErrCanceled.ID {
+		t.Fatalf("expected c2.Err() to return ErrCanceled, got: %v", c2.Err())
 	}
 
 	// Update broadcast should not block client registration or vice versa.
@@ -130,13 +133,13 @@ func TestWatcher(t *testing.T) {
 	registerLoop1 := make(chan bool)
 	go func() {
 		for i := 0; i < 5000; i++ {
-			_, canceli := w.watchUpdates()
+			_, canceli := w.watchUpdates(0)
 			defer canceli()
 		}
 		registerLoop1 <- true
 	}()
 
-	chan3, cancel3 := w.watchUpdates()
+	c3, cancel3 := w.watchUpdates(0)
 
 	for i := 0; i < 5000; i++ {
 		w.broadcastUpdates()
@@ -154,18 +157,21 @@ func TestWatcher(t *testing.T) {
 
 	// chan3 should have a single pending notification.
 	select {
-	case _, ok := <-chan3:
+	case _, ok := <-c3.Wait():
 		if !ok {
-			t.Fatalf("chan3 should not be closed")
+			t.Fatalf("c3 channel should not be closed")
 		}
 	default:
-		t.Fatalf("chan3 should have a notification")
+		t.Fatalf("c3 channel should have a notification")
 	}
 	select {
-	case <-chan3:
-		t.Fatalf("chan3 should not have another notification")
+	case <-c3.Wait():
+		t.Fatalf("c3 channel should not have another notification")
 	default:
 		// ok
+	}
+	if c3.Err() != nil {
+		t.Fatalf("expected c3.Err() to return nil, got: %v", c3.Err())
 	}
 
 	// After notification was read, chan3 still receives updates.
@@ -175,12 +181,15 @@ func TestWatcher(t *testing.T) {
 	}()
 
 	select {
-	case _, ok := <-chan3:
+	case _, ok := <-c3.Wait():
 		if !ok {
-			t.Fatalf("chan3 should not be closed")
+			t.Fatalf("c3 channel should not be closed")
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatalf("chan3 didn't receive after 5s")
+		t.Fatalf("c3 channel didn't receive after 5s")
+	}
+	if c3.Err() != nil {
+		t.Fatalf("expected c3.Err() to return nil, got: %v", c3.Err())
 	}
 
 	// Closing the watcher.
@@ -190,28 +199,38 @@ func TestWatcher(t *testing.T) {
 
 	// Client channels should be closed when watcher is closed.
 	select {
-	case _, ok := <-chan3:
+	case _, ok := <-c3.Wait():
 		if ok {
-			t.Fatalf("watcher was closed, chan3 should be drained and closed")
+			t.Fatalf("watcher was closed, c3 channel should be drained and closed")
 		}
 	default:
-		t.Fatalf("watcher was closed, chan3 should be closed")
+		t.Fatalf("watcher was closed, c3 channel should be closed")
+	}
+	if verror.ErrorID(c3.Err()) != verror.ErrAborted.ID {
+		t.Fatalf("expected c3.Err() to return ErrAborted, got: %v", c3.Err())
 	}
 
 	// Cancel is safe to call after the store is closed.
 	cancel3()
+	// ErrAborted should be preserved instead of being overridden by ErrCanceled.
+	if verror.ErrorID(c3.Err()) != verror.ErrAborted.ID {
+		t.Fatalf("expected c3.Err() to return ErrAborted, got: %v", c3.Err())
+	}
 
 	// watchUpdates is safe to call after the store is closed, returning closed
 	// channel.
-	chan4, cancel4 := w.watchUpdates()
+	c4, cancel4 := w.watchUpdates(0)
 
 	select {
-	case _, ok := <-chan4:
+	case _, ok := <-c4.Wait():
 		if ok {
-			t.Fatalf("watcher was closed, chan4 should be drained and closed")
+			t.Fatalf("watcher was closed, c4 channel should be drained and closed")
 		}
 	default:
-		t.Fatalf("watcher was closed, chan4 should be closed")
+		t.Fatalf("watcher was closed, c4 channel should be closed")
+	}
+	if verror.ErrorID(c4.Err()) != verror.ErrAborted.ID {
+		t.Fatalf("expected c4.Err() to return ErrAborted, got: %v", c4.Err())
 	}
 
 	cancel4()

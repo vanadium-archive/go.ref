@@ -228,7 +228,7 @@ func (c *collectionReq) scanInitialState(ctx *context.T, call rpc.ServerCall, se
 // - wait for one of two signals: new updates available or the call is canceled
 // The 'new updates' signal is sent by the watcher via a Go channel.
 func (d *database) watchUpdates(ctx *context.T, call rpc.ServerCall, sender *watchBatchSender, resumeMarker watch.ResumeMarker, watchFilter filter.CollectionRowFilter) error {
-	hasUpdates, cancelWatch := watchable.WatchUpdates(d.st)
+	watcher, cancelWatch := d.st.WatchUpdates(resumeMarker)
 	defer cancelWatch()
 	for {
 		// Drain the log queue.
@@ -237,7 +237,7 @@ func (d *database) watchUpdates(ctx *context.T, call rpc.ServerCall, sender *wat
 			// conflict resolution merge batches, very large batches may not be
 			// unrealistic. However, sync currently also processes an entire batch at
 			// a time, and would need to be updated as well.
-			logs, nextResumeMarker, err := watchable.ReadBatchFromLog(d.st, resumeMarker)
+			logs, nextResumeMarker, err := watcher.NextBatchFromLog(d.st)
 			if err != nil {
 				// TODO(ivanpi): Log all internal errors, especially ones not returned.
 				return verror.NewErrInternal(ctx) // no detailed error before access check
@@ -256,9 +256,9 @@ func (d *database) watchUpdates(ctx *context.T, call rpc.ServerCall, sender *wat
 		}
 		// Wait for new updates or cancel.
 		select {
-		case _, ok := <-hasUpdates:
+		case _, ok := <-watcher.Wait():
 			if !ok {
-				return verror.NewErrAborted(ctx)
+				return watcher.Err()
 			}
 		case <-ctx.Done():
 			return ctx.Err()

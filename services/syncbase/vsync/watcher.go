@@ -71,62 +71,70 @@ func (sd *syncDatabase) StartStoreWatcher(ctx *context.T) {
 func (s *syncService) watchStore(ctx *context.T, dbId wire.Id, st *watchable.Store) {
 	vlog.VI(1).Infof("sync: watchStore: DB %v: start watching updates", dbId)
 
-	updatesChan, cancel := watchable.WatchUpdates(st)
+	resMark, err := getResMark(ctx, st)
+	if err != nil {
+		if verror.ErrorID(err) != verror.ErrNoExist.ID {
+			// TODO(rdaoud): Quarantine this database.
+			vlog.Errorf("sync: watchStore: %v: cannot get resMark, stop watching and exit: %v", dbId, err)
+			return
+		}
+		resMark = watchable.MakeResumeMarker(0)
+	}
+
+	watcher, cancel := st.WatchUpdates(resMark)
 	defer cancel()
 
 	moreWork := true
 	for moreWork && !s.isClosed() {
-		if s.processDatabase(ctx, dbId, st) {
+		if hadUpdate, err := s.processDatabase(ctx, dbId, st, watcher); err != nil {
+			// TODO(rdaoud): Quarantine this database.
+			vlog.Errorf("sync: watchStore: DB %v: processDatabase failed, stop watching and exit: %v", dbId, err)
+			return
+		} else if hadUpdate {
 			vlog.VI(2).Infof("sync: watchStore: DB %v: had updates", dbId)
 		} else {
 			vlog.VI(2).Infof("sync: watchStore: DB %v: idle, wait for updates", dbId)
 			select {
-			case _, moreWork = <-updatesChan:
+			case _, moreWork = <-watcher.Wait():
 
-			case <-s.closed:
-				moreWork = false
+			case _, moreWork = <-s.closed:
+
 			}
 		}
 	}
 
-	vlog.VI(1).Infof("sync: watchStore: DB %v: channel closed, stop watching and exit", dbId)
+	vlog.VI(1).Infof("sync: watchStore: DB %v: channel closed, stop watching and exit, watch status %v", dbId, watcher.Err())
 }
 
 // processDatabase fetches from the given database at most one new batch update
 // (transaction) and processes it.  A batch is stored as a contiguous set of log
 // records ending with one record having the "continued" flag set to false.  The
 // call returns true if a new batch update was processed.
-func (s *syncService) processDatabase(ctx *context.T, dbId wire.Id, st store.Store) bool {
+func (s *syncService) processDatabase(ctx *context.T, dbId wire.Id, st store.Store, watcher *watchable.Client) (bool, error) {
 	vlog.VI(2).Infof("sync: processDatabase: begin: %v", dbId)
 	defer vlog.VI(2).Infof("sync: processDatabase: end: %v", dbId)
-
-	resMark, err := getResMark(ctx, st)
-	if err != nil {
-		if verror.ErrorID(err) != verror.ErrNoExist.ID {
-			vlog.Errorf("sync: processDatabase: %v: cannot get resMark: %v", dbId, err)
-			return false
-		}
-		resMark = watchable.MakeResumeMarker(0)
-	}
 
 	// Initialize Database sync state if needed.
 	s.initSyncStateInMem(ctx, dbId, "")
 
-	// Get a batch of watch log entries, if any, after this resume marker.
-	logs, nextResmark, err := watchable.ReadBatchFromLog(st, resMark)
+	// Get the next batch of watch log entries, if any.
+	logs, nextResmark, err := watcher.NextBatchFromLog(st)
 	if err != nil {
-		// An error here (scan stream cancelled) is possible when the watcher is in
-		// the middle of processing a database when it is destroyed. Hence, we just
-		// ignore this database and proceed.
 		vlog.Errorf("sync: processDatabase: %v: cannot get watch log batch: %v", dbId, verror.DebugString(err))
-		return false
+		if verror.ErrorID(err) == verror.ErrAborted.ID {
+			// Watch was aborted because the database was closed, probably destroyed.
+			// We suppress this error and let the watcher exit gracefully.
+			vlog.VI(1).Infof("sync: processDatabase: %v: watch aborted because database was closed", dbId)
+			return false, nil
+		}
+		return false, err
 	} else if logs == nil {
-		return false
+		return false, nil
 	}
 
-	if err = s.processWatchLogBatch(ctx, dbId, st, logs, nextResmark); err != nil {
-		// TODO(rdaoud): quarantine this database.
-		return false
+	if err = s.processWatchLogBatch(ctx, dbId, st, watcher.Err, logs, nextResmark); err != nil {
+		vlog.Errorf("sync: processDatabase: %v: cannot process watch log batch: %v", dbId, verror.DebugString(err))
+		return false, err
 	}
 
 	// The requirement for pause is that any write after the pause must not
@@ -143,23 +151,25 @@ func (s *syncService) processDatabase(ctx *context.T, dbId wire.Id, st store.Sto
 		// The database is online. Cut a gen.
 		if err := s.checkptLocalGen(ctx, dbId, nil); err != nil {
 			vlog.Errorf("sync: processDatabase: %v: cannot cut a generation: %v", dbId, verror.DebugString(err))
-			return false
+			// TODO(ivanpi): This may not be a fatal error, continue watching?
+			return false, err
 		}
 	} else {
 		vlog.VI(1).Infof("sync: processDatabase: %v database not allowed to sync, skipping cutting a gen", dbId)
 	}
-	return true
+	return true, nil
 }
 
 // processWatchLogBatch parses the given batch of watch log records, updates the
 // watchable syncgroup prefixes, uses the prefixes to filter the batch to the
 // subset of syncable records, and transactionally applies these updates to the
 // sync metadata (DAG & log records) and updates the watch resume marker.
-func (s *syncService) processWatchLogBatch(ctx *context.T, dbId wire.Id, st store.Store, logs []*watchable.LogEntry, resMark watch.ResumeMarker) error {
+func (s *syncService) processWatchLogBatch(ctx *context.T, dbId wire.Id, st store.Store, watchStatus func() error, logs []*watchable.LogEntry, resMark watch.ResumeMarker) error {
 	if len(logs) == 0 {
 		return nil
 	}
 
+	// TODO(ivanpi): Pipe through errors from here instead of calling Fatalf.
 	if processDbStateChangeLogRecord(ctx, s, st, dbId, logs[0], resMark) {
 		// A batch containing DbStateChange will not have any more records.
 		// This batch is done processing.
@@ -213,10 +223,17 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, dbId wire.Id, st stor
 	vlog.VI(3).Infof("sync: processWatchLogBatch: %v: sg snap %t, syncable %d, total %d", dbId, !appBatch, len(batch), totalCount)
 
 	if err := s.processWatchBlobRefs(ctx, dbId, st, batch); err != nil {
-		// There may be an error here if the database is recently
-		// destroyed.  Ignore the error and continue to another database.
 		vlog.Errorf("sync: processWatchLogBatch: %v: watcher cannot process blob refs: %v", dbId, err)
-		return nil
+		if verror.ErrorID(watchStatus()) == verror.ErrAborted.ID {
+			// Watch was aborted because the database was closed, probably destroyed.
+			// We suppress this error and let the watcher exit gracefully.
+			// Note, we use the watcher error for this because it is guaranteed to be
+			// set to ErrAborted when the database is closed gracefully, unlike the
+			// error returned from processWatchBlobRefs.
+			vlog.VI(1).Infof("sync: processWatchLogBatch: %v: watch aborted because database was closed", dbId)
+			return nil
+		}
+		return err
 	}
 
 	// Transactional processing of the batch: Fixup syncable log records to
@@ -241,10 +258,17 @@ func (s *syncService) processWatchLogBatch(ctx *context.T, dbId wire.Id, st stor
 	})
 
 	if err != nil {
-		// There may be an error here if the database is recently
-		// destroyed. Ignore the error and continue to another database.
-		// TODO(rdaoud): quarantine this database for other errors.
 		vlog.Errorf("sync: processWatchLogBatch: %v: watcher cannot process batch: %v", dbId, err)
+		if verror.ErrorID(watchStatus()) == verror.ErrAborted.ID {
+			// Watch was aborted because the database was closed, probably destroyed.
+			// We suppress this error and let the watcher exit gracefully.
+			// Note, we use the watcher error for this because it is guaranteed to be
+			// set to ErrAborted when the database is closed gracefully, unlike the
+			// error returned from RunInTransaction.
+			vlog.VI(1).Infof("sync: processWatchLogBatch: %v: watch aborted because database was closed", dbId)
+			return nil
+		}
+		return err
 	}
 	return nil
 }

@@ -75,6 +75,8 @@ func TestWatchLogPerms(t *testing.T) {
 	call := &mockCall{p: v23.GetPrincipal(ctx), b: blessings}
 	var expected []interface{}
 	resumeMarker, _ := watchable.GetResumeMarker(st)
+	watcher, cancel := st.WatchUpdates(resumeMarker)
+	defer cancel()
 	// Generate Put/Delete events.
 	for i := 0; i < 5; i++ {
 		// Set initial collection permissions.
@@ -119,7 +121,7 @@ func TestWatchLogPerms(t *testing.T) {
 	expectedIndex := 0
 	for {
 		var logs []*watchable.LogEntry
-		if logs, resumeMarker, _ = watchable.ReadBatchFromLog(st, resumeMarker); logs == nil {
+		if logs, resumeMarker, _ = watcher.NextBatchFromLog(st); logs == nil {
 			break
 		}
 		for _, logRecord := range logs {

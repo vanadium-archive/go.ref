@@ -25,17 +25,19 @@ type watcher struct {
 	// Channel used by broadcastUpdates() to notify watcherLoop. When watcher is
 	// closed, updater is closed.
 	updater chan struct{}
+
 	// Protects the clients map.
 	mu sync.RWMutex
-	// Channels used by watcherLoop to notify currently registered clients. When
-	// watcher is closed, all client channels are closed and clients is set to nil.
-	clients map[chan struct{}]struct{}
+	// Currently registered clients, notified by watcherLoop via their channels.
+	// When watcher is closed, all clients are stopped (and their channels closed)
+	// with ErrAborted and clients is set to nil.
+	clients map[*Client]struct{}
 }
 
 func newWatcher() *watcher {
 	ret := &watcher{
 		updater: make(chan struct{}, 1),
-		clients: make(map[chan struct{}]struct{}),
+		clients: make(map[*Client]struct{}),
 	}
 	go ret.watcherLoop()
 	return ret
@@ -45,9 +47,9 @@ func newWatcher() *watcher {
 func (w *watcher) close() {
 	w.mu.Lock()
 	if w.clients != nil {
-		// Close all client channels.
+		// Stop all clients and close their channels.
 		for c := range w.clients {
-			closeAndDrain(c)
+			c.stop(verror.NewErrAborted(nil))
 		}
 		// Set clients to nil to mark watcher as closed.
 		w.clients = nil
@@ -79,7 +81,7 @@ func (w *watcher) watcherLoop() {
 		}
 		w.mu.RLock()
 		for c := range w.clients { // safe for w.clients == nil
-			ping(c)
+			ping(c.update)
 		}
 		w.mu.RUnlock()
 	}
@@ -104,40 +106,126 @@ func closeAndDrain(c chan struct{}) {
 }
 
 // watchUpdates - see WatchUpdates.
-func (w *watcher) watchUpdates() (update <-chan struct{}, cancel func()) {
-	updateRW := make(chan struct{}, 1)
+func (w *watcher) watchUpdates(seq uint64) (_ *Client, cancel func()) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.clients == nil {
-		// watcher is closed, return a closed update channel and no-op cancel.
-		close(updateRW)
-		cancel = func() {}
-		return updateRW, cancel
+		// watcher is closed. Return stopped Client.
+		return newStoppedClient(verror.NewErrAborted(nil)), func() {}
 	}
-	// Register update channel.
-	w.clients[updateRW] = struct{}{}
-	// Cancel is idempotent. It unregisters and closes the update channel.
+	// Register and return client.
+	c := newClient(seq)
+	w.clients[c] = struct{}{}
 	cancel = func() {
 		w.mu.Lock()
-		if _, ok := w.clients[updateRW]; ok { // safe for w.clients == nil
-			delete(w.clients, updateRW)
-			closeAndDrain(updateRW)
+		if _, ok := w.clients[c]; ok { // safe for w.clients == nil
+			c.stop(verror.NewErrCanceled(nil))
+			delete(w.clients, c)
 		}
 		w.mu.Unlock()
 	}
-	return updateRW, cancel
+	return c, cancel
 }
 
-// WatchUpdates returns a channel that can be used to wait for changes of the
-// database, as well as a cancel function which MUST be called to release the
-// watch resources. If the update channel is closed, the store is closed and
-// no more updates will happen. Otherwise, the channel will have a value
-// available whenever the store has changed since the last receive on the
-// channel.
-func WatchUpdates(st store.Store) (update <-chan struct{}, cancel func()) {
-	// TODO(rogulenko): Remove dynamic type assertion here and in other places.
-	watcher := st.(*Store).watcher
-	return watcher.watchUpdates()
+// WatchUpdates returns a Client which supports waiting for changes and
+// iterating over the watch log starting from resumeMarker, as well as a
+// cancel function which MUST be called to release watch resources.
+func (st *Store) WatchUpdates(resumeMarker watch.ResumeMarker) (_ *Client, cancel func()) {
+	seq, err := parseResumeMarker(string(resumeMarker))
+	if err != nil {
+		// resumeMarker is invalid. Return stopped Client.
+		return newStoppedClient(err), func() {}
+	}
+	return st.watcher.watchUpdates(seq)
+}
+
+// Client encapsulates a channel used to notify watch clients of store updates
+// and an iterator over the watch log.
+type Client struct {
+	// Channel used by watcherLoop to notify the client. When the client is
+	// stopped, update is closed.
+	update chan struct{}
+
+	// Protects the fields below.
+	mu sync.Mutex
+	// Sequence number pointing to the start of the previously retrieved log
+	// batch. Equal to nextSeq if the retrieved batch was empty.
+	prevSeq uint64
+	// Sequence number pointing to the start of the next log batch to retrieve.
+	nextSeq uint64
+	// When the client is stopped, err is set to the reason for stopping.
+	err error
+}
+
+func newClient(seq uint64) *Client {
+	return &Client{
+		update:  make(chan struct{}, 1),
+		prevSeq: seq,
+		nextSeq: seq,
+	}
+}
+
+func newStoppedClient(err error) *Client {
+	c := newClient(0)
+	c.stop(err)
+	return c
+}
+
+// Wait returns the update channel that can be used to wait for new changes in
+// the store. If the update channel is closed, the client is stopped and no more
+// updates will happen. Otherwise, the channel will have a value available
+// whenever the store has changed since the last receive on the channel.
+func (c *Client) Wait() <-chan struct{} {
+	return c.update
+}
+
+// NextBatchFromLog returns the next batch of watch log records (transaction)
+// from the given database and the resume marker at the end of the batch. If
+// there is no batch available, it returns a nil slice and the same resume
+// marker as the previous NextBatchFromLog call. The returned log entries are
+// guaranteed to point to existing data versions until either the client is
+// stopped or NextBatchFromLog is called again. If the client is stopped,
+// NextBatchFromLog returns the same error as Err.
+func (c *Client) NextBatchFromLog(st store.Store) ([]*LogEntry, watch.ResumeMarker, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.err != nil {
+		return nil, nil, c.err
+	}
+	batch, batchEndSeq, err := readBatchFromLog(st, c.nextSeq)
+	if err != nil {
+		// We cannot call stop() here since c.mu is locked. However, we checked
+		// above that c.err is nil, so it is safe to set c.err anc close c.update.
+		c.err = err
+		closeAndDrain(c.update)
+		return nil, nil, err
+	}
+	c.prevSeq = c.nextSeq
+	c.nextSeq = batchEndSeq
+	return batch, MakeResumeMarker(batchEndSeq), nil
+}
+
+// Err returns the error that caused the client to stop watching. If the error
+// is nil, the client is active. Otherwise:
+// * ErrCanceled - watch was canceled by the client.
+// * ErrAborted - watcher was closed (store was closed, possibly destroyed).
+// * ErrUnknownResumeMarker - watch was started with an invalid resume marker.
+// * other errors - NextBatchFromLog encountered an error.
+func (c *Client) Err() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.err
+}
+
+// stop closes the client update channel and sets the error returned by Err.
+// Idempotent (only the error from the first call to stop is kept).
+func (c *Client) stop(err error) {
+	c.mu.Lock()
+	if c.err == nil {
+		c.err = err
+		closeAndDrain(c.update)
+	}
+	c.mu.Unlock()
 }
 
 // GetResumeMarker returns the ResumeMarker that points to the current end
@@ -158,15 +246,11 @@ func logEntryKey(seq uint64) string {
 	return join(common.LogPrefix, fmt.Sprintf("%016x", seq))
 }
 
-// ReadBatchFromLog returns a batch of watch log records (a transaction) from
-// the given database and the new resume marker at the end of the batch.
-func ReadBatchFromLog(st store.Store, resumeMarker watch.ResumeMarker) ([]*LogEntry, watch.ResumeMarker, error) {
-	seq, err := parseResumeMarker(string(resumeMarker))
-	if err != nil {
-		return nil, resumeMarker, err
-	}
+// readBatchFromLog returns a batch of watch log records (a transaction) from
+// the given database and the next sequence number at the end of the batch.
+func readBatchFromLog(st store.Store, seq uint64) ([]*LogEntry, uint64, error) {
 	_, scanLimit := common.ScanPrefixArgs(common.LogPrefix, "")
-	scanStart := resumeMarker
+	scanStart := MakeResumeMarker(seq)
 	endOfBatch := false
 
 	// Use the store directly to scan these read-only log entries, no need
@@ -179,7 +263,7 @@ func ReadBatchFromLog(st store.Store, resumeMarker watch.ResumeMarker) ([]*LogEn
 		var logEnt LogEntry
 		if err := vom.Decode(stream.Value(nil), &logEnt); err != nil {
 			stream.Cancel()
-			return nil, resumeMarker, err
+			return nil, seq, err
 		}
 
 		logs = append(logs, &logEnt)
@@ -193,15 +277,15 @@ func ReadBatchFromLog(st store.Store, resumeMarker watch.ResumeMarker) ([]*LogEn
 	}
 
 	if !endOfBatch {
-		if err = stream.Err(); err != nil {
-			return nil, resumeMarker, err
+		if err := stream.Err(); err != nil {
+			return nil, seq, err
 		}
 		if len(logs) > 0 {
 			vlog.Fatalf("end of batch not found after %d entries", len(logs))
 		}
-		return nil, resumeMarker, nil
+		return nil, seq, nil
 	}
-	return logs, watch.ResumeMarker(logEntryKey(seq)), nil
+	return logs, seq, nil
 }
 
 func parseResumeMarker(resumeMarker string) (uint64, error) {
