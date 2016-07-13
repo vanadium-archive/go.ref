@@ -44,6 +44,7 @@ import (
 	"v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/lib/vlog"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/bridge"
 	"v.io/x/ref/services/syncbase/bridge/cgo/ptrmap"
@@ -98,32 +99,20 @@ var (
 
 var globalPtrMap = ptrmap.New()
 
-// TODO(razvanm): Replace the function arguments with an options struct.
-//export v23_syncbase_Init
-func v23_syncbase_Init(cClientUnderstandVom C.v23_syncbase_Bool, cRootDir C.v23_syncbase_String, cTestLogin C.v23_syncbase_Bool) {
-	if b != nil {
-		panic("v23_syncbase_Init called again before a v23_syncbase_Shutdown")
+type (
+	initOpts struct {
+		clientUnderstandsVOM bool
+		rootDir              string
+		testLogin            bool
+		verboseLevel         int
 	}
-	// Strip all flags beyond the binary name; otherwise, v23.Init will fail when it encounters
-	// unknown flags passed by Xcode, e.g. NSTreatUnknownArgumentsAsOpen.
-	os.Args = os.Args[:1]
-	ctx, shutdown := v23.Init()
-	b = &bridge.Bridge{Ctx: ctx, Shutdown: shutdown}
-	rootDir = cRootDir.extract()
-	clientUnderstandsVOM = cClientUnderstandVom.extract()
-	testLogin = cTestLogin.extract()
-	var cErr C.v23_syncbase_VError
-	if isLoggedIn() {
-		v23_syncbase_Serve(&cErr)
-	}
-	neighborhoodAdStatus = newAdStatus()
-}
 
-type adStatus struct {
-	isAdvertising bool
-	cancel        context.CancelFunc
-	done          <-chan struct{}
-}
+	adStatus struct {
+		isAdvertising bool
+		cancel        context.CancelFunc
+		done          <-chan struct{}
+	}
+)
 
 func newAdStatus() *adStatus {
 	return &adStatus{}
@@ -143,6 +132,34 @@ func (a *adStatus) stop() {
 		a.cancel = nil
 		a.done = nil
 	}
+
+}
+
+//export v23_syncbase_Init
+func v23_syncbase_Init(cOpts C.v23_syncbase_InitOpts) {
+	if b != nil {
+		panic("v23_syncbase_Init called again before a v23_syncbase_Shutdown")
+	}
+	opts := cOpts.extract()
+
+	// Strip all flags beyond the binary name; otherwise, v23.Init will fail when it encounters
+	// unknown flags passed by Xcode, e.g. NSTreatUnknownArgumentsAsOpen.
+	os.Args = os.Args[:1]
+	ctx, shutdown := v23.Init()
+	if opts.verboseLevel > 0 {
+		vlog.Log.Configure(vlog.OverridePriorConfiguration(true), vlog.Level(opts.verboseLevel))
+		vlog.Info("Verbose logging turned on")
+	}
+	b = &bridge.Bridge{Ctx: ctx, Shutdown: shutdown}
+	rootDir = opts.rootDir
+	clientUnderstandsVOM = opts.clientUnderstandsVOM
+	testLogin = opts.testLogin
+	if isLoggedIn() {
+		// This cErr will always be nil since we just checked isLoggedIn.
+		var cErr C.v23_syncbase_VError
+		v23_syncbase_Serve(&cErr)
+	}
+	neighborhoodAdStatus = newAdStatus()
 }
 
 //export v23_syncbase_Serve
@@ -185,7 +202,7 @@ func isLoggedIn() bool {
 }
 
 //export v23_syncbase_IsLoggedIn
-func v23_syncbase_IsLoggedIn(cIsLoggedIn *C.v23_syncbase_Bool) {
+func v23_syncbase_IsLoggedIn(cIsLoggedIn *C.bool) {
 	cIsLoggedIn.init(isLoggedIn())
 }
 
@@ -337,7 +354,7 @@ func v23_syncbase_NeighborhoodStopAdvertising() {
 }
 
 //export v23_syncbase_NeighborhoodIsAdvertising
-func v23_syncbase_NeighborhoodIsAdvertising(cBool *C.v23_syncbase_Bool) {
+func v23_syncbase_NeighborhoodIsAdvertising(cBool *C.bool) {
 	cBool.init(neighborhoodAdStatus.isAdvertising)
 }
 
@@ -407,7 +424,7 @@ func v23_syncbase_DbDestroy(cName C.v23_syncbase_String, cErr *C.v23_syncbase_VE
 }
 
 //export v23_syncbase_DbExists
-func v23_syncbase_DbExists(cName C.v23_syncbase_String, cExists *C.v23_syncbase_Bool, cErr *C.v23_syncbase_VError) {
+func v23_syncbase_DbExists(cName C.v23_syncbase_String, cExists *C.bool, cErr *C.v23_syncbase_VError) {
 	name := cName.extract()
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.DatabaseDesc, "Exists"))
 	stub, err := b.GetDb(ctx, call, name)
@@ -819,7 +836,7 @@ func v23_syncbase_CollectionDestroy(cName, cBatchHandle C.v23_syncbase_String, c
 }
 
 //export v23_syncbase_CollectionExists
-func v23_syncbase_CollectionExists(cName, cBatchHandle C.v23_syncbase_String, cExists *C.v23_syncbase_Bool, cErr *C.v23_syncbase_VError) {
+func v23_syncbase_CollectionExists(cName, cBatchHandle C.v23_syncbase_String, cExists *C.bool, cErr *C.v23_syncbase_VError) {
 	name := cName.extract()
 	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.CollectionDesc, "Exists"))
@@ -952,7 +969,7 @@ func v23_syncbase_CollectionScan(cName, cBatchHandle C.v23_syncbase_String, cSta
 // Row
 
 //export v23_syncbase_RowExists
-func v23_syncbase_RowExists(cName, cBatchHandle C.v23_syncbase_String, cExists *C.v23_syncbase_Bool, cErr *C.v23_syncbase_VError) {
+func v23_syncbase_RowExists(cName, cBatchHandle C.v23_syncbase_String, cExists *C.bool, cErr *C.v23_syncbase_VError) {
 	name := cName.extract()
 	batchHandle := wire.BatchHandle(cBatchHandle.extract())
 	ctx, call := b.NewCtxCall(name, bridge.MethodDesc(wire.RowDesc, "Exists"))

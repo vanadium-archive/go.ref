@@ -28,6 +28,26 @@ import (
 import "C"
 
 ////////////////////////////////////////////////////////////
+// C.bool
+
+func (x *C.bool) init(b bool) {
+	*x = C.bool(b)
+}
+
+func (x *C.bool) extract() bool {
+	return bool(*x)
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_AppPeer
+
+func (x *C.v23_syncbase_AppPeer) init(peer discovery.AppPeer) {
+	x.appName.init(peer.AppName)
+	x.blessings.init(peer.Blessings)
+	x.isLost = C.bool(peer.Lost)
+}
+
+////////////////////////////////////////////////////////////
 // C.v23_syncbase_BatchOptions
 
 func (x *C.v23_syncbase_BatchOptions) init(opts wire.BatchOptions) {
@@ -40,24 +60,6 @@ func (x *C.v23_syncbase_BatchOptions) extract() wire.BatchOptions {
 		Hint:     x.hint.extract(),
 		ReadOnly: bool(x.readOnly),
 	}
-}
-
-////////////////////////////////////////////////////////////
-// C.v23_syncbase_Bool
-
-func (x *C.v23_syncbase_Bool) init(b bool) {
-	if b == false {
-		*x = 0
-	} else {
-		*x = 1
-	}
-}
-
-func (x *C.v23_syncbase_Bool) extract() bool {
-	if *x == 0 {
-		return false
-	}
-	return true
 }
 
 ////////////////////////////////////////////////////////////
@@ -205,6 +207,35 @@ func (x *C.v23_syncbase_Ids) free() {
 	C.free(unsafe.Pointer(x.p))
 	x.p = nil
 	x.n = 0
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_Invite
+
+func (x *C.v23_syncbase_Invite) init(invite discovery.Invite) {
+	x.syncgroup.init(invite.Syncgroup)
+	x.addresses.init(invite.Addresses)
+	x.blessingNames.init(invite.BlessingNames)
+}
+
+////////////////////////////////////////////////////////////
+// C.v23_syncbase_InitOpts
+
+func (x *C.v23_syncbase_InitOpts) init(opts initOpts) {
+	x.clientUnderstandsVOM.init(opts.clientUnderstandsVOM)
+	x.rootDir.init(opts.rootDir)
+	x.testLogin.init(opts.testLogin)
+	(*x).verboseLevel = C.int(opts.verboseLevel)
+}
+
+func (x *C.v23_syncbase_InitOpts) extract() initOpts {
+	return initOpts{
+		clientUnderstandsVOM: bool(x.clientUnderstandsVOM),
+		rootDir:              x.rootDir.extract(),
+		testLogin:            bool(x.testLogin),
+		verboseLevel:         int(x.verboseLevel),
+	}
+
 }
 
 ////////////////////////////////////////////////////////////
@@ -444,22 +475,4 @@ func (x *C.v23_syncbase_WatchChange) init(wc syncbase.WatchChange) error {
 	x.fromSync = C.bool(wc.FromSync)
 	x.continued = C.bool(wc.Continued)
 	return nil
-}
-
-////////////////////////////////////////////////////////////
-// C.v23_syncbase_Invite
-
-func (x *C.v23_syncbase_Invite) init(invite discovery.Invite) {
-	x.syncgroup.init(invite.Syncgroup)
-	x.addresses.init(invite.Addresses)
-	x.blessingNames.init(invite.BlessingNames)
-}
-
-////////////////////////////////////////////////////////////
-// C.v23_syncbase_AppPeer
-
-func (x *C.v23_syncbase_AppPeer) init(peer discovery.AppPeer) {
-	x.appName.init(peer.AppName)
-	x.blessings.init(peer.Blessings)
-	x.isLost = C.bool(peer.Lost)
 }

@@ -123,7 +123,12 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 //export Java_io_v_syncbase_internal_Service_Init
 func Java_io_v_syncbase_internal_Service_Init(env *C.JNIEnv, cls C.jclass, initRoot C.jstring, testLogin C.jboolean) {
 	cInitRoot := newVStringFromJava(env, initRoot)
-	v23_syncbase_Init(C.v23_syncbase_Bool(1), cInitRoot, C.v23_syncbase_Bool(testLogin))
+	v23_syncbase_Init(initOpts{
+		clientUnderstandsVOM: true,
+		rootDir:              cInitRoot.extract(),
+		testLogin:            bool(testLogin),
+		verboseLevel:         0,
+	})
 }
 
 //export Java_io_v_syncbase_internal_Service_Serve

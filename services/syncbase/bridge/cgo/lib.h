@@ -11,8 +11,6 @@
 ////////////////////////////////////////
 // Generic types
 
-typedef uint8_t v23_syncbase_Bool;
-
 // string
 typedef struct {
   char* p;
@@ -51,17 +49,13 @@ typedef struct {
 ////////////////////////////////////////
 // Syncbase-specific types
 
-// syncbase.Id
-typedef struct {
-  v23_syncbase_String blessing;
-  v23_syncbase_String name;
-} v23_syncbase_Id;
 
-// []syncbase.Id
+// syncbase.discovery.AppPeer
 typedef struct {
-  v23_syncbase_Id* p;
-  int n;
-} v23_syncbase_Ids;
+  v23_syncbase_String appName;
+  v23_syncbase_String blessings;
+  bool isLost;
+} v23_syncbase_AppPeer;
 
 // syncbase.BatchOptions
 typedef struct {
@@ -95,17 +89,32 @@ typedef enum v23_syncbase_EntityType {
   v23_syncbase_EntityTypeRow = 2
 } v23_syncbase_EntityType;
 
-// syncbase.WatchChange
+// syncbase.Id
 typedef struct {
-  v23_syncbase_EntityType entityType;
-  v23_syncbase_Id collection;
-  v23_syncbase_String row;
-  v23_syncbase_ChangeType changeType;
-  v23_syncbase_Bytes value;
-  v23_syncbase_Bytes resumeMarker;
-  bool fromSync;
-  bool continued;
-} v23_syncbase_WatchChange;
+  v23_syncbase_String blessing;
+  v23_syncbase_String name;
+} v23_syncbase_Id;
+
+// []syncbase.Id
+typedef struct {
+  v23_syncbase_Id* p;
+  int n;
+} v23_syncbase_Ids;
+
+// cgo.InitOpts
+typedef struct {
+    bool clientUnderstandsVOM;
+    v23_syncbase_String rootDir;
+    bool testLogin;
+    int verboseLevel;
+} v23_syncbase_InitOpts;
+
+// syncbase.discovery.Invite
+typedef struct {
+  v23_syncbase_Id syncgroup;
+  v23_syncbase_Strings addresses;
+  v23_syncbase_Strings blessingNames;
+} v23_syncbase_Invite;
 
 // syncbase.KeyValue
 typedef struct {
@@ -136,19 +145,17 @@ typedef struct {
   int n;
 } v23_syncbase_SyncgroupMemberInfoMap;
 
-// syncbase.discovery.Invite
+// syncbase.WatchChange
 typedef struct {
-  v23_syncbase_Id syncgroup;
-  v23_syncbase_Strings addresses;
-  v23_syncbase_Strings blessingNames;
-} v23_syncbase_Invite;
-
-// syncbase.discovery.AppPeer
-typedef struct {
-  v23_syncbase_String appName;
-  v23_syncbase_String blessings;
-  bool isLost;
-} v23_syncbase_AppPeer;
+  v23_syncbase_EntityType entityType;
+  v23_syncbase_Id collection;
+  v23_syncbase_String row;
+  v23_syncbase_ChangeType changeType;
+  v23_syncbase_Bytes value;
+  v23_syncbase_Bytes resumeMarker;
+  bool fromSync;
+  bool continued;
+} v23_syncbase_WatchChange;
 
 ////////////////////////////////////////
 // Functions
