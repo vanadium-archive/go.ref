@@ -120,6 +120,19 @@ func fakeBlobFetchFunc(ctx *context.T, blobRef wire.BlobRef, ffdi interface{}) e
 	return err
 }
 
+// makeNewBlobRef() creates a blob ref by writing a new empty blob.
+func makeNewBlobRef(t *testing.T, ctx *context.T, bst blob.BlobStore) wire.BlobRef {
+	var writer blob.BlobWriter
+	var err error
+	writer, err = bst.NewBlobWriter(ctx, "")
+	if err != nil {
+		t.Fatalf("can't make a blob writer: %v\n", err)
+	}
+	var blobRef wire.BlobRef = wire.BlobRef(writer.Name())
+	writer.CloseWithoutFinalize()
+	return blobRef
+}
+
 // TestBlobFetch() is a unit test for the blob fetcher, using fake code to actually fetch blobs.
 func TestBlobFetchSimple(t *testing.T) {
 	svc := createService(t)
@@ -143,17 +156,8 @@ func TestBlobFetchSimple(t *testing.T) {
 	// Create fetchCount BlobRefs and fake a fetch on each.
 	// In this initial run, no errors are generated.
 	const fetchCount = 100
-	var blobRefsFetched []wire.BlobRef
 	for i := 0; i != fetchCount; i++ {
-		var writer blob.BlobWriter
-		var err error
-		writer, err = bst.NewBlobWriter(ctx, "")
-		if err != nil {
-			t.Fatalf("can't make a blob writer: %v\n", err)
-		}
-		blobRef := wire.BlobRef(writer.Name())
-		blobRefsFetched = append(blobRefsFetched, blobRef)
-		writer.CloseWithoutFinalize()
+		var blobRef wire.BlobRef = makeNewBlobRef(t, ctx, bst)
 
 		ffd.mu.Lock()
 		ffd.fetchesRemaining++
@@ -175,7 +179,7 @@ func TestBlobFetchSimple(t *testing.T) {
 	var elapsed time.Duration = end.Sub(start)
 	var expectedElapsed time.Duration = (ffd.delay * fetchCount) / threadCount
 	var expectedMinElapsed time.Duration = expectedElapsed / 2
-	var expectedMaxElapsed time.Duration = expectedElapsed * 2
+	var expectedMaxElapsed time.Duration = expectedElapsed * 4
 	if elapsed < expectedMinElapsed {
 		t.Errorf("BlobFetcher completed in %v, expected at least %v", elapsed, expectedMinElapsed)
 	}
@@ -185,20 +189,27 @@ func TestBlobFetchSimple(t *testing.T) {
 
 	// Now run the test again, but introduce errors on the first fetch of
 	// each blob, and issue duplicate requests to fetch each blob.
+	// Use a different set of blob ids than the last test, so that there
+	// will be no duplicates left in the blob fetcher's queue, which would
+	// cause duplicate suppression to kick in unexpectedly.
 	start = time.Now()
-	ffd.mu.Lock()
 	for i := 0; i != fetchCount; i++ {
+		var blobRef wire.BlobRef = makeNewBlobRef(t, ctx, bst)
+
+		ffd.mu.Lock()
 		ffd.fetchesRemaining++
-		ffd.errorsOn[blobRefsFetched[i]] = 1
+		ffd.errorsOn[blobRef] = 1
+		ffd.mu.Unlock()
 		for j := 0; j != 3; j++ {
 			// Issue duplicate requests; the duplicates will be ignored.
-			bf.StartFetchingBlob(svc.sync.bst, blobRefsFetched[i], &ffd, fakeBlobFetchFunc)
+			bf.StartFetchingBlob(svc.sync.bst, blobRef, &ffd, fakeBlobFetchFunc)
 		}
 	}
 	// Wait for fetches to complete.  We would deadlock here if our fetch
 	// function didn't ultimately return true for each blob.  The fake test
 	// function would panic() if it was called too many times, due to the
 	// duplicate requests.
+	ffd.mu.Lock()
 	for ffd.fetchesRemaining != 0 {
 		ffd.noFetchesRemaining.Wait(&ffd.mu)
 	}
@@ -211,7 +222,7 @@ func TestBlobFetchSimple(t *testing.T) {
 	const retryDelay = 1000 * time.Millisecond // min time for first retry, with current parameters.
 	expectedElapsed = ((2 * ffd.delay * fetchCount) / threadCount) + retryDelay
 	expectedMinElapsed = expectedElapsed / 2
-	expectedMaxElapsed = expectedElapsed * 2
+	expectedMaxElapsed = expectedElapsed * 4
 	if elapsed < expectedMinElapsed {
 		t.Errorf("BlobFetcher completed in %v, expected at least %v", elapsed, expectedMinElapsed)
 	}
@@ -222,5 +233,5 @@ func TestBlobFetchSimple(t *testing.T) {
 	// Shut everything down.
 	bfShutdown()
 	bf.WaitForExit()
-	svc.shutdown()
+	destroyService(t, svc)
 }
