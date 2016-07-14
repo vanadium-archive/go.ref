@@ -165,7 +165,7 @@ func (d *VClockD) DoNtpUpdate() error {
 	defer vlog.VI(2).Info("vclockd: DoNtpUpdate: end")
 
 	d.ntpSourceMu.RLock()
-	ntpData, err := d.ntpSource.NtpSync(NtpSampleCount)
+	ntpData, err := d.ntpSource.NtpSync(NtpSampleCount, d.closed)
 	d.ntpSourceMu.RUnlock()
 	if err != nil {
 		// Do not use Errorf, since this happens whenever a device is disconnected,

@@ -32,7 +32,7 @@ type NtpData struct {
 type NtpSource interface {
 	// NtpSync obtains 'sampleCount' samples of NtpData from an NTP server and
 	// returns the one with the smallest 'delay' value.
-	NtpSync(sampleCount int) (*NtpData, error)
+	NtpSync(sampleCount int, closed <-chan struct{}) (*NtpData, error)
 }
 
 // newVClockNtpSource returns a new NtpSource implementation that talks to the
@@ -53,13 +53,18 @@ type ntpSourceImpl struct {
 
 var _ NtpSource = (*ntpSourceImpl)(nil)
 
-func (ns *ntpSourceImpl) NtpSync(sampleCount int) (*NtpData, error) {
+func (ns *ntpSourceImpl) NtpSync(sampleCount int, closed <-chan struct{}) (*NtpData, error) {
 	if ns.ntpHost == "" {
 		return nil, fmt.Errorf("vclock: NtpSync: no NTP server")
 	}
 	var res *NtpData
 	for i := 0; i < sampleCount; i++ {
-		if sample, err := ns.sample(); err == nil {
+		select {
+		case <-closed:
+			break
+		default:
+		}
+		if sample, err := ns.sample(closed); err == nil {
 			if (res == nil) || (sample.delay < res.delay) {
 				res = sample
 			}
@@ -86,7 +91,7 @@ func (ns *ntpSourceImpl) NtpSync(sampleCount int) (*NtpData, error) {
 // time as soon it receives a response from server.
 // Based on the 4 timestamps the client can compute the skew between the
 // two vclocks and the roundtrip network delay for the request.
-func (ns *ntpSourceImpl) sample() (*NtpData, error) {
+func (ns *ntpSourceImpl) sample(closed <-chan struct{}) (*NtpData, error) {
 	raddr, err := net.ResolveUDPAddr("udp", ns.ntpHost)
 	if err != nil {
 		return nil, err
@@ -116,7 +121,17 @@ func (ns *ntpSourceImpl) sample() (*NtpData, error) {
 	}
 
 	con.SetDeadline(time.Now().Add(5 * time.Second))
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-closed:
+			con.Close()
+		case <-done:
+			return
+		}
+	}()
 	_, err = con.Read(msg)
+	close(done)
 	if err != nil {
 		return nil, err
 	}

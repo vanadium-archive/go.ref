@@ -61,7 +61,7 @@ type ntpSourceMockImpl struct {
 	Data *NtpData
 }
 
-func (ns *ntpSourceMockImpl) NtpSync(sampleCount int) (*NtpData, error) {
+func (ns *ntpSourceMockImpl) NtpSync(sampleCount int, closed <-chan struct{}) (*NtpData, error) {
 	if ns.Err != nil {
 		return nil, ns.Err
 	}
