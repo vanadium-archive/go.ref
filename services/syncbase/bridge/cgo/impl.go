@@ -28,6 +28,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
@@ -45,6 +46,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
+	vsecurity "v.io/x/ref/lib/security"
 	_ "v.io/x/ref/runtime/factories/roaming"
 	"v.io/x/ref/services/syncbase/bridge"
 	"v.io/x/ref/services/syncbase/bridge/cgo/ptrmap"
@@ -145,20 +147,37 @@ func v23_syncbase_Init(cOpts C.v23_syncbase_InitOpts) {
 	// Strip all flags beyond the binary name; otherwise, v23.Init will fail when it encounters
 	// unknown flags passed by Xcode, e.g. NSTreatUnknownArgumentsAsOpen.
 	os.Args = os.Args[:1]
+
+	// Prepare the principal.
+	rootDir = opts.rootDir
+	principalRootDir := fmt.Sprintf("%s/principal", rootDir)
+
+	// TODO(alexfandrianto): https://github.com/vanadium/issues/issues/1389
+	// How secure does this principal need to be? Instead of 'nil', we could
+	// require that the init options pass us a fixed passphrase/private key.
+	principal, err := vsecurity.LoadPersistentPrincipal(principalRootDir, nil)
+	if err != nil {
+		principal, err = vsecurity.CreatePersistentPrincipal(principalRootDir, nil)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	// After initializing, apply the loaded/created principal.
 	ctx, shutdown := v23.Init()
+	ctx, err = v23.WithPrincipal(ctx, principal)
+	if err != nil {
+		panic(err)
+	}
+
 	if opts.verboseLevel > 0 {
 		vlog.Log.Configure(vlog.OverridePriorConfiguration(true), vlog.Level(opts.verboseLevel))
 		vlog.Info("Verbose logging turned on")
 	}
 	b = &bridge.Bridge{Ctx: ctx, Shutdown: shutdown}
-	rootDir = opts.rootDir
 	clientUnderstandsVOM = opts.clientUnderstandsVOM
 	testLogin = opts.testLogin
-	if isLoggedIn() {
-		// This cErr will always be nil since we just checked isLoggedIn.
-		var cErr C.v23_syncbase_VError
-		v23_syncbase_Serve(&cErr)
-	}
+
 	neighborhoodAdStatus = newAdStatus()
 }
 
@@ -168,9 +187,7 @@ func v23_syncbase_Serve(cErr *C.v23_syncbase_VError) {
 		cErr.init(verror.New(verror.ErrInternal, nil, "not logged in"))
 	}
 	srv, disp, cleanup := syncbaselib.Serve(b.Ctx, syncbaselib.Opts{
-		// TODO(sadovsky): Make and pass a subdir of rootDir here, so
-		// that rootDir can also be used for credentials persistence.
-		RootDir: rootDir,
+		RootDir: fmt.Sprintf("%s/db", rootDir),
 	})
 	b.Srv = srv
 	b.Disp = disp
