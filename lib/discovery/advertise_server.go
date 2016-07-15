@@ -37,7 +37,6 @@ func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix st
 	curAddrs := sortedNames(status.Endpoints)
 	stop, err := advertiseServer(ctx, d, ad, curAddrs, suffix, visibility)
 	if err != nil {
-		stop()
 		return nil, err
 	}
 
