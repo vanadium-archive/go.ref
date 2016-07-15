@@ -185,6 +185,7 @@ func v23_syncbase_Init(cOpts C.v23_syncbase_InitOpts) {
 func v23_syncbase_Serve(cErr *C.v23_syncbase_VError) {
 	if !isLoggedIn() {
 		cErr.init(verror.New(verror.ErrInternal, nil, "not logged in"))
+		return
 	}
 	srv, disp, cleanup := syncbaselib.Serve(b.Ctx, syncbaselib.Opts{
 		RootDir: fmt.Sprintf("%s/db", rootDir),
