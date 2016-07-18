@@ -121,14 +121,14 @@ func JNI_OnLoad(vm *C.JavaVM, reserved unsafe.Pointer) C.jint {
 }
 
 //export Java_io_v_syncbase_internal_Service_Init
-func Java_io_v_syncbase_internal_Service_Init(env *C.JNIEnv, cls C.jclass, initRoot C.jstring, testLogin C.jboolean) {
+func Java_io_v_syncbase_internal_Service_Init(env *C.JNIEnv, cls C.jclass, initRoot C.jstring, testLogin C.jboolean, logLevel C.jint) {
 	cInitRoot := newVStringFromJava(env, initRoot)
 	var cInitOpts C.v23_syncbase_InitOpts
 	(&cInitOpts).init(initOpts{
 		clientUnderstandsVOM: true,
 		rootDir:              cInitRoot.extract(),
 		testLogin:            int(testLogin) != 0,
-		verboseLevel:         0,
+		verboseLevel:         int(logLevel),
 	})
 	v23_syncbase_Init(cInitOpts)
 }

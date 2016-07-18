@@ -147,6 +147,7 @@ func v23_syncbase_Init(cOpts C.v23_syncbase_InitOpts) {
 	// Strip all flags beyond the binary name; otherwise, v23.Init will fail when it encounters
 	// unknown flags passed by Xcode, e.g. NSTreatUnknownArgumentsAsOpen.
 	os.Args = os.Args[:1]
+	os.Args = append(os.Args, "-v23.proxy=proxy")
 
 	// Prepare the principal.
 	rootDir = opts.rootDir
