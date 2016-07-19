@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"v.io/v23/context"
+	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -143,6 +144,8 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 		return interfaces.NewErrDbOffline(ctx, rSt.dbId)
 	}
 
+	// TODO(ivanpi): Ensure that Database and syncgroup existence is not leaked.
+
 	// Phase 1 of sendDeltas: Authorize the initiator and respond to the
 	// caller only for the syncgroups that allow access.
 	err := rSt.authorizeAndFilterSyncgroups(ctx)
@@ -184,7 +187,7 @@ func (rSt *responderState) authorizeAndFilterSyncgroups(ctx *context.T) error {
 		var sg *interfaces.Syncgroup
 		sg, err = getSyncgroupByGid(ctx, rSt.st, sgid)
 		if err == nil {
-			err = authorize(ctx, rSt.call.Security(), sg)
+			err = common.TagAuthorizer(access.Read, sg.Spec.Perms).Authorize(ctx, rSt.call.Security())
 		}
 		if err == nil {
 			if !rSt.sg {

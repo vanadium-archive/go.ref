@@ -6,7 +6,6 @@ package interfaces
 
 import (
 	wire "v.io/v23/services/syncbase"
-	"v.io/v23/security/access"
 )
 
 // Sync defines methods for data exchange between Syncbases.
@@ -14,6 +13,9 @@ import (
 type Sync interface {
 	// GetTime returns metadata related to the Syncbase virtual clock, including
 	// system clock values, last NTP timestamp, num reboots, etc.
+	//
+	// Requires: Always allowed.
+	// TODO(ivanpi): Consider adding an ACL or checking syncgroup ACLs.
 	GetTime(req TimeReq, initiator string) (TimeResp | error)
 
 	// GetDeltas returns the responder's current generation vectors and all
@@ -21,7 +23,13 @@ type Sync interface {
 	// vectors for one Database for either syncgroup metadata or data.
 	// The final result (in DeltaFinalResp) currently includes the
 	// syncgroup priorities for blob ownership for the server.
-	GetDeltas(req DeltaReq, initiator string) stream<_, DeltaResp> (DeltaFinalResp | error) {access.Read}
+	//
+	// Requires: Read on syncgroup.
+	// TODO(ivanpi): Consider rechecking Collection Read access.
+	// The caller should verify that all received changes (data, ACLs, spec) are
+	// signed by a blessing that had the appropriate permission (Write or Admin).
+	// TODO(ivanpi): Implement signatures and signature verification.
+	GetDeltas(req DeltaReq, initiator string) stream<_, DeltaResp> (DeltaFinalResp | error)
 
 	// Syncgroup-related methods.
 
@@ -41,7 +49,10 @@ type Sync interface {
 	// locally deems the syncgroup to be in a pending state and does not
 	// mutate it.  Thus it locally rejects syncgroup joins or updates to
 	// its spec until it is caught up on the syncgroup history.
-	PublishSyncgroup(publisher string, sg Syncgroup, version string, genvec GenVector) (string | error) {access.Write}
+	//
+	// Requires: Always allowed.
+	// TODO(ivanpi): Add separate ACL for PublishSyncgroup and check it.
+	PublishSyncgroup(publisher string, sg Syncgroup, version string, genvec GenVector) (string | error)
 
 	// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's
 	// Syncbase on a syncgroup admin. It checks whether the requestor is
@@ -54,9 +65,12 @@ type Sync interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
-	JoinSyncgroupAtAdmin(dbId wire.Id, sgId wire.Id, joinerName string, myInfo wire.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector | error) {access.Read}
+	//
+	// Requires: Read on syncgroup and on all Collections in the syncgroup spec.
+	JoinSyncgroupAtAdmin(dbId wire.Id, sgId wire.Id, joinerName string, myInfo wire.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector | error)
 
 	// BlobSync methods.
+	// TODO(ivanpi): Document authorization policies.
 
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.  Otherwise, it returns -1, and the location

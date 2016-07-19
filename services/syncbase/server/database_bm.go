@@ -16,6 +16,7 @@ import (
 // RPCs for managing blobs between Syncbase and its clients.
 
 // Note, access authorization is checked in SyncDatabase methods.
+// TODO(ivanpi): Move d.exists checks into SyncDatabase to prevent existence leaks.
 
 func (d *database) CreateBlob(ctx *context.T, call rpc.ServerCall) (wire.BlobRef, error) {
 	if !d.exists {

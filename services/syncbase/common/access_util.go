@@ -60,6 +60,15 @@ func AnyOfTagsAuthorizer(tags []access.Tag, perms access.Permissions) *anyOfTags
 	}
 }
 
+// TagAuthorizer provides an authorizer that allows blessings matching any
+// pattern in perms corresponding to the provided tag.
+func TagAuthorizer(tag access.Tag, perms access.Permissions) *anyOfTagsAuthorizer {
+	return &anyOfTagsAuthorizer{
+		tags:  []access.Tag{tag},
+		perms: perms,
+	}
+}
+
 type anyOfTagsAuthorizer struct {
 	tags  []access.Tag
 	perms access.Permissions
@@ -86,7 +95,7 @@ func (a *anyOfTagsAuthorizer) Authorize(ctx *context.T, call security.Call) erro
 func CheckImplicitPerms(ctx *context.T, call rpc.ServerCall, id wire.Id, allowedTags []access.Tag) (access.Permissions, error) {
 	implicitPerms := access.Permissions{}.Add(security.BlessingPattern(id.Blessing), access.TagStrings(allowedTags...)...)
 	// Note, allowedTags is expected to contain access.Admin.
-	if err := AnyOfTagsAuthorizer([]access.Tag{access.Admin}, implicitPerms).Authorize(ctx, call.Security()); err != nil {
+	if err := TagAuthorizer(access.Admin, implicitPerms).Authorize(ctx, call.Security()); err != nil {
 		return nil, verror.New(wire.ErrUnauthorizedCreateId, ctx, id.Blessing, id.Name, err)
 	}
 	return implicitPerms, nil
@@ -130,7 +139,7 @@ func getDataWithExistAndParentResolveAuth(ctx *context.T, call rpc.ServerCall, a
 	if existErr != nil {
 		return nil, existErr
 	}
-	return perms, AnyOfTagsAuthorizer([]access.Tag{access.Resolve}, parentPerms).Authorize(ctx, call.Security())
+	return perms, TagAuthorizer(access.Resolve, parentPerms).Authorize(ctx, call.Security())
 }
 
 // GetPermsWithExistAndParentResolveAuth returns a nil error only if the object
@@ -168,7 +177,18 @@ func GetDataWithExistAuthStep(ctx *context.T, call rpc.ServerCall, name string, 
 	if st == nil {
 		return fuzzifyErrorForExists(ctx, call, name, parentPerms, nil, verror.New(verror.ErrNoExist, ctx, name))
 	}
-	if getErr := store.Get(ctx, st, k, v); getErr != nil {
+	getErr := store.Get(ctx, st, k, v)
+	return ExistAuthStep(ctx, call, name, parentPerms, v, getErr)
+}
+
+// ExistAuthStep is a helper intended for use in GetDataWithExistAuth
+// implementations. It assumes Resolve access up to and including the object's
+// grandparent. Taking into account the error from retrieving the object's
+// metadata, it returns ErrNoExistOrNoAccess, ErrNoExist or other errors when
+// appropriate; if the caller is not authorized for exist access,
+// ErrNoExistOrNoAccess is always returned.
+func ExistAuthStep(ctx *context.T, call rpc.ServerCall, name string, parentPerms access.Permissions, v PermserData, getErr error) error {
+	if getErr != nil {
 		if verror.ErrorID(getErr) == verror.ErrNoExist.ID {
 			getErr = verror.New(verror.ErrNoExist, ctx, name)
 		}
@@ -193,7 +213,7 @@ func fuzzifyErrorForExists(ctx *context.T, call rpc.ServerCall, name string, par
 	}
 	// No Read or Write on parent, caller must have both Resolve on parent and at
 	// least one tag on the object itself to get the original error.
-	if parentXErr := AnyOfTagsAuthorizer([]access.Tag{access.Resolve}, parentPerms).Authorize(ctx, call.Security()); parentXErr != nil {
+	if parentXErr := TagAuthorizer(access.Resolve, parentPerms).Authorize(ctx, call.Security()); parentXErr != nil {
 		return fuzzyErr
 	}
 	if selfAnyErr := AnyOfTagsAuthorizer(access.AllTypicalTags(), perms).Authorize(ctx, call.Security()); selfAnyErr != nil {

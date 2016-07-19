@@ -71,8 +71,13 @@ func (a GenVector) Compare(b GenVector) int {
 
 var (
 	_ common.PermserData = (*CollectionPerms)(nil)
+	_ common.PermserData = (*Syncgroup)(nil)
 )
 
 func (perms *CollectionPerms) GetPerms() access.Permissions {
 	return access.Permissions(*perms)
+}
+
+func (sg *Syncgroup) GetPerms() access.Permissions {
+	return sg.Spec.Perms
 }

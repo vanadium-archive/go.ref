@@ -2501,12 +2501,21 @@ func NewErrNotAdmin(ctx *context.T) error {
 type SyncClientMethods interface {
 	// GetTime returns metadata related to the Syncbase virtual clock, including
 	// system clock values, last NTP timestamp, num reboots, etc.
+	//
+	// Requires: Always allowed.
+	// TODO(ivanpi): Consider adding an ACL or checking syncgroup ACLs.
 	GetTime(_ *context.T, req TimeReq, initiator string, _ ...rpc.CallOpt) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
 	// vectors for one Database for either syncgroup metadata or data.
 	// The final result (in DeltaFinalResp) currently includes the
 	// syncgroup priorities for blob ownership for the server.
+	//
+	// Requires: Read on syncgroup.
+	// TODO(ivanpi): Consider rechecking Collection Read access.
+	// The caller should verify that all received changes (data, ACLs, spec) are
+	// signed by a blessing that had the appropriate permission (Write or Admin).
+	// TODO(ivanpi): Implement signatures and signature verification.
 	GetDeltas(_ *context.T, req DeltaReq, initiator string, _ ...rpc.CallOpt) (SyncGetDeltasClientCall, error)
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
@@ -2524,6 +2533,9 @@ type SyncClientMethods interface {
 	// locally deems the syncgroup to be in a pending state and does not
 	// mutate it.  Thus it locally rejects syncgroup joins or updates to
 	// its spec until it is caught up on the syncgroup history.
+	//
+	// Requires: Always allowed.
+	// TODO(ivanpi): Add separate ACL for PublishSyncgroup and check it.
 	PublishSyncgroup(_ *context.T, publisher string, sg Syncgroup, version string, genvec GenVector, _ ...rpc.CallOpt) (string, error)
 	// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's
 	// Syncbase on a syncgroup admin. It checks whether the requestor is
@@ -2536,6 +2548,8 @@ type SyncClientMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
+	//
+	// Requires: Read on syncgroup and on all Collections in the syncgroup spec.
 	JoinSyncgroupAtAdmin(_ *context.T, dbId syncbase.Id, sgId syncbase.Id, joinerName string, myInfo syncbase.SyncgroupMemberInfo, _ ...rpc.CallOpt) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.  Otherwise, it returns -1, and the location
@@ -2991,12 +3005,21 @@ func (c *implSyncFetchChunksClientCall) Finish() (err error) {
 type SyncServerMethods interface {
 	// GetTime returns metadata related to the Syncbase virtual clock, including
 	// system clock values, last NTP timestamp, num reboots, etc.
+	//
+	// Requires: Always allowed.
+	// TODO(ivanpi): Consider adding an ACL or checking syncgroup ACLs.
 	GetTime(_ *context.T, _ rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
 	// vectors for one Database for either syncgroup metadata or data.
 	// The final result (in DeltaFinalResp) currently includes the
 	// syncgroup priorities for blob ownership for the server.
+	//
+	// Requires: Read on syncgroup.
+	// TODO(ivanpi): Consider rechecking Collection Read access.
+	// The caller should verify that all received changes (data, ACLs, spec) are
+	// signed by a blessing that had the appropriate permission (Write or Admin).
+	// TODO(ivanpi): Implement signatures and signature verification.
 	GetDeltas(_ *context.T, _ SyncGetDeltasServerCall, req DeltaReq, initiator string) (DeltaFinalResp, error)
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
@@ -3014,6 +3037,9 @@ type SyncServerMethods interface {
 	// locally deems the syncgroup to be in a pending state and does not
 	// mutate it.  Thus it locally rejects syncgroup joins or updates to
 	// its spec until it is caught up on the syncgroup history.
+	//
+	// Requires: Always allowed.
+	// TODO(ivanpi): Add separate ACL for PublishSyncgroup and check it.
 	PublishSyncgroup(_ *context.T, _ rpc.ServerCall, publisher string, sg Syncgroup, version string, genvec GenVector) (string, error)
 	// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's
 	// Syncbase on a syncgroup admin. It checks whether the requestor is
@@ -3026,6 +3052,8 @@ type SyncServerMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
+	//
+	// Requires: Read on syncgroup and on all Collections in the syncgroup spec.
 	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, dbId syncbase.Id, sgId syncbase.Id, joinerName string, myInfo syncbase.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.  Otherwise, it returns -1, and the location
@@ -3091,12 +3119,21 @@ type SyncServerMethods interface {
 type SyncServerStubMethods interface {
 	// GetTime returns metadata related to the Syncbase virtual clock, including
 	// system clock values, last NTP timestamp, num reboots, etc.
+	//
+	// Requires: Always allowed.
+	// TODO(ivanpi): Consider adding an ACL or checking syncgroup ACLs.
 	GetTime(_ *context.T, _ rpc.ServerCall, req TimeReq, initiator string) (TimeResp, error)
 	// GetDeltas returns the responder's current generation vectors and all
 	// the missing log records when compared to the initiator's generation
 	// vectors for one Database for either syncgroup metadata or data.
 	// The final result (in DeltaFinalResp) currently includes the
 	// syncgroup priorities for blob ownership for the server.
+	//
+	// Requires: Read on syncgroup.
+	// TODO(ivanpi): Consider rechecking Collection Read access.
+	// The caller should verify that all received changes (data, ACLs, spec) are
+	// signed by a blessing that had the appropriate permission (Write or Admin).
+	// TODO(ivanpi): Implement signatures and signature verification.
 	GetDeltas(_ *context.T, _ *SyncGetDeltasServerCallStub, req DeltaReq, initiator string) (DeltaFinalResp, error)
 	// PublishSyncgroup is invoked on the syncgroup name (typically served
 	// by a "central" peer) to publish the syncgroup.  It takes the name of
@@ -3114,6 +3151,9 @@ type SyncServerStubMethods interface {
 	// locally deems the syncgroup to be in a pending state and does not
 	// mutate it.  Thus it locally rejects syncgroup joins or updates to
 	// its spec until it is caught up on the syncgroup history.
+	//
+	// Requires: Always allowed.
+	// TODO(ivanpi): Add separate ACL for PublishSyncgroup and check it.
 	PublishSyncgroup(_ *context.T, _ rpc.ServerCall, publisher string, sg Syncgroup, version string, genvec GenVector) (string, error)
 	// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's
 	// Syncbase on a syncgroup admin. It checks whether the requestor is
@@ -3126,6 +3166,8 @@ type SyncServerStubMethods interface {
 	// local updates to the syncgroup spec or, if it were also an admin on
 	// the syncgroup, it would reject syncgroup joins until it is caught up
 	// on the syncgroup history through p2p sync.
+	//
+	// Requires: Read on syncgroup and on all Collections in the syncgroup spec.
 	JoinSyncgroupAtAdmin(_ *context.T, _ rpc.ServerCall, dbId syncbase.Id, sgId syncbase.Id, joinerName string, myInfo syncbase.SyncgroupMemberInfo) (sg Syncgroup, version string, genvec GenVector, _ error)
 	// HaveBlob verifies that the peer has the requested blob, and if
 	// present, returns its size.  Otherwise, it returns -1, and the location
@@ -3272,7 +3314,7 @@ var descSync = rpc.InterfaceDesc{
 	Methods: []rpc.MethodDesc{
 		{
 			Name: "GetTime",
-			Doc:  "// GetTime returns metadata related to the Syncbase virtual clock, including\n// system clock values, last NTP timestamp, num reboots, etc.",
+			Doc:  "// GetTime returns metadata related to the Syncbase virtual clock, including\n// system clock values, last NTP timestamp, num reboots, etc.\n//\n// Requires: Always allowed.\n// TODO(ivanpi): Consider adding an ACL or checking syncgroup ACLs.",
 			InArgs: []rpc.ArgDesc{
 				{"req", ``},       // TimeReq
 				{"initiator", ``}, // string
@@ -3283,7 +3325,7 @@ var descSync = rpc.InterfaceDesc{
 		},
 		{
 			Name: "GetDeltas",
-			Doc:  "// GetDeltas returns the responder's current generation vectors and all\n// the missing log records when compared to the initiator's generation\n// vectors for one Database for either syncgroup metadata or data.\n// The final result (in DeltaFinalResp) currently includes the\n// syncgroup priorities for blob ownership for the server.",
+			Doc:  "// GetDeltas returns the responder's current generation vectors and all\n// the missing log records when compared to the initiator's generation\n// vectors for one Database for either syncgroup metadata or data.\n// The final result (in DeltaFinalResp) currently includes the\n// syncgroup priorities for blob ownership for the server.\n//\n// Requires: Read on syncgroup.\n// TODO(ivanpi): Consider rechecking Collection Read access.\n// The caller should verify that all received changes (data, ACLs, spec) are\n// signed by a blessing that had the appropriate permission (Write or Admin).\n// TODO(ivanpi): Implement signatures and signature verification.",
 			InArgs: []rpc.ArgDesc{
 				{"req", ``},       // DeltaReq
 				{"initiator", ``}, // string
@@ -3291,11 +3333,10 @@ var descSync = rpc.InterfaceDesc{
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // DeltaFinalResp
 			},
-			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 		{
 			Name: "PublishSyncgroup",
-			Doc:  "// PublishSyncgroup is invoked on the syncgroup name (typically served\n// by a \"central\" peer) to publish the syncgroup.  It takes the name of\n// Syncbase doing the publishing (the publisher) and returns the name\n// of the Syncbase where the syncgroup is published (the publishee).\n// This allows the publisher and the publishee to learn of each other.\n// When a syncgroup is published, the publishee is given the syncgroup\n// metadata, its current version at the publisher, and the current\n// syncgroup generation vector.  The generation vector serves as a\n// checkpoint at the time of publishing.  The publishing proceeds\n// asynchronously, and the publishee learns the syncgroup history\n// through the routine p2p sync process and determines when it has\n// caught up to the level of knowledge at the time of publishing using\n// the checkpointed generation vector.  Until that point, the publishee\n// locally deems the syncgroup to be in a pending state and does not\n// mutate it.  Thus it locally rejects syncgroup joins or updates to\n// its spec until it is caught up on the syncgroup history.",
+			Doc:  "// PublishSyncgroup is invoked on the syncgroup name (typically served\n// by a \"central\" peer) to publish the syncgroup.  It takes the name of\n// Syncbase doing the publishing (the publisher) and returns the name\n// of the Syncbase where the syncgroup is published (the publishee).\n// This allows the publisher and the publishee to learn of each other.\n// When a syncgroup is published, the publishee is given the syncgroup\n// metadata, its current version at the publisher, and the current\n// syncgroup generation vector.  The generation vector serves as a\n// checkpoint at the time of publishing.  The publishing proceeds\n// asynchronously, and the publishee learns the syncgroup history\n// through the routine p2p sync process and determines when it has\n// caught up to the level of knowledge at the time of publishing using\n// the checkpointed generation vector.  Until that point, the publishee\n// locally deems the syncgroup to be in a pending state and does not\n// mutate it.  Thus it locally rejects syncgroup joins or updates to\n// its spec until it is caught up on the syncgroup history.\n//\n// Requires: Always allowed.\n// TODO(ivanpi): Add separate ACL for PublishSyncgroup and check it.",
 			InArgs: []rpc.ArgDesc{
 				{"publisher", ``}, // string
 				{"sg", ``},        // Syncgroup
@@ -3305,11 +3346,10 @@ var descSync = rpc.InterfaceDesc{
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // string
 			},
-			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 		{
 			Name: "JoinSyncgroupAtAdmin",
-			Doc:  "// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's\n// Syncbase on a syncgroup admin. It checks whether the requestor is\n// allowed to join the named syncgroup, and if so, adds the requestor to\n// the syncgroup.  It returns a copy of the updated syncgroup metadata,\n// its version, and the syncgroup generation vector at the time of the\n// join.  Similar to the PublishSyncgroup scenario, the joiner at that\n// point does not have the syncgroup history and locally deems it to be\n// in a pending state and does not mutate it.  This means it rejects\n// local updates to the syncgroup spec or, if it were also an admin on\n// the syncgroup, it would reject syncgroup joins until it is caught up\n// on the syncgroup history through p2p sync.",
+			Doc:  "// JoinSyncgroupAtAdmin is invoked by a prospective syncgroup member's\n// Syncbase on a syncgroup admin. It checks whether the requestor is\n// allowed to join the named syncgroup, and if so, adds the requestor to\n// the syncgroup.  It returns a copy of the updated syncgroup metadata,\n// its version, and the syncgroup generation vector at the time of the\n// join.  Similar to the PublishSyncgroup scenario, the joiner at that\n// point does not have the syncgroup history and locally deems it to be\n// in a pending state and does not mutate it.  This means it rejects\n// local updates to the syncgroup spec or, if it were also an admin on\n// the syncgroup, it would reject syncgroup joins until it is caught up\n// on the syncgroup history through p2p sync.\n//\n// Requires: Read on syncgroup and on all Collections in the syncgroup spec.",
 			InArgs: []rpc.ArgDesc{
 				{"dbId", ``},       // syncbase.Id
 				{"sgId", ``},       // syncbase.Id
@@ -3321,7 +3361,6 @@ var descSync = rpc.InterfaceDesc{
 				{"version", ``}, // string
 				{"genvec", ``},  // GenVector
 			},
-			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 		{
 			Name: "HaveBlob",

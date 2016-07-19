@@ -16,6 +16,7 @@ import (
 // Syncgroup RPC methods
 
 // Note, access authorization is checked in SyncDatabase methods.
+// TODO(ivanpi): Move d.exists checks into SyncDatabase to prevent existence leaks.
 
 func (d *database) ListSyncgroups(ctx *context.T, call rpc.ServerCall) ([]wire.Id, error) {
 	if !d.exists {
@@ -45,21 +46,24 @@ func (d *database) LeaveSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	return verror.NewErrNotImplemented(ctx)
+	sd := vsync.NewSyncDatabase(d)
+	return sd.LeaveSyncgroup(ctx, call, sgId)
 }
 
 func (d *database) DestroySyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	return verror.NewErrNotImplemented(ctx)
+	sd := vsync.NewSyncDatabase(d)
+	return sd.DestroySyncgroup(ctx, call, sgId)
 }
 
 func (d *database) EjectFromSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id, member string) error {
 	if !d.exists {
 		return verror.New(verror.ErrNoExist, ctx, d.id)
 	}
-	return verror.NewErrNotImplemented(ctx)
+	sd := vsync.NewSyncDatabase(d)
+	return sd.EjectFromSyncgroup(ctx, call, sgId, member)
 }
 
 func (d *database) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgId wire.Id) (wire.SyncgroupSpec, string, error) {

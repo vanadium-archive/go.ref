@@ -273,7 +273,7 @@ func getSyncgroupVersion(ctx *context.T, st store.StoreReader, gid interfaces.Gr
 	return getHead(ctx, st, sgOID(gid))
 }
 
-// getSyncgroupById retrieves the syncgroup given its ID.
+// getSyncgroupByGid retrieves the syncgroup given its gid.
 func getSyncgroupByGid(ctx *context.T, st store.StoreReader, gid interfaces.GroupId) (*interfaces.Syncgroup, error) {
 	version, err := getSyncgroupVersion(ctx, st, gid)
 	if err != nil {
@@ -282,7 +282,7 @@ func getSyncgroupByGid(ctx *context.T, st store.StoreReader, gid interfaces.Grou
 	return getSGDataEntry(ctx, st, gid, version)
 }
 
-// delSyncgroupById deletes the syncgroup given its ID.
+// delSyncgroupByGid deletes the syncgroup given its gid.
 // bst may be nil.
 func delSyncgroupByGid(ctx *context.T, bst blob.BlobStore, tx *watchable.Transaction, gid interfaces.GroupId) error {
 	sg, err := getSyncgroupByGid(ctx, tx, gid)
@@ -292,7 +292,7 @@ func delSyncgroupByGid(ctx *context.T, bst blob.BlobStore, tx *watchable.Transac
 	return delSyncgroupBySgId(ctx, bst, tx, sg.DbId, sg.Id)
 }
 
-// delSyncgroupByName deletes the syncgroup given its name.
+// delSyncgroupBySgId deletes the syncgroup given its id.
 // bst may be nil.
 func delSyncgroupBySgId(ctx *context.T, bst blob.BlobStore, tx *watchable.Transaction, dbId, sgId wire.Id) error {
 	// Get the syncgroup ID and current version.
@@ -660,11 +660,18 @@ func delSGDataEntry(ctx *context.T, tx store.Transaction, gid interfaces.GroupId
 
 // TODO(hpucha): Pass blessings along.
 func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id, spec wire.SyncgroupSpec, myInfo wire.SyncgroupMemberInfo) error {
+	allowCreateSyncgroupDb := []access.Tag{access.Write}
+
 	vlog.VI(2).Infof("sync: CreateSyncgroup: begin: %s, spec %+v", sgId, spec)
 	defer vlog.VI(2).Infof("sync: CreateSyncgroup: end: %s", sgId)
 
 	if err := pubutil.ValidateId(sgId); err != nil {
 		return verror.New(wire.ErrInvalidName, ctx, pubutil.EncodeId(sgId), err)
+	}
+
+	// Client must add themselves to Read ACL.
+	if err := common.TagAuthorizer(access.Read, spec.Perms).Authorize(ctx, call.Security()); err != nil {
+		return verror.New(verror.ErrBadArg, ctx, "must include self in syncgroup Read ACL")
 	}
 
 	ss := sd.sync.(*syncService)
@@ -691,7 +698,7 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 
 	err = watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Check permissions on Database.
-		if err := sd.db.CheckPermsInternal(ctx, call, tx); err != nil {
+		if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowCreateSyncgroupDb, tx); err != nil {
 			return err
 		}
 
@@ -702,19 +709,10 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 			return err
 		}
 
-		// Check that all the collections on which the syncgroup is
-		// being created exist.
-		for _, c := range spec.Collections {
-			collKey := common.JoinKeyParts(common.CollectionPermsPrefix, pubutil.EncodeId(c), "")
-			if err := store.Get(ctx, tx, collKey, &interfaces.CollectionPerms{}); err != nil {
-				// TODO(hpucha): Is this error ok to return to
-				// the end user in terms of error visibility.
-				return verror.New(verror.ErrNoExist, ctx, "collection missing", c)
-			}
+		// Check that all the collections in spec exist and are syncable.
+		if err := verifyCollectionsForSync(ctx, call, sd.db, spec.Collections, true, tx); err != nil {
+			return err
 		}
-
-		// TODO(hpucha): Check ACLs on all SG collections.
-		// This may need another method on util.Database interface.
 
 		// Reserve a log generation and position counts for the new syncgroup.
 		gen, pos := ss.reserveGenAndPosInDbLog(ctx, dbId, sgOID(gid), 1)
@@ -770,6 +768,8 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 }
 
 func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remoteSyncbaseName string, expectedSyncbaseBlessings []string, sgId wire.Id, myInfo wire.SyncgroupMemberInfo) (wire.SyncgroupSpec, error) {
+	allowJoinSyncgroupDb := []access.Tag{access.Write}
+
 	vlog.VI(2).Infof("sync: JoinSyncgroup: begin: %v at %s, call is %v", sgId, remoteSyncbaseName, call)
 	defer vlog.VI(2).Infof("sync: JoinSyncgroup: end: %v at %s", sgId, remoteSyncbaseName)
 
@@ -779,7 +779,7 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remot
 	gid := SgIdToGid(sd.db.Id(), sgId)
 	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Check permissions on Database.
-		if err := sd.db.CheckPermsInternal(ctx, call, tx); err != nil {
+		if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowJoinSyncgroupDb, tx); err != nil {
 			return err
 		}
 
@@ -790,8 +790,16 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remot
 		}
 
 		// Check SG ACL. Caller must have Read access on the syncgroup
-		// acl to join a syncgroup.
-		if err := authorize(ctx, call.Security(), sg); err != nil {
+		// ACL to join a syncgroup. Database Resolve is not necessary.
+		// Note, since joiner has Write access on Database, they are
+		// allowed to know that the syncgroup exists.
+		if err := common.TagAuthorizer(access.Read, sg.Spec.Perms).Authorize(ctx, call.Security()); err != nil {
+			return err
+		}
+
+		// Syncgroup already exists, so all collections in spec must exist.
+		// Check that they are all syncable by the joiner.
+		if err := verifyCollectionsForSync(ctx, call, sd.db, sg.Spec.Collections, true, tx); err != nil {
 			return err
 		}
 
@@ -859,6 +867,12 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remot
 	}
 
 	err = watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
+		// Collections aren't required to exist when joining a syncgroup. However,
+		// any collections that do exist must be syncable by the joiner.
+		if err := verifyCollectionsForSync(ctx, call, sd.db, sg2.Spec.Collections, false, tx); err != nil {
+			return err
+		}
+
 		if err := ss.addSyncgroup(ctx, tx, version, false, "", genvec, 0, 0, 0, &sg2); err != nil {
 			return err
 		}
@@ -884,6 +898,77 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remot
 	return sg2.Spec, nil
 }
 
+func (sd *syncDatabase) LeaveSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id) error {
+	allowLeaveSyncgroupDb := []access.Tag{access.Write}
+
+	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
+		// Check permissions on Database.
+		if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowLeaveSyncgroupDb, tx); err != nil {
+			return err
+		}
+
+		return verror.NewErrNotImplemented(ctx)
+	})
+
+	return err
+}
+
+func (sd *syncDatabase) DestroySyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id) error {
+	allowDestroySyncgroupDb := []access.Tag{access.Write}
+
+	var sg *interfaces.Syncgroup
+	gid := SgIdToGid(sd.db.Id(), sgId)
+	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
+		// Check permissions on Database.
+		if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowDestroySyncgroupDb, tx); err != nil {
+			return err
+		}
+
+		// Check if syncgroup already exists and get its info.
+		var sgErr error
+		sg, sgErr = getSyncgroupByGid(ctx, tx, gid)
+		if sgErr != nil {
+			return sgErr
+		}
+
+		// Check SG ACL. Caller must have Admin access on the syncgroup
+		// ACL to destroy a syncgroup. Database Resolve is not necessary.
+		// Note, since destroyer has Write access on Database, they are
+		// allowed to know that the syncgroup exists.
+		if err := common.TagAuthorizer(access.Admin, sg.GetPerms()).Authorize(ctx, call.Security()); err != nil {
+			return err
+		}
+
+		return verror.NewErrNotImplemented(ctx)
+	})
+
+	return err
+}
+
+func (sd *syncDatabase) EjectFromSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id, member string) error {
+	allowEjectFromSyncgroup := []access.Tag{access.Admin}
+
+	var sg interfaces.Syncgroup
+
+	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
+		// Get the syncgroup information with auth check.
+		sgAuth := &syncgroupAuth{
+			db: sd.db,
+			id: sgId,
+		}
+		if _, err := common.GetDataWithAuth(ctx, call, sgAuth, allowEjectFromSyncgroup, tx, &sg); err != nil {
+			return err
+		}
+
+		// TODO(ivanpi): Check that client is not ejecting themselves. See comment
+		// in SetSyncgroupSpec().
+
+		return verror.NewErrNotImplemented(ctx)
+	})
+
+	return err
+}
+
 type syncgroups []wire.Id
 
 func (s syncgroups) Len() int {
@@ -903,6 +988,8 @@ func (s syncgroups) Less(i, j int) bool {
 }
 
 func (sd *syncDatabase) ListSyncgroups(ctx *context.T, call rpc.ServerCall) ([]wire.Id, error) {
+	allowListSyncgroupsDb := []access.Tag{access.Read}
+
 	vlog.VI(2).Infof("sync: ListSyncgroups: begin")
 	defer vlog.VI(2).Infof("sync: ListSyncgroups: end")
 
@@ -910,7 +997,7 @@ func (sd *syncDatabase) ListSyncgroups(ctx *context.T, call rpc.ServerCall) ([]w
 	defer sn.Abort()
 
 	// Check permissions on Database.
-	if err := sd.db.CheckPermsInternal(ctx, call, sn); err != nil {
+	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowListSyncgroupsDb, sn); err != nil {
 		return nil, err
 	}
 
@@ -928,6 +1015,8 @@ func (sd *syncDatabase) ListSyncgroups(ctx *context.T, call rpc.ServerCall) ([]w
 }
 
 func (sd *syncDatabase) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgId wire.Id) (wire.SyncgroupSpec, string, error) {
+	allowGetSyncgroupSpec := []access.Tag{access.Read}
+
 	vlog.VI(2).Infof("sync: GetSyncgroupSpec: begin %v", sgId)
 	defer vlog.VI(2).Infof("sync: GetSyncgroupSpec: end: %v", sgId)
 
@@ -936,41 +1025,38 @@ func (sd *syncDatabase) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 
 	var spec wire.SyncgroupSpec
 
-	// Check permissions on Database.
-	if err := sd.db.CheckPermsInternal(ctx, call, sn); err != nil {
+	// Get the syncgroup information with auth check.
+	var sg interfaces.Syncgroup
+	sgAuth := &syncgroupAuth{
+		db: sd.db,
+		id: sgId,
+	}
+	if _, err := common.GetDataWithAuth(ctx, call, sgAuth, allowGetSyncgroupSpec, sn, &sg); err != nil {
 		return spec, "", err
 	}
-
-	// Get the syncgroup information.
-	sg, err := getSyncgroupByGid(ctx, sn, SgIdToGid(sd.db.Id(), sgId))
-	if err != nil {
-		return spec, "", err
-	}
-	// TODO(hpucha): Check syncgroup ACL.
 
 	vlog.VI(2).Infof("sync: GetSyncgroupSpec: %v spec %v", sgId, sg.Spec)
 	return sg.Spec, sg.SpecVersion, nil
 }
 
 func (sd *syncDatabase) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall, sgId wire.Id) (map[string]wire.SyncgroupMemberInfo, error) {
+	allowGetSyncgroupMembers := []access.Tag{access.Read}
+
 	vlog.VI(2).Infof("sync: GetSyncgroupMembers: begin %v", sgId)
 	defer vlog.VI(2).Infof("sync: GetSyncgroupMembers: end: %v", sgId)
 
 	sn := sd.db.St().NewSnapshot()
 	defer sn.Abort()
 
-	// Check permissions on Database.
-	if err := sd.db.CheckPermsInternal(ctx, call, sn); err != nil {
+	// Get the syncgroup information with auth check.
+	var sg interfaces.Syncgroup
+	sgAuth := &syncgroupAuth{
+		db: sd.db,
+		id: sgId,
+	}
+	if _, err := common.GetDataWithAuth(ctx, call, sgAuth, allowGetSyncgroupMembers, sn, &sg); err != nil {
 		return nil, err
 	}
-
-	// Get the syncgroup information.
-	sg, err := getSyncgroupByGid(ctx, sn, SgIdToGid(sd.db.Id(), sgId))
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO(hpucha): Check syncgroup ACL.
 
 	vlog.VI(2).Infof("sync: GetSyncgroupMembers: %v members %v, len %v", sgId, sg.Joiners, len(sg.Joiners))
 	joiners := make(map[string]wire.SyncgroupMemberInfo)
@@ -981,6 +1067,8 @@ func (sd *syncDatabase) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall,
 }
 
 func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sgId wire.Id, spec wire.SyncgroupSpec, version string) error {
+	allowSetSyncgroupSpec := []access.Tag{access.Admin}
+
 	vlog.VI(2).Infof("sync: SetSyncgroupSpec: begin %v %v %s", sgId, spec, version)
 	defer vlog.VI(2).Infof("sync: SetSyncgroupSpec: end: %v", sgId)
 
@@ -989,19 +1077,16 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 	}
 
 	ss := sd.sync.(*syncService)
-	dbId := sd.db.Id()
-	gid := SgIdToGid(dbId, sgId)
-	var sg *interfaces.Syncgroup
+	gid := SgIdToGid(sd.db.Id(), sgId)
+	var sg interfaces.Syncgroup
 
 	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
-		// Check permissions on Database.
-		if err := sd.db.CheckPermsInternal(ctx, call, tx); err != nil {
-			return err
+		// Get the syncgroup information with auth check.
+		sgAuth := &syncgroupAuth{
+			db: sd.db,
+			id: sgId,
 		}
-
-		var err error
-		sg, err = getSyncgroupByGid(ctx, tx, gid)
-		if err != nil {
+		if _, err := common.GetDataWithAuth(ctx, call, sgAuth, allowSetSyncgroupSpec, tx, &sg); err != nil {
 			return err
 		}
 
@@ -1014,6 +1099,17 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 			return verror.New(verror.ErrBadArg, ctx, "cannot modify collections")
 		}
 
+		// Client must not remove themselves from Read ACL. LeaveSyncgroup should be
+		// used instead. (Assumes client is already on Read ACL.)
+		// Note, this check prevents only the common case of removing the client
+		// from the ACL. It is possible to revoke Syncbase access while pasing this
+		// check (e.g. blacklisting the blessing issued to Syncbase while continuing
+		// to allow own blessing). As with many other Syncbase sanity checks, it is
+		// best-effort only; failures still need to be handled gracefully.
+		if err := common.TagAuthorizer(access.Read, spec.Perms).Authorize(ctx, call.Security()); err != nil {
+			return verror.New(verror.ErrBadArg, ctx, "cannot remove self from syncgroup Read ACL, use LeaveSyncgroup instead")
+		}
+
 		sgState, err := getSGIdEntry(ctx, tx, gid)
 		if err != nil {
 			return err
@@ -1022,33 +1118,100 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 			return verror.NewErrBadState(ctx)
 		}
 
-		// Check if this peer is allowed to change the spec.
-		blessingNames, _ := security.RemoteBlessingNames(ctx, call.Security())
-		vlog.VI(4).Infof("sync: SetSyncgroupSpec: authorizing blessings %v against permissions %v", blessingNames, sg.Spec.Perms)
-		if !isAuthorizedForTag(sg.Spec.Perms, access.Admin, blessingNames) {
-			return verror.New(verror.ErrNoAccess, ctx)
-		}
-
 		// Reserve a log generation and position counts for the new syncgroup.
-		gen, pos := ss.reserveGenAndPosInDbLog(ctx, dbId, sgOID(gid), 1)
+		gen, pos := ss.reserveGenAndPosInDbLog(ctx, sd.db.Id(), sgOID(gid), 1)
 
 		newVersion := ss.newSyncgroupVersion()
 		sg.Spec = spec
 		sg.SpecVersion = newVersion
-		return ss.updateSyncgroupVersioning(ctx, tx, gid, newVersion, true, ss.id, gen, pos, sg)
+		return ss.updateSyncgroupVersioning(ctx, tx, gid, newVersion, true, ss.id, gen, pos, &sg)
 	})
 
 	if err != nil {
 		return err
 	}
-	if err = ss.advertiseSyncgroupInNeighborhood(sg); err != nil {
+	if err = ss.advertiseSyncgroupInNeighborhood(&sg); err != nil {
 		return err
 	}
-	return ss.checkptSgLocalGen(ctx, dbId, gid)
+	return ss.checkptSgLocalGen(ctx, sd.db.Id(), gid)
+}
+
+////////////////////////////////////////
+// Authorization hooks
+
+type syncgroupAuth struct {
+	db interfaces.Database
+	id wire.Id
+}
+
+var _ common.Permser = (*syncgroupAuth)(nil)
+
+func (sa *syncgroupAuth) GetDataWithExistAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, v common.PermserData) (parentPerms, perms access.Permissions, _ error) {
+	sg := v.(*interfaces.Syncgroup)
+	parentPerms, err := common.GetPermsWithExistAndParentResolveAuth(ctx, call, sa.db, st)
+	if err != nil {
+		return nil, nil, err
+	}
+	gotSg, getErr := getSyncgroupByGid(ctx, st, SgIdToGid(sa.db.Id(), sa.id))
+	if gotSg != nil {
+		*sg = *gotSg
+	}
+	err = common.ExistAuthStep(ctx, call, sa.id.String(), parentPerms, sg, getErr)
+	return parentPerms, sg.GetPerms(), err
+}
+
+func (sa *syncgroupAuth) PermserData() common.PermserData {
+	return &interfaces.Syncgroup{}
 }
 
 //////////////////////////////
 // Helper functions
+
+// verifyCollectionsForSync verifies, for all existing collections in the list,
+// that they are syncable to the caller:
+// - The caller must have Read access.
+// - The collection must not be frozen.
+// If mustExist is true, all the collections in the list must exist.
+// TODO(ivanpi): Also verify that data and ACL signature chain of trust can be
+// followed to the Collection creator (allowed by the id-based implicit perms)
+// based on available ACL history.
+func verifyCollectionsForSync(ctx *context.T, call rpc.ServerCall, db interfaces.Database, collections []wire.Id, mustExist bool, sntx store.SnapshotOrTransaction) error {
+	for _, cxId := range collections {
+		// Retrieve Collection perms, checking that the Collection exists.
+		// Note, only Collection ACLs are synced, so we do not need to check
+		// Database Resolve. We assume that the client is allowed to know that
+		// the Collections exist based on a previous Database permissions check.
+		cxPerms, err := db.GetCollectionPerms(ctx, cxId, sntx)
+		if err != nil {
+			if !mustExist && verror.ErrorID(err) == verror.ErrNoExist.ID {
+				// We can skip the missing Collection since mustExist is not set.
+				continue
+			}
+			return err
+		}
+
+		// Check Read access.
+		if err := common.TagAuthorizer(access.Read, cxPerms).Authorize(ctx, call.Security()); err != nil {
+			return err
+		}
+
+		// TODO(ivanpi): Check if Collection is frozen because the last syncgroup
+		// on it was left/destroyed.
+
+		// TODO(hpucha,ivanpi): Check signature provenance on Collection data and
+		// permissions.
+
+		// TODO(ivanpi): Since signatures are not implemented yet, we should
+		// sanity check that at least one writer exists on the Collection.
+		// However, this should be done only on Collections with no existing
+		// Syncgroups.
+		//if writeAcl, ok := cxPerms[access.Write]; !ok || len(writeAcl.In) == 0 {
+		//	return verror.New(verror.ErrBadState, ctx, fmt.Sprintf("collection %s has no writers", c.String()))
+		//}
+	}
+
+	return nil
+}
 
 // checkptSgLocalGen cuts a local generation for the specified syncgroup to
 // capture its updates.
@@ -1334,14 +1497,6 @@ func (sd *syncDatabase) joinSyncgroupAtAdmin(ctxIn *context.T, call rpc.ServerCa
 	return interfaces.Syncgroup{}, "", interfaces.GenVector{}, verror.New(wire.ErrSyncgroupJoinFailed, ctxIn)
 }
 
-func authorize(ctx *context.T, call security.Call, sg *interfaces.Syncgroup) error {
-	auth := access.TypicalTagTypePermissionsAuthorizer(sg.Spec.Perms)
-	if err := auth.Authorize(ctx, call); err != nil {
-		return verror.New(verror.ErrNoAccess, ctx, err)
-	}
-	return nil
-}
-
 // isAuthorizedForTag returns whether at least one of the blessingNames is
 // authorized via the specified tag in perms.
 func isAuthorizedForTag(perms access.Permissions, tag access.Tag, blessingNames []string) bool {
@@ -1369,6 +1524,10 @@ func syncgroupAdmin(ctx *context.T, perms access.Permissions) bool {
 func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publisher string, sg interfaces.Syncgroup, version string, genvec interfaces.GenVector) (string, error) {
 	vlog.VI(2).Infof("sync: PublishSyncgroup: begin: %s from peer %s", sg.Id, publisher)
 	defer vlog.VI(2).Infof("sync: PublishSyncgroup: end: %s from peer %s", sg.Id, publisher)
+
+	// TODO(ivanpi): Add separate ACL for PublishSyncgroup and check it.
+	// TODO(ivanpi): Ensure that Database existence is not leaked.
+	// TODO(hpucha): Ensure node is on Admin ACL.
 
 	st, err := s.getDbStore(ctx, call, sg.DbId)
 	if err != nil {
@@ -1404,9 +1563,6 @@ func (s *syncService) PublishSyncgroup(ctx *context.T, call rpc.ServerCall, publ
 
 		// Publish the syncgroup.
 
-		// TODO(hpucha): Use some ACL check to allow/deny publishing.
-		// TODO(hpucha): Ensure node is on Admin ACL.
-
 		return s.addSyncgroup(ctx, tx, version, false, publisher, genvec, 0, 0, 0, &sg)
 	})
 
@@ -1432,6 +1588,8 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 
 	nullSG, nullGV := interfaces.Syncgroup{}, interfaces.GenVector{}
 
+	// TODO(ivanpi): Ensure that Database and syncgroup existence is not leaked.
+
 	// If this admin is offline, it shouldn't accept the join request since it
 	// would be unable to send out the new syncgroup updates. However, it is still
 	// possible that the admin goes offline right after processing the request.
@@ -1439,14 +1597,14 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 		return nullSG, "", nullGV, interfaces.NewErrDbOffline(ctx, dbId)
 	}
 
-	// Find the database store for this syncgroup.
-	dbSt, err := s.getDbStore(ctx, call, dbId)
+	// Find the database for this syncgroup.
+	db, err := s.sv.Database(ctx, call, dbId)
 	if err != nil {
 		return nullSG, "", nullGV, verror.New(verror.ErrNoExist, ctx, "Database not found", dbId)
 	}
 
 	gid := SgIdToGid(dbId, sgId)
-	if _, err = getSyncgroupVersion(ctx, dbSt, gid); err != nil {
+	if _, err = getSyncgroupVersion(ctx, db.St(), gid); err != nil {
 		vlog.VI(4).Infof("sync: JoinSyncgroupAtAdmin: end: %v from peer %s, err in sg search %v", sgId, joinerName, err)
 		return nullSG, "", nullGV, verror.New(verror.ErrNoExist, ctx, "Syncgroup not found", sgId)
 	}
@@ -1456,7 +1614,7 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 	var sg *interfaces.Syncgroup
 	var gen, pos uint64
 
-	err = watchable.RunInTransaction(dbSt, func(tx *watchable.Transaction) error {
+	err = watchable.RunInTransaction(db.St(), func(tx *watchable.Transaction) error {
 		var err error
 		sg, err = getSyncgroupByGid(ctx, tx, gid)
 		if err != nil {
@@ -1470,7 +1628,7 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 
 		// Check SG ACL. Caller must have Read access on the syncgroup
 		// ACL to join a syncgroup.
-		if err := authorize(ctx, call.Security(), sg); err != nil {
+		if err := common.TagAuthorizer(access.Read, sg.Spec.Perms).Authorize(ctx, call.Security()); err != nil {
 			return err
 		}
 
@@ -1481,6 +1639,11 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 		}
 		if state.SyncPending {
 			return verror.NewErrBadState(ctx)
+		}
+
+		// Check that all the collections in spec are syncable to the joiner.
+		if err := verifyCollectionsForSync(ctx, call, db, sg.Spec.Collections, true, tx); err != nil {
+			return err
 		}
 
 		// Reserve a log generation and position counts for the new syncgroup.

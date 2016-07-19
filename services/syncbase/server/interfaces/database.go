@@ -6,7 +6,7 @@ package interfaces
 
 import (
 	"v.io/v23/context"
-	"v.io/v23/rpc"
+	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
@@ -24,10 +24,9 @@ type Database interface {
 	// Service returns the service handle for this database.
 	Service() Service
 
-	// CheckPermsInternal checks whether the given RPC (ctx, call) is allowed per
-	// the database perms.
-	// TODO(ivanpi): Remove once all callers are ported to explicit auth.
-	CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error
+	// GetCollectionPerms retrieves the permissions for the Collection with the
+	// given id. No authorization check is performed.
+	GetCollectionPerms(ctx *context.T, cxId wire.Id, st store.StoreReader) (access.Permissions, error)
 
 	// GetSchemaMetadataInternal returns SchemaMetadata stored for this db
 	// without checking any credentials.

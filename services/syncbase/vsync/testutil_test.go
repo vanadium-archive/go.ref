@@ -68,7 +68,7 @@ func (s *mockService) DatabaseIds(ctx *context.T, call rpc.ServerCall) ([]wire.I
 }
 
 func (s *mockService) GetDataWithExistAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, v common.PermserData) (parentPerms, perms access.Permissions, existErr error) {
-	return nil, nil, nil
+	return nil, nil, verror.NewErrNotImplemented(ctx)
 }
 
 func (s *mockService) PermserData() common.PermserData {
@@ -93,8 +93,8 @@ func (d *mockDatabase) St() *watchable.Store {
 	return d.st
 }
 
-func (d *mockDatabase) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
-	return verror.NewErrNotImplemented(ctx)
+func (d *mockDatabase) GetCollectionPerms(ctx *context.T, cxId wire.Id, st store.StoreReader) (access.Permissions, error) {
+	return nil, verror.NewErrNotImplemented(ctx)
 }
 
 func (d *mockDatabase) GetSchemaMetadataInternal(ctx *context.T) (*wire.SchemaMetadata, error) {
@@ -110,7 +110,7 @@ func (d *mockDatabase) ResetCrConnectionStream() {
 }
 
 func (d *mockDatabase) GetDataWithExistAuth(ctx *context.T, call rpc.ServerCall, st store.StoreReader, v common.PermserData) (parentPerms, perms access.Permissions, existErr error) {
-	return nil, nil, nil
+	return nil, nil, verror.NewErrNotImplemented(ctx)
 }
 
 func (d *mockDatabase) PermserData() common.PermserData {

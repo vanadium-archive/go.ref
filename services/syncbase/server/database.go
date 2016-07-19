@@ -168,7 +168,7 @@ func (ts *transactionState) permsState(collectionId wire.Id) *permissionState {
 // passed in perms.
 func hasPermission(ctx *context.T, securityCall security.Call, perms access.Permissions, tag access.Tag) bool {
 	// Authorize returns either an error or nil, so nil means the caller is authorized.
-	return common.AnyOfTagsAuthorizer([]access.Tag{tag}, perms).Authorize(ctx, securityCall) == nil
+	return common.TagAuthorizer(tag, perms).Authorize(ctx, securityCall) == nil
 }
 
 // openDatabase opens a database and returns a *database for it. Designed for
@@ -551,11 +551,17 @@ func (d *database) Service() interfaces.Service {
 	return d.s
 }
 
-func (d *database) CheckPermsInternal(ctx *context.T, call rpc.ServerCall, st store.StoreReader) error {
+func (d *database) GetCollectionPerms(ctx *context.T, cxId wire.Id, st store.StoreReader) (access.Permissions, error) {
 	if !d.exists {
 		vlog.Fatalf("database %v does not exist", d.id)
 	}
-	return util.GetWithAuth(ctx, call, st, d.stKey(), &DatabaseData{})
+	c := &collectionReq{
+		id: cxId,
+		d:  d,
+	}
+	var cp interfaces.CollectionPerms
+	err := store.Get(ctx, st, c.permsKey(), &cp)
+	return cp.GetPerms(), err
 }
 
 func (d *database) Id() wire.Id {
