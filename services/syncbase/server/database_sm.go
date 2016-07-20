@@ -24,12 +24,13 @@ import (
 func (d *database) GetSchemaMetadata(ctx *context.T, call rpc.ServerCall) (wire.SchemaMetadata, error) {
 	allowGetSchemaMetadata := []access.Tag{access.Read}
 
-	if !d.exists {
-		return wire.SchemaMetadata{}, verror.New(verror.ErrNoExist, ctx, d.id)
-	}
 	// Check permissions on Database and retrieve schema metadata.
 	var dbData DatabaseData
-	if _, err := common.GetDataWithAuth(ctx, call, d, allowGetSchemaMetadata, d.st, &dbData); err != nil {
+	impl := func(sntx store.SnapshotOrTransaction) error {
+		_, err := common.GetDataWithAuth(ctx, call, d, allowGetSchemaMetadata, d.st, &dbData)
+		return err
+	}
+	if err := d.runWithNewSnapshot(ctx, call, impl); err != nil {
 		return wire.SchemaMetadata{}, err
 	}
 	if dbData.SchemaMetadata == nil {
@@ -41,11 +42,9 @@ func (d *database) GetSchemaMetadata(ctx *context.T, call rpc.ServerCall) (wire.
 func (d *database) SetSchemaMetadata(ctx *context.T, call rpc.ServerCall, metadata wire.SchemaMetadata) error {
 	allowSetSchemaMetadata := []access.Tag{access.Admin}
 
-	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.id)
-	}
 	// Check permissions on Database and store schema metadata.
-	return store.RunInTransaction(d.st, func(tx store.Transaction) error {
+	return d.runInNewTransaction(ctx, call, func(ts *transactionState) error {
+		tx := ts.tx
 		var dbData DatabaseData
 		if _, err := common.GetDataWithAuth(ctx, call, d, allowSetSchemaMetadata, tx, &dbData); err != nil {
 			return err

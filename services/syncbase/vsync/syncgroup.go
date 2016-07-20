@@ -696,6 +696,10 @@ func (sd *syncDatabase) CreateSyncgroup(ctx *context.T, call rpc.ServerCall, sgI
 		Joiners:     map[string]interfaces.SyncgroupMemberState{ss.name: sm},
 	}
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
+
 	err = watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Check permissions on Database.
 		if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowCreateSyncgroupDb, tx); err != nil {
@@ -777,6 +781,11 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remot
 	var sg *interfaces.Syncgroup
 	nullSpec := wire.SyncgroupSpec{}
 	gid := SgIdToGid(sd.db.Id(), sgId)
+
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return nullSpec, err
+	}
+
 	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Check permissions on Database.
 		if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowJoinSyncgroupDb, tx); err != nil {
@@ -901,6 +910,10 @@ func (sd *syncDatabase) JoinSyncgroup(ctx *context.T, call rpc.ServerCall, remot
 func (sd *syncDatabase) LeaveSyncgroup(ctx *context.T, call rpc.ServerCall, sgId wire.Id) error {
 	allowLeaveSyncgroupDb := []access.Tag{access.Write}
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
+
 	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Check permissions on Database.
 		if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowLeaveSyncgroupDb, tx); err != nil {
@@ -918,6 +931,11 @@ func (sd *syncDatabase) DestroySyncgroup(ctx *context.T, call rpc.ServerCall, sg
 
 	var sg *interfaces.Syncgroup
 	gid := SgIdToGid(sd.db.Id(), sgId)
+
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
+
 	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Check permissions on Database.
 		if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowDestroySyncgroupDb, tx); err != nil {
@@ -949,6 +967,10 @@ func (sd *syncDatabase) EjectFromSyncgroup(ctx *context.T, call rpc.ServerCall, 
 	allowEjectFromSyncgroup := []access.Tag{access.Admin}
 
 	var sg interfaces.Syncgroup
+
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
 
 	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Get the syncgroup information with auth check.
@@ -993,6 +1015,10 @@ func (sd *syncDatabase) ListSyncgroups(ctx *context.T, call rpc.ServerCall) ([]w
 	vlog.VI(2).Infof("sync: ListSyncgroups: begin")
 	defer vlog.VI(2).Infof("sync: ListSyncgroups: end")
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return nil, err
+	}
+
 	sn := sd.db.St().NewSnapshot()
 	defer sn.Abort()
 
@@ -1020,13 +1046,17 @@ func (sd *syncDatabase) GetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 	vlog.VI(2).Infof("sync: GetSyncgroupSpec: begin %v", sgId)
 	defer vlog.VI(2).Infof("sync: GetSyncgroupSpec: end: %v", sgId)
 
+	var spec wire.SyncgroupSpec
+	var sg interfaces.Syncgroup
+
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return spec, "", err
+	}
+
 	sn := sd.db.St().NewSnapshot()
 	defer sn.Abort()
 
-	var spec wire.SyncgroupSpec
-
 	// Get the syncgroup information with auth check.
-	var sg interfaces.Syncgroup
 	sgAuth := &syncgroupAuth{
 		db: sd.db,
 		id: sgId,
@@ -1045,11 +1075,16 @@ func (sd *syncDatabase) GetSyncgroupMembers(ctx *context.T, call rpc.ServerCall,
 	vlog.VI(2).Infof("sync: GetSyncgroupMembers: begin %v", sgId)
 	defer vlog.VI(2).Infof("sync: GetSyncgroupMembers: end: %v", sgId)
 
+	var sg interfaces.Syncgroup
+
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return nil, err
+	}
+
 	sn := sd.db.St().NewSnapshot()
 	defer sn.Abort()
 
 	// Get the syncgroup information with auth check.
-	var sg interfaces.Syncgroup
 	sgAuth := &syncgroupAuth{
 		db: sd.db,
 		id: sgId,
@@ -1079,6 +1114,10 @@ func (sd *syncDatabase) SetSyncgroupSpec(ctx *context.T, call rpc.ServerCall, sg
 	ss := sd.sync.(*syncService)
 	gid := SgIdToGid(sd.db.Id(), sgId)
 	var sg interfaces.Syncgroup
+
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
 
 	err := watchable.RunInTransaction(sd.db.St(), func(tx *watchable.Transaction) error {
 		// Get the syncgroup information with auth check.
@@ -1588,25 +1627,17 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 
 	nullSG, nullGV := interfaces.Syncgroup{}, interfaces.GenVector{}
 
-	// TODO(ivanpi): Ensure that Database and syncgroup existence is not leaked.
-
-	// If this admin is offline, it shouldn't accept the join request since it
-	// would be unable to send out the new syncgroup updates. However, it is still
-	// possible that the admin goes offline right after processing the request.
-	if !s.isDbSyncable(ctx, dbId) {
-		return nullSG, "", nullGV, interfaces.NewErrDbOffline(ctx, dbId)
-	}
-
 	// Find the database for this syncgroup.
 	db, err := s.sv.Database(ctx, call, dbId)
 	if err != nil {
-		return nullSG, "", nullGV, verror.New(verror.ErrNoExist, ctx, "Database not found", dbId)
+		vlog.VI(4).Infof("sync: JoinSyncgroupAtAdmin: end: %v from peer %s, err in db retrieve %v", sgId, joinerName, err)
+		return nullSG, "", nullGV, verror.New(verror.ErrNoExistOrNoAccess, ctx, dbId, sgId)
 	}
 
 	gid := SgIdToGid(dbId, sgId)
 	if _, err = getSyncgroupVersion(ctx, db.St(), gid); err != nil {
 		vlog.VI(4).Infof("sync: JoinSyncgroupAtAdmin: end: %v from peer %s, err in sg search %v", sgId, joinerName, err)
-		return nullSG, "", nullGV, verror.New(verror.ErrNoExist, ctx, "Syncgroup not found", sgId)
+		return nullSG, "", nullGV, verror.New(verror.ErrNoExistOrNoAccess, ctx, dbId, sgId)
 	}
 
 	version := s.newSyncgroupVersion()
@@ -1618,7 +1649,13 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 		var err error
 		sg, err = getSyncgroupByGid(ctx, tx, gid)
 		if err != nil {
-			return err
+			return verror.New(verror.ErrNoExistOrNoAccess, ctx, dbId, sgId)
+		}
+
+		// Check SG ACL. Caller must have Read access on the syncgroup
+		// ACL to join a syncgroup.
+		if err := common.TagAuthorizer(access.Read, sg.Spec.Perms).Authorize(ctx, call.Security()); err != nil {
+			return verror.New(verror.ErrNoExistOrNoAccess, ctx, dbId, sgId)
 		}
 
 		// Check SG ACL to see if this node is still a valid admin.
@@ -1626,10 +1663,11 @@ func (s *syncService) JoinSyncgroupAtAdmin(ctx *context.T, call rpc.ServerCall, 
 			return interfaces.NewErrNotAdmin(ctx)
 		}
 
-		// Check SG ACL. Caller must have Read access on the syncgroup
-		// ACL to join a syncgroup.
-		if err := common.TagAuthorizer(access.Read, sg.Spec.Perms).Authorize(ctx, call.Security()); err != nil {
-			return err
+		// If this admin is offline, it shouldn't accept the join request since it
+		// would be unable to send out the new syncgroup updates. However, it is still
+		// possible that the admin goes offline right after processing the request.
+		if !s.isDbSyncable(ctx, dbId) {
+			return interfaces.NewErrDbOffline(ctx, dbId)
 		}
 
 		// Check that the SG is not in pending state.

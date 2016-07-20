@@ -93,6 +93,10 @@ func (d *mockDatabase) St() *watchable.Store {
 	return d.st
 }
 
+func (d *mockDatabase) CheckExists(ctx *context.T, call rpc.ServerCall) error {
+	return nil
+}
+
 func (d *mockDatabase) GetCollectionPerms(ctx *context.T, cxId wire.Id, st store.StoreReader) (access.Permissions, error) {
 	return nil, verror.NewErrNotImplemented(ctx)
 }

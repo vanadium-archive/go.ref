@@ -50,6 +50,8 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 			return err
 		}
 		// Check for "collection already exists".
+		// Note, since the caller has been verified to have Write perm on database,
+		// they are allowed to know that the collection exists.
 		if err := store.Get(ctx, tx, c.permsKey(), &interfaces.CollectionPerms{}); verror.ErrorID(err) != verror.ErrNoExist.ID {
 			if err != nil {
 				return err
@@ -64,7 +66,7 @@ func (c *collectionReq) Create(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 		storedPerms := interfaces.CollectionPerms(perms)
 		return store.Put(ctx, tx, c.permsKey(), &storedPerms)
 	}
-	return c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
+	return c.d.runInExistingBatchOrNewTransaction(ctx, call, bh, impl)
 }
 
 // TODO(ivanpi): Decouple collection key prefix from collection id to allow
@@ -86,7 +88,9 @@ func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, bh wire.Bat
 		}
 		if authErr != nil {
 			if verror.ErrorID(authErr) == verror.ErrNoExist.ID {
-				return nil // delete is idempotent
+				// Destroy is idempotent. Note, this doesn't leak Collection existence
+				// before the call.
+				return nil
 			}
 			return authErr
 		}
@@ -113,7 +117,7 @@ func (c *collectionReq) Destroy(ctx *context.T, call rpc.ServerCall, bh wire.Bat
 		// Delete CollectionPerms.
 		return store.Delete(ctx, tx, c.permsKey())
 	}
-	return c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
+	return c.d.runInExistingBatchOrNewTransaction(ctx, call, bh, impl)
 }
 
 func (c *collectionReq) Exists(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (bool, error) {
@@ -121,7 +125,7 @@ func (c *collectionReq) Exists(ctx *context.T, call rpc.ServerCall, bh wire.Batc
 		_, _, err := c.GetDataWithExistAuth(ctx, call, sntx, &interfaces.CollectionPerms{})
 		return err
 	}
-	return common.ErrorToExists(c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl))
+	return common.ErrorToExists(c.d.runWithExistingBatchOrNewSnapshot(ctx, call, bh, impl))
 }
 
 func (c *collectionReq) GetPermissions(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (access.Permissions, error) {
@@ -132,7 +136,7 @@ func (c *collectionReq) GetPermissions(ctx *context.T, call rpc.ServerCall, bh w
 		perms, err = common.GetPermsWithAuth(ctx, call, c, allowGetPermissions, sntx)
 		return err
 	}
-	if err := c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl); err != nil {
+	if err := c.d.runWithExistingBatchOrNewSnapshot(ctx, call, bh, impl); err != nil {
 		return nil, err
 	}
 	return perms, nil
@@ -154,7 +158,7 @@ func (c *collectionReq) SetPermissions(ctx *context.T, call rpc.ServerCall, bh w
 		storedPerms := interfaces.CollectionPerms(newPerms)
 		return store.Put(ctx, tx, c.permsKey(), &storedPerms)
 	}
-	return c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
+	return c.d.runInExistingBatchOrNewTransaction(ctx, call, bh, impl)
 }
 
 func (c *collectionReq) DeleteRange(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, start, limit []byte) error {
@@ -182,7 +186,7 @@ func (c *collectionReq) DeleteRange(ctx *context.T, call rpc.ServerCall, bh wire
 		}
 		return nil
 	}
-	return c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
+	return c.d.runInExistingBatchOrNewTransaction(ctx, call, bh, impl)
 }
 
 func (c *collectionReq) Scan(ctx *context.T, call wire.CollectionScanServerCall, bh wire.BatchHandle, start, limit []byte) error {
@@ -217,7 +221,7 @@ func (c *collectionReq) Scan(ctx *context.T, call wire.CollectionScanServerCall,
 		}
 		return nil
 	}
-	return c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl)
+	return c.d.runWithExistingBatchOrNewSnapshot(ctx, call, bh, impl)
 }
 
 func (c *collectionReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServerCall, matcher *glob.Element) error {
@@ -230,7 +234,7 @@ func (c *collectionReq) GlobChildren__(ctx *context.T, call rpc.GlobChildrenServ
 		}
 		return util.GlobChildren(ctx, call, matcher, sntx, common.JoinKeyParts(common.RowPrefix, c.stKeyPart()))
 	}
-	return c.d.runWithNewSnapshot(ctx, impl)
+	return c.d.runWithNewSnapshot(ctx, call, impl)
 }
 
 ////////////////////////////////////////

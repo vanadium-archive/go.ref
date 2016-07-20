@@ -188,7 +188,7 @@ func GetDataWithExistAuthStep(ctx *context.T, call rpc.ServerCall, name string, 
 // appropriate; if the caller is not authorized for exist access,
 // ErrNoExistOrNoAccess is always returned.
 func ExistAuthStep(ctx *context.T, call rpc.ServerCall, name string, parentPerms access.Permissions, v PermserData, getErr error) error {
-	if getErr != nil {
+	if getErr != nil || v == nil {
 		if verror.ErrorID(getErr) == verror.ErrNoExist.ID {
 			getErr = verror.New(verror.ErrNoExist, ctx, name)
 		}

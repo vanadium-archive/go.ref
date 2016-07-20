@@ -28,15 +28,16 @@ var (
 // RPC methods
 
 func (r *rowReq) Exists(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (bool, error) {
-	allowExists := []access.Tag{access.Read, access.Write}
-
 	impl := func(sntx store.SnapshotOrTransaction) (err error) {
-		if _, err := common.GetPermsWithAuth(ctx, call, r.c, allowExists, sntx); err != nil {
+		cxPerms, err := common.GetPermsWithExistAndParentResolveAuth(ctx, call, r.c, sntx)
+		if err != nil {
 			return err
 		}
-		return store.Get(ctx, sntx, r.stKey(), &vom.RawBytes{})
+		getErr := store.Get(ctx, sntx, r.stKey(), &vom.RawBytes{})
+		return common.ExistAuthStep(ctx, call, r.key, cxPerms, nil, getErr)
+
 	}
-	return common.ErrorToExists(r.c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl))
+	return common.ErrorToExists(r.c.d.runWithExistingBatchOrNewSnapshot(ctx, call, bh, impl))
 }
 
 func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (*vom.RawBytes, error) {
@@ -46,7 +47,7 @@ func (r *rowReq) Get(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (
 		res, err = r.get(ctx, call, sntx)
 		return err
 	}
-	if err := r.c.d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl); err != nil {
+	if err := r.c.d.runWithExistingBatchOrNewSnapshot(ctx, call, bh, impl); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -57,7 +58,7 @@ func (r *rowReq) Put(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle, v
 	impl := func(ts *transactionState) error {
 		return r.put(ctx, call, ts, value)
 	}
-	return r.c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
+	return r.c.d.runInExistingBatchOrNewTransaction(ctx, call, bh, impl)
 }
 
 func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) error {
@@ -65,7 +66,7 @@ func (r *rowReq) Delete(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle
 	impl := func(ts *transactionState) error {
 		return r.delete(ctx, call, ts)
 	}
-	return r.c.d.runInExistingBatchOrNewTransaction(ctx, bh, impl)
+	return r.c.d.runInExistingBatchOrNewTransaction(ctx, call, bh, impl)
 }
 
 ////////////////////////////////////////

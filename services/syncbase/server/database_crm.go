@@ -8,7 +8,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
-	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
 )
@@ -20,7 +19,7 @@ func (d *database) StartConflictResolver(ctx *context.T, call wire.ConflictManag
 	allowStartConflictResolver := []access.Tag{access.Admin}
 
 	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.id)
+		return d.fuzzyNoExistError(ctx, call)
 	}
 	// Check permissions on Database.
 	if _, err := common.GetPermsWithAuth(ctx, call, d, allowStartConflictResolver, d.st); err != nil {

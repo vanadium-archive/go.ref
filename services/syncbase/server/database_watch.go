@@ -27,9 +27,6 @@ import (
 func (d *database) GetResumeMarker(ctx *context.T, call rpc.ServerCall, bh wire.BatchHandle) (watch.ResumeMarker, error) {
 	allowGetResumeMarker := wire.AllDatabaseTags
 
-	if !d.exists {
-		return nil, verror.New(verror.ErrNoExist, ctx, d.id)
-	}
 	var res watch.ResumeMarker
 	impl := func(sntx store.SnapshotOrTransaction) (err error) {
 		// Check permissions on Database.
@@ -39,7 +36,7 @@ func (d *database) GetResumeMarker(ctx *context.T, call rpc.ServerCall, bh wire.
 		res, err = watchable.GetResumeMarker(sntx)
 		return err
 	}
-	if err := d.runWithExistingBatchOrNewSnapshot(ctx, bh, impl); err != nil {
+	if err := d.runWithExistingBatchOrNewSnapshot(ctx, call, bh, impl); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -76,9 +73,6 @@ func (d *database) WatchPatterns(ctx *context.T, call wire.DatabaseWatcherWatchP
 func (d *database) watchWithFilter(ctx *context.T, call rpc.ServerCall, sender *watchBatchSender, resumeMarker watch.ResumeMarker, watchFilter filter.CollectionRowFilter) error {
 	allowWatchDbStart := []access.Tag{access.Read}
 
-	if !d.exists {
-		return verror.New(verror.ErrNoExist, ctx, d.id)
-	}
 	initImpl := func(sntx store.SnapshotOrTransaction) error {
 		// Check permissions on Database.
 		if _, err := common.GetPermsWithAuth(ctx, call, d, allowWatchDbStart, sntx); err != nil {
@@ -115,7 +109,7 @@ func (d *database) watchWithFilter(ctx *context.T, call rpc.ServerCall, sender *
 		// Finalize initial state or root update batch.
 		return sender.finishBatch(resumeMarker)
 	}
-	if err := store.RunWithSnapshot(d.st, initImpl); err != nil {
+	if err := d.runWithNewSnapshot(ctx, call, initImpl); err != nil {
 		return err
 	}
 	return d.watchUpdates(ctx, call, sender, resumeMarker, watchFilter)

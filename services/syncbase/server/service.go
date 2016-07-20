@@ -4,10 +4,6 @@
 
 package server
 
-// TODO(sadovsky): Check Resolve access on parent where applicable. Relatedly,
-// convert ErrNoExist and ErrNoAccess to ErrNoExistOrNoAccess where needed to
-// preserve privacy.
-
 import (
 	"bytes"
 	"crypto/rand"
@@ -421,6 +417,7 @@ func (s *service) Database(ctx *context.T, call rpc.ServerCall, dbId wire.Id) (i
 	defer s.mu.Unlock()
 	d, ok := s.dbs[dbId]
 	if !ok {
+		// Note, a fuzzy error should be returned to external clients instead.
 		return nil, verror.New(verror.ErrNoExist, ctx, dbId)
 	}
 	return d, nil
@@ -456,10 +453,6 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 	// 4. Move dbInfo from GC log into active dbs. <===== CHANGE BECOMES VISIBLE
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, ok := s.dbs[dbId]; ok {
-		// TODO(sadovsky): Should this be ErrExistOrNoAccess, for privacy?
-		return verror.New(verror.ErrExist, ctx, dbId)
-	}
 
 	// 1. Check serviceData perms. Also check implicit perms if not service admin.
 	sData := &ServiceData{}
@@ -480,6 +473,13 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 				return err
 			}
 		}
+	}
+
+	// Check if the database exists.
+	if _, ok := s.dbs[dbId]; ok {
+		// Note, since the caller has been verified to have Write perm on service,
+		// they are allowed to know that the database exists.
+		return verror.New(verror.ErrExist, ctx, dbId)
 	}
 
 	// 2. Put dbInfo record into garbage collection log, to clean up database if
@@ -542,7 +542,8 @@ func (s *service) createDatabase(ctx *context.T, call rpc.ServerCall, dbId wire.
 			if err != nil {
 				return err
 			}
-			// TODO(sadovsky): Should this be ErrExistOrNoAccess, for privacy?
+			// Note, as above, since the caller has been verified to have Write perm
+			// on service, they are allowed to know that the database exists.
 			return verror.New(verror.ErrExist, ctx, dbId)
 		}
 		// Write dbInfo into active databases.
@@ -569,18 +570,37 @@ func (s *service) destroyDatabase(ctx *context.T, call rpc.ServerCall, dbId wire
 	//    syncbased restart.
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	d, ok := s.dbs[dbId]
-	if !ok {
-		return nil // destroy is idempotent
+	d, dExists := s.dbs[dbId]
+	if !dExists {
+		// Database does not exist. Use a short-lived database object for auth.
+		d = s.nonexistentDatabaseHandle(dbId)
 	}
 
 	// 1. Check serviceData and databaseData perms.
+	var authErr error
 	// Check permissions on Service.
-	if _, authErr := common.GetPermsWithAuth(ctx, call, d.s, allowDestroyDatabase, d.s.st); authErr != nil {
+	if _, authErr = common.GetPermsWithAuth(ctx, call, d.s, allowDestroyDatabase, d.s.st); authErr != nil {
 		// Caller has no Admin access on Service. Check databaseData perms.
-		if _, authErr = common.GetPermsWithAuth(ctx, call, d, allowDestroyDatabase, d.st); authErr != nil {
-			return authErr
+		if !dExists {
+			authErr = d.fuzzyNoExistError(ctx, call)
+		} else {
+			_, authErr = common.GetPermsWithAuth(ctx, call, d, allowDestroyDatabase, d.st)
 		}
+	} else {
+		// Caller has Admin access on Service. Check if Database exists.
+		if !dExists {
+			authErr = verror.New(verror.ErrNoExist, ctx, d.id.String())
+		} else {
+			authErr = nil
+		}
+	}
+	if authErr != nil {
+		if verror.ErrorID(authErr) == verror.ErrNoExist.ID {
+			// Destroy is idempotent. Note, this doesn't leak Database existence
+			// before the call.
+			return nil
+		}
+		return authErr
 	}
 
 	// 2. Move dbInfo from active dbs into GC log.
@@ -613,7 +633,9 @@ func (s *service) setDatabasePerms(ctx *context.T, call rpc.ServerCall, dbId wir
 	defer s.mu.Unlock()
 	d, ok := s.dbs[dbId]
 	if !ok {
-		return verror.New(verror.ErrNoExist, ctx, dbId)
+		// Database does not exist. Use a short-lived database object to check if
+		// the client is allowed to know it.
+		return s.nonexistentDatabaseHandle(dbId).fuzzyNoExistError(ctx, call)
 	}
 	return d.setPermsInternal(ctx, call, perms, version)
 }
@@ -646,6 +668,13 @@ func (s *service) PermserData() common.PermserData {
 
 func (s *service) stKey() string {
 	return common.ServicePrefix
+}
+
+func (s *service) nonexistentDatabaseHandle(dbId wire.Id) *database {
+	return &database{
+		id: dbId,
+		s:  s,
+	}
 }
 
 var unsafeDirNameChars *regexp.Regexp = regexp.MustCompile("[^-a-zA-Z0-9_]")

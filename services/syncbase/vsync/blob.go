@@ -197,6 +197,9 @@ func (sd *syncDatabase) CreateBlob(ctx *context.T, call rpc.ServerCall) (wire.Bl
 	vlog.VI(2).Infof("sync: CreateBlob: begin")
 	defer vlog.VI(2).Infof("sync: CreateBlob: end")
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return wire.NullBlobRef, err
+	}
 	// Check permissions on Database.
 	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowCreateBlob, sd.db.St()); err != nil {
 		return wire.NullBlobRef, err
@@ -223,6 +226,9 @@ func (sd *syncDatabase) PutBlob(ctx *context.T, call wire.BlobManagerPutBlobServ
 	vlog.VI(2).Infof("sync: PutBlob: begin br %v", br)
 	defer vlog.VI(2).Infof("sync: PutBlob: end br %v", br)
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
 	// Check permissions on Database.
 	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowPutBlob, sd.db.St()); err != nil {
 		return err
@@ -254,6 +260,9 @@ func (sd *syncDatabase) CommitBlob(ctx *context.T, call rpc.ServerCall, br wire.
 	vlog.VI(2).Infof("sync: CommitBlob: begin br %v", br)
 	defer vlog.VI(2).Infof("sync: CommitBlob: end br %v", br)
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
 	// Check permissions on Database.
 	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowCommitBlob, sd.db.St()); err != nil {
 		return err
@@ -276,6 +285,9 @@ func (sd *syncDatabase) GetBlobSize(ctx *context.T, call rpc.ServerCall, br wire
 	vlog.VI(2).Infof("sync: GetBlobSize: begin br %v", br)
 	defer vlog.VI(2).Infof("sync: GetBlobSize: end br %v", br)
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return 0, err
+	}
 	// Check permissions on Database.
 	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowGetBlobSize, sd.db.St()); err != nil {
 		return 0, err
@@ -297,6 +309,9 @@ func (sd *syncDatabase) GetBlobSize(ctx *context.T, call rpc.ServerCall, br wire
 func (sd *syncDatabase) DeleteBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
 	allowDeleteBlob := wire.AllDatabaseTags
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
 	// Check permissions on Database.
 	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowDeleteBlob, sd.db.St()); err != nil {
 		return err
@@ -311,6 +326,9 @@ func (sd *syncDatabase) GetBlob(ctx *context.T, call wire.BlobManagerGetBlobServ
 	vlog.VI(2).Infof("sync: GetBlob: begin br %v", br)
 	defer vlog.VI(2).Infof("sync: GetBlob: end br %v", br)
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
 	// Check permissions on Database.
 	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowGetBlob, sd.db.St()); err != nil {
 		return err
@@ -332,6 +350,9 @@ func (sd *syncDatabase) FetchBlob(ctx *context.T, call wire.BlobManagerFetchBlob
 	vlog.VI(2).Infof("sync: FetchBlob: begin br %v", br)
 	defer vlog.VI(2).Infof("sync: FetchBlob: end br %v", br)
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
 	// Check permissions on Database.
 	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowFetchBlob, sd.db.St()); err != nil {
 		return err
@@ -365,6 +386,9 @@ func (sd *syncDatabase) FetchBlob(ctx *context.T, call wire.BlobManagerFetchBlob
 func (sd *syncDatabase) PinBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
 	allowPinBlob := []access.Tag{access.Write}
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
 	// Check permissions on Database.
 	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowPinBlob, sd.db.St()); err != nil {
 		return err
@@ -376,6 +400,9 @@ func (sd *syncDatabase) PinBlob(ctx *context.T, call rpc.ServerCall, br wire.Blo
 func (sd *syncDatabase) UnpinBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) error {
 	allowUnpinBlob := wire.AllDatabaseTags
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
 	// Check permissions on Database.
 	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowUnpinBlob, sd.db.St()); err != nil {
 		return err
@@ -387,6 +414,9 @@ func (sd *syncDatabase) UnpinBlob(ctx *context.T, call rpc.ServerCall, br wire.B
 func (sd *syncDatabase) KeepBlob(ctx *context.T, call rpc.ServerCall, br wire.BlobRef, rank uint64) error {
 	allowKeepBlob := wire.AllDatabaseTags
 
+	if err := sd.db.CheckExists(ctx, call); err != nil {
+		return err
+	}
 	// Check permissions on Database.
 	if _, err := common.GetPermsWithAuth(ctx, call, sd.db, allowKeepBlob, sd.db.St()); err != nil {
 		return err

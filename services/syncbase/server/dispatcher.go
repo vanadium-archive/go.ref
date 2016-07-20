@@ -89,10 +89,7 @@ func (disp *dispatcher) Lookup(ctx *context.T, suffix string) (interface{}, secu
 		} else {
 			// Database does not exist. Create a short-lived database object to
 			// service this request.
-			d = &database{
-				id: dbId,
-				s:  disp.s,
-			}
+			d = disp.s.nonexistentDatabaseHandle(dbId)
 		}
 	}
 

@@ -105,7 +105,8 @@ func newResponderState(ctx *context.T, call interfaces.SyncGetDeltasServerCall, 
 //
 // In the first phase, the initiator is checked against the syncgroup ACLs of
 // all the syncgroups it is requesting, and only those prefixes that belong to
-// allowed syncgroups are carried forward.
+// allowed syncgroups are carried forward. If the database is offline, does not
+// exist, or none of the prefixes are allowed, ErrDbOffline is returned.
 //
 // In the second phase, for a given set of nested prefixes from the initiator,
 // the shortest prefix in that set is extracted. The initiator's genvector for
@@ -144,20 +145,21 @@ func (rSt *responderState) sendDeltasPerDatabase(ctx *context.T) error {
 		return interfaces.NewErrDbOffline(ctx, rSt.dbId)
 	}
 
-	// TODO(ivanpi): Ensure that Database and syncgroup existence is not leaked.
-
 	// Phase 1 of sendDeltas: Authorize the initiator and respond to the
 	// caller only for the syncgroups that allow access.
 	err := rSt.authorizeAndFilterSyncgroups(ctx)
 
 	// Check error from phase 1.
 	if err != nil {
-		vlog.VI(4).Infof("sync: sendDeltasPerDatabase: failed authorization, err %v", err)
-		return err
+		// Authorization failed. Return ErrDbOffline to prevent leaking existence.
+		vlog.VI(2).Infof("sync: sendDeltasPerDatabase: failed authorization, err %v", err)
+		return interfaces.NewErrDbOffline(ctx, rSt.dbId)
 	}
 
 	if len(rSt.initVecs) == 0 {
-		return verror.New(verror.ErrInternal, ctx, "empty initiator generation vectors")
+		// No authorized genvecs. Return ErrDbOffline to prevent leaking existence.
+		vlog.VI(2).Infof("sync: sendDeltasPerDatabase: empty initiator generation vectors")
+		return interfaces.NewErrDbOffline(ctx, rSt.dbId)
 	}
 
 	// Phase 2 and 3 of sendDeltas: diff contains the bound on the

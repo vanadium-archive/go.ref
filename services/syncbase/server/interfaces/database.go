@@ -6,6 +6,7 @@ package interfaces
 
 import (
 	"v.io/v23/context"
+	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
 	"v.io/x/ref/services/syncbase/common"
@@ -20,6 +21,10 @@ type Database interface {
 
 	// St returns the storage engine instance for this database.
 	St() *watchable.Store
+
+	// CheckExists returns an error if this database does not exist, transformed
+	// to prevent leaking existence information if the client has no access to it.
+	CheckExists(ctx *context.T, call rpc.ServerCall) error
 
 	// Service returns the service handle for this database.
 	Service() Service
