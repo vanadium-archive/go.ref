@@ -13,6 +13,7 @@ import (
 	"v.io/v23/discovery"
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/stats"
 )
 
@@ -121,12 +122,23 @@ func (d *idiscovery) startAdvertising(ctx *context.T, adinfo *AdInfo) (func(), e
 	stats.NewStringFunc(statName, func() string { return fmt.Sprint(*adinfo) })
 	ctx, cancel := context.WithCancel(ctx)
 	var wg sync.WaitGroup
+	var lastErr error
+	isAdvertising := false
 	for _, plugin := range d.plugins {
 		wg.Add(1)
 		if err := plugin.Advertise(ctx, adinfo, wg.Done); err != nil {
-			cancel()
-			return nil, err
+			// Only log errors advertising just as long as it succeeds in at least one plugin.
+			// See https://github.com/vanadium/issues/issues/1404 for discussion on issues
+			// with more than 16 BLE advertisements.
+			vlog.Error("discovery: Unable to startAdvertisement for plugin: ", err)
+			lastErr = err
+		} else {
+			isAdvertising = true
 		}
+	}
+	if !isAdvertising {
+		cancel()
+		return nil, lastErr
 	}
 
 	stop := func() {

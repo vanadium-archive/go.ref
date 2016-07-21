@@ -60,7 +60,6 @@ func AdvertiseServer(ctx *context.T, d discovery.T, server rpc.Server, suffix st
 				stop() // Stop the previous advertisement.
 				stop, err = advertiseServer(ctx, d, ad, newAddrs, suffix, visibility)
 				if err != nil {
-					stop()
 					ctx.Error(err)
 					return
 				}
