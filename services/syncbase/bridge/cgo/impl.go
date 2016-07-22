@@ -387,12 +387,21 @@ func v23_syncbase_NeighborhoodNewScan(cbs C.v23_syncbase_NeighborhoodScanCallbac
 		return
 	}
 
+	_, userBlessings, err := util.AppAndUserPatternFromBlessings(security.DefaultBlessingNames(v23.GetPrincipal(b.Ctx))...)
+	if err != nil {
+		cErr.init(err)
+		return
+	}
+
 	// Forward the scan results to the callback.
 	go func() {
 		for {
 			peer, ok := <-scanChan
 			if !ok {
 				break
+			}
+			if peer.Blessings == string(userBlessings) {
+				continue // Skip scan results that include yourself.
 			}
 			cPeer := C.v23_syncbase_AppPeer{}
 			cPeer.init(peer)
