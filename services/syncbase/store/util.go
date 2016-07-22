@@ -5,6 +5,8 @@
 package store
 
 import (
+	"strconv"
+
 	"v.io/v23/context"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -86,7 +88,7 @@ func Get(ctx *context.T, st StoreReader, k string, v interface{}) error {
 	bytes, err := st.Get([]byte(k), nil)
 	if err != nil {
 		if verror.ErrorID(err) == ErrUnknownKey.ID {
-			return verror.New(verror.ErrNoExist, ctx, k)
+			return verror.New(verror.ErrNoExist, ctx, strconv.Quote(k))
 		}
 		return verror.New(verror.ErrInternal, ctx, err)
 	}
