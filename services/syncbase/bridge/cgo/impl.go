@@ -1086,6 +1086,16 @@ func v23_syncbase_RowDelete(cName, cBatchHandle C.v23_syncbase_String, cErr *C.v
 ////////////////////////////////////////
 // Misc utilities
 
+//export v23_syncbase_DecodeId
+func v23_syncbase_DecodeId(cName C.v23_syncbase_String, cDecoded *C.v23_syncbase_Id, cErr *C.v23_syncbase_VError) {
+	id, err := util.DecodeId(cName.extract())
+	if err != nil {
+		cErr.init(err)
+	} else {
+		cDecoded.init(id)
+	}
+}
+
 //export v23_syncbase_Encode
 func v23_syncbase_Encode(cName C.v23_syncbase_String, cEncoded *C.v23_syncbase_String) {
 	cEncoded.init(util.Encode(cName.extract()))
