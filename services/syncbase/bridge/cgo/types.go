@@ -6,6 +6,9 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"strings"
+	"unicode/utf8"
 	"unsafe"
 
 	"v.io/v23/security/access"
@@ -13,6 +16,7 @@ import (
 	"v.io/v23/syncbase"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/discovery"
 )
 
@@ -274,6 +278,9 @@ func (x *C.v23_syncbase_Permissions) extract() access.Permissions {
 
 func (x *C.v23_syncbase_String) init(s string) {
 	x.n = C.int(len(s))
+	if !utf8.ValidString(s) {
+		panic(fmt.Sprintf("v23_syncbase_String contains non-UTF8 characters: %q", s))
+	}
 	x.p = C.CString(s)
 }
 
@@ -428,8 +435,16 @@ func (x *C.v23_syncbase_VError) init(err error) {
 	}
 	x.id.init(string(verror.ErrorID(err)))
 	x.actionCode = C.uint(verror.Action(err))
-	x.msg.init(err.Error())
-	x.stack.init(verror.Stack(err).String())
+	sErr := err.Error()
+	if !utf8.ValidString(sErr) {
+		vlog.Errorf("v23_syncbase_VError message has non-UTF8 characters: %q", sErr)
+	}
+	x.msg.init(escapeNonUnicode(sErr))
+	sStack := verror.Stack(err).String()
+	if !utf8.ValidString(sStack) {
+		vlog.Errorf("v23_syncbase_VError stack has non-UTF8 characters: %q", sStack)
+	}
+	x.stack.init(escapeNonUnicode(sStack))
 }
 
 func (x *C.v23_syncbase_VError) free() {
@@ -437,6 +452,17 @@ func (x *C.v23_syncbase_VError) free() {
 	x.actionCode = C.uint(0)
 	x.msg.free()
 	x.stack.free()
+}
+
+// escapeNonUnicode converts all non-Unicode characters to the Unicode "unknown
+// character".
+func escapeNonUnicode(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == utf8.RuneError {
+			return '\ufffd' // Unicode "unknown character".
+		}
+		return r
+	}, s)
 }
 
 ////////////////////////////////////////////////////////////
