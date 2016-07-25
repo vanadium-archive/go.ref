@@ -9,6 +9,8 @@ import (
 )
 
 var invalidBlessingPatterns = []string{
+	",",
+	"a,b",
 	":",
 	"a:",
 	":b",
@@ -29,34 +31,12 @@ var validBlessingPatterns = []string{
 	"v.io:foo:bar",
 	"v.io:a:admin@myapp.com",
 	"v.io:o:app:user",
-	"\x00",
-	"\xfb",
-	"a\x00",
+	"\xfa",
 	"a\xfb",
 	"안녕하세요",
-	// 16 4-byte runes => 64 bytes
-	strings.Repeat("𠜎", 16),
 }
 
-var invalidIdentifiers = []string{
-	"/",
-	"a/b",
-	":",
-	"a:b",
-	"*",
-	"\x00",
-	"\x01",
-	"\xfa",
-	"\xfb",
-	"@@",
-	"dev.v.io/a/admin@myapp.com",
-	"dev.v.io:a:admin@myapp.com",
-	"안녕하세요",
-	// 16 4-byte runes => 64 bytes
-	strings.Repeat("𠜎", 16),
-}
-
-var validIdentifiers = []string{
+var validNames = []string{
 	"a",
 	"B",
 	"a_",
@@ -68,23 +48,30 @@ var validIdentifiers = []string{
 	"foobar",
 	"foo_bar",
 	"BARBAZ",
-	// 64 bytes
-	"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcd",
-}
-
-var universallyInvalidNames = []string{
-	"",
-	"\xfc",
-	"\xfd",
-	"\xfe",
-	"\xff",
-	"a\xfcb",
-	"a\xfdb",
-	"a\xfeb",
-	"a\xffb",
+	"/",
+	"a/b",
+	":",
+	"a:b",
+	"*",
+	"\xfa",
+	"a\xfb",
+	"@@",
+	"dev.v.io/a/admin@myapp.com",
+	"dev.v.io:a:admin@myapp.com",
+	",",
+	"a,b",
+	" ",
+	"foo bar",
+	"foo-bar/baz42",
+	"8T:j=re{*(TfF_.U9VG\"{2g:;Z-/~Ibm}&.p%7Zf:I{K~b8;Di\\!rA@k",
+	"안녕하세요",
 }
 
 var longNames = []string{
+	// 64 bytes
+	"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcd",
+	// 16 4-byte runes => 64 bytes
+	strings.Repeat("𠜎", 16),
 	// 65 bytes
 	"abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde",
 	// 16 4-byte runes + 1 more byte => 65 bytes
@@ -99,6 +86,33 @@ var veryLongNames = []string{
 	strings.Repeat("foobar", 1337),
 }
 
+var universallyInvalidIdParts = []string{
+	// disallow empty
+	"",
+	// disallow Unicode control characters (00-1F, 7F, 80-9F)
+	"\x00",
+	"a\x00b",
+	"\x01",
+	"\x07",
+	"\x1f",
+	"\x7f",
+	"\u0080",
+	"\u0091",
+	"\u009f",
+	"a\x01b",
+	"a\x7fb",
+	"a\u0091b",
+	// disallow bytes FC-FF (invalid Unicode)
+	"\xfc",
+	"\xfd",
+	"\xfe",
+	"\xff",
+	"a\xfcb",
+	"a\xfdb",
+	"a\xfeb",
+	"a\xffb",
+}
+
 func concat(slices ...[]string) []string {
 	var res []string
 	for _, slice := range slices {
@@ -109,13 +123,13 @@ func concat(slices ...[]string) []string {
 
 var (
 	OkAppUserBlessings    []string = concat(validBlessingPatterns, longNames)
-	NotOkAppUserBlessings []string = concat(universallyInvalidNames, invalidBlessingPatterns, veryLongNames)
+	NotOkAppUserBlessings []string = concat(universallyInvalidIdParts, invalidBlessingPatterns, veryLongNames)
 
-	OkDbCxNames    []string = validIdentifiers
-	NotOkDbCxNames []string = concat(universallyInvalidNames, invalidIdentifiers, longNames, veryLongNames)
+	OkDbCxNames    []string = concat(validNames, longNames)
+	NotOkDbCxNames []string = concat(universallyInvalidIdParts, veryLongNames)
 )
 
 var (
-	OkRowKeys    []string = concat(validIdentifiers, invalidIdentifiers, longNames, veryLongNames)
-	NotOkRowKeys []string = universallyInvalidNames
+	OkRowKeys    []string = concat(validNames, longNames, veryLongNames)
+	NotOkRowKeys []string = universallyInvalidIdParts
 )

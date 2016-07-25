@@ -71,7 +71,11 @@ func getResolutionType(oid string, schema *wire.SchemaMetadata) wire.ResolverTyp
 // applies to the given oid.
 // TODO(jlodhia): Implement Type based matching.
 func isRuleApplicable(oid string, rule *wire.CrRule) bool {
-	collection, rowKey := common.ParseRowKeyOrDie(oid)
+	collection, rowKey, err := common.ParseRowKey(oid)
+	if err != nil {
+		// TODO(ivanpi): Quarantine database instead.
+		vlog.Fatal(err)
+	}
 	if rule.CollectionId != (wire.Id{}) && collection != rule.CollectionId {
 		return false
 	}

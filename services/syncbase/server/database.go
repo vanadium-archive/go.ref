@@ -717,9 +717,15 @@ func (s *kvs) Advance() bool {
 		if s.it[s.curr].Advance() {
 			// key
 			keyBytes := s.it[s.curr].Key(nil)
-			parts := common.SplitNKeyParts(string(keyBytes), 3)
+			_, row, err := common.ParseRowKey(string(keyBytes))
+			if err != nil {
+				s.validRow = false
+				s.err = err
+				s.Cancel() // to cancel iterators after s.curr
+				return false
+			}
 			// TODO(rogulenko): Check access for the key.
-			s.currKey = parts[2]
+			s.currKey = row
 			// value
 			valueBytes := s.it[s.curr].Value(nil)
 			var currValue *vom.RawBytes

@@ -15,6 +15,9 @@ import (
 	"v.io/x/lib/vlog"
 )
 
+// TODO(ivanpi): Switch helpers here and in v23 to verror and eliminate wrapping
+// into verror.ErrInternal at callsites.
+
 // JoinKeyParts builds keys for accessing data in the storage engine.
 func JoinKeyParts(parts ...string) string {
 	return strings.Join(parts, KeyPartSep)
@@ -67,16 +70,6 @@ func ParseRowKey(key string) (collection wire.Id, row string, err error) {
 		return wire.Id{}, "", fmt.Errorf("ParseRowKey: invalid collection %q: %v", parts[1], err)
 	}
 	return cxId, parts[2], nil
-}
-
-// ParseRowKeyOrDie calls ParseRowKey and panics on error.
-func ParseRowKeyOrDie(key string) (collection wire.Id, row string) {
-	collection, row, err := ParseRowKey(key)
-	if err != nil {
-		// TODO(ivanpi): Get rid of *OrDie() functions. Always log internal errors.
-		vlog.Fatal(err)
-	}
-	return collection, row
 }
 
 // ParseCollectionPermsKey extracts the collection id from the given storage

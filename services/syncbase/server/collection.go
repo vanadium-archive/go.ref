@@ -202,16 +202,18 @@ func (c *collectionReq) Scan(ctx *context.T, call wire.CollectionScanServerCall,
 		key, value := []byte{}, []byte{}
 		for it.Advance() {
 			key, value = it.Key(key), it.Value(value)
-			// See comment in util/constants.go for why we use SplitNKeyParts.
-			parts := common.SplitNKeyParts(string(key), 3)
-			externalKey := parts[2]
+			_, row, err := common.ParseRowKey(string(key))
+			if err != nil {
+				it.Cancel()
+				return verror.New(verror.ErrInternal, ctx, err)
+			}
 			var rawBytes *vom.RawBytes
 			if err := vom.Decode(value, &rawBytes); err != nil {
 				// TODO(m3b): Is this the correct behaviour on an encoding error here?
 				it.Cancel()
 				return err
 			}
-			if err := sender.Send(wire.KeyValue{Key: externalKey, Value: rawBytes}); err != nil {
+			if err := sender.Send(wire.KeyValue{Key: row, Value: rawBytes}); err != nil {
 				it.Cancel()
 				return err
 			}

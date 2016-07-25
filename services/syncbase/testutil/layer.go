@@ -94,9 +94,29 @@ func TestCreate(t *testing.T, ctx *context.T, i interface{}) {
 	assertExists(t, ctx, self3, "self3", false)
 }
 
+func takeEveryNth(strs []string, n int) []string {
+	var res []string
+	for i, s := range strs {
+		if i%n == 0 {
+			res = append(res, s)
+		}
+	}
+	return res
+}
+
 // Tests that Create() checks name validity.
 func TestCreateNameValidation(t *testing.T, ctx *context.T, i interface{}, okNames, notOkNames []string) {
 	parent := makeLayer(i)
+
+	// Race tests run out of memory when all combinations are run.
+	// TODO(ivanpi): Investigate further. It may be necessary to split up the test
+	// or the v23/syncbase package.
+	if testutil.RaceEnabled {
+		// Use 1/4 of the samples for the race test.
+		okNames = takeEveryNth(okNames, 4)
+		notOkNames = takeEveryNth(notOkNames, 4)
+	}
+
 	for _, name := range okNames {
 		if err := parent.Child(name).Create(ctx, nil); err != nil {
 			t.Fatalf("Create(%q) failed: %v", name, err)
@@ -240,6 +260,16 @@ func copyAndSortStrings(strs []string) []string {
 
 func TestListChildIds(t *testing.T, ctx *context.T, rootp security.Principal, i interface{}, blessings, names []string) {
 	self := makeLayer(i)
+
+	// Race tests run out of memory when all combinations are run.
+	// TODO(ivanpi): Investigate further. It may be necessary to split up the test
+	// or the v23/syncbase package.
+	if testutil.RaceEnabled {
+		// Use 1/2 of the names and blessings for the race test, giving 1/4 of the
+		// total Id samples.
+		blessings = takeEveryNth(blessings, 2)
+		names = takeEveryNth(names, 2)
+	}
 
 	var got, want []wire.Id
 	var err error

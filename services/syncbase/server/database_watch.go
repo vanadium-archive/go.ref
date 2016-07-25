@@ -200,11 +200,12 @@ func (c *collectionReq) scanInitialState(ctx *context.T, call rpc.ServerCall, se
 	key, value := []byte{}, []byte{}
 	for rIt.Advance() {
 		key, value = rIt.Key(key), rIt.Value(value)
-		// See comment in util/constants.go for why we use SplitNKeyParts.
-		parts := common.SplitNKeyParts(string(key), 3)
-		externalKey := parts[2]
+		_, row, err := common.ParseRowKey(string(key))
+		if err != nil {
+			return verror.New(verror.ErrInternal, ctx, err)
+		}
 		// Filter out unnecessary rows.
-		if !watchFilter.RowMatches(c.id, externalKey) {
+		if !watchFilter.RowMatches(c.id, row) {
 			continue
 		}
 		// Send row.
@@ -213,7 +214,7 @@ func (c *collectionReq) scanInitialState(ctx *context.T, call rpc.ServerCall, se
 			return verror.New(verror.ErrInternal, ctx, err)
 		}
 		if err := sender.addChange(
-			naming.Join(pubutil.EncodeId(c.id), externalKey),
+			naming.Join(pubutil.EncodeId(c.id), row),
 			watch.Exists,
 			&wire.StoreChange{
 				Value: valueAsRawBytes,
