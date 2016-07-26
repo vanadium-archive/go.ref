@@ -13,7 +13,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	wire "v.io/v23/services/syncbase"
-	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/syncbase/common"
@@ -70,7 +69,7 @@ func unixNanoToTime(timestamp int64) time.Time {
 // toCollectionPrefixStr converts a collection id to a string of the form used
 // for storing perms and row data in the underlying storage engine.
 func toCollectionPrefixStr(c wire.Id) string {
-	return common.JoinKeyParts(pubutil.EncodeId(c), "")
+	return common.JoinKeyParts(common.EncodeIdKeyPart(c), "")
 }
 
 // toRowKey prepends RowPrefix to what is presumably a "<collection>:<row>"

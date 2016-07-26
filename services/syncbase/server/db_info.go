@@ -15,13 +15,12 @@ package server
 import (
 	"v.io/v23/context"
 	wire "v.io/v23/services/syncbase"
-	pubutil "v.io/v23/syncbase/util"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/store"
 )
 
 func dbInfoStKey(dbId wire.Id) string {
-	return common.JoinKeyParts(common.DbInfoPrefix, pubutil.EncodeId(dbId))
+	return common.JoinKeyParts(common.DbInfoPrefix, common.EncodeIdKeyPart(dbId))
 }
 
 // getDbInfo reads data from the storage engine.

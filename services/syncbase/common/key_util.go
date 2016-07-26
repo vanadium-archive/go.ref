@@ -51,6 +51,24 @@ func FirstKeyPart(key string) string {
 	return SplitNKeyParts(key, 2)[0]
 }
 
+// EncodeIdKeyPart encodes an id for embedding in a store key. No escaping is
+// necessary since valid ids are guaranteed not to contain reserved key bytes
+// such as '\xfe'. Ids are encoded as "<blessing>\x00<name>\x00" to preserve
+// the natural sort order (first by blessing, then by name) even when embedded
+// in store keys.
+func EncodeIdKeyPart(id wire.Id) string {
+	return id.Blessing + IdPartSep + id.Name + IdPartSep
+}
+
+// DecodeIdKeyPart is the inverse of EncodeIdKeyPart.
+func DecodeIdKeyPart(idKeyPart string) (wire.Id, error) {
+	parts := strings.SplitN(idKeyPart, IdPartSep, 3)
+	if len(parts) < 3 || parts[2] != "" {
+		return wire.Id{}, fmt.Errorf("DecodeIdKeyPart: invalid id part %q", idKeyPart)
+	}
+	return wire.Id{Blessing: parts[0], Name: parts[1]}, nil
+}
+
 // IsRowKey returns true iff 'key' is a storage engine key for a row.
 func IsRowKey(key string) bool {
 	return FirstKeyPart(key) == RowPrefix
@@ -65,7 +83,7 @@ func ParseRowKey(key string) (collection wire.Id, row string, err error) {
 	if len(parts) < 3 || pfx != RowPrefix {
 		return wire.Id{}, "", fmt.Errorf("ParseRowKey: invalid key %q", key)
 	}
-	cxId, err := util.DecodeId(parts[1])
+	cxId, err := DecodeIdKeyPart(parts[1])
 	if err != nil {
 		return wire.Id{}, "", fmt.Errorf("ParseRowKey: invalid collection %q: %v", parts[1], err)
 	}
@@ -82,7 +100,7 @@ func ParseCollectionPermsKey(key string) (collection wire.Id, err error) {
 	if len(parts) < 3 || pfx != CollectionPermsPrefix || parts[2] != "" {
 		return wire.Id{}, fmt.Errorf("ParseCollectionPermsKey: invalid key %q", key)
 	}
-	cxId, err := util.DecodeId(parts[1])
+	cxId, err := DecodeIdKeyPart(parts[1])
 	if err != nil {
 		return wire.Id{}, fmt.Errorf("ParseCollectionPermsKey: invalid collection %q: %v", parts[1], err)
 	}

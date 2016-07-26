@@ -17,7 +17,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
-	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/x/ref/services/syncbase/common"
 	"v.io/x/ref/services/syncbase/server/interfaces"
@@ -190,12 +189,12 @@ func makeRowKey(key string) string {
 }
 
 func makeRowKeyFromParts(cxBlessing, cxName, row string) string {
-	return common.JoinKeyParts(common.RowPrefix, pubutil.EncodeId(wire.Id{cxBlessing, cxName}), row)
+	return common.JoinKeyParts(common.RowPrefix, common.EncodeIdKeyPart(wire.Id{cxBlessing, cxName}), row)
 }
 
 func makeCollectionPermsKey(cxBlessing, cxName string) string {
 	// TODO(rdaoud,ivanpi): See hack in collection.go.
-	return common.JoinKeyParts(common.CollectionPermsPrefix, pubutil.EncodeId(wire.Id{cxBlessing, cxName}), "")
+	return common.JoinKeyParts(common.CollectionPermsPrefix, common.EncodeIdKeyPart(wire.Id{cxBlessing, cxName}), "")
 }
 
 // conflictResolverStream mock for testing.

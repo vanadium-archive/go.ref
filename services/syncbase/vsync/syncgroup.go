@@ -1000,13 +1000,13 @@ func (s syncgroups) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 func (s syncgroups) Less(i, j int) bool {
-	if s[i].Name < s[j].Name {
+	if s[i].Blessing < s[j].Blessing {
 		return true
 	}
-	if s[i].Name > s[j].Name {
+	if s[i].Blessing > s[j].Blessing {
 		return false
 	}
-	return s[i].Blessing < s[j].Blessing
+	return s[i].Name < s[j].Name
 }
 
 func (sd *syncDatabase) ListSyncgroups(ctx *context.T, call rpc.ServerCall) ([]wire.Id, error) {

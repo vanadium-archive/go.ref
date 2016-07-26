@@ -10,7 +10,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	wire "v.io/v23/services/syncbase"
-	pubutil "v.io/v23/syncbase/util"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/ref/services/syncbase/common"
@@ -269,5 +268,5 @@ func (c *collectionReq) permsKey() string {
 }
 
 func (c *collectionReq) stKeyPart() string {
-	return pubutil.EncodeId(c.id)
+	return common.EncodeIdKeyPart(c.id)
 }

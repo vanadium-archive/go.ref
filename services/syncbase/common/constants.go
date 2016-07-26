@@ -28,6 +28,11 @@ const (
 	// range. Must be greater than any character allowed in client-specified keys.
 	PrefixRangeLimitSuffix = "\xff"
 
+	// IdPartSep is a separator and terminator for id encoding in keys. NUL was
+	// chosen to make ids encoded as <blessing><sep><name><sep> sorted, first by
+	// blessing, then by name.
+	IdPartSep = "\x00"
+
 	// AppDir is the filesystem directory that holds all app databases.
 	AppDir = "apps"
 

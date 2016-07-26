@@ -427,8 +427,8 @@ func testInit(t *testing.T, lfile, rfile string, sg bool) (*mockService, *initia
 		}
 
 		wantVecs = interfaces.Knowledge{
-			"mockuser,foo\xfe": interfaces.GenVector{10: 0},
-			"mockuser,bar\xfe": interfaces.GenVector{10: 0},
+			"mockuser\x00foo\x00\xfe": interfaces.GenVector{10: 0},
+			"mockuser\x00bar\x00\xfe": interfaces.GenVector{10: 0},
 		}
 	}
 

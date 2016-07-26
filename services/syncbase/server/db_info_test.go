@@ -15,7 +15,7 @@ func TestStKey(t *testing.T) {
 		dbId  wire.Id
 		stKey string
 	}{
-		{wire.Id{Blessing: "app1", Name: "db1"}, "i\xfeapp1,db1"},
+		{wire.Id{Blessing: "app1", Name: "db1"}, "i\xfeapp1\x00db1\x00"},
 	}
 	for _, test := range tests {
 		got, want := dbInfoStKey(test.dbId), test.stKey
