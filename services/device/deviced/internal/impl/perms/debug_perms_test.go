@@ -98,7 +98,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	}
 	appGlobtests := []utiltest.GlobTestVector{
 		{naming.Join("appV1", "__debug"), "*",
-			[]string{"logs", "pprof", "stats", "vtrace"},
+			[]string{"http", "logs", "pprof", "stats", "vtrace"},
 		},
 		{naming.Join("appV1", "__debug", "stats", "system"),
 			"start-time*",
@@ -216,7 +216,7 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 	// Create some globbing test vectors.
 	dmGlobtests := []utiltest.GlobTestVector{
 		{naming.Join("dm", "__debug"), "*",
-			[]string{"logs", "pprof", "stats", "vtrace"},
+			[]string{"http", "logs", "pprof", "stats", "vtrace"},
 		},
 		{naming.Join("dm", "__debug", "stats", "system"),
 			"start-time*",
