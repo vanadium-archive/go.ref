@@ -162,7 +162,7 @@ func TestBlobFetchSimple(t *testing.T) {
 		ffd.mu.Lock()
 		ffd.fetchesRemaining++
 		ffd.mu.Unlock()
-		bf.StartFetchingBlob(svc.sync.bst, blobRef, &ffd, fakeBlobFetchFunc)
+		bf.StartFetchingBlob(svc.sync.bst, blobRef, &ffd, time.Now().Add(10*time.Minute), fakeBlobFetchFunc)
 	}
 
 	// Wait until all fetching is done.  The test would deadlock here if
@@ -202,7 +202,7 @@ func TestBlobFetchSimple(t *testing.T) {
 		ffd.mu.Unlock()
 		for j := 0; j != 3; j++ {
 			// Issue duplicate requests; the duplicates will be ignored.
-			bf.StartFetchingBlob(svc.sync.bst, blobRef, &ffd, fakeBlobFetchFunc)
+			bf.StartFetchingBlob(svc.sync.bst, blobRef, &ffd, time.Now().Add(10*time.Minute), fakeBlobFetchFunc)
 		}
 	}
 	// Wait for fetches to complete.  We would deadlock here if our fetch

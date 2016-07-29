@@ -484,8 +484,7 @@ func sgPriorityLowerThan(a *interfaces.SgPriority, b *interfaces.SgPriority) boo
 		// Nothing has higher priority than a server.
 		return false
 	} else if a.DevType != b.DevType {
-		// Different device types have priority defined by the type.
-		return b.DevType < a.DevType
+		return b.DevType == wire.BlobDevTypeServer || b.DevType == wire.BlobDevTypeNormal
 	} else if b.ServerTime.After(a.ServerTime.Add(blobRecencyTimeSlop)) {
 		// Devices with substantially fresher data from a server have higher priority.
 		return true
@@ -517,8 +516,13 @@ func updateSyncgroupPriority(ctx *context.T, local *interfaces.SgPriority, remot
 }
 
 // updateAllSyncgroupPriorities updates local syncgroup blob-ownership
-// priorities, based on priority data from a peer.
-func updateAllSyncgroupPriorities(ctx *context.T, bst blob.BlobStore, remoteSgPriorities interfaces.SgPriorities) (anyErr error) {
+// priorities, based on priority data from a peer.  It also returns in
+// blobsToHandoff a vector of BlobRefs that the local host should hand off
+// to the remote one, if it can.
+func updateAllSyncgroupPriorities(ctx *context.T, bst blob.BlobStore, remoteSgPriorities interfaces.SgPriorities) (
+	blobsToHandoff map[wire.BlobRef]interfaces.BlobSharesBySyncgroup, anyErr error) {
+
+	var leafToNonLeafGroups sgSet
 	for sgId, remoteSgPriority := range remoteSgPriorities {
 		var perSyncgroup blob.PerSyncgroup
 		err := bst.GetPerSyncgroup(ctx, sgId, &perSyncgroup)
@@ -533,8 +537,37 @@ func updateAllSyncgroupPriorities(ctx *context.T, bst blob.BlobStore, remoteSgPr
 		if err != nil && anyErr == nil {
 			anyErr = err
 		}
+		if perSyncgroup.Priority.DevType == wire.BlobDevTypeLeaf &&
+			remoteSgPriority.DevType != wire.BlobDevTypeLeaf {
+			if leafToNonLeafGroups == nil {
+				leafToNonLeafGroups = make(sgSet)
+			}
+			leafToNonLeafGroups[sgId] = struct{}{}
+		}
 	}
-	return anyErr
+	if leafToNonLeafGroups != nil {
+		var bms blob.BlobMetadataStream = bst.NewBlobMetadataStream(ctx)
+		for bms.Advance() {
+			var ownerShares interfaces.BlobSharesBySyncgroup = bms.BlobMetadata().OwnerShares
+			var donateShares interfaces.BlobSharesBySyncgroup
+			for gid := range leafToNonLeafGroups {
+				if ownerShares[gid] > 0 {
+					if donateShares == nil {
+						donateShares = make(interfaces.BlobSharesBySyncgroup)
+					}
+					donateShares[gid] = 1
+				}
+			}
+			if donateShares != nil {
+				if blobsToHandoff == nil {
+					blobsToHandoff = make(map[wire.BlobRef]interfaces.BlobSharesBySyncgroup)
+				}
+				blobsToHandoff[bms.BlobId()] = donateShares
+			}
+		}
+	}
+
+	return blobsToHandoff, anyErr
 }
 
 // addSyncgroupPriorities inserts into map sgPriMap the syncgroups in sgIds,

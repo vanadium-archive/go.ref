@@ -128,6 +128,9 @@ type syncService struct {
 
 	// Naming prefix at which debugging information is exported.
 	statPrefix string
+
+	blobFetcherMu sync.Mutex   // protects blobFetcher
+	blobFetcher   *blobFetcher // a pointer to this syncService's blobFetcher
 }
 
 // syncDatabase contains the metadata for syncing a database. This struct is

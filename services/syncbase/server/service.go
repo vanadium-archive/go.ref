@@ -358,6 +358,22 @@ func (s *service) DevModeGetTime(ctx *context.T, call rpc.ServerCall) (time.Time
 	return s.vclock.Now()
 }
 
+// DevModeGetBlobShares returns the number of ownership shares for the
+// specified blob held by the server.  It is available only when the --dev
+// flag has been passed to the server.
+func (s *service) DevModeGetBlobShares(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) (
+	shares map[string]int32, err error) {
+
+	allowGetBlobShares := []access.Tag{access.Admin}
+	if !s.opts.DevMode {
+		return shares, wire.NewErrNotInDevMode(ctx)
+	}
+	if _, err := common.GetPermsWithAuth(ctx, call, s, allowGetBlobShares, s.st); err != nil {
+		return shares, err
+	}
+	return s.sync.GetBlobShares(ctx, call, br)
+}
+
 func (s *service) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	allowSetPermissions := []access.Tag{access.Admin}
 

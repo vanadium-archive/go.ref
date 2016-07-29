@@ -2590,12 +2590,12 @@ type SyncClientMethods interface {
 	// AcceptedBlobOwnership() call.
 	FetchBlobRecipe(_ *context.T, br syncbase.BlobRef, callerName string, mySgPriorities SgPriorities, _ ...rpc.CallOpt) (SyncFetchBlobRecipeClientCall, error)
 	FetchChunks(*context.T, ...rpc.CallOpt) (SyncFetchChunksClientCall, error)
-	// RequestTakeBlob indicates that the caller wishes the server to take
-	// some blob ownership shares for various syncgroups for the specified blob.
+	// RequestTakeBlobs indicates that the caller wishes the server to take
+	// some blob ownership shares for various syncgroups for the specified blobs.
 	// If the server chooses to act on the request, it may call FetchBlob/FetchBlobRecipe,
 	// and ultimately AcceptedBlobOwnership().
 	// callerName is the syncbase Id of the caller, expressed as a string.
-	RequestTakeBlob(_ *context.T, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup, _ ...rpc.CallOpt) error
+	RequestTakeBlobs(_ *context.T, callerName string, blobRefToShares map[syncbase.BlobRef]BlobSharesBySyncgroup, _ ...rpc.CallOpt) error
 	// AcceptedBlobOwnership tells the server that the client callerName (a
 	// syncbase Id expressed as a string) has accepted blob ownership of a
 	// specified number of shares for blob br.  The server may decrement
@@ -2606,6 +2606,12 @@ type SyncClientMethods interface {
 	// server is likely to keep the blob itself, plus its syncbase Id
 	// expressed as a string.
 	AcceptedBlobOwnership(_ *context.T, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup, _ ...rpc.CallOpt) (serverName string, keepingBlob bool, _ error)
+	// GetBlobShares returns the number of ownership shares for the specified blob
+	// held by the server.  It is used by the DevModeGetBlobShares() call in the
+	// service.  It uses the "map[string]int32" type, rather than
+	// interfaces.BlobSharesBySyncgroup, so that the client of this call code doesn't
+	// need to reach into the sync service's type definitions.
+	GetBlobShares(_ *context.T, br syncbase.BlobRef, _ ...rpc.CallOpt) (map[string]int32, error)
 }
 
 // SyncClientStub adds universal methods to SyncClientMethods.
@@ -2679,13 +2685,18 @@ func (c implSyncClientStub) FetchChunks(ctx *context.T, opts ...rpc.CallOpt) (oc
 	return
 }
 
-func (c implSyncClientStub) RequestTakeBlob(ctx *context.T, i0 syncbase.BlobRef, i1 string, i2 BlobSharesBySyncgroup, opts ...rpc.CallOpt) (err error) {
-	err = v23.GetClient(ctx).Call(ctx, c.name, "RequestTakeBlob", []interface{}{i0, i1, i2}, nil, opts...)
+func (c implSyncClientStub) RequestTakeBlobs(ctx *context.T, i0 string, i1 map[syncbase.BlobRef]BlobSharesBySyncgroup, opts ...rpc.CallOpt) (err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "RequestTakeBlobs", []interface{}{i0, i1}, nil, opts...)
 	return
 }
 
 func (c implSyncClientStub) AcceptedBlobOwnership(ctx *context.T, i0 syncbase.BlobRef, i1 string, i2 BlobSharesBySyncgroup, opts ...rpc.CallOpt) (o0 string, o1 bool, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "AcceptedBlobOwnership", []interface{}{i0, i1, i2}, []interface{}{&o0, &o1}, opts...)
+	return
+}
+
+func (c implSyncClientStub) GetBlobShares(ctx *context.T, i0 syncbase.BlobRef, opts ...rpc.CallOpt) (o0 map[string]int32, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "GetBlobShares", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -3094,12 +3105,12 @@ type SyncServerMethods interface {
 	// AcceptedBlobOwnership() call.
 	FetchBlobRecipe(_ *context.T, _ SyncFetchBlobRecipeServerCall, br syncbase.BlobRef, callerName string, mySgPriorities SgPriorities) (shares BlobSharesBySyncgroup, _ error)
 	FetchChunks(*context.T, SyncFetchChunksServerCall) error
-	// RequestTakeBlob indicates that the caller wishes the server to take
-	// some blob ownership shares for various syncgroups for the specified blob.
+	// RequestTakeBlobs indicates that the caller wishes the server to take
+	// some blob ownership shares for various syncgroups for the specified blobs.
 	// If the server chooses to act on the request, it may call FetchBlob/FetchBlobRecipe,
 	// and ultimately AcceptedBlobOwnership().
 	// callerName is the syncbase Id of the caller, expressed as a string.
-	RequestTakeBlob(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup) error
+	RequestTakeBlobs(_ *context.T, _ rpc.ServerCall, callerName string, blobRefToShares map[syncbase.BlobRef]BlobSharesBySyncgroup) error
 	// AcceptedBlobOwnership tells the server that the client callerName (a
 	// syncbase Id expressed as a string) has accepted blob ownership of a
 	// specified number of shares for blob br.  The server may decrement
@@ -3110,6 +3121,12 @@ type SyncServerMethods interface {
 	// server is likely to keep the blob itself, plus its syncbase Id
 	// expressed as a string.
 	AcceptedBlobOwnership(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup) (serverName string, keepingBlob bool, _ error)
+	// GetBlobShares returns the number of ownership shares for the specified blob
+	// held by the server.  It is used by the DevModeGetBlobShares() call in the
+	// service.  It uses the "map[string]int32" type, rather than
+	// interfaces.BlobSharesBySyncgroup, so that the client of this call code doesn't
+	// need to reach into the sync service's type definitions.
+	GetBlobShares(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef) (map[string]int32, error)
 }
 
 // SyncServerStubMethods is the server interface containing
@@ -3208,12 +3225,12 @@ type SyncServerStubMethods interface {
 	// AcceptedBlobOwnership() call.
 	FetchBlobRecipe(_ *context.T, _ *SyncFetchBlobRecipeServerCallStub, br syncbase.BlobRef, callerName string, mySgPriorities SgPriorities) (shares BlobSharesBySyncgroup, _ error)
 	FetchChunks(*context.T, *SyncFetchChunksServerCallStub) error
-	// RequestTakeBlob indicates that the caller wishes the server to take
-	// some blob ownership shares for various syncgroups for the specified blob.
+	// RequestTakeBlobs indicates that the caller wishes the server to take
+	// some blob ownership shares for various syncgroups for the specified blobs.
 	// If the server chooses to act on the request, it may call FetchBlob/FetchBlobRecipe,
 	// and ultimately AcceptedBlobOwnership().
 	// callerName is the syncbase Id of the caller, expressed as a string.
-	RequestTakeBlob(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup) error
+	RequestTakeBlobs(_ *context.T, _ rpc.ServerCall, callerName string, blobRefToShares map[syncbase.BlobRef]BlobSharesBySyncgroup) error
 	// AcceptedBlobOwnership tells the server that the client callerName (a
 	// syncbase Id expressed as a string) has accepted blob ownership of a
 	// specified number of shares for blob br.  The server may decrement
@@ -3224,6 +3241,12 @@ type SyncServerStubMethods interface {
 	// server is likely to keep the blob itself, plus its syncbase Id
 	// expressed as a string.
 	AcceptedBlobOwnership(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef, callerName string, shares BlobSharesBySyncgroup) (serverName string, keepingBlob bool, _ error)
+	// GetBlobShares returns the number of ownership shares for the specified blob
+	// held by the server.  It is used by the DevModeGetBlobShares() call in the
+	// service.  It uses the "map[string]int32" type, rather than
+	// interfaces.BlobSharesBySyncgroup, so that the client of this call code doesn't
+	// need to reach into the sync service's type definitions.
+	GetBlobShares(_ *context.T, _ rpc.ServerCall, br syncbase.BlobRef) (map[string]int32, error)
 }
 
 // SyncServerStub adds universal methods to SyncServerStubMethods.
@@ -3287,12 +3310,16 @@ func (s implSyncServerStub) FetchChunks(ctx *context.T, call *SyncFetchChunksSer
 	return s.impl.FetchChunks(ctx, call)
 }
 
-func (s implSyncServerStub) RequestTakeBlob(ctx *context.T, call rpc.ServerCall, i0 syncbase.BlobRef, i1 string, i2 BlobSharesBySyncgroup) error {
-	return s.impl.RequestTakeBlob(ctx, call, i0, i1, i2)
+func (s implSyncServerStub) RequestTakeBlobs(ctx *context.T, call rpc.ServerCall, i0 string, i1 map[syncbase.BlobRef]BlobSharesBySyncgroup) error {
+	return s.impl.RequestTakeBlobs(ctx, call, i0, i1)
 }
 
 func (s implSyncServerStub) AcceptedBlobOwnership(ctx *context.T, call rpc.ServerCall, i0 syncbase.BlobRef, i1 string, i2 BlobSharesBySyncgroup) (string, bool, error) {
 	return s.impl.AcceptedBlobOwnership(ctx, call, i0, i1, i2)
+}
+
+func (s implSyncServerStub) GetBlobShares(ctx *context.T, call rpc.ServerCall, i0 syncbase.BlobRef) (map[string]int32, error) {
+	return s.impl.GetBlobShares(ctx, call, i0)
 }
 
 func (s implSyncServerStub) Globber() *rpc.GlobState {
@@ -3400,12 +3427,11 @@ var descSync = rpc.InterfaceDesc{
 			Name: "FetchChunks",
 		},
 		{
-			Name: "RequestTakeBlob",
-			Doc:  "// RequestTakeBlob indicates that the caller wishes the server to take\n// some blob ownership shares for various syncgroups for the specified blob.\n// If the server chooses to act on the request, it may call FetchBlob/FetchBlobRecipe,\n// and ultimately AcceptedBlobOwnership().\n// callerName is the syncbase Id of the caller, expressed as a string.",
+			Name: "RequestTakeBlobs",
+			Doc:  "// RequestTakeBlobs indicates that the caller wishes the server to take\n// some blob ownership shares for various syncgroups for the specified blobs.\n// If the server chooses to act on the request, it may call FetchBlob/FetchBlobRecipe,\n// and ultimately AcceptedBlobOwnership().\n// callerName is the syncbase Id of the caller, expressed as a string.",
 			InArgs: []rpc.ArgDesc{
-				{"br", ``},         // syncbase.BlobRef
-				{"callerName", ``}, // string
-				{"shares", ``},     // BlobSharesBySyncgroup
+				{"callerName", ``},      // string
+				{"blobRefToShares", ``}, // map[syncbase.BlobRef]BlobSharesBySyncgroup
 			},
 		},
 		{
@@ -3419,6 +3445,16 @@ var descSync = rpc.InterfaceDesc{
 			OutArgs: []rpc.ArgDesc{
 				{"serverName", ``},  // string
 				{"keepingBlob", ``}, // bool
+			},
+		},
+		{
+			Name: "GetBlobShares",
+			Doc:  "// GetBlobShares returns the number of ownership shares for the specified blob\n// held by the server.  It is used by the DevModeGetBlobShares() call in the\n// service.  It uses the \"map[string]int32\" type, rather than\n// interfaces.BlobSharesBySyncgroup, so that the client of this call code doesn't\n// need to reach into the sync service's type definitions.",
+			InArgs: []rpc.ArgDesc{
+				{"br", ``}, // syncbase.BlobRef
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // map[string]int32
 			},
 		},
 	},

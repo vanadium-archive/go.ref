@@ -114,12 +114,12 @@ type Sync interface {
 	FetchBlobRecipe(br wire.BlobRef, callerName string, mySgPriorities SgPriorities) stream<_, ChunkHash> (shares BlobSharesBySyncgroup | error)
 	FetchChunks() stream<ChunkHash, ChunkData> error
 
-	// RequestTakeBlob indicates that the caller wishes the server to take
-	// some blob ownership shares for various syncgroups for the specified blob.
+	// RequestTakeBlobs indicates that the caller wishes the server to take
+	// some blob ownership shares for various syncgroups for the specified blobs.
 	// If the server chooses to act on the request, it may call FetchBlob/FetchBlobRecipe,
 	// and ultimately AcceptedBlobOwnership().
 	// callerName is the syncbase Id of the caller, expressed as a string.
-	RequestTakeBlob(br wire.BlobRef, callerName string, shares BlobSharesBySyncgroup) error
+	RequestTakeBlobs(callerName string, blobRefToShares map[wire.BlobRef]BlobSharesBySyncgroup) error
 
 	// AcceptedBlobOwnership tells the server that the client callerName (a
 	// syncbase Id expressed as a string) has accepted blob ownership of a
@@ -131,6 +131,13 @@ type Sync interface {
 	// server is likely to keep the blob itself, plus its syncbase Id
 	// expressed as a string.
 	AcceptedBlobOwnership(br wire.BlobRef, callerName string, shares BlobSharesBySyncgroup) (serverName string, keepingBlob bool | error)
+
+	// GetBlobShares returns the number of ownership shares for the specified blob
+	// held by the server.  It is used by the DevModeGetBlobShares() call in the
+	// service.  It uses the "map[string]int32" type, rather than
+	// interfaces.BlobSharesBySyncgroup, so that the client of this call code doesn't
+	// need to reach into the sync service's type definitions.
+	GetBlobShares(br wire.BlobRef) (map[string]int32 | error)
 }
 
 // TODO(ivanpi): Some methods are missing additional parameter handling ({:_}).

@@ -515,12 +515,38 @@ func (s *syncService) FetchChunks(ctx *context.T, call interfaces.SyncFetchChunk
 	return verror.NewErrNotImplemented(ctx)
 }
 
-// RequestTakeBlob tells the server that client wishes the server to take some
-// ownership shares for the blob br.
-func (s *syncService) RequestTakeBlob(ctx *context.T, call rpc.ServerCall,
-	br wire.BlobRef, callerName string, shares interfaces.BlobSharesBySyncgroup) error {
+// RequestTakeBlobs tells the server that client wishes the server to take some
+// ownership shares for the blobs in the map blobRefToShares.
+func (s *syncService) RequestTakeBlobs(ctx *context.T, call rpc.ServerCall,
+	callerName string, blobRefToShares map[wire.BlobRef]interfaces.BlobSharesBySyncgroup) error {
 
-	return verror.NewErrNotImplemented(ctx)
+	var blobRef wire.BlobRef
+	var sgToShares interfaces.BlobSharesBySyncgroup
+	var bf *blobFetcher = s.SyncServiceBlobFetcher()
+	if bf != nil {
+		for blobRef, sgToShares = range blobRefToShares {
+			var blobMetadata blob.BlobMetadata
+			err := s.bst.GetBlobMetadata(ctx, blobRef, &blobMetadata)
+			var shouldFetch bool
+			if err == nil {
+				var gid interfaces.GroupId
+				var sharesToTake int32
+				for gid, sharesToTake = range sgToShares {
+					if sharesToTake > 0 && blobMetadata.OwnerShares[gid] == 0 {
+						shouldFetch = true
+						break
+					}
+				}
+			} else { // if there's no metadata, should fetch the blob
+				shouldFetch = true
+			}
+			if shouldFetch {
+				bf.StartFetchingBlob(s.bst, blobRef, s, time.Now().Add(5*time.Minute),
+					DefaultBlobFetcherFunc)
+			}
+		}
+	}
+	return nil
 }
 
 // AcceptedBlobOwnership tells the server that the caller has accepted
@@ -586,6 +612,23 @@ func (s *syncService) AcceptedBlobOwnership(ctx *context.T, call rpc.ServerCall,
 	}
 	// TODO(m3b): return mttables, as well as just name of syncbase?
 	return s.name, err == nil && totalShares > 0, err
+}
+
+// GetBlobShares returns the number of ownership shares for the specified blob
+// held by the server.  It is used by the DevModeGetBlobShares() call in the
+// service.
+func (s *syncService) GetBlobShares(ctx *context.T, call rpc.ServerCall, br wire.BlobRef) (
+	shares map[string]int32, err error) {
+
+	var blobMetadata blob.BlobMetadata
+	err = s.bst.GetBlobMetadata(ctx, br, &blobMetadata)
+	if err == nil {
+		shares = make(map[string]int32)
+		for sg, shareCount := range blobMetadata.OwnerShares {
+			shares[string(sg)] = shareCount
+		}
+	}
+	return shares, err
 }
 
 ////////////////////////////////////////////////////////////
@@ -763,7 +806,7 @@ func (s *syncService) fetchBlobRemote(ctx *context.T, br wire.BlobRef, statusCal
 					// b) somehow (in signposts?) communicate to peers when the blob has
 					//    reached a "server" so that they may unilaterally drop their shares, or
 					// c) (most likely) sometimes accept shares when we have none even for
-					//    blobs we already have, triggered perhaps via the RequestTakeBlob() call.
+					//    blobs we already have, triggered perhaps via the RequestTakeBlobs() call.
 					var peerName string
 					var peerKeepingBlob bool
 					peerName, peerKeepingBlob, _ = c.AcceptedBlobOwnership(ctx, br, s.name, takingOwnership)

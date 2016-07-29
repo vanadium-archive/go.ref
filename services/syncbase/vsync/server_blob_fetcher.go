@@ -43,6 +43,7 @@ type blobFetchState struct {
 	nextAttempt   time.Time // time of next attempted fetch.
 	err           error     // error recorded on the last fetch.
 	heapIndex     int       // index, if in a heap; -1 if being fetched.
+	expiry        time.Time // additional fetch attempts are not made after this time
 }
 
 // ---------------------------------
@@ -169,10 +170,12 @@ func (bf *blobFetcher) fetchABlob(toFetch *blobFetchState) {
 		sp.FetchAttempts = toFetch.fetchAttempts
 		toFetch.bst.SetSignpost(bf.ctx, toFetch.blobRef, &sp)
 	}
-	if err == nil || bf.ctx.Err() != nil || toFetch.stopFetching { // fetched blob, or we're told not to retry.
+	var nextFetchTime time.Time = time.Now().Add(bf.fetchDelay(toFetch.fetchAttempts))
+	if err == nil || bf.ctx.Err() != nil || toFetch.stopFetching || nextFetchTime.After(toFetch.expiry) {
+		// fetched blob, or we're told not to retry.
 		delete(bf.blobMap, toFetch.blobRef)
 	} else { // failed to fetch blob; try again
-		toFetch.nextAttempt = time.Now().Add(bf.fetchDelay(toFetch.fetchAttempts))
+		toFetch.nextAttempt = nextFetchTime
 		heap.Push(&bf.blobQueue, toFetch)
 	}
 	if toFetch.heapIndex == 0 || bf.curFetcherThreads == bf.maxFetcherThreads {
@@ -201,32 +204,39 @@ func (bf *blobFetcher) fetchDelay(fetchAttempts uint32) time.Duration {
 
 // StartFetchingBlob() adds a blobRef to blobFetcher *bf, if it's not already
 // known to it, and not shutting down.  The client-provided function
-// fetchFunc() will be used to fetch the blob.
+// fetchFunc() will be used to fetch the blob.  Attempts to fetch the blob
+// will continue until expiry, though at least one new attempt will be made,
+// even if after expiry.
 func (bf *blobFetcher) StartFetchingBlob(bst blob.BlobStore, blobRef wire.BlobRef,
-	clientData interface{}, fetchFunc BlobFetcherFunc) {
+	clientData interface{}, expiry time.Time, fetchFunc BlobFetcherFunc) {
 
 	bf.mu.Lock()
-	var bfs *blobFetchState
-	var found bool
-	bfs, found = bf.blobMap[blobRef]
-	if bf.ctx.Err() == nil && !found {
-		bfs = &blobFetchState{
-			bf:         bf,
-			bst:        bst,
-			blobRef:    blobRef,
-			clientData: clientData,
-			fetchFunc:  fetchFunc,
-			heapIndex:  -1,
-		}
-		var sp interfaces.Signpost
-		if err := bst.GetSignpost(bf.ctx, blobRef, &sp); err == nil {
-			bfs.fetchAttempts = sp.FetchAttempts
-			bfs.nextAttempt = time.Now().Add(bf.fetchDelay(bfs.fetchAttempts))
-		}
-		bf.blobMap[blobRef] = bfs
-		heap.Push(&bf.blobQueue, bfs)
-		if bfs.heapIndex == 0 { // a new lowest fetch time
-			bf.startFetchThreadCV.Broadcast()
+	if bf.ctx.Err() == nil {
+		var bfs *blobFetchState
+		var found bool
+		bfs, found = bf.blobMap[blobRef]
+		if !found {
+			bfs = &blobFetchState{
+				bf:         bf,
+				bst:        bst,
+				blobRef:    blobRef,
+				clientData: clientData,
+				fetchFunc:  fetchFunc,
+				expiry:     expiry,
+				heapIndex:  -1,
+			}
+			var sp interfaces.Signpost
+			if err := bst.GetSignpost(bf.ctx, blobRef, &sp); err == nil {
+				bfs.fetchAttempts = sp.FetchAttempts
+				bfs.nextAttempt = time.Now().Add(bf.fetchDelay(bfs.fetchAttempts))
+			}
+			bf.blobMap[blobRef] = bfs
+			heap.Push(&bf.blobQueue, bfs)
+			if bfs.heapIndex == 0 { // a new lowest fetch time
+				bf.startFetchThreadCV.Broadcast()
+			}
+		} else if expiry.After(bfs.expiry) {
+			bfs.expiry = expiry
 		}
 	}
 	bf.mu.Unlock()
@@ -301,7 +311,8 @@ func (s *syncService) serverBlobScan(ctx *context.T, bf *blobFetcher,
 				// We do not have the blob locally, and this
 				// syncbase is a server in some syncgroup in
 				// which the blob has been seen.
-				bf.StartFetchingBlob(s.bst, blobRef, clientData, fetchFunc)
+				bf.StartFetchingBlob(s.bst, blobRef, clientData,
+					time.Now().Add(720*time.Hour /*a month*/), fetchFunc)
 			}
 		}
 		err = sps.Err()
@@ -310,8 +321,17 @@ func (s *syncService) serverBlobScan(ctx *context.T, bf *blobFetcher,
 	return err
 }
 
-// defaultBlobFetcherFunc() is a BlobFetcherFunc that fetches blob blobRef in the normal way.
-func defaultBlobFetcherFunc(ctx *context.T, blobRef wire.BlobRef, clientData interface{}) error {
+// SyncServiceBlobFetcher() returns a pointer to the blobFetcher associated with syncService *s,
+// created by a call to ServerBlobFetcher().  It may return nil if no such pointer exists.
+func (s *syncService) SyncServiceBlobFetcher() (bf *blobFetcher) {
+	s.blobFetcherMu.Lock()
+	bf = s.blobFetcher
+	s.blobFetcherMu.Unlock()
+	return bf
+}
+
+// DefaultBlobFetcherFunc() is a BlobFetcherFunc that fetches blob blobRef in the normal way.
+func DefaultBlobFetcherFunc(ctx *context.T, blobRef wire.BlobRef, clientData interface{}) error {
 	s := clientData.(*syncService)
 	return s.fetchBlobRemote(ctx, blobRef, nil, nil, 0)
 }
@@ -324,6 +344,9 @@ func defaultBlobFetcherFunc(ctx *context.T, blobRef wire.BlobRef, clientData int
 func ServerBlobFetcher(ctx *context.T, ssm interfaces.SyncServerMethods, done *sync.WaitGroup) {
 	bf := NewBlobFetcher(ctx, serverBlobFetchConcurrency)
 	ss := ssm.(*syncService)
+	ss.blobFetcherMu.Lock()
+	ss.blobFetcher = bf
+	ss.blobFetcherMu.Unlock()
 	var delay time.Duration = serverBlobFetchInitialScanDelay
 	errCount := 0 // state for limiting log records
 	for ctx.Err() == nil {
@@ -333,7 +356,7 @@ func ServerBlobFetcher(ctx *context.T, ssm interfaces.SyncServerMethods, done *s
 		}
 		startTime := time.Now()
 		if ctx.Err() == nil {
-			if err := ss.serverBlobScan(ctx, bf, ss, defaultBlobFetcherFunc); err != nil {
+			if err := ss.serverBlobScan(ctx, bf, ss, DefaultBlobFetcherFunc); err != nil {
 				if (errCount & (errCount - 1)) == 0 { // errCount is 0 or a power of 2.
 					vlog.Errorf("ServerBlobFetcher:%d: %v", errCount, err)
 				}
@@ -342,6 +365,9 @@ func ServerBlobFetcher(ctx *context.T, ssm interfaces.SyncServerMethods, done *s
 		}
 		delay = serverBlobFetchExtraScanDelay + serverBlobFetchScanDelayMultiplier*time.Since(startTime)
 	}
+	ss.blobFetcherMu.Lock()
+	ss.blobFetcher = nil
+	ss.blobFetcherMu.Unlock()
 	bf.WaitForExit()
 	if done != nil {
 		done.Done()

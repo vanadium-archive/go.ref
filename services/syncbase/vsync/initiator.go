@@ -310,8 +310,22 @@ func (s *syncService) getDeltas(ctxIn *context.T, c *initiationConfig, sg bool) 
 	}
 
 	if !iSt.sg {
+		var blobsToHandoff map[wire.BlobRef]interfaces.BlobSharesBySyncgroup
 		// TODO(m3b): It is unclear what to do if this call returns an error.  We would not wish the GetDeltas call to fail.
-		updateAllSyncgroupPriorities(ctx, s.bst, deltaFinalResp.SgPriorities)
+		blobsToHandoff, _ = updateAllSyncgroupPriorities(ctx, s.bst, deltaFinalResp.SgPriorities)
+		if len(blobsToHandoff) > 0 {
+			op := func(ctx *context.T, peer string) (interface{}, error) {
+				c := interfaces.SyncClient(peer)
+				return nil, c.RequestTakeBlobs(ctx, iSt.config.sync.name, blobsToHandoff,
+					options.ServerAuthorizer{iSt.config.auth},
+					options.ChannelTimeout(channelTimeout),
+					options.ConnectionTimeout(syncConnectionTimeout))
+			}
+			// Don't worry if the following call fails; it's a hint.
+			var runAtPeerCancel context.CancelFunc
+			c.peer, _, runAtPeerCancel, _ = runAtPeer(ctx, c.peer, op)
+			defer runAtPeerCancel()
+		}
 	}
 
 	vlog.VI(4).Infof("sync: getDeltas: got reply: %v", iSt.remote)
