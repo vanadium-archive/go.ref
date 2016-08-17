@@ -40,7 +40,7 @@ const structTmpl = `{{ .Doc }}///
     {{ .AccessModifier }} var hashValue: Int {
       var result = 1
       let prime = 31
-      {{ range $field := .Fields }}result = prime * result + Int({{$field.HashcodeComputation}})
+      {{ range $field := .Fields }}result = prime &* result &+ Int({{$field.HashcodeComputation}})
       {{ end }}
       return result
     }
