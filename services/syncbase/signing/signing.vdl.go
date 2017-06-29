@@ -39,8 +39,8 @@ type (
 		Interface() interface{}
 		// Name returns the field name.
 		Name() string
-		// __VDLReflect describes the Item union type.
-		__VDLReflect(__ItemReflect)
+		// VDLReflect describes the Item union type.
+		VDLReflect(__ItemReflect)
 		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
@@ -59,15 +59,15 @@ type (
 	}
 )
 
-func (x ItemData) Index() int                 { return 0 }
-func (x ItemData) Interface() interface{}     { return x.Value }
-func (x ItemData) Name() string               { return "Data" }
-func (x ItemData) __VDLReflect(__ItemReflect) {}
+func (x ItemData) Index() int               { return 0 }
+func (x ItemData) Interface() interface{}   { return x.Value }
+func (x ItemData) Name() string             { return "Data" }
+func (x ItemData) VDLReflect(__ItemReflect) {}
 
-func (x ItemHash) Index() int                 { return 1 }
-func (x ItemHash) Interface() interface{}     { return x.Value }
-func (x ItemHash) Name() string               { return "Hash" }
-func (x ItemHash) __VDLReflect(__ItemReflect) {}
+func (x ItemHash) Index() int               { return 1 }
+func (x ItemHash) Interface() interface{}   { return x.Value }
+func (x ItemHash) Name() string             { return "Hash" }
+func (x ItemHash) VDLReflect(__ItemReflect) {}
 
 func (x ItemData) VDLIsZero() bool {
 	return len(x.Value) == 0
@@ -185,7 +185,7 @@ type DataWithSignature struct {
 	ValidatorSigned   security.Signature
 }
 
-func (DataWithSignature) __VDLReflect(struct {
+func (DataWithSignature) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/signing.DataWithSignature"`
 }) {
 }
@@ -377,7 +377,7 @@ type WireValidatorData struct {
 	MarshalledPublicKey []byte   // PublicKey, marshalled with MarshalBinary().
 }
 
-func (WireValidatorData) __VDLReflect(struct {
+func (WireValidatorData) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/signing.WireValidatorData"`
 }) {
 }

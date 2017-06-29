@@ -31,7 +31,7 @@ type Instance struct {
 	Version       string
 }
 
-func (Instance) __VDLReflect(struct {
+func (Instance) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/allocator.Instance"`
 }) {
 }

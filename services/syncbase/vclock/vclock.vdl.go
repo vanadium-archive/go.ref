@@ -39,7 +39,7 @@ type VClockData struct {
 	NumHops uint16
 }
 
-func (VClockData) __VDLReflect(struct {
+func (VClockData) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vclock.VClockData"`
 }) {
 }

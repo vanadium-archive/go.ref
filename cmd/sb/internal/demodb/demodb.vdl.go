@@ -27,7 +27,7 @@ type AddressInfo struct {
 	Zip    string
 }
 
-func (AddressInfo) __VDLReflect(struct {
+func (AddressInfo) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.AddressInfo"`
 }) {
 }
@@ -169,7 +169,7 @@ func (x CreditAgency) String() string {
 	return ""
 }
 
-func (CreditAgency) __VDLReflect(struct {
+func (CreditAgency) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.CreditAgency"`
 	Enum struct{ Equifax, Experian, TransUnion string }
 }) {
@@ -239,7 +239,7 @@ func (x ExperianRating) String() string {
 	return ""
 }
 
-func (ExperianRating) __VDLReflect(struct {
+func (ExperianRating) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.ExperianRating"`
 	Enum struct{ Good, Bad string }
 }) {
@@ -272,7 +272,7 @@ type EquifaxCreditReport struct {
 	Rating byte
 }
 
-func (EquifaxCreditReport) __VDLReflect(struct {
+func (EquifaxCreditReport) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.EquifaxCreditReport"`
 }) {
 }
@@ -335,7 +335,7 @@ type ExperianCreditReport struct {
 	Rating ExperianRating
 }
 
-func (ExperianCreditReport) __VDLReflect(struct {
+func (ExperianCreditReport) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.ExperianCreditReport"`
 }) {
 }
@@ -400,7 +400,7 @@ type TransUnionCreditReport struct {
 	Rating int16
 }
 
-func (TransUnionCreditReport) __VDLReflect(struct {
+func (TransUnionCreditReport) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.TransUnionCreditReport"`
 }) {
 }
@@ -468,8 +468,8 @@ type (
 		Interface() interface{}
 		// Name returns the field name.
 		Name() string
-		// __VDLReflect describes the AgencyReport union type.
-		__VDLReflect(__AgencyReportReflect)
+		// VDLReflect describes the AgencyReport union type.
+		VDLReflect(__AgencyReportReflect)
 		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
@@ -491,20 +491,20 @@ type (
 	}
 )
 
-func (x AgencyReportEquifaxReport) Index() int                         { return 0 }
-func (x AgencyReportEquifaxReport) Interface() interface{}             { return x.Value }
-func (x AgencyReportEquifaxReport) Name() string                       { return "EquifaxReport" }
-func (x AgencyReportEquifaxReport) __VDLReflect(__AgencyReportReflect) {}
+func (x AgencyReportEquifaxReport) Index() int                       { return 0 }
+func (x AgencyReportEquifaxReport) Interface() interface{}           { return x.Value }
+func (x AgencyReportEquifaxReport) Name() string                     { return "EquifaxReport" }
+func (x AgencyReportEquifaxReport) VDLReflect(__AgencyReportReflect) {}
 
-func (x AgencyReportExperianReport) Index() int                         { return 1 }
-func (x AgencyReportExperianReport) Interface() interface{}             { return x.Value }
-func (x AgencyReportExperianReport) Name() string                       { return "ExperianReport" }
-func (x AgencyReportExperianReport) __VDLReflect(__AgencyReportReflect) {}
+func (x AgencyReportExperianReport) Index() int                       { return 1 }
+func (x AgencyReportExperianReport) Interface() interface{}           { return x.Value }
+func (x AgencyReportExperianReport) Name() string                     { return "ExperianReport" }
+func (x AgencyReportExperianReport) VDLReflect(__AgencyReportReflect) {}
 
-func (x AgencyReportTransUnionReport) Index() int                         { return 2 }
-func (x AgencyReportTransUnionReport) Interface() interface{}             { return x.Value }
-func (x AgencyReportTransUnionReport) Name() string                       { return "TransUnionReport" }
-func (x AgencyReportTransUnionReport) __VDLReflect(__AgencyReportReflect) {}
+func (x AgencyReportTransUnionReport) Index() int                       { return 2 }
+func (x AgencyReportTransUnionReport) Interface() interface{}           { return x.Value }
+func (x AgencyReportTransUnionReport) Name() string                     { return "TransUnionReport" }
+func (x AgencyReportTransUnionReport) VDLReflect(__AgencyReportReflect) {}
 
 func (x AgencyReportEquifaxReport) VDLIsZero() bool {
 	return x.Value == EquifaxCreditReport{}
@@ -619,7 +619,7 @@ type CreditReport struct {
 	Report AgencyReport
 }
 
-func (CreditReport) __VDLReflect(struct {
+func (CreditReport) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.CreditReport"`
 }) {
 }
@@ -708,7 +708,7 @@ type Customer struct {
 	Credit  CreditReport
 }
 
-func (Customer) __VDLReflect(struct {
+func (Customer) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Customer"`
 }) {
 }
@@ -841,7 +841,7 @@ type Invoice struct {
 	ShipTo     AddressInfo
 }
 
-func (Invoice) __VDLReflect(struct {
+func (Invoice) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Invoice"`
 }) {
 }
@@ -948,7 +948,7 @@ type Numbers struct {
 	F64  float64
 }
 
-func (Numbers) __VDLReflect(struct {
+func (Numbers) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Numbers"`
 }) {
 }
@@ -1112,8 +1112,8 @@ type (
 		Interface() interface{}
 		// Name returns the field name.
 		Name() string
-		// __VDLReflect describes the TitleOrValueType union type.
-		__VDLReflect(__TitleOrValueTypeReflect)
+		// VDLReflect describes the TitleOrValueType union type.
+		VDLReflect(__TitleOrValueTypeReflect)
 		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
@@ -1132,15 +1132,15 @@ type (
 	}
 )
 
-func (x TitleOrValueTypeTitle) Index() int                             { return 0 }
-func (x TitleOrValueTypeTitle) Interface() interface{}                 { return x.Value }
-func (x TitleOrValueTypeTitle) Name() string                           { return "Title" }
-func (x TitleOrValueTypeTitle) __VDLReflect(__TitleOrValueTypeReflect) {}
+func (x TitleOrValueTypeTitle) Index() int                           { return 0 }
+func (x TitleOrValueTypeTitle) Interface() interface{}               { return x.Value }
+func (x TitleOrValueTypeTitle) Name() string                         { return "Title" }
+func (x TitleOrValueTypeTitle) VDLReflect(__TitleOrValueTypeReflect) {}
 
-func (x TitleOrValueTypeValue) Index() int                             { return 1 }
-func (x TitleOrValueTypeValue) Interface() interface{}                 { return x.Value }
-func (x TitleOrValueTypeValue) Name() string                           { return "Value" }
-func (x TitleOrValueTypeValue) __VDLReflect(__TitleOrValueTypeReflect) {}
+func (x TitleOrValueTypeValue) Index() int                           { return 1 }
+func (x TitleOrValueTypeValue) Interface() interface{}               { return x.Value }
+func (x TitleOrValueTypeValue) Name() string                         { return "Value" }
+func (x TitleOrValueTypeValue) VDLReflect(__TitleOrValueTypeReflect) {}
 
 func (x TitleOrValueTypeTitle) VDLIsZero() bool {
 	return x.Value == ""
@@ -1229,7 +1229,7 @@ type BazType struct {
 	TitleOrValue TitleOrValueType
 }
 
-func (BazType) __VDLReflect(struct {
+func (BazType) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.BazType"`
 }) {
 }
@@ -1312,7 +1312,7 @@ type BarType struct {
 	Baz BazType
 }
 
-func (BarType) __VDLReflect(struct {
+func (BarType) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.BarType"`
 }) {
 }
@@ -1382,7 +1382,7 @@ type FooType struct {
 	Bar BarType
 }
 
-func (FooType) __VDLReflect(struct {
+func (FooType) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.FooType"`
 }) {
 }
@@ -1452,7 +1452,7 @@ func (x *FooType) VDLRead(dec vdl.Decoder) error {
 
 type Array2String [2]string
 
-func (Array2String) __VDLReflect(struct {
+func (Array2String) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Array2String"`
 }) {
 }
@@ -1506,7 +1506,7 @@ type Composite struct {
 	Map     map[string]int32
 }
 
-func (Composite) __VDLReflect(struct {
+func (Composite) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Composite"`
 }) {
 }
@@ -1751,7 +1751,7 @@ type Times struct {
 	Interval time.Duration
 }
 
-func (Times) __VDLReflect(struct {
+func (Times) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Times"`
 }) {
 }
@@ -1850,7 +1850,7 @@ type Recursive struct {
 	Rec   map[Array2String]Recursive
 }
 
-func (Recursive) __VDLReflect(struct {
+func (Recursive) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Recursive"`
 }) {
 }
@@ -2023,8 +2023,8 @@ type (
 		Interface() interface{}
 		// Name returns the field name.
 		Name() string
-		// __VDLReflect describes the ActOrSatScore union type.
-		__VDLReflect(__ActOrSatScoreReflect)
+		// VDLReflect describes the ActOrSatScore union type.
+		VDLReflect(__ActOrSatScoreReflect)
 		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
@@ -2043,15 +2043,15 @@ type (
 	}
 )
 
-func (x ActOrSatScoreActScore) Index() int                          { return 0 }
-func (x ActOrSatScoreActScore) Interface() interface{}              { return x.Value }
-func (x ActOrSatScoreActScore) Name() string                        { return "ActScore" }
-func (x ActOrSatScoreActScore) __VDLReflect(__ActOrSatScoreReflect) {}
+func (x ActOrSatScoreActScore) Index() int                        { return 0 }
+func (x ActOrSatScoreActScore) Interface() interface{}            { return x.Value }
+func (x ActOrSatScoreActScore) Name() string                      { return "ActScore" }
+func (x ActOrSatScoreActScore) VDLReflect(__ActOrSatScoreReflect) {}
 
-func (x ActOrSatScoreSatScore) Index() int                          { return 1 }
-func (x ActOrSatScoreSatScore) Interface() interface{}              { return x.Value }
-func (x ActOrSatScoreSatScore) Name() string                        { return "SatScore" }
-func (x ActOrSatScoreSatScore) __VDLReflect(__ActOrSatScoreReflect) {}
+func (x ActOrSatScoreSatScore) Index() int                        { return 1 }
+func (x ActOrSatScoreSatScore) Interface() interface{}            { return x.Value }
+func (x ActOrSatScoreSatScore) Name() string                      { return "SatScore" }
+func (x ActOrSatScoreSatScore) VDLReflect(__ActOrSatScoreReflect) {}
 
 func (x ActOrSatScoreActScore) VDLIsZero() bool {
 	return x.Value == 0
@@ -2141,7 +2141,7 @@ type Student struct {
 	Score    ActOrSatScore
 }
 
-func (Student) __VDLReflect(struct {
+func (Student) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.Student"`
 }) {
 }
@@ -2248,7 +2248,7 @@ type AnythingGoes struct {
 	Anything   *vom.RawBytes
 }
 
-func (AnythingGoes) __VDLReflect(struct {
+func (AnythingGoes) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/cmd/sb/internal/demodb.AnythingGoes"`
 }) {
 }
