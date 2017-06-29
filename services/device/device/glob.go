@@ -318,7 +318,7 @@ type genericStateFlag struct {
 
 // genericState interface is meant to abstract device.InstanceState and
 // device.InstallationState.  We only make use of the String method, but we
-// could also add Set and __VDLReflect to the method set to constrain the types
+// could also add Set and VDLReflect to the method set to constrain the types
 // that can be used.  Ultimately, however, the state constructor passed into
 // genericStateFlag.fromString is the gatekeeper as to what can be allowed in
 // the genericStateFlag set.

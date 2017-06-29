@@ -31,7 +31,7 @@ type BlobMetadata struct {
 	Accessed    time.Time                        // Last attempted access.
 }
 
-func (BlobMetadata) __VDLReflect(struct {
+func (BlobMetadata) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/localblobstore.BlobMetadata"`
 }) {
 }
@@ -146,7 +146,7 @@ type PerSyncgroup struct {
 	Priority interfaces.SgPriority
 }
 
-func (PerSyncgroup) __VDLReflect(struct {
+func (PerSyncgroup) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/localblobstore.PerSyncgroup"`
 }) {
 }

@@ -32,7 +32,7 @@ var _ = __VDLInit() // Must be first; see __VDLInit comments for details.
 // device id to its last locally known generation in the scope of that entity.
 type GenVector map[uint64]uint64
 
-func (GenVector) __VDLReflect(struct {
+func (GenVector) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.GenVector"`
 }) {
 }
@@ -98,7 +98,7 @@ func (x *GenVector) VDLRead(dec vdl.Decoder) error {
 // Database id, or syncgroup oids.
 type Knowledge map[string]GenVector
 
-func (Knowledge) __VDLReflect(struct {
+func (Knowledge) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.Knowledge"`
 }) {
 }
@@ -179,7 +179,7 @@ type LogRecMetadata struct {
 	BatchCount uint64    // number of objects in the Batch.
 }
 
-func (LogRecMetadata) __VDLReflect(struct {
+func (LogRecMetadata) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.LogRecMetadata"`
 }) {
 }
@@ -430,7 +430,7 @@ type LogRec struct {
 	Value    *vom.RawBytes
 }
 
-func (LogRec) __VDLReflect(struct {
+func (LogRec) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.LogRec"`
 }) {
 }
@@ -514,7 +514,7 @@ func (x *LogRec) VDLRead(dec vdl.Decoder) error {
 // It is a hash of the syncgroup name.
 type GroupId string
 
-func (GroupId) __VDLReflect(struct {
+func (GroupId) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.GroupId"`
 }) {
 }
@@ -588,7 +588,7 @@ func (x SyncgroupStatus) String() string {
 	return ""
 }
 
-func (SyncgroupStatus) __VDLReflect(struct {
+func (SyncgroupStatus) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.SyncgroupStatus"`
 	Enum struct{ PublishPending, PublishRejected, Running string }
 }) {
@@ -632,7 +632,7 @@ type SyncgroupMemberState struct {
 	MemberInfo syncbase.SyncgroupMemberInfo
 }
 
-func (SyncgroupMemberState) __VDLReflect(struct {
+func (SyncgroupMemberState) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.SyncgroupMemberState"`
 }) {
 }
@@ -726,7 +726,7 @@ type Syncgroup struct {
 	Joiners     map[string]SyncgroupMemberState // map of joiners to their metadata
 }
 
-func (Syncgroup) __VDLReflect(struct {
+func (Syncgroup) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.Syncgroup"`
 }) {
 }
@@ -940,7 +940,7 @@ func __VDLReadAnon_map_2(dec vdl.Decoder, x *map[string]SyncgroupMemberState) er
 // local-only metadata is acceptable only if optional (e.g. stats).
 type CollectionPerms access.Permissions
 
-func (CollectionPerms) __VDLReflect(struct {
+func (CollectionPerms) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.CollectionPerms"`
 }) {
 }
@@ -1005,7 +1005,7 @@ type SgDeltaReq struct {
 	Gvs  Knowledge // Contains a genvector per syncgroup.
 }
 
-func (SgDeltaReq) __VDLReflect(struct {
+func (SgDeltaReq) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.SgDeltaReq"`
 }) {
 }
@@ -1090,7 +1090,7 @@ type DataDeltaReq struct {
 	Gvs   Knowledge
 }
 
-func (DataDeltaReq) __VDLReflect(struct {
+func (DataDeltaReq) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.DataDeltaReq"`
 }) {
 }
@@ -1236,8 +1236,8 @@ type (
 		Interface() interface{}
 		// Name returns the field name.
 		Name() string
-		// __VDLReflect describes the DeltaReq union type.
-		__VDLReflect(__DeltaReqReflect)
+		// VDLReflect describes the DeltaReq union type.
+		VDLReflect(__DeltaReqReflect)
 		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
@@ -1256,15 +1256,15 @@ type (
 	}
 )
 
-func (x DeltaReqSgs) Index() int                     { return 0 }
-func (x DeltaReqSgs) Interface() interface{}         { return x.Value }
-func (x DeltaReqSgs) Name() string                   { return "Sgs" }
-func (x DeltaReqSgs) __VDLReflect(__DeltaReqReflect) {}
+func (x DeltaReqSgs) Index() int                   { return 0 }
+func (x DeltaReqSgs) Interface() interface{}       { return x.Value }
+func (x DeltaReqSgs) Name() string                 { return "Sgs" }
+func (x DeltaReqSgs) VDLReflect(__DeltaReqReflect) {}
 
-func (x DeltaReqData) Index() int                     { return 1 }
-func (x DeltaReqData) Interface() interface{}         { return x.Value }
-func (x DeltaReqData) Name() string                   { return "Data" }
-func (x DeltaReqData) __VDLReflect(__DeltaReqReflect) {}
+func (x DeltaReqData) Index() int                   { return 1 }
+func (x DeltaReqData) Interface() interface{}       { return x.Value }
+func (x DeltaReqData) Name() string                 { return "Data" }
+func (x DeltaReqData) VDLReflect(__DeltaReqReflect) {}
 
 func (x DeltaReqSgs) VDLIsZero() bool {
 	return x.Value.VDLIsZero()
@@ -1360,8 +1360,8 @@ type (
 		Interface() interface{}
 		// Name returns the field name.
 		Name() string
-		// __VDLReflect describes the DeltaResp union type.
-		__VDLReflect(__DeltaRespReflect)
+		// VDLReflect describes the DeltaResp union type.
+		VDLReflect(__DeltaRespReflect)
 		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
@@ -1380,15 +1380,15 @@ type (
 	}
 )
 
-func (x DeltaRespRec) Index() int                      { return 0 }
-func (x DeltaRespRec) Interface() interface{}          { return x.Value }
-func (x DeltaRespRec) Name() string                    { return "Rec" }
-func (x DeltaRespRec) __VDLReflect(__DeltaRespReflect) {}
+func (x DeltaRespRec) Index() int                    { return 0 }
+func (x DeltaRespRec) Interface() interface{}        { return x.Value }
+func (x DeltaRespRec) Name() string                  { return "Rec" }
+func (x DeltaRespRec) VDLReflect(__DeltaRespReflect) {}
 
-func (x DeltaRespGvs) Index() int                      { return 1 }
-func (x DeltaRespGvs) Interface() interface{}          { return x.Value }
-func (x DeltaRespGvs) Name() string                    { return "Gvs" }
-func (x DeltaRespGvs) __VDLReflect(__DeltaRespReflect) {}
+func (x DeltaRespGvs) Index() int                    { return 1 }
+func (x DeltaRespGvs) Interface() interface{}        { return x.Value }
+func (x DeltaRespGvs) Name() string                  { return "Gvs" }
+func (x DeltaRespGvs) VDLReflect(__DeltaRespReflect) {}
 
 func (x DeltaRespRec) VDLIsZero() bool {
 	return x.Value.VDLIsZero()
@@ -1480,7 +1480,7 @@ type SgPriority struct {
 	ServerTime time.Time // when data from a server-quality member reached this device
 }
 
-func (SgPriority) __VDLReflect(struct {
+func (SgPriority) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.SgPriority"`
 }) {
 }
@@ -1585,7 +1585,7 @@ func (x *SgPriority) VDLRead(dec vdl.Decoder) error {
 // higher priorities for keeping blobs.
 type SgPriorities map[GroupId]SgPriority
 
-func (SgPriorities) __VDLReflect(struct {
+func (SgPriorities) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.SgPriorities"`
 }) {
 }
@@ -1648,7 +1648,7 @@ type DeltaFinalResp struct {
 	SgPriorities SgPriorities
 }
 
-func (DeltaFinalResp) __VDLReflect(struct {
+func (DeltaFinalResp) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.DeltaFinalResp"`
 }) {
 }
@@ -1715,7 +1715,7 @@ type ChunkHash struct {
 	Hash []byte
 }
 
-func (ChunkHash) __VDLReflect(struct {
+func (ChunkHash) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.ChunkHash"`
 }) {
 }
@@ -1779,7 +1779,7 @@ type ChunkData struct {
 	Data []byte
 }
 
-func (ChunkData) __VDLReflect(struct {
+func (ChunkData) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.ChunkData"`
 }) {
 }
@@ -1843,7 +1843,7 @@ type TimeReq struct {
 	SendTs time.Time
 }
 
-func (TimeReq) __VDLReflect(struct {
+func (TimeReq) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.TimeReq"`
 }) {
 }
@@ -1930,7 +1930,7 @@ type TimeResp struct {
 	NumHops uint16
 }
 
-func (TimeResp) __VDLReflect(struct {
+func (TimeResp) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.TimeResp"`
 }) {
 }
@@ -2103,7 +2103,7 @@ func (x *TimeResp) VDLRead(dec vdl.Decoder) error {
 // syncbase instance may have for a blob.
 type BlobSharesBySyncgroup map[GroupId]int32
 
-func (BlobSharesBySyncgroup) __VDLReflect(struct {
+func (BlobSharesBySyncgroup) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.BlobSharesBySyncgroup"`
 }) {
 }
@@ -2172,7 +2172,7 @@ type LocationData struct {
 	IsServer bool      // whether the location is a server that may be revealed outside its syncgroup
 }
 
-func (LocationData) __VDLReflect(struct {
+func (LocationData) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.LocationData"`
 }) {
 }
@@ -2275,7 +2275,7 @@ func (x *LocationData) VDLRead(dec vdl.Decoder) error {
 // A PeerToLocationDataMap is a map from syncbase peer names to LocationData structures.
 type PeerToLocationDataMap map[string]LocationData
 
-func (PeerToLocationDataMap) __VDLReflect(struct {
+func (PeerToLocationDataMap) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.PeerToLocationDataMap"`
 }) {
 }
@@ -2342,7 +2342,7 @@ type Signpost struct {
 	FetchAttempts uint32                // Number of attempts made to fetch the blob.
 }
 
-func (Signpost) __VDLReflect(struct {
+func (Signpost) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server/interfaces.Signpost"`
 }) {
 }

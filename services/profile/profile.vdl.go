@@ -28,7 +28,7 @@ type Library struct {
 	MinorVersion string
 }
 
-func (Library) __VDLReflect(struct {
+func (Library) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/profile.Library"`
 }) {
 }
@@ -129,7 +129,7 @@ type Specification struct {
 	Libraries map[Library]struct{}
 }
 
-func (Specification) __VDLReflect(struct {
+func (Specification) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/profile.Specification"`
 }) {
 }

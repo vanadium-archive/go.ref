@@ -24,7 +24,7 @@ type BlobInfo struct {
 	Br   syncbase.BlobRef
 }
 
-func (BlobInfo) __VDLReflect(struct {
+func (BlobInfo) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync/testdata.BlobInfo"`
 }) {
 }
@@ -104,8 +104,8 @@ type (
 		Interface() interface{}
 		// Name returns the field name.
 		Name() string
-		// __VDLReflect describes the BlobUnion union type.
-		__VDLReflect(__BlobUnionReflect)
+		// VDLReflect describes the BlobUnion union type.
+		VDLReflect(__BlobUnionReflect)
 		VDLIsZero() bool
 		VDLWrite(vdl.Encoder) error
 	}
@@ -124,15 +124,15 @@ type (
 	}
 )
 
-func (x BlobUnionNum) Index() int                      { return 0 }
-func (x BlobUnionNum) Interface() interface{}          { return x.Value }
-func (x BlobUnionNum) Name() string                    { return "Num" }
-func (x BlobUnionNum) __VDLReflect(__BlobUnionReflect) {}
+func (x BlobUnionNum) Index() int                    { return 0 }
+func (x BlobUnionNum) Interface() interface{}        { return x.Value }
+func (x BlobUnionNum) Name() string                  { return "Num" }
+func (x BlobUnionNum) VDLReflect(__BlobUnionReflect) {}
 
-func (x BlobUnionBi) Index() int                      { return 1 }
-func (x BlobUnionBi) Interface() interface{}          { return x.Value }
-func (x BlobUnionBi) Name() string                    { return "Bi" }
-func (x BlobUnionBi) __VDLReflect(__BlobUnionReflect) {}
+func (x BlobUnionBi) Index() int                    { return 1 }
+func (x BlobUnionBi) Interface() interface{}        { return x.Value }
+func (x BlobUnionBi) Name() string                  { return "Bi" }
+func (x BlobUnionBi) VDLReflect(__BlobUnionReflect) {}
 
 func (x BlobUnionNum) VDLIsZero() bool {
 	return x.Value == 0
@@ -221,7 +221,7 @@ type BlobSet struct {
 	Bs   map[syncbase.BlobRef]struct{}
 }
 
-func (BlobSet) __VDLReflect(struct {
+func (BlobSet) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync/testdata.BlobSet"`
 }) {
 }
@@ -345,7 +345,7 @@ type BlobAny struct {
 	Baa  []*vom.RawBytes
 }
 
-func (BlobAny) __VDLReflect(struct {
+func (BlobAny) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync/testdata.BlobAny"`
 }) {
 }
@@ -480,7 +480,7 @@ type NonBlobSet struct {
 	S    map[string]struct{}
 }
 
-func (NonBlobSet) __VDLReflect(struct {
+func (NonBlobSet) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync/testdata.NonBlobSet"`
 }) {
 }
@@ -604,7 +604,7 @@ type BlobOpt struct {
 	Bo   *BlobInfo
 }
 
-func (BlobOpt) __VDLReflect(struct {
+func (BlobOpt) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync/testdata.BlobOpt"`
 }) {
 }

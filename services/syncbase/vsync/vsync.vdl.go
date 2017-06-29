@@ -22,7 +22,7 @@ type SyncData struct {
 	Id uint64
 }
 
-func (SyncData) __VDLReflect(struct {
+func (SyncData) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.SyncData"`
 }) {
 }
@@ -88,7 +88,7 @@ type DbSyncState struct {
 	IsPaused  bool                 // tracks whether sync is paused by client.
 }
 
-func (DbSyncState) __VDLReflect(struct {
+func (DbSyncState) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.DbSyncState"`
 }) {
 }
@@ -187,7 +187,7 @@ type LocalLogRec struct {
 	Pos      uint64 // position in the Database log.
 }
 
-func (LocalLogRec) __VDLReflect(struct {
+func (LocalLogRec) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.LocalLogRec"`
 }) {
 }
@@ -302,7 +302,7 @@ type SgLocalState struct {
 	PendingGenVec interfaces.GenVector
 }
 
-func (SgLocalState) __VDLReflect(struct {
+func (SgLocalState) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.SgLocalState"`
 }) {
 }
@@ -438,7 +438,7 @@ type DagNode struct {
 	PermVers string   // current version of the permissions object
 }
 
-func (DagNode) __VDLReflect(struct {
+func (DagNode) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.DagNode"`
 }) {
 }
@@ -646,7 +646,7 @@ type BatchInfo struct {
 	Count         uint64
 }
 
-func (BatchInfo) __VDLReflect(struct {
+func (BatchInfo) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/vsync.BatchInfo"`
 }) {
 }

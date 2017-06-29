@@ -22,7 +22,7 @@ type GetOp struct {
 	Key []byte
 }
 
-func (GetOp) __VDLReflect(struct {
+func (GetOp) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/store/watchable.GetOp"`
 }) {
 }
@@ -87,7 +87,7 @@ type ScanOp struct {
 	Limit []byte
 }
 
-func (ScanOp) __VDLReflect(struct {
+func (ScanOp) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/store/watchable.ScanOp"`
 }) {
 }
@@ -166,7 +166,7 @@ type PutOp struct {
 	Version []byte
 }
 
-func (PutOp) __VDLReflect(struct {
+func (PutOp) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/store/watchable.PutOp"`
 }) {
 }
@@ -242,7 +242,7 @@ type DeleteOp struct {
 	Key []byte
 }
 
-func (DeleteOp) __VDLReflect(struct {
+func (DeleteOp) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/store/watchable.DeleteOp"`
 }) {
 }
@@ -320,7 +320,7 @@ type LogEntry struct {
 	Continued bool
 }
 
-func (LogEntry) __VDLReflect(struct {
+func (LogEntry) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/store/watchable.LogEntry"`
 }) {
 }

@@ -28,7 +28,7 @@ type SyncgroupOp struct {
 	Remove   bool
 }
 
-func (SyncgroupOp) __VDLReflect(struct {
+func (SyncgroupOp) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/watchable.SyncgroupOp"`
 }) {
 }
@@ -171,7 +171,7 @@ type SyncSnapshotOp struct {
 	Version []byte
 }
 
-func (SyncSnapshotOp) __VDLReflect(struct {
+func (SyncSnapshotOp) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/watchable.SyncSnapshotOp"`
 }) {
 }
@@ -284,7 +284,7 @@ func (x StateChange) String() string {
 	return ""
 }
 
-func (StateChange) __VDLReflect(struct {
+func (StateChange) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/watchable.StateChange"`
 	Enum struct{ PauseSync, ResumeSync string }
 }) {
@@ -322,7 +322,7 @@ type DbStateChangeRequestOp struct {
 	RequestType StateChange
 }
 
-func (DbStateChangeRequestOp) __VDLReflect(struct {
+func (DbStateChangeRequestOp) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/watchable.DbStateChangeRequestOp"`
 }) {
 }

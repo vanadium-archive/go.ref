@@ -24,7 +24,7 @@ type ServiceData struct {
 	Perms   access.Permissions
 }
 
-func (ServiceData) __VDLReflect(struct {
+func (ServiceData) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server.ServiceData"`
 }) {
 }
@@ -111,7 +111,7 @@ type DbInfo struct {
 	Engine  string // name of storage engine, e.g. "leveldb"
 }
 
-func (DbInfo) __VDLReflect(struct {
+func (DbInfo) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server.DbInfo"`
 }) {
 }
@@ -203,7 +203,7 @@ type DatabaseData struct {
 	SchemaMetadata *syncbase.SchemaMetadata
 }
 
-func (DatabaseData) __VDLReflect(struct {
+func (DatabaseData) VDLReflect(struct {
 	Name string `vdl:"v.io/x/ref/services/syncbase/server.DatabaseData"`
 }) {
 }
